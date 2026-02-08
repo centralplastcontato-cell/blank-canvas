@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { ClipboardList, Users, Shield, Loader2, Crown, Building2, MapPin } from "lucide-react";
+import { ClipboardList, Users, Shield, Loader2, Crown, Building2, MapPin, MessageCircle, Settings, BarChart3, Briefcase } from "lucide-react";
 
 interface PermissionsPanelProps {
   targetUserId: string;
@@ -21,6 +21,10 @@ const categoryIcons: Record<string, React.ElementType> = {
   Leads: ClipboardList,
   Usuários: Users,
   Sistema: Shield,
+  WhatsApp: MessageCircle,
+  Configurações: Settings,
+  Dashboard: BarChart3,
+  B2B: Briefcase,
 };
 
 // Permission presets
@@ -30,6 +34,7 @@ const PERMISSION_PRESETS = {
     icon: Crown,
     description: "Acesso total ao sistema",
     permissions: {
+      // Leads
       'leads.view': true,
       'leads.edit': true,
       'leads.edit.name': true,
@@ -40,10 +45,35 @@ const PERMISSION_PRESETS = {
       'leads.unit.all': true,
       'leads.unit.manchester': true,
       'leads.unit.trujillo': true,
+      // Usuários
       'users.view': true,
       'users.manage': true,
+      // Sistema
       'permissions.manage': true,
       'b2b.view': true,
+      // WhatsApp
+      'whatsapp.view': true,
+      'whatsapp.send': true,
+      'whatsapp.materials': true,
+      'whatsapp.audio': true,
+      'whatsapp.close': true,
+      'whatsapp.favorite': true,
+      'whatsapp.bot.toggle': true,
+      'whatsapp.share.group': true,
+      // Configurações
+      'config.view': true,
+      'config.bot': true,
+      'config.templates': true,
+      'config.materials': true,
+      'config.vip': true,
+      'config.connection': true,
+      // Dashboard
+      'dashboard.view': true,
+      'dashboard.metrics': true,
+      // B2B
+      'b2b.proposals.create': true,
+      'b2b.proposals.edit': true,
+      'b2b.leads.manage': true,
     },
   },
   comercialManchester: {
@@ -51,19 +81,46 @@ const PERMISSION_PRESETS = {
     icon: Building2,
     description: "Acesso comercial à unidade Manchester",
     permissions: {
+      // Leads
       'leads.view': true,
       'leads.edit': true,
       'leads.edit.name': false,
-      'leads.edit.description': false,
+      'leads.edit.description': true,
       'leads.delete': false,
       'leads.export': true,
       'leads.assign': false,
       'leads.unit.all': false,
       'leads.unit.manchester': true,
       'leads.unit.trujillo': false,
+      // Usuários
       'users.view': false,
       'users.manage': false,
+      // Sistema
       'permissions.manage': false,
+      'b2b.view': false,
+      // WhatsApp
+      'whatsapp.view': true,
+      'whatsapp.send': true,
+      'whatsapp.materials': true,
+      'whatsapp.audio': true,
+      'whatsapp.close': true,
+      'whatsapp.favorite': true,
+      'whatsapp.bot.toggle': false,
+      'whatsapp.share.group': true,
+      // Configurações
+      'config.view': false,
+      'config.bot': false,
+      'config.templates': false,
+      'config.materials': false,
+      'config.vip': false,
+      'config.connection': false,
+      // Dashboard
+      'dashboard.view': true,
+      'dashboard.metrics': false,
+      // B2B
+      'b2b.proposals.create': false,
+      'b2b.proposals.edit': false,
+      'b2b.leads.manage': false,
     },
   },
   comercialTrujillo: {
@@ -71,19 +128,46 @@ const PERMISSION_PRESETS = {
     icon: MapPin,
     description: "Acesso comercial à unidade Trujillo",
     permissions: {
+      // Leads
       'leads.view': true,
       'leads.edit': true,
       'leads.edit.name': false,
-      'leads.edit.description': false,
+      'leads.edit.description': true,
       'leads.delete': false,
       'leads.export': true,
       'leads.assign': false,
       'leads.unit.all': false,
       'leads.unit.manchester': false,
       'leads.unit.trujillo': true,
+      // Usuários
       'users.view': false,
       'users.manage': false,
+      // Sistema
       'permissions.manage': false,
+      'b2b.view': false,
+      // WhatsApp
+      'whatsapp.view': true,
+      'whatsapp.send': true,
+      'whatsapp.materials': true,
+      'whatsapp.audio': true,
+      'whatsapp.close': true,
+      'whatsapp.favorite': true,
+      'whatsapp.bot.toggle': false,
+      'whatsapp.share.group': true,
+      // Configurações
+      'config.view': false,
+      'config.bot': false,
+      'config.templates': false,
+      'config.materials': false,
+      'config.vip': false,
+      'config.connection': false,
+      // Dashboard
+      'dashboard.view': true,
+      'dashboard.metrics': false,
+      // B2B
+      'b2b.proposals.create': false,
+      'b2b.proposals.edit': false,
+      'b2b.leads.manage': false,
     },
   },
 };
