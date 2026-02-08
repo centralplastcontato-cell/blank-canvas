@@ -385,12 +385,52 @@ Deno.serve(async (req) => {
       case 'get-status': {
         try {
           // Strategy: Try multiple endpoints in order of reliability
-          // 1. /instance/info - usually available on all plans
-          // 2. /instance/connection-state - more detailed but may 404
-          // 3. /instance/profile - connected if returns profile
-          // 4. /instance/qr-code - fallback, connected if no qrcode returned
+          // W-API Lite instances may not support all endpoints
+          // Priority order:
+          // 1. /instance/status - simple status check
+          // 2. /instance/info - usually available on all plans
+          // 3. /instance/connection-state - more detailed but may 404
+          // 4. /instance/profile - connected if returns profile
+          // 5. /instance/qr-code - fallback, connected if no qrcode returned
+
+          // Try simple status endpoint first (may work on Lite plans)
+          const statusRes = await fetch(`${WAPI_BASE_URL}/instance/status?instanceId=${instance_id}`, {
+            headers: { 'Authorization': `Bearer ${instance_token}` },
+          });
           
-          // Try instance info endpoint first (most reliable across all plans)
+          console.log('get-status status response:', statusRes.status);
+          
+          if (statusRes.ok) {
+            const ct = statusRes.headers.get('content-type');
+            if (ct?.includes('application/json')) {
+              const statusData = await statusRes.json();
+              console.log('get-status status data:', JSON.stringify(statusData));
+              
+              // Check various connection indicators
+              const isConnected = statusData.state === 'open' || 
+                                  statusData.state === 'connected' ||
+                                  statusData.status === 'open' ||
+                                  statusData.status === 'connected' ||
+                                  statusData.connected === true ||
+                                  statusData.loggedIn === true;
+              
+              if (isConnected) {
+                const phoneNumber = statusData.me?.id?.split('@')[0] || 
+                                   statusData.phoneNumber || 
+                                   statusData.phone ||
+                                   null;
+                return new Response(JSON.stringify({ 
+                  status: 'connected',
+                  phoneNumber,
+                  connected: true,
+                }), {
+                  status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                });
+              }
+            }
+          }
+          
+          // Try instance info endpoint (most reliable across all plans)
           const infoRes = await fetch(`${WAPI_BASE_URL}/instance/info?instanceId=${instance_id}`, {
             headers: { 'Authorization': `Bearer ${instance_token}` },
           });
