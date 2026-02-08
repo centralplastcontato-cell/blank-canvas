@@ -14,7 +14,838 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      b2b_leads: {
+        Row: {
+          city: string | null
+          company_name: string
+          contact_name: string
+          created_at: string
+          current_tools: string | null
+          email: string
+          how_found_us: string | null
+          id: string
+          main_challenges: string | null
+          monthly_parties: number | null
+          notes: string | null
+          phone: string | null
+          state: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          city?: string | null
+          company_name: string
+          contact_name: string
+          created_at?: string
+          current_tools?: string | null
+          email: string
+          how_found_us?: string | null
+          id?: string
+          main_challenges?: string | null
+          monthly_parties?: number | null
+          notes?: string | null
+          phone?: string | null
+          state?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          city?: string | null
+          company_name?: string
+          contact_name?: string
+          created_at?: string
+          current_tools?: string | null
+          email?: string
+          how_found_us?: string | null
+          id?: string
+          main_challenges?: string | null
+          monthly_parties?: number | null
+          notes?: string | null
+          phone?: string | null
+          state?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      campaign_leads: {
+        Row: {
+          campaign_id: string
+          campaign_name: string | null
+          created_at: string
+          day_of_month: number | null
+          day_preference: string | null
+          guests: string | null
+          id: string
+          month: string | null
+          name: string
+          observacoes: string | null
+          responsavel_id: string | null
+          status: Database["public"]["Enums"]["lead_status"]
+          unit: string | null
+          whatsapp: string
+        }
+        Insert: {
+          campaign_id: string
+          campaign_name?: string | null
+          created_at?: string
+          day_of_month?: number | null
+          day_preference?: string | null
+          guests?: string | null
+          id?: string
+          month?: string | null
+          name: string
+          observacoes?: string | null
+          responsavel_id?: string | null
+          status?: Database["public"]["Enums"]["lead_status"]
+          unit?: string | null
+          whatsapp: string
+        }
+        Update: {
+          campaign_id?: string
+          campaign_name?: string | null
+          created_at?: string
+          day_of_month?: number | null
+          day_preference?: string | null
+          guests?: string | null
+          id?: string
+          month?: string | null
+          name?: string
+          observacoes?: string | null
+          responsavel_id?: string | null
+          status?: Database["public"]["Enums"]["lead_status"]
+          unit?: string | null
+          whatsapp?: string
+        }
+        Relationships: []
+      }
+      lead_history: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          lead_id: string
+          new_value: string | null
+          old_value: string | null
+          user_id: string | null
+          user_name: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          lead_id: string
+          new_value?: string | null
+          old_value?: string | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          lead_id?: string
+          new_value?: string | null
+          old_value?: string | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_history_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      message_templates: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          sort_order: number
+          template: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          sort_order?: number
+          template: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          sort_order?: number
+          template?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          data: Json | null
+          id: string
+          message: string | null
+          read: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          message?: string | null
+          read?: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          message?: string | null
+          read?: boolean
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      permission_definitions: {
+        Row: {
+          category: string
+          code: string
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          sort_order: number | null
+        }
+        Insert: {
+          category: string
+          code: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          sort_order?: number | null
+        }
+        Update: {
+          category?: string
+          code?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          sort_order?: number | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          is_active: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      proposals: {
+        Row: {
+          company_name: string
+          created_at: string
+          custom_features: string[] | null
+          discount: number | null
+          discount_amount: number | null
+          email: string | null
+          id: string
+          notes: string | null
+          payment_type: string
+          phone: string | null
+          plan: string
+          prospect_name: string
+          subtotal: number
+          total: number
+          user_id: string
+          valid_days: number
+        }
+        Insert: {
+          company_name: string
+          created_at?: string
+          custom_features?: string[] | null
+          discount?: number | null
+          discount_amount?: number | null
+          email?: string | null
+          id?: string
+          notes?: string | null
+          payment_type: string
+          phone?: string | null
+          plan: string
+          prospect_name: string
+          subtotal: number
+          total: number
+          user_id: string
+          valid_days?: number
+        }
+        Update: {
+          company_name?: string
+          created_at?: string
+          custom_features?: string[] | null
+          discount?: number | null
+          discount_amount?: number | null
+          email?: string | null
+          id?: string
+          notes?: string | null
+          payment_type?: string
+          phone?: string | null
+          plan?: string
+          prospect_name?: string
+          subtotal?: number
+          total?: number
+          user_id?: string
+          valid_days?: number
+        }
+        Relationships: []
+      }
+      sales_material_captions: {
+        Row: {
+          caption_text: string
+          caption_type: string
+          created_at: string
+          id: string
+          is_active: boolean
+          updated_at: string
+        }
+        Insert: {
+          caption_text: string
+          caption_type: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Update: {
+          caption_text?: string
+          caption_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sales_materials: {
+        Row: {
+          created_at: string
+          file_path: string | null
+          file_url: string
+          guest_count: number | null
+          id: string
+          is_active: boolean
+          name: string
+          photo_urls: string[] | null
+          sort_order: number
+          type: string
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          file_path?: string | null
+          file_url: string
+          guest_count?: number | null
+          id?: string
+          is_active?: boolean
+          name: string
+          photo_urls?: string[] | null
+          sort_order?: number
+          type: string
+          unit: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          file_path?: string | null
+          file_url?: string
+          guest_count?: number | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          photo_urls?: string[] | null
+          sort_order?: number
+          type?: string
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_filter_preferences: {
+        Row: {
+          created_at: string
+          filter_order: string[]
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          filter_order?: string[]
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          filter_order?: string[]
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_permissions: {
+        Row: {
+          created_at: string | null
+          granted: boolean
+          granted_by: string | null
+          id: string
+          permission: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          granted?: boolean
+          granted_by?: string | null
+          id?: string
+          permission: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          granted?: boolean
+          granted_by?: string | null
+          id?: string
+          permission?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wapi_bot_questions: {
+        Row: {
+          confirmation_text: string | null
+          created_at: string
+          id: string
+          instance_id: string
+          is_active: boolean
+          question_text: string
+          sort_order: number
+          step: string
+          updated_at: string
+        }
+        Insert: {
+          confirmation_text?: string | null
+          created_at?: string
+          id?: string
+          instance_id: string
+          is_active?: boolean
+          question_text: string
+          sort_order?: number
+          step: string
+          updated_at?: string
+        }
+        Update: {
+          confirmation_text?: string | null
+          created_at?: string
+          id?: string
+          instance_id?: string
+          is_active?: boolean
+          question_text?: string
+          sort_order?: number
+          step?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wapi_bot_questions_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "wapi_instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wapi_bot_settings: {
+        Row: {
+          auto_send_materials: boolean | null
+          auto_send_pdf: boolean | null
+          auto_send_pdf_intro: string | null
+          auto_send_photos: boolean | null
+          auto_send_photos_intro: string | null
+          auto_send_presentation_video: boolean | null
+          auto_send_promo_video: boolean | null
+          bot_enabled: boolean
+          completion_message: string | null
+          created_at: string
+          follow_up_2_delay_hours: number | null
+          follow_up_2_enabled: boolean | null
+          follow_up_2_message: string | null
+          follow_up_delay_hours: number | null
+          follow_up_enabled: boolean | null
+          follow_up_message: string | null
+          id: string
+          instance_id: string
+          message_delay_seconds: number | null
+          next_step_analyze_response: string | null
+          next_step_question: string | null
+          next_step_questions_response: string | null
+          next_step_visit_response: string | null
+          qualified_lead_message: string | null
+          test_mode_enabled: boolean
+          test_mode_number: string | null
+          transfer_message: string | null
+          updated_at: string
+          welcome_message: string | null
+        }
+        Insert: {
+          auto_send_materials?: boolean | null
+          auto_send_pdf?: boolean | null
+          auto_send_pdf_intro?: string | null
+          auto_send_photos?: boolean | null
+          auto_send_photos_intro?: string | null
+          auto_send_presentation_video?: boolean | null
+          auto_send_promo_video?: boolean | null
+          bot_enabled?: boolean
+          completion_message?: string | null
+          created_at?: string
+          follow_up_2_delay_hours?: number | null
+          follow_up_2_enabled?: boolean | null
+          follow_up_2_message?: string | null
+          follow_up_delay_hours?: number | null
+          follow_up_enabled?: boolean | null
+          follow_up_message?: string | null
+          id?: string
+          instance_id: string
+          message_delay_seconds?: number | null
+          next_step_analyze_response?: string | null
+          next_step_question?: string | null
+          next_step_questions_response?: string | null
+          next_step_visit_response?: string | null
+          qualified_lead_message?: string | null
+          test_mode_enabled?: boolean
+          test_mode_number?: string | null
+          transfer_message?: string | null
+          updated_at?: string
+          welcome_message?: string | null
+        }
+        Update: {
+          auto_send_materials?: boolean | null
+          auto_send_pdf?: boolean | null
+          auto_send_pdf_intro?: string | null
+          auto_send_photos?: boolean | null
+          auto_send_photos_intro?: string | null
+          auto_send_presentation_video?: boolean | null
+          auto_send_promo_video?: boolean | null
+          bot_enabled?: boolean
+          completion_message?: string | null
+          created_at?: string
+          follow_up_2_delay_hours?: number | null
+          follow_up_2_enabled?: boolean | null
+          follow_up_2_message?: string | null
+          follow_up_delay_hours?: number | null
+          follow_up_enabled?: boolean | null
+          follow_up_message?: string | null
+          id?: string
+          instance_id?: string
+          message_delay_seconds?: number | null
+          next_step_analyze_response?: string | null
+          next_step_question?: string | null
+          next_step_questions_response?: string | null
+          next_step_visit_response?: string | null
+          qualified_lead_message?: string | null
+          test_mode_enabled?: boolean
+          test_mode_number?: string | null
+          transfer_message?: string | null
+          updated_at?: string
+          welcome_message?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wapi_bot_settings_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: true
+            referencedRelation: "wapi_instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wapi_conversations: {
+        Row: {
+          bot_data: Json | null
+          bot_enabled: boolean | null
+          bot_step: string | null
+          contact_name: string | null
+          contact_phone: string
+          contact_picture: string | null
+          created_at: string
+          has_scheduled_visit: boolean
+          id: string
+          instance_id: string
+          is_closed: boolean | null
+          is_equipe: boolean
+          is_favorite: boolean | null
+          is_freelancer: boolean
+          last_message_at: string | null
+          last_message_content: string | null
+          last_message_from_me: boolean | null
+          lead_id: string | null
+          remote_jid: string
+          unread_count: number | null
+          updated_at: string
+        }
+        Insert: {
+          bot_data?: Json | null
+          bot_enabled?: boolean | null
+          bot_step?: string | null
+          contact_name?: string | null
+          contact_phone: string
+          contact_picture?: string | null
+          created_at?: string
+          has_scheduled_visit?: boolean
+          id?: string
+          instance_id: string
+          is_closed?: boolean | null
+          is_equipe?: boolean
+          is_favorite?: boolean | null
+          is_freelancer?: boolean
+          last_message_at?: string | null
+          last_message_content?: string | null
+          last_message_from_me?: boolean | null
+          lead_id?: string | null
+          remote_jid: string
+          unread_count?: number | null
+          updated_at?: string
+        }
+        Update: {
+          bot_data?: Json | null
+          bot_enabled?: boolean | null
+          bot_step?: string | null
+          contact_name?: string | null
+          contact_phone?: string
+          contact_picture?: string | null
+          created_at?: string
+          has_scheduled_visit?: boolean
+          id?: string
+          instance_id?: string
+          is_closed?: boolean | null
+          is_equipe?: boolean
+          is_favorite?: boolean | null
+          is_freelancer?: boolean
+          last_message_at?: string | null
+          last_message_content?: string | null
+          last_message_from_me?: boolean | null
+          lead_id?: string | null
+          remote_jid?: string
+          unread_count?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wapi_conversations_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "wapi_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wapi_conversations_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wapi_instances: {
+        Row: {
+          addon_valid_until: string | null
+          connected_at: string | null
+          created_at: string
+          credits_available: number | null
+          id: string
+          instance_id: string
+          instance_token: string
+          messages_count: number | null
+          phone_number: string | null
+          status: string | null
+          unit: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          addon_valid_until?: string | null
+          connected_at?: string | null
+          created_at?: string
+          credits_available?: number | null
+          id?: string
+          instance_id: string
+          instance_token: string
+          messages_count?: number | null
+          phone_number?: string | null
+          status?: string | null
+          unit?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          addon_valid_until?: string | null
+          connected_at?: string | null
+          created_at?: string
+          credits_available?: number | null
+          id?: string
+          instance_id?: string
+          instance_token?: string
+          messages_count?: number | null
+          phone_number?: string | null
+          status?: string | null
+          unit?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wapi_messages: {
+        Row: {
+          content: string | null
+          conversation_id: string
+          created_at: string
+          from_me: boolean
+          id: string
+          media_direct_path: string | null
+          media_key: string | null
+          media_url: string | null
+          message_id: string | null
+          message_type: string
+          status: string | null
+          timestamp: string
+        }
+        Insert: {
+          content?: string | null
+          conversation_id: string
+          created_at?: string
+          from_me?: boolean
+          id?: string
+          media_direct_path?: string | null
+          media_key?: string | null
+          media_url?: string | null
+          message_id?: string | null
+          message_type?: string
+          status?: string | null
+          timestamp?: string
+        }
+        Update: {
+          content?: string | null
+          conversation_id?: string
+          created_at?: string
+          from_me?: boolean
+          id?: string
+          media_direct_path?: string | null
+          media_key?: string | null
+          media_url?: string | null
+          message_id?: string | null
+          message_type?: string
+          status?: string | null
+          timestamp?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wapi_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "wapi_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wapi_vip_numbers: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          instance_id: string
+          name: string | null
+          phone: string
+          reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          instance_id: string
+          name?: string | null
+          phone: string
+          reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          instance_id?: string
+          name?: string | null
+          phone?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wapi_vip_numbers_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "wapi_instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +854,14 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      lead_status:
+        | "novo"
+        | "em_contato"
+        | "orcamento_enviado"
+        | "aguardando_resposta"
+        | "fechado"
+        | "perdido"
+        | "transferido"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +988,16 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      lead_status: [
+        "novo",
+        "em_contato",
+        "orcamento_enviado",
+        "aguardando_resposta",
+        "fechado",
+        "perdido",
+        "transferido",
+      ],
+    },
   },
 } as const
