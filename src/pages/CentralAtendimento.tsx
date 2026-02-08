@@ -8,7 +8,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useLeadNotifications } from "@/hooks/useLeadNotifications";
 import { useChatNotificationToggle } from "@/hooks/useChatNotificationToggle";
 import { useUnreadCountRealtime, useLeadsRealtime } from "@/hooks/useRealtimeOptimized";
-import { Lead, LeadStatus, UserWithRole, Profile } from "@/types/crm";
+import { Lead, LeadStatus, UserWithRole, Profile, AppRole } from "@/types/crm";
 import { LeadsTable } from "@/components/admin/LeadsTable";
 import { LeadsFilters } from "@/components/admin/LeadsFilters";
 import { LeadsKanban } from "@/components/admin/LeadsKanban";
@@ -163,7 +163,7 @@ export default function CentralAtendimento() {
           const userRole = roles?.find((r) => r.user_id === profile.user_id);
           return {
             ...profile,
-            role: userRole?.role,
+            role: userRole?.role as AppRole | undefined,
           };
         });
         setResponsaveis(usersWithRoles);

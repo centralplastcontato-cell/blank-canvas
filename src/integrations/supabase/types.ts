@@ -872,6 +872,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_profiles_for_transfer: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          email: string
+          full_name: string
+          id: string
+          is_active: boolean
+          user_id: string
+        }[]
+      }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
