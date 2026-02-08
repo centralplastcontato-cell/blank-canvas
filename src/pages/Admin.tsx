@@ -6,7 +6,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useUnitPermissions } from "@/hooks/useUnitPermissions";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useLeadNotifications } from "@/hooks/useLeadNotifications";
-import { Lead, LeadStatus, UserWithRole, Profile } from "@/types/crm";
+import { Lead, LeadStatus, UserWithRole, Profile, AppRole } from "@/types/crm";
 import { LeadsTable } from "@/components/admin/LeadsTable";
 import { LeadsFilters } from "@/components/admin/LeadsFilters";
 import { UnitKanbanTabs } from "@/components/admin/UnitKanbanTabs";
@@ -137,7 +137,7 @@ export default function Admin() {
           const userRole = roles?.find((r) => r.user_id === profile.user_id);
           return {
             ...profile,
-            role: userRole?.role,
+            role: userRole?.role as AppRole | undefined,
           };
         });
         setResponsaveis(usersWithRoles);
