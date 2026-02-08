@@ -384,27 +384,71 @@ Deno.serve(async (req) => {
 
       case 'get-status': {
         try {
-          const res = await fetch(`${WAPI_BASE_URL}/instance/qr-code?instanceId=${instance_id}`, {
+          // Try the instance info endpoint first (more reliable)
+          const infoRes = await fetch(`${WAPI_BASE_URL}/instance/info?instanceId=${instance_id}`, {
             headers: { 'Authorization': `Bearer ${instance_token}` },
           });
           
-          const ct = res.headers.get('content-type');
-          if (ct?.includes('text/html') || !res.ok) {
+          console.log('get-status info response:', infoRes.status);
+          
+          if (infoRes.ok) {
+            const ct = infoRes.headers.get('content-type');
+            if (ct?.includes('application/json')) {
+              const infoData = await infoRes.json();
+              console.log('get-status info data:', JSON.stringify(infoData));
+              
+              // Check various connection indicators
+              const isConnected = infoData.connected === true || 
+                                  infoData.status === 'connected' ||
+                                  infoData.state === 'connected' ||
+                                  infoData.phone?.connected === true ||
+                                  (infoData.me && infoData.me.id);
+              
+              const phoneNumber = infoData.phone?.number || 
+                                  infoData.phone?.wid?.user ||
+                                  infoData.me?.id?.split('@')[0] ||
+                                  infoData.phoneNumber ||
+                                  null;
+              
+              if (isConnected) {
+                return new Response(JSON.stringify({ 
+                  status: 'connected',
+                  phoneNumber,
+                  connected: true,
+                }), {
+                  status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                });
+              }
+            }
+          }
+          
+          // Fallback to QR code endpoint to check status
+          const qrRes = await fetch(`${WAPI_BASE_URL}/instance/qr-code?instanceId=${instance_id}`, {
+            headers: { 'Authorization': `Bearer ${instance_token}` },
+          });
+          
+          console.log('get-status qr response:', qrRes.status);
+          
+          const ct = qrRes.headers.get('content-type');
+          if (ct?.includes('text/html') || !qrRes.ok) {
             return new Response(JSON.stringify({ status: 'disconnected' }), {
               status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             });
           }
           
-          const data = await res.json();
+          const data = await qrRes.json();
+          console.log('get-status qr data:', JSON.stringify(data));
+          
           return new Response(JSON.stringify({ 
             status: data.connected ? 'connected' : 'disconnected',
-            phoneNumber: data.phone || null,
+            phoneNumber: data.phone || data.phoneNumber || null,
             connected: data.connected === true,
           }), {
             status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
-        } catch {
-          return new Response(JSON.stringify({ status: 'disconnected' }), {
+        } catch (e) {
+          console.error('get-status error:', e);
+          return new Response(JSON.stringify({ status: 'disconnected', error: e instanceof Error ? e.message : 'Unknown error' }), {
             status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
