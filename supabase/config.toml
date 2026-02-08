@@ -1,1 +1,19 @@
 project_id = "rsezgnkfhodltrsewlhz"
+
+[functions.wapi-send]
+verify_jwt = false
+
+[functions.wapi-webhook]
+verify_jwt = false
+
+[functions.submit-lead]
+verify_jwt = false
+
+[functions.submit-b2b-lead]
+verify_jwt = false
+
+[functions.manage-user]
+verify_jwt = false
+
+[functions.follow-up-check]
+verify_jwt = false
