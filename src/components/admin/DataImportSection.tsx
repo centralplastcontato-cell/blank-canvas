@@ -3,13 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
 import { 
   Upload, FileJson, Users, MessageCircle, MessagesSquare, 
-  CheckCircle2, XCircle, Loader2, AlertTriangle, Download, Info, FileImage
+  XCircle, Loader2, AlertTriangle, Download, Info, FileImage, Bot
 } from "lucide-react";
 
 interface ImportStats {
@@ -23,7 +22,7 @@ interface DataImportSectionProps {
   isAdmin: boolean;
 }
 
-type ImportType = 'leads' | 'conversations' | 'messages' | 'materials';
+type ImportType = 'leads' | 'conversations' | 'messages' | 'materials' | 'bot_config';
 
 export function DataImportSection({ isAdmin }: DataImportSectionProps) {
   const [isImporting, setIsImporting] = useState(false);
@@ -113,6 +112,9 @@ export function DataImportSection({ isAdmin }: DataImportSectionProps) {
             break;
           case 'materials':
             await importMaterial(item, stats, errors);
+            break;
+          case 'bot_config':
+            await importBotConfig(item, stats, errors);
             break;
         }
       } catch (error: any) {
@@ -315,6 +317,122 @@ export function DataImportSection({ isAdmin }: DataImportSectionProps) {
     }
   };
 
+  const importBotConfig = async (item: any, stats: ImportStats, errors: string[]) => {
+    // Get instance ID for the unit
+    const { data: instance } = await supabase
+      .from('wapi_instances')
+      .select('id')
+      .eq('unit', item.unit || 'Manchester')
+      .maybeSingle();
+
+    if (!instance) {
+      stats.errors++;
+      errors.push(`Config Bot: Instância da unidade ${item.unit} não encontrada`);
+      return;
+    }
+
+    // Import bot settings if present
+    if (item.settings) {
+      const { data: existingSettings } = await supabase
+        .from('wapi_bot_settings')
+        .select('id')
+        .eq('instance_id', instance.id)
+        .maybeSingle();
+
+      if (existingSettings) {
+        // Update existing settings
+        const { error } = await supabase
+          .from('wapi_bot_settings')
+          .update({
+            welcome_message: item.settings.welcome_message,
+            completion_message: item.settings.completion_message,
+            transfer_message: item.settings.transfer_message,
+            qualified_lead_message: item.settings.qualified_lead_message,
+            next_step_question: item.settings.next_step_question,
+            next_step_visit_response: item.settings.next_step_visit_response,
+            next_step_questions_response: item.settings.next_step_questions_response,
+            next_step_analyze_response: item.settings.next_step_analyze_response,
+            follow_up_enabled: item.settings.follow_up_enabled ?? true,
+            follow_up_message: item.settings.follow_up_message,
+            follow_up_delay_hours: item.settings.follow_up_delay_hours || 24,
+            follow_up_2_enabled: item.settings.follow_up_2_enabled ?? false,
+            follow_up_2_message: item.settings.follow_up_2_message,
+            follow_up_2_delay_hours: item.settings.follow_up_2_delay_hours || 48,
+            auto_send_materials: item.settings.auto_send_materials ?? true,
+            auto_send_pdf: item.settings.auto_send_pdf ?? true,
+            auto_send_pdf_intro: item.settings.auto_send_pdf_intro,
+            auto_send_photos: item.settings.auto_send_photos ?? true,
+            auto_send_photos_intro: item.settings.auto_send_photos_intro,
+            auto_send_presentation_video: item.settings.auto_send_presentation_video ?? true,
+            auto_send_promo_video: item.settings.auto_send_promo_video ?? true,
+            message_delay_seconds: item.settings.message_delay_seconds || 5,
+            bot_enabled: item.settings.bot_enabled ?? false,
+          })
+          .eq('id', existingSettings.id);
+
+        if (error) {
+          errors.push(`Settings Bot: ${error.message}`);
+        }
+      } else {
+        // Insert new settings
+        const { error } = await supabase.from('wapi_bot_settings').insert({
+          instance_id: instance.id,
+          ...item.settings,
+        });
+
+        if (error) {
+          errors.push(`Settings Bot: ${error.message}`);
+        }
+      }
+    }
+
+    // Import bot questions if present
+    if (item.questions && Array.isArray(item.questions)) {
+      for (const question of item.questions) {
+        // Check if question with same step already exists
+        const { data: existingQ } = await supabase
+          .from('wapi_bot_questions')
+          .select('id')
+          .eq('instance_id', instance.id)
+          .eq('step', question.step)
+          .maybeSingle();
+
+        if (existingQ) {
+          // Update existing question
+          const { error } = await supabase
+            .from('wapi_bot_questions')
+            .update({
+              question_text: question.question_text,
+              confirmation_text: question.confirmation_text || null,
+              sort_order: question.sort_order || 0,
+              is_active: question.is_active ?? true,
+            })
+            .eq('id', existingQ.id);
+
+          if (error) {
+            errors.push(`Pergunta ${question.step}: ${error.message}`);
+          }
+        } else {
+          // Insert new question
+          const { error } = await supabase.from('wapi_bot_questions').insert({
+            instance_id: instance.id,
+            step: question.step,
+            question_text: question.question_text,
+            confirmation_text: question.confirmation_text || null,
+            sort_order: question.sort_order || 0,
+            is_active: question.is_active ?? true,
+          });
+
+          if (error) {
+            errors.push(`Pergunta ${question.step}: ${error.message}`);
+          }
+        }
+      }
+    }
+
+    stats.success++;
+  };
+
   const downloadTemplate = (type: ImportType) => {
     let template: any[] = [];
     
@@ -391,6 +509,59 @@ export function DataImportSection({ isAdmin }: DataImportSectionProps) {
           is_active: true
         }];
         break;
+      case 'bot_config':
+        template = [{
+          unit: "Manchester",
+          settings: {
+            bot_enabled: true,
+            welcome_message: "Olá! 👋 Seja bem-vindo ao Castelo das Festas!",
+            completion_message: "Obrigado pelas informações! Em breve entraremos em contato.",
+            transfer_message: "Transferindo você para nossa equipe comercial...",
+            qualified_lead_message: "Excelente! Você é um lead qualificado!",
+            next_step_question: "Qual seria o próximo passo ideal para você?",
+            next_step_visit_response: "Ótimo! Vamos agendar sua visita!",
+            next_step_questions_response: "Claro! Estou aqui para responder suas dúvidas.",
+            next_step_analyze_response: "Sem problemas! Analise com calma.",
+            follow_up_enabled: true,
+            follow_up_message: "Olá! Vi que você demonstrou interesse em nosso espaço. Posso ajudar?",
+            follow_up_delay_hours: 24,
+            follow_up_2_enabled: true,
+            follow_up_2_message: "Oi! Ainda temos disponibilidade para sua data. Gostaria de agendar uma visita?",
+            follow_up_2_delay_hours: 48,
+            auto_send_materials: true,
+            auto_send_pdf: true,
+            auto_send_pdf_intro: "Segue nosso catálogo de pacotes:",
+            auto_send_photos: true,
+            auto_send_photos_intro: "Veja algumas fotos do nosso espaço:",
+            auto_send_presentation_video: true,
+            auto_send_promo_video: true,
+            message_delay_seconds: 5
+          },
+          questions: [
+            {
+              step: "nome",
+              question_text: "Para começar, qual é o seu nome?",
+              confirmation_text: "Prazer, {nome}!",
+              sort_order: 1,
+              is_active: true
+            },
+            {
+              step: "data",
+              question_text: "Qual a data prevista para o evento?",
+              confirmation_text: "Anotado! Evento em {data}.",
+              sort_order: 2,
+              is_active: true
+            },
+            {
+              step: "convidados",
+              question_text: "Quantos convidados você espera?",
+              confirmation_text: "Perfeito! {convidados} convidados.",
+              sort_order: 3,
+              is_active: true
+            }
+          ]
+        }];
+        break;
     }
 
     const blob = new Blob([JSON.stringify(template, null, 2)], { type: 'application/json' });
@@ -428,22 +599,26 @@ export function DataImportSection({ isAdmin }: DataImportSectionProps) {
         </Alert>
 
         <Tabs value={importType} onValueChange={(v) => setImportType(v as ImportType)}>
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="leads" className="gap-2">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="leads" className="gap-1 text-xs sm:text-sm">
               <Users className="h-4 w-4" />
-              Leads
+              <span className="hidden sm:inline">Leads</span>
             </TabsTrigger>
-            <TabsTrigger value="conversations" className="gap-2">
+            <TabsTrigger value="conversations" className="gap-1 text-xs sm:text-sm">
               <MessageCircle className="h-4 w-4" />
-              Conversas
+              <span className="hidden sm:inline">Conversas</span>
             </TabsTrigger>
-            <TabsTrigger value="messages" className="gap-2">
+            <TabsTrigger value="messages" className="gap-1 text-xs sm:text-sm">
               <MessagesSquare className="h-4 w-4" />
-              Mensagens
+              <span className="hidden sm:inline">Mensagens</span>
             </TabsTrigger>
-            <TabsTrigger value="materials" className="gap-2">
+            <TabsTrigger value="materials" className="gap-1 text-xs sm:text-sm">
               <FileImage className="h-4 w-4" />
-              Materiais
+              <span className="hidden sm:inline">Materiais</span>
+            </TabsTrigger>
+            <TabsTrigger value="bot_config" className="gap-1 text-xs sm:text-sm">
+              <Bot className="h-4 w-4" />
+              <span className="hidden sm:inline">Bot</span>
             </TabsTrigger>
           </TabsList>
 
@@ -487,6 +662,30 @@ export function DataImportSection({ isAdmin }: DataImportSectionProps) {
                   <li><code>colecao</code> - Coleção de fotos (use photo_urls para múltiplas)</li>
                   <li><code>video</code> - Vídeos de apresentação</li>
                   <li><code>foto</code> - Fotos individuais</li>
+                </ul>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="bot_config" className="space-y-4">
+            <div className="bg-muted p-4 rounded-lg">
+              <h4 className="font-medium mb-2">Configuração do Bot de Atendimento:</h4>
+              <p className="text-sm text-muted-foreground mb-3">
+                Importe as configurações e perguntas do fluxo de conversação do bot.
+              </p>
+              <div className="space-y-2 text-xs text-muted-foreground">
+                <p><strong>Estrutura do JSON:</strong></p>
+                <ul className="list-disc list-inside ml-2 space-y-1">
+                  <li><code>unit</code> - Nome da unidade (ex: "Manchester")</li>
+                  <li><code>settings</code> - Objeto com configurações do bot (mensagens, delays, automações)</li>
+                  <li><code>questions</code> - Array de perguntas do fluxo</li>
+                </ul>
+                <p className="mt-2"><strong>Campos de cada pergunta:</strong></p>
+                <ul className="list-disc list-inside ml-2 space-y-1">
+                  <li><code>step</code> - Identificador único (nome, data, convidados, etc.)</li>
+                  <li><code>question_text</code> - Texto da pergunta</li>
+                  <li><code>confirmation_text</code> - Mensagem de confirmação (opcional)</li>
+                  <li><code>sort_order</code> - Ordem no fluxo</li>
                 </ul>
               </div>
             </div>
