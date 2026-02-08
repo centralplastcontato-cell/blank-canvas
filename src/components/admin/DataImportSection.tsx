@@ -9,7 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
 import { 
   Upload, FileJson, Users, MessageCircle, MessagesSquare, 
-  CheckCircle2, XCircle, Loader2, AlertTriangle, Download, Info
+  CheckCircle2, XCircle, Loader2, AlertTriangle, Download, Info, FileImage
 } from "lucide-react";
 
 interface ImportStats {
@@ -23,11 +23,13 @@ interface DataImportSectionProps {
   isAdmin: boolean;
 }
 
+type ImportType = 'leads' | 'conversations' | 'messages' | 'materials';
+
 export function DataImportSection({ isAdmin }: DataImportSectionProps) {
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [importStats, setImportStats] = useState<ImportStats | null>(null);
-  const [importType, setImportType] = useState<'leads' | 'conversations' | 'messages'>('leads');
+  const [importType, setImportType] = useState<ImportType>('leads');
   const [errorLog, setErrorLog] = useState<string[]>([]);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -108,6 +110,9 @@ export function DataImportSection({ isAdmin }: DataImportSectionProps) {
             break;
           case 'messages':
             await importMessage(item, stats, errors);
+            break;
+          case 'materials':
+            await importMaterial(item, stats, errors);
             break;
         }
       } catch (error: any) {
@@ -275,7 +280,42 @@ export function DataImportSection({ isAdmin }: DataImportSectionProps) {
     }
   };
 
-  const downloadTemplate = (type: 'leads' | 'conversations' | 'messages') => {
+  const importMaterial = async (item: any, stats: ImportStats, errors: string[]) => {
+    // Check if material already exists by name and unit
+    const { data: existing } = await supabase
+      .from('sales_materials')
+      .select('id')
+      .eq('name', item.name)
+      .eq('unit', item.unit || 'Manchester')
+      .maybeSingle();
+
+    if (existing) {
+      stats.skipped++;
+      return;
+    }
+
+    const { error } = await supabase.from('sales_materials').insert({
+      name: item.name,
+      type: item.type || 'pdf',
+      unit: item.unit || 'Manchester',
+      file_url: item.file_url,
+      file_path: item.file_path || null,
+      photo_urls: item.photo_urls || [],
+      guest_count: item.guest_count || null,
+      sort_order: item.sort_order || 0,
+      is_active: item.is_active ?? true,
+      created_at: item.created_at || new Date().toISOString(),
+    });
+
+    if (error) {
+      stats.errors++;
+      errors.push(`Material ${item.name}: ${error.message}`);
+    } else {
+      stats.success++;
+    }
+  };
+
+  const downloadTemplate = (type: ImportType) => {
     let template: any[] = [];
     
     switch (type) {
@@ -321,6 +361,36 @@ export function DataImportSection({ isAdmin }: DataImportSectionProps) {
           timestamp: new Date().toISOString()
         }];
         break;
+      case 'materials':
+        template = [{
+          name: "Pacote 50 convidados",
+          type: "pdf",
+          unit: "Manchester",
+          file_url: "https://exemplo.com/pacote-50.pdf",
+          guest_count: 50,
+          sort_order: 1,
+          is_active: true
+        }, {
+          name: "Coleção Fotos Salão Principal",
+          type: "colecao",
+          unit: "Manchester",
+          file_url: "https://exemplo.com/foto-principal.jpg",
+          photo_urls: [
+            "https://exemplo.com/foto1.jpg",
+            "https://exemplo.com/foto2.jpg",
+            "https://exemplo.com/foto3.jpg"
+          ],
+          sort_order: 2,
+          is_active: true
+        }, {
+          name: "Vídeo Apresentação",
+          type: "video",
+          unit: "Manchester",
+          file_url: "https://exemplo.com/video-apresentacao.mp4",
+          sort_order: 3,
+          is_active: true
+        }];
+        break;
     }
 
     const blob = new Blob([JSON.stringify(template, null, 2)], { type: 'application/json' });
@@ -357,8 +427,8 @@ export function DataImportSection({ isAdmin }: DataImportSectionProps) {
           </AlertDescription>
         </Alert>
 
-        <Tabs value={importType} onValueChange={(v) => setImportType(v as any)}>
-          <TabsList className="grid w-full grid-cols-3">
+        <Tabs value={importType} onValueChange={(v) => setImportType(v as ImportType)}>
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="leads" className="gap-2">
               <Users className="h-4 w-4" />
               Leads
@@ -370,6 +440,10 @@ export function DataImportSection({ isAdmin }: DataImportSectionProps) {
             <TabsTrigger value="messages" className="gap-2">
               <MessagesSquare className="h-4 w-4" />
               Mensagens
+            </TabsTrigger>
+            <TabsTrigger value="materials" className="gap-2">
+              <FileImage className="h-4 w-4" />
+              Materiais
             </TabsTrigger>
           </TabsList>
 
@@ -397,6 +471,24 @@ export function DataImportSection({ isAdmin }: DataImportSectionProps) {
               <p className="text-sm text-muted-foreground">
                 contact_phone (ou conversation_id), from_me, message_type, content, timestamp
               </p>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="materials" className="space-y-4">
+            <div className="bg-muted p-4 rounded-lg">
+              <h4 className="font-medium mb-2">Campos esperados para Materiais:</h4>
+              <p className="text-sm text-muted-foreground">
+                name, type (pdf/colecao/video/foto), unit, file_url, photo_urls (array para coleções), guest_count, sort_order, is_active
+              </p>
+              <div className="mt-3 space-y-1 text-xs text-muted-foreground">
+                <p><strong>Tipos disponíveis:</strong></p>
+                <ul className="list-disc list-inside ml-2">
+                  <li><code>pdf</code> - Pacotes e orçamentos em PDF</li>
+                  <li><code>colecao</code> - Coleção de fotos (use photo_urls para múltiplas)</li>
+                  <li><code>video</code> - Vídeos de apresentação</li>
+                  <li><code>foto</code> - Fotos individuais</li>
+                </ul>
+              </div>
             </div>
           </TabsContent>
         </Tabs>
