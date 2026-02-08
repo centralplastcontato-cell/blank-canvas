@@ -384,7 +384,51 @@ Deno.serve(async (req) => {
 
       case 'get-status': {
         try {
-          // Try connection state endpoint first (most reliable)
+          // Strategy: Try multiple endpoints in order of reliability
+          // 1. /instance/info - usually available on all plans
+          // 2. /instance/connection-state - more detailed but may 404
+          // 3. /instance/profile - connected if returns profile
+          // 4. /instance/qr-code - fallback, connected if no qrcode returned
+          
+          // Try instance info endpoint first (most reliable across all plans)
+          const infoRes = await fetch(`${WAPI_BASE_URL}/instance/info?instanceId=${instance_id}`, {
+            headers: { 'Authorization': `Bearer ${instance_token}` },
+          });
+          
+          console.log('get-status info response:', infoRes.status);
+          
+          if (infoRes.ok) {
+            const ct = infoRes.headers.get('content-type');
+            if (ct?.includes('application/json')) {
+              const infoData = await infoRes.json();
+              console.log('get-status info data:', JSON.stringify(infoData));
+              
+              // Check various connection indicators
+              const isConnected = infoData.state === 'open' || 
+                                  infoData.state === 'connected' ||
+                                  infoData.status === 'connected' ||
+                                  infoData.connected === true ||
+                                  infoData.connectionState === 'open' ||
+                                  infoData.me?.id; // Has a logged in user = connected
+              
+              if (isConnected) {
+                const phoneNumber = infoData.me?.id?.split('@')[0] || 
+                                   infoData.phoneNumber || 
+                                   infoData.phone ||
+                                   infoData.wid?.user ||
+                                   null;
+                return new Response(JSON.stringify({ 
+                  status: 'connected',
+                  phoneNumber,
+                  connected: true,
+                }), {
+                  status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                });
+              }
+            }
+          }
+          
+          // Try connection state endpoint
           const stateRes = await fetch(`${WAPI_BASE_URL}/instance/connection-state?instanceId=${instance_id}`, {
             headers: { 'Authorization': `Bearer ${instance_token}` },
           });
@@ -397,7 +441,6 @@ Deno.serve(async (req) => {
               const stateData = await stateRes.json();
               console.log('get-status connection-state data:', JSON.stringify(stateData));
               
-              // Check for connected state
               const isConnected = stateData.state === 'open' || 
                                   stateData.state === 'connected' ||
                                   stateData.connected === true ||
@@ -415,7 +458,7 @@ Deno.serve(async (req) => {
             }
           }
           
-          // Try profile endpoint to check if connected (has profile = connected)
+          // Try profile endpoint (has profile = connected)
           const profileRes = await fetch(`${WAPI_BASE_URL}/instance/profile?instanceId=${instance_id}`, {
             headers: { 'Authorization': `Bearer ${instance_token}` },
           });
@@ -428,7 +471,6 @@ Deno.serve(async (req) => {
               const profileData = await profileRes.json();
               console.log('get-status profile data:', JSON.stringify(profileData));
               
-              // If we get profile data with a phone/id, it means we're connected
               if (profileData.id || profileData.phone || profileData.wid || profileData.name) {
                 const phoneNumber = profileData.id?.split('@')[0] || 
                                    profileData.phone ||
@@ -445,7 +487,9 @@ Deno.serve(async (req) => {
             }
           }
           
-          // Fallback to QR code endpoint
+          // Fallback to QR code endpoint - this is the most reliable indicator
+          // If QR code endpoint returns a qrcode, we're disconnected
+          // If it says connected or has no qrcode, we're connected
           const qrRes = await fetch(`${WAPI_BASE_URL}/instance/qr-code?instanceId=${instance_id}`, {
             headers: { 'Authorization': `Bearer ${instance_token}` },
           });
@@ -454,19 +498,16 @@ Deno.serve(async (req) => {
           
           const ct = qrRes.headers.get('content-type');
           if (ct?.includes('text/html') || !qrRes.ok) {
-            return new Response(JSON.stringify({ status: 'disconnected' }), {
+            return new Response(JSON.stringify({ status: 'disconnected', connected: false }), {
               status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             });
           }
           
           const data = await qrRes.json();
-          console.log('get-status qr data keys:', Object.keys(data));
+          console.log('get-status qr data:', JSON.stringify(data));
           
-          // Check if connected (no qrcode means connected, or explicit connected flag)
-          const hasQrCode = data.qrcode || data.qrCode || data.qr || data.base64;
-          const isExplicitlyConnected = data.connected === true || data.error === false && !hasQrCode;
-          
-          if (isExplicitlyConnected || !hasQrCode) {
+          // Check for explicit connected flag
+          if (data.connected === true) {
             return new Response(JSON.stringify({ 
               status: 'connected',
               phoneNumber: data.phone || data.phoneNumber || null,
@@ -476,6 +517,31 @@ Deno.serve(async (req) => {
             });
           }
           
+          // Check if there's a QR code present - means not connected
+          const hasQrCode = data.qrcode || data.qrCode || data.qr || data.base64;
+          
+          if (hasQrCode) {
+            return new Response(JSON.stringify({ 
+              status: 'disconnected',
+              phoneNumber: null,
+              connected: false,
+            }), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          
+          // No QR code and no error - likely connected
+          if (!data.error) {
+            return new Response(JSON.stringify({ 
+              status: 'connected',
+              phoneNumber: data.phone || data.phoneNumber || null,
+              connected: true,
+            }), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          
+          // Default to disconnected
           return new Response(JSON.stringify({ 
             status: 'disconnected',
             phoneNumber: null,
@@ -485,7 +551,7 @@ Deno.serve(async (req) => {
           });
         } catch (e) {
           console.error('get-status error:', e);
-          return new Response(JSON.stringify({ status: 'disconnected', error: e instanceof Error ? e.message : 'Unknown error' }), {
+          return new Response(JSON.stringify({ status: 'disconnected', connected: false, error: e instanceof Error ? e.message : 'Unknown error' }), {
             status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
