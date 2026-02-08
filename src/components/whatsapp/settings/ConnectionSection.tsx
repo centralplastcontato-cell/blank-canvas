@@ -439,6 +439,8 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
 
   const pollConnectionStatus = useCallback(async (instance: WapiInstance) => {
     try {
+      console.log("Polling connection status for:", instance.unit);
+      
       const response = await supabase.functions.invoke("wapi-send", {
         body: { 
           action: "get-status",
@@ -447,8 +449,12 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
         },
       });
 
-      if (response.data?.status === 'connected') {
-        await supabase
+      console.log("Poll response:", response.data);
+
+      if (response.data?.status === 'connected' || response.data?.connected === true) {
+        console.log("Connection detected! Updating database...");
+        
+        const { error: updateError } = await supabase
           .from("wapi_instances")
           .update({ 
             status: 'connected',
@@ -456,6 +462,10 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
             connected_at: new Date().toISOString(),
           })
           .eq("id", instance.id);
+
+        if (updateError) {
+          console.error("Error updating instance:", updateError);
+        }
 
         setQrPolling(false);
         setQrDialogOpen(false);
@@ -538,14 +548,32 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
   useEffect(() => {
     if (!qrDialogOpen || !qrInstance || !qrPolling) return;
 
-    const interval = setInterval(async () => {
+    console.log("Starting connection polling for:", qrInstance.unit);
+
+    // Poll immediately first, then every 3 seconds (faster polling)
+    const pollNow = async () => {
       const connected = await pollConnectionStatus(qrInstance);
+      if (connected) {
+        console.log("Connected! Stopping polling.");
+      }
+      return connected;
+    };
+
+    // Initial poll after 2 seconds
+    const initialTimeout = setTimeout(pollNow, 2000);
+
+    const interval = setInterval(async () => {
+      const connected = await pollNow();
       if (connected) {
         clearInterval(interval);
       }
-    }, 5000);
+    }, 3000); // Faster polling: every 3 seconds
 
-    return () => clearInterval(interval);
+    return () => {
+      console.log("Cleaning up polling interval");
+      clearTimeout(initialTimeout);
+      clearInterval(interval);
+    };
   }, [qrDialogOpen, qrInstance, qrPolling, pollConnectionStatus]);
 
   useEffect(() => {
