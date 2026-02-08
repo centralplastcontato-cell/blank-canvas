@@ -256,6 +256,45 @@ export type Database = {
         }
         Relationships: []
       }
+      permission_presets: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          icon: string | null
+          id: string
+          is_default: boolean | null
+          name: string
+          permissions: Json
+          sort_order: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_default?: boolean | null
+          name: string
+          permissions?: Json
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          permissions?: Json
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
