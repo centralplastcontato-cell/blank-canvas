@@ -1176,6 +1176,51 @@ async function downloadMedia(supabase: SupabaseClient, iId: string, iToken: stri
   }
 }
 
+// Fetch profile picture from W-API and update conversation (fire-and-forget)
+async function fetchAndUpdateProfilePicture(
+  supabase: SupabaseClient,
+  instanceId: string,
+  instanceToken: string,
+  conversationId: string,
+  remoteJid: string
+): Promise<void> {
+  try {
+    const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@g.us', '');
+    
+    // Try W-API profile picture endpoint
+    const res = await fetch(
+      `${WAPI_BASE_URL}/misc/profile-picture?instanceId=${instanceId}&phone=${phone}`,
+      { headers: { 'Authorization': `Bearer ${instanceToken}` } }
+    );
+    
+    if (!res.ok) {
+      // Try alternative endpoint format
+      const res2 = await fetch(
+        `${WAPI_BASE_URL}/contact/profile-picture?instanceId=${instanceId}&phone=${phone}`,
+        { headers: { 'Authorization': `Bearer ${instanceToken}` } }
+      );
+      if (!res2.ok) return;
+      const data2 = await res2.json();
+      const picUrl = data2?.profilePicture || data2?.profilePictureUrl || data2?.imgUrl || data2?.url || data2?.picture;
+      if (picUrl) {
+        await supabase.from('wapi_conversations').update({ contact_picture: picUrl }).eq('id', conversationId);
+        console.log(`[ProfilePic] Updated profile picture for conversation ${conversationId}`);
+      }
+      return;
+    }
+    
+    const data = await res.json();
+    const picUrl = data?.profilePicture || data?.profilePictureUrl || data?.imgUrl || data?.url || data?.picture;
+    if (picUrl) {
+      await supabase.from('wapi_conversations').update({ contact_picture: picUrl }).eq('id', conversationId);
+      console.log(`[ProfilePic] Updated profile picture for conversation ${conversationId}`);
+    }
+  } catch (err) {
+    // Silent fail - profile picture is not critical
+    console.warn(`[ProfilePic] Failed to fetch profile picture:`, err instanceof Error ? err.message : String(err));
+  }
+}
+
 function extractMsgContent(mc: Record<string, unknown>, msg: Record<string, unknown>) {
   let type = 'text', content = '', url: string | null = null, key: string | null = null, path: string | null = null, fn: string | undefined, download = false, mime: string | null = null;
   
@@ -1310,6 +1355,12 @@ async function processWebhookEvent(body: Record<string, unknown>) {
         
         // Don't await - fire and forget for conversation update
         supabase.from('wapi_conversations').update(upd).eq('id', ex.id).then(() => {});
+        
+        // If no profile picture, fetch it in background
+        if (!cPic && !ex.contact_picture) {
+          fetchAndUpdateProfilePicture(supabase, instance.instance_id, instance.instance_token, ex.id, rj as string)
+            .catch(() => {});
+        }
       } else {
         // New conversation - need to check for existing lead
         // First, do a final check to prevent race conditions (upsert-like behavior)
@@ -1364,6 +1415,11 @@ async function processWebhookEvent(body: Record<string, unknown>) {
             conv = fallback;
           } else {
             conv = nc;
+            // Fetch profile picture in background for new conversations
+            if (!cPic && nc?.id) {
+              fetchAndUpdateProfilePicture(supabase, instance.instance_id, instance.instance_token, nc.id, rj as string)
+                .catch(() => {});
+            }
           }
         }
       }
