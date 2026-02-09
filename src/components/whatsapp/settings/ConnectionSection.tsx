@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useUnitPermissions } from "@/hooks/useUnitPermissions";
 import { insertWithCompany } from "@/lib/supabase-helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,13 +58,15 @@ const UNITS = [
 const webhookUrl = `https://rsezgnkfhodltrsewlhz.supabase.co/functions/v1/wapi-webhook`;
 
 export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
+  const { allowedUnits, canViewAll, isLoading: isLoadingPermissions } = useUnitPermissions(userId);
+  
   const [instances, setInstances] = useState<WapiInstance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSyncingAll, setIsSyncingAll] = useState(false);
   const [isClearingConversations, setIsClearingConversations] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [editingInstance, setEditingInstance] = useState<WapiInstance | null>(null);
   
@@ -882,7 +885,14 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
     return UNITS.filter(u => !usedUnits.includes(u.value));
   };
 
-  if (isLoading) {
+  // Filter instances based on unit permissions (admins see all)
+  const filteredInstances = isAdmin || canViewAll
+    ? instances
+    : instances.filter(instance => 
+        instance.unit && allowedUnits.includes(instance.unit)
+      );
+
+  if (isLoading || isLoadingPermissions) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -1139,7 +1149,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                 Clique em "Conectar" para escanear o QR Code e conectar o WhatsApp.
               </CardDescription>
             </div>
-            {instances.length > 0 && (
+            {filteredInstances.length > 0 && (
               <Button 
                 variant="outline" 
                 onClick={handleSyncAllStatus}
@@ -1152,12 +1162,12 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
             )}
           </CardHeader>
           <CardContent className="space-y-4">
-            {instances.length === 0 ? (
+            {filteredInstances.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
                 Nenhuma instância configurada pelo administrador.
               </p>
             ) : (
-              instances.map((instance) => (
+              filteredInstances.map((instance) => (
                 <div key={instance.id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-lg ${instance.status === 'connected' ? 'bg-primary/10' : 'bg-muted'}`}>
@@ -1218,7 +1228,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
             <CardDescription>Configure as instâncias do WhatsApp para cada unidade</CardDescription>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
-            {instances.length > 0 && (
+            {filteredInstances.length > 0 && (
               <Button 
                 variant="outline" 
                 onClick={handleSyncAllStatus}
@@ -1239,7 +1249,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {instances.length === 0 ? (
+          {filteredInstances.length === 0 ? (
             <div className="text-center py-8">
               <div className="bg-muted rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
                 <WifiOff className="w-8 h-8 text-muted-foreground" />
@@ -1255,7 +1265,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
             </div>
           ) : (
             <div className="space-y-4">
-              {instances.map((instance) => (
+              {filteredInstances.map((instance) => (
                 <Card key={instance.id}>
                   <CardContent className="pt-4">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
