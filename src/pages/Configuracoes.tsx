@@ -32,6 +32,7 @@ export default function Configuracoes() {
   const { role, isLoading: isLoadingRole, canManageUsers, isAdmin } = useUserRole(user?.id);
   const { hasPermission } = usePermissions(user?.id);
   const canAccessB2B = isAdmin || hasPermission('b2b.view');
+  const canAccessConfig = isAdmin || hasPermission('config.view');
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -95,6 +96,17 @@ export default function Configuracoes() {
 
   if (!user || !role) {
     return null;
+  }
+
+  if (!canAccessConfig) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-lg font-semibold mb-2">Acesso restrito</h2>
+          <p className="text-muted-foreground">Você não tem permissão para acessar as configurações.</p>
+        </div>
+      </div>
+    );
   }
 
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;

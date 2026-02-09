@@ -104,6 +104,10 @@ export default function CentralAtendimento() {
   const canEditName = isAdmin || hasPermission('leads.edit.name');
   const canEditDescription = isAdmin || hasPermission('leads.edit.description');
   const canAccessB2B = isAdmin || hasPermission('b2b.view');
+  const canExportLeads = isAdmin || hasPermission('leads.export');
+  const canDeleteLeads = isAdmin || hasPermission('leads.delete');
+  const canAssignLeads = isAdmin || hasPermission('leads.assign');
+  const canEditLeads = isAdmin || canEdit || hasPermission('leads.edit');
   
   // Sound notification for new leads
   useLeadNotifications();
@@ -685,7 +689,7 @@ export default function CentralAtendimento() {
                 </div>
 
                 <MetricsCards metrics={leadMetrics} isLoading={isLoadingLeads} />
-                <LeadsFilters filters={filters} onFiltersChange={setFilters} responsaveis={responsaveis} onExport={handleExport} />
+                <LeadsFilters filters={filters} onFiltersChange={setFilters} responsaveis={responsaveis} onExport={canExportLeads ? handleExport : undefined} />
 
                 {viewMode === "list" ? (
                   <LeadsTable
@@ -696,7 +700,7 @@ export default function CentralAtendimento() {
                     onLeadClick={handleLeadClick}
                     onStatusChange={handleStatusChange}
                     onRefresh={handleRefresh}
-                    canEdit={canEdit}
+                    canEdit={canEditLeads}
                     isAdmin={isAdmin}
                     currentUserId={user.id}
                     currentUserName={currentUserProfile?.full_name || user.email || ""}
@@ -742,11 +746,11 @@ export default function CentralAtendimento() {
                       setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, observacoes: newDescription } : l));
                       toast({ title: "Observação atualizada", description: "A observação foi salva com sucesso." });
                     }}
-                    canEdit={canEdit}
+                    canEdit={canEditLeads}
                     canEditName={canEditName}
                     canEditDescription={canEditDescription}
-                    canDelete={isAdmin}
-                    onDelete={handleDeleteLead}
+                    canDelete={canDeleteLeads}
+                    onDelete={canDeleteLeads ? handleDeleteLead : undefined}
                   />
                 )}
               </PullToRefresh>
@@ -755,7 +759,7 @@ export default function CentralAtendimento() {
           </Tabs>
         </main>
 
-        <LeadDetailSheet lead={selectedLead} isOpen={isDetailOpen} onClose={() => setIsDetailOpen(false)} onUpdate={handleRefresh} responsaveis={responsaveis} currentUserId={user.id} currentUserName={currentUserProfile?.full_name || user.email || ""} canEdit={canEdit} canDelete={isAdmin} onDelete={handleDeleteLead} />
+        <LeadDetailSheet lead={selectedLead} isOpen={isDetailOpen} onClose={() => setIsDetailOpen(false)} onUpdate={handleRefresh} responsaveis={responsaveis} currentUserId={user.id} currentUserName={currentUserProfile?.full_name || user.email || ""} canEdit={canEditLeads} canDelete={canDeleteLeads} onDelete={canDeleteLeads ? handleDeleteLead : undefined} />
       </div>
     );
   }
@@ -944,7 +948,7 @@ export default function CentralAtendimento() {
                   </div>
 
                   <MetricsCards metrics={leadMetrics} isLoading={isLoadingLeads} />
-                 <LeadsFilters filters={filters} onFiltersChange={setFilters} responsaveis={responsaveis} onExport={handleExport} />
+                 <LeadsFilters filters={filters} onFiltersChange={setFilters} responsaveis={responsaveis} onExport={canExportLeads ? handleExport : undefined} />
 
                  <TabsContent value="list" className="mt-4 flex-1 min-h-0 overflow-hidden">
                     <LeadsTable
@@ -955,7 +959,7 @@ export default function CentralAtendimento() {
                       onLeadClick={handleLeadClick}
                       onStatusChange={handleStatusChange}
                       onRefresh={handleRefresh}
-                      canEdit={canEdit}
+                      canEdit={canEditLeads}
                       isAdmin={isAdmin}
                       currentUserId={user.id}
                       currentUserName={currentUserProfile?.full_name || user.email || ""}
@@ -1003,11 +1007,11 @@ export default function CentralAtendimento() {
                         setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, observacoes: newDescription } : l));
                         toast({ title: "Observação atualizada", description: "A observação foi salva com sucesso." });
                       }}
-                      canEdit={canEdit}
+                      canEdit={canEditLeads}
                       canEditName={canEditName}
                       canEditDescription={canEditDescription}
-                      canDelete={isAdmin}
-                      onDelete={handleDeleteLead}
+                      canDelete={canDeleteLeads}
+                      onDelete={canDeleteLeads ? handleDeleteLead : undefined}
                     />
                   </TabsContent>
                 </Tabs>
@@ -1016,7 +1020,7 @@ export default function CentralAtendimento() {
             </Tabs>
           </main>
 
-          <LeadDetailSheet lead={selectedLead} isOpen={isDetailOpen} onClose={() => setIsDetailOpen(false)} onUpdate={handleRefresh} responsaveis={responsaveis} currentUserId={user.id} currentUserName={currentUserProfile?.full_name || user.email || ""} canEdit={canEdit} canDelete={isAdmin} onDelete={handleDeleteLead} />
+          <LeadDetailSheet lead={selectedLead} isOpen={isDetailOpen} onClose={() => setIsDetailOpen(false)} onUpdate={handleRefresh} responsaveis={responsaveis} currentUserId={user.id} currentUserName={currentUserProfile?.full_name || user.email || ""} canEdit={canEditLeads} canDelete={canDeleteLeads} onDelete={canDeleteLeads ? handleDeleteLead : undefined} />
         </SidebarInset>
       </div>
     </SidebarProvider>

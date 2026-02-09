@@ -26,7 +26,7 @@ interface LeadsFiltersProps {
   filters: LeadFilters;
   onFiltersChange: (filters: LeadFilters) => void;
   responsaveis: UserWithRole[];
-  onExport: () => void;
+  onExport?: () => void;
 }
 
 export function LeadsFilters({
@@ -108,15 +108,17 @@ export function LeadsFilters({
               />
             </div>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="shrink-0 border-border/60 hover:bg-primary/5 hover:border-primary/30 hover:text-primary transition-all" 
-            onClick={onExport}
-          >
-            <Download className="w-4 h-4 sm:mr-2" />
-            <span className="hidden sm:inline">Exportar</span>
-          </Button>
+          {onExport && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="shrink-0 border-border/60 hover:bg-primary/5 hover:border-primary/30 hover:text-primary transition-all" 
+              onClick={onExport}
+            >
+              <Download className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Exportar</span>
+            </Button>
+          )}
         </div>
 
         {/* Mobile: Toggle filters button */}
