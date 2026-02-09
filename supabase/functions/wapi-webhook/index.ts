@@ -1229,6 +1229,9 @@ async function processWebhookEvent(body: Record<string, unknown>) {
       break;
     case 'call': case 'webhookCall': case 'call_offer': case 'call_reject': case 'call_timeout': break;
     case 'message': case 'message-received': case 'webhookReceived': {
+      // ⏱️ LATENCY: Start timing at beginning of message processing
+      const processingStartAt = Date.now();
+      
       const msg = (data as Record<string, unknown>)?.message || data || body;
       if (!msg) break;
       const mc = (msg as Record<string, unknown>).message || (msg as Record<string, unknown>).msgContent || {};
@@ -1250,60 +1253,114 @@ async function processWebhookEvent(body: Record<string, unknown>) {
       if (Object.keys(mc as object).length === 0 && !(msg as Record<string, unknown>).body && !(msg as Record<string, unknown>).text) break;
       if ((mc as Record<string, unknown>).call || (mc as Record<string, unknown>).callLogMessage || (mc as Record<string, unknown>).bcallMessage || (mc as Record<string, unknown>).missedCallMessage || (msg as Record<string, unknown>).type === 'call' || (msg as Record<string, unknown>).callId) break;
 
-      const preview = getPreview(mc as Record<string, unknown>, msg as Record<string, unknown>);
-      const { data: ex } = await supabase.from('wapi_conversations').select('*, bot_enabled, bot_step, bot_data').eq('instance_id', instance.id).eq('remote_jid', rj).single();
+      // Extract message content early (no DB call)
+      const ext = extractMsgContent(mc as Record<string, unknown>, msg as Record<string, unknown>);
+      if (!ext) break;
+      let { type, content, url, key, path, fn, download, mime } = ext;
       
-      if (fromMe && ex?.bot_step && ex.bot_step !== 'complete') await supabase.from('wapi_conversations').update({ bot_enabled: false }).eq('id', ex.id);
-
-      let conv;
+      const preview = getPreview(mc as Record<string, unknown>, msg as Record<string, unknown>);
+      const messageTimestamp = (msg as Record<string, unknown>).messageTimestamp 
+        ? new Date(((msg as Record<string, unknown>).messageTimestamp as number) * 1000).toISOString() 
+        : (msg as Record<string, unknown>).moment 
+          ? new Date(((msg as Record<string, unknown>).moment as number) * 1000).toISOString() 
+          : new Date().toISOString();
+      
+      // ⏱️ LATENCY: Log after parsing, before DB operations
+      console.log(`[Latency] parsing_complete: ${Date.now() - processingStartAt}ms`);
+      
+      // Fetch existing conversation (single DB call)
+      const { data: ex } = await supabase.from('wapi_conversations')
+        .select('id, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, lead_id')
+        .eq('instance_id', instance.id)
+        .eq('remote_jid', rj)
+        .single();
+      
+      console.log(`[Latency] conversation_fetch: ${Date.now() - processingStartAt}ms`);
+      
+      let conv: { id: string; bot_enabled: boolean | null; bot_step: string | null; bot_data: Record<string, unknown> | null; lead_id: string | null };
+      
       if (ex) {
         conv = ex;
-        const upd: Record<string, unknown> = { last_message_at: new Date().toISOString(), unread_count: fromMe ? ex.unread_count : (ex.unread_count || 0) + 1, last_message_content: preview.substring(0, 100), last_message_from_me: fromMe };
+        // Build update object
+        const upd: Record<string, unknown> = { 
+          last_message_at: new Date().toISOString(), 
+          unread_count: fromMe ? ex.unread_count : (ex.unread_count || 0) + 1, 
+          last_message_content: preview.substring(0, 100), 
+          last_message_from_me: fromMe 
+        };
         if (!fromMe && ex.is_closed) upd.is_closed = false;
-        if (isGrp) { const gn = (msg as Record<string, unknown>).chat?.name || (msg as Record<string, unknown>).groupName || (msg as Record<string, unknown>).subject; if (gn && gn !== ex.contact_name) upd.contact_name = gn; }
-        else if (cName && cName !== ex.contact_name) upd.contact_name = cName;
+        if (fromMe && ex.bot_step && ex.bot_step !== 'complete') upd.bot_enabled = false;
+        if (isGrp) { 
+          const gn = (msg as Record<string, unknown>).chat?.name || (msg as Record<string, unknown>).groupName || (msg as Record<string, unknown>).subject; 
+          if (gn && gn !== ex.contact_name) upd.contact_name = gn; 
+        } else if (cName && cName !== ex.contact_name) {
+          upd.contact_name = cName;
+        }
         if (cPic) upd.contact_picture = cPic;
-        await supabase.from('wapi_conversations').update(upd).eq('id', ex.id);
-      } else {
-        const n = phone.replace(/\D/g, ''), vars = [n, n.replace(/^55/, ''), `55${n}`];
-        const { data: lead } = await supabase.from('campaign_leads').select('id, name, month, day_preference, guests').or(vars.map(p => `whatsapp.ilike.%${p}%`).join(',')).eq('unit', instance.unit).limit(1).single();
         
-        // Determine if bot should start: only for new contacts without complete lead data
+        // Don't await - fire and forget for conversation update
+        supabase.from('wapi_conversations').update(upd).eq('id', ex.id).then(() => {});
+      } else {
+        // New conversation - need to check for existing lead
+        const n = phone.replace(/\D/g, ''), vars = [n, n.replace(/^55/, ''), `55${n}`];
+        const { data: lead } = await supabase.from('campaign_leads')
+          .select('id, name, month, day_preference, guests')
+          .or(vars.map(p => `whatsapp.ilike.%${p}%`).join(','))
+          .eq('unit', instance.unit)
+          .limit(1)
+          .single();
+        
         const hasCompleteLead = lead?.name && lead?.month && lead?.day_preference && lead?.guests;
         const shouldStartBot = !hasCompleteLead;
         
         const { data: nc, error: ce } = await supabase.from('wapi_conversations').insert({
-          instance_id: instance.id, remote_jid: rj, contact_phone: phone, contact_name: cName || (isGrp ? `Grupo ${phone}` : phone), contact_picture: cPic,
-          last_message_at: new Date().toISOString(), unread_count: fromMe ? 0 : 1, last_message_content: preview.substring(0, 100), last_message_from_me: fromMe,
-          lead_id: lead?.id || null, bot_enabled: shouldStartBot, bot_step: shouldStartBot ? 'welcome' : null, bot_data: {}
-        }).select('*, bot_enabled, bot_step, bot_data').single();
+          instance_id: instance.id, remote_jid: rj, contact_phone: phone, 
+          contact_name: cName || (isGrp ? `Grupo ${phone}` : phone), contact_picture: cPic,
+          last_message_at: new Date().toISOString(), unread_count: fromMe ? 0 : 1, 
+          last_message_content: preview.substring(0, 100), last_message_from_me: fromMe,
+          lead_id: lead?.id || null, bot_enabled: shouldStartBot, 
+          bot_step: shouldStartBot ? 'welcome' : null, bot_data: {}
+        }).select('id, bot_enabled, bot_step, bot_data, lead_id').single();
+        
         if (ce) break;
         conv = nc;
       }
+      
+      console.log(`[Latency] conversation_ready: ${Date.now() - processingStartAt}ms`);
 
-      const ext = extractMsgContent(mc as Record<string, unknown>, msg as Record<string, unknown>);
-      if (!ext) break;
-      let { type, content, url, key, path, fn, download, mime } = ext;
-
+      // Download media in parallel with message insert if needed (but only for received messages)
+      let mediaPromise: Promise<{ url: string; fileName: string } | null> | null = null;
       if (download && !fromMe && msgId) {
-        const res = await downloadMedia(supabase, instance.instance_id, instance.instance_token, msgId as string, type, fn, key, path, url, mime);
-        if (res) { url = res.url; key = null; path = null; }
-        else if (type === 'document') url = null;
+        mediaPromise = downloadMedia(supabase, instance.instance_id, instance.instance_token, msgId as string, type, fn, key, path, url, mime);
       }
 
-      // ⏱️ LATENCY INSTRUMENTATION: Log backend received timestamp
-      const backendReceivedAt = Date.now();
-      console.log(`[Latency] backend_received_at: ${backendReceivedAt} (${new Date(backendReceivedAt).toISOString()})`);
-      
+      // Insert message immediately (don't wait for media download)
+      const insertStartAt = Date.now();
       await supabase.from('wapi_messages').insert({
         conversation_id: conv.id, message_id: msgId, from_me: fromMe, message_type: type, content,
         media_url: url, media_key: key, media_direct_path: path, status: fromMe ? 'sent' : 'received',
-        timestamp: (msg as Record<string, unknown>).messageTimestamp ? new Date(((msg as Record<string, unknown>).messageTimestamp as number) * 1000).toISOString() : (msg as Record<string, unknown>).moment ? new Date(((msg as Record<string, unknown>).moment as number) * 1000).toISOString() : new Date().toISOString()
+        timestamp: messageTimestamp
       });
       
-      console.log(`[Latency] message_inserted_at: ${Date.now()} (delta from backend: ${Date.now() - backendReceivedAt}ms)`);
+      console.log(`[Latency] message_inserted: ${Date.now() - insertStartAt}ms (total: ${Date.now() - processingStartAt}ms)`);
 
-      if (!fromMe && !isGrp && type === 'text' && content) await processBotQualification(supabase, instance, conv, content, phone, cName as string | null);
+      // If media download was started, wait for it and update the message
+      if (mediaPromise) {
+        mediaPromise.then(async (res) => {
+          if (res) {
+            await supabase.from('wapi_messages')
+              .update({ media_url: res.url, media_key: null, media_direct_path: null })
+              .eq('message_id', msgId);
+            console.log(`[Latency] media_updated: ${Date.now() - processingStartAt}ms`);
+          }
+        }).catch(err => console.error('[Media download error]', err));
+      }
+
+      // Process bot qualification in background (don't block)
+      if (!fromMe && !isGrp && type === 'text' && content) {
+        processBotQualification(supabase, instance, conv, content, phone, cName as string | null)
+          .catch(err => console.error('[Bot qualification error]', err));
+      }
       break;
     }
     case 'message-status': case 'message_ack': case 'webhookStatus': case 'webhookDelivery': {
