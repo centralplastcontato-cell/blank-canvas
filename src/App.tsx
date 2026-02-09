@@ -13,6 +13,7 @@ import UserSettings from "./pages/UserSettings";
 import LandingPage from "./pages/LandingPage";
 import ComercialB2B from "./pages/ComercialB2B";
 import ParaBuffets from "./pages/ParaBuffets";
+import Empresas from "./pages/Empresas";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,7 @@ const App = () => (
             <Route path="/para-buffets" element={<ParaBuffets />} />
             <Route path="/dashboard" element={<Index />} />
             <Route path="/users" element={<Users />} />
+            <Route path="/empresas" element={<Empresas />} />
             <Route path="/promo" element={<LandingPage />} />
             {/* Redirects for old routes */}
             <Route path="/admin" element={<Navigate to="/atendimento" replace />} />
