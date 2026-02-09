@@ -1205,146 +1205,174 @@ function getPreview(mc: Record<string, unknown>, msg: Record<string, unknown>): 
   return (msg as Record<string, string>).body || (msg as Record<string, string>).text || '';
 }
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+// Background processor - runs after response is sent
+async function processWebhookEvent(body: Record<string, unknown>) {
+  const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+  
+  const { event, instanceId, data } = body;
+  const { data: instance, error: iErr } = await supabase.from('wapi_instances').select('*').eq('instance_id', instanceId).single();
+  if (iErr || !instance) {
+    console.log('Instance not found:', instanceId);
+    return;
+  }
 
-  try {
-    const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-    const body = await req.json();
-    console.log('Webhook received:', JSON.stringify(body, null, 2));
+  const evt = event || body.event;
 
-    const { event, instanceId, data } = body;
-    const { data: instance, error: iErr } = await supabase.from('wapi_instances').select('*').eq('instance_id', instanceId).single();
-    if (iErr || !instance) return new Response(JSON.stringify({ error: 'Instance not found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  switch (evt) {
+    case 'connection': case 'webhookConnected': {
+      const c = (data as Record<string, unknown>)?.connected ?? body.connected ?? false;
+      await supabase.from('wapi_instances').update({ status: c ? 'connected' : 'disconnected', phone_number: (data as Record<string, unknown>)?.phone || body.connectedPhone || null, connected_at: c ? new Date().toISOString() : null }).eq('id', instance.id);
+      break;
+    }
+    case 'disconnection': case 'webhookDisconnected':
+      await supabase.from('wapi_instances').update({ status: 'disconnected', connected_at: null }).eq('id', instance.id);
+      break;
+    case 'call': case 'webhookCall': case 'call_offer': case 'call_reject': case 'call_timeout': break;
+    case 'message': case 'message-received': case 'webhookReceived': {
+      const msg = (data as Record<string, unknown>)?.message || data || body;
+      if (!msg) break;
+      const mc = (msg as Record<string, unknown>).message || (msg as Record<string, unknown>).msgContent || {};
+      if ((mc as Record<string, unknown>).protocolMessage) break;
+      
+      let rj = (msg as Record<string, unknown>).key?.remoteJid || (msg as Record<string, unknown>).from || (msg as Record<string, unknown>).remoteJid || ((msg as Record<string, unknown>).chat?.id ? `${(msg as Record<string, unknown>).chat?.id}` : null) || ((msg as Record<string, unknown>).sender?.id ? `${(msg as Record<string, unknown>).sender?.id}@s.whatsapp.net` : null);
+      if (!rj) break;
+      const isGrp = (rj as string).includes('@g.us');
+      if (!isGrp && !(rj as string).includes('@')) rj = `${rj}@s.whatsapp.net`;
+      else if ((rj as string).includes('@c.us')) rj = (rj as string).replace('@c.us', '@s.whatsapp.net');
+      
+      const fromMe = (msg as Record<string, unknown>).key?.fromMe || (msg as Record<string, unknown>).fromMe || false;
+      const msgId = (msg as Record<string, unknown>).key?.id || (msg as Record<string, unknown>).id || (msg as Record<string, unknown>).messageId;
+      const phone = (rj as string).replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@g.us', '').replace('@lid', '');
+      
+      let cName = isGrp ? ((msg as Record<string, unknown>).chat?.name || (msg as Record<string, unknown>).groupName || (msg as Record<string, unknown>).subject || null) : ((msg as Record<string, unknown>).pushName || (msg as Record<string, unknown>).verifiedBizName || (msg as Record<string, unknown>).sender?.pushName || phone);
+      const cPic = (msg as Record<string, unknown>).chat?.profilePicture || (msg as Record<string, unknown>).sender?.profilePicture || null;
 
-    const evt = event || body.event;
+      if (Object.keys(mc as object).length === 0 && !(msg as Record<string, unknown>).body && !(msg as Record<string, unknown>).text) break;
+      if ((mc as Record<string, unknown>).call || (mc as Record<string, unknown>).callLogMessage || (mc as Record<string, unknown>).bcallMessage || (mc as Record<string, unknown>).missedCallMessage || (msg as Record<string, unknown>).type === 'call' || (msg as Record<string, unknown>).callId) break;
 
-    switch (evt) {
-      case 'connection': case 'webhookConnected': {
-        const c = data?.connected ?? body.connected ?? false;
-        await supabase.from('wapi_instances').update({ status: c ? 'connected' : 'disconnected', phone_number: data?.phone || body.connectedPhone || null, connected_at: c ? new Date().toISOString() : null }).eq('id', instance.id);
-        break;
+      const preview = getPreview(mc as Record<string, unknown>, msg as Record<string, unknown>);
+      const { data: ex } = await supabase.from('wapi_conversations').select('*, bot_enabled, bot_step, bot_data').eq('instance_id', instance.id).eq('remote_jid', rj).single();
+      
+      if (fromMe && ex?.bot_step && ex.bot_step !== 'complete') await supabase.from('wapi_conversations').update({ bot_enabled: false }).eq('id', ex.id);
+
+      let conv;
+      if (ex) {
+        conv = ex;
+        const upd: Record<string, unknown> = { last_message_at: new Date().toISOString(), unread_count: fromMe ? ex.unread_count : (ex.unread_count || 0) + 1, last_message_content: preview.substring(0, 100), last_message_from_me: fromMe };
+        if (!fromMe && ex.is_closed) upd.is_closed = false;
+        if (isGrp) { const gn = (msg as Record<string, unknown>).chat?.name || (msg as Record<string, unknown>).groupName || (msg as Record<string, unknown>).subject; if (gn && gn !== ex.contact_name) upd.contact_name = gn; }
+        else if (cName && cName !== ex.contact_name) upd.contact_name = cName;
+        if (cPic) upd.contact_picture = cPic;
+        await supabase.from('wapi_conversations').update(upd).eq('id', ex.id);
+      } else {
+        const n = phone.replace(/\D/g, ''), vars = [n, n.replace(/^55/, ''), `55${n}`];
+        const { data: lead } = await supabase.from('campaign_leads').select('id, name, month, day_preference, guests').or(vars.map(p => `whatsapp.ilike.%${p}%`).join(',')).eq('unit', instance.unit).limit(1).single();
+        
+        // Determine if bot should start: only for new contacts without complete lead data
+        const hasCompleteLead = lead?.name && lead?.month && lead?.day_preference && lead?.guests;
+        const shouldStartBot = !hasCompleteLead;
+        
+        const { data: nc, error: ce } = await supabase.from('wapi_conversations').insert({
+          instance_id: instance.id, remote_jid: rj, contact_phone: phone, contact_name: cName || (isGrp ? `Grupo ${phone}` : phone), contact_picture: cPic,
+          last_message_at: new Date().toISOString(), unread_count: fromMe ? 0 : 1, last_message_content: preview.substring(0, 100), last_message_from_me: fromMe,
+          lead_id: lead?.id || null, bot_enabled: shouldStartBot, bot_step: shouldStartBot ? 'welcome' : null, bot_data: {}
+        }).select('*, bot_enabled, bot_step, bot_data').single();
+        if (ce) break;
+        conv = nc;
       }
-      case 'disconnection': case 'webhookDisconnected':
-        await supabase.from('wapi_instances').update({ status: 'disconnected', connected_at: null }).eq('id', instance.id);
-        break;
-      case 'call': case 'webhookCall': case 'call_offer': case 'call_reject': case 'call_timeout': break;
-      case 'message': case 'message-received': case 'webhookReceived': {
-        const msg = data?.message || data || body;
-        if (!msg) break;
-        const mc = msg.message || msg.msgContent || {};
-        if (mc.protocolMessage) break;
-        
-        let rj = msg.key?.remoteJid || msg.from || msg.remoteJid || (msg.chat?.id ? `${msg.chat.id}` : null) || (msg.sender?.id ? `${msg.sender.id}@s.whatsapp.net` : null);
-        if (!rj) break;
-        const isGrp = rj.includes('@g.us');
-        if (!isGrp && !rj.includes('@')) rj = `${rj}@s.whatsapp.net`;
-        else if (rj.includes('@c.us')) rj = rj.replace('@c.us', '@s.whatsapp.net');
-        
-        const fromMe = msg.key?.fromMe || msg.fromMe || false;
-        const msgId = msg.key?.id || msg.id || msg.messageId;
-        const phone = rj.replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@g.us', '').replace('@lid', '');
-        
-        let cName = isGrp ? (msg.chat?.name || msg.groupName || msg.subject || null) : (msg.pushName || msg.verifiedBizName || msg.sender?.pushName || phone);
-        const cPic = msg.chat?.profilePicture || msg.sender?.profilePicture || null;
 
-        if (Object.keys(mc).length === 0 && !msg.body && !msg.text) break;
-        if (mc.call || mc.callLogMessage || mc.bcallMessage || mc.missedCallMessage || msg.type === 'call' || msg.callId) break;
+      const ext = extractMsgContent(mc as Record<string, unknown>, msg as Record<string, unknown>);
+      if (!ext) break;
+      let { type, content, url, key, path, fn, download, mime } = ext;
 
-        const preview = getPreview(mc, msg);
-        const { data: ex } = await supabase.from('wapi_conversations').select('*, bot_enabled, bot_step, bot_data').eq('instance_id', instance.id).eq('remote_jid', rj).single();
-        
-        if (fromMe && ex?.bot_step && ex.bot_step !== 'complete') await supabase.from('wapi_conversations').update({ bot_enabled: false }).eq('id', ex.id);
-
-        let conv;
-        if (ex) {
-          conv = ex;
-          const upd: Record<string, unknown> = { last_message_at: new Date().toISOString(), unread_count: fromMe ? ex.unread_count : (ex.unread_count || 0) + 1, last_message_content: preview.substring(0, 100), last_message_from_me: fromMe };
-          if (!fromMe && ex.is_closed) upd.is_closed = false;
-          if (isGrp) { const gn = msg.chat?.name || msg.groupName || msg.subject; if (gn && gn !== ex.contact_name) upd.contact_name = gn; }
-          else if (cName && cName !== ex.contact_name) upd.contact_name = cName;
-          if (cPic) upd.contact_picture = cPic;
-          await supabase.from('wapi_conversations').update(upd).eq('id', ex.id);
-        } else {
-          const n = phone.replace(/\D/g, ''), vars = [n, n.replace(/^55/, ''), `55${n}`];
-          const { data: lead } = await supabase.from('campaign_leads').select('id, name, month, day_preference, guests').or(vars.map(p => `whatsapp.ilike.%${p}%`).join(',')).eq('unit', instance.unit).limit(1).single();
-          
-          // Determine if bot should start: only for new contacts without complete lead data
-          const hasCompleteLead = lead?.name && lead?.month && lead?.day_preference && lead?.guests;
-          const shouldStartBot = !hasCompleteLead;
-          
-          const { data: nc, error: ce } = await supabase.from('wapi_conversations').insert({
-            instance_id: instance.id, remote_jid: rj, contact_phone: phone, contact_name: cName || (isGrp ? `Grupo ${phone}` : phone), contact_picture: cPic,
-            last_message_at: new Date().toISOString(), unread_count: fromMe ? 0 : 1, last_message_content: preview.substring(0, 100), last_message_from_me: fromMe,
-            lead_id: lead?.id || null, bot_enabled: shouldStartBot, bot_step: shouldStartBot ? 'welcome' : null, bot_data: {}
-          }).select('*, bot_enabled, bot_step, bot_data').single();
-          if (ce) break;
-          conv = nc;
-        }
-
-        const ext = extractMsgContent(mc, msg);
-        if (!ext) break;
-        let { type, content, url, key, path, fn, download, mime } = ext;
-
-        if (download && !fromMe && msgId) {
-          const res = await downloadMedia(supabase, instance.instance_id, instance.instance_token, msgId, type, fn, key, path, url, mime);
-          if (res) { url = res.url; key = null; path = null; }
-          else if (type === 'document') url = null;
-        }
-
-        await supabase.from('wapi_messages').insert({
-          conversation_id: conv.id, message_id: msgId, from_me: fromMe, message_type: type, content,
-          media_url: url, media_key: key, media_direct_path: path, status: fromMe ? 'sent' : 'received',
-          timestamp: msg.messageTimestamp ? new Date(msg.messageTimestamp * 1000).toISOString() : msg.moment ? new Date(msg.moment * 1000).toISOString() : new Date().toISOString()
-        });
-
-        if (!fromMe && !isGrp && type === 'text' && content) await processBotQualification(supabase, instance, conv, content, phone, cName);
-        break;
+      if (download && !fromMe && msgId) {
+        const res = await downloadMedia(supabase, instance.instance_id, instance.instance_token, msgId as string, type, fn, key, path, url, mime);
+        if (res) { url = res.url; key = null; path = null; }
+        else if (type === 'document') url = null;
       }
-      case 'message-status': case 'message_ack': case 'webhookStatus': case 'webhookDelivery': {
-        const sd = data || body, mId = sd?.messageId || body?.messageId, st = sd?.status, ack = sd?.ack;
-        const fm = body?.fromMe || sd?.fromMe || false, mcd = body?.msgContent || sd?.msgContent;
-        
-        if (fm && mcd && mId) {
-          const { data: em } = await supabase.from('wapi_messages').select('id').eq('message_id', mId).single();
-          if (!em) {
-            const cId = body?.chat?.id || sd?.chat?.id;
-            if (cId) {
-              let rj = cId.includes('@') ? cId : `${cId}@s.whatsapp.net`;
-              const p = rj.replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@g.us', '').replace('@lid', '');
-              if (!rj.includes('@g.us')) {
-                const { data: ec } = await supabase.from('wapi_conversations').select('*').eq('instance_id', instance.id).eq('remote_jid', rj).single();
-                let pv = '';
-                if (mcd.conversation) pv = mcd.conversation;
-                else if (mcd.extendedTextMessage?.text) pv = mcd.extendedTextMessage.text;
-                else if (mcd.imageMessage) pv = '📷 Imagem';
-                else if (mcd.documentMessage) pv = '📄 ' + (mcd.documentMessage.fileName || 'Documento');
-                
-                let cv;
-                if (ec) { cv = ec; await supabase.from('wapi_conversations').update({ last_message_at: new Date().toISOString(), last_message_content: pv.substring(0, 100), last_message_from_me: true, ...(ec.bot_step && ec.bot_step !== 'complete' ? { bot_enabled: false } : {}) }).eq('id', ec.id); }
-                else { const { data: nc } = await supabase.from('wapi_conversations').insert({ instance_id: instance.id, remote_jid: rj, contact_phone: p, contact_name: body?.chat?.name || p, last_message_at: new Date().toISOString(), last_message_content: pv.substring(0, 100), last_message_from_me: true, bot_enabled: false }).select().single(); cv = nc; }
-                
-                if (cv) {
-                  let ct = '', tp = 'text', mu = null;
-                  if (mcd.conversation) ct = mcd.conversation;
-                  else if (mcd.extendedTextMessage?.text) ct = mcd.extendedTextMessage.text;
-                  else if (mcd.imageMessage) { tp = 'image'; ct = mcd.imageMessage.caption || '[Imagem]'; mu = mcd.imageMessage.url; }
-                  else if (mcd.documentMessage) { tp = 'document'; ct = mcd.documentMessage.fileName || '[Documento]'; mu = mcd.documentMessage.url; }
-                  await supabase.from('wapi_messages').insert({ conversation_id: cv.id, message_id: mId, from_me: true, message_type: tp, content: ct, media_url: mu, status: 'sent', timestamp: body.moment ? new Date(body.moment * 1000).toISOString() : new Date().toISOString() });
-                }
+
+      await supabase.from('wapi_messages').insert({
+        conversation_id: conv.id, message_id: msgId, from_me: fromMe, message_type: type, content,
+        media_url: url, media_key: key, media_direct_path: path, status: fromMe ? 'sent' : 'received',
+        timestamp: (msg as Record<string, unknown>).messageTimestamp ? new Date(((msg as Record<string, unknown>).messageTimestamp as number) * 1000).toISOString() : (msg as Record<string, unknown>).moment ? new Date(((msg as Record<string, unknown>).moment as number) * 1000).toISOString() : new Date().toISOString()
+      });
+
+      if (!fromMe && !isGrp && type === 'text' && content) await processBotQualification(supabase, instance, conv, content, phone, cName as string | null);
+      break;
+    }
+    case 'message-status': case 'message_ack': case 'webhookStatus': case 'webhookDelivery': {
+      const sd = data || body, mId = (sd as Record<string, unknown>)?.messageId || body?.messageId, st = (sd as Record<string, unknown>)?.status, ack = (sd as Record<string, unknown>)?.ack;
+      const fm = body?.fromMe || (sd as Record<string, unknown>)?.fromMe || false, mcd = body?.msgContent || (sd as Record<string, unknown>)?.msgContent;
+      
+      if (fm && mcd && mId) {
+        const { data: em } = await supabase.from('wapi_messages').select('id').eq('message_id', mId).single();
+        if (!em) {
+          const cId = (body?.chat as Record<string, unknown>)?.id || (sd as Record<string, unknown>)?.chat?.id;
+          if (cId) {
+            let rj = (cId as string).includes('@') ? cId : `${cId}@s.whatsapp.net`;
+            const p = (rj as string).replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@g.us', '').replace('@lid', '');
+            if (!(rj as string).includes('@g.us')) {
+              const { data: ec } = await supabase.from('wapi_conversations').select('*').eq('instance_id', instance.id).eq('remote_jid', rj).single();
+              let pv = '';
+              if ((mcd as Record<string, unknown>).conversation) pv = (mcd as Record<string, unknown>).conversation as string;
+              else if ((mcd as Record<string, unknown>).extendedTextMessage?.text) pv = (mcd as Record<string, unknown>).extendedTextMessage?.text as string;
+              else if ((mcd as Record<string, unknown>).imageMessage) pv = '📷 Imagem';
+              else if ((mcd as Record<string, unknown>).documentMessage) pv = '📄 ' + ((mcd as Record<string, unknown>).documentMessage?.fileName || 'Documento');
+              
+              let cv;
+              if (ec) { cv = ec; await supabase.from('wapi_conversations').update({ last_message_at: new Date().toISOString(), last_message_content: pv.substring(0, 100), last_message_from_me: true, ...(ec.bot_step && ec.bot_step !== 'complete' ? { bot_enabled: false } : {}) }).eq('id', ec.id); }
+              else { const { data: nc } = await supabase.from('wapi_conversations').insert({ instance_id: instance.id, remote_jid: rj, contact_phone: p, contact_name: (body?.chat as Record<string, unknown>)?.name || p, last_message_at: new Date().toISOString(), last_message_content: pv.substring(0, 100), last_message_from_me: true, bot_enabled: false }).select().single(); cv = nc; }
+              
+              if (cv) {
+                let ct = '', tp = 'text', mu = null;
+                if ((mcd as Record<string, unknown>).conversation) ct = (mcd as Record<string, unknown>).conversation as string;
+                else if ((mcd as Record<string, unknown>).extendedTextMessage?.text) ct = (mcd as Record<string, unknown>).extendedTextMessage?.text as string;
+                else if ((mcd as Record<string, unknown>).imageMessage) { tp = 'image'; ct = (mcd as Record<string, unknown>).imageMessage?.caption || '[Imagem]'; mu = (mcd as Record<string, unknown>).imageMessage?.url; }
+                else if ((mcd as Record<string, unknown>).documentMessage) { tp = 'document'; ct = (mcd as Record<string, unknown>).documentMessage?.fileName || '[Documento]'; mu = (mcd as Record<string, unknown>).documentMessage?.url; }
+                await supabase.from('wapi_messages').insert({ conversation_id: cv.id, message_id: mId, from_me: true, message_type: tp, content: ct, media_url: mu, status: 'sent', timestamp: body.moment ? new Date((body.moment as number) * 1000).toISOString() : new Date().toISOString() });
               }
             }
           }
         }
-        
-        const sm: Record<string | number, string> = { 0: 'error', 1: 'pending', 2: 'sent', 3: 'delivered', 4: 'read', 'PENDING': 'pending', 'SENT': 'sent', 'DELIVERY': 'delivered', 'READ': 'read', 'PLAYED': 'read', 'ERROR': 'error' };
-        const ns = sm[st] || sm[ack] || 'unknown';
-        if (mId && ns !== 'unknown') await supabase.from('wapi_messages').update({ status: ns }).eq('message_id', mId);
-        break;
       }
-      default: console.log('Unhandled event:', evt);
+      
+      const sm: Record<string | number, string> = { 0: 'error', 1: 'pending', 2: 'sent', 3: 'delivered', 4: 'read', 'PENDING': 'pending', 'SENT': 'sent', 'DELIVERY': 'delivered', 'READ': 'read', 'PLAYED': 'read', 'ERROR': 'error' };
+      const ns = sm[st as string | number] || sm[ack as string | number] || 'unknown';
+      if (mId && ns !== 'unknown') await supabase.from('wapi_messages').update({ status: ns }).eq('message_id', mId);
+      break;
+    }
+    default: console.log('Unhandled event:', evt);
+  }
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+
+  try {
+    const body = await req.json();
+    
+    // Quick validation - check if instance exists
+    const instanceId = body.instanceId;
+    if (!instanceId) {
+      console.log('No instanceId in webhook');
+      return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    
+    // Log minimal info for debugging
+    const evt = body.event || 'unknown';
+    console.log(`Webhook: ${evt} from ${instanceId}`);
+    
+    // Process in background - return response immediately
+    // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
+    if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
+      // @ts-ignore
+      EdgeRuntime.waitUntil(processWebhookEvent(body));
+    } else {
+      // Fallback for environments without waitUntil - process async but don't await
+      processWebhookEvent(body).catch(e => console.error('Background processing error:', e));
     }
 
+    // Return immediately - don't wait for processing
     return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e: unknown) {
     console.error('Webhook error:', e);
