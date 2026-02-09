@@ -143,11 +143,11 @@ export default function UsersPage() {
 
   useEffect(() => {
     if (!isLoadingRole && hasFetched && user && !accessChecked) {
-      console.log('[Users] Access check - isAdmin:', isAdmin, 'hasFetched:', hasFetched, 'roleError:', roleError);
+      console.log('[Users] Access check - canManageUsers:', canManageUsers, 'hasFetched:', hasFetched, 'roleError:', roleError);
       
-      if (!isAdmin) {
+      if (!canManageUsers) {
         const timeoutId = setTimeout(() => {
-          console.log('[Users] Confirmed non-admin, redirecting...');
+          console.log('[Users] No management access, redirecting...');
           toast({
             title: "Acesso negado",
             description: "Você não tem permissão para acessar esta página.",
@@ -158,17 +158,17 @@ export default function UsersPage() {
         
         return () => clearTimeout(timeoutId);
       } else {
-        console.log('[Users] Admin access confirmed');
+        console.log('[Users] Management access confirmed');
         setAccessChecked(true);
       }
     }
-  }, [isLoadingRole, hasFetched, isAdmin, user, navigate, accessChecked, roleError]);
+  }, [isLoadingRole, hasFetched, canManageUsers, user, navigate, accessChecked, roleError]);
 
   useEffect(() => {
-    if (isAdmin && currentCompanyId) {
+    if (canManageUsers && currentCompanyId) {
       fetchUsers();
     }
-  }, [isAdmin, currentCompanyId]);
+  }, [canManageUsers, currentCompanyId]);
 
   const fetchUsers = async () => {
     setIsLoadingUsers(true);
@@ -254,6 +254,8 @@ export default function UsersPage() {
           password: newUserPassword,
           full_name: newUserName,
           role: newUserRole,
+          company_id: currentCompanyId,
+          company_role: "member",
         },
       });
 
@@ -510,7 +512,7 @@ export default function UsersPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="admin">Administrador</SelectItem>
+              <SelectItem value="gestor">Gestor</SelectItem>
               <SelectItem value="comercial">Comercial</SelectItem>
               <SelectItem value="visualizacao">Visualização</SelectItem>
             </SelectContent>
@@ -605,7 +607,7 @@ export default function UsersPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="admin">Administrador</SelectItem>
+                        <SelectItem value="gestor">Gestor</SelectItem>
                         <SelectItem value="comercial">Comercial</SelectItem>
                         <SelectItem value="visualizacao">Visualização</SelectItem>
                       </SelectContent>
@@ -846,7 +848,7 @@ export default function UsersPage() {
     );
   }
 
-  if (!user || (!isAdmin && hasFetched)) {
+  if (!user || (!canManageUsers && hasFetched)) {
     return null;
   }
 
