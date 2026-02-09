@@ -98,17 +98,10 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
 
   const fetchInstances = async () => {
     setIsLoading(true);
-    let query = supabase
+    const { data, error } = await supabase
       .from("wapi_instances")
       .select("*")
       .order("unit", { ascending: true });
-
-    // Non-admin users only see their own instance
-    if (!isAdmin) {
-      query = query.eq("user_id", userId);
-    }
-
-    const { data, error } = await query;
 
     if (data) {
       // Load instances immediately from DB without waiting for status sync
