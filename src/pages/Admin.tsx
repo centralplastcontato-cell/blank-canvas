@@ -14,7 +14,7 @@ import { LeadDetailSheet } from "@/components/admin/LeadDetailSheet";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { TransferLeadDialog } from "@/components/admin/TransferLeadDialog";
 import { exportLeadsToCSV } from "@/components/admin/exportLeads";
-import { MetricsCards } from "@/components/admin/MetricsCards";
+import { MetricsCards, LeadMetrics } from "@/components/admin/MetricsCards";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -66,6 +66,7 @@ export default function Admin() {
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 50;
+  const [leadMetrics, setLeadMetrics] = useState<LeadMetrics>({ total: 0, today: 0, novo: 0, em_contato: 0, fechado: 0, perdido: 0 });
   const [responsaveis, setResponsaveis] = useState<UserWithRole[]>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -284,7 +285,48 @@ export default function Admin() {
     fetchLeads();
   }, [filters, refreshKey, role, canViewAll, allowedUnits, isLoadingUnitPerms, currentPage]);
 
-  // Realtime subscription for campaign_leads (auto-refresh on INSERT/UPDATE/DELETE)
+  // Fetch server-side metrics (independent of pagination)
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      if (!role || isLoadingUnitPerms) return;
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayISO = today.toISOString();
+
+      const buildQuery = (statusFilter?: string, dateFilter?: string) => {
+        let q = supabase.from("campaign_leads").select("id", { count: "exact", head: true });
+        if (!canViewAll && allowedUnits.length > 0 && !allowedUnits.includes('all')) {
+          q = q.in("unit", allowedUnits);
+        }
+        if (statusFilter) q = q.eq("status", statusFilter as LeadStatus);
+        if (dateFilter) q = q.gte("created_at", dateFilter);
+        return q;
+      };
+
+      const [totalRes, todayRes, novoRes, contatoRes, fechadoRes, perdidoRes] = await Promise.all([
+        buildQuery(),
+        buildQuery(undefined, todayISO),
+        buildQuery("novo"),
+        buildQuery("em_contato"),
+        buildQuery("fechado"),
+        buildQuery("perdido"),
+      ]);
+
+      setLeadMetrics({
+        total: totalRes.count || 0,
+        today: todayRes.count || 0,
+        novo: novoRes.count || 0,
+        em_contato: contatoRes.count || 0,
+        fechado: fechadoRes.count || 0,
+        perdido: perdidoRes.count || 0,
+      });
+    };
+
+    fetchMetrics();
+  }, [role, canViewAll, allowedUnits, isLoadingUnitPerms, refreshKey]);
+
+
   useEffect(() => {
     if (!role) return;
 
@@ -465,7 +507,7 @@ export default function Admin() {
         </header>
 
         <main className="px-3 py-4">
-          <MetricsCards leads={leads} isLoading={isLoadingLeads} />
+          <MetricsCards metrics={leadMetrics} isLoading={isLoadingLeads} />
           <LeadsFilters filters={filters} onFiltersChange={setFilters} responsaveis={responsaveis} onExport={handleExport} />
 
           <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "list" | "kanban")} className="mb-4">
@@ -588,7 +630,7 @@ export default function Admin() {
           </header>
 
           <main className="p-6">
-            <MetricsCards leads={leads} isLoading={isLoadingLeads} />
+            <MetricsCards metrics={leadMetrics} isLoading={isLoadingLeads} />
             <LeadsFilters filters={filters} onFiltersChange={setFilters} responsaveis={responsaveis} onExport={handleExport} />
 
             <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "list" | "kanban")} className="mb-4">

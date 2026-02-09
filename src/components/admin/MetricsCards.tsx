@@ -1,38 +1,26 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Lead, LeadStatus } from "@/types/crm";
 import { Users, UserPlus, Clock, CheckCircle, XCircle, TrendingUp } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
+export interface LeadMetrics {
+  total: number;
+  today: number;
+  novo: number;
+  em_contato: number;
+  fechado: number;
+  perdido: number;
+}
+
 interface MetricsCardsProps {
-  leads: Lead[];
+  metrics: LeadMetrics;
   isLoading: boolean;
 }
 
-export function MetricsCards({ leads, isLoading }: MetricsCardsProps) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const totalLeads = leads.length;
-  const leadsToday = leads.filter((lead) => {
-    const createdAt = new Date(lead.created_at);
-    createdAt.setHours(0, 0, 0, 0);
-    return createdAt.getTime() === today.getTime();
-  }).length;
-
-  const leadsByStatus = leads.reduce((acc, lead) => {
-    acc[lead.status] = (acc[lead.status] || 0) + 1;
-    return acc;
-  }, {} as Record<LeadStatus, number>);
-
-  const newLeads = leadsByStatus["novo"] || 0;
-  const inContact = leadsByStatus["em_contato"] || 0;
-  const closed = leadsByStatus["fechado"] || 0;
-  const lost = leadsByStatus["perdido"] || 0;
-
-  const metrics = [
+export function MetricsCards({ metrics, isLoading }: MetricsCardsProps) {
+  const cards = [
     {
       title: "Total de Leads",
-      value: totalLeads,
+      value: metrics.total,
       icon: Users,
       gradient: "from-primary/20 via-primary/10 to-transparent",
       iconBg: "bg-primary/15",
@@ -41,7 +29,7 @@ export function MetricsCards({ leads, isLoading }: MetricsCardsProps) {
     },
     {
       title: "Leads Hoje",
-      value: leadsToday,
+      value: metrics.today,
       icon: UserPlus,
       gradient: "from-sky-500/20 via-sky-500/10 to-transparent",
       iconBg: "bg-sky-500/15",
@@ -50,7 +38,7 @@ export function MetricsCards({ leads, isLoading }: MetricsCardsProps) {
     },
     {
       title: "Novos",
-      value: newLeads,
+      value: metrics.novo,
       icon: Clock,
       gradient: "from-amber-500/20 via-amber-500/10 to-transparent",
       iconBg: "bg-amber-500/15",
@@ -59,7 +47,7 @@ export function MetricsCards({ leads, isLoading }: MetricsCardsProps) {
     },
     {
       title: "Em Contato",
-      value: inContact,
+      value: metrics.em_contato,
       icon: TrendingUp,
       gradient: "from-orange-500/20 via-orange-500/10 to-transparent",
       iconBg: "bg-orange-500/15",
@@ -68,7 +56,7 @@ export function MetricsCards({ leads, isLoading }: MetricsCardsProps) {
     },
     {
       title: "Fechados",
-      value: closed,
+      value: metrics.fechado,
       icon: CheckCircle,
       gradient: "from-emerald-500/20 via-emerald-500/10 to-transparent",
       iconBg: "bg-emerald-500/15",
@@ -77,7 +65,7 @@ export function MetricsCards({ leads, isLoading }: MetricsCardsProps) {
     },
     {
       title: "Perdidos",
-      value: lost,
+      value: metrics.perdido,
       icon: XCircle,
       gradient: "from-rose-500/20 via-rose-500/10 to-transparent",
       iconBg: "bg-rose-500/15",
@@ -103,7 +91,7 @@ export function MetricsCards({ leads, isLoading }: MetricsCardsProps) {
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-      {metrics.map((metric) => (
+      {cards.map((metric) => (
         <Card 
           key={metric.title} 
           className={`

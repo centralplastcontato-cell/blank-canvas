@@ -16,7 +16,7 @@ import { LeadDetailSheet } from "@/components/admin/LeadDetailSheet";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
 import { exportLeadsToCSV } from "@/components/admin/exportLeads";
-import { MetricsCards } from "@/components/admin/MetricsCards";
+import { MetricsCards, LeadMetrics } from "@/components/admin/MetricsCards";
 import { NotificationBell } from "@/components/admin/NotificationBell";
 import { TransferAlertBanner } from "@/components/admin/TransferAlertBanner";
 import { ClientAlertBanner } from "@/components/admin/ClientAlertBanner";
@@ -68,6 +68,7 @@ export default function CentralAtendimento() {
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 50;
+  const [leadMetrics, setLeadMetrics] = useState<LeadMetrics>({ total: 0, today: 0, novo: 0, em_contato: 0, fechado: 0, perdido: 0 });
   const [responsaveis, setResponsaveis] = useState<UserWithRole[]>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -310,7 +311,47 @@ export default function CentralAtendimento() {
     fetchLeads();
   }, [filters, refreshKey, role, canViewAll, allowedUnits, isLoadingUnitPerms, currentPage]);
 
-  // Handle lead ID from URL parameters (deep linking from WhatsApp)
+  // Fetch server-side metrics (independent of pagination)
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      if (!role || isLoadingUnitPerms) return;
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayISO = today.toISOString();
+
+      const buildQuery = (statusFilter?: string, dateFilter?: string) => {
+        let q = supabase.from("campaign_leads").select("id", { count: "exact", head: true });
+        if (!canViewAll && allowedUnits.length > 0 && !allowedUnits.includes('all')) {
+          q = q.in("unit", allowedUnits);
+        }
+        if (statusFilter) q = q.eq("status", statusFilter as LeadStatus);
+        if (dateFilter) q = q.gte("created_at", dateFilter);
+        return q;
+      };
+
+      const [totalRes, todayRes, novoRes, contatoRes, fechadoRes, perdidoRes] = await Promise.all([
+        buildQuery(),
+        buildQuery(undefined, todayISO),
+        buildQuery("novo"),
+        buildQuery("em_contato"),
+        buildQuery("fechado"),
+        buildQuery("perdido"),
+      ]);
+
+      setLeadMetrics({
+        total: totalRes.count || 0,
+        today: todayRes.count || 0,
+        novo: novoRes.count || 0,
+        em_contato: contatoRes.count || 0,
+        fechado: fechadoRes.count || 0,
+        perdido: perdidoRes.count || 0,
+      });
+    };
+
+    fetchMetrics();
+  }, [role, canViewAll, allowedUnits, isLoadingUnitPerms, refreshKey]);
+
   useEffect(() => {
     const leadId = searchParams.get('lead');
     if (leadId && leads.length > 0 && !isLoadingLeads) {
@@ -643,7 +684,7 @@ export default function CentralAtendimento() {
                   </Tabs>
                 </div>
 
-                <MetricsCards leads={leads} isLoading={isLoadingLeads} />
+                <MetricsCards metrics={leadMetrics} isLoading={isLoadingLeads} />
                 <LeadsFilters filters={filters} onFiltersChange={setFilters} responsaveis={responsaveis} onExport={handleExport} />
 
                 {viewMode === "list" ? (
@@ -902,7 +943,7 @@ export default function CentralAtendimento() {
                     </div>
                   </div>
 
-                  <MetricsCards leads={leads} isLoading={isLoadingLeads} />
+                  <MetricsCards metrics={leadMetrics} isLoading={isLoadingLeads} />
                  <LeadsFilters filters={filters} onFiltersChange={setFilters} responsaveis={responsaveis} onExport={handleExport} />
 
                  <TabsContent value="list" className="mt-4 flex-1 min-h-0 overflow-hidden">
