@@ -848,7 +848,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
 
     const interval = setInterval(() => {
       fetchQrCode(qrInstance);
-    }, 30000);
+    }, 15000); // Refresh QR every 15s (QR codes expire quickly)
 
     return () => clearInterval(interval);
   }, [qrDialogOpen, qrInstance, qrPolling, connectionMode, fetchQrCode]);
