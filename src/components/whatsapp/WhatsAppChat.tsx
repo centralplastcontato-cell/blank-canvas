@@ -2884,12 +2884,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                                     ? "bg-primary text-primary-foreground"
                                     : "bg-card border",
                                   (msg.message_type === 'image' || msg.message_type === 'video')
-                                    ? "p-1 overflow-hidden"
+                                    ? "p-0 overflow-hidden"
                                     : "px-3 py-2"
                                 )}
                               >
 {(msg.message_type === 'image' || msg.message_type === 'video' || msg.message_type === 'audio' || msg.message_type === 'document') && (
-                                  <div className="mb-2">
+                                  <div className={(msg.message_type === 'image' || msg.message_type === 'video') ? "" : "mb-2"}>
                                     <MediaMessage
                                       messageId={msg.message_id}
                                       mediaType={msg.message_type as 'image' | 'video' | 'audio' | 'document'}
@@ -2910,7 +2910,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                                   <p className="whitespace-pre-wrap break-words">{msg.content}</p>
                                 )}
                                 {msg.message_type !== 'text' && msg.content && msg.content !== '[Imagem]' && msg.content !== '[Áudio]' && (
-                                  <p className="whitespace-pre-wrap break-words mt-1">{msg.content}</p>
+                                  <p className={cn("whitespace-pre-wrap break-words mt-1", (msg.message_type === 'image' || msg.message_type === 'video') && "px-2")}>{msg.content}</p>
                                 )}
                                 <div className={cn(
                                   "flex items-center gap-1 mt-1",
@@ -3512,12 +3512,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                                 ? "bg-primary text-primary-foreground"
                                 : "bg-card border",
                               (msg.message_type === 'image' || msg.message_type === 'video')
-                                ? "p-1 overflow-hidden"
+                                ? "p-0 overflow-hidden"
                                 : "px-3 py-2"
                             )}
                           >
 {(msg.message_type === 'image' || msg.message_type === 'video' || msg.message_type === 'audio' || msg.message_type === 'document') && (
-                              <div className="mb-2">
+                              <div className={(msg.message_type === 'image' || msg.message_type === 'video') ? "" : "mb-2"}>
                                 <MediaMessage
                                   messageId={msg.message_id}
                                   mediaType={msg.message_type as 'image' | 'video' | 'audio' | 'document'}
