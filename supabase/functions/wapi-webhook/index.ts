@@ -890,7 +890,8 @@ async function sendQualificationMaterials(
       content,
       media_url: mediaUrl || null,
       status: 'sent',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      company_id: instance.company_id,
     });
   };
   
