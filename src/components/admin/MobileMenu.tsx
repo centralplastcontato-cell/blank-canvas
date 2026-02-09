@@ -6,7 +6,8 @@ import {
   RefreshCw, 
   LogOut, 
   Presentation,
-  Building2 
+  Building2,
+  BarChart3
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,7 +25,7 @@ interface MobileMenuProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   trigger: React.ReactNode;
-  currentPage: "atendimento" | "configuracoes" | "users" | "comercial-b2b" | "empresas";
+  currentPage: "atendimento" | "configuracoes" | "users" | "comercial-b2b" | "empresas" | "hub";
   userName: string;
   userEmail: string;
   userAvatar?: string | null;
@@ -92,6 +93,13 @@ export function MobileMenu({
       label: "Empresas",
       icon: Building2,
       path: "/empresas",
+      show: canManageUsers,
+    },
+    {
+      id: "hub",
+      label: "Painel Hub",
+      icon: BarChart3,
+      path: "/hub",
       show: canManageUsers,
     },
   ];
