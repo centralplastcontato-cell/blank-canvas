@@ -122,21 +122,16 @@ export default function EmpresasPage() {
     }
   }, [user]);
 
-  // Track which userId the role was fetched for to avoid stale state race condition
-  const [roleCheckedForUser, setRoleCheckedForUser] = useState<string | null>(null);
-
+  // Track access check completion
   useEffect(() => {
-    if (!isLoadingRole && hasFetched && user?.id) {
-      setRoleCheckedForUser(user.id);
+    if (!isLoadingRole && hasFetched && !isCheckingParentAccess && user?.id) {
+      console.log('[Empresas] Access check complete:', { isAdmin, isParentCompanyOwner, canAccessEmpresas, role: isAdmin ? 'admin' : 'other' });
+      if (!canAccessEmpresas) {
+        toast({ title: "Acesso negado", description: "Apenas administradores podem gerenciar empresas.", variant: "destructive" });
+        navigate("/atendimento");
+      }
     }
-  }, [isLoadingRole, hasFetched, user?.id]);
-
-  useEffect(() => {
-    if (roleCheckedForUser && user && roleCheckedForUser === user.id && !isCheckingParentAccess && !canAccessEmpresas) {
-      toast({ title: "Acesso negado", description: "Apenas administradores podem gerenciar empresas.", variant: "destructive" });
-      navigate("/atendimento");
-    }
-  }, [roleCheckedForUser, canAccessEmpresas, isCheckingParentAccess, user, navigate]);
+  }, [isLoadingRole, hasFetched, isCheckingParentAccess, canAccessEmpresas, isAdmin, isParentCompanyOwner, user?.id, navigate]);
 
   useEffect(() => {
     if (canAccessEmpresas) fetchCompanies();
