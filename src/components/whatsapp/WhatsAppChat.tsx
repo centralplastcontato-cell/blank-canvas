@@ -592,8 +592,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
       }
 
       // Subscribe to realtime updates for messages - unique channel per conversation
+      const channelName = `wapi_messages_${selectedConversation.id}_${Date.now()}`;
+      console.log('[Realtime] Subscribing to messages channel:', channelName);
+      
       const messagesChannel = supabase
-        .channel(`wapi_messages_${selectedConversation.id}`)
+        .channel(channelName)
         .on(
           'postgres_changes',
           {
@@ -603,6 +606,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
             filter: `conversation_id=eq.${selectedConversation.id}`,
           },
           (payload) => {
+            console.log('[Realtime] New message received:', payload.new);
             const newMessage = payload.new as Message;
             setMessages((prev) => {
               // Check if this message already exists (optimistic update case)
@@ -651,7 +655,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
             });
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log('[Realtime] Messages channel status:', status);
+          if (status === 'CHANNEL_ERROR') {
+            console.error('[Realtime] Channel error - will retry on next render');
+          }
+        });
 
       // Mark as read immediately - update local state first for instant feedback
       if (selectedConversation.unread_count > 0) {
