@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,9 +14,31 @@ const passwordSchema = z.string().min(6, "Senha deve ter pelo menos 6 caracteres
 
 export default function Auth() {
   const navigate = useNavigate();
+  const { slug } = useParams<{ slug?: string }>();
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [companyLogo, setCompanyLogo] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState<string | null>(null);
+  const [isLoadingCompany, setIsLoadingCompany] = useState(!!slug);
+
+  useEffect(() => {
+    if (slug) {
+      setIsLoadingCompany(true);
+      supabase
+        .from("companies")
+        .select("name, logo_url")
+        .eq("slug", slug)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) {
+            setCompanyName(data.name);
+            setCompanyLogo(data.logo_url);
+          }
+          setIsLoadingCompany(false);
+        });
+    }
+  }, [slug]);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -85,6 +107,17 @@ export default function Auth() {
     }
   };
 
+  const displayLogo = companyLogo || logoCastelo;
+  const displayName = companyName || "Castelo da Diversão";
+
+  if (isLoadingCompany) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 relative overflow-hidden">
       {/* Decorative background - warm colors only */}
@@ -109,9 +142,9 @@ export default function Auth() {
         >
           <div className="text-center mb-8">
             <img 
-              src={logoCastelo} 
-              alt="Castelo da Diversão" 
-              className="w-32 mx-auto mb-4"
+              src={displayLogo} 
+              alt={displayName} 
+              className="w-32 mx-auto mb-4 object-contain"
             />
             <h1 className="font-display text-2xl font-bold text-foreground">
               Área Administrativa
