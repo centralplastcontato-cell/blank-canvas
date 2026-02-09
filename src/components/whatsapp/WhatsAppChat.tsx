@@ -2867,7 +2867,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                                   msg.from_me
                                     ? "bg-primary text-primary-foreground"
                                     : "bg-card border",
-                                  (msg.message_type === 'image' || msg.message_type === 'video') && msg.from_me
+                                  (msg.message_type === 'image' || msg.message_type === 'video')
                                     ? "p-1 overflow-hidden"
                                     : "px-3 py-2"
                                 )}
@@ -2899,7 +2899,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                                 <div className={cn(
                                   "flex items-center gap-1 mt-1",
                                   msg.from_me ? "justify-end" : "justify-start",
-                                  (msg.message_type === 'image' || msg.message_type === 'video') && msg.from_me && "px-2 pb-1"
+                                  (msg.message_type === 'image' || msg.message_type === 'video') && "px-2 pb-1"
                                 )}>
                                   <span className={cn(
                                     "text-[10px]",
@@ -3495,7 +3495,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                               msg.from_me
                                 ? "bg-primary text-primary-foreground"
                                 : "bg-card border",
-                              (msg.message_type === 'image' || msg.message_type === 'video') && msg.from_me
+                              (msg.message_type === 'image' || msg.message_type === 'video')
                                 ? "p-1 overflow-hidden"
                                 : "px-3 py-2"
                             )}
@@ -3524,7 +3524,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                             <div className={cn(
                               "flex items-center gap-1 mt-1",
                               msg.from_me ? "justify-end" : "justify-start",
-                              (msg.message_type === 'image' || msg.message_type === 'video') && msg.from_me && "px-2 pb-1"
+                              (msg.message_type === 'image' || msg.message_type === 'video') && "px-2 pb-1"
                             )}>
                               <span className={cn(
                                 "text-[10px]",
