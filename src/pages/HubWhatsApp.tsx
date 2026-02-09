@@ -25,7 +25,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import {
   Smartphone, Wifi, WifiOff, RefreshCw, Plus, Building2,
-  Phone, MessageSquare, Loader2, BarChart3, QrCode, Power
+  Phone, MessageSquare, Loader2, BarChart3, QrCode, Power, Pencil, Check, X
 } from "lucide-react";
 import { useWhatsAppConnection } from "@/hooks/useWhatsAppConnection";
 import { ConnectionDialog } from "@/components/whatsapp/ConnectionDialog";
@@ -84,8 +84,23 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
   });
 
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
-
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
   const connection = useWhatsAppConnection(() => fetchData());
+
+  const handleRename = async (inst: HubInstance) => {
+    const newName = renameValue.trim();
+    if (!newName) return;
+    try {
+      const { error } = await supabase.from("wapi_instances").update({ unit: newName }).eq("id", inst.id);
+      if (error) throw error;
+      toast({ title: "Nome atualizado" });
+      setRenamingId(null);
+      fetchData();
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    }
+  };
 
   const handleDisconnect = async (inst: HubInstance) => {
     if (!confirm(`Deseja desconectar o WhatsApp da unidade ${inst.unit}?`)) return;
@@ -325,8 +340,35 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
                     <Card key={inst.id} className="hover:shadow-md transition-shadow">
                       <CardContent className="p-4 space-y-3">
                         <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="font-semibold text-foreground truncate">{inst.unit || "Sem unidade"}</p>
+                          <div className="min-w-0 flex-1">
+                            {renamingId === inst.id ? (
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  value={renameValue}
+                                  onChange={(e) => setRenameValue(e.target.value)}
+                                  className="h-7 text-sm"
+                                  autoFocus
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") handleRename(inst);
+                                    if (e.key === "Escape") setRenamingId(null);
+                                  }}
+                                />
+                                <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => handleRename(inst)}><Check className="h-3.5 w-3.5" /></Button>
+                                <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => setRenamingId(null)}><X className="h-3.5 w-3.5" /></Button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1 group">
+                                <p className="font-semibold text-foreground truncate">{inst.unit || "Sem unidade"}</p>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                                  onClick={() => { setRenamingId(inst.id); setRenameValue(inst.unit || ""); }}
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            )}
                             <p className="text-xs text-muted-foreground truncate">{inst.instance_id}</p>
                           </div>
                           {getStatusBadge(inst.status)}
