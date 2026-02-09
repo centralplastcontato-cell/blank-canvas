@@ -718,9 +718,19 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
   // Track the conversation ID that needs initial scroll
   const pendingScrollConversationRef = useRef<string | null>(null);
   
-  // Force scroll to bottom - robust multi-attempt strategy for mobile
+  // Force scroll to bottom - use scrollIntoView as most reliable method
   const forceScrollToBottom = useCallback(() => {
-    const executeScroll = () => {
+    const scrollViaElement = () => {
+      // Try using the end marker element (most reliable for mobile)
+      const endEl = messagesEndRefDesktop.current || messagesEndRefMobile.current;
+      if (endEl) {
+        endEl.scrollIntoView({ behavior: 'instant', block: 'end' });
+        return true;
+      }
+      return false;
+    };
+    
+    const scrollViaViewport = () => {
       const desktopViewport = scrollAreaDesktopRef.current?.querySelector('[data-radix-scroll-area-viewport]');
       const mobileViewport = scrollAreaMobileRef.current?.querySelector('[data-radix-scroll-area-viewport]');
       const viewport = desktopViewport || mobileViewport;
@@ -728,27 +738,29 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
       if (viewport) {
         const el = viewport as HTMLElement;
         el.scrollTop = el.scrollHeight;
-        return el.scrollTop > 0 || el.scrollHeight <= el.clientHeight;
+        return true;
       }
       return false;
     };
     
-    // Immediate attempt
-    executeScroll();
+    // Immediate attempts
+    scrollViaElement();
+    scrollViaViewport();
     
-    // Multiple RAF attempts to catch rendering
+    // RAF for after render
     requestAnimationFrame(() => {
-      executeScroll();
-      requestAnimationFrame(() => {
-        executeScroll();
-      });
+      scrollViaElement();
+      scrollViaViewport();
     });
     
-    // Backup timeouts for slow renders (mobile Safari especially)
-    setTimeout(executeScroll, 50);
-    setTimeout(executeScroll, 150);
-    setTimeout(executeScroll, 300);
-    setTimeout(executeScroll, 500);
+    // Multiple backup timeouts for slow mobile renders
+    const delays = [50, 100, 200, 350, 500];
+    delays.forEach(delay => {
+      setTimeout(() => {
+        scrollViaElement();
+        scrollViaViewport();
+      }, delay);
+    });
   }, []);
   
   // Effect for initial scroll when messages load for a conversation
