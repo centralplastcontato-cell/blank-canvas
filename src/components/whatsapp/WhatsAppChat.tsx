@@ -574,11 +574,27 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
               }
             }
             
-            // Handle DELETE events
+            // Handle DELETE events - only remove if user explicitly deleted
+            // This prevents accidental removal caused by realtime race conditions
             if (payload.eventType === 'DELETE') {
               const deletedId = (payload.old as { id?: string })?.id;
               if (deletedId) {
-                setConversations(prev => prev.filter(c => c.id !== deletedId));
+                console.log('[Realtime] DELETE event for conversation:', deletedId, '- verifying before removing from UI');
+                // Verify the conversation was actually deleted by re-checking the database
+                supabase
+                  .from('wapi_conversations')
+                  .select('id')
+                  .eq('id', deletedId)
+                  .maybeSingle()
+                  .then(({ data: stillExists }) => {
+                    if (!stillExists) {
+                      // Confirmed deleted - safe to remove from UI
+                      console.log('[Realtime] Confirmed deletion of conversation:', deletedId);
+                      setConversations(prev => prev.filter(c => c.id !== deletedId));
+                    } else {
+                      console.warn('[Realtime] DELETE event received but conversation still exists in DB - ignoring:', deletedId);
+                    }
+                  });
               }
             }
             
