@@ -123,21 +123,34 @@ function HubEmpresasContent() {
                 </div>
                 <Badge variant={child.is_active ? "default" : "secondary"}>{child.is_active ? "Ativa" : "Inativa"}</Badge>
               </div>
-              <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <div className="flex flex-col gap-1 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <Users className="h-3.5 w-3.5" /> {memberCounts[child.id] || 0} membro{(memberCounts[child.id] || 0) !== 1 ? "s" : ""}
                 </span>
-                <button
-                  onClick={() => {
-                    const url = `${window.location.origin}/auth/${child.slug}`;
-                    navigator.clipboard.writeText(url);
-                    toast({ title: "Link copiado!", description: url });
-                  }}
-                  className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer"
-                >
-                  <Link2 className="h-3 w-3" />
-                  /auth/{child.slug}
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => {
+                      const url = `${window.location.origin}/auth/${child.slug}`;
+                      navigator.clipboard.writeText(url);
+                      toast({ title: "Link de login copiado!", description: url });
+                    }}
+                    className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer"
+                  >
+                    <Link2 className="h-3 w-3" />
+                    Login
+                  </button>
+                  <button
+                    onClick={() => {
+                      const url = `${window.location.origin}/onboarding/${child.slug}`;
+                      navigator.clipboard.writeText(url);
+                      toast({ title: "Link de onboarding copiado!", description: url });
+                    }}
+                    className="flex items-center gap-1 text-xs text-accent hover:underline cursor-pointer"
+                  >
+                    <Copy className="h-3 w-3" />
+                    Onboarding
+                  </button>
+                </div>
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" className="flex-1" onClick={() => { setEditingCompany(child); setFormOpen(true); }}>

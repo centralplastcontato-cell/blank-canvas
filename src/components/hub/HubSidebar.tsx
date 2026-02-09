@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
-import { BarChart3, Building2, Users, LogOut, ChevronLeft, Pin, PinOff, Smartphone } from "lucide-react";
+import { BarChart3, Building2, Users, LogOut, ChevronLeft, Pin, PinOff, Smartphone, ClipboardList } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -24,6 +24,7 @@ const hubMenuItems = [
   { title: "Empresas", url: "/hub/empresas", icon: Building2 },
   { title: "WhatsApp", url: "/hub/whatsapp", icon: Smartphone },
   { title: "Usuários", url: "/hub/users", icon: Users },
+  { title: "Onboarding", url: "/hub/onboarding", icon: ClipboardList },
 ];
 
 interface HubSidebarProps {
