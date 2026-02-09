@@ -66,6 +66,8 @@ export default function CentralAtendimento() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoadingLeads, setIsLoadingLeads] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 50;
   const [responsaveis, setResponsaveis] = useState<UserWithRole[]>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -175,6 +177,11 @@ export default function CentralAtendimento() {
     }
   }, [role]);
 
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
+
   // Fetch leads
   useEffect(() => {
     const fetchLeads = async () => {
@@ -182,10 +189,14 @@ export default function CentralAtendimento() {
 
       setIsLoadingLeads(true);
 
+      const from = (currentPage - 1) * pageSize;
+      const to = from + pageSize - 1;
+
       let query = supabase
         .from("campaign_leads")
         .select("*", { count: "exact" })
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .range(from, to);
 
       // Apply unit permission filter (before user-selected filters)
       if (!canViewAll && allowedUnits.length > 0 && !allowedUnits.includes('all')) {
@@ -297,7 +308,7 @@ export default function CentralAtendimento() {
     };
 
     fetchLeads();
-  }, [filters, refreshKey, role, canViewAll, allowedUnits, isLoadingUnitPerms]);
+  }, [filters, refreshKey, role, canViewAll, allowedUnits, isLoadingUnitPerms, currentPage]);
 
   // Handle lead ID from URL parameters (deep linking from WhatsApp)
   useEffect(() => {
@@ -647,6 +658,9 @@ export default function CentralAtendimento() {
                     isAdmin={isAdmin}
                     currentUserId={user.id}
                     currentUserName={currentUserProfile?.full_name || user.email || ""}
+                    currentPage={currentPage}
+                    pageSize={pageSize}
+                    onPageChange={setCurrentPage}
                   />
                 ) : (
                   <LeadsKanban
@@ -902,6 +916,9 @@ export default function CentralAtendimento() {
                       isAdmin={isAdmin}
                       currentUserId={user.id}
                       currentUserName={currentUserProfile?.full_name || user.email || ""}
+                      currentPage={currentPage}
+                      pageSize={pageSize}
+                      onPageChange={setCurrentPage}
                     />
                   </TabsContent>
 

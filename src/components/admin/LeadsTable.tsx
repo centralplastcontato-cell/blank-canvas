@@ -4,6 +4,15 @@ import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { insertWithCompany } from "@/lib/supabase-helpers";
 import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationEllipsis,
+} from "@/components/ui/pagination";
+import {
   Lead,
   LEAD_STATUS_LABELS,
   LEAD_STATUS_COLORS,
@@ -65,6 +74,9 @@ interface LeadsTableProps {
   isAdmin: boolean;
   currentUserId: string;
   currentUserName: string;
+  currentPage: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
 }
 
 export function LeadsTable({
@@ -79,6 +91,9 @@ export function LeadsTable({
   isAdmin,
   currentUserId,
   currentUserName,
+  currentPage,
+  pageSize,
+  onPageChange,
 }: LeadsTableProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
@@ -299,6 +314,14 @@ export function LeadsTable({
             getResponsavelName={getResponsavelName}
           />
         ))}
+        {totalCount > pageSize && (
+          <PaginationControls
+            currentPage={currentPage}
+            totalCount={totalCount}
+            pageSize={pageSize}
+            onPageChange={onPageChange}
+          />
+        )}
       </div>
 
       {/* Desktop: Table View with dual scrollbars */}
@@ -499,6 +522,87 @@ export function LeadsTable({
           </Table>
         </div>
       </div>
+
+      {/* Pagination */}
+      {totalCount > pageSize && (
+        <PaginationControls
+          currentPage={currentPage}
+          totalCount={totalCount}
+          pageSize={pageSize}
+          onPageChange={onPageChange}
+        />
+      )}
+    </div>
+  );
+}
+
+function PaginationControls({
+  currentPage,
+  totalCount,
+  pageSize,
+  onPageChange,
+}: {
+  currentPage: number;
+  totalCount: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+}) {
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  const getVisiblePages = () => {
+    const pages: (number | "ellipsis")[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+      return pages;
+    }
+
+    pages.push(1);
+    if (currentPage > 3) pages.push("ellipsis");
+
+    const start = Math.max(2, currentPage - 1);
+    const end = Math.min(totalPages - 1, currentPage + 1);
+    for (let i = start; i <= end; i++) pages.push(i);
+
+    if (currentPage < totalPages - 2) pages.push("ellipsis");
+    pages.push(totalPages);
+    return pages;
+  };
+
+  return (
+    <div className="p-3 border-t border-border shrink-0">
+      <Pagination>
+        <PaginationContent>
+          <PaginationItem>
+            <PaginationPrevious
+              onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+              className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+            />
+          </PaginationItem>
+          {getVisiblePages().map((page, i) =>
+            page === "ellipsis" ? (
+              <PaginationItem key={`ellipsis-${i}`}>
+                <PaginationEllipsis />
+              </PaginationItem>
+            ) : (
+              <PaginationItem key={page}>
+                <PaginationLink
+                  isActive={page === currentPage}
+                  onClick={() => onPageChange(page)}
+                  className="cursor-pointer"
+                >
+                  {page}
+                </PaginationLink>
+              </PaginationItem>
+            )
+          )}
+          <PaginationItem>
+            <PaginationNext
+              onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+              className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+            />
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
     </div>
   );
 }

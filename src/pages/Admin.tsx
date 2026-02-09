@@ -64,6 +64,8 @@ export default function Admin() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoadingLeads, setIsLoadingLeads] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 50;
   const [responsaveis, setResponsaveis] = useState<UserWithRole[]>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -149,6 +151,11 @@ export default function Admin() {
     }
   }, [role]);
 
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
+
   // Fetch leads
   useEffect(() => {
     const fetchLeads = async () => {
@@ -156,10 +163,14 @@ export default function Admin() {
 
       setIsLoadingLeads(true);
 
+      const from = (currentPage - 1) * pageSize;
+      const to = from + pageSize - 1;
+
       let query = supabase
         .from("campaign_leads")
         .select("*", { count: "exact" })
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .range(from, to);
 
       // Apply unit permission filter (before user-selected filters)
       if (!canViewAll && allowedUnits.length > 0 && !allowedUnits.includes('all')) {
@@ -271,7 +282,7 @@ export default function Admin() {
     };
 
     fetchLeads();
-  }, [filters, refreshKey, role, canViewAll, allowedUnits, isLoadingUnitPerms]);
+  }, [filters, refreshKey, role, canViewAll, allowedUnits, isLoadingUnitPerms, currentPage]);
 
   // Realtime subscription for campaign_leads (auto-refresh on INSERT/UPDATE/DELETE)
   useEffect(() => {
@@ -482,6 +493,9 @@ export default function Admin() {
                 isAdmin={isAdmin}
                 currentUserId={user.id}
                 currentUserName={currentUserProfile?.full_name || user.email || ""}
+                currentPage={currentPage}
+                pageSize={pageSize}
+                onPageChange={setCurrentPage}
               />
             </TabsContent>
 
@@ -602,6 +616,9 @@ export default function Admin() {
                   isAdmin={isAdmin}
                   currentUserId={user.id}
                   currentUserName={currentUserProfile?.full_name || user.email || ""}
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  onPageChange={setCurrentPage}
                 />
               </TabsContent>
 
