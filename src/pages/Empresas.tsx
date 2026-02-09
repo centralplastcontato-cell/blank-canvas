@@ -45,6 +45,53 @@ export default function EmpresasPage() {
   const { isAdmin, isLoading: isLoadingRole, hasFetched, canManageUsers } = useUserRole(user?.id);
   const { hasPermission } = usePermissions(user?.id);
   const canAccessB2B = isAdmin || hasPermission('b2b.view');
+  const [isParentCompanyOwner, setIsParentCompanyOwner] = useState(false);
+  const [isCheckingParentAccess, setIsCheckingParentAccess] = useState(true);
+
+  // Check if user is owner/admin of a parent company (empresa mãe)
+  useEffect(() => {
+    const checkParentAccess = async () => {
+      if (!user?.id) {
+        setIsCheckingParentAccess(false);
+        return;
+      }
+      try {
+        const { data: userCompanies } = await supabase
+          .from("user_companies")
+          .select("company_id, role")
+          .eq("user_id", user.id)
+          .in("role", ["owner", "admin"]);
+
+        if (userCompanies && userCompanies.length > 0) {
+          const companyIds = userCompanies.map(uc => uc.company_id);
+          // Check if any of those companies are parent companies (have children)
+          const { data: parentCompanies } = await supabase
+            .from("companies")
+            .select("id")
+            .in("id", companyIds)
+            .is("parent_id", null);
+
+          // Also check if those companies have children
+          if (parentCompanies && parentCompanies.length > 0) {
+            const parentIds = parentCompanies.map(c => c.id);
+            const { data: children } = await supabase
+              .from("companies")
+              .select("id")
+              .in("parent_id", parentIds)
+              .limit(1);
+
+            setIsParentCompanyOwner((children && children.length > 0) || false);
+          }
+        }
+      } catch (err) {
+        console.error("Error checking parent access:", err);
+      }
+      setIsCheckingParentAccess(false);
+    };
+    checkParentAccess();
+  }, [user?.id]);
+
+  const canAccessEmpresas = isAdmin || isParentCompanyOwner;
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -85,15 +132,15 @@ export default function EmpresasPage() {
   }, [isLoadingRole, hasFetched, user?.id]);
 
   useEffect(() => {
-    if (roleCheckedForUser && user && roleCheckedForUser === user.id && !isAdmin) {
+    if (roleCheckedForUser && user && roleCheckedForUser === user.id && !isCheckingParentAccess && !canAccessEmpresas) {
       toast({ title: "Acesso negado", description: "Apenas administradores podem gerenciar empresas.", variant: "destructive" });
       navigate("/atendimento");
     }
-  }, [roleCheckedForUser, isAdmin, user, navigate]);
+  }, [roleCheckedForUser, canAccessEmpresas, isCheckingParentAccess, user, navigate]);
 
   useEffect(() => {
-    if (isAdmin) fetchCompanies();
-  }, [isAdmin]);
+    if (canAccessEmpresas) fetchCompanies();
+  }, [canAccessEmpresas]);
 
   const fetchCompanies = async () => {
     setIsLoadingCompanies(true);
@@ -182,7 +229,7 @@ export default function EmpresasPage() {
 
   const handleRefresh = () => fetchCompanies();
 
-  if (isLoading || isLoadingRole) {
+  if (isLoading || isLoadingRole || isCheckingParentAccess) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -190,7 +237,7 @@ export default function EmpresasPage() {
     );
   }
 
-  if (!user || !isAdmin) return null;
+  if (!user || !canAccessEmpresas) return null;
 
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
 
