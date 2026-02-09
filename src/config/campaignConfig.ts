@@ -49,6 +49,9 @@ export const campaignConfig = {
   // IDENTIFICAÇÃO
   campaignId: "carnaval-2026",
   campaignName: "Esquenta de Carnaval 2026",
+  
+  // EMPRESA (multi-tenant) - ID da empresa padrão para leads da landing page
+  companyId: "a0000000-0000-0000-0000-000000000001",
 };
 
 // BENEFÍCIOS DO CASTELO (fixos)

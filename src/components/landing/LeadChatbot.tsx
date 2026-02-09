@@ -258,6 +258,7 @@ export function LeadChatbot({ isOpen, onClose }: LeadChatbotProps) {
               guests: leadData.guests,
               campaign_id: campaignConfig.campaignId,
               campaign_name: campaignConfig.campaignName,
+              company_id: campaignConfig.companyId,
             },
           });
           if (error) throw error;
