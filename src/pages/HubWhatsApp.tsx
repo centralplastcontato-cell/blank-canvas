@@ -25,8 +25,10 @@ import {
 import { toast } from "@/hooks/use-toast";
 import {
   Smartphone, Wifi, WifiOff, RefreshCw, Plus, Building2,
-  Phone, MessageSquare, Loader2, BarChart3
+  Phone, MessageSquare, Loader2, BarChart3, QrCode
 } from "lucide-react";
+import { useWhatsAppConnection } from "@/hooks/useWhatsAppConnection";
+import { ConnectionDialog } from "@/components/whatsapp/ConnectionDialog";
 
 interface HubInstance {
   id: string;
@@ -80,6 +82,8 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
     unit: "",
     companyId: "",
   });
+
+  const connection = useWhatsAppConnection(() => fetchData());
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -306,15 +310,27 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
                           </div>
                         )}
 
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <MessageSquare className="h-3 w-3" />
-                            {inst.messages_count || 0} msgs
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <BarChart3 className="h-3 w-3" />
-                            {inst.credits_available || 0} créditos
-                          </span>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <MessageSquare className="h-3 w-3" />
+                              {inst.messages_count || 0} msgs
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <BarChart3 className="h-3 w-3" />
+                              {inst.credits_available || 0} créditos
+                            </span>
+                          </div>
+                          {inst.status !== "connected" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => connection.openDialog(inst)}
+                            >
+                              <QrCode className="h-3.5 w-3.5 mr-1.5" />
+                              Conectar
+                            </Button>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -325,6 +341,24 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
           })}
         </div>
       )}
+
+      {/* Connection Dialog */}
+      <ConnectionDialog
+        open={connection.qrDialogOpen}
+        onOpenChange={() => {}}
+        instance={connection.qrInstance}
+        qrCode={connection.qrCode}
+        qrLoading={connection.qrLoading}
+        connectionMode={connection.connectionMode}
+        phoneNumber={connection.phoneNumber}
+        pairingCode={connection.pairingCode}
+        isPairingLoading={connection.isPairingLoading}
+        onClose={connection.closeDialog}
+        onSetConnectionMode={connection.setConnectionMode}
+        onSetPhoneNumber={connection.setPhoneNumber}
+        onRequestPairingCode={connection.requestPairingCode}
+        onRetryQr={() => connection.qrInstance && connection.fetchQrCode(connection.qrInstance)}
+      />
 
       {/* Create Instance Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
