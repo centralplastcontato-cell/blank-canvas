@@ -9,6 +9,7 @@ import { VisualGuideSection } from "./settings/VisualGuideSection";
 import { SalesMaterialsSection } from "./settings/SalesMaterialsSection";
 import { DataImportSection } from "@/components/admin/DataImportSection";
 import { useConfigPermissions } from "@/hooks/useConfigPermissions";
+import { useCompanyModules, type CompanyModules } from "@/hooks/useCompanyModules";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,6 +23,7 @@ const allConfigSections = [
   {
     id: "connection",
     permissionKey: "connection" as const,
+    moduleKey: "whatsapp" as keyof CompanyModules | null,
     title: "Conexão",
     description: "Status e QR Code",
     icon: Wifi,
@@ -29,6 +31,7 @@ const allConfigSections = [
   {
     id: "messages",
     permissionKey: "messages" as const,
+    moduleKey: "messages" as keyof CompanyModules | null,
     title: "Mensagens",
     description: "Templates e legendas",
     icon: MessageSquare,
@@ -36,6 +39,7 @@ const allConfigSections = [
   {
     id: "materials",
     permissionKey: "messages" as const,
+    moduleKey: "sales_materials" as keyof CompanyModules | null,
     title: "Materiais",
     description: "PDFs, fotos e vídeos",
     icon: FolderOpen,
@@ -43,6 +47,7 @@ const allConfigSections = [
   {
     id: "notifications",
     permissionKey: "notifications" as const,
+    moduleKey: null,
     title: "Notificações",
     description: "Som e alertas",
     icon: Bell,
@@ -50,6 +55,7 @@ const allConfigSections = [
   {
     id: "automations",
     permissionKey: "automations" as const,
+    moduleKey: "automations" as keyof CompanyModules | null,
     title: "Automações",
     description: "Chatbot e respostas",
     icon: Bot,
@@ -57,20 +63,23 @@ const allConfigSections = [
   {
     id: "advanced",
     permissionKey: "advanced" as const,
+    moduleKey: "advanced" as keyof CompanyModules | null,
     title: "Avançado",
     description: "Sincronização e logs",
     icon: Settings,
   },
   {
     id: "import",
-    permissionKey: "advanced" as const, // Only admins/advanced users
+    permissionKey: "advanced" as const,
+    moduleKey: "data_import" as keyof CompanyModules | null,
     title: "Importar Dados",
     description: "Leads e conversas",
     icon: Upload,
   },
   {
     id: "guide",
-    permissionKey: null as any, // Available to everyone
+    permissionKey: null as any,
+    moduleKey: null,
     title: "Guia Visual",
     description: "Legenda de ícones",
     icon: HelpCircle,
@@ -79,13 +88,16 @@ const allConfigSections = [
 
 export function WhatsAppConfig({ userId, isAdmin }: WhatsAppConfigProps) {
   const { permissions, isLoading, hasAnyPermission } = useConfigPermissions(userId, isAdmin);
+  const modules = useCompanyModules();
   
-  // Filter sections based on permissions (guide is always available)
+  // Filter sections based on permissions AND company modules
   const configSections = useMemo(() => {
-    return allConfigSections.filter(section => 
-      section.permissionKey === null || permissions[section.permissionKey]
-    );
-  }, [permissions]);
+    return allConfigSections.filter(section => {
+      const hasPermission = section.permissionKey === null || permissions[section.permissionKey];
+      const moduleEnabled = section.moduleKey === null || modules[section.moduleKey];
+      return hasPermission && moduleEnabled;
+    });
+  }, [permissions, modules]);
 
   const [activeSection, setActiveSection] = useState<string | null>(null);
 

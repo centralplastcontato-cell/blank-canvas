@@ -51,7 +51,7 @@ export function AdminSidebar({
   const allItems = [
     { title: "Central de Atendimento", url: "/atendimento", icon: Headset },
     ...(modules.config ? [{ title: "Configurações", url: "/configuracoes", icon: Settings }] : []),
-    ...(canAccessB2B ? [{ title: "Comercial B2B", url: "/comercial-b2b", icon: Presentation }] : []),
+    ...(modules.comercial_b2b && canAccessB2B ? [{ title: "Comercial B2B", url: "/comercial-b2b", icon: Presentation }] : []),
     ...(canManageUsers ? [{ title: "Gerenciar Usuários", url: "/users", icon: Users }] : []),
     ...(isAdmin ? [{ title: "Empresas", url: "/hub/empresas", icon: Building2 }] : []),
   ];
