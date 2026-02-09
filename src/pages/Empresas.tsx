@@ -75,13 +75,21 @@ export default function EmpresasPage() {
     }
   }, [user]);
 
+  // Track which userId the role was fetched for to avoid stale state race condition
+  const [roleCheckedForUser, setRoleCheckedForUser] = useState<string | null>(null);
+
   useEffect(() => {
-    // Only redirect after role has been fetched WITH a valid userId
-    if (!isLoadingRole && hasFetched && user && !isLoading && !isAdmin) {
+    if (!isLoadingRole && hasFetched && user?.id) {
+      setRoleCheckedForUser(user.id);
+    }
+  }, [isLoadingRole, hasFetched, user?.id]);
+
+  useEffect(() => {
+    if (roleCheckedForUser && user && roleCheckedForUser === user.id && !isAdmin) {
       toast({ title: "Acesso negado", description: "Apenas administradores podem gerenciar empresas.", variant: "destructive" });
       navigate("/atendimento");
     }
-  }, [isLoadingRole, hasFetched, isAdmin, user, isLoading, navigate]);
+  }, [roleCheckedForUser, isAdmin, user, navigate]);
 
   useEffect(() => {
     if (isAdmin) fetchCompanies();
