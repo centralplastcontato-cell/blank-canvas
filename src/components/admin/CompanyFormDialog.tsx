@@ -20,7 +20,7 @@ interface CompanyFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   company?: Company | null;
-  onSubmit: (data: { name: string; slug: string; is_active: boolean; logo_url: string }) => Promise<void>;
+  onSubmit: (data: { name: string; slug: string; is_active: boolean; logo_url: string; custom_domain: string }) => Promise<void>;
 }
 
 function slugify(text: string): string {
@@ -36,6 +36,7 @@ export function CompanyFormDialog({ open, onOpenChange, company, onSubmit }: Com
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
+  const [customDomain, setCustomDomain] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -47,11 +48,13 @@ export function CompanyFormDialog({ open, onOpenChange, company, onSubmit }: Com
       setName(company.name);
       setSlug(company.slug);
       setLogoUrl(company.logo_url || "");
+      setCustomDomain(company.custom_domain || "");
       setIsActive(company.is_active);
     } else {
       setName("");
       setSlug("");
       setLogoUrl("");
+      setCustomDomain("");
       setIsActive(true);
     }
   }, [company, open]);
@@ -106,7 +109,7 @@ export function CompanyFormDialog({ open, onOpenChange, company, onSubmit }: Com
     if (!name.trim() || !slug.trim()) return;
     setIsSubmitting(true);
     try {
-      await onSubmit({ name: name.trim(), slug: slug.trim(), is_active: isActive, logo_url: logoUrl.trim() });
+      await onSubmit({ name: name.trim(), slug: slug.trim(), is_active: isActive, logo_url: logoUrl.trim(), custom_domain: customDomain.trim() });
       onOpenChange(false);
     } finally {
       setIsSubmitting(false);
@@ -199,6 +202,20 @@ export function CompanyFormDialog({ open, onOpenChange, company, onSubmit }: Com
                 />
               </div>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="company-domain">Domínio customizado</Label>
+            <Input
+              id="company-domain"
+              value={customDomain}
+              onChange={(e) => setCustomDomain(e.target.value)}
+              placeholder="ex: castelo.celebrei.com"
+              className="text-sm"
+            />
+            <p className="text-[10px] text-muted-foreground">
+              Se preenchido, os links usarão este domínio em vez do padrão.
+            </p>
           </div>
 
           <div className="flex items-center justify-between">
