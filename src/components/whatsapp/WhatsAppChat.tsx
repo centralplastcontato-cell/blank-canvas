@@ -23,6 +23,7 @@ import { useChatNotificationToggle } from "@/hooks/useChatNotificationToggle";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useMessagesRealtime } from "@/hooks/useMessagesRealtime";
+import { LatencyMonitor, addLatencyEvent } from "@/components/whatsapp/LatencyMonitor";
 import { format, isToday, isYesterday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -596,17 +597,14 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
     const realtimeToUi = uiReceivedAt - realtimeReceivedAt;
     const totalEndToEnd = uiReceivedAt - messageTimestamp;
     
-    console.log(`[Latency] ====== MESSAGE LATENCY REPORT ======`);
-    console.log(`[Latency] message_id: ${newMessage.id}`);
-    console.log(`[Latency] from_me: ${newMessage.from_me}`);
-    console.log(`[Latency] message_timestamp: ${messageTimestamp} (${newMessage.timestamp})`);
-    console.log(`[Latency] realtime_received_at: ${realtimeReceivedAt}`);
-    console.log(`[Latency] ui_rendered_at: ${uiReceivedAt}`);
-    console.log(`[Latency] realtime_to_ui: ${realtimeToUi}ms`);
-    console.log(`[Latency] total_end_to_end: ${totalEndToEnd}ms`);
-    console.log(`[Latency] =====================================`);
+    // Add to latency monitor for UI display
+    addLatencyEvent({
+      realtimeToUi,
+      totalEndToEnd,
+      fromMe: newMessage.from_me,
+    });
     
-    // Log summary for easy monitoring
+    // Log summary for easy monitoring (console)
     const status = totalEndToEnd <= 300 ? '✅ IDEAL' : totalEndToEnd <= 700 ? '⚠️ ACEITÁVEL' : '❌ LENTO';
     console.log(`[Latency] ${status} | Total: ${totalEndToEnd}ms | RT→UI: ${realtimeToUi}ms | ${newMessage.from_me ? 'ENVIADA' : 'RECEBIDA'}`);
     
@@ -3864,6 +3862,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
           instances={instances}
         />
       )}
+
+      {/* Latency Monitor - Admin only */}
+      <LatencyMonitor isAdmin={isAdmin} />
     </div>
   );
 }
