@@ -715,11 +715,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
   const prevMessagesLengthRef = useRef(0);
   const lastMessageFromMeRef = useRef(false);
   
+  // Track the conversation ID that needs initial scroll
+  const pendingScrollConversationRef = useRef<string | null>(null);
   
-  // Track if we need to force scroll on next render (for initial load)
-  const pendingInitialScrollRef = useRef(false);
-  
-  // Force scroll to bottom - executed once, no cascading updates
+  // Force scroll to bottom - robust multi-attempt strategy for mobile
   const forceScrollToBottom = useCallback(() => {
     const executeScroll = () => {
       const desktopViewport = scrollAreaDesktopRef.current?.querySelector('[data-radix-scroll-area-viewport]');
@@ -727,32 +726,54 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
       const viewport = desktopViewport || mobileViewport;
       
       if (viewport) {
-        (viewport as HTMLElement).scrollTop = (viewport as HTMLElement).scrollHeight;
+        const el = viewport as HTMLElement;
+        el.scrollTop = el.scrollHeight;
+        return el.scrollTop > 0 || el.scrollHeight <= el.clientHeight;
       }
+      return false;
     };
     
-    // Single RAF for smooth scroll, avoid multiple timeouts
+    // Immediate attempt
+    executeScroll();
+    
+    // Multiple RAF attempts to catch rendering
     requestAnimationFrame(() => {
       executeScroll();
-      // One delayed call as backup
-      setTimeout(executeScroll, 100);
+      requestAnimationFrame(() => {
+        executeScroll();
+      });
     });
+    
+    // Backup timeouts for slow renders (mobile Safari especially)
+    setTimeout(executeScroll, 50);
+    setTimeout(executeScroll, 150);
+    setTimeout(executeScroll, 300);
+    setTimeout(executeScroll, 500);
   }, []);
   
+  // Effect for initial scroll when messages load for a conversation
+  useEffect(() => {
+    const conversationId = selectedConversation?.id;
+    const messagesLength = messages.length;
+    
+    // When messages load for a NEW conversation, scroll to bottom
+    if (conversationId && messagesLength > 0 && isInitialLoad) {
+      // Only scroll if this is a new conversation or first load
+      if (pendingScrollConversationRef.current !== conversationId) {
+        pendingScrollConversationRef.current = conversationId;
+        forceScrollToBottom();
+      }
+    }
+  }, [selectedConversation?.id, messages.length, isInitialLoad, forceScrollToBottom]);
+  
+  // Effect for new incoming/outgoing messages (after initial load)
   useEffect(() => {
     const messagesLength = messages.length;
     const lastMessage = messages[messagesLength - 1];
     const isNewMessage = messagesLength > prevMessagesLengthRef.current;
     const isFromMe = lastMessage?.from_me;
     
-    // On initial load with messages, scroll to bottom
-    if (isInitialLoad && messagesLength > 0 && !pendingInitialScrollRef.current) {
-      pendingInitialScrollRef.current = true;
-      forceScrollToBottom();
-    }
-    
     // Handle new messages (not initial load) - scroll for my messages or if at bottom
-    // Use ref to avoid dependency cycle
     const shouldScrollForNewMessage = (
       !isInitialLoad && 
       isNewMessage && 
@@ -767,12 +788,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
     lastMessageFromMeRef.current = isFromMe || false;
   }, [messages, isInitialLoad, forceScrollToBottom]);
   
-  // Reset pending scroll when initial load ends
+  // Reset pending scroll conversation when changing conversations
   useEffect(() => {
-    if (!isInitialLoad) {
-      pendingInitialScrollRef.current = false;
+    if (!selectedConversation) {
+      pendingScrollConversationRef.current = null;
     }
-  }, [isInitialLoad]);
+  }, [selectedConversation]);
   
   // Track if user has manually scrolled (to prevent auto-loading on initial load)
   const canLoadMoreRef = useRef(false);
