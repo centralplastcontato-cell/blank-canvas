@@ -42,20 +42,28 @@ export default function EmpresasPage() {
   const [membersOpen, setMembersOpen] = useState(false);
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
 
-  const { isAdmin, isLoading: isLoadingRole, hasFetched, canManageUsers } = useUserRole(user?.id);
+  const { isAdmin, canManageUsers } = useUserRole(user?.id);
   const { hasPermission } = usePermissions(user?.id);
   const canAccessB2B = isAdmin || hasPermission('b2b.view');
-  const [isParentCompanyOwner, setIsParentCompanyOwner] = useState(false);
-  const [isCheckingParentAccess, setIsCheckingParentAccess] = useState(true);
+  const [canAccessEmpresas, setCanAccessEmpresas] = useState<boolean | null>(null);
 
-  // Check if user is owner/admin of a parent company (empresa mãe)
+  // Robust access check using is_admin RPC + parent company ownership
   useEffect(() => {
-    const checkParentAccess = async () => {
+    const checkAccess = async () => {
       if (!user?.id) {
-        setIsCheckingParentAccess(false);
+        setCanAccessEmpresas(false);
         return;
       }
+
       try {
+        const { data: adminResult } = await supabase.rpc('is_admin', { _user_id: user.id });
+        console.log('[Empresas] is_admin RPC result:', adminResult);
+        
+        if (adminResult === true) {
+          setCanAccessEmpresas(true);
+          return;
+        }
+
         const { data: userCompanies } = await supabase
           .from("user_companies")
           .select("company_id, role")
@@ -64,14 +72,12 @@ export default function EmpresasPage() {
 
         if (userCompanies && userCompanies.length > 0) {
           const companyIds = userCompanies.map(uc => uc.company_id);
-          // Check if any of those companies are parent companies (have children)
           const { data: parentCompanies } = await supabase
             .from("companies")
             .select("id")
             .in("id", companyIds)
             .is("parent_id", null);
 
-          // Also check if those companies have children
           if (parentCompanies && parentCompanies.length > 0) {
             const parentIds = parentCompanies.map(c => c.id);
             const { data: children } = await supabase
@@ -80,18 +86,25 @@ export default function EmpresasPage() {
               .in("parent_id", parentIds)
               .limit(1);
 
-            setIsParentCompanyOwner((children && children.length > 0) || false);
+            if (children && children.length > 0) {
+              setCanAccessEmpresas(true);
+              return;
+            }
           }
         }
-      } catch (err) {
-        console.error("Error checking parent access:", err);
-      }
-      setIsCheckingParentAccess(false);
-    };
-    checkParentAccess();
-  }, [user?.id]);
 
-  const canAccessEmpresas = isAdmin || isParentCompanyOwner;
+        setCanAccessEmpresas(false);
+      } catch (err) {
+        console.error("[Empresas] Access check error:", err);
+        setCanAccessEmpresas(false);
+      }
+    };
+
+    if (user?.id) {
+      setCanAccessEmpresas(null);
+      checkAccess();
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -122,19 +135,17 @@ export default function EmpresasPage() {
     }
   }, [user]);
 
-  // Track access check completion
+  // Redirect if access denied
   useEffect(() => {
-    if (!isLoadingRole && hasFetched && !isCheckingParentAccess && user?.id) {
-      console.log('[Empresas] Access check complete:', { isAdmin, isParentCompanyOwner, canAccessEmpresas, role: isAdmin ? 'admin' : 'other' });
-      if (!canAccessEmpresas) {
-        toast({ title: "Acesso negado", description: "Apenas administradores podem gerenciar empresas.", variant: "destructive" });
-        navigate("/atendimento");
-      }
+    if (canAccessEmpresas === false && user?.id) {
+      console.log('[Empresas] Access denied, redirecting');
+      toast({ title: "Acesso negado", description: "Apenas administradores podem gerenciar empresas.", variant: "destructive" });
+      navigate("/atendimento");
     }
-  }, [isLoadingRole, hasFetched, isCheckingParentAccess, canAccessEmpresas, isAdmin, isParentCompanyOwner, user?.id, navigate]);
+  }, [canAccessEmpresas, user?.id, navigate]);
 
   useEffect(() => {
-    if (canAccessEmpresas) fetchCompanies();
+    if (canAccessEmpresas === true) fetchCompanies();
   }, [canAccessEmpresas]);
 
   const fetchCompanies = async () => {
@@ -149,7 +160,6 @@ export default function EmpresasPage() {
     } else {
       setCompanies((data || []) as Company[]);
 
-      // Fetch member counts
       const { data: ucData } = await supabase
         .from("user_companies")
         .select("company_id");
@@ -224,7 +234,7 @@ export default function EmpresasPage() {
 
   const handleRefresh = () => fetchCompanies();
 
-  if (isLoading || isLoadingRole || isCheckingParentAccess) {
+  if (isLoading || canAccessEmpresas === null) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -232,7 +242,7 @@ export default function EmpresasPage() {
     );
   }
 
-  if (!user || !canAccessEmpresas) return null;
+  if (!user || canAccessEmpresas !== true) return null;
 
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
 
