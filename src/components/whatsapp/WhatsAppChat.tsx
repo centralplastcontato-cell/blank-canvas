@@ -163,6 +163,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
   const [isLoadingMoreMessages, setIsLoadingMoreMessages] = useState(false);
   const [oldestMessageTimestamp, setOldestMessageTimestamp] = useState<string | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  
+  // Prevent multiple initial fetches
+  const initialFetchDone = useRef(false);
   const [hasUserScrolledToTop, setHasUserScrolledToTop] = useState(false); // Track if user manually scrolled to top
   const [isAtBottom, setIsAtBottom] = useState(true); // Track if scroll is at bottom (for scroll-to-bottom button visibility)
   const [unreadNewMessagesCount, setUnreadNewMessagesCount] = useState(0); // Count of new messages while scrolled up
@@ -275,11 +278,16 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
   }, []);
 
   useEffect(() => {
+    // Only fetch once on mount - use ref to prevent re-fetches
+    if (initialFetchDone.current) return;
+    initialFetchDone.current = true;
+    
     fetchInstances();
     fetchTemplates();
     fetchResponsaveis();
     fetchCurrentUserName();
-  }, [userId, allowedUnits]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchCurrentUserName = async () => {
     const { data } = await supabase
@@ -840,8 +848,16 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
 
     if (data && data.length > 0) {
       setInstances(data as WapiInstance[]);
-      // Auto-select first instance
-      setSelectedInstance(data[0] as WapiInstance);
+      // Only auto-select first instance if none is currently selected
+      setSelectedInstance(prev => {
+        // If already have a selection, keep it (if still valid)
+        if (prev) {
+          const stillExists = data.some(inst => inst.id === prev.id);
+          if (stillExists) return prev;
+        }
+        // Otherwise select first
+        return data[0] as WapiInstance;
+      });
     }
     setIsLoading(false);
   };
