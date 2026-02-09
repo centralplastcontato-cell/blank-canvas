@@ -82,9 +82,9 @@ export default function HubHero({ onOpenWizard }: HubHeroProps) {
                 variant="outline"
                 size="lg"
                 className="text-base px-8 py-6 rounded-2xl border-2"
-                onClick={() => navigate("/hub-login")}
+                onClick={onOpenWizard}
               >
-                Já sou cliente
+                Quero saber mais
               </Button>
             </div>
 
