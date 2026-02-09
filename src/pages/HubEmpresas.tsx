@@ -5,9 +5,10 @@ import { HubLayout } from "@/components/hub/HubLayout";
 import { CompanyFormDialog } from "@/components/admin/CompanyFormDialog";
 import { CompanyMembersSheet } from "@/components/admin/CompanyMembersSheet";
 import { CreateCompanyAdminDialog } from "@/components/hub/CreateCompanyAdminDialog";
+import { CompanyModulesDialog } from "@/components/hub/CompanyModulesDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Plus, Pencil, Users, Loader2, UserPlus, Link2, Copy, ClipboardList, MessageSquare, BarChart3, Clock, CheckCircle2, AlertCircle, Globe, AlertTriangle, ExternalLink } from "lucide-react";
+import { Building2, Plus, Pencil, Users, Loader2, UserPlus, Link2, Copy, ClipboardList, MessageSquare, BarChart3, Clock, CheckCircle2, AlertCircle, Globe, AlertTriangle, ExternalLink, Settings2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -42,6 +43,7 @@ function HubEmpresasContent() {
   const [conversationCounts, setConversationCounts] = useState<Record<string, number>>({});
   const [onboardingStatus, setOnboardingStatus] = useState<Record<string, { status: string; updated_at: string }>>({});
   const [adminDialogCompany, setAdminDialogCompany] = useState<Company | null>(null);
+  const [modulesCompany, setModulesCompany] = useState<Company | null>(null);
 
   useEffect(() => { fetchCompanies(); }, []);
 
@@ -124,6 +126,12 @@ function HubEmpresasContent() {
           onSuccess={fetchCompanies}
         />
       )}
+      <CompanyModulesDialog
+        open={!!modulesCompany}
+        onOpenChange={(open) => !open && setModulesCompany(null)}
+        company={modulesCompany}
+        onSuccess={fetchCompanies}
+      />
 
       <div className="flex justify-end mb-4">
         <Button onClick={() => { setEditingCompany(null); setFormOpen(true); }} size="sm">
@@ -287,6 +295,9 @@ function HubEmpresasContent() {
                   </Button>
                   <Button variant="outline" size="sm" className="flex-1" onClick={() => { setMembersCompany(child); setMembersOpen(true); }}>
                     <Users className="mr-1.5 h-3.5 w-3.5" /> Membros
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setModulesCompany(child)} title="Módulos">
+                    <Settings2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
                 {members === 0 && (

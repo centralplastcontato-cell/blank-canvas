@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
 import { Users, LogOut, RefreshCw, Headset, Settings, Pin, PinOff, Presentation, ChevronLeft, Building2 } from "lucide-react";
+import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -31,10 +32,6 @@ interface AdminSidebarProps {
   onLogout: () => void;
 }
 
-const baseMenuItems = [
-  { title: "Central de Atendimento", url: "/atendimento", icon: Headset },
-  { title: "Configurações", url: "/configuracoes", icon: Settings },
-];
 
 export function AdminSidebar({ 
   canManageUsers,
@@ -48,10 +45,12 @@ export function AdminSidebar({
   const collapsed = state === "collapsed";
   const location = useLocation();
   const [isPinned, setIsPinned] = useState(false);
+  const modules = useCompanyModules();
 
-  // Build menu items dynamically based on permissions
+  // Build menu items dynamically based on permissions AND enabled modules
   const allItems = [
-    ...baseMenuItems,
+    { title: "Central de Atendimento", url: "/atendimento", icon: Headset },
+    ...(modules.config ? [{ title: "Configurações", url: "/configuracoes", icon: Settings }] : []),
     ...(canAccessB2B ? [{ title: "Comercial B2B", url: "/comercial-b2b", icon: Presentation }] : []),
     ...(canManageUsers ? [{ title: "Gerenciar Usuários", url: "/users", icon: Users }] : []),
     ...(isAdmin ? [{ title: "Empresas", url: "/hub/empresas", icon: Building2 }] : []),
