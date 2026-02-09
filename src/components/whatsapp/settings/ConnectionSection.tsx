@@ -79,6 +79,12 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [isPairingLoading, setIsPairingLoading] = useState(false);
 
+  // Number change detection states
+  const [numberChangeDialogOpen, setNumberChangeDialogOpen] = useState(false);
+  const [numberChangeInstance, setNumberChangeInstance] = useState<WapiInstance | null>(null);
+  const [oldPhoneNumber, setOldPhoneNumber] = useState<string | null>(null);
+  const [newPhoneNumber, setNewPhoneNumber] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
     instanceId: "",
     instanceToken: "",
@@ -642,11 +648,17 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
       if (response.data?.status === 'connected' || response.data?.connected === true) {
         console.log("Connection detected! Updating database...");
         
+        const newPhone = response.data.phoneNumber || response.data.phone || null;
+        const previousPhone = instance.phone_number;
+        
+        // Detect if phone number changed (different number connected)
+        const phoneChanged = previousPhone && newPhone && previousPhone !== newPhone;
+        
         const { error: updateError } = await supabase
           .from("wapi_instances")
           .update({ 
             status: 'connected',
-            phone_number: response.data.phoneNumber || null,
+            phone_number: newPhone,
             connected_at: new Date().toISOString(),
           })
           .eq("id", instance.id);
@@ -657,10 +669,25 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
 
         setQrPolling(false);
         setQrDialogOpen(false);
-        toast({
-          title: "Conectado!",
-          description: `WhatsApp da unidade ${instance.unit} conectado com sucesso!`,
-        });
+        
+        // If phone number changed, offer to clear non-imported conversations
+        if (phoneChanged) {
+          console.log("Phone number changed from", previousPhone, "to", newPhone);
+          setOldPhoneNumber(previousPhone);
+          setNewPhoneNumber(newPhone);
+          setNumberChangeInstance(instance);
+          setNumberChangeDialogOpen(true);
+          toast({
+            title: "Número alterado!",
+            description: `WhatsApp da unidade ${instance.unit} conectado com um número diferente.`,
+          });
+        } else {
+          toast({
+            title: "Conectado!",
+            description: `WhatsApp da unidade ${instance.unit} conectado com sucesso!`,
+          });
+        }
+        
         fetchInstances();
         return true;
       }
@@ -810,6 +837,71 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
       </div>
     );
   }
+
+  // Dialog for number change detection - offers to clean non-imported conversations
+  const NumberChangeDialog = () => (
+    <Dialog open={numberChangeDialogOpen} onOpenChange={setNumberChangeDialogOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-amber-600">
+            <Phone className="w-5 h-5" />
+            Número Alterado Detectado
+          </DialogTitle>
+          <DialogDescription>
+            Um número diferente foi conectado nesta instância.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          <div className="p-4 bg-muted rounded-lg space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Número anterior:</span>
+              <span className="font-mono font-medium">{oldPhoneNumber || "Desconhecido"}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Novo número:</span>
+              <span className="font-mono font-medium text-primary">{newPhoneNumber || "Desconhecido"}</span>
+            </div>
+          </div>
+          
+          <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+            <p className="text-sm text-amber-800 dark:text-amber-200">
+              <strong>Deseja limpar as conversas do número anterior?</strong>
+            </p>
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+              As conversas importadas serão preservadas. Apenas conversas criadas pelo número anterior serão removidas.
+            </p>
+          </div>
+        </div>
+
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setNumberChangeDialogOpen(false);
+              setNumberChangeInstance(null);
+            }}
+            className="w-full sm:w-auto"
+          >
+            Manter conversas
+          </Button>
+          <Button
+            onClick={async () => {
+              if (numberChangeInstance) {
+                setNumberChangeDialogOpen(false);
+                await handleClearNonImportedConversations(numberChangeInstance);
+                setNumberChangeInstance(null);
+              }
+            }}
+            className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700"
+          >
+            <Eraser className="w-4 h-4 mr-2" />
+            Limpar conversas anteriores
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 
   const ConnectionDialog = () => (
     <Dialog open={qrDialogOpen} onOpenChange={(open) => {
@@ -983,6 +1075,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
     return (
       <div className="space-y-4">
         <ConnectionDialog />
+        <NumberChangeDialog />
         <Card>
           <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
@@ -1060,6 +1153,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
   return (
     <div className="space-y-6">
       <ConnectionDialog />
+      <NumberChangeDialog />
       
       {/* Instances Management */}
       <Card>
