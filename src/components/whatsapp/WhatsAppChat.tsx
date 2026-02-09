@@ -2542,6 +2542,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                         onShowShareToGroupDialog={() => linkedLead && setShowShareToGroupDialog(true)}
                         onCreateAndClassifyLead={createAndClassifyLead}
                         onToggleConversationBot={toggleConversationBot}
+                        onToggleFavorite={toggleFavorite}
                         onLeadNameChange={(newName) => {
                           setLinkedLead(prev => prev ? { ...prev, name: newName } : null);
                           setSelectedConversation(prev => prev ? { ...prev, contact_name: newName } : null);
@@ -3162,6 +3163,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                       onShowShareToGroupDialog={() => linkedLead && setShowShareToGroupDialog(true)}
                       onCreateAndClassifyLead={createAndClassifyLead}
                       onToggleConversationBot={toggleConversationBot}
+                      onToggleFavorite={toggleFavorite}
                       onLeadNameChange={(newName) => {
                         setLinkedLead(prev => prev ? { ...prev, name: newName } : null);
                         setSelectedConversation(prev => prev ? { ...prev, contact_name: newName } : null);

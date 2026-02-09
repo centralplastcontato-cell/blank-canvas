@@ -11,7 +11,7 @@
  import { toast } from "@/hooks/use-toast";
 import { 
   Info, MessageSquare, Clock, MapPin, Calendar, Users, 
-  ArrowRightLeft, Bot, Loader2, Pencil, Check, X, Trash2, UsersRound
+  ArrowRightLeft, Bot, Loader2, Pencil, Check, X, Trash2, UsersRound, Star
 } from "lucide-react";
  import { format } from "date-fns";
  import { ptBR } from "date-fns/locale";
@@ -36,9 +36,10 @@ import {
    id: string;
    contact_name: string | null;
    contact_phone: string;
-   remote_jid: string;
-   bot_enabled: boolean | null;
- }
+    remote_jid: string;
+    bot_enabled: boolean | null;
+    is_favorite: boolean | null;
+  }
  
  interface WapiInstance {
    unit: string | null;
@@ -58,6 +59,7 @@ interface LeadInfoPopoverProps {
   onShowShareToGroupDialog: () => void;
   onCreateAndClassifyLead: (status: string) => void;
   onToggleConversationBot: (conv: Conversation) => void;
+  onToggleFavorite: (conv: Conversation) => void;
   onLeadNameChange: (newName: string) => void;
   mobile?: boolean;
 }
@@ -76,6 +78,7 @@ export function LeadInfoPopover({
   onShowShareToGroupDialog,
   onCreateAndClassifyLead,
   onToggleConversationBot,
+  onToggleFavorite,
   onLeadNameChange,
   mobile = false,
 }: LeadInfoPopoverProps) {
@@ -216,32 +219,48 @@ export function LeadInfoPopover({
          </Button>
        </PopoverTrigger>
        <PopoverContent align="end" className={cn("p-3", mobile ? "w-72" : "w-80")}>
-         {isGroup ? (
-           // Group chat - only show delete option
-           <div className="space-y-3">
-             <div className="flex items-center gap-2">
-               <UsersRound className="w-4 h-4 text-muted-foreground" />
-               <h4 className="font-semibold text-sm truncate">
-                 {selectedConversation.contact_name || "Grupo"}
-               </h4>
-             </div>
-             <div className="text-xs text-muted-foreground">
-               <span className="truncate block">{selectedConversation.contact_phone}</span>
-             </div>
-             
-             {canDeleteFromChat && (
-               <Button 
-                 variant="outline" 
-                 size="sm" 
-                 className="w-full text-xs h-7 gap-2 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
-                 onClick={onShowDeleteDialog}
-               >
-                 <Trash2 className="w-3 h-3" />
-                 Excluir Grupo
-               </Button>
-             )}
-           </div>
-         ) : linkedLead ? (
+          {isGroup ? (
+            // Group chat - show favorite and delete options
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <UsersRound className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <h4 className="font-semibold text-sm truncate">
+                    {selectedConversation.contact_name || "Grupo"}
+                  </h4>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 shrink-0"
+                  onClick={() => onToggleFavorite(selectedConversation)}
+                  title={selectedConversation.is_favorite ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                >
+                  <Star className={cn(
+                    "w-4 h-4",
+                    selectedConversation.is_favorite 
+                      ? "fill-yellow-400 text-yellow-400" 
+                      : "text-muted-foreground"
+                  )} />
+                </Button>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                <span className="truncate block">{selectedConversation.contact_phone}</span>
+              </div>
+              
+              {canDeleteFromChat && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full text-xs h-7 gap-2 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                  onClick={onShowDeleteDialog}
+                >
+                  <Trash2 className="w-3 h-3" />
+                  Excluir Grupo
+                </Button>
+              )}
+            </div>
+          ) : linkedLead ? (
            <div className="space-y-3">
              {/* Header with name and status */}
              <div className="flex items-center justify-between gap-2">
