@@ -696,6 +696,7 @@ export type Database = {
           is_equipe: boolean
           is_favorite: boolean | null
           is_freelancer: boolean
+          is_imported: boolean
           last_message_at: string | null
           last_message_content: string | null
           last_message_from_me: boolean | null
@@ -719,6 +720,7 @@ export type Database = {
           is_equipe?: boolean
           is_favorite?: boolean | null
           is_freelancer?: boolean
+          is_imported?: boolean
           last_message_at?: string | null
           last_message_content?: string | null
           last_message_from_me?: boolean | null
@@ -742,6 +744,7 @@ export type Database = {
           is_equipe?: boolean
           is_favorite?: boolean | null
           is_freelancer?: boolean
+          is_imported?: boolean
           last_message_at?: string | null
           last_message_content?: string | null
           last_message_from_me?: boolean | null
