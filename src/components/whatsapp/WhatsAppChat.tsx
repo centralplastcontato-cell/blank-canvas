@@ -586,7 +586,30 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
   isAtBottomRef.current = isAtBottom;
 
   // Stable callback for handling new messages from realtime
-  const handleNewRealtimeMessage = useCallback((newMessage: Message) => {
+  const handleNewRealtimeMessage = useCallback((newMessage: Message & { _realtimeReceivedAt?: number }) => {
+    // ⏱️ LATENCY INSTRUMENTATION: Calculate and log latencies
+    const uiReceivedAt = Date.now();
+    const realtimeReceivedAt = newMessage._realtimeReceivedAt || uiReceivedAt;
+    const messageTimestamp = new Date(newMessage.timestamp).getTime();
+    
+    // Calculate latencies
+    const realtimeToUi = uiReceivedAt - realtimeReceivedAt;
+    const totalEndToEnd = uiReceivedAt - messageTimestamp;
+    
+    console.log(`[Latency] ====== MESSAGE LATENCY REPORT ======`);
+    console.log(`[Latency] message_id: ${newMessage.id}`);
+    console.log(`[Latency] from_me: ${newMessage.from_me}`);
+    console.log(`[Latency] message_timestamp: ${messageTimestamp} (${newMessage.timestamp})`);
+    console.log(`[Latency] realtime_received_at: ${realtimeReceivedAt}`);
+    console.log(`[Latency] ui_rendered_at: ${uiReceivedAt}`);
+    console.log(`[Latency] realtime_to_ui: ${realtimeToUi}ms`);
+    console.log(`[Latency] total_end_to_end: ${totalEndToEnd}ms`);
+    console.log(`[Latency] =====================================`);
+    
+    // Log summary for easy monitoring
+    const status = totalEndToEnd <= 300 ? '✅ IDEAL' : totalEndToEnd <= 700 ? '⚠️ ACEITÁVEL' : '❌ LENTO';
+    console.log(`[Latency] ${status} | Total: ${totalEndToEnd}ms | RT→UI: ${realtimeToUi}ms | ${newMessage.from_me ? 'ENVIADA' : 'RECEBIDA'}`);
+    
     setMessages((prev) => {
       // Check if this message already exists (by id or message_id)
       const existsById = prev.some(m => m.id === newMessage.id);

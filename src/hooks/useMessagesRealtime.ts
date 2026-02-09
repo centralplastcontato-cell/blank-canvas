@@ -76,8 +76,16 @@ export function useMessagesRealtime({
           filter: `conversation_id=eq.${conversationId}`,
         },
         (payload) => {
+          // ⏱️ LATENCY INSTRUMENTATION: Log realtime received timestamp
+          const realtimeReceivedAt = Date.now();
           console.log("[MessagesRealtime] ✅ INSERT received:", payload.new);
+          console.log(`[Latency] realtime_received_at: ${realtimeReceivedAt}`);
+          
           const newMessage = payload.new as Message;
+          
+          // Attach latency metadata to message for UI tracking
+          (newMessage as Message & { _realtimeReceivedAt?: number })._realtimeReceivedAt = realtimeReceivedAt;
+          
           // Use the ref to always get the latest callback
           onNewMessageRef.current(newMessage);
         }
