@@ -6,6 +6,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { usePermissions } from "@/hooks/usePermissions";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
+import { HubCharts } from "@/components/admin/HubCharts";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +17,13 @@ import {
   Building2, Menu, Users, MessageSquare, TrendingUp, UserPlus,
   CheckCircle, XCircle, Clock, Loader2, BarChart3
 } from "lucide-react";
+
+interface LeadRecord {
+  company_id: string;
+  company_name: string;
+  status: string;
+  created_at: string;
+}
 
 interface CompanyMetrics {
   companyId: string;
@@ -49,6 +57,7 @@ export default function HubDashboard() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [canAccess, setCanAccess] = useState<boolean | null>(null);
   const [companyMetrics, setCompanyMetrics] = useState<CompanyMetrics[]>([]);
+  const [allLeadRecords, setAllLeadRecords] = useState<LeadRecord[]>([]);
 
   const { canManageUsers, isAdmin } = useUserRole(user?.id);
   const { hasPermission } = usePermissions(user?.id);
@@ -139,6 +148,7 @@ export default function HubDashboard() {
         const todayISO = today.toISOString();
 
         const metrics: CompanyMetrics[] = [];
+        const allLeadsRecords: LeadRecord[] = [];
         for (const company of targetCompanies) {
           // Leads
           const { data: leads } = await supabase
@@ -147,6 +157,12 @@ export default function HubDashboard() {
             .eq("company_id", company.id);
 
           const allLeads = leads || [];
+          allLeadsRecords.push(...allLeads.map(l => ({
+            company_id: company.id,
+            company_name: company.name,
+            status: l.status,
+            created_at: l.created_at,
+          })));
           const leadsToday = allLeads.filter(l => l.created_at >= todayISO).length;
           const leadsClosed = allLeads.filter(l => l.status === "fechado").length;
           const leadsLost = allLeads.filter(l => l.status === "perdido").length;
@@ -182,6 +198,7 @@ export default function HubDashboard() {
           });
         }
         setCompanyMetrics(metrics);
+        setAllLeadRecords(allLeadsRecords);
       } catch (err) {
         console.error("Error fetching hub metrics:", err);
       }
@@ -306,6 +323,9 @@ export default function HubDashboard() {
                 ))}
               </div>
             )}
+
+            {/* Charts */}
+            <HubCharts leads={allLeadRecords} isLoading={isLoadingMetrics} />
 
             {/* Per-Company Breakdown */}
             <div>
