@@ -151,7 +151,7 @@ export function TransferLeadDialog({
         lead_id: lead.id,
         user_id: currentUserId,
         user_name: currentUserName,
-        action: "Transferência de lead",
+        action: "🔄 Transferência de lead",
         old_value: previousResponsavel?.full_name || "Não atribuído",
         new_value: targetUser?.full_name || "Desconhecido",
       });
@@ -160,8 +160,8 @@ export function TransferLeadDialog({
       await supabase.from("notifications").insert({
         user_id: selectedUserId,
         type: "lead_transfer",
-        title: "Novo lead transferido para você",
-        message: `${currentUserName} transferiu o lead "${lead.name}" (${LEAD_STATUS_LABELS[lead.status]}) para você.`,
+        title: "📬 Novo lead transferido para você!",
+        message: `🔄 ${currentUserName} transferiu o lead "${lead.name}" (${LEAD_STATUS_LABELS[lead.status]}) para você. 🎯`,
         data: {
           lead_id: lead.id,
           lead_name: lead.name,
@@ -172,8 +172,8 @@ export function TransferLeadDialog({
       });
 
       toast({
-        title: "Lead transferido",
-        description: `O lead foi transferido para ${targetUser?.full_name}.`,
+        title: "✅ Lead transferido com sucesso!",
+        description: `🎉 O lead foi transferido para ${targetUser?.full_name}.`,
       });
 
       setSelectedUserId("");
@@ -182,8 +182,8 @@ export function TransferLeadDialog({
     } catch (error: unknown) {
       console.error("Error transferring lead:", error);
       toast({
-        title: "Erro ao transferir",
-        description: error instanceof Error ? error.message : "Tente novamente.",
+        title: "❌ Erro ao transferir",
+        description: error instanceof Error ? error.message : "⚠️ Tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -197,24 +197,24 @@ export function TransferLeadDialog({
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <ArrowRightLeft className="w-5 h-5" />
-            Transferir Lead
+            🔄 Transferir Lead
           </AlertDialogTitle>
           <AlertDialogDescription>
-            Selecione o usuário que receberá o lead "{lead?.name}". O usuário
+            👤 Selecione o usuário que receberá o lead "{lead?.name}". 🔔 O usuário
             será notificado sobre a transferência.
           </AlertDialogDescription>
         </AlertDialogHeader>
 
         <div className="py-4 space-y-3">
-          <Label>Transferir para:</Label>
+          <Label>📋 Transferir para:</Label>
           <Select value={selectedUserId} onValueChange={setSelectedUserId}>
             <SelectTrigger>
-              <SelectValue placeholder="Selecione um usuário..." />
+              <SelectValue placeholder="🔍 Selecione um usuário..." />
             </SelectTrigger>
             <SelectContent>
               {availableUsers.length === 0 ? (
                 <SelectItem value="none" disabled>
-                  Nenhum usuário disponível
+                  😕 Nenhum usuário disponível
                 </SelectItem>
               ) : (
                 availableUsers.map((user) => (
@@ -238,10 +238,10 @@ export function TransferLeadDialog({
             {isTransferring ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Transferindo...
+                ⏳ Transferindo...
               </>
             ) : (
-              "Transferir"
+              "🚀 Transferir"
             )}
           </AlertDialogAction>
         </AlertDialogFooter>
