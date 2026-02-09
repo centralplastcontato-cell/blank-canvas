@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -25,6 +26,7 @@ interface DataImportSectionProps {
 type ImportType = 'leads' | 'conversations' | 'messages' | 'materials' | 'bot_config';
 
 export function DataImportSection({ isAdmin }: DataImportSectionProps) {
+  const { currentCompanyId } = useCompany();
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [importStats, setImportStats] = useState<ImportStats | null>(null);
@@ -148,6 +150,7 @@ export function DataImportSection({ isAdmin }: DataImportSectionProps) {
     }
 
     const { error } = await supabase.from('campaign_leads').insert({
+      company_id: currentCompanyId!,
       name: item.name || item.nome || 'Sem nome',
       whatsapp: item.whatsapp || item.telefone || item.phone,
       unit: item.unit || item.unidade || 'Manchester',
@@ -197,6 +200,7 @@ export function DataImportSection({ isAdmin }: DataImportSectionProps) {
     }
 
     const { error } = await supabase.from('wapi_conversations').insert({
+      company_id: currentCompanyId!,
       instance_id: instance.id,
       remote_jid: item.remote_jid || `${item.contact_phone}@s.whatsapp.net`,
       contact_phone: item.contact_phone,
@@ -214,7 +218,7 @@ export function DataImportSection({ isAdmin }: DataImportSectionProps) {
       is_equipe: item.is_equipe || false,
       is_freelancer: item.is_freelancer || false,
       has_scheduled_visit: item.has_scheduled_visit || false,
-      is_imported: true, // Mark as imported
+      is_imported: true,
       created_at: item.created_at || new Date().toISOString(),
     });
 
@@ -263,6 +267,7 @@ export function DataImportSection({ isAdmin }: DataImportSectionProps) {
     }
 
     const { error } = await supabase.from('wapi_messages').insert({
+      company_id: currentCompanyId!,
       conversation_id: conversationId,
       message_id: item.message_id || null,
       from_me: item.from_me || false,
@@ -298,6 +303,7 @@ export function DataImportSection({ isAdmin }: DataImportSectionProps) {
     }
 
     const { error } = await supabase.from('sales_materials').insert({
+      company_id: currentCompanyId!,
       name: item.name,
       type: item.type || 'pdf',
       unit: item.unit || 'Manchester',
@@ -416,6 +422,7 @@ export function DataImportSection({ isAdmin }: DataImportSectionProps) {
         } else {
           // Insert new question
           const { error } = await supabase.from('wapi_bot_questions').insert({
+            company_id: currentCompanyId!,
             instance_id: instance.id,
             step: question.step,
             question_text: question.question_text,
