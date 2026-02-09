@@ -2230,6 +2230,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                         <AvatarImage 
                           src={conv.contact_picture || undefined} 
                           alt={conv.contact_name || conv.contact_phone}
+                          referrerPolicy="no-referrer"
                         />
                         <AvatarFallback className={cn(
                           "text-primary text-sm font-semibold bg-gradient-to-br",
@@ -2362,6 +2363,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                           <AvatarImage 
                             src={conv.contact_picture || undefined} 
                             alt={conv.contact_name || conv.contact_phone}
+                            referrerPolicy="no-referrer"
                           />
                           <AvatarFallback className={cn(
                             "text-primary text-sm font-semibold bg-gradient-to-br",
@@ -2515,6 +2517,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                       <AvatarImage 
                         src={selectedConversation.contact_picture || undefined} 
                         alt={selectedConversation.contact_name || selectedConversation.contact_phone}
+                        referrerPolicy="no-referrer"
                       />
                       <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary text-sm font-semibold">
                         {(selectedConversation.contact_name || selectedConversation.contact_phone)
@@ -3167,6 +3170,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                     <AvatarImage 
                       src={selectedConversation.contact_picture || undefined} 
                       alt={selectedConversation.contact_name || selectedConversation.contact_phone}
+                      referrerPolicy="no-referrer"
                     />
                     <AvatarFallback className="bg-primary/10 text-primary text-sm">
                       {(selectedConversation.contact_name || selectedConversation.contact_phone)
