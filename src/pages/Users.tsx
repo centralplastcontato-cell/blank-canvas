@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
 import { useUserRole } from "@/hooks/useUserRole";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useCompany } from "@/contexts/CompanyContext";
 import { UserWithRole, AppRole, ROLE_LABELS } from "@/types/crm";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
@@ -96,6 +97,7 @@ export default function UsersPage() {
 
   const { isAdmin, isLoading: isLoadingRole, hasFetched, error: roleError, canManageUsers } = useUserRole(user?.id);
   const { hasPermission } = usePermissions(user?.id);
+  const { currentCompanyId } = useCompany();
   const canAccessB2B = isAdmin || hasPermission('b2b.view');
   const [accessChecked, setAccessChecked] = useState(false);
 
@@ -163,18 +165,39 @@ export default function UsersPage() {
   }, [isLoadingRole, hasFetched, isAdmin, user, navigate, accessChecked, roleError]);
 
   useEffect(() => {
-    if (isAdmin) {
+    if (isAdmin && currentCompanyId) {
       fetchUsers();
     }
-  }, [isAdmin]);
+  }, [isAdmin, currentCompanyId]);
 
   const fetchUsers = async () => {
     setIsLoadingUsers(true);
     
-    const { data: profiles, error: profilesError } = await supabase
+    // Fetch users that belong to the current company
+    let profilesQuery = supabase
       .from("profiles")
       .select("*")
       .order("created_at", { ascending: false });
+
+    // If we have a current company, filter by company membership
+    if (currentCompanyId) {
+      const { data: companyMembers } = await supabase
+        .from("user_companies")
+        .select("user_id")
+        .eq("company_id", currentCompanyId);
+
+      const memberUserIds = (companyMembers || []).map(m => m.user_id);
+      
+      if (memberUserIds.length > 0) {
+        profilesQuery = profilesQuery.in("user_id", memberUserIds);
+      } else {
+        setUsers([]);
+        setIsLoadingUsers(false);
+        return;
+      }
+    }
+
+    const { data: profiles, error: profilesError } = await profilesQuery;
 
     if (profilesError) {
       console.error("Error fetching profiles:", profilesError);
