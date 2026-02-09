@@ -488,11 +488,32 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
               }
             }
             
-            // Debounce fetchConversations to reduce DB calls
-            if (debounceTimer) clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => {
-              fetchConversations();
-            }, 500);
+          // Update conversation locally for instant feedback
+          if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+            const updatedConv = payload.new as Conversation;
+            setConversations(prev => {
+              const exists = prev.some(c => c.id === updatedConv.id);
+              if (exists) {
+                // Update existing conversation
+                return prev.map(c => c.id === updatedConv.id ? { ...c, ...updatedConv } : c)
+                  .sort((a, b) => new Date(b.last_message_at || 0).getTime() - new Date(a.last_message_at || 0).getTime());
+              } else {
+                // New conversation - add to list
+                return [updatedConv, ...prev];
+              }
+            });
+            
+            // Also update selected conversation if it matches
+            if (updatedConv.id === selectedConversation?.id) {
+              setSelectedConversation(prev => prev ? { ...prev, ...updatedConv } : null);
+            }
+          }
+          
+          // Light debounce for full refresh (handles edge cases like deletions)
+          if (debounceTimer) clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            fetchConversations();
+          }, 2000); // Longer debounce since we update locally
           }
         )
         .subscribe();
@@ -539,9 +560,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
         fetchLinkedLead(null, selectedConversation);
       }
 
-      // Subscribe to realtime updates for messages
+      // Subscribe to realtime updates for messages - unique channel per conversation
       const messagesChannel = supabase
-        .channel('wapi_messages_changes')
+        .channel(`wapi_messages_${selectedConversation.id}`)
         .on(
           'postgres_changes',
           {
