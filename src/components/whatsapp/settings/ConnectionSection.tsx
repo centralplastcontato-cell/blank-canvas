@@ -242,36 +242,95 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
       return;
     }
 
-    if (!confirm(`Tem certeza que deseja excluir a instância da unidade ${instance.unit}?`)) {
+    const confirmMsg = `⚠️ ATENÇÃO: Isso excluirá permanentemente:\n\n` +
+      `• A instância da unidade ${instance.unit}\n` +
+      `• Todas as configurações do bot\n` +
+      `• Todas as conversas e mensagens\n` +
+      `• Todas as perguntas do bot\n` +
+      `• Todos os números VIP\n\n` +
+      `Tem certeza que deseja continuar?`;
+
+    if (!confirm(confirmMsg)) {
       return;
     }
 
     try {
-      const { error, count } = await supabase
-        .from("wapi_instances")
+      // Step 1: Delete bot questions
+      const { error: questionsError } = await supabase
+        .from("wapi_bot_questions")
         .delete()
-        .eq("id", instance.id)
-        .select();
-
-      if (error) {
-        console.error("Delete error:", error);
-        throw error;
+        .eq("instance_id", instance.id);
+      
+      if (questionsError) {
+        console.error("Error deleting bot questions:", questionsError);
       }
 
-      // Check if deletion actually happened (RLS might silently block)
-      const { data: stillExists } = await supabase
-        .from("wapi_instances")
-        .select("id")
-        .eq("id", instance.id)
-        .single();
+      // Step 2: Delete VIP numbers
+      const { error: vipError } = await supabase
+        .from("wapi_vip_numbers")
+        .delete()
+        .eq("instance_id", instance.id);
+      
+      if (vipError) {
+        console.error("Error deleting VIP numbers:", vipError);
+      }
 
-      if (stillExists) {
-        throw new Error("Não foi possível excluir. Verifique se você tem permissão de administrador.");
+      // Step 3: Delete bot settings
+      const { error: settingsError } = await supabase
+        .from("wapi_bot_settings")
+        .delete()
+        .eq("instance_id", instance.id);
+      
+      if (settingsError) {
+        console.error("Error deleting bot settings:", settingsError);
+        throw new Error("Erro ao excluir configurações do bot: " + settingsError.message);
+      }
+
+      // Step 4: Get all conversations for this instance to delete messages
+      const { data: conversations } = await supabase
+        .from("wapi_conversations")
+        .select("id")
+        .eq("instance_id", instance.id);
+
+      if (conversations && conversations.length > 0) {
+        const conversationIds = conversations.map(c => c.id);
+        
+        // Step 5: Delete all messages from these conversations
+        const { error: messagesError } = await supabase
+          .from("wapi_messages")
+          .delete()
+          .in("conversation_id", conversationIds);
+        
+        if (messagesError) {
+          console.error("Error deleting messages:", messagesError);
+        }
+      }
+
+      // Step 6: Delete conversations
+      const { error: conversationsError } = await supabase
+        .from("wapi_conversations")
+        .delete()
+        .eq("instance_id", instance.id);
+      
+      if (conversationsError) {
+        console.error("Error deleting conversations:", conversationsError);
+        throw new Error("Erro ao excluir conversas: " + conversationsError.message);
+      }
+
+      // Step 7: Finally delete the instance
+      const { error: instanceError } = await supabase
+        .from("wapi_instances")
+        .delete()
+        .eq("id", instance.id);
+
+      if (instanceError) {
+        console.error("Delete instance error:", instanceError);
+        throw instanceError;
       }
 
       toast({
         title: "Sucesso",
-        description: "Instância excluída com sucesso.",
+        description: `Instância ${instance.unit} e todos os dados relacionados foram excluídos.`,
       });
 
       fetchInstances();
@@ -279,7 +338,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
       console.error("Delete instance error:", error);
       toast({
         title: "Erro ao excluir",
-        description: error.message || "Erro ao excluir instância. Você precisa ser administrador.",
+        description: error.message || "Erro ao excluir instância.",
         variant: "destructive",
       });
     }
