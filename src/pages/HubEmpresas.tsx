@@ -55,7 +55,12 @@ function HubEmpresasContent() {
   };
 
   const handleCreate = async (data: { name: string; slug: string; is_active: boolean; logo_url: string }) => {
-    const { error } = await supabase.from("companies").insert({ name: data.name, slug: data.slug, is_active: data.is_active, logo_url: data.logo_url || null });
+    // Find the hub (root company without parent_id) to set as parent
+    const hubCompany = companies.find(c => !c.parent_id);
+    const { error } = await supabase.from("companies").insert({
+      name: data.name, slug: data.slug, is_active: data.is_active, logo_url: data.logo_url || null,
+      parent_id: hubCompany?.id || null,
+    });
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); throw error; }
     toast({ title: "Empresa criada" }); fetchCompanies();
   };
