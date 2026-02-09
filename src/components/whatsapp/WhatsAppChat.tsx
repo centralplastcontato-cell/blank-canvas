@@ -470,6 +470,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
             filter: `instance_id=eq.${selectedInstance.id}`,
           },
           (payload) => {
+            console.log('[Realtime] Conversation event:', payload.eventType, payload.new);
+            
             // Handle notifications immediately (no debounce for UX)
             if (payload.eventType === 'UPDATE') {
               const newData = payload.new as Conversation;
@@ -488,32 +490,61 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
               }
             }
             
-          // Update conversation locally for instant feedback
-          if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
-            const updatedConv = payload.new as Conversation;
-            setConversations(prev => {
-              const exists = prev.some(c => c.id === updatedConv.id);
-              if (exists) {
-                // Update existing conversation
-                return prev.map(c => c.id === updatedConv.id ? { ...c, ...updatedConv } : c)
-                  .sort((a, b) => new Date(b.last_message_at || 0).getTime() - new Date(a.last_message_at || 0).getTime());
-              } else {
-                // New conversation - add to list
-                return [updatedConv, ...prev];
+            // Update conversation locally for instant feedback
+            if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+              const updatedConv = payload.new as Conversation;
+              
+              // Force immediate state update with all fields
+              setConversations(prev => {
+                const exists = prev.some(c => c.id === updatedConv.id);
+                
+                if (exists) {
+                  // Update existing conversation - merge with existing data to preserve any missing fields
+                  const updated = prev.map(c => {
+                    if (c.id === updatedConv.id) {
+                      return { 
+                        ...c, 
+                        ...updatedConv,
+                        // Ensure critical fields are updated
+                        last_message_content: updatedConv.last_message_content ?? c.last_message_content,
+                        last_message_at: updatedConv.last_message_at ?? c.last_message_at,
+                        unread_count: updatedConv.unread_count ?? c.unread_count,
+                      };
+                    }
+                    return c;
+                  });
+                  // Re-sort by last message time
+                  return updated.sort((a, b) => 
+                    new Date(b.last_message_at || 0).getTime() - new Date(a.last_message_at || 0).getTime()
+                  );
+                } else {
+                  // New conversation - add to list and sort
+                  console.log('[Realtime] Adding new conversation to list');
+                  return [updatedConv, ...prev].sort((a, b) => 
+                    new Date(b.last_message_at || 0).getTime() - new Date(a.last_message_at || 0).getTime()
+                  );
+                }
+              });
+              
+              // Also update selected conversation if it matches
+              if (updatedConv.id === selectedConversation?.id) {
+                setSelectedConversation(prev => prev ? { ...prev, ...updatedConv } : null);
               }
-            });
-            
-            // Also update selected conversation if it matches
-            if (updatedConv.id === selectedConversation?.id) {
-              setSelectedConversation(prev => prev ? { ...prev, ...updatedConv } : null);
             }
-          }
-          
-          // Light debounce for full refresh (handles edge cases like deletions)
-          if (debounceTimer) clearTimeout(debounceTimer);
-          debounceTimer = setTimeout(() => {
-            fetchConversations();
-          }, 2000); // Longer debounce since we update locally
+            
+            // Handle DELETE events
+            if (payload.eventType === 'DELETE') {
+              const deletedId = (payload.old as { id?: string })?.id;
+              if (deletedId) {
+                setConversations(prev => prev.filter(c => c.id !== deletedId));
+              }
+            }
+            
+            // Reduced debounce for full refresh - only as safety net
+            if (debounceTimer) clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+              fetchConversations();
+            }, 3000);
           }
         )
         .subscribe();
