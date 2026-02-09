@@ -315,7 +315,7 @@ export default function CentralAtendimento() {
     fetchLeads();
   }, [filters, refreshKey, role, canViewAll, allowedUnits, isLoadingUnitPerms, currentPage]);
 
-  // Fetch server-side metrics (independent of pagination)
+  // Fetch server-side metrics (respects active filters including unit)
   useEffect(() => {
     const fetchMetrics = async () => {
       if (!role || isLoadingUnitPerms) return;
@@ -326,8 +326,38 @@ export default function CentralAtendimento() {
 
       const buildQuery = (statusFilter?: string, dateFilter?: string) => {
         let q = supabase.from("campaign_leads").select("id", { count: "exact", head: true });
+        // Apply unit permission filter
         if (!canViewAll && allowedUnits.length > 0 && !allowedUnits.includes('all')) {
           q = q.in("unit", allowedUnits);
+        }
+        // Apply user-selected unit filter
+        if (filters.unit && filters.unit !== "all") {
+          q = q.eq("unit", filters.unit);
+        }
+        // Apply other active filters
+        if (filters.campaign && filters.campaign !== "all") {
+          q = q.eq("campaign_id", filters.campaign);
+        }
+        if (filters.responsavel && filters.responsavel !== "all") {
+          if (filters.responsavel === "unassigned") {
+            q = q.is("responsavel_id", null);
+          } else {
+            q = q.eq("responsavel_id", filters.responsavel);
+          }
+        }
+        if (filters.month && filters.month !== "all") {
+          q = q.eq("month", filters.month);
+        }
+        if (filters.startDate) {
+          q = q.gte("created_at", filters.startDate.toISOString());
+        }
+        if (filters.endDate) {
+          const endOfDay = new Date(filters.endDate);
+          endOfDay.setHours(23, 59, 59, 999);
+          q = q.lte("created_at", endOfDay.toISOString());
+        }
+        if (filters.search) {
+          q = q.or(`name.ilike.%${filters.search}%,whatsapp.ilike.%${filters.search}%`);
         }
         if (statusFilter) q = q.eq("status", statusFilter as LeadStatus);
         if (dateFilter) q = q.gte("created_at", dateFilter);
@@ -354,7 +384,7 @@ export default function CentralAtendimento() {
     };
 
     fetchMetrics();
-  }, [role, canViewAll, allowedUnits, isLoadingUnitPerms, refreshKey]);
+  }, [role, canViewAll, allowedUnits, isLoadingUnitPerms, refreshKey, filters]);
 
   useEffect(() => {
     const leadId = searchParams.get('lead');
