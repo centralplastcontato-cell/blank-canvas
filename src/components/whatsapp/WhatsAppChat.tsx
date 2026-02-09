@@ -377,10 +377,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
       // If there's a linked lead, delete its history and the lead itself
       if (linkedLead) {
         // First delete lead history (to avoid foreign key constraint)
-        await supabase
+        const { error: historyError } = await supabase
           .from('lead_history')
           .delete()
           .eq('lead_id', linkedLead.id);
+        
+        if (historyError) {
+          console.error("[Delete] Error deleting lead history:", historyError);
+          // Continue anyway - history might not exist
+        }
         
         // Delete the lead
         const { error: leadError } = await supabase
@@ -388,14 +393,22 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
           .delete()
           .eq('id', linkedLead.id);
         
-        if (leadError) throw leadError;
+        if (leadError) {
+          console.error("[Delete] Error deleting lead:", leadError);
+          throw new Error(`Erro ao excluir lead: ${leadError.message}`);
+        }
       }
       
       // Delete all messages for this conversation
-      await supabase
+      const { error: messagesError } = await supabase
         .from('wapi_messages')
         .delete()
         .eq('conversation_id', selectedConversation.id);
+      
+      if (messagesError) {
+        console.error("[Delete] Error deleting messages:", messagesError);
+        throw new Error(`Erro ao excluir mensagens: ${messagesError.message}`);
+      }
       
       // Delete the conversation itself
       const { error: convError } = await supabase
@@ -403,7 +416,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
         .delete()
         .eq('id', selectedConversation.id);
       
-      if (convError) throw convError;
+      if (convError) {
+        console.error("[Delete] Error deleting conversation:", convError);
+        throw new Error(`Erro ao excluir conversa: ${convError.message}`);
+      }
       
       // Update local state - remove conversation from list
       setConversations(prev => prev.filter(c => c.id !== selectedConversation.id));
@@ -420,10 +436,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
           : "A conversa e suas mensagens foram removidas permanentemente.",
       });
     } catch (error: unknown) {
-      console.error("Error deleting lead/conversation:", error);
+      console.error("[Delete] Full error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Não foi possível excluir. Tente novamente.";
       toast({
         title: "Erro ao excluir",
-        description: error instanceof Error ? error.message : "Não foi possível excluir. Tente novamente.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
