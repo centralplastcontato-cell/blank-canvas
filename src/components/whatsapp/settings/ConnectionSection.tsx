@@ -118,6 +118,8 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
 
   // Background sync without blocking the UI
   const syncInstancesInBackground = async (instancesList: WapiInstance[]) => {
+    let detectedNumberChange: { instance: WapiInstance; oldPhone: string; newPhone: string } | null = null;
+    
     const updates = await Promise.all(
       instancesList.map(async (instance) => {
         try {
@@ -138,6 +140,12 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
             if (wapiStatus === 'connected' && wapiPhone) {
               updateData.phone_number = wapiPhone;
               updateData.connected_at = new Date().toISOString();
+              
+              // Detect phone number change
+              const previousPhone = instance.phone_number;
+              if (previousPhone && wapiPhone && previousPhone !== wapiPhone && !detectedNumberChange) {
+                detectedNumberChange = { instance, oldPhone: previousPhone, newPhone: wapiPhone };
+              }
             } else if (wapiStatus === 'disconnected') {
               updateData.connected_at = null;
             }
@@ -148,6 +156,20 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
               .eq("id", instance.id);
 
             return { ...instance, ...updateData } as WapiInstance;
+          }
+          
+          // Also check for phone number change even if status didn't change
+          if (wapiStatus === 'connected' && wapiPhone && instance.phone_number && 
+              instance.phone_number !== wapiPhone && !detectedNumberChange) {
+            detectedNumberChange = { instance, oldPhone: instance.phone_number, newPhone: wapiPhone };
+            
+            // Update the phone number in DB
+            await supabase
+              .from("wapi_instances")
+              .update({ phone_number: wapiPhone })
+              .eq("id", instance.id);
+            
+            return { ...instance, phone_number: wapiPhone } as WapiInstance;
           }
 
           return instance;
@@ -160,6 +182,14 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
 
     // Update UI with synced data
     setInstances(updates);
+    
+    // Show number change dialog if detected
+    if (detectedNumberChange) {
+      setOldPhoneNumber(detectedNumberChange.oldPhone);
+      setNewPhoneNumber(detectedNumberChange.newPhone);
+      setNumberChangeInstance(detectedNumberChange.instance);
+      setNumberChangeDialogOpen(true);
+    }
   };
 
   const handleSaveInstance = async () => {
@@ -480,22 +510,45 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
       }
 
       if (response.data?.status) {
+        const newPhone = response.data.phoneNumber || response.data.phone || null;
+        const previousPhone = instance.phone_number;
+        
+        // Detect phone number change
+        const phoneChanged = previousPhone && newPhone && previousPhone !== newPhone;
+        
         await supabase
           .from("wapi_instances")
           .update({ 
             status: response.data.status,
-            phone_number: response.data.phoneNumber || null,
+            phone_number: newPhone,
             connected_at: response.data.status === 'connected' ? new Date().toISOString() : null,
           })
           .eq("id", instance.id);
+        
+        // Show number change dialog if detected
+        if (phoneChanged) {
+          setOldPhoneNumber(previousPhone);
+          setNewPhoneNumber(newPhone);
+          setNumberChangeInstance(instance);
+          setNumberChangeDialogOpen(true);
+          toast({
+            title: "Número alterado detectado!",
+            description: `A instância ${instance.unit} está conectada com um número diferente.`,
+          });
+        } else {
+          toast({
+            title: "Status atualizado",
+            description: `Instância ${instance.unit}: ${response.data?.status || 'verificado'}`,
+          });
+        }
+      } else {
+        toast({
+          title: "Status atualizado",
+          description: `Instância ${instance.unit}: verificado`,
+        });
       }
 
       await fetchInstances();
-
-      toast({
-        title: "Status atualizado",
-        description: `Instância ${instance.unit}: ${response.data?.status || 'verificado'}`,
-      });
     } catch (error: any) {
       toast({
         title: "Erro",
