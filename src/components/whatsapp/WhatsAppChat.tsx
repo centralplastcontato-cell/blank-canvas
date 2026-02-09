@@ -594,59 +594,39 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
   const isAtBottomRef = useRef(true);
   isAtBottomRef.current = isAtBottom;
 
-  // Stable callback for handling new messages from realtime
+  // Stable callback for handling new messages from realtime - OPTIMIZED for low latency
   const handleNewRealtimeMessage = useCallback((newMessage: Message & { _realtimeReceivedAt?: number }) => {
-    
+    // Minimal processing - append directly without expensive operations
     setMessages((prev) => {
-      // Check if this message already exists (by id or message_id)
-      const existsById = prev.some(m => m.id === newMessage.id);
-      if (existsById) {
-        console.log("[Realtime] Message already exists by id, skipping:", newMessage.id);
+      // Fast duplicate check by ID only
+      if (prev.some(m => m.id === newMessage.id)) {
         return prev;
       }
       
-      // Check for optimistic message match
-      const optimisticIndex = prev.findIndex(m => {
-        // Match by message_id if both have it
-        if (m.message_id && newMessage.message_id) {
-          return m.message_id === newMessage.message_id;
-        }
-        
-        // Match optimistic messages by content and timing
-        if (m.id.startsWith('optimistic-') && m.from_me && newMessage.from_me) {
-          // Text message matching
-          if (m.message_type === 'text' && newMessage.message_type === 'text') {
-            const contentMatch = m.content === newMessage.content;
-            const timeDiff = Math.abs(new Date(m.timestamp).getTime() - new Date(newMessage.timestamp).getTime());
-            return contentMatch && timeDiff < 30000; // 30 second window
-          }
-          // Media message matching (by type and timing)
-          if (m.message_type === newMessage.message_type && m.message_type !== 'text') {
-            const timeDiff = Math.abs(new Date(m.timestamp).getTime() - new Date(newMessage.timestamp).getTime());
-            return timeDiff < 60000; // 60 second window for media
-          }
-        }
-        
-        return false;
-      });
+      // Fast optimistic message replacement (check last few messages only)
+      const recentMessages = prev.slice(-10);
+      const optimisticIdx = recentMessages.findIndex(m => 
+        m.id.startsWith('optimistic-') && 
+        m.from_me && 
+        newMessage.from_me &&
+        m.message_type === newMessage.message_type &&
+        (m.message_type !== 'text' || m.content === newMessage.content)
+      );
       
-      if (optimisticIndex >= 0) {
-        // Replace optimistic message with real one
-        console.log("[Realtime] Replacing optimistic message with real:", newMessage.id);
-        const updated = [...prev];
-        updated[optimisticIndex] = newMessage;
-        return updated;
+      if (optimisticIdx >= 0) {
+        const actualIdx = prev.length - 10 + optimisticIdx;
+        if (actualIdx >= 0) {
+          const updated = [...prev];
+          updated[actualIdx] = newMessage;
+          return updated;
+        }
       }
       
-      // New message - append and sort by timestamp
-      console.log("[Realtime] Appending new message:", newMessage.id);
-      const updated = [...prev, newMessage];
-      return updated.sort((a, b) => 
-        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-      );
+      // Simply append - no sorting (messages arrive in order from webhook)
+      return [...prev, newMessage];
     });
 
-    // If NOT at bottom and message is NOT from me, increment unread counter
+    // Increment unread counter if not at bottom and message is from contact
     if (!isAtBottomRef.current && !newMessage.from_me) {
       setUnreadNewMessagesCount(prev => prev + 1);
     }
@@ -718,49 +698,33 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
   // Track the conversation ID that needs initial scroll
   const pendingScrollConversationRef = useRef<string | null>(null);
   
-  // Force scroll to bottom - use scrollIntoView as most reliable method
+  // Force scroll to bottom - use scrollTop directly on viewport (most reliable)
   const forceScrollToBottom = useCallback(() => {
-    const scrollViaElement = () => {
-      // Try using the end marker element (most reliable for mobile)
-      const endEl = messagesEndRefDesktop.current || messagesEndRefMobile.current;
-      if (endEl) {
-        endEl.scrollIntoView({ behavior: 'instant', block: 'end' });
-        return true;
-      }
-      return false;
-    };
-    
-    const scrollViaViewport = () => {
-      const desktopViewport = scrollAreaDesktopRef.current?.querySelector('[data-radix-scroll-area-viewport]');
-      const mobileViewport = scrollAreaMobileRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    const scrollViewport = () => {
+      // Get the actual scrollable viewport from Radix ScrollArea
+      const desktopViewport = scrollAreaDesktopRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null;
+      const mobileViewport = scrollAreaMobileRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null;
       const viewport = desktopViewport || mobileViewport;
       
       if (viewport) {
-        const el = viewport as HTMLElement;
-        el.scrollTop = el.scrollHeight;
-        return true;
+        // Direct scrollTop assignment is most reliable
+        viewport.scrollTop = viewport.scrollHeight;
       }
-      return false;
     };
     
-    // Immediate attempts
-    scrollViaElement();
-    scrollViaViewport();
+    // Execute immediately
+    scrollViewport();
     
-    // RAF for after render
+    // RAF for after React render completes
     requestAnimationFrame(() => {
-      scrollViaElement();
-      scrollViaViewport();
+      scrollViewport();
+      // Double RAF for Safari which sometimes needs extra frame
+      requestAnimationFrame(scrollViewport);
     });
     
-    // Multiple backup timeouts for slow mobile renders
-    const delays = [50, 100, 200, 350, 500];
-    delays.forEach(delay => {
-      setTimeout(() => {
-        scrollViaElement();
-        scrollViaViewport();
-      }, delay);
-    });
+    // Single delayed attempt for slow mobile renders
+    setTimeout(scrollViewport, 100);
+    setTimeout(scrollViewport, 300);
   }, []);
   
   // Effect for initial scroll when messages load for a conversation
@@ -768,15 +732,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
     const conversationId = selectedConversation?.id;
     const messagesLength = messages.length;
     
-    // When messages load for a NEW conversation, scroll to bottom
-    if (conversationId && messagesLength > 0 && isInitialLoad) {
-      // Only scroll if this is a new conversation or first load
-      if (pendingScrollConversationRef.current !== conversationId) {
-        pendingScrollConversationRef.current = conversationId;
-        forceScrollToBottom();
-      }
+    // When messages load for a NEW conversation, scroll to bottom immediately
+    if (conversationId && messagesLength > 0 && pendingScrollConversationRef.current !== conversationId) {
+      pendingScrollConversationRef.current = conversationId;
+      // Force immediate scroll
+      forceScrollToBottom();
     }
-  }, [selectedConversation?.id, messages.length, isInitialLoad, forceScrollToBottom]);
+  }, [selectedConversation?.id, messages.length, forceScrollToBottom]);
   
   // Effect for new incoming/outgoing messages (after initial load)
   useEffect(() => {
@@ -785,20 +747,14 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
     const isNewMessage = messagesLength > prevMessagesLengthRef.current;
     const isFromMe = lastMessage?.from_me;
     
-    // Handle new messages (not initial load) - scroll for my messages or if at bottom
-    const shouldScrollForNewMessage = (
-      !isInitialLoad && 
-      isNewMessage && 
-      (isFromMe || isAtBottomRef.current)
-    );
-    
-    if (shouldScrollForNewMessage) {
+    // Scroll for my sent messages or if at bottom when new message arrives
+    if (isNewMessage && (isFromMe || isAtBottomRef.current)) {
       forceScrollToBottom();
     }
     
     prevMessagesLengthRef.current = messagesLength;
     lastMessageFromMeRef.current = isFromMe || false;
-  }, [messages, isInitialLoad, forceScrollToBottom]);
+  }, [messages, forceScrollToBottom]);
   
   // Reset pending scroll conversation when changing conversations
   useEffect(() => {
