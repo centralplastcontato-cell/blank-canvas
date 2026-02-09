@@ -7,8 +7,9 @@ import { CompanyMembersSheet } from "@/components/admin/CompanyMembersSheet";
 import { CreateCompanyAdminDialog } from "@/components/hub/CreateCompanyAdminDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Plus, Pencil, Users, Loader2, UserPlus, Link2, Copy } from "lucide-react";
+import { Building2, Plus, Pencil, Users, Loader2, UserPlus, Link2, Copy, ClipboardList, ExternalLink } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { Separator } from "@/components/ui/separator";
 
 export default function HubEmpresas() {
   return (
@@ -104,74 +105,97 @@ function HubEmpresasContent() {
           <p className="text-muted-foreground">Nenhuma empresa cadastrada.</p>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {companies.filter(c => c.parent_id !== null).map((child) => (
-            <div key={child.id} className="rounded-xl border bg-card p-5 space-y-4 hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  {child.logo_url ? (
-                    <img src={child.logo_url} alt={child.name} className="h-10 w-10 rounded-lg object-contain bg-muted shrink-0" />
-                  ) : (
-                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <Building2 className="h-5 w-5 text-primary" />
+        <div className="grid gap-5 md:grid-cols-2">
+          {companies.filter(c => c.parent_id !== null).map((child) => {
+            const members = memberCounts[child.id] || 0;
+            const copyLink = (path: string, label: string) => {
+              const url = `${window.location.origin}${path}`;
+              navigator.clipboard.writeText(url);
+              toast({ title: `${label} copiado!`, description: url });
+            };
+
+            return (
+              <div key={child.id} className="rounded-xl border bg-card p-6 space-y-4 hover:shadow-md transition-shadow">
+                {/* Header */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {child.logo_url ? (
+                      <img src={child.logo_url} alt={child.name} className="h-12 w-12 rounded-xl object-contain bg-muted shrink-0" />
+                    ) : (
+                      <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                        <Building2 className="h-6 w-6 text-primary" />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <h3 className="font-bold text-foreground truncate text-base">{child.name}</h3>
+                      <p className="text-xs text-muted-foreground truncate">/{child.slug}</p>
                     </div>
-                  )}
-                  <div className="min-w-0">
-                    <h3 className="font-semibold text-foreground truncate">{child.name}</h3>
-                    <p className="text-xs text-muted-foreground truncate">{child.slug}</p>
+                  </div>
+                  <Badge variant={child.is_active ? "default" : "secondary"}>{child.is_active ? "Ativa" : "Inativa"}</Badge>
+                </div>
+
+                {/* Stats */}
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <Users className="h-4 w-4" /> {members} membro{members !== 1 ? "s" : ""}
+                  </span>
+                </div>
+
+                <Separator />
+
+                {/* Links Section */}
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Links</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => copyLink(`/auth/${child.slug}`, "Link de login")}
+                      className="flex items-center gap-2 p-2.5 rounded-lg border border-border bg-muted/30 hover:bg-muted/60 transition-colors text-left group"
+                    >
+                      <Link2 className="h-4 w-4 text-primary shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-foreground">Login</p>
+                        <p className="text-[10px] text-muted-foreground truncate">/auth/{child.slug}</p>
+                      </div>
+                      <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                    </button>
+                    <button
+                      onClick={() => copyLink(`/onboarding/${child.slug}`, "Link de onboarding")}
+                      className="flex items-center gap-2 p-2.5 rounded-lg border border-border bg-muted/30 hover:bg-muted/60 transition-colors text-left group"
+                    >
+                      <ClipboardList className="h-4 w-4 text-accent shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-foreground">Onboarding</p>
+                        <p className="text-[10px] text-muted-foreground truncate">/onboarding/{child.slug}</p>
+                      </div>
+                      <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                    </button>
                   </div>
                 </div>
-                <Badge variant={child.is_active ? "default" : "secondary"}>{child.is_active ? "Ativa" : "Inativa"}</Badge>
-              </div>
-              <div className="flex flex-col gap-1 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Users className="h-3.5 w-3.5" /> {memberCounts[child.id] || 0} membro{(memberCounts[child.id] || 0) !== 1 ? "s" : ""}
-                </span>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => {
-                      const url = `${window.location.origin}/auth/${child.slug}`;
-                      navigator.clipboard.writeText(url);
-                      toast({ title: "Link de login copiado!", description: url });
-                    }}
-                    className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer"
-                  >
-                    <Link2 className="h-3 w-3" />
-                    Login
-                  </button>
-                  <button
-                    onClick={() => {
-                      const url = `${window.location.origin}/onboarding/${child.slug}`;
-                      navigator.clipboard.writeText(url);
-                      toast({ title: "Link de onboarding copiado!", description: url });
-                    }}
-                    className="flex items-center gap-1 text-xs text-accent hover:underline cursor-pointer"
-                  >
-                    <Copy className="h-3 w-3" />
-                    Onboarding
-                  </button>
+
+                <Separator />
+
+                {/* Actions */}
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => { setEditingCompany(child); setFormOpen(true); }}>
+                    <Pencil className="mr-1.5 h-3.5 w-3.5" /> Editar
+                  </Button>
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => { setMembersCompany(child); setMembersOpen(true); }}>
+                    <Users className="mr-1.5 h-3.5 w-3.5" /> Membros
+                  </Button>
                 </div>
+                {members === 0 && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => setAdminDialogCompany(child)}
+                  >
+                    <UserPlus className="mr-1.5 h-3.5 w-3.5" /> Criar Primeiro Admin
+                  </Button>
+                )}
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1" onClick={() => { setEditingCompany(child); setFormOpen(true); }}>
-                  <Pencil className="mr-1.5 h-3.5 w-3.5" /> Editar
-                </Button>
-                <Button variant="outline" size="sm" className="flex-1" onClick={() => { setMembersCompany(child); setMembersOpen(true); }}>
-                  <Users className="mr-1.5 h-3.5 w-3.5" /> Membros
-                </Button>
-              </div>
-              {(memberCounts[child.id] || 0) === 0 && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => setAdminDialogCompany(child)}
-                >
-                  <UserPlus className="mr-1.5 h-3.5 w-3.5" /> Criar Primeiro Admin
-                </Button>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </>
