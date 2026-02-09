@@ -17,6 +17,9 @@ interface ManageUserRequest {
   // Permission-specific fields
   permission_code?: string
   granted?: boolean
+  // Company linking
+  company_id?: string
+  company_role?: string // 'owner' | 'admin' | 'member'
 }
 
 Deno.serve(async (req) => {
@@ -140,6 +143,25 @@ Deno.serve(async (req) => {
           JSON.stringify({ error: 'Erro ao criar role: ' + roleInsertError.message }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
+      }
+
+      // Link user to company if company_id provided
+      if (body.company_id) {
+        const { error: companyLinkError } = await supabaseAdmin
+          .from('user_companies')
+          .insert({
+            user_id: newUser.user!.id,
+            company_id: body.company_id,
+            role: body.company_role || 'admin',
+            is_default: true,
+          })
+
+        if (companyLinkError) {
+          console.error('Company link error:', companyLinkError)
+          // Don't fail the whole operation, just log it
+        } else {
+          console.log('User linked to company:', body.company_id, 'as', body.company_role || 'admin')
+        }
       }
 
       // Grant default permissions based on role

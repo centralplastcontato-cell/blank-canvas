@@ -4,9 +4,10 @@ import { Company } from "@/types/company";
 import { HubLayout } from "@/components/hub/HubLayout";
 import { CompanyFormDialog } from "@/components/admin/CompanyFormDialog";
 import { CompanyMembersSheet } from "@/components/admin/CompanyMembersSheet";
+import { CreateCompanyAdminDialog } from "@/components/hub/CreateCompanyAdminDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Plus, Pencil, Users, Loader2 } from "lucide-react";
+import { Building2, Plus, Pencil, Users, Loader2, UserPlus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 export default function HubEmpresas() {
@@ -35,6 +36,7 @@ function HubEmpresasContent() {
   const [membersCompany, setMembersCompany] = useState<Company | null>(null);
   const [membersOpen, setMembersOpen] = useState(false);
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
+  const [adminDialogCompany, setAdminDialogCompany] = useState<Company | null>(null);
 
   useEffect(() => { fetchCompanies(); }, []);
 
@@ -80,6 +82,15 @@ function HubEmpresasContent() {
     <>
       <CompanyFormDialog open={formOpen} onOpenChange={setFormOpen} company={editingCompany} onSubmit={editingCompany ? handleUpdate : handleCreate} />
       <CompanyMembersSheet open={membersOpen} onOpenChange={setMembersOpen} company={membersCompany} />
+      {adminDialogCompany && (
+        <CreateCompanyAdminDialog
+          open={!!adminDialogCompany}
+          onOpenChange={(open) => !open && setAdminDialogCompany(null)}
+          companyId={adminDialogCompany.id}
+          companyName={adminDialogCompany.name}
+          onSuccess={fetchCompanies}
+        />
+      )}
 
       <div className="flex justify-end mb-4">
         <Button onClick={() => { setEditingCompany(null); setFormOpen(true); }} size="sm">
@@ -123,6 +134,16 @@ function HubEmpresasContent() {
                   <Users className="mr-1.5 h-3.5 w-3.5" /> Membros
                 </Button>
               </div>
+              {(memberCounts[child.id] || 0) === 0 && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => setAdminDialogCompany(child)}
+                >
+                  <UserPlus className="mr-1.5 h-3.5 w-3.5" /> Criar Primeiro Admin
+                </Button>
+              )}
             </div>
           ))}
         </div>
