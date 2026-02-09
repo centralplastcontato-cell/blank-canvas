@@ -195,8 +195,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
   const [closedLeadConversationIds, setClosedLeadConversationIds] = useState<Set<string>>(new Set());
   const [orcamentoEnviadoConversationIds, setOrcamentoEnviadoConversationIds] = useState<Set<string>>(new Set());
   const [conversationLeadsMap, setConversationLeadsMap] = useState<Record<string, Lead | null>>({});
-  const messagesEndRefDesktop = useRef<HTMLDivElement>(null);
-  const messagesEndRefMobile = useRef<HTMLDivElement>(null);
   const scrollAreaDesktopRef = useRef<HTMLDivElement>(null);
   const scrollAreaMobileRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -247,32 +245,41 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Scroll to bottom of messages - Desktop
+  // Refs for bottom markers
+  const bottomRefDesktop = useRef<HTMLDivElement>(null);
+  const bottomRefMobile = useRef<HTMLDivElement>(null);
+
+  // Scroll to bottom using bottomRef (most reliable for Safari/iOS)
   const scrollToBottomDesktop = useCallback((smooth = true) => {
-    const viewport = scrollAreaDesktopRef.current?.querySelector('[data-radix-scroll-area-viewport]');
-    if (viewport) {
-      requestAnimationFrame(() => {
-        viewport.scrollTo({ top: viewport.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+    if (bottomRefDesktop.current) {
+      bottomRefDesktop.current.scrollIntoView({ 
+        behavior: smooth ? 'smooth' : 'auto',
+        block: 'end' 
       });
-    } else if (messagesEndRefDesktop.current) {
-      messagesEndRefDesktop.current.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
+    } else {
+      // Fallback to direct viewport manipulation
+      const viewport = scrollAreaDesktopRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+      if (viewport) {
+        viewport.scrollTop = viewport.scrollHeight;
+      }
     }
-    // Reset unread counter when scrolling to bottom
     setUnreadNewMessagesCount(0);
     setIsAtBottom(true);
   }, []);
 
-  // Scroll to bottom of messages - Mobile
   const scrollToBottomMobile = useCallback((smooth = true) => {
-    const viewport = scrollAreaMobileRef.current?.querySelector('[data-radix-scroll-area-viewport]');
-    if (viewport) {
-      requestAnimationFrame(() => {
-        viewport.scrollTo({ top: viewport.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+    if (bottomRefMobile.current) {
+      bottomRefMobile.current.scrollIntoView({ 
+        behavior: smooth ? 'smooth' : 'auto',
+        block: 'end' 
       });
-    } else if (messagesEndRefMobile.current) {
-      messagesEndRefMobile.current.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
+    } else {
+      // Fallback to direct viewport manipulation
+      const viewport = scrollAreaMobileRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+      if (viewport) {
+        viewport.scrollTop = viewport.scrollHeight;
+      }
     }
-    // Reset unread counter when scrolling to bottom
     setUnreadNewMessagesCount(0);
     setIsAtBottom(true);
   }, []);
@@ -698,33 +705,58 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
   // Track the conversation ID that needs initial scroll
   const pendingScrollConversationRef = useRef<string | null>(null);
   
-  // Force scroll to bottom - use scrollTop directly on viewport (most reliable)
-  const forceScrollToBottom = useCallback(() => {
-    const scrollViewport = () => {
-      // Get the actual scrollable viewport from Radix ScrollArea
+  // Force scroll to bottom - primary method uses scrollIntoView on bottomRef
+  const forceScrollToBottom = useCallback((smooth = false) => {
+    const scrollViaRef = () => {
+      // Try bottomRefs first (most reliable for iOS Safari)
+      if (bottomRefDesktop.current) {
+        bottomRefDesktop.current.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'end' });
+        return true;
+      }
+      if (bottomRefMobile.current) {
+        bottomRefMobile.current.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'end' });
+        return true;
+      }
+      return false;
+    };
+
+    const scrollViaViewport = () => {
+      // Fallback to direct viewport manipulation
       const desktopViewport = scrollAreaDesktopRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null;
       const mobileViewport = scrollAreaMobileRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null;
       const viewport = desktopViewport || mobileViewport;
-      
       if (viewport) {
-        // Direct scrollTop assignment is most reliable
         viewport.scrollTop = viewport.scrollHeight;
+        return true;
       }
+      return false;
     };
+
+    // Execute immediately with both strategies
+    if (!scrollViaRef()) {
+      scrollViaViewport();
+    }
     
-    // Execute immediately
-    scrollViewport();
-    
-    // RAF for after React render completes
+    // RAF for after React render
     requestAnimationFrame(() => {
-      scrollViewport();
-      // Double RAF for Safari which sometimes needs extra frame
-      requestAnimationFrame(scrollViewport);
+      if (!scrollViaRef()) {
+        scrollViaViewport();
+      }
     });
     
-    // Single delayed attempt for slow mobile renders
-    setTimeout(scrollViewport, 100);
-    setTimeout(scrollViewport, 300);
+    // Delayed attempts for slow mobile renders
+    const delays = [50, 150, 300];
+    delays.forEach(delay => {
+      setTimeout(() => {
+        if (!scrollViaRef()) {
+          scrollViaViewport();
+        }
+      }, delay);
+    });
+
+    // Reset states
+    setIsAtBottom(true);
+    setUnreadNewMessagesCount(0);
   }, []);
   
   // Effect for initial scroll when messages load for a conversation
@@ -732,24 +764,27 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
     const conversationId = selectedConversation?.id;
     const messagesLength = messages.length;
     
-    // When messages load for a NEW conversation, scroll to bottom immediately
+    // When messages load for a NEW conversation, scroll to bottom immediately (no animation)
     if (conversationId && messagesLength > 0 && pendingScrollConversationRef.current !== conversationId) {
       pendingScrollConversationRef.current = conversationId;
-      // Force immediate scroll
-      forceScrollToBottom();
+      forceScrollToBottom(false); // behavior: 'auto' for instant scroll on open
     }
   }, [selectedConversation?.id, messages.length, forceScrollToBottom]);
   
-  // Effect for new incoming/outgoing messages (after initial load)
+  // Effect for new incoming/outgoing messages (WhatsApp-style behavior)
   useEffect(() => {
     const messagesLength = messages.length;
     const lastMessage = messages[messagesLength - 1];
     const isNewMessage = messagesLength > prevMessagesLengthRef.current;
     const isFromMe = lastMessage?.from_me;
     
-    // Scroll for my sent messages or if at bottom when new message arrives
-    if (isNewMessage && (isFromMe || isAtBottomRef.current)) {
-      forceScrollToBottom();
+    if (isNewMessage && messagesLength > 0) {
+      // Always scroll for my sent messages
+      // For incoming messages, only scroll if user is near bottom
+      if (isFromMe || isAtBottomRef.current) {
+        forceScrollToBottom(true); // smooth scroll for new messages
+      }
+      // Counter increment is handled in handleNewRealtimeMessage
     }
     
     prevMessagesLengthRef.current = messagesLength;
@@ -778,23 +813,21 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
     }
   }, [isInitialLoad]);
   
-  // Infinite scroll listener - load more when near top
+  // Scroll listener - track position and handle infinite scroll
   useEffect(() => {
-    const desktopViewport = scrollAreaDesktopRef.current?.querySelector('[data-radix-scroll-area-viewport]');
-    const mobileViewport = scrollAreaMobileRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    const desktopViewport = scrollAreaDesktopRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null;
+    const mobileViewport = scrollAreaMobileRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null;
     
     const handleScroll = (e: Event) => {
       const target = e.target as HTMLDivElement;
-      const scrollTop = target.scrollTop;
-      const scrollHeight = target.scrollHeight;
-      const clientHeight = target.clientHeight;
+      const { scrollTop, scrollHeight, clientHeight } = target;
       
-      // Track if at bottom (within 120px of bottom - WhatsApp style threshold)
-      const atBottom = scrollHeight - scrollTop - clientHeight < 120;
-      setIsAtBottom(atBottom);
+      // WhatsApp-style: near bottom means within 120px
+      const nearBottom = scrollHeight - scrollTop - clientHeight <= 120;
+      setIsAtBottom(nearBottom);
       
-      // Reset unread counter when user scrolls to bottom
-      if (atBottom) {
+      // Reset unread counter when user scrolls to bottom manually
+      if (nearBottom) {
         setUnreadNewMessagesCount(0);
       }
       
@@ -803,14 +836,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
         setHasUserScrolledToTop(true);
       }
       
-      // Load more when scrolled near top (within 80px) and user has manually scrolled
-      // canLoadMoreRef prevents auto-loading right after initial scroll
+      // Load more when scrolled near top (within 80px)
       if (scrollTop < 80 && hasMoreMessages && !isLoadingMoreRef.current && !isInitialLoad && messages.length > 0 && canLoadMoreRef.current) {
         loadMoreMessages();
       }
     };
     
-    // Add listeners to both viewports
+    // Add listeners with passive flag for performance
     desktopViewport?.addEventListener('scroll', handleScroll, { passive: true });
     mobileViewport?.addEventListener('scroll', handleScroll, { passive: true });
     
@@ -2854,7 +2886,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                             </div>
                           ))
                         )}
-                        <div ref={messagesEndRefDesktop} />
+                        <div ref={bottomRefDesktop} style={{ height: 1 }} />
                       </div>
                     </ScrollArea>
                     {/* Scroll to bottom button - only show when not at bottom */}
@@ -3474,7 +3506,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                         </div>
                       ))
                       )}
-                      <div ref={messagesEndRefMobile} />
+                      <div ref={bottomRefMobile} style={{ height: 1 }} />
                     </div>
                   </ScrollArea>
                   {/* Scroll to bottom button - only show when not at bottom */}
