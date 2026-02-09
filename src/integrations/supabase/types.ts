@@ -72,7 +72,7 @@ export type Database = {
         Row: {
           campaign_id: string
           campaign_name: string | null
-          company_id: string | null
+          company_id: string
           created_at: string
           day_of_month: number | null
           day_preference: string | null
@@ -89,7 +89,7 @@ export type Database = {
         Insert: {
           campaign_id: string
           campaign_name?: string | null
-          company_id?: string | null
+          company_id: string
           created_at?: string
           day_of_month?: number | null
           day_preference?: string | null
@@ -106,7 +106,7 @@ export type Database = {
         Update: {
           campaign_id?: string
           campaign_name?: string | null
-          company_id?: string | null
+          company_id?: string
           created_at?: string
           day_of_month?: number | null
           day_preference?: string | null
@@ -778,7 +778,7 @@ export type Database = {
           bot_data: Json | null
           bot_enabled: boolean | null
           bot_step: string | null
-          company_id: string | null
+          company_id: string
           contact_name: string | null
           contact_phone: string
           contact_picture: string | null
@@ -803,7 +803,7 @@ export type Database = {
           bot_data?: Json | null
           bot_enabled?: boolean | null
           bot_step?: string | null
-          company_id?: string | null
+          company_id: string
           contact_name?: string | null
           contact_phone: string
           contact_picture?: string | null
@@ -828,7 +828,7 @@ export type Database = {
           bot_data?: Json | null
           bot_enabled?: boolean | null
           bot_step?: string | null
-          company_id?: string | null
+          company_id?: string
           contact_name?: string | null
           contact_phone?: string
           contact_picture?: string | null
@@ -876,7 +876,7 @@ export type Database = {
       wapi_instances: {
         Row: {
           addon_valid_until: string | null
-          company_id: string | null
+          company_id: string
           connected_at: string | null
           created_at: string
           credits_available: number | null
@@ -892,7 +892,7 @@ export type Database = {
         }
         Insert: {
           addon_valid_until?: string | null
-          company_id?: string | null
+          company_id: string
           connected_at?: string | null
           created_at?: string
           credits_available?: number | null
@@ -908,7 +908,7 @@ export type Database = {
         }
         Update: {
           addon_valid_until?: string | null
-          company_id?: string | null
+          company_id?: string
           connected_at?: string | null
           created_at?: string
           credits_available?: number | null
