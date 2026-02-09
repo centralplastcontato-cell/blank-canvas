@@ -1258,6 +1258,7 @@ export type Database = {
           name: string
         }[]
       }
+      get_company_id_by_slug: { Args: { _slug: string }; Returns: string }
       get_profiles_for_transfer: {
         Args: never
         Returns: {
