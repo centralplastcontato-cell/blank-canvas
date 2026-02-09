@@ -5,9 +5,7 @@ import {
   Users, 
   RefreshCw, 
   LogOut, 
-  Presentation,
-  Building2,
-  BarChart3
+  Presentation
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,13 +17,13 @@ import {
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import logoCastelo from "@/assets/logo-castelo.png";
+
 
 interface MobileMenuProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   trigger: React.ReactNode;
-  currentPage: "atendimento" | "configuracoes" | "users" | "comercial-b2b" | "empresas" | "hub";
+  currentPage: "atendimento" | "configuracoes" | "users" | "comercial-b2b";
   userName: string;
   userEmail: string;
   userAvatar?: string | null;
@@ -86,20 +84,6 @@ export function MobileMenu({
       label: "Gerenciar Usuários",
       icon: Users,
       path: "/users",
-      show: canManageUsers,
-    },
-    {
-      id: "empresas",
-      label: "Empresas",
-      icon: Building2,
-      path: "/empresas",
-      show: canManageUsers,
-    },
-    {
-      id: "hub",
-      label: "Painel Hub",
-      icon: BarChart3,
-      path: "/hub",
       show: canManageUsers,
     },
   ];

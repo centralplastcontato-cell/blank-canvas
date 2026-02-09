@@ -9,12 +9,14 @@ import Auth from "./pages/Auth";
 import CentralAtendimento from "./pages/CentralAtendimento";
 import Configuracoes from "./pages/Configuracoes";
 import Users from "./pages/Users";
-import UserSettings from "./pages/UserSettings";
+
 import LandingPage from "./pages/LandingPage";
 import ComercialB2B from "./pages/ComercialB2B";
 import ParaBuffets from "./pages/ParaBuffets";
-import Empresas from "./pages/Empresas";
+import HubLogin from "./pages/HubLogin";
 import HubDashboard from "./pages/HubDashboard";
+import HubEmpresas from "./pages/HubEmpresas";
+import HubUsers from "./pages/HubUsers";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,12 +37,16 @@ const App = () => (
             <Route path="/para-buffets" element={<ParaBuffets />} />
             <Route path="/dashboard" element={<Index />} />
             <Route path="/users" element={<Users />} />
-            <Route path="/empresas" element={<Empresas />} />
-            <Route path="/hub" element={<HubDashboard />} />
             <Route path="/promo" element={<LandingPage />} />
+            {/* Hub portal - independent */}
+            <Route path="/hub-login" element={<HubLogin />} />
+            <Route path="/hub" element={<HubDashboard />} />
+            <Route path="/hub/empresas" element={<HubEmpresas />} />
+            <Route path="/hub/users" element={<HubUsers />} />
             {/* Redirects for old routes */}
             <Route path="/admin" element={<Navigate to="/atendimento" replace />} />
             <Route path="/whatsapp" element={<Navigate to="/atendimento" replace />} />
+            <Route path="/empresas" element={<Navigate to="/hub/empresas" replace />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

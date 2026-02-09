@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Users, LogOut, RefreshCw, Headset, Settings, Pin, PinOff, Presentation, ChevronLeft, Building2, BarChart3 } from "lucide-react";
+import { Users, LogOut, RefreshCw, Headset, Settings, Pin, PinOff, Presentation, ChevronLeft } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -52,8 +52,6 @@ export function AdminSidebar({
     ...baseMenuItems,
     ...(canAccessB2B ? [{ title: "Comercial B2B", url: "/comercial-b2b", icon: Presentation }] : []),
     ...(canManageUsers ? [{ title: "Gerenciar Usuários", url: "/users", icon: Users }] : []),
-    ...(canManageUsers ? [{ title: "Empresas", url: "/empresas", icon: Building2 }] : []),
-    ...(canManageUsers ? [{ title: "Painel Hub", url: "/hub", icon: BarChart3 }] : []),
   ];
 
   // Handle hover expand/collapse only when not pinned
