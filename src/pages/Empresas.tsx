@@ -76,11 +76,12 @@ export default function EmpresasPage() {
   }, [user]);
 
   useEffect(() => {
-    if (!isLoadingRole && hasFetched && user && !isAdmin) {
+    // Only redirect after role has been fetched WITH a valid userId
+    if (!isLoadingRole && hasFetched && user && !isLoading && !isAdmin) {
       toast({ title: "Acesso negado", description: "Apenas administradores podem gerenciar empresas.", variant: "destructive" });
       navigate("/atendimento");
     }
-  }, [isLoadingRole, hasFetched, isAdmin, user, navigate]);
+  }, [isLoadingRole, hasFetched, isAdmin, user, isLoading, navigate]);
 
   useEffect(() => {
     if (isAdmin) fetchCompanies();
