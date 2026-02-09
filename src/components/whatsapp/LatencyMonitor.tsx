@@ -27,6 +27,7 @@ interface LatencyStats {
 // Singleton store for latency events (persists across re-renders)
 let latencyEvents: LatencyEvent[] = [];
 let listeners: Set<() => void> = new Set();
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function addLatencyEvent(event: Omit<LatencyEvent, "id" | "timestamp">) {
   const newEvent: LatencyEvent = {
@@ -37,8 +38,11 @@ export function addLatencyEvent(event: Omit<LatencyEvent, "id" | "timestamp">) {
   
   latencyEvents = [newEvent, ...latencyEvents].slice(0, 20);
   
-  // Notify all listeners
-  listeners.forEach(listener => listener());
+  // Debounce notifications to avoid excessive re-renders
+  if (debounceTimer) clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    listeners.forEach(listener => listener());
+  }, 100); // Wait 100ms before notifying
   
   console.log(`[Latency] Added event: RT→UI: ${event.realtimeToUi}ms, Total: ${event.totalEndToEnd}ms`);
 }
@@ -49,7 +53,9 @@ export function useLatencyEvents() {
   useEffect(() => {
     const listener = () => setEvents([...latencyEvents]);
     listeners.add(listener);
-    return () => { listeners.delete(listener); };
+    return () => { 
+      listeners.delete(listener); 
+    };
   }, []);
   
   return events;
