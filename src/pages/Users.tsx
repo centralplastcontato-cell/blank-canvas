@@ -221,7 +221,12 @@ export default function UsersPage() {
       };
     });
 
-    setUsers(usersWithRoles);
+    // Hide super admins from non-admin users to keep focus on local team
+    const filteredUsers = isAdmin
+      ? usersWithRoles
+      : usersWithRoles.filter((u) => u.role !== "admin");
+
+    setUsers(filteredUsers);
     setIsLoadingUsers(false);
   };
 
