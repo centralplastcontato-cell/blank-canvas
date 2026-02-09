@@ -1,6 +1,5 @@
 import { motion } from "framer-motion";
 import { CheckCircle2, ArrowRight, Shield, Clock, TrendingUp, Target } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
 const stats = [
@@ -19,8 +18,7 @@ const benefits = [
   "Integração completa com suas campanhas",
 ];
 
-export default function HubStats() {
-  const navigate = useNavigate();
+export default function HubStats({ onOpenWizard }: { onOpenWizard: () => void }) {
 
   return (
     <section className="py-20 sm:py-28">
@@ -93,7 +91,7 @@ export default function HubStats() {
             </div>
             <Button
               className="mt-8 rounded-2xl px-8 py-6 font-bold text-base shadow-lg hover:shadow-floating transition-all hover:scale-[1.02]"
-              onClick={() => navigate("/comercial-b2b")}
+              onClick={onOpenWizard}
             >
               Falar com consultor
               <ArrowRight className="ml-2 h-5 w-5" />
