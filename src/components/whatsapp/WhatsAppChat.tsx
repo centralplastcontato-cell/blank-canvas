@@ -2863,10 +2863,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                             >
                               <div
                                 className={cn(
-                                  "max-w-[85%] sm:max-w-[75%] rounded-lg px-3 py-2 text-sm shadow-sm",
+                                  "max-w-[85%] sm:max-w-[75%] rounded-lg text-sm shadow-sm",
                                   msg.from_me
                                     ? "bg-primary text-primary-foreground"
-                                    : "bg-card border"
+                                    : "bg-card border",
+                                  (msg.message_type === 'image' || msg.message_type === 'video') && msg.from_me
+                                    ? "p-1 overflow-hidden"
+                                    : "px-3 py-2"
                                 )}
                               >
 {(msg.message_type === 'image' || msg.message_type === 'video' || msg.message_type === 'audio' || msg.message_type === 'document') && (
@@ -2895,7 +2898,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                                 )}
                                 <div className={cn(
                                   "flex items-center gap-1 mt-1",
-                                  msg.from_me ? "justify-end" : "justify-start"
+                                  msg.from_me ? "justify-end" : "justify-start",
+                                  (msg.message_type === 'image' || msg.message_type === 'video') && msg.from_me && "px-2 pb-1"
                                 )}>
                                   <span className={cn(
                                     "text-[10px]",
@@ -3487,10 +3491,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                         >
                           <div
                             className={cn(
-                              "max-w-[85%] rounded-lg px-3 py-2 text-sm shadow-sm",
+                              "max-w-[85%] rounded-lg text-sm shadow-sm",
                               msg.from_me
                                 ? "bg-primary text-primary-foreground"
-                                : "bg-card border"
+                                : "bg-card border",
+                              (msg.message_type === 'image' || msg.message_type === 'video') && msg.from_me
+                                ? "p-1 overflow-hidden"
+                                : "px-3 py-2"
                             )}
                           >
 {(msg.message_type === 'image' || msg.message_type === 'video' || msg.message_type === 'audio' || msg.message_type === 'document') && (
@@ -3516,7 +3523,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                             )}
                             <div className={cn(
                               "flex items-center gap-1 mt-1",
-                              msg.from_me ? "justify-end" : "justify-start"
+                              msg.from_me ? "justify-end" : "justify-start",
+                              (msg.message_type === 'image' || msg.message_type === 'video') && msg.from_me && "px-2 pb-1"
                             )}>
                               <span className={cn(
                                 "text-[10px]",
