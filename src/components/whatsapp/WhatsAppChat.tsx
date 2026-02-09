@@ -1128,10 +1128,23 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
         setHasMoreMessages(moreAvailable);
         
         if (loadMore) {
-          // Prepend older messages - scroll preservation handled in UI
-          setMessages(prev => [...orderedMessages, ...prev]);
+          // Prepend older messages with deduplication
+          setMessages(prev => {
+            const existingIds = new Set(prev.map(m => m.id));
+            const newMsgs = orderedMessages.filter(m => !existingIds.has(m.id));
+            return [...newMsgs, ...prev];
+          });
         } else {
-          setMessages(orderedMessages);
+          // Initial load - merge with any realtime messages that arrived during fetch
+          setMessages(prev => {
+            if (prev.length === 0) return orderedMessages;
+            const fetchedIds = new Set(orderedMessages.map(m => m.id));
+            const realtimeOnly = prev.filter(m => !fetchedIds.has(m.id) && !m.id.startsWith('optimistic-'));
+            if (realtimeOnly.length === 0) return orderedMessages;
+            return [...orderedMessages, ...realtimeOnly].sort(
+              (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+            );
+          });
         }
       } else if (!loadMore) {
         // No messages found
