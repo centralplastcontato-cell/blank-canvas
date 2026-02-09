@@ -82,6 +82,10 @@ export default function Admin() {
   const canEditName = isAdmin || hasPermission('leads.edit.name');
   const canEditDescription = isAdmin || hasPermission('leads.edit.description');
   const canAccessB2B = isAdmin || hasPermission('b2b.view');
+  const canExportLeads = isAdmin || hasPermission('leads.export');
+  const canDeleteLeads = isAdmin || hasPermission('leads.delete');
+  const canAssignLeads = isAdmin || hasPermission('leads.assign');
+  const canEditLeads = isAdmin || canEdit || hasPermission('leads.edit');
   
   // Sound notification for new leads
   useLeadNotifications();
@@ -508,7 +512,7 @@ export default function Admin() {
 
         <main className="px-3 py-4">
           <MetricsCards metrics={leadMetrics} isLoading={isLoadingLeads} />
-          <LeadsFilters filters={filters} onFiltersChange={setFilters} responsaveis={responsaveis} onExport={handleExport} />
+          <LeadsFilters filters={filters} onFiltersChange={setFilters} responsaveis={responsaveis} onExport={canExportLeads ? handleExport : undefined} />
 
           <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "list" | "kanban")} className="mb-4">
             <TabsList>
@@ -531,7 +535,7 @@ export default function Admin() {
                 onLeadClick={handleLeadClick}
                 onStatusChange={handleStatusChange}
                 onRefresh={handleRefresh}
-                canEdit={canEdit}
+                canEdit={canEditLeads}
                 isAdmin={isAdmin}
                 currentUserId={user.id}
                 currentUserName={currentUserProfile?.full_name || user.email || ""}
@@ -579,10 +583,10 @@ export default function Admin() {
                   setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, observacoes: newDescription } : l));
                   toast({ title: "Observação atualizada", description: "A observação foi salva com sucesso." });
                 }}
-                canEdit={canEdit}
+                canEdit={canEditLeads}
                 canEditName={canEditName}
                 canEditDescription={canEditDescription}
-                onTransfer={canEdit ? handleTransferClick : undefined}
+                onTransfer={canEditLeads ? handleTransferClick : undefined}
                 allowedUnits={allowedUnits}
                 canViewAll={canViewAll}
               />
@@ -590,7 +594,7 @@ export default function Admin() {
           </Tabs>
         </main>
 
-        <LeadDetailSheet lead={selectedLead} isOpen={isDetailOpen} onClose={() => setIsDetailOpen(false)} onUpdate={handleRefresh} responsaveis={responsaveis} currentUserId={user.id} currentUserName={currentUserProfile?.full_name || user.email || ""} canEdit={canEdit} />
+        <LeadDetailSheet lead={selectedLead} isOpen={isDetailOpen} onClose={() => setIsDetailOpen(false)} onUpdate={handleRefresh} responsaveis={responsaveis} currentUserId={user.id} currentUserName={currentUserProfile?.full_name || user.email || ""} canEdit={canEditLeads} />
         
         <TransferLeadDialog
           lead={transferLead}
@@ -631,7 +635,7 @@ export default function Admin() {
 
           <main className="p-6">
             <MetricsCards metrics={leadMetrics} isLoading={isLoadingLeads} />
-            <LeadsFilters filters={filters} onFiltersChange={setFilters} responsaveis={responsaveis} onExport={handleExport} />
+            <LeadsFilters filters={filters} onFiltersChange={setFilters} responsaveis={responsaveis} onExport={canExportLeads ? handleExport : undefined} />
 
             <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "list" | "kanban")} className="mb-4">
               <TabsList>
@@ -654,7 +658,7 @@ export default function Admin() {
                   onLeadClick={handleLeadClick}
                   onStatusChange={handleStatusChange}
                   onRefresh={handleRefresh}
-                  canEdit={canEdit}
+                  canEdit={canEditLeads}
                   isAdmin={isAdmin}
                   currentUserId={user.id}
                   currentUserName={currentUserProfile?.full_name || user.email || ""}
@@ -702,10 +706,10 @@ export default function Admin() {
                     setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, observacoes: newDescription } : l));
                     toast({ title: "Observação atualizada", description: "A observação foi salva com sucesso." });
                   }}
-                  canEdit={canEdit}
+                  canEdit={canEditLeads}
                   canEditName={canEditName}
                   canEditDescription={canEditDescription}
-                  onTransfer={canEdit ? handleTransferClick : undefined}
+                  onTransfer={canEditLeads ? handleTransferClick : undefined}
                   allowedUnits={allowedUnits}
                   canViewAll={canViewAll}
                 />
@@ -713,7 +717,7 @@ export default function Admin() {
             </Tabs>
           </main>
 
-          <LeadDetailSheet lead={selectedLead} isOpen={isDetailOpen} onClose={() => setIsDetailOpen(false)} onUpdate={handleRefresh} responsaveis={responsaveis} currentUserId={user.id} currentUserName={currentUserProfile?.full_name || user.email || ""} canEdit={canEdit} />
+          <LeadDetailSheet lead={selectedLead} isOpen={isDetailOpen} onClose={() => setIsDetailOpen(false)} onUpdate={handleRefresh} responsaveis={responsaveis} currentUserId={user.id} currentUserName={currentUserProfile?.full_name || user.email || ""} canEdit={canEditLeads} />
           
           <TransferLeadDialog
             lead={transferLead}

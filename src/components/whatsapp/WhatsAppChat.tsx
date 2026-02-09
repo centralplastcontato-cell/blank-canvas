@@ -218,11 +218,18 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
     error: recordingError,
   } = useAudioRecorder({ maxDuration: 120 });
 
-  // Permissions hook - check if user can transfer leads and delete from chat
+  // Permissions hook - check all WhatsApp granular permissions
   const { hasPermission: hasUserPermission } = usePermissions(userId);
   const { isAdmin } = useUserRole(userId);
   const canTransferLeads = isAdmin || hasUserPermission('leads.transfer');
   const canDeleteFromChat = isAdmin || hasUserPermission('leads.delete.from_chat');
+  const canSendMessages = isAdmin || hasUserPermission('whatsapp.send');
+  const canSendMaterials = isAdmin || hasUserPermission('whatsapp.materials');
+  const canSendAudio = isAdmin || hasUserPermission('whatsapp.audio');
+  const canCloseConversations = isAdmin || hasUserPermission('whatsapp.close');
+  const canFavoriteConversations = isAdmin || hasUserPermission('whatsapp.favorite');
+  const canToggleBot = isAdmin || hasUserPermission('whatsapp.bot.toggle');
+  const canShareToGroup = isAdmin || hasUserPermission('whatsapp.share.group');
 
   // Notifications hook - uses shared toggle state
   const { notificationsEnabled } = useChatNotificationToggle();
@@ -1341,6 +1348,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation || !selectedInstance || isSending) return;
 
+    if (!canSendMessages) {
+      toast({ title: "Sem permissão", description: "Você não tem permissão para enviar mensagens.", variant: "destructive" });
+      return;
+    }
     const messageToSend = newMessage.trim();
     setNewMessage(""); // Clear immediately for UX
     setIsSending(true);
@@ -1442,6 +1453,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
   };
 
   const toggleFavorite = async (conv: Conversation) => {
+    if (!canFavoriteConversations) {
+      toast({ title: "Sem permissão", description: "Você não tem permissão para favoritar conversas.", variant: "destructive" });
+      return;
+    }
     const newValue = !conv.is_favorite;
     
     await supabase
@@ -1460,6 +1475,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
   };
 
   const toggleConversationBot = async (conv: Conversation) => {
+    if (!canToggleBot) {
+      toast({ title: "Sem permissão", description: "Você não tem permissão para ativar/desativar o bot.", variant: "destructive" });
+      return;
+    }
     const newValue = conv.bot_enabled === false ? true : false;
     
     await supabase
@@ -1971,6 +1990,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
     });
 
   const toggleConversationClosed = async (conv: Conversation) => {
+    if (!canCloseConversations) {
+      toast({ title: "Sem permissão", description: "Você não tem permissão para encerrar conversas.", variant: "destructive" });
+      return;
+    }
     const newValue = !conv.is_closed;
     
     await supabase
@@ -2619,7 +2642,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                         currentUserName={currentUserName}
                         onShowTransferDialog={() => setShowTransferDialog(true)}
                         onShowDeleteDialog={() => setShowDeleteConfirmDialog(true)}
-                        onShowShareToGroupDialog={() => linkedLead && setShowShareToGroupDialog(true)}
+                        onShowShareToGroupDialog={() => canShareToGroup && linkedLead && setShowShareToGroupDialog(true)}
                         onCreateAndClassifyLead={createAndClassifyLead}
                         onToggleConversationBot={toggleConversationBot}
                         onToggleFavorite={toggleFavorite}
@@ -3079,7 +3102,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                             </DropdownMenuContent>
                           </DropdownMenu>
                         )}
-                        {selectedInstance?.unit && (
+                        {canSendMaterials && selectedInstance?.unit && (
                           <SalesMaterialsMenu
                             unit={selectedInstance.unit}
                             lead={linkedLead}
@@ -3154,7 +3177,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                               handleSendMessage();
                             }
                           }}
-                          disabled={isSending}
+                          disabled={isSending || !canSendMessages}
                           className="text-base sm:text-sm flex-1 min-h-[40px] max-h-32 resize-y py-2"
                           rows={1}
                         />
@@ -3162,7 +3185,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                           <Button 
                             type="submit" 
                             size="icon" 
-                            disabled={isSending}
+                            disabled={isSending || !canSendMessages}
                             className="shrink-0"
                           >
                             <Send className="w-4 h-4" />
@@ -3173,7 +3196,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                             variant="secondary"
                             size="icon"
                             className="shrink-0"
-                            onClick={startRecording}
+                            onClick={canSendAudio ? startRecording : undefined}
+                            disabled={!canSendAudio}
                           >
                             <Mic className="w-4 h-4" />
                           </Button>
@@ -3245,7 +3269,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                       currentUserName={currentUserName}
                       onShowTransferDialog={() => setShowTransferDialog(true)}
                       onShowDeleteDialog={() => setShowDeleteConfirmDialog(true)}
-                      onShowShareToGroupDialog={() => linkedLead && setShowShareToGroupDialog(true)}
+                      onShowShareToGroupDialog={() => canShareToGroup && linkedLead && setShowShareToGroupDialog(true)}
                       onCreateAndClassifyLead={createAndClassifyLead}
                       onToggleConversationBot={toggleConversationBot}
                       onToggleFavorite={toggleFavorite}
@@ -3656,7 +3680,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )}
-                    {selectedInstance?.unit && (
+                    {canSendMaterials && selectedInstance?.unit && (
                       <SalesMaterialsMenu
                         unit={selectedInstance.unit}
                         lead={linkedLead}
@@ -3675,12 +3699,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                           handleSendMessage();
                         }
                       }}
-                      disabled={isSending}
+                      disabled={isSending || !canSendMessages}
                       className="text-base flex-1 min-h-[40px] max-h-[50vh] resize-y py-2"
                       rows={1}
                     />
                     {newMessage.trim() ? (
-                      <Button type="submit" size="icon" disabled={isSending} className="shrink-0">
+                      <Button type="submit" size="icon" disabled={isSending || !canSendMessages} className="shrink-0">
                         <Send className="w-4 h-4" />
                       </Button>
                     ) : (
@@ -3689,7 +3713,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                         variant="secondary"
                         size="icon"
                         className="shrink-0"
-                        onClick={startRecording}
+                        onClick={canSendAudio ? startRecording : undefined}
+                        disabled={!canSendAudio}
                       >
                         <Mic className="w-4 h-4" />
                       </Button>
