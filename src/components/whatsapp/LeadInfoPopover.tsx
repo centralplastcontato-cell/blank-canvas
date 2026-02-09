@@ -83,10 +83,7 @@ export function LeadInfoPopover({
    const [editedName, setEditedName] = useState("");
    const [isSavingName, setIsSavingName] = useState(false);
  
-   // Don't show for group chats
-   if (selectedConversation.remote_jid.includes('@g.us')) {
-     return null;
-   }
+   const isGroup = selectedConversation.remote_jid.includes('@g.us');
  
    const startEditingName = () => {
      if (linkedLead) {
@@ -210,16 +207,41 @@ export function LeadInfoPopover({
            variant="ghost"
            size="icon"
            className="h-8 w-8"
-           title={linkedLead ? "Ver informações do lead" : "Contato não qualificado"}
+           title={isGroup ? "Opções do grupo" : (linkedLead ? "Ver informações do lead" : "Contato não qualificado")}
          >
            <Info className={cn(
              "w-4 h-4",
-             linkedLead ? "text-primary" : "text-destructive"
+             isGroup ? "text-muted-foreground" : (linkedLead ? "text-primary" : "text-destructive")
            )} />
          </Button>
        </PopoverTrigger>
        <PopoverContent align="end" className={cn("p-3", mobile ? "w-72" : "w-80")}>
-         {linkedLead ? (
+         {isGroup ? (
+           // Group chat - only show delete option
+           <div className="space-y-3">
+             <div className="flex items-center gap-2">
+               <UsersRound className="w-4 h-4 text-muted-foreground" />
+               <h4 className="font-semibold text-sm truncate">
+                 {selectedConversation.contact_name || "Grupo"}
+               </h4>
+             </div>
+             <div className="text-xs text-muted-foreground">
+               <span className="truncate block">{selectedConversation.contact_phone}</span>
+             </div>
+             
+             {canDeleteFromChat && (
+               <Button 
+                 variant="outline" 
+                 size="sm" 
+                 className="w-full text-xs h-7 gap-2 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                 onClick={onShowDeleteDialog}
+               >
+                 <Trash2 className="w-3 h-3" />
+                 Excluir Grupo
+               </Button>
+             )}
+           </div>
+         ) : linkedLead ? (
            <div className="space-y-3">
              {/* Header with name and status */}
              <div className="flex items-center justify-between gap-2">
