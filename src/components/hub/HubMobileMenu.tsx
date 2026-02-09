@@ -15,7 +15,7 @@ interface HubMobileMenuProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   trigger: React.ReactNode;
-  currentPage: "hub" | "empresas" | "users" | "whatsapp" | "onboarding";
+  currentPage: "hub" | "empresas" | "users" | "whatsapp" | "onboarding" | "prospeccao";
   userName: string;
   userEmail: string;
   userAvatar?: string | null;

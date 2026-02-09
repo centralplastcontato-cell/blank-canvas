@@ -95,22 +95,6 @@ function validatePhone(phone: string | null): { valid: boolean; error?: string }
   return { valid: true };
 }
 
-function validateCity(city: string | null): { valid: boolean; error?: string } {
-  if (!city) return { valid: true }; // Optional
-  if (city.length > 100) {
-    return { valid: false, error: 'Cidade muito longa' };
-  }
-  return { valid: true };
-}
-
-function validateMonthlyParties(value: number | null): { valid: boolean; error?: string } {
-  if (value === null || value === undefined) return { valid: true }; // Optional
-  if (typeof value !== 'number' || value < 0 || value > 10000) {
-    return { valid: false, error: 'Número de festas inválido' };
-  }
-  return { valid: true };
-}
-
 function validateTextField(value: string | null, fieldName: string, maxLength: number = 500): { valid: boolean; error?: string } {
   if (!value) return { valid: true }; // Optional
   if (typeof value !== 'string' || value.length > maxLength) {
@@ -144,7 +128,14 @@ Deno.serve(async (req) => {
       monthly_parties, 
       current_tools, 
       main_challenges, 
-      how_found_us 
+      how_found_us,
+      // New hub prospect fields
+      instagram,
+      monthly_leads,
+      lead_cost,
+      has_lead_clarity,
+      lead_organization,
+      source,
     } = body;
 
     // Validate required fields
@@ -181,22 +172,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    const cityValidation = validateCity(city);
-    if (!cityValidation.valid) {
-      return new Response(
-        JSON.stringify({ error: cityValidation.error }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const partiesValidation = validateMonthlyParties(monthly_parties);
-    if (!partiesValidation.valid) {
-      return new Response(
-        JSON.stringify({ error: partiesValidation.error }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     const toolsValidation = validateTextField(current_tools, 'Ferramentas atuais');
     if (!toolsValidation.valid) {
       return new Response(
@@ -209,14 +184,6 @@ Deno.serve(async (req) => {
     if (!challengesValidation.valid) {
       return new Response(
         JSON.stringify({ error: challengesValidation.error }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const howFoundValidation = validateTextField(how_found_us, 'Como conheceu');
-    if (!howFoundValidation.valid) {
-      return new Response(
-        JSON.stringify({ error: howFoundValidation.error }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -236,7 +203,7 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Insert B2B lead
+    // Insert B2B lead with new fields
     const { error: insertError } = await supabase
       .from('b2b_leads')
       .insert({
@@ -251,6 +218,13 @@ Deno.serve(async (req) => {
         main_challenges: main_challenges || null,
         how_found_us: how_found_us || null,
         status: 'novo',
+        // New fields
+        instagram: instagram?.trim() || null,
+        monthly_leads: monthly_leads || null,
+        lead_cost: lead_cost || null,
+        has_lead_clarity: typeof has_lead_clarity === 'boolean' ? has_lead_clarity : null,
+        lead_organization: lead_organization || null,
+        source: source || 'b2b',
       });
 
     if (insertError) {
@@ -261,7 +235,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`B2B Lead created successfully: ${company_name.trim()} - ${normalizedEmail}`);
+    const sourceLabel = source === 'hub_landing' ? 'Hub Landing' : 'B2B';
+    console.log(`${sourceLabel} Lead created successfully: ${company_name.trim()} - ${normalizedEmail}`);
 
     return new Response(
       JSON.stringify({ success: true }),

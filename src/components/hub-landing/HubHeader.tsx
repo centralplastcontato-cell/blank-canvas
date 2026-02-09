@@ -2,7 +2,11 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Sparkles } from "lucide-react";
 
-export default function HubHeader() {
+interface HubHeaderProps {
+  onOpenWizard?: () => void;
+}
+
+export default function HubHeader({ onOpenWizard }: HubHeaderProps) {
   const navigate = useNavigate();
 
   return (
@@ -20,10 +24,10 @@ export default function HubHeader() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate("/comercial-b2b")}
+            onClick={onOpenWizard}
             className="hidden sm:inline-flex"
           >
-            Contato
+            Diagnóstico gratuito
           </Button>
           <Button
             onClick={() => navigate("/hub-login")}

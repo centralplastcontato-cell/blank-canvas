@@ -4,7 +4,11 @@ import { ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import heroMockup from "@/assets/hub-hero-mockup.jpg";
 
-export default function HubHero() {
+interface HubHeroProps {
+  onOpenWizard: () => void;
+}
+
+export default function HubHero({ onOpenWizard }: HubHeroProps) {
   const navigate = useNavigate();
 
   return (
@@ -69,9 +73,9 @@ export default function HubHero() {
               <Button
                 size="lg"
                 className="text-base px-8 py-6 rounded-2xl font-bold shadow-lg hover:shadow-floating transition-all duration-300 hover:scale-[1.02]"
-                onClick={() => navigate("/comercial-b2b")}
+                onClick={onOpenWizard}
               >
-                Agendar demonstração
+                Diagnóstico gratuito
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
               <Button
