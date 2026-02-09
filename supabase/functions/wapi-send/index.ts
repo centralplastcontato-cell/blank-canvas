@@ -118,10 +118,11 @@ Deno.serve(async (req) => {
     if (creds instanceof Response) return creds;
     const { instance_id, instance_token } = creds;
 
-    console.log('wapi-send:', action, phone ? `phone:${phone}` : '');
+    console.log('wapi-send:', action, phone ? `phone:${phone}` : '', 'instance:', instance_id);
 
     switch (action) {
       case 'send-text': {
+        console.log('send-text: sending message to', phone);
         const res = await wapiRequest(
           `${WAPI_BASE_URL}/message/send-text?instanceId=${instance_id}`,
           instance_token,
@@ -129,7 +130,10 @@ Deno.serve(async (req) => {
           { phone, message }
         );
         
+        console.log('send-text response:', JSON.stringify(res));
+        
         if (!res.ok) {
+          console.error('send-text failed:', res.error);
           return new Response(JSON.stringify({ error: res.error }), {
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
