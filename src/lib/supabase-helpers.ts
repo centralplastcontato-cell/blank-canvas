@@ -1,7 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 
 // Default company ID for legacy operations
-// This is a temporary solution while migrating to full multi-tenant support
 const DEFAULT_COMPANY_ID = 'a0000000-0000-0000-0000-000000000001';
 
 /**
@@ -14,11 +13,11 @@ export function getCurrentCompanyId(): string {
 
 /**
  * Helper to insert data with automatic company_id injection
- * This bypasses TypeScript strict checking for legacy code migration
+ * Uses type assertion to bypass TypeScript strict checking
  */
-export async function insertWithCompany<T extends Record<string, unknown>>(
+export async function insertWithCompany(
   table: string,
-  data: T | T[]
+  data: Record<string, unknown> | Record<string, unknown>[]
 ): Promise<{ data: unknown; error: unknown }> {
   const companyId = getCurrentCompanyId();
   
@@ -26,19 +25,48 @@ export async function insertWithCompany<T extends Record<string, unknown>>(
     ? data.map(item => ({ ...item, company_id: companyId }))
     : { ...data, company_id: companyId };
   
-  // Use type assertion to bypass strict typing
-  return supabase.from(table as any).insert(dataWithCompany as any);
+  // Use any to bypass strict typing - this is intentional for migration period
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const client = supabase as any;
+  return client.from(table).insert(dataWithCompany);
 }
 
 /**
  * Helper to insert a single record and return it
  */
-export async function insertSingleWithCompany<T extends Record<string, unknown>>(
+export async function insertSingleWithCompany(
   table: string,
-  data: T
+  data: Record<string, unknown>
 ): Promise<{ data: unknown; error: unknown }> {
   const companyId = getCurrentCompanyId();
   const dataWithCompany = { ...data, company_id: companyId };
   
-  return supabase.from(table as any).insert(dataWithCompany as any).select().single();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const client = supabase as any;
+  return client.from(table).insert(dataWithCompany).select().single();
+}
+
+/**
+ * Helper to upsert data with automatic company_id injection
+ */
+export async function upsertWithCompany(
+  table: string,
+  data: Record<string, unknown> | Record<string, unknown>[],
+  options?: { onConflict?: string }
+): Promise<{ data: unknown; error: unknown }> {
+  const companyId = getCurrentCompanyId();
+  
+  const dataWithCompany = Array.isArray(data)
+    ? data.map(item => ({ ...item, company_id: companyId }))
+    : { ...data, company_id: companyId };
+  
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const client = supabase as any;
+  let query = client.from(table).upsert(dataWithCompany);
+  
+  if (options?.onConflict) {
+    query = query.onConflict(options.onConflict);
+  }
+  
+  return query;
 }
