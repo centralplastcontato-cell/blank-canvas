@@ -511,6 +511,7 @@ export default function CentralAtendimento() {
                   userAvatar={currentUserProfile?.avatar_url}
                   canManageUsers={canManageUsers}
                   canAccessB2B={canAccessB2B}
+                  isAdmin={isAdmin}
                   onRefresh={handleRefresh}
                   onLogout={handleLogout}
                 />
@@ -725,6 +726,7 @@ export default function CentralAtendimento() {
         <AdminSidebar 
           canManageUsers={canManageUsers}
           canAccessB2B={canAccessB2B}
+          isAdmin={isAdmin}
           currentUserName={currentUserProfile?.full_name || user.email || ""} 
           onRefresh={handleRefresh} 
           onLogout={handleLogout} 
