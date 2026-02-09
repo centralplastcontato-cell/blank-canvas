@@ -50,7 +50,7 @@ export function CreateCompanyAdminDialog({
           full_name: fullName.trim(),
           email: email.trim().toLowerCase(),
           password,
-          role: "admin",
+          role: "gestor",
           company_id: companyId,
           company_role: "admin",
         },

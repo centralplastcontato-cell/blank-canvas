@@ -136,10 +136,11 @@ export function useUserRole(userId: string | undefined) {
   }, [userId, fetchRole]);
 
   const isAdmin = role === 'admin';
+  const isGestor = role === 'gestor';
   const isComercial = role === 'comercial';
   const isVisualizacao = role === 'visualizacao';
-  const canEdit = isAdmin || isComercial;
-  const canManageUsers = isAdmin;
+  const canEdit = isAdmin || isGestor || isComercial;
+  const canManageUsers = isAdmin || isGestor;
 
   return {
     role,
@@ -147,6 +148,7 @@ export function useUserRole(userId: string | undefined) {
     hasFetched,
     error,
     isAdmin,
+    isGestor,
     isComercial,
     isVisualizacao,
     canEdit,
