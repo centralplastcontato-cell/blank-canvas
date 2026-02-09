@@ -177,6 +177,7 @@ export type Database = {
       lead_history: {
         Row: {
           action: string
+          company_id: string
           created_at: string
           id: string
           lead_id: string
@@ -187,6 +188,7 @@ export type Database = {
         }
         Insert: {
           action: string
+          company_id: string
           created_at?: string
           id?: string
           lead_id: string
@@ -197,6 +199,7 @@ export type Database = {
         }
         Update: {
           action?: string
+          company_id?: string
           created_at?: string
           id?: string
           lead_id?: string
@@ -206,6 +209,13 @@ export type Database = {
           user_name?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "lead_history_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "lead_history_lead_id_fkey"
             columns: ["lead_id"]
@@ -469,6 +479,7 @@ export type Database = {
       }
       sales_materials: {
         Row: {
+          company_id: string
           created_at: string
           file_path: string | null
           file_url: string
@@ -483,6 +494,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          company_id: string
           created_at?: string
           file_path?: string | null
           file_url: string
@@ -497,6 +509,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          company_id?: string
           created_at?: string
           file_path?: string | null
           file_url?: string
@@ -510,7 +523,15 @@ export type Database = {
           unit?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sales_materials_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_companies: {
         Row: {
@@ -934,6 +955,7 @@ export type Database = {
       }
       wapi_messages: {
         Row: {
+          company_id: string
           content: string | null
           conversation_id: string
           created_at: string
@@ -948,6 +970,7 @@ export type Database = {
           timestamp: string
         }
         Insert: {
+          company_id: string
           content?: string | null
           conversation_id: string
           created_at?: string
@@ -962,6 +985,7 @@ export type Database = {
           timestamp?: string
         }
         Update: {
+          company_id?: string
           content?: string | null
           conversation_id?: string
           created_at?: string
@@ -976,6 +1000,13 @@ export type Database = {
           timestamp?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "wapi_messages_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "wapi_messages_conversation_id_fkey"
             columns: ["conversation_id"]
