@@ -18,6 +18,8 @@ import HubDashboard from "./pages/HubDashboard";
 import HubEmpresas from "./pages/HubEmpresas";
 import HubUsers from "./pages/HubUsers";
 import HubWhatsApp from "./pages/HubWhatsApp";
+import HubOnboarding from "./pages/HubOnboarding";
+import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -46,6 +48,9 @@ const App = () => (
             <Route path="/hub/empresas" element={<HubEmpresas />} />
             <Route path="/hub/whatsapp" element={<HubWhatsApp />} />
             <Route path="/hub/users" element={<HubUsers />} />
+            <Route path="/hub/onboarding" element={<HubOnboarding />} />
+            {/* Public onboarding form */}
+            <Route path="/onboarding/:slug" element={<Onboarding />} />
             {/* Redirects for old routes */}
             <Route path="/admin" element={<Navigate to="/atendimento" replace />} />
             <Route path="/whatsapp" element={<Navigate to="/atendimento" replace />} />

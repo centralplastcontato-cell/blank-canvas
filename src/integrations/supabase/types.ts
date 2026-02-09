@@ -174,6 +174,125 @@ export type Database = {
           },
         ]
       }
+      company_onboarding: {
+        Row: {
+          additional_notes: string | null
+          attendants_count: number | null
+          brand_notes: string | null
+          buffet_name: string | null
+          city: string | null
+          company_id: string
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          contact_role: string | null
+          cost_per_lead: string | null
+          created_at: string
+          current_agency: string | null
+          current_service_method: string | null
+          current_step: number
+          full_address: string | null
+          id: string
+          instagram: string | null
+          lead_sources: string[] | null
+          lead_volume: string | null
+          logo_url: string | null
+          main_goal: string | null
+          monthly_investment: string | null
+          multiple_units: boolean | null
+          photo_urls: string[] | null
+          secondary_contact: string | null
+          service_hours: string | null
+          state: string | null
+          status: string
+          updated_at: string
+          uses_paid_traffic: boolean | null
+          video_urls: string[] | null
+          website: string | null
+          whatsapp_numbers: string[] | null
+        }
+        Insert: {
+          additional_notes?: string | null
+          attendants_count?: number | null
+          brand_notes?: string | null
+          buffet_name?: string | null
+          city?: string | null
+          company_id: string
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          contact_role?: string | null
+          cost_per_lead?: string | null
+          created_at?: string
+          current_agency?: string | null
+          current_service_method?: string | null
+          current_step?: number
+          full_address?: string | null
+          id?: string
+          instagram?: string | null
+          lead_sources?: string[] | null
+          lead_volume?: string | null
+          logo_url?: string | null
+          main_goal?: string | null
+          monthly_investment?: string | null
+          multiple_units?: boolean | null
+          photo_urls?: string[] | null
+          secondary_contact?: string | null
+          service_hours?: string | null
+          state?: string | null
+          status?: string
+          updated_at?: string
+          uses_paid_traffic?: boolean | null
+          video_urls?: string[] | null
+          website?: string | null
+          whatsapp_numbers?: string[] | null
+        }
+        Update: {
+          additional_notes?: string | null
+          attendants_count?: number | null
+          brand_notes?: string | null
+          buffet_name?: string | null
+          city?: string | null
+          company_id?: string
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          contact_role?: string | null
+          cost_per_lead?: string | null
+          created_at?: string
+          current_agency?: string | null
+          current_service_method?: string | null
+          current_step?: number
+          full_address?: string | null
+          id?: string
+          instagram?: string | null
+          lead_sources?: string[] | null
+          lead_volume?: string | null
+          logo_url?: string | null
+          main_goal?: string | null
+          monthly_investment?: string | null
+          multiple_units?: boolean | null
+          photo_urls?: string[] | null
+          secondary_contact?: string | null
+          service_hours?: string | null
+          state?: string | null
+          status?: string
+          updated_at?: string
+          uses_paid_traffic?: boolean | null
+          video_urls?: string[] | null
+          website?: string | null
+          whatsapp_numbers?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_onboarding_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_history: {
         Row: {
           action: string
