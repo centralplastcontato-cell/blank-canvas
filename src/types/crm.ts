@@ -1,6 +1,6 @@
 // CRM Types
 
-export type AppRole = 'admin' | 'comercial' | 'visualizacao';
+export type AppRole = 'admin' | 'gestor' | 'comercial' | 'visualizacao';
 
 export type LeadStatus = 'novo' | 'em_contato' | 'orcamento_enviado' | 'aguardando_resposta' | 'fechado' | 'perdido' | 'transferido';
 
@@ -25,7 +25,8 @@ export const LEAD_STATUS_COLORS: Record<LeadStatus, string> = {
 };
 
 export const ROLE_LABELS: Record<AppRole, string> = {
-  admin: 'Administrador',
+  admin: 'Admin Global',
+  gestor: 'Gestor',
   comercial: 'Comercial',
   visualizacao: 'Visualização',
 };

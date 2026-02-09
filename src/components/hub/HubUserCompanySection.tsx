@@ -156,7 +156,7 @@ export function HubUserCompanySection({
                         <Select value={u.role || "visualizacao"} onValueChange={(v) => onUpdateRole(u.user_id, v as AppRole)} disabled={u.user_id === currentUserId}>
                           <SelectTrigger className="h-8 w-36"><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="admin">Administrador</SelectItem>
+                            <SelectItem value="gestor">Gestor</SelectItem>
                             <SelectItem value="comercial">Comercial</SelectItem>
                             <SelectItem value="visualizacao">Visualização</SelectItem>
                           </SelectContent>

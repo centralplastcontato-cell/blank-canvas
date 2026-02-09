@@ -24,7 +24,7 @@ export function HubUserCreateDialog({ open, onOpenChange, companies, onSubmit }:
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<AppRole>("comercial");
+  const [role, setRole] = useState<AppRole>("gestor");
   const [companyId, setCompanyId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -41,7 +41,7 @@ export function HubUserCreateDialog({ open, onOpenChange, companies, onSubmit }:
     try {
       await onSubmit({ email, name, password, role, company_id: companyId });
       onOpenChange(false);
-      setEmail(""); setName(""); setPassword(""); setRole("comercial"); setCompanyId("");
+      setEmail(""); setName(""); setPassword(""); setRole("gestor"); setCompanyId("");
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     } finally {
@@ -76,7 +76,7 @@ export function HubUserCreateDialog({ open, onOpenChange, companies, onSubmit }:
             <Select value={role} onValueChange={(v) => setRole(v as AppRole)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="admin">Administrador</SelectItem>
+                <SelectItem value="gestor">Gestor</SelectItem>
                 <SelectItem value="comercial">Comercial</SelectItem>
                 <SelectItem value="visualizacao">Visualização</SelectItem>
               </SelectContent>

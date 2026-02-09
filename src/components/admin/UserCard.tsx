@@ -140,7 +140,7 @@ export function UserCard({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="admin">Administrador</SelectItem>
+              <SelectItem value="gestor">Gestor</SelectItem>
               <SelectItem value="comercial">Comercial</SelectItem>
               <SelectItem value="visualizacao">Visualização</SelectItem>
             </SelectContent>
