@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,7 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { useChatNotificationToggle } from "@/hooks/useChatNotificationToggle";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useMessagesRealtime } from "@/hooks/useMessagesRealtime";
 import { format, isToday, isYesterday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -556,114 +557,67 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
     }
   }, [selectedInstance, selectedConversation?.id, notify, initialPhone, initialPhoneProcessed]);
 
-  // Clear messages immediately when conversation changes (before fetch)
-  const prevConversationIdRef = useRef<string | null>(null);
-  const messagesChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  
-  // Separate effect for message subscription - stable dependencies
-  useEffect(() => {
-    const conversationId = selectedConversation?.id;
-    if (!conversationId) {
-      // Cleanup if no conversation selected
-      if (messagesChannelRef.current) {
-        console.log('[Realtime] Removing messages channel (no conversation)');
-        supabase.removeChannel(messagesChannelRef.current);
-        messagesChannelRef.current = null;
+  // Stable callback for handling new messages from realtime
+  const handleNewRealtimeMessage = useCallback((newMessage: Message) => {
+    setMessages((prev) => {
+      // Check if this message already exists (by id or message_id)
+      const existsById = prev.some(m => m.id === newMessage.id);
+      if (existsById) {
+        console.log("[Realtime] Message already exists by id, skipping:", newMessage.id);
+        return prev;
       }
-      return;
-    }
-    
-    // Only create new channel if conversation changed
-    if (prevConversationIdRef.current === conversationId && messagesChannelRef.current) {
-      console.log('[Realtime] Reusing existing messages channel for:', conversationId);
-      return;
-    }
-    
-    // Cleanup old channel
-    if (messagesChannelRef.current) {
-      console.log('[Realtime] Removing old messages channel');
-      supabase.removeChannel(messagesChannelRef.current);
-      messagesChannelRef.current = null;
-    }
-    
-    // Create new channel
-    const channelName = `wapi_messages_${conversationId}`;
-    console.log('[Realtime] Creating new messages channel:', channelName);
-    
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'wapi_messages',
-          filter: `conversation_id=eq.${conversationId}`,
-        },
-        (payload) => {
-          console.log('[Realtime] New message received:', payload.new);
-          const newMessage = payload.new as Message;
-          setMessages((prev) => {
-            // Check if this message already exists
-            const exists = prev.some(m => {
-              if (m.message_id && newMessage.message_id) {
-                return m.message_id === newMessage.message_id;
-              }
-              if (m.id.startsWith('optimistic-') && m.from_me && newMessage.from_me) {
-                if (m.message_type === 'text' && newMessage.message_type === 'text') {
-                  return m.content === newMessage.content && 
-                    Math.abs(new Date(m.timestamp).getTime() - new Date(newMessage.timestamp).getTime()) < 5000;
-                }
-                if (m.message_type === newMessage.message_type) {
-                  const timeDiff = Math.abs(new Date(m.timestamp).getTime() - new Date(newMessage.timestamp).getTime());
-                  return timeDiff < 10000;
-                }
-              }
-              return m.id === newMessage.id;
-            });
-            
-            if (exists) {
-              return prev.map(m => {
-                if (m.id.startsWith('optimistic-') && m.from_me && newMessage.from_me) {
-                  if (m.message_type === 'text' && newMessage.message_type === 'text' && m.content === newMessage.content) {
-                    return newMessage;
-                  }
-                  if (m.message_type === newMessage.message_type && m.message_type !== 'text') {
-                    const timeDiff = Math.abs(new Date(m.timestamp).getTime() - new Date(newMessage.timestamp).getTime());
-                    if (timeDiff < 10000) {
-                      return newMessage;
-                    }
-                  }
-                }
-                return m;
-              });
-            }
-            return [...prev, newMessage];
-          });
+      
+      // Check for optimistic message match
+      const optimisticIndex = prev.findIndex(m => {
+        // Match by message_id if both have it
+        if (m.message_id && newMessage.message_id) {
+          return m.message_id === newMessage.message_id;
         }
-      )
-      .subscribe((status) => {
-        console.log('[Realtime] Messages channel status:', status);
+        
+        // Match optimistic messages by content and timing
+        if (m.id.startsWith('optimistic-') && m.from_me && newMessage.from_me) {
+          // Text message matching
+          if (m.message_type === 'text' && newMessage.message_type === 'text') {
+            const contentMatch = m.content === newMessage.content;
+            const timeDiff = Math.abs(new Date(m.timestamp).getTime() - new Date(newMessage.timestamp).getTime());
+            return contentMatch && timeDiff < 30000; // 30 second window
+          }
+          // Media message matching (by type and timing)
+          if (m.message_type === newMessage.message_type && m.message_type !== 'text') {
+            const timeDiff = Math.abs(new Date(m.timestamp).getTime() - new Date(newMessage.timestamp).getTime());
+            return timeDiff < 60000; // 60 second window for media
+          }
+        }
+        
+        return false;
       });
-    
-    messagesChannelRef.current = channel;
-    prevConversationIdRef.current = conversationId;
-    
-    return () => {
-      // Only cleanup on unmount, not on re-render
-    };
-  }, [selectedConversation?.id]);
-  
-  // Cleanup on component unmount
-  useEffect(() => {
-    return () => {
-      if (messagesChannelRef.current) {
-        console.log('[Realtime] Cleanup: removing messages channel');
-        supabase.removeChannel(messagesChannelRef.current);
-        messagesChannelRef.current = null;
+      
+      if (optimisticIndex >= 0) {
+        // Replace optimistic message with real one
+        console.log("[Realtime] Replacing optimistic message with real:", newMessage.id);
+        const updated = [...prev];
+        updated[optimisticIndex] = newMessage;
+        return updated;
       }
-    };
+      
+      // New message - append and sort by timestamp
+      console.log("[Realtime] Appending new message:", newMessage.id);
+      const updated = [...prev, newMessage];
+      return updated.sort((a, b) => 
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+    });
   }, []);
+
+  // Use the robust realtime hook for messages
+  useMessagesRealtime({
+    conversationId: selectedConversation?.id || null,
+    onNewMessage: handleNewRealtimeMessage,
+    enabled: true,
+  });
+  
+  // Cleanup reference for conversation ID tracking
+  const prevConversationIdRef = useRef<string | null>(null);
   
   // Effect for fetching data when conversation changes
   useEffect(() => {
