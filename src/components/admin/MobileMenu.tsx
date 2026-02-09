@@ -5,7 +5,8 @@ import {
   Users, 
   RefreshCw, 
   LogOut, 
-  Presentation
+  Presentation,
+  Building2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,6 +30,7 @@ interface MobileMenuProps {
   userAvatar?: string | null;
   canManageUsers: boolean;
   canAccessB2B: boolean;
+  isAdmin?: boolean;
   onRefresh?: () => void;
   onLogout: () => void;
 }
@@ -52,6 +54,7 @@ export function MobileMenu({
   userAvatar,
   canManageUsers,
   canAccessB2B,
+  isAdmin,
   onRefresh,
   onLogout,
 }: MobileMenuProps) {
@@ -85,6 +88,13 @@ export function MobileMenu({
       icon: Users,
       path: "/users",
       show: canManageUsers,
+    },
+    {
+      id: "empresas",
+      label: "Empresas",
+      icon: Building2,
+      path: "/hub/empresas",
+      show: !!isAdmin,
     },
   ];
 

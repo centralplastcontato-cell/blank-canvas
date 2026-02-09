@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Users, LogOut, RefreshCw, Headset, Settings, Pin, PinOff, Presentation, ChevronLeft } from "lucide-react";
+import { Users, LogOut, RefreshCw, Headset, Settings, Pin, PinOff, Presentation, ChevronLeft, Building2 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -25,6 +25,7 @@ import { CompanySwitcher } from "./CompanySwitcher";
 interface AdminSidebarProps {
   canManageUsers: boolean;
   canAccessB2B: boolean;
+  isAdmin?: boolean;
   currentUserName: string;
   onRefresh: () => void;
   onLogout: () => void;
@@ -38,6 +39,7 @@ const baseMenuItems = [
 export function AdminSidebar({ 
   canManageUsers,
   canAccessB2B,
+  isAdmin,
   currentUserName, 
   onRefresh, 
   onLogout 
@@ -52,6 +54,7 @@ export function AdminSidebar({
     ...baseMenuItems,
     ...(canAccessB2B ? [{ title: "Comercial B2B", url: "/comercial-b2b", icon: Presentation }] : []),
     ...(canManageUsers ? [{ title: "Gerenciar Usuários", url: "/users", icon: Users }] : []),
+    ...(isAdmin ? [{ title: "Empresas", url: "/hub/empresas", icon: Building2 }] : []),
   ];
 
   // Handle hover expand/collapse only when not pinned
