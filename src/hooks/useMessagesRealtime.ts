@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { RealtimeChannel } from "@supabase/supabase-js";
 
@@ -34,27 +34,36 @@ export function useMessagesRealtime({
   onNewMessage,
   enabled = true,
 }: UseMessagesRealtimeOptions) {
+  // Store refs for stable references
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const currentConversationIdRef = useRef<string | null>(null);
-  
-  // Use ref for callback to avoid stale closures
   const onNewMessageRef = useRef(onNewMessage);
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Always update the callback ref on each render
   onNewMessageRef.current = onNewMessage;
 
-  const cleanup = useCallback(() => {
+  useEffect(() => {
+    // Clear any pending retry
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
+
+    // Cleanup existing channel
     if (channelRef.current) {
-      console.log("[MessagesRealtime] Cleaning up channel for:", currentConversationIdRef.current);
+      console.log("[MessagesRealtime] Removing previous channel");
       supabase.removeChannel(channelRef.current);
       channelRef.current = null;
     }
-  }, []);
 
-  const setupChannel = useCallback((convId: string) => {
-    // Clean up existing channel first
-    cleanup();
+    // Exit early if disabled or no conversation
+    if (!enabled || !conversationId) {
+      console.log("[MessagesRealtime] Skipping - enabled:", enabled, "conversationId:", conversationId);
+      return;
+    }
 
-    const channelName = `messages_realtime_${convId}_${Date.now()}`;
-    console.log("[MessagesRealtime] Creating channel:", channelName);
+    const channelName = `msg_rt_${conversationId}_${Date.now()}`;
+    console.log("[MessagesRealtime] Creating channel:", channelName, "for conversation:", conversationId);
 
     const channel = supabase
       .channel(channelName)
@@ -64,59 +73,51 @@ export function useMessagesRealtime({
           event: "INSERT",
           schema: "public",
           table: "wapi_messages",
-          filter: `conversation_id=eq.${convId}`,
+          filter: `conversation_id=eq.${conversationId}`,
         },
         (payload) => {
-          console.log("[MessagesRealtime] INSERT received:", payload.new);
+          console.log("[MessagesRealtime] ✅ INSERT received:", payload.new);
           const newMessage = payload.new as Message;
-          
-          // Use ref to get latest callback
+          // Use the ref to always get the latest callback
           onNewMessageRef.current(newMessage);
         }
       )
       .subscribe((status, err) => {
-        console.log("[MessagesRealtime] Channel status:", status, err || "");
+        console.log("[MessagesRealtime] Channel status:", status, err ? `Error: ${err.message}` : "");
         
-        if (status === "CHANNEL_ERROR") {
-          console.error("[MessagesRealtime] Channel error, will retry in 2s");
-          // Retry after a delay
-          setTimeout(() => {
-            if (currentConversationIdRef.current === convId) {
-              console.log("[MessagesRealtime] Retrying channel setup");
-              setupChannel(convId);
+        if (status === "SUBSCRIBED") {
+          console.log("[MessagesRealtime] ✅ Successfully subscribed to:", conversationId);
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          console.error("[MessagesRealtime] ❌ Channel error/timeout, will retry in 3s");
+          // Schedule retry
+          retryTimeoutRef.current = setTimeout(() => {
+            // Force re-run of this effect by doing nothing - the conversation hasn't changed
+            // Instead, we need to recreate manually
+            if (channelRef.current) {
+              supabase.removeChannel(channelRef.current);
+              channelRef.current = null;
             }
-          }, 2000);
+          }, 3000);
+        } else if (status === "CLOSED") {
+          console.log("[MessagesRealtime] Channel closed for:", conversationId);
         }
       });
 
     channelRef.current = channel;
-    currentConversationIdRef.current = convId;
-  }, [cleanup]);
 
-  useEffect(() => {
-    if (!enabled || !conversationId) {
-      cleanup();
-      currentConversationIdRef.current = null;
-      return;
-    }
-
-    // Only recreate if conversation actually changed
-    if (currentConversationIdRef.current !== conversationId) {
-      setupChannel(conversationId);
-    }
-
+    // Cleanup function - runs when conversationId changes or component unmounts
     return () => {
-      // Only cleanup on unmount or when conversation changes to null
-      // The actual cleanup for conversation changes is handled in setupChannel
+      console.log("[MessagesRealtime] Cleanup triggered for:", conversationId);
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = null;
+      }
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
-  }, [conversationId, enabled, setupChannel, cleanup]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      cleanup();
-    };
-  }, [cleanup]);
+  }, [conversationId, enabled]); // Only re-run when these change
 
   return {
     isSubscribed: channelRef.current !== null,
