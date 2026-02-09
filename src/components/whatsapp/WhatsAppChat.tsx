@@ -1748,10 +1748,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
         
         let mediaUrl: string | null = null;
         if (!uploadError) {
-          const { data: urlData } = supabase.storage
+          // Use signed URL since bucket is private
+          const { data: signedData, error: signedError } = await supabase.storage
             .from('whatsapp-media')
-            .getPublicUrl(storageFileName);
-          mediaUrl = urlData.publicUrl;
+            .createSignedUrl(storageFileName, 31536000); // 1 year expiry
+          if (!signedError && signedData?.signedUrl) {
+            mediaUrl = signedData.signedUrl;
+          }
           console.log('Image uploaded to storage:', mediaUrl);
         } else {
           console.error('Error uploading image to storage:', uploadError);
