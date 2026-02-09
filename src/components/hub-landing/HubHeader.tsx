@@ -30,11 +30,11 @@ export default function HubHeader({ onOpenWizard }: HubHeaderProps) {
             Diagnóstico gratuito
           </Button>
           <Button
-            onClick={() => navigate("/hub-login")}
+            onClick={onOpenWizard}
             size="sm"
             className="rounded-xl font-semibold"
           >
-            Acessar Hub
+            Começar agora
           </Button>
         </div>
       </div>
