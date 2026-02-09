@@ -329,64 +329,145 @@ export default function EmpresasPage() {
                   </Button>
                 </div>
               ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {companies.map((company) => (
-                    <div
-                      key={company.id}
-                      className="rounded-xl border bg-card p-5 space-y-4 hover:shadow-md transition-shadow"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                          {company.logo_url ? (
-                            <img
-                              src={company.logo_url}
-                              alt={company.name}
-                              className="h-10 w-10 rounded-lg object-contain bg-muted shrink-0"
-                            />
-                          ) : (
-                            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                              <Building2 className="h-5 w-5 text-primary" />
+                <div className="space-y-6">
+                  {/* Parent companies first */}
+                  {companies.filter(c => !c.parent_id).map((parent) => {
+                    const children = companies.filter(c => c.parent_id === parent.id);
+                    return (
+                      <div key={parent.id} className="space-y-3">
+                        {/* Parent company card */}
+                        <div className="rounded-xl border-2 border-primary/30 bg-card p-5 space-y-4 hover:shadow-md transition-shadow">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              {parent.logo_url ? (
+                                <img src={parent.logo_url} alt={parent.name} className="h-10 w-10 rounded-lg object-contain bg-muted shrink-0" />
+                              ) : (
+                                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                                  <Building2 className="h-5 w-5 text-primary" />
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <h3 className="font-semibold text-foreground truncate">{parent.name}</h3>
+                                <p className="text-xs text-muted-foreground truncate">{parent.slug}</p>
+                              </div>
                             </div>
-                          )}
-                          <div className="min-w-0">
-                            <h3 className="font-semibold text-foreground truncate">{company.name}</h3>
-                            <p className="text-xs text-muted-foreground truncate">{company.slug}</p>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="border-primary/40 text-primary text-xs">
+                                Empresa-mãe
+                              </Badge>
+                              <Badge variant={parent.is_active ? "default" : "secondary"}>
+                                {parent.is_active ? "Ativa" : "Inativa"}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Users className="h-3.5 w-3.5" />
+                              {memberCounts[parent.id] || 0} membro{(memberCounts[parent.id] || 0) !== 1 ? "s" : ""}
+                              {children.length > 0 && (
+                                <span className="ml-3 flex items-center gap-1">
+                                  <Building2 className="h-3.5 w-3.5" />
+                                  {children.length} empresa{children.length !== 1 ? "s" : ""} filha{children.length !== 1 ? "s" : ""}
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" className="flex-1" onClick={() => handleOpenEdit(parent)}>
+                              <Pencil className="mr-1.5 h-3.5 w-3.5" /> Editar
+                            </Button>
+                            <Button variant="outline" size="sm" className="flex-1" onClick={() => handleOpenMembers(parent)}>
+                              <Users className="mr-1.5 h-3.5 w-3.5" /> Membros
+                            </Button>
                           </div>
                         </div>
-                        <Badge variant={company.is_active ? "default" : "secondary"}>
-                          {company.is_active ? "Ativa" : "Inativa"}
-                        </Badge>
-                      </div>
 
-                      <div className="text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Users className="h-3.5 w-3.5" />
-                          {memberCounts[company.id] || 0} membro{(memberCounts[company.id] || 0) !== 1 ? "s" : ""}
-                        </span>
+                        {/* Child companies */}
+                        {children.length > 0 && (
+                          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pl-6 border-l-2 border-primary/20 ml-5">
+                            {children.map((child) => (
+                              <div key={child.id} className="rounded-xl border bg-card p-5 space-y-4 hover:shadow-md transition-shadow">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    {child.logo_url ? (
+                                      <img src={child.logo_url} alt={child.name} className="h-10 w-10 rounded-lg object-contain bg-muted shrink-0" />
+                                    ) : (
+                                      <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                                        <Building2 className="h-5 w-5 text-primary" />
+                                      </div>
+                                    )}
+                                    <div className="min-w-0">
+                                      <h3 className="font-semibold text-foreground truncate">{child.name}</h3>
+                                      <p className="text-xs text-muted-foreground truncate">{child.slug}</p>
+                                    </div>
+                                  </div>
+                                  <Badge variant={child.is_active ? "default" : "secondary"}>
+                                    {child.is_active ? "Ativa" : "Inativa"}
+                                  </Badge>
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  <span className="flex items-center gap-1">
+                                    <Users className="h-3.5 w-3.5" />
+                                    {memberCounts[child.id] || 0} membro{(memberCounts[child.id] || 0) !== 1 ? "s" : ""}
+                                  </span>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button variant="outline" size="sm" className="flex-1" onClick={() => handleOpenEdit(child)}>
+                                    <Pencil className="mr-1.5 h-3.5 w-3.5" /> Editar
+                                  </Button>
+                                  <Button variant="outline" size="sm" className="flex-1" onClick={() => handleOpenMembers(child)}>
+                                    <Users className="mr-1.5 h-3.5 w-3.5" /> Membros
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
+                    );
+                  })}
 
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1"
-                          onClick={() => handleOpenEdit(company)}
-                        >
-                          <Pencil className="mr-1.5 h-3.5 w-3.5" />
-                          Editar
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1"
-                          onClick={() => handleOpenMembers(company)}
-                        >
-                          <Users className="mr-1.5 h-3.5 w-3.5" />
-                          Membros
-                        </Button>
-                      </div>
+                  {/* Orphan companies (no parent, but also not a parent themselves - standalone) */}
+                  {companies.filter(c => c.parent_id && !companies.find(p => p.id === c.parent_id)).length > 0 && (
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {companies.filter(c => c.parent_id && !companies.find(p => p.id === c.parent_id)).map((company) => (
+                        <div key={company.id} className="rounded-xl border bg-card p-5 space-y-4 hover:shadow-md transition-shadow">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              {company.logo_url ? (
+                                <img src={company.logo_url} alt={company.name} className="h-10 w-10 rounded-lg object-contain bg-muted shrink-0" />
+                              ) : (
+                                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                                  <Building2 className="h-5 w-5 text-primary" />
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <h3 className="font-semibold text-foreground truncate">{company.name}</h3>
+                                <p className="text-xs text-muted-foreground truncate">{company.slug}</p>
+                              </div>
+                            </div>
+                            <Badge variant={company.is_active ? "default" : "secondary"}>
+                              {company.is_active ? "Ativa" : "Inativa"}
+                            </Badge>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Users className="h-3.5 w-3.5" />
+                              {memberCounts[company.id] || 0} membro{(memberCounts[company.id] || 0) !== 1 ? "s" : ""}
+                            </span>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" className="flex-1" onClick={() => handleOpenEdit(company)}>
+                              <Pencil className="mr-1.5 h-3.5 w-3.5" /> Editar
+                            </Button>
+                            <Button variant="outline" size="sm" className="flex-1" onClick={() => handleOpenMembers(company)}>
+                              <Users className="mr-1.5 h-3.5 w-3.5" /> Membros
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </div>
