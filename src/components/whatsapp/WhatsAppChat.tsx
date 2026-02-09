@@ -164,6 +164,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [hasUserScrolledToTop, setHasUserScrolledToTop] = useState(false); // Track if user manually scrolled to top
   const [isAtBottom, setIsAtBottom] = useState(true); // Track if scroll is at bottom (for scroll-to-bottom button visibility)
+  const [unreadNewMessagesCount, setUnreadNewMessagesCount] = useState(0); // Count of new messages while scrolled up
   const [isSending, setIsSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<FilterType>('all');
@@ -243,28 +244,34 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
   };
 
   // Scroll to bottom of messages - Desktop
-  const scrollToBottomDesktop = () => {
+  const scrollToBottomDesktop = useCallback((smooth = true) => {
     const viewport = scrollAreaDesktopRef.current?.querySelector('[data-radix-scroll-area-viewport]');
     if (viewport) {
       requestAnimationFrame(() => {
-        viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' });
+        viewport.scrollTo({ top: viewport.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
       });
     } else if (messagesEndRefDesktop.current) {
-      messagesEndRefDesktop.current.scrollIntoView({ behavior: 'smooth' });
+      messagesEndRefDesktop.current.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
     }
-  };
+    // Reset unread counter when scrolling to bottom
+    setUnreadNewMessagesCount(0);
+    setIsAtBottom(true);
+  }, []);
 
   // Scroll to bottom of messages - Mobile
-  const scrollToBottomMobile = () => {
+  const scrollToBottomMobile = useCallback((smooth = true) => {
     const viewport = scrollAreaMobileRef.current?.querySelector('[data-radix-scroll-area-viewport]');
     if (viewport) {
       requestAnimationFrame(() => {
-        viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' });
+        viewport.scrollTo({ top: viewport.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
       });
     } else if (messagesEndRefMobile.current) {
-      messagesEndRefMobile.current.scrollIntoView({ behavior: 'smooth' });
+      messagesEndRefMobile.current.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
     }
-  };
+    // Reset unread counter when scrolling to bottom
+    setUnreadNewMessagesCount(0);
+    setIsAtBottom(true);
+  }, []);
 
   useEffect(() => {
     fetchInstances();
@@ -574,6 +581,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
     }
   }, [selectedInstance, selectedConversation?.id, notify, initialPhone, initialPhoneProcessed]);
 
+  // Track if at bottom using ref for realtime callback access
+  const isAtBottomRef = useRef(true);
+  isAtBottomRef.current = isAtBottom;
+
   // Stable callback for handling new messages from realtime
   const handleNewRealtimeMessage = useCallback((newMessage: Message) => {
     setMessages((prev) => {
@@ -624,6 +635,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
         new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
       );
     });
+
+    // If NOT at bottom and message is NOT from me, increment unread counter
+    if (!isAtBottomRef.current && !newMessage.from_me) {
+      setUnreadNewMessagesCount(prev => prev + 1);
+    }
   }, []);
 
   // Use the robust realtime hook for messages
@@ -649,6 +665,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
         setIsInitialLoad(true);
         setHasUserScrolledToTop(false);
         setIsAtBottom(true);
+        setUnreadNewMessagesCount(0); // Reset unread counter on conversation change
       }
       
       // Use cached lead data if available
@@ -776,9 +793,14 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
       const scrollHeight = target.scrollHeight;
       const clientHeight = target.clientHeight;
       
-      // Track if at bottom (within 100px of bottom)
-      const atBottom = scrollHeight - scrollTop - clientHeight < 100;
+      // Track if at bottom (within 120px of bottom - WhatsApp style threshold)
+      const atBottom = scrollHeight - scrollTop - clientHeight < 120;
       setIsAtBottom(atBottom);
+      
+      // Reset unread counter when user scrolls to bottom
+      if (atBottom) {
+        setUnreadNewMessagesCount(0);
+      }
       
       // Track when user reaches top (within 50px)
       if (scrollTop < 50 && !isInitialLoad && messages.length > 0) {
@@ -2836,10 +2858,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                         variant="secondary"
                         size="icon"
                         className="absolute bottom-4 right-4 h-10 w-10 rounded-full shadow-lg opacity-90 hover:opacity-100 z-10"
-                        onClick={scrollToBottomDesktop}
+                        onClick={() => scrollToBottomDesktop()}
                         title="Ir para última mensagem"
                       >
                         <ArrowDown className="w-5 h-5" />
+                        {unreadNewMessagesCount > 0 && (
+                          <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs font-bold rounded-full h-5 min-w-5 flex items-center justify-center px-1">
+                            {unreadNewMessagesCount > 99 ? '99+' : unreadNewMessagesCount}
+                          </span>
+                        )}
                       </Button>
                     )}
                   </div>
@@ -3450,10 +3477,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                       variant="secondary"
                       size="icon"
                       className="absolute bottom-4 right-4 h-10 w-10 rounded-full shadow-lg opacity-90 hover:opacity-100 z-10"
-                      onClick={scrollToBottomMobile}
+                      onClick={() => scrollToBottomMobile()}
                       title="Ir para última mensagem"
                     >
                       <ArrowDown className="w-5 h-5" />
+                      {unreadNewMessagesCount > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs font-bold rounded-full h-5 min-w-5 flex items-center justify-center px-1">
+                          {unreadNewMessagesCount > 99 ? '99+' : unreadNewMessagesCount}
+                        </span>
+                      )}
                     </Button>
                   )}
                 </div>
