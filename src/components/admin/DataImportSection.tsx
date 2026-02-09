@@ -214,6 +214,7 @@ export function DataImportSection({ isAdmin }: DataImportSectionProps) {
       is_equipe: item.is_equipe || false,
       is_freelancer: item.is_freelancer || false,
       has_scheduled_visit: item.has_scheduled_visit || false,
+      is_imported: true, // Mark as imported
       created_at: item.created_at || new Date().toISOString(),
     });
 
