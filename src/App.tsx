@@ -10,6 +10,7 @@ import CentralAtendimento from "./pages/CentralAtendimento";
 import Configuracoes from "./pages/Configuracoes";
 import Users from "./pages/Users";
 
+import RootPage from "./pages/RootPage";
 import LandingPage from "./pages/LandingPage";
 import ComercialB2B from "./pages/ComercialB2B";
 import ParaBuffets from "./pages/ParaBuffets";
@@ -32,7 +33,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<LandingPage />} />
+            <Route path="/" element={<RootPage />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/auth/:slug" element={<Auth />} />
             <Route path="/atendimento" element={<CentralAtendimento />} />
