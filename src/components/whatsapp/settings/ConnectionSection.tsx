@@ -24,7 +24,7 @@ import { toast } from "@/hooks/use-toast";
 import { 
   Wifi, WifiOff, Plus, RefreshCw, Settings2, Copy, Check, 
   MessageSquare, CreditCard, Calendar, Building2, Pencil, 
-  Trash2, QrCode, Loader2, Phone, Smartphone 
+  Trash2, QrCode, Loader2, Phone, Smartphone, Eraser
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -62,6 +62,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSyncingAll, setIsSyncingAll] = useState(false);
+  const [isClearingConversations, setIsClearingConversations] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [editingInstance, setEditingInstance] = useState<WapiInstance | null>(null);
   
@@ -342,6 +343,97 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
         variant: "destructive",
       });
     }
+  };
+
+  const handleClearNonImportedConversations = async (instance: WapiInstance) => {
+    const confirmMsg = `⚠️ ATENÇÃO: Isso excluirá permanentemente:\n\n` +
+      `• Todas as conversas NÃO IMPORTADAS da unidade ${instance.unit}\n` +
+      `• Todas as mensagens dessas conversas\n\n` +
+      `As conversas importadas serão preservadas.\n\n` +
+      `Tem certeza que deseja continuar?`;
+
+    if (!confirm(confirmMsg)) {
+      return;
+    }
+
+    setIsClearingConversations(instance.id);
+
+    try {
+      // Step 1: Get all non-imported conversations for this instance
+      const { data: conversations, error: fetchError } = await supabase
+        .from("wapi_conversations")
+        .select("id")
+        .eq("instance_id", instance.id)
+        .eq("is_imported", false);
+
+      if (fetchError) {
+        throw new Error("Erro ao buscar conversas: " + fetchError.message);
+      }
+
+      if (!conversations || conversations.length === 0) {
+        toast({
+          title: "Nenhuma conversa para limpar",
+          description: "Não há conversas não-importadas nesta instância.",
+        });
+        setIsClearingConversations(null);
+        return;
+      }
+
+      const conversationIds = conversations.map(c => c.id);
+      const totalConversations = conversations.length;
+
+      // Step 2: Delete related lead_history entries
+      const { data: leadsToClean } = await supabase
+        .from("wapi_conversations")
+        .select("lead_id")
+        .in("id", conversationIds)
+        .not("lead_id", "is", null);
+
+      if (leadsToClean && leadsToClean.length > 0) {
+        const leadIds = leadsToClean.map(l => l.lead_id).filter(Boolean);
+        if (leadIds.length > 0) {
+          await supabase
+            .from("lead_history")
+            .delete()
+            .in("lead_id", leadIds);
+        }
+      }
+
+      // Step 3: Delete all messages from these conversations
+      const { error: messagesError } = await supabase
+        .from("wapi_messages")
+        .delete()
+        .in("conversation_id", conversationIds);
+
+      if (messagesError) {
+        console.error("Error deleting messages:", messagesError);
+      }
+
+      // Step 4: Delete the non-imported conversations
+      const { error: conversationsError } = await supabase
+        .from("wapi_conversations")
+        .delete()
+        .in("id", conversationIds);
+
+      if (conversationsError) {
+        throw new Error("Erro ao excluir conversas: " + conversationsError.message);
+      }
+
+      toast({
+        title: "Limpeza concluída",
+        description: `${totalConversations} conversa(s) não-importada(s) foram excluídas da unidade ${instance.unit}.`,
+      });
+
+    } catch (error: any) {
+      console.error("Error clearing conversations:", error);
+      toast({
+        title: "Erro ao limpar conversas",
+        description: error.message || "Erro desconhecido.",
+        variant: "destructive",
+      });
+    }
+
+    setIsClearingConversations(null);
   };
 
   const configureWebhooks = async (instanceId: string, instanceToken: string) => {
@@ -1105,6 +1197,32 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                         </p>
                         <p className="text-xs text-muted-foreground">Válido até</p>
                       </div>
+                    </div>
+
+                    {/* Clear non-imported conversations button */}
+                    <div className="mt-4 pt-4 border-t border-border">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleClearNonImportedConversations(instance)}
+                        disabled={isClearingConversations === instance.id}
+                        className="w-full text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-500 dark:hover:bg-amber-950/20"
+                      >
+                        {isClearingConversations === instance.id ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Limpando conversas...
+                          </>
+                        ) : (
+                          <>
+                            <Eraser className="w-4 h-4 mr-2" />
+                            Limpar conversas não-importadas
+                          </>
+                        )}
+                      </Button>
+                      <p className="text-xs text-muted-foreground mt-2 text-center">
+                        Remove conversas criadas pelo número atual, mantendo as importadas
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
