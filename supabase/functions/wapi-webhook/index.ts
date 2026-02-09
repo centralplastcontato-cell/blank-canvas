@@ -1268,14 +1268,18 @@ async function processWebhookEvent(body: Record<string, unknown>) {
       // ⏱️ LATENCY: Log after parsing, before DB operations
       console.log(`[Latency] parsing_complete: ${Date.now() - processingStartAt}ms`);
       
-      // Fetch existing conversation (single DB call)
-      const { data: ex } = await supabase.from('wapi_conversations')
+      // Fetch existing conversation (single DB call) - use maybeSingle to handle 0 or 1 rows
+      const { data: ex, error: exErr } = await supabase.from('wapi_conversations')
         .select('id, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, lead_id')
         .eq('instance_id', instance.id)
         .eq('remote_jid', rj)
-        .single();
+        .maybeSingle();
       
-      console.log(`[Latency] conversation_fetch: ${Date.now() - processingStartAt}ms`);
+      if (exErr) {
+        console.error(`[Webhook] Error fetching conversation: ${exErr.message}`);
+      }
+      
+      console.log(`[Latency] conversation_fetch: ${Date.now() - processingStartAt}ms, found: ${!!ex}`);
       
       let conv: { id: string; bot_enabled: boolean | null; bot_step: string | null; bot_data: Record<string, unknown> | null; lead_id: string | null };
       
@@ -1302,28 +1306,59 @@ async function processWebhookEvent(body: Record<string, unknown>) {
         supabase.from('wapi_conversations').update(upd).eq('id', ex.id).then(() => {});
       } else {
         // New conversation - need to check for existing lead
-        const n = phone.replace(/\D/g, ''), vars = [n, n.replace(/^55/, ''), `55${n}`];
-        const { data: lead } = await supabase.from('campaign_leads')
-          .select('id, name, month, day_preference, guests')
-          .or(vars.map(p => `whatsapp.ilike.%${p}%`).join(','))
-          .eq('unit', instance.unit)
-          .limit(1)
-          .single();
+        // First, do a final check to prevent race conditions (upsert-like behavior)
+        const { data: raceCheck } = await supabase.from('wapi_conversations')
+          .select('id, bot_enabled, bot_step, bot_data, lead_id')
+          .eq('instance_id', instance.id)
+          .eq('remote_jid', rj)
+          .maybeSingle();
         
-        const hasCompleteLead = lead?.name && lead?.month && lead?.day_preference && lead?.guests;
-        const shouldStartBot = !hasCompleteLead;
-        
-        const { data: nc, error: ce } = await supabase.from('wapi_conversations').insert({
-          instance_id: instance.id, remote_jid: rj, contact_phone: phone, 
-          contact_name: cName || (isGrp ? `Grupo ${phone}` : phone), contact_picture: cPic,
-          last_message_at: new Date().toISOString(), unread_count: fromMe ? 0 : 1, 
-          last_message_content: preview.substring(0, 100), last_message_from_me: fromMe,
-          lead_id: lead?.id || null, bot_enabled: shouldStartBot, 
-          bot_step: shouldStartBot ? 'welcome' : null, bot_data: {}
-        }).select('id, bot_enabled, bot_step, bot_data, lead_id').single();
-        
-        if (ce) break;
-        conv = nc;
+        if (raceCheck) {
+          // Conversation was created by another request in the meantime
+          console.log(`[Webhook] Race condition avoided - conversation already exists: ${raceCheck.id}`);
+          conv = raceCheck;
+          // Update it with latest message info
+          supabase.from('wapi_conversations').update({ 
+            last_message_at: new Date().toISOString(), 
+            unread_count: fromMe ? 0 : 1, 
+            last_message_content: preview.substring(0, 100), 
+            last_message_from_me: fromMe 
+          }).eq('id', raceCheck.id).then(() => {});
+        } else {
+          const n = phone.replace(/\D/g, ''), vars = [n, n.replace(/^55/, ''), `55${n}`];
+          const { data: lead } = await supabase.from('campaign_leads')
+            .select('id, name, month, day_preference, guests')
+            .or(vars.map(p => `whatsapp.ilike.%${p}%`).join(','))
+            .eq('unit', instance.unit)
+            .limit(1)
+            .single();
+          
+          const hasCompleteLead = lead?.name && lead?.month && lead?.day_preference && lead?.guests;
+          const shouldStartBot = !hasCompleteLead;
+          
+          const { data: nc, error: ce } = await supabase.from('wapi_conversations').insert({
+            instance_id: instance.id, remote_jid: rj, contact_phone: phone, 
+            contact_name: cName || (isGrp ? `Grupo ${phone}` : phone), contact_picture: cPic,
+            last_message_at: new Date().toISOString(), unread_count: fromMe ? 0 : 1, 
+            last_message_content: preview.substring(0, 100), last_message_from_me: fromMe,
+            lead_id: lead?.id || null, bot_enabled: shouldStartBot, 
+            bot_step: shouldStartBot ? 'welcome' : null, bot_data: {}
+          }).select('id, bot_enabled, bot_step, bot_data, lead_id').single();
+          
+          if (ce) {
+            // If insert fails due to unique constraint, fetch existing
+            console.log(`[Webhook] Insert failed (likely duplicate): ${ce.message}`);
+            const { data: fallback } = await supabase.from('wapi_conversations')
+              .select('id, bot_enabled, bot_step, bot_data, lead_id')
+              .eq('instance_id', instance.id)
+              .eq('remote_jid', rj)
+              .single();
+            if (!fallback) break;
+            conv = fallback;
+          } else {
+            conv = nc;
+          }
+        }
       }
       
       console.log(`[Latency] conversation_ready: ${Date.now() - processingStartAt}ms`);
