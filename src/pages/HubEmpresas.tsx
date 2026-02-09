@@ -7,7 +7,7 @@ import { CompanyMembersSheet } from "@/components/admin/CompanyMembersSheet";
 import { CreateCompanyAdminDialog } from "@/components/hub/CreateCompanyAdminDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Plus, Pencil, Users, Loader2, UserPlus } from "lucide-react";
+import { Building2, Plus, Pencil, Users, Loader2, UserPlus, Link2, Copy } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 export default function HubEmpresas() {
@@ -123,8 +123,21 @@ function HubEmpresasContent() {
                 </div>
                 <Badge variant={child.is_active ? "default" : "secondary"}>{child.is_active ? "Ativa" : "Inativa"}</Badge>
               </div>
-              <div className="text-sm text-muted-foreground flex items-center gap-1">
-                <Users className="h-3.5 w-3.5" /> {memberCounts[child.id] || 0} membro{(memberCounts[child.id] || 0) !== 1 ? "s" : ""}
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Users className="h-3.5 w-3.5" /> {memberCounts[child.id] || 0} membro{(memberCounts[child.id] || 0) !== 1 ? "s" : ""}
+                </span>
+                <button
+                  onClick={() => {
+                    const url = `${window.location.origin}/auth/${child.slug}`;
+                    navigator.clipboard.writeText(url);
+                    toast({ title: "Link copiado!", description: url });
+                  }}
+                  className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer"
+                >
+                  <Link2 className="h-3 w-3" />
+                  /auth/{child.slug}
+                </button>
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" className="flex-1" onClick={() => { setEditingCompany(child); setFormOpen(true); }}>
