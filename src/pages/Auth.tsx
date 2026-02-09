@@ -26,9 +26,7 @@ export default function Auth() {
     if (slug) {
       setIsLoadingCompany(true);
       supabase
-        .from("companies")
-        .select("name, logo_url")
-        .eq("slug", slug)
+        .rpc("get_company_branding_by_slug", { _slug: slug })
         .maybeSingle()
         .then(({ data }) => {
           if (data) {
