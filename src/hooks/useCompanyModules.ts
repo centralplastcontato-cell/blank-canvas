@@ -7,6 +7,11 @@ export interface CompanyModules {
   dashboard: boolean;
   sales_materials: boolean;
   config: boolean;
+  automations: boolean;
+  data_import: boolean;
+  advanced: boolean;
+  messages: boolean;
+  comercial_b2b: boolean;
 }
 
 const DEFAULT_MODULES: CompanyModules = {
@@ -15,6 +20,11 @@ const DEFAULT_MODULES: CompanyModules = {
   dashboard: true,
   sales_materials: true,
   config: true,
+  automations: true,
+  data_import: true,
+  advanced: true,
+  messages: true,
+  comercial_b2b: true,
 };
 
 export function parseModules(settings: Json | null | undefined): CompanyModules {
@@ -33,6 +43,11 @@ export function parseModules(settings: Json | null | undefined): CompanyModules 
     dashboard: modules.dashboard !== false,
     sales_materials: modules.sales_materials !== false,
     config: modules.config !== false,
+    automations: modules.automations !== false,
+    data_import: modules.data_import !== false,
+    advanced: modules.advanced !== false,
+    messages: modules.messages !== false,
+    comercial_b2b: modules.comercial_b2b !== false,
   };
 }
 
@@ -46,5 +61,10 @@ export const MODULE_LABELS: Record<keyof CompanyModules, { label: string; descri
   crm: { label: 'CRM / Leads', description: 'Kanban, lista e gestão de leads' },
   dashboard: { label: 'Dashboard', description: 'Métricas e gráficos de desempenho' },
   sales_materials: { label: 'Materiais de Venda', description: 'PDFs, fotos e vídeos de vendas' },
-  config: { label: 'Configurações', description: 'Configurações do bot e templates' },
+  config: { label: 'Configurações', description: 'Configurações gerais e templates' },
+  automations: { label: 'Automações', description: 'Automações do bot e follow-ups' },
+  data_import: { label: 'Importar Dados', description: 'Importação de leads, conversas e mensagens' },
+  advanced: { label: 'Avançado', description: 'Configurações avançadas do WhatsApp' },
+  messages: { label: 'Mensagens', description: 'Templates e configurações de mensagens' },
+  comercial_b2b: { label: 'Comercial B2B', description: 'Gestão comercial e prospecção B2B' },
 };
