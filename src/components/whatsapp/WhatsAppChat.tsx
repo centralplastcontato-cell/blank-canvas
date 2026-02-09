@@ -682,23 +682,19 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
       // Execute immediately
       executeScroll();
       
-      // And with multiple delays to catch late-rendering scenarios
+      // Faster timing for initial scroll
       requestAnimationFrame(executeScroll);
-      requestAnimationFrame(() => requestAnimationFrame(executeScroll));
-      setTimeout(executeScroll, 50);
-      setTimeout(executeScroll, 100);
-      setTimeout(executeScroll, 200);
       setTimeout(() => {
         executeScroll();
         pendingInitialScrollRef.current = false;
-      }, 350);
+      }, 100);
     }
     
-    // Handle new messages (not initial load)
+    // Handle new messages (not initial load) - INSTANT scroll for new messages
     const shouldScrollForNewMessage = (
       !isInitialLoad && 
       isNewMessage && 
-      (isFromMe || !lastMessageFromMeRef.current)
+      (isFromMe || isAtBottom) // Scroll for my messages or if already at bottom
     );
     
     if (shouldScrollForNewMessage) {
@@ -707,9 +703,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
       const viewport = desktopViewport || mobileViewport;
       
       if (viewport) {
-        requestAnimationFrame(() => {
-          viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' });
-        });
+        // Instant scroll for speed - no animation delay
+        viewport.scrollTop = viewport.scrollHeight;
       }
     }
     
@@ -724,10 +719,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
   useEffect(() => {
     if (isInitialLoad) {
       canLoadMoreRef.current = false;
-      // Enable loading more after a delay to let initial scroll settle
+      // Enable loading more after shorter delay
       const timer = setTimeout(() => {
         canLoadMoreRef.current = true;
-      }, 800);
+      }, 400);
       return () => clearTimeout(timer);
     }
   }, [isInitialLoad]);
