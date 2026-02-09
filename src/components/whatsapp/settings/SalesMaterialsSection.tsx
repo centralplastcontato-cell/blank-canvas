@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { insertWithCompany } from "@/lib/supabase-helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -447,21 +448,19 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
           ? Math.max(...unitMaterials.map(m => m.sort_order)) + 1 
           : 0;
 
-        const { error } = await supabase
-          .from("sales_materials")
-          .insert({
-            unit: selectedUnit,
-            name: formData.name,
-            type: formData.type,
-            guest_count: formData.type === "pdf_package" ? formData.guest_count : null,
-            file_url: formData.type === "photo_collection" 
-              ? (formData.photo_urls[0] || "collection") 
-              : formData.file_url,
-            file_path: formData.file_path,
-            photo_urls: formData.type === "photo_collection" ? formData.photo_urls : [],
-            is_active: formData.is_active,
-            sort_order: maxOrder,
-          });
+        const { error } = await insertWithCompany("sales_materials", {
+          unit: selectedUnit,
+          name: formData.name,
+          type: formData.type,
+          guest_count: formData.type === "pdf_package" ? formData.guest_count : null,
+          file_url: formData.type === "photo_collection" 
+            ? (formData.photo_urls[0] || "collection") 
+            : formData.file_url,
+          file_path: formData.file_path,
+          photo_urls: formData.type === "photo_collection" ? formData.photo_urls : [],
+          is_active: formData.is_active,
+          sort_order: maxOrder,
+        }) as { error: any };
 
         if (error) throw error;
 

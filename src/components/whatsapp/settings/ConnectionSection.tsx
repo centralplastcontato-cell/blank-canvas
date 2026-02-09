@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { insertWithCompany } from "@/lib/supabase-helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -234,15 +235,13 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
           description: "Instância atualizada com sucesso!",
         });
       } else {
-        const { error } = await supabase
-          .from("wapi_instances")
-          .insert({
-            user_id: userId,
-            instance_id: formData.instanceId,
-            instance_token: formData.instanceToken,
-            unit: formData.unit,
-            status: "disconnected",
-          });
+        const { error } = await insertWithCompany("wapi_instances", {
+          user_id: userId,
+          instance_id: formData.instanceId,
+          instance_token: formData.instanceToken,
+          unit: formData.unit,
+          status: "disconnected",
+        }) as { error: any };
 
         if (error) throw error;
 

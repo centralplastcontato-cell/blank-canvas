@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { insertWithCompany } from "@/lib/supabase-helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -1016,21 +1017,31 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
       .single();
 
     // Create the conversation
-    const { data: newConv, error } = await supabase
-      .from('wapi_conversations')
-      .insert({
-        instance_id: selectedInstance.id,
-        remote_jid: remoteJid,
-        contact_phone: phoneWithCountry,
-        contact_name: leadData?.name || null,
-        lead_id: leadData?.id || null,
-        bot_enabled: false, // Disable bot for manually initiated conversations
-        unread_count: 0,
-        is_favorite: false,
-        is_closed: false,
-      })
-      .select('*')
-      .single();
+    const { data: newConv, error } = await insertWithCompany('wapi_conversations', {
+      instance_id: selectedInstance.id,
+      remote_jid: remoteJid,
+      contact_phone: phoneWithCountry,
+      contact_name: leadData?.name || null,
+      lead_id: leadData?.id || null,
+      bot_enabled: false,
+      unread_count: 0,
+      is_favorite: false,
+      is_closed: false,
+    }) as { data: any; error: any };
+    
+    // Fetch the created conversation
+    let createdConv = null;
+    if (!error) {
+      const { data } = await supabase
+        .from('wapi_conversations')
+        .select('*')
+        .eq('instance_id', selectedInstance.id)
+        .eq('contact_phone', phoneWithCountry)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      createdConv = data;
+    }
 
     if (error) {
       console.error("Error creating conversation:", error);
@@ -1223,18 +1234,27 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
       const contactName = selectedConversation.contact_name || selectedConversation.contact_phone;
       const cleanPhone = selectedConversation.contact_phone.replace(/\D/g, '');
 
-      const { data: newLead, error: createError } = await supabase
-        .from('campaign_leads')
-        .insert({
-          name: contactName,
-          whatsapp: cleanPhone,
-          unit: selectedInstance.unit,
-          status: status as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido",
-          campaign_id: 'whatsapp-chat',
-          campaign_name: 'WhatsApp Chat',
-        })
-        .select('id, name, whatsapp, unit, status')
-        .single();
+      const { data: newLead, error: createError } = await insertWithCompany('campaign_leads', {
+        name: contactName,
+        whatsapp: cleanPhone,
+        unit: selectedInstance.unit,
+        status: status as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido",
+        campaign_id: 'whatsapp-chat',
+        campaign_name: 'WhatsApp Chat',
+      }) as { data: any; error: any };
+      
+      // Fetch the created lead if no error
+      let createdLead = null;
+      if (!createError) {
+        const { data } = await supabase
+          .from('campaign_leads')
+          .select('id, name, whatsapp, unit, status')
+          .eq('whatsapp', cleanPhone)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        createdLead = data;
+      }
 
       if (createError) {
         throw createError;
