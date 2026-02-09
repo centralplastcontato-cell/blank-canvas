@@ -7,9 +7,10 @@ import { CompanyMembersSheet } from "@/components/admin/CompanyMembersSheet";
 import { CreateCompanyAdminDialog } from "@/components/hub/CreateCompanyAdminDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Plus, Pencil, Users, Loader2, UserPlus, Link2, Copy, ClipboardList, ExternalLink } from "lucide-react";
+import { Building2, Plus, Pencil, Users, Loader2, UserPlus, Link2, Copy, ClipboardList, MessageSquare, BarChart3, Clock, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 export default function HubEmpresas() {
   return (
@@ -37,6 +38,9 @@ function HubEmpresasContent() {
   const [membersCompany, setMembersCompany] = useState<Company | null>(null);
   const [membersOpen, setMembersOpen] = useState(false);
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
+  const [leadCounts, setLeadCounts] = useState<Record<string, number>>({});
+  const [conversationCounts, setConversationCounts] = useState<Record<string, number>>({});
+  const [onboardingStatus, setOnboardingStatus] = useState<Record<string, { status: string; updated_at: string }>>({});
   const [adminDialogCompany, setAdminDialogCompany] = useState<Company | null>(null);
 
   useEffect(() => { fetchCompanies(); }, []);
@@ -47,11 +51,36 @@ function HubEmpresasContent() {
     if (error) { console.error(error); }
     else {
       setCompanies((data || []) as Company[]);
-      const { data: ucData } = await supabase.from("user_companies").select("company_id");
-      if (ucData) {
+      
+      // Fetch all stats in parallel
+      const [ucRes, leadsRes, convsRes, onbRes] = await Promise.all([
+        supabase.from("user_companies").select("company_id"),
+        supabase.from("campaign_leads").select("company_id"),
+        supabase.from("wapi_conversations").select("company_id"),
+        supabase.from("company_onboarding").select("company_id, status, updated_at").order("created_at", { ascending: false }),
+      ]);
+
+      if (ucRes.data) {
         const counts: Record<string, number> = {};
-        ucData.forEach((uc) => { counts[uc.company_id] = (counts[uc.company_id] || 0) + 1; });
+        ucRes.data.forEach((uc) => { counts[uc.company_id] = (counts[uc.company_id] || 0) + 1; });
         setMemberCounts(counts);
+      }
+      if (leadsRes.data) {
+        const counts: Record<string, number> = {};
+        leadsRes.data.forEach((l) => { counts[l.company_id] = (counts[l.company_id] || 0) + 1; });
+        setLeadCounts(counts);
+      }
+      if (convsRes.data) {
+        const counts: Record<string, number> = {};
+        convsRes.data.forEach((c) => { counts[c.company_id] = (counts[c.company_id] || 0) + 1; });
+        setConversationCounts(counts);
+      }
+      if (onbRes.data) {
+        const map: Record<string, { status: string; updated_at: string }> = {};
+        onbRes.data.forEach((o) => {
+          if (!map[o.company_id]) map[o.company_id] = { status: o.status, updated_at: o.updated_at };
+        });
+        setOnboardingStatus(map);
       }
     }
     setIsLoading(false);
@@ -135,11 +164,49 @@ function HubEmpresasContent() {
                 </div>
 
                 {/* Stats */}
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <span className="flex items-center gap-1.5">
-                    <Users className="h-4 w-4" /> {members} membro{members !== 1 ? "s" : ""}
-                  </span>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="flex flex-col items-center p-2 rounded-lg bg-muted/40">
+                    <Users className="h-4 w-4 text-primary mb-1" />
+                    <span className="text-lg font-bold text-foreground">{members}</span>
+                    <span className="text-[10px] text-muted-foreground">Membros</span>
+                  </div>
+                  <div className="flex flex-col items-center p-2 rounded-lg bg-muted/40">
+                    <BarChart3 className="h-4 w-4 text-accent mb-1" />
+                    <span className="text-lg font-bold text-foreground">{leadCounts[child.id] || 0}</span>
+                    <span className="text-[10px] text-muted-foreground">Leads</span>
+                  </div>
+                  <div className="flex flex-col items-center p-2 rounded-lg bg-muted/40">
+                    <MessageSquare className="h-4 w-4 text-secondary mb-1" />
+                    <span className="text-lg font-bold text-foreground">{conversationCounts[child.id] || 0}</span>
+                    <span className="text-[10px] text-muted-foreground">Conversas</span>
+                  </div>
                 </div>
+
+                {/* Onboarding Status */}
+                {onboardingStatus[child.id] ? (
+                  <div className={cn(
+                    "flex items-center gap-2 p-2.5 rounded-lg text-sm",
+                    onboardingStatus[child.id].status === 'completo' ? "bg-accent/10 text-accent" :
+                    onboardingStatus[child.id].status === 'em_andamento' ? "bg-secondary/10 text-secondary" :
+                    "bg-muted text-muted-foreground"
+                  )}>
+                    {onboardingStatus[child.id].status === 'completo' ? <CheckCircle2 className="h-4 w-4 shrink-0" /> :
+                     onboardingStatus[child.id].status === 'em_andamento' ? <Clock className="h-4 w-4 shrink-0" /> :
+                     <AlertCircle className="h-4 w-4 shrink-0" />}
+                    <span className="text-xs font-medium">
+                      Onboarding {onboardingStatus[child.id].status === 'completo' ? 'completo' :
+                                  onboardingStatus[child.id].status === 'em_andamento' ? 'em andamento' : 'pendente'}
+                    </span>
+                    <span className="text-[10px] ml-auto opacity-70">
+                      {new Date(onboardingStatus[child.id].updated_at).toLocaleDateString("pt-BR")}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/30 text-muted-foreground text-xs">
+                    <ClipboardList className="h-4 w-4 shrink-0" />
+                    <span>Onboarding não iniciado</span>
+                  </div>
+                )}
 
                 <Separator />
 
