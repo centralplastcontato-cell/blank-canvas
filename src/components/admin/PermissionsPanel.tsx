@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -63,6 +64,7 @@ export function PermissionsPanel({
   currentUserId,
   onClose,
 }: PermissionsPanelProps) {
+  const { units: companyUnits } = useCompanyUnits();
   const { definitions, isLoading: isLoadingDefs, getPermissionsByCategory } = usePermissions(currentUserId);
   const [userPermissions, setUserPermissions] = useState<Record<string, boolean>>({});
   const [isLoadingPerms, setIsLoadingPerms] = useState(true);
@@ -383,12 +385,11 @@ export function PermissionsPanel({
     if (userPermissions['leads.unit.all']) {
       return ['Todas as unidades'];
     }
-    if (userPermissions['leads.unit.manchester']) {
-      units.push('Manchester');
-    }
-    if (userPermissions['leads.unit.trujillo']) {
-      units.push('Trujillo');
-    }
+    companyUnits.forEach(u => {
+      if (userPermissions[`leads.unit.${u.slug}`]) {
+        units.push(u.name);
+      }
+    });
     return units.length > 0 ? units : ['Nenhuma unidade'];
   };
 

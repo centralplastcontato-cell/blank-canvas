@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { insertWithCompany } from "@/lib/supabase-helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,11 +39,12 @@ interface SalesMaterialsSectionProps {
 }
 
 const GUEST_OPTIONS = [50, 60, 70, 80, 90, 100];
-const UNITS = ["Manchester", "Trujillo"];
+// UNITS loaded dynamically via useCompanyUnits
 const MAX_PHOTOS_PER_COLLECTION = 10;
 const MAX_COLLECTIONS_PER_UNIT = 5;
 
 export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSectionProps) {
+  const { unitNames: UNITS } = useCompanyUnits();
   const [materials, setMaterials] = useState<SalesMaterial[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -50,7 +52,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [editingMaterial, setEditingMaterial] = useState<SalesMaterial | null>(null);
-  const [selectedUnit, setSelectedUnit] = useState<string>("Manchester");
+  const [selectedUnit, setSelectedUnit] = useState<string>(UNITS[0] || "");
   const [selectedType, setSelectedType] = useState<string>("pdf_package");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const multiFileInputRef = useRef<HTMLInputElement>(null);

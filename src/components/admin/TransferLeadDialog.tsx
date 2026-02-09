@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { insertWithCompany } from "@/lib/supabase-helpers";
 import { Lead, UserWithRole, LEAD_STATUS_LABELS } from "@/types/crm";
 import {
@@ -42,6 +43,7 @@ export function TransferLeadDialog({
   currentUserId,
   currentUserName,
 }: TransferLeadDialogProps) {
+  const { units: companyUnits } = useCompanyUnits();
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [isTransferring, setIsTransferring] = useState(false);
   const [filteredByUnit, setFilteredByUnit] = useState<UserWithRole[]>([]);
@@ -76,15 +78,15 @@ export function TransferLeadDialog({
           return;
         }
 
+        // Build dynamic permission codes from company units
+        const unitPermCodes = companyUnits.map(u => `leads.unit.${u.slug}`);
+        const allPermCodes = ['leads.unit.all', ...unitPermCodes];
+
         const { data: permissions } = await supabase
           .from("user_permissions")
           .select("user_id, permission, granted")
           .in("user_id", candidateIds)
-          .in("permission", [
-            "leads.unit.all",
-            "leads.unit.manchester",
-            "leads.unit.trujillo",
-          ]);
+          .in("permission", allPermCodes);
 
         const result = candidates.filter((user) => {
           const userPerms = permissions?.filter((p) => p.user_id === user.user_id) || [];
@@ -97,13 +99,18 @@ export function TransferLeadDialog({
           // If no unit permissions set at all, default is "all" (same as useUnitPermissions)
           if (userPerms.length === 0) return true;
 
-          // Check specific unit permission
+          // Check specific unit permission dynamically
           const unitLower = leadUnit.toLowerCase();
-          if (unitLower === "manchester" || unitLower === "as duas") {
-            if (permMap.get("leads.unit.manchester") === true) return true;
+          
+          // For combined units ("As duas"), check if user has access to any unit
+          if (unitLower === "as duas") {
+            return companyUnits.some(u => permMap.get(`leads.unit.${u.slug}`) === true);
           }
-          if (unitLower === "trujillo" || unitLower === "as duas") {
-            if (permMap.get("leads.unit.trujillo") === true) return true;
+          
+          // Find matching unit by name
+          const matchingUnit = companyUnits.find(u => u.name.toLowerCase() === unitLower);
+          if (matchingUnit && permMap.get(`leads.unit.${matchingUnit.slug}`) === true) {
+            return true;
           }
 
           return false;
