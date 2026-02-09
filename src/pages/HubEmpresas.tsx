@@ -86,20 +86,23 @@ function HubEmpresasContent() {
     setIsLoading(false);
   };
 
-  const handleCreate = async (data: { name: string; slug: string; is_active: boolean; logo_url: string }) => {
-    // Find the hub (root company without parent_id) to set as parent
+  const handleCreate = async (data: { name: string; slug: string; is_active: boolean; logo_url: string; custom_domain: string }) => {
     const hubCompany = companies.find(c => !c.parent_id);
     const { error } = await supabase.from("companies").insert({
       name: data.name, slug: data.slug, is_active: data.is_active, logo_url: data.logo_url || null,
+      custom_domain: data.custom_domain || null,
       parent_id: hubCompany?.id || null,
     });
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); throw error; }
     toast({ title: "Empresa criada" }); fetchCompanies();
   };
 
-  const handleUpdate = async (data: { name: string; slug: string; is_active: boolean; logo_url: string }) => {
+  const handleUpdate = async (data: { name: string; slug: string; is_active: boolean; logo_url: string; custom_domain: string }) => {
     if (!editingCompany) return;
-    const { error } = await supabase.from("companies").update({ name: data.name, slug: data.slug, is_active: data.is_active, logo_url: data.logo_url || null }).eq("id", editingCompany.id);
+    const { error } = await supabase.from("companies").update({
+      name: data.name, slug: data.slug, is_active: data.is_active, logo_url: data.logo_url || null,
+      custom_domain: data.custom_domain || null,
+    }).eq("id", editingCompany.id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); throw error; }
     toast({ title: "Empresa atualizada" }); setEditingCompany(null); fetchCompanies();
   };
@@ -137,8 +140,9 @@ function HubEmpresasContent() {
         <div className="grid gap-5 md:grid-cols-2">
           {companies.filter(c => c.parent_id !== null).map((child) => {
             const members = memberCounts[child.id] || 0;
+            const baseUrl = child.custom_domain ? `https://${child.custom_domain}` : window.location.origin;
             const copyLink = (path: string, label: string) => {
-              const url = `${window.location.origin}${path}`;
+              const url = `${baseUrl}${path}`;
               navigator.clipboard.writeText(url);
               toast({ title: `${label} copiado!`, description: url });
             };

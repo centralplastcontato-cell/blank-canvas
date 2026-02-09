@@ -6,6 +6,7 @@ export interface Company {
   slug: string;
   parent_id: string | null;
   logo_url: string | null;
+  custom_domain: string | null;
   is_active: boolean;
   settings: Record<string, unknown>;
   created_at: string;
