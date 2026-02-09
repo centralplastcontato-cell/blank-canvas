@@ -227,6 +227,7 @@ export type Database = {
       }
       message_templates: {
         Row: {
+          company_id: string
           created_at: string
           id: string
           is_active: boolean
@@ -236,6 +237,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          company_id: string
           created_at?: string
           id?: string
           is_active?: boolean
@@ -245,6 +247,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          company_id?: string
           created_at?: string
           id?: string
           is_active?: boolean
@@ -253,7 +256,15 @@ export type Database = {
           template?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "message_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {
@@ -454,6 +465,7 @@ export type Database = {
         Row: {
           caption_text: string
           caption_type: string
+          company_id: string
           created_at: string
           id: string
           is_active: boolean
@@ -462,6 +474,7 @@ export type Database = {
         Insert: {
           caption_text: string
           caption_type: string
+          company_id: string
           created_at?: string
           id?: string
           is_active?: boolean
@@ -470,12 +483,21 @@ export type Database = {
         Update: {
           caption_text?: string
           caption_type?: string
+          company_id?: string
           created_at?: string
           id?: string
           is_active?: boolean
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sales_material_captions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sales_materials: {
         Row: {
@@ -648,6 +670,7 @@ export type Database = {
       }
       wapi_bot_questions: {
         Row: {
+          company_id: string
           confirmation_text: string | null
           created_at: string
           id: string
@@ -659,6 +682,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          company_id: string
           confirmation_text?: string | null
           created_at?: string
           id?: string
@@ -670,6 +694,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          company_id?: string
           confirmation_text?: string | null
           created_at?: string
           id?: string
@@ -681,6 +706,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "wapi_bot_questions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "wapi_bot_questions_instance_id_fkey"
             columns: ["instance_id"]
@@ -700,6 +732,7 @@ export type Database = {
           auto_send_presentation_video: boolean | null
           auto_send_promo_video: boolean | null
           bot_enabled: boolean
+          company_id: string
           completion_message: string | null
           created_at: string
           follow_up_2_delay_hours: number | null
@@ -731,6 +764,7 @@ export type Database = {
           auto_send_presentation_video?: boolean | null
           auto_send_promo_video?: boolean | null
           bot_enabled?: boolean
+          company_id: string
           completion_message?: string | null
           created_at?: string
           follow_up_2_delay_hours?: number | null
@@ -762,6 +796,7 @@ export type Database = {
           auto_send_presentation_video?: boolean | null
           auto_send_promo_video?: boolean | null
           bot_enabled?: boolean
+          company_id?: string
           completion_message?: string | null
           created_at?: string
           follow_up_2_delay_hours?: number | null
@@ -785,6 +820,13 @@ export type Database = {
           welcome_message?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "wapi_bot_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "wapi_bot_settings_instance_id_fkey"
             columns: ["instance_id"]
@@ -1018,6 +1060,7 @@ export type Database = {
       }
       wapi_vip_numbers: {
         Row: {
+          company_id: string
           created_at: string
           created_by: string | null
           id: string
@@ -1027,6 +1070,7 @@ export type Database = {
           reason: string | null
         }
         Insert: {
+          company_id: string
           created_at?: string
           created_by?: string | null
           id?: string
@@ -1036,6 +1080,7 @@ export type Database = {
           reason?: string | null
         }
         Update: {
+          company_id?: string
           created_at?: string
           created_by?: string | null
           id?: string
@@ -1045,6 +1090,13 @@ export type Database = {
           reason?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "wapi_vip_numbers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "wapi_vip_numbers_instance_id_fkey"
             columns: ["instance_id"]
