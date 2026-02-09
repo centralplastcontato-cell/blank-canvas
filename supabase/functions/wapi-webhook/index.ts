@@ -1291,11 +1291,17 @@ async function processWebhookEvent(body: Record<string, unknown>) {
         else if (type === 'document') url = null;
       }
 
+      // ⏱️ LATENCY INSTRUMENTATION: Log backend received timestamp
+      const backendReceivedAt = Date.now();
+      console.log(`[Latency] backend_received_at: ${backendReceivedAt} (${new Date(backendReceivedAt).toISOString()})`);
+      
       await supabase.from('wapi_messages').insert({
         conversation_id: conv.id, message_id: msgId, from_me: fromMe, message_type: type, content,
         media_url: url, media_key: key, media_direct_path: path, status: fromMe ? 'sent' : 'received',
         timestamp: (msg as Record<string, unknown>).messageTimestamp ? new Date(((msg as Record<string, unknown>).messageTimestamp as number) * 1000).toISOString() : (msg as Record<string, unknown>).moment ? new Date(((msg as Record<string, unknown>).moment as number) * 1000).toISOString() : new Date().toISOString()
       });
+      
+      console.log(`[Latency] message_inserted_at: ${Date.now()} (delta from backend: ${Date.now() - backendReceivedAt}ms)`);
 
       if (!fromMe && !isGrp && type === 'text' && content) await processBotQualification(supabase, instance, conv, content, phone, cName as string | null);
       break;
