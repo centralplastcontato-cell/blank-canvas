@@ -15,7 +15,7 @@ export default function HubLandingPage() {
       <HubHeader onOpenWizard={() => setIsWizardOpen(true)} />
       <HubHero onOpenWizard={() => setIsWizardOpen(true)} />
       <HubFeatures />
-      <HubStats />
+      <HubStats onOpenWizard={() => setIsWizardOpen(true)} />
       <HubCTA onOpenWizard={() => setIsWizardOpen(true)} />
       <HubFooter />
       <HubProspectWizard isOpen={isWizardOpen} onClose={() => setIsWizardOpen(false)} />
