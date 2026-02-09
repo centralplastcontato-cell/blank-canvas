@@ -22,12 +22,18 @@ export type Database = {
           created_at: string
           current_tools: string | null
           email: string
+          has_lead_clarity: boolean | null
           how_found_us: string | null
           id: string
+          instagram: string | null
+          lead_cost: string | null
+          lead_organization: string | null
           main_challenges: string | null
+          monthly_leads: string | null
           monthly_parties: number | null
           notes: string | null
           phone: string | null
+          source: string | null
           state: string | null
           status: string
           updated_at: string
@@ -39,12 +45,18 @@ export type Database = {
           created_at?: string
           current_tools?: string | null
           email: string
+          has_lead_clarity?: boolean | null
           how_found_us?: string | null
           id?: string
+          instagram?: string | null
+          lead_cost?: string | null
+          lead_organization?: string | null
           main_challenges?: string | null
+          monthly_leads?: string | null
           monthly_parties?: number | null
           notes?: string | null
           phone?: string | null
+          source?: string | null
           state?: string | null
           status?: string
           updated_at?: string
@@ -56,12 +68,18 @@ export type Database = {
           created_at?: string
           current_tools?: string | null
           email?: string
+          has_lead_clarity?: boolean | null
           how_found_us?: string | null
           id?: string
+          instagram?: string | null
+          lead_cost?: string | null
+          lead_organization?: string | null
           main_challenges?: string | null
+          monthly_leads?: string | null
           monthly_parties?: number | null
           notes?: string | null
           phone?: string | null
+          source?: string | null
           state?: string | null
           status?: string
           updated_at?: string

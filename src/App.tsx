@@ -20,6 +20,7 @@ import HubEmpresas from "./pages/HubEmpresas";
 import HubUsers from "./pages/HubUsers";
 import HubWhatsApp from "./pages/HubWhatsApp";
 import HubOnboarding from "./pages/HubOnboarding";
+import HubProspeccao from "./pages/HubProspeccao";
 import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
 
@@ -50,6 +51,7 @@ const App = () => (
             <Route path="/hub/whatsapp" element={<HubWhatsApp />} />
             <Route path="/hub/users" element={<HubUsers />} />
             <Route path="/hub/onboarding" element={<HubOnboarding />} />
+            <Route path="/hub/prospeccao" element={<HubProspeccao />} />
             {/* Public onboarding form */}
             <Route path="/onboarding/:slug" element={<Onboarding />} />
             {/* Redirects for old routes */}

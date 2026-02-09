@@ -1,11 +1,12 @@
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 
-export default function HubCTA() {
-  const navigate = useNavigate();
+interface HubCTAProps {
+  onOpenWizard: () => void;
+}
 
+export default function HubCTA({ onOpenWizard }: HubCTAProps) {
   return (
     <section className="py-20 sm:py-28 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-secondary/5 pointer-events-none" />
@@ -31,9 +32,9 @@ export default function HubCTA() {
           <Button
             size="lg"
             className="text-base px-10 py-6 rounded-2xl font-bold shadow-lg hover:shadow-floating transition-all hover:scale-[1.02]"
-            onClick={() => navigate("/comercial-b2b")}
+            onClick={onOpenWizard}
           >
-            Agendar demonstração gratuita
+            Fazer diagnóstico gratuito
             <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </div>
