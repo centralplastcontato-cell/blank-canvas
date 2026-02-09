@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { name, whatsapp, unit, month, day_of_month, guests, campaign_id, campaign_name } = body;
+    const { name, whatsapp, unit, month, day_of_month, guests, campaign_id, campaign_name, company_id } = body;
 
     // Validate all inputs
     const nameValidation = validateName(name);
@@ -152,6 +152,14 @@ Deno.serve(async (req) => {
     if (!campaignValidation.valid) {
       return new Response(
         JSON.stringify({ error: campaignValidation.error }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate company_id (required)
+    if (!company_id || typeof company_id !== 'string') {
+      return new Response(
+        JSON.stringify({ error: 'ID da empresa é obrigatório' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -216,6 +224,7 @@ Deno.serve(async (req) => {
         campaign_id: campaign_id,
         campaign_name: campaign_name || null,
         status: 'novo',
+        company_id: company_id,
       });
 
     if (insertError) {
@@ -226,7 +235,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Lead created successfully: ${name.trim()} - ${normalizedPhone}`);
+    console.log(`Lead created successfully: ${name.trim()} - ${normalizedPhone} (company: ${company_id})`);
 
     return new Response(
       JSON.stringify({ success: true }),

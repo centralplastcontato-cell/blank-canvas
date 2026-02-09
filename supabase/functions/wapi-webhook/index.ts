@@ -299,6 +299,7 @@ async function processBotQualification(
             message_id: msgId,
             from_me: true,
             message_type: 'text',
+            company_id: instance.company_id,
             content: welcomeMsg,
             status: 'sent',
             timestamp: new Date().toISOString()
@@ -383,7 +384,8 @@ async function processBotQualification(
               message_type: 'text',
               content: msg,
               status: 'sent',
-              timestamp: new Date().toISOString()
+              timestamp: new Date().toISOString(),
+              company_id: instance.company_id,
             });
           }
           
@@ -489,6 +491,7 @@ async function processBotQualification(
             month: updated.mes || null,
             day_preference: updated.dia || null,
             guests: updated.convidados || null,
+            company_id: instance.company_id,
           }).select('id').single();
           
           if (error) {
@@ -577,6 +580,7 @@ async function processBotQualification(
               action: 'Próximo passo escolhido',
               old_value: 'novo',
               new_value: choice,
+              company_id: instance.company_id,
             });
             
             console.log(`[Bot] Lead ${conv.lead_id} status updated to ${newLeadStatus}`);
@@ -663,7 +667,8 @@ async function processBotQualification(
       message_type: 'text',
       content: msg,
       status: 'sent',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      company_id: instance.company_id,
     });
   }
   
@@ -1039,7 +1044,8 @@ async function sendQualificationMaterialsThenQuestion(
         message_type: 'text',
         content: nextStepQuestion,
         status: 'sent',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        company_id: instance.company_id,
       });
     }
     
@@ -1342,7 +1348,8 @@ async function processWebhookEvent(body: Record<string, unknown>) {
             last_message_at: new Date().toISOString(), unread_count: fromMe ? 0 : 1, 
             last_message_content: preview.substring(0, 100), last_message_from_me: fromMe,
             lead_id: lead?.id || null, bot_enabled: shouldStartBot, 
-            bot_step: shouldStartBot ? 'welcome' : null, bot_data: {}
+            bot_step: shouldStartBot ? 'welcome' : null, bot_data: {},
+            company_id: instance.company_id,
           }).select('id, bot_enabled, bot_step, bot_data, lead_id').single();
           
           if (ce) {
@@ -1374,7 +1381,8 @@ async function processWebhookEvent(body: Record<string, unknown>) {
       await supabase.from('wapi_messages').insert({
         conversation_id: conv.id, message_id: msgId, from_me: fromMe, message_type: type, content,
         media_url: url, media_key: key, media_direct_path: path, status: fromMe ? 'sent' : 'received',
-        timestamp: messageTimestamp
+        timestamp: messageTimestamp,
+        company_id: instance.company_id,
       });
       
       console.log(`[Latency] message_inserted: ${Date.now() - insertStartAt}ms (total: ${Date.now() - processingStartAt}ms)`);
@@ -1419,7 +1427,7 @@ async function processWebhookEvent(body: Record<string, unknown>) {
               
               let cv;
               if (ec) { cv = ec; await supabase.from('wapi_conversations').update({ last_message_at: new Date().toISOString(), last_message_content: pv.substring(0, 100), last_message_from_me: true, ...(ec.bot_step && ec.bot_step !== 'complete' ? { bot_enabled: false } : {}) }).eq('id', ec.id); }
-              else { const { data: nc } = await supabase.from('wapi_conversations').insert({ instance_id: instance.id, remote_jid: rj, contact_phone: p, contact_name: (body?.chat as Record<string, unknown>)?.name || p, last_message_at: new Date().toISOString(), last_message_content: pv.substring(0, 100), last_message_from_me: true, bot_enabled: false }).select().single(); cv = nc; }
+              else { const { data: nc } = await supabase.from('wapi_conversations').insert({ instance_id: instance.id, remote_jid: rj, contact_phone: p, contact_name: (body?.chat as Record<string, unknown>)?.name || p, last_message_at: new Date().toISOString(), last_message_content: pv.substring(0, 100), last_message_from_me: true, bot_enabled: false, company_id: instance.company_id }).select().single(); cv = nc; }
               
               if (cv) {
                 let ct = '', tp = 'text', mu = null;
@@ -1427,7 +1435,7 @@ async function processWebhookEvent(body: Record<string, unknown>) {
                 else if ((mcd as Record<string, unknown>).extendedTextMessage?.text) ct = (mcd as Record<string, unknown>).extendedTextMessage?.text as string;
                 else if ((mcd as Record<string, unknown>).imageMessage) { tp = 'image'; ct = (mcd as Record<string, unknown>).imageMessage?.caption || '[Imagem]'; mu = (mcd as Record<string, unknown>).imageMessage?.url; }
                 else if ((mcd as Record<string, unknown>).documentMessage) { tp = 'document'; ct = (mcd as Record<string, unknown>).documentMessage?.fileName || '[Documento]'; mu = (mcd as Record<string, unknown>).documentMessage?.url; }
-                await supabase.from('wapi_messages').insert({ conversation_id: cv.id, message_id: mId, from_me: true, message_type: tp, content: ct, media_url: mu, status: 'sent', timestamp: body.moment ? new Date((body.moment as number) * 1000).toISOString() : new Date().toISOString() });
+                await supabase.from('wapi_messages').insert({ conversation_id: cv.id, message_id: mId, from_me: true, message_type: tp, content: ct, media_url: mu, status: 'sent', timestamp: body.moment ? new Date((body.moment as number) * 1000).toISOString() : new Date().toISOString(), company_id: instance.company_id });
               }
             }
           }
@@ -1499,7 +1507,8 @@ async function processWebhookEvent(body: Record<string, unknown>) {
                     status: 'sent',
                     timestamp: (unknownMsg as Record<string, unknown>).messageTimestamp 
                       ? new Date(((unknownMsg as Record<string, unknown>).messageTimestamp as number) * 1000).toISOString() 
-                      : new Date().toISOString()
+                      : new Date().toISOString(),
+                    company_id: instance.company_id,
                   });
                   
                   // Update conversation
