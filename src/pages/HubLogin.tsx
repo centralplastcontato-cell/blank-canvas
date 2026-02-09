@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Lock, Mail, BarChart3 } from "lucide-react";
+import { Loader2, Lock, Mail } from "lucide-react";
+import logoCelebrei from "@/assets/logo-celebrei.png";
 import { z } from "zod";
 
 const emailSchema = z.string().email("Email inválido");
@@ -133,8 +134,8 @@ export default function HubLogin() {
       <div className="w-full max-w-md relative z-10">
         <div className="rounded-3xl p-8 border border-primary/20 bg-gradient-to-br from-primary/5 via-background to-accent/5 backdrop-blur-sm shadow-lg">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <BarChart3 className="w-8 h-8 text-primary" />
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <img src={logoCelebrei} alt="Celebrei" className="h-14 w-auto object-contain" />
             </div>
             <h1 className="font-display text-2xl font-bold text-foreground">Hub Celebrei</h1>
             <p className="text-muted-foreground mt-2">Acesso ao painel de gestão</p>

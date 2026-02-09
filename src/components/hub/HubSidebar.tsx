@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
 import { BarChart3, Building2, Users, LogOut, ChevronLeft, Pin, PinOff, Smartphone, ClipboardList, Target } from "lucide-react";
+import logoCelebrei from "@/assets/logo-celebrei.png";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -75,8 +76,8 @@ export function HubSidebar({ currentUserName, onLogout }: HubSidebarProps) {
       >
         <SidebarHeader className="p-3">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <BarChart3 className="h-5 w-5 text-primary" />
+            <div className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0">
+              <img src={logoCelebrei} alt="Celebrei" className="h-8 w-8 object-contain" />
             </div>
             {!collapsed && (
               <>
