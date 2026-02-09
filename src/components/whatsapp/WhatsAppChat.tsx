@@ -23,7 +23,7 @@ import { useChatNotificationToggle } from "@/hooks/useChatNotificationToggle";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useMessagesRealtime } from "@/hooks/useMessagesRealtime";
-import { LatencyMonitor, addLatencyEvent } from "@/components/whatsapp/LatencyMonitor";
+// Latency monitoring removed - was causing flickering
 import { format, isToday, isYesterday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -588,25 +588,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
 
   // Stable callback for handling new messages from realtime
   const handleNewRealtimeMessage = useCallback((newMessage: Message & { _realtimeReceivedAt?: number }) => {
-    // ⏱️ LATENCY INSTRUMENTATION: Calculate and log latencies
-    const uiReceivedAt = Date.now();
-    const realtimeReceivedAt = newMessage._realtimeReceivedAt || uiReceivedAt;
-    const messageTimestamp = new Date(newMessage.timestamp).getTime();
-    
-    // Calculate latencies
-    const realtimeToUi = uiReceivedAt - realtimeReceivedAt;
-    const totalEndToEnd = uiReceivedAt - messageTimestamp;
-    
-    // Add to latency monitor for UI display
-    addLatencyEvent({
-      realtimeToUi,
-      totalEndToEnd,
-      fromMe: newMessage.from_me,
-    });
-    
-    // Log summary for easy monitoring (console)
-    const status = totalEndToEnd <= 300 ? '✅ IDEAL' : totalEndToEnd <= 700 ? '⚠️ ACEITÁVEL' : '❌ LENTO';
-    console.log(`[Latency] ${status} | Total: ${totalEndToEnd}ms | RT→UI: ${realtimeToUi}ms | ${newMessage.from_me ? 'ENVIADA' : 'RECEBIDA'}`);
     
     setMessages((prev) => {
       // Check if this message already exists (by id or message_id)
@@ -730,7 +711,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
   // Track if we need to force scroll on next render (for initial load)
   const pendingInitialScrollRef = useRef(false);
   
-  // Force scroll to bottom with multiple retries
+  // Force scroll to bottom - executed once, no cascading updates
   const forceScrollToBottom = useCallback(() => {
     const executeScroll = () => {
       const desktopViewport = scrollAreaDesktopRef.current?.querySelector('[data-radix-scroll-area-viewport]');
@@ -739,17 +720,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
       
       if (viewport) {
         (viewport as HTMLElement).scrollTop = (viewport as HTMLElement).scrollHeight;
-        return true;
       }
-      return false;
     };
     
-    // Execute with multiple timing strategies
-    executeScroll();
-    requestAnimationFrame(executeScroll);
-    setTimeout(executeScroll, 50);
-    setTimeout(executeScroll, 150);
-    setTimeout(executeScroll, 300);
+    // Single RAF for smooth scroll, avoid multiple timeouts
+    requestAnimationFrame(() => {
+      executeScroll();
+      // One delayed call as backup
+      setTimeout(executeScroll, 100);
+    });
   }, []);
   
   useEffect(() => {
@@ -765,10 +744,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
     }
     
     // Handle new messages (not initial load) - scroll for my messages or if at bottom
+    // Use ref to avoid dependency cycle
     const shouldScrollForNewMessage = (
       !isInitialLoad && 
       isNewMessage && 
-      (isFromMe || isAtBottom)
+      (isFromMe || isAtBottomRef.current)
     );
     
     if (shouldScrollForNewMessage) {
@@ -777,7 +757,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
     
     prevMessagesLengthRef.current = messagesLength;
     lastMessageFromMeRef.current = isFromMe || false;
-  }, [messages, isInitialLoad, isAtBottom, forceScrollToBottom]);
+  }, [messages, isInitialLoad, forceScrollToBottom]);
   
   // Reset pending scroll when initial load ends
   useEffect(() => {
@@ -3862,9 +3842,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
           instances={instances}
         />
       )}
-
-      {/* Latency Monitor - Admin only */}
-      <LatencyMonitor isAdmin={isAdmin} />
     </div>
   );
 }
