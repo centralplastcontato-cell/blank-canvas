@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { insertWithCompany } from "@/lib/supabase-helpers";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
@@ -133,7 +134,7 @@ export function ConversationStatusActions({
       if (updateError) throw updateError;
 
       // Add history entry
-      await supabase.from("lead_history").insert({
+      await insertWithCompany("lead_history", {
         lead_id: linkedLead.id,
         user_id: userId,
         user_name: currentUserName,

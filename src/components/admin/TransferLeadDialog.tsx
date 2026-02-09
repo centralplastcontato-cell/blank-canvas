@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { insertWithCompany } from "@/lib/supabase-helpers";
 import { Lead, UserWithRole, LEAD_STATUS_LABELS } from "@/types/crm";
 import {
   AlertDialog,
@@ -72,7 +73,7 @@ export function TransferLeadDialog({
       if (updateError) throw updateError;
 
       // Add history entry
-      await supabase.from("lead_history").insert({
+      await insertWithCompany("lead_history", {
         lead_id: lead.id,
         user_id: currentUserId,
         user_name: currentUserName,

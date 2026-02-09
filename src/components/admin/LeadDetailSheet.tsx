@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
+import { insertWithCompany } from "@/lib/supabase-helpers";
 import {
   Lead,
   LeadHistory,
@@ -169,7 +170,7 @@ export function LeadDetailSheet({
     oldValue: string | null,
     newValue: string | null
   ) => {
-    await supabase.from("lead_history").insert({
+    await insertWithCompany("lead_history", {
       lead_id: leadId,
       user_id: currentUserId,
       user_name: currentUserName,
