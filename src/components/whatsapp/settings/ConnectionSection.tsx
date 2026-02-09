@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUnitPermissions } from "@/hooks/useUnitPermissions";
+import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { insertWithCompany } from "@/lib/supabase-helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,14 +51,12 @@ interface ConnectionSectionProps {
   isAdmin: boolean;
 }
 
-const UNITS = [
-  { value: "Manchester", label: "Manchester" },
-  { value: "Trujillo", label: "Trujillo" },
-];
+// UNITS are now loaded dynamically from useCompanyUnits
 
 const webhookUrl = `https://rsezgnkfhodltrsewlhz.supabase.co/functions/v1/wapi-webhook`;
 
 export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
+  const { unitOptions: UNITS, isLoading: isLoadingUnits } = useCompanyUnits();
   const { allowedUnits, canViewAll, isLoading: isLoadingPermissions } = useUnitPermissions(userId);
   
   const [instances, setInstances] = useState<WapiInstance[]>([]);
@@ -892,7 +891,9 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
         instance.unit && allowedUnits.includes(instance.unit)
       );
 
-  if (isLoading || isLoadingPermissions) {
+  const isLoadingAll = isLoading || isLoadingPermissions || isLoadingUnits;
+
+  if (isLoadingAll) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
