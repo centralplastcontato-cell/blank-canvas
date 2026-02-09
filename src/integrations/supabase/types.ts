@@ -1111,6 +1111,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_company_branding_by_slug: {
+        Args: { _slug: string }
+        Returns: {
+          logo_url: string
+          name: string
+        }[]
+      }
       get_profiles_for_transfer: {
         Args: never
         Returns: {
