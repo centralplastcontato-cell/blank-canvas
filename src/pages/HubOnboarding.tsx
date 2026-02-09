@@ -3,7 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { HubLayout } from "@/components/hub/HubLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardList, Eye, Loader2, Copy, Building2, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { ClipboardList, Eye, Loader2, Copy, Building2, CheckCircle2, Clock, AlertCircle, Download, Pencil, Save, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import {
   Sheet,
@@ -13,6 +17,7 @@ import {
 } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import jsPDF from "jspdf";
 
 interface OnboardingRecord {
   id: string;
@@ -31,7 +36,6 @@ interface OnboardingRecord {
   main_goal: string | null;
   created_at: string;
   updated_at: string;
-  // All fields
   full_address: string | null;
   instagram: string | null;
   website: string | null;
@@ -97,8 +101,20 @@ function HubOnboardingContent() {
   const [companies, setCompanies] = useState<Record<string, CompanyInfo>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [selectedRecord, setSelectedRecord] = useState<OnboardingRecord | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+    checkAdmin();
+  }, []);
+
+  const checkAdmin = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase.rpc("is_admin", { _user_id: user.id });
+    setIsAdmin(!!data);
+  };
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -122,21 +138,47 @@ function HubOnboardingContent() {
     toast({ title: "Link copiado!", description: url });
   };
 
+  const handleRecordUpdated = (updated: OnboardingRecord) => {
+    setRecords(prev => prev.map(r => r.id === updated.id ? updated : r));
+    setSelectedRecord(updated);
+    setIsEditing(false);
+  };
+
   if (isLoading) {
     return <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
   }
 
   return (
     <>
-      {/* Detail Sheet */}
-      <Sheet open={!!selectedRecord} onOpenChange={(open) => !open && setSelectedRecord(null)}>
+      <Sheet open={!!selectedRecord} onOpenChange={(open) => { if (!open) { setSelectedRecord(null); setIsEditing(false); } }}>
         <SheetContent className="w-full sm:max-w-lg p-0">
           <SheetHeader className="p-4 border-b border-border">
-            <SheetTitle className="text-left">Detalhes do Onboarding</SheetTitle>
+            <div className="flex items-center justify-between">
+              <SheetTitle className="text-left">Detalhes do Onboarding</SheetTitle>
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => selectedRecord && exportToPDF(selectedRecord, companies[selectedRecord.company_id])} title="Exportar PDF">
+                  <Download className="h-4 w-4" />
+                </Button>
+                {isAdmin && !isEditing && (
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsEditing(true)} title="Editar">
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                )}
+                {isEditing && (
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsEditing(false)} title="Cancelar edição">
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
           </SheetHeader>
           {selectedRecord && (
             <ScrollArea className="h-[calc(100vh-80px)]">
-              <OnboardingDetail record={selectedRecord} company={companies[selectedRecord.company_id]} />
+              {isEditing ? (
+                <OnboardingEditForm record={selectedRecord} onSave={handleRecordUpdated} onCancel={() => setIsEditing(false)} />
+              ) : (
+                <OnboardingDetail record={selectedRecord} company={companies[selectedRecord.company_id]} />
+              )}
             </ScrollArea>
           )}
         </SheetContent>
@@ -209,6 +251,258 @@ function HubOnboardingContent() {
   );
 }
 
+// ======= PDF Export =======
+function exportToPDF(record: OnboardingRecord, company?: CompanyInfo) {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  let y = 20;
+
+  const addTitle = (text: string) => {
+    if (y > 260) { doc.addPage(); y = 20; }
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "bold");
+    doc.text(text, 14, y);
+    y += 8;
+  };
+
+  const addRow = (label: string, value: string | null | undefined) => {
+    if (!value) return;
+    if (y > 275) { doc.addPage(); y = 20; }
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${label}:`, 14, y);
+    doc.setFont("helvetica", "bold");
+    const lines = doc.splitTextToSize(value, pageWidth - 80);
+    doc.text(lines, 70, y);
+    y += 6 * Math.max(lines.length, 1);
+  };
+
+  // Header
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text("Onboarding - " + (record.buffet_name || company?.name || "Sem nome"), 14, y);
+  y += 6;
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Gerado em ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR")}`, 14, y);
+  y += 12;
+
+  addTitle("Identidade");
+  addRow("Nome", record.buffet_name);
+  addRow("Cidade", record.city);
+  addRow("Estado", record.state);
+  addRow("Endereço", record.full_address);
+  addRow("Instagram", record.instagram);
+  addRow("Site", record.website);
+  y += 4;
+
+  addTitle("Contato");
+  addRow("Nome", record.contact_name);
+  addRow("Cargo", record.contact_role);
+  addRow("Telefone", record.contact_phone);
+  addRow("E-mail", record.contact_email);
+  addRow("Contato secundário", record.secondary_contact);
+  y += 4;
+
+  addTitle("Operação");
+  addRow("Volume de leads", record.lead_volume);
+  addRow("Fontes", record.lead_sources?.join(", "));
+  addRow("Atendimento", record.current_service_method);
+  y += 4;
+
+  addTitle("Tráfego Pago");
+  addRow("Investe?", record.uses_paid_traffic ? "Sim" : "Não");
+  addRow("Investimento mensal", record.monthly_investment);
+  addRow("Custo por lead", record.cost_per_lead);
+  addRow("Agência", record.current_agency);
+  y += 4;
+
+  addTitle("WhatsApp");
+  addRow("Números", record.whatsapp_numbers?.filter(Boolean).join(", "));
+  addRow("Atendentes", record.attendants_count?.toString());
+  addRow("Horário", record.service_hours);
+  addRow("Múltiplas unidades", record.multiple_units ? "Sim" : "Não");
+  y += 4;
+
+  addTitle("Marca");
+  if (record.logo_url) addRow("Logo URL", record.logo_url);
+  if (record.photo_urls?.length) addRow("Fotos", `${record.photo_urls.length} enviada(s)`);
+  if (record.video_urls?.length) addRow("Vídeos", `${record.video_urls.length} enviado(s)`);
+  addRow("Observações visuais", record.brand_notes);
+  y += 4;
+
+  addTitle("Objetivos");
+  addRow("Principal objetivo", record.main_goal ? (GOAL_MAP[record.main_goal] || record.main_goal) : null);
+  addRow("Observações", record.additional_notes);
+
+  const fileName = `onboarding-${(record.buffet_name || "buffet").replace(/\s+/g, "-").toLowerCase()}.pdf`;
+  doc.save(fileName);
+  toast({ title: "PDF exportado!", description: fileName });
+}
+
+// ======= Edit Form =======
+function OnboardingEditForm({ record, onSave, onCancel }: { record: OnboardingRecord; onSave: (r: OnboardingRecord) => void; onCancel: () => void }) {
+  const [form, setForm] = useState({ ...record });
+  const [isSaving, setIsSaving] = useState(false);
+
+  const update = (field: keyof OnboardingRecord, value: string | boolean | number | null) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    const { error } = await supabase
+      .from("company_onboarding")
+      .update({
+        buffet_name: form.buffet_name,
+        city: form.city,
+        state: form.state,
+        full_address: form.full_address,
+        instagram: form.instagram,
+        website: form.website,
+        contact_name: form.contact_name,
+        contact_role: form.contact_role,
+        contact_phone: form.contact_phone,
+        contact_email: form.contact_email,
+        secondary_contact: form.secondary_contact,
+        lead_volume: form.lead_volume,
+        lead_sources: form.lead_sources,
+        current_service_method: form.current_service_method,
+        uses_paid_traffic: form.uses_paid_traffic,
+        monthly_investment: form.monthly_investment,
+        cost_per_lead: form.cost_per_lead,
+        current_agency: form.current_agency,
+        whatsapp_numbers: form.whatsapp_numbers,
+        attendants_count: form.attendants_count,
+        service_hours: form.service_hours,
+        multiple_units: form.multiple_units,
+        brand_notes: form.brand_notes,
+        main_goal: form.main_goal,
+        additional_notes: form.additional_notes,
+      })
+      .eq("id", record.id);
+
+    setIsSaving(false);
+    if (error) {
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Salvo com sucesso!" });
+      onSave(form as OnboardingRecord);
+    }
+  };
+
+  const Field = ({ label, field, type = "text" }: { label: string; field: keyof OnboardingRecord; type?: string }) => (
+    <div className="space-y-1">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Input
+        value={(form[field] as string) ?? ""}
+        onChange={(e) => update(field, e.target.value || null)}
+        type={type}
+        className="h-9 text-sm"
+      />
+    </div>
+  );
+
+  const TextareaField = ({ label, field }: { label: string; field: keyof OnboardingRecord }) => (
+    <div className="space-y-1">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Textarea
+        value={(form[field] as string) ?? ""}
+        onChange={(e) => update(field, e.target.value || null)}
+        className="text-sm min-h-[60px]"
+      />
+    </div>
+  );
+
+  const SwitchField = ({ label, field }: { label: string; field: keyof OnboardingRecord }) => (
+    <div className="flex items-center justify-between">
+      <Label className="text-sm text-muted-foreground">{label}</Label>
+      <Switch checked={!!form[field]} onCheckedChange={(v) => update(field, v)} />
+    </div>
+  );
+
+  const ArrayField = ({ label, field }: { label: string; field: keyof OnboardingRecord }) => (
+    <div className="space-y-1">
+      <Label className="text-xs text-muted-foreground">{label} (separados por vírgula)</Label>
+      <Input
+        value={((form[field] as string[] | null) ?? []).join(", ")}
+        onChange={(e) => update(field, e.target.value.split(",").map(s => s.trim()).filter(Boolean) as never)}
+        className="h-9 text-sm"
+      />
+    </div>
+  );
+
+  const SectionTitle = ({ title }: { title: string }) => (
+    <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider pt-2">{title}</h3>
+  );
+
+  return (
+    <div className="p-4 space-y-4">
+      <SectionTitle title="🏰 Identidade" />
+      <Field label="Nome do Buffet" field="buffet_name" />
+      <Field label="Cidade" field="city" />
+      <Field label="Estado" field="state" />
+      <Field label="Endereço completo" field="full_address" />
+      <Field label="Instagram" field="instagram" />
+      <Field label="Site" field="website" />
+
+      <Separator />
+      <SectionTitle title="👤 Contato" />
+      <Field label="Nome" field="contact_name" />
+      <Field label="Cargo" field="contact_role" />
+      <Field label="Telefone" field="contact_phone" />
+      <Field label="E-mail" field="contact_email" type="email" />
+      <Field label="Contato secundário" field="secondary_contact" />
+
+      <Separator />
+      <SectionTitle title="📊 Operação" />
+      <Field label="Volume de leads" field="lead_volume" />
+      <ArrayField label="Fontes de leads" field="lead_sources" />
+      <Field label="Método de atendimento" field="current_service_method" />
+
+      <Separator />
+      <SectionTitle title="📢 Tráfego Pago" />
+      <SwitchField label="Investe em tráfego pago?" field="uses_paid_traffic" />
+      <Field label="Investimento mensal" field="monthly_investment" />
+      <Field label="Custo por lead" field="cost_per_lead" />
+      <Field label="Agência" field="current_agency" />
+
+      <Separator />
+      <SectionTitle title="💬 WhatsApp" />
+      <ArrayField label="Números de WhatsApp" field="whatsapp_numbers" />
+      <div className="space-y-1">
+        <Label className="text-xs text-muted-foreground">Atendentes</Label>
+        <Input
+          type="number"
+          value={form.attendants_count ?? ""}
+          onChange={(e) => update("attendants_count", e.target.value ? parseInt(e.target.value) : null)}
+          className="h-9 text-sm"
+        />
+      </div>
+      <Field label="Horário de atendimento" field="service_hours" />
+      <SwitchField label="Múltiplas unidades?" field="multiple_units" />
+
+      <Separator />
+      <SectionTitle title="🎨 Marca" />
+      <TextareaField label="Observações visuais" field="brand_notes" />
+
+      <Separator />
+      <SectionTitle title="🎯 Objetivos" />
+      <Field label="Principal objetivo" field="main_goal" />
+      <TextareaField label="Observações gerais" field="additional_notes" />
+
+      <div className="flex gap-2 pt-4 pb-8 sticky bottom-0 bg-background">
+        <Button className="flex-1" onClick={handleSave} disabled={isSaving}>
+          {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+          Salvar alterações
+        </Button>
+        <Button variant="outline" onClick={onCancel}>Cancelar</Button>
+      </div>
+    </div>
+  );
+}
+
+// ======= Detail View =======
 function OnboardingDetail({ record }: { record: OnboardingRecord; company?: CompanyInfo }) {
   const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
     <div className="space-y-2">
