@@ -20,6 +20,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Button } from "@/components/ui/button";
 
 import logoCastelo from "@/assets/logo-castelo.png";
+import { CompanySwitcher } from "./CompanySwitcher";
 
 interface AdminSidebarProps {
   canManageUsers: boolean;
@@ -154,6 +155,11 @@ export function AdminSidebar({
       </SidebarHeader>
 
       <SidebarContent>
+        {/* Company Switcher */}
+        <div className="px-2 pt-1">
+          <CompanySwitcher collapsed={collapsed} />
+        </div>
+
         <SidebarGroup>
           {!collapsed && <SidebarGroupLabel className="text-sidebar-foreground/50 text-xs uppercase tracking-wider">Navegação</SidebarGroupLabel>}
           <SidebarGroupContent>
