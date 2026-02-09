@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { insertWithCompany } from "@/lib/supabase-helpers";
 import { Lead, UserWithRole, LEAD_STATUS_LABELS } from "@/types/crm";
@@ -44,11 +44,85 @@ export function TransferLeadDialog({
 }: TransferLeadDialogProps) {
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [isTransferring, setIsTransferring] = useState(false);
+  const [filteredByUnit, setFilteredByUnit] = useState<UserWithRole[]>([]);
+  const [isLoadingPerms, setIsLoadingPerms] = useState(false);
 
-  // Filter out current user and the lead's current responsavel
-  const availableUsers = responsaveis.filter(
-    (r) => r.user_id !== currentUserId && r.user_id !== lead?.responsavel_id
-  );
+  // Filter users by unit permissions when the dialog opens
+  useEffect(() => {
+    if (!isOpen || !lead) {
+      setFilteredByUnit([]);
+      return;
+    }
+
+    const filterByUnit = async () => {
+      const candidates = responsaveis.filter(
+        (r) => r.user_id !== currentUserId && r.user_id !== lead.responsavel_id
+      );
+
+      const leadUnit = lead.unit; // e.g. "Manchester", "Trujillo", "As duas"
+
+      if (!leadUnit) {
+        // No unit on lead, show all candidates
+        setFilteredByUnit(candidates);
+        return;
+      }
+
+      setIsLoadingPerms(true);
+      try {
+        // Fetch unit permissions for all candidate users
+        const candidateIds = candidates.map((c) => c.user_id);
+        if (candidateIds.length === 0) {
+          setFilteredByUnit([]);
+          return;
+        }
+
+        const { data: permissions } = await supabase
+          .from("user_permissions")
+          .select("user_id, permission, granted")
+          .in("user_id", candidateIds)
+          .in("permission", [
+            "leads.unit.all",
+            "leads.unit.manchester",
+            "leads.unit.trujillo",
+          ]);
+
+        const result = candidates.filter((user) => {
+          const userPerms = permissions?.filter((p) => p.user_id === user.user_id) || [];
+          const permMap = new Map(userPerms.map((p) => [p.permission, p.granted]));
+
+          // If user has "all" permission, they can see any unit
+          const hasAll = permMap.get("leads.unit.all");
+          if (hasAll === true) return true;
+
+          // If no unit permissions set at all, default is "all" (same as useUnitPermissions)
+          if (userPerms.length === 0) return true;
+
+          // Check specific unit permission
+          const unitLower = leadUnit.toLowerCase();
+          if (unitLower === "manchester" || unitLower === "as duas") {
+            if (permMap.get("leads.unit.manchester") === true) return true;
+          }
+          if (unitLower === "trujillo" || unitLower === "as duas") {
+            if (permMap.get("leads.unit.trujillo") === true) return true;
+          }
+
+          return false;
+        });
+
+        setFilteredByUnit(result);
+      } catch (err) {
+        console.error("Error filtering users by unit:", err);
+        // Fallback: show all candidates
+        setFilteredByUnit(candidates);
+      } finally {
+        setIsLoadingPerms(false);
+      }
+    };
+
+    filterByUnit();
+  }, [isOpen, lead, responsaveis, currentUserId]);
+
+  const availableUsers = filteredByUnit;
 
   const handleTransfer = async () => {
     if (!lead || !selectedUserId) return;
