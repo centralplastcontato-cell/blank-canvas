@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Company } from "@/types/company";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2 } from "lucide-react";
+import { Loader2, Upload, X, Image } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 interface CompanyFormDialogProps {
   open: boolean;
@@ -36,6 +38,8 @@ export function CompanyFormDialog({ open, onOpenChange, company, onSubmit }: Com
   const [logoUrl, setLogoUrl] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const isEditing = !!company;
 
   useEffect(() => {
@@ -56,6 +60,45 @@ export function CompanyFormDialog({ open, onOpenChange, company, onSubmit }: Com
     setName(value);
     if (!isEditing) {
       setSlug(slugify(value));
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Arquivo inválido", description: "Selecione uma imagem (PNG, JPG, etc).", variant: "destructive" });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Arquivo muito grande", description: "Máximo 5MB.", variant: "destructive" });
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const ext = file.name.split(".").pop() || "png";
+      const fileName = `${slug || slugify(name) || "logo"}-${Date.now()}.${ext}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from("company-logos")
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("company-logos")
+        .getPublicUrl(fileName);
+
+      setLogoUrl(urlData.publicUrl);
+      toast({ title: "Logo enviado com sucesso" });
+    } catch (err: any) {
+      toast({ title: "Erro ao enviar", description: err.message, variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -99,16 +142,63 @@ export function CompanyFormDialog({ open, onOpenChange, company, onSubmit }: Com
               onChange={(e) => setSlug(e.target.value)}
               placeholder="ex: castelo-da-diversao"
             />
+            {slug && (
+              <p className="text-xs text-muted-foreground">
+                Login: <code className="bg-muted px-1 py-0.5 rounded">/auth/{slug}</code>
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="company-logo">URL do logo (opcional)</Label>
-            <Input
-              id="company-logo"
-              value={logoUrl}
-              onChange={(e) => setLogoUrl(e.target.value)}
-              placeholder="https://..."
-            />
+            <Label>Logo da empresa</Label>
+            <div className="flex items-center gap-3">
+              {logoUrl ? (
+                <div className="relative h-16 w-16 rounded-lg border bg-muted flex items-center justify-center overflow-hidden shrink-0">
+                  <img src={logoUrl} alt="Logo" className="h-full w-full object-contain p-1" />
+                  <button
+                    type="button"
+                    onClick={() => setLogoUrl("")}
+                    className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ) : (
+                <div className="h-16 w-16 rounded-lg border border-dashed bg-muted/50 flex items-center justify-center shrink-0">
+                  <Image className="h-6 w-6 text-muted-foreground/40" />
+                </div>
+              )}
+              <div className="flex-1 space-y-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileUpload}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                >
+                  {isUploading ? (
+                    <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4 mr-1.5" />
+                  )}
+                  {isUploading ? "Enviando..." : "Enviar Logo"}
+                </Button>
+                <Input
+                  value={logoUrl}
+                  onChange={(e) => setLogoUrl(e.target.value)}
+                  placeholder="Ou cole a URL do logo"
+                  className="text-xs h-8"
+                />
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center justify-between">
