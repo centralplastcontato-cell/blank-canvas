@@ -1341,7 +1341,85 @@ async function processWebhookEvent(body: Record<string, unknown>) {
       if (mId && ns !== 'unknown') await supabase.from('wapi_messages').update({ status: ns }).eq('message_id', mId);
       break;
     }
-    default: console.log('Unhandled event:', evt);
+    default: {
+      // Log the full body for unknown events to help debug
+      console.log('Unhandled event:', evt);
+      
+      // Try to extract message from unknown events - W-API sometimes sends messages with different event names
+      const unknownMsg = (data as Record<string, unknown>)?.message || data || body;
+      const unknownMc = (unknownMsg as Record<string, unknown>)?.message || (unknownMsg as Record<string, unknown>)?.msgContent || {};
+      const unknownFromMe = (unknownMsg as Record<string, unknown>)?.key?.fromMe || (unknownMsg as Record<string, unknown>)?.fromMe || false;
+      
+      // If this looks like a message we haven't handled, log details
+      if (unknownFromMe || (unknownMsg as Record<string, unknown>)?.key?.id || (unknownMsg as Record<string, unknown>)?.messageId) {
+        const msgId = (unknownMsg as Record<string, unknown>)?.key?.id || (unknownMsg as Record<string, unknown>)?.messageId;
+        const rj = (unknownMsg as Record<string, unknown>)?.key?.remoteJid || (unknownMsg as Record<string, unknown>)?.from || (unknownMsg as Record<string, unknown>)?.remoteJid;
+        console.log(`[Unknown event with message data] fromMe: ${unknownFromMe}, msgId: ${msgId}, remoteJid: ${rj}`);
+        
+        // If it's a fromMe message we haven't seen, process it like a regular message
+        if (unknownFromMe && msgId && rj) {
+          let jid = rj as string;
+          if (!jid.includes('@')) jid = `${jid}@s.whatsapp.net`;
+          else if (jid.includes('@c.us')) jid = jid.replace('@c.us', '@s.whatsapp.net');
+          
+          const phone = jid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@g.us', '').replace('@lid', '');
+          const isGrp = jid.includes('@g.us');
+          
+          // Skip group messages
+          if (!isGrp) {
+            const { data: existingConv } = await supabase.from('wapi_conversations').select('*').eq('instance_id', instance.id).eq('remote_jid', jid).single();
+            
+            if (existingConv) {
+              // Check if message already exists
+              const { data: existingMsg } = await supabase.from('wapi_messages').select('id').eq('message_id', msgId).single();
+              
+              if (!existingMsg) {
+                // Extract content from unknown message
+                let content = '';
+                let type = 'text';
+                let mediaUrl = null;
+                
+                if ((unknownMc as Record<string, unknown>).conversation) content = (unknownMc as Record<string, string>).conversation;
+                else if ((unknownMc as Record<string, unknown>).extendedTextMessage?.text) content = ((unknownMc as Record<string, unknown>).extendedTextMessage as Record<string, unknown>).text as string;
+                else if ((unknownMc as Record<string, unknown>).imageMessage) { type = 'image'; content = ((unknownMc as Record<string, unknown>).imageMessage as Record<string, unknown>).caption as string || '[Imagem]'; mediaUrl = ((unknownMc as Record<string, unknown>).imageMessage as Record<string, unknown>).url as string; }
+                else if ((unknownMc as Record<string, unknown>).documentMessage) { type = 'document'; content = ((unknownMc as Record<string, unknown>).documentMessage as Record<string, unknown>).fileName as string || '[Documento]'; mediaUrl = ((unknownMc as Record<string, unknown>).documentMessage as Record<string, unknown>).url as string; }
+                else if ((unknownMc as Record<string, unknown>).videoMessage) { type = 'video'; content = ((unknownMc as Record<string, unknown>).videoMessage as Record<string, unknown>).caption as string || '[Vídeo]'; mediaUrl = ((unknownMc as Record<string, unknown>).videoMessage as Record<string, unknown>).url as string; }
+                else if ((unknownMc as Record<string, unknown>).audioMessage) { type = 'audio'; content = '[Áudio]'; mediaUrl = ((unknownMc as Record<string, unknown>).audioMessage as Record<string, unknown>).url as string; }
+                else if ((unknownMsg as Record<string, string>).body) content = (unknownMsg as Record<string, string>).body;
+                else if ((unknownMsg as Record<string, string>).text) content = (unknownMsg as Record<string, string>).text;
+                
+                if (content) {
+                  console.log(`[Unknown event] Saving fromMe message: ${content.substring(0, 50)}...`);
+                  
+                  await supabase.from('wapi_messages').insert({
+                    conversation_id: existingConv.id,
+                    message_id: msgId,
+                    from_me: true,
+                    message_type: type,
+                    content,
+                    media_url: mediaUrl,
+                    status: 'sent',
+                    timestamp: (unknownMsg as Record<string, unknown>).messageTimestamp 
+                      ? new Date(((unknownMsg as Record<string, unknown>).messageTimestamp as number) * 1000).toISOString() 
+                      : new Date().toISOString()
+                  });
+                  
+                  // Update conversation
+                  await supabase.from('wapi_conversations').update({
+                    last_message_at: new Date().toISOString(),
+                    last_message_content: content.substring(0, 100),
+                    last_message_from_me: true,
+                    ...(existingConv.bot_step && existingConv.bot_step !== 'complete' ? { bot_enabled: false } : {})
+                  }).eq('id', existingConv.id);
+                  
+                  console.log(`[Unknown event] Message saved successfully`);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }
 
