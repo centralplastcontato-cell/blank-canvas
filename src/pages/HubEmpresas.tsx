@@ -7,7 +7,7 @@ import { CompanyMembersSheet } from "@/components/admin/CompanyMembersSheet";
 import { CreateCompanyAdminDialog } from "@/components/hub/CreateCompanyAdminDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Plus, Pencil, Users, Loader2, UserPlus, Link2, Copy, ClipboardList, MessageSquare, BarChart3, Clock, CheckCircle2, AlertCircle, Globe, AlertTriangle } from "lucide-react";
+import { Building2, Plus, Pencil, Users, Loader2, UserPlus, Link2, Copy, ClipboardList, MessageSquare, BarChart3, Clock, CheckCircle2, AlertCircle, Globe, AlertTriangle, ExternalLink } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -229,28 +229,52 @@ function HubEmpresasContent() {
                     )}
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => copyLink(`/auth/${child.slug}`, "Link de login")}
-                      className="flex items-center gap-2 p-2.5 rounded-lg border border-border bg-muted/30 hover:bg-muted/60 transition-colors text-left group"
-                    >
+                    <div className="flex items-center gap-2 p-2.5 rounded-lg border border-border bg-muted/30 text-left group">
                       <Link2 className="h-4 w-4 text-primary shrink-0" />
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-medium text-foreground">Login</p>
                         <p className="text-[10px] text-muted-foreground truncate">/auth/{child.slug}</p>
                       </div>
-                      <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                    </button>
-                    <button
-                      onClick={() => copyLink(`/onboarding/${child.slug}`, "Link de onboarding")}
-                      className="flex items-center gap-2 p-2.5 rounded-lg border border-border bg-muted/30 hover:bg-muted/60 transition-colors text-left group"
-                    >
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => window.open(`${baseUrl}/auth/${child.slug}`, '_blank')}
+                          className="p-1 rounded hover:bg-muted transition-colors"
+                          title="Abrir link"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5 text-primary" />
+                        </button>
+                        <button
+                          onClick={() => copyLink(`/auth/${child.slug}`, "Link de login")}
+                          className="p-1 rounded hover:bg-muted transition-colors"
+                          title="Copiar link"
+                        >
+                          <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 p-2.5 rounded-lg border border-border bg-muted/30 text-left group">
                       <ClipboardList className="h-4 w-4 text-accent shrink-0" />
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-medium text-foreground">Onboarding</p>
                         <p className="text-[10px] text-muted-foreground truncate">/onboarding/{child.slug}</p>
                       </div>
-                      <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                    </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => window.open(`${baseUrl}/onboarding/${child.slug}`, '_blank')}
+                          className="p-1 rounded hover:bg-muted transition-colors"
+                          title="Abrir link"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5 text-primary" />
+                        </button>
+                        <button
+                          onClick={() => copyLink(`/onboarding/${child.slug}`, "Link de onboarding")}
+                          className="p-1 rounded hover:bg-muted transition-colors"
+                          title="Copiar link"
+                        >
+                          <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
