@@ -5,7 +5,8 @@ import {
   Users, 
   RefreshCw, 
   LogOut, 
-  Presentation 
+  Presentation,
+  Building2 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -84,6 +85,13 @@ export function MobileMenu({
       label: "Gerenciar Usuários",
       icon: Users,
       path: "/users",
+      show: canManageUsers,
+    },
+    {
+      id: "empresas",
+      label: "Empresas",
+      icon: Building2,
+      path: "/empresas",
       show: canManageUsers,
     },
   ];
