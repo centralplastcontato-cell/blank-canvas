@@ -1,0 +1,1 @@
+UPDATE public.companies SET parent_id = 'b0000000-0000-0000-0000-000000000001' WHERE id = 'a58b5ab9-aa14-4107-8fd0-4e5fe3662656' AND parent_id IS NULL;
