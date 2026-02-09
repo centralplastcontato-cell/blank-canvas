@@ -730,63 +730,61 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
   // Track if we need to force scroll on next render (for initial load)
   const pendingInitialScrollRef = useRef(false);
   
+  // Force scroll to bottom with multiple retries
+  const forceScrollToBottom = useCallback(() => {
+    const executeScroll = () => {
+      const desktopViewport = scrollAreaDesktopRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+      const mobileViewport = scrollAreaMobileRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+      const viewport = desktopViewport || mobileViewport;
+      
+      if (viewport) {
+        (viewport as HTMLElement).scrollTop = (viewport as HTMLElement).scrollHeight;
+        return true;
+      }
+      return false;
+    };
+    
+    // Execute with multiple timing strategies
+    executeScroll();
+    requestAnimationFrame(executeScroll);
+    setTimeout(executeScroll, 50);
+    setTimeout(executeScroll, 150);
+    setTimeout(executeScroll, 300);
+  }, []);
+  
   useEffect(() => {
     const messagesLength = messages.length;
     const lastMessage = messages[messagesLength - 1];
     const isNewMessage = messagesLength > prevMessagesLengthRef.current;
     const isFromMe = lastMessage?.from_me;
     
-    // On initial load with messages, set pending scroll flag
-    if (isInitialLoad && messagesLength > 0) {
+    // On initial load with messages, scroll to bottom
+    if (isInitialLoad && messagesLength > 0 && !pendingInitialScrollRef.current) {
       pendingInitialScrollRef.current = true;
+      forceScrollToBottom();
     }
     
-    // Execute pending scroll with aggressive timing
-    if (pendingInitialScrollRef.current && messagesLength > 0) {
-      const executeScroll = () => {
-        const desktopViewport = scrollAreaDesktopRef.current?.querySelector('[data-radix-scroll-area-viewport]');
-        const mobileViewport = scrollAreaMobileRef.current?.querySelector('[data-radix-scroll-area-viewport]');
-        const viewport = desktopViewport || mobileViewport;
-        
-        if (viewport) {
-          viewport.scrollTop = viewport.scrollHeight;
-          return true;
-        }
-        return false;
-      };
-      
-      // Execute immediately
-      executeScroll();
-      
-      // Faster timing for initial scroll
-      requestAnimationFrame(executeScroll);
-      setTimeout(() => {
-        executeScroll();
-        pendingInitialScrollRef.current = false;
-      }, 100);
-    }
-    
-    // Handle new messages (not initial load) - INSTANT scroll for new messages
+    // Handle new messages (not initial load) - scroll for my messages or if at bottom
     const shouldScrollForNewMessage = (
       !isInitialLoad && 
       isNewMessage && 
-      (isFromMe || isAtBottom) // Scroll for my messages or if already at bottom
+      (isFromMe || isAtBottom)
     );
     
     if (shouldScrollForNewMessage) {
-      const desktopViewport = scrollAreaDesktopRef.current?.querySelector('[data-radix-scroll-area-viewport]');
-      const mobileViewport = scrollAreaMobileRef.current?.querySelector('[data-radix-scroll-area-viewport]');
-      const viewport = desktopViewport || mobileViewport;
-      
-      if (viewport) {
-        // Instant scroll for speed - no animation delay
-        viewport.scrollTop = viewport.scrollHeight;
-      }
+      forceScrollToBottom();
     }
     
     prevMessagesLengthRef.current = messagesLength;
     lastMessageFromMeRef.current = isFromMe || false;
-  }, [messages, isInitialLoad]);
+  }, [messages, isInitialLoad, isAtBottom, forceScrollToBottom]);
+  
+  // Reset pending scroll when initial load ends
+  useEffect(() => {
+    if (!isInitialLoad) {
+      pendingInitialScrollRef.current = false;
+    }
+  }, [isInitialLoad]);
   
   // Track if user has manually scrolled (to prevent auto-loading on initial load)
   const canLoadMoreRef = useRef(false);
