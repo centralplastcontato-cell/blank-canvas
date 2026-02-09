@@ -25,7 +25,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import {
   Smartphone, Wifi, WifiOff, RefreshCw, Plus, Building2,
-  Phone, MessageSquare, Loader2, BarChart3, QrCode
+  Phone, MessageSquare, Loader2, BarChart3, QrCode, Power
 } from "lucide-react";
 import { useWhatsAppConnection } from "@/hooks/useWhatsAppConnection";
 import { ConnectionDialog } from "@/components/whatsapp/ConnectionDialog";
@@ -83,7 +83,36 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
     companyId: "",
   });
 
+  const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
+
   const connection = useWhatsAppConnection(() => fetchData());
+
+  const handleDisconnect = async (inst: HubInstance) => {
+    if (!confirm(`Deseja desconectar o WhatsApp da unidade ${inst.unit}?`)) return;
+    setDisconnectingId(inst.id);
+    try {
+      const res = await supabase.functions.invoke("wapi-send", {
+        body: {
+          action: "disconnect",
+          instanceId: inst.instance_id,
+          instanceToken: inst.instance_token,
+        },
+      });
+      if (res.data?.success) {
+        await supabase.from("wapi_instances").update({
+          status: "disconnected",
+          connected_at: null,
+        }).eq("id", inst.id);
+        toast({ title: "Desconectado", description: `Instância ${inst.unit} desconectada com sucesso.` });
+        fetchData();
+      } else {
+        toast({ title: "Erro", description: res.data?.error || "Não foi possível desconectar.", variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message || "Erro ao desconectar.", variant: "destructive" });
+    }
+    setDisconnectingId(null);
+  };
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -321,7 +350,7 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
                               {inst.credits_available || 0} créditos
                             </span>
                           </div>
-                          {inst.status !== "connected" && (
+                          {inst.status !== "connected" ? (
                             <Button
                               size="sm"
                               variant="outline"
@@ -329,6 +358,20 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
                             >
                               <QrCode className="h-3.5 w-3.5 mr-1.5" />
                               Conectar
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => handleDisconnect(inst)}
+                              disabled={disconnectingId === inst.id}
+                            >
+                              {disconnectingId === inst.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Power className="h-3.5 w-3.5" />
+                              )}
                             </Button>
                           )}
                         </div>

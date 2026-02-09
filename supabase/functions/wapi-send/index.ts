@@ -942,6 +942,55 @@ Deno.serve(async (req) => {
         });
       }
 
+      case 'disconnect': {
+        try {
+          // Try logout endpoint
+          const logoutRes = await fetch(
+            `${WAPI_BASE_URL}/instance/logout?instanceId=${instance_id}`,
+            { 
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${instance_token}` },
+            }
+          );
+          
+          console.log('disconnect logout response:', logoutRes.status);
+          
+          if (logoutRes.ok) {
+            const data = await logoutRes.json().catch(() => ({}));
+            console.log('disconnect logout data:', JSON.stringify(data));
+            return new Response(JSON.stringify({ success: true, message: 'Desconectado com sucesso' }), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          
+          // Fallback: try POST method
+          const postRes = await fetch(
+            `${WAPI_BASE_URL}/instance/logout?instanceId=${instance_id}`,
+            { 
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${instance_token}`, 'Content-Type': 'application/json' },
+            }
+          );
+          
+          console.log('disconnect POST logout response:', postRes.status);
+          
+          if (postRes.ok) {
+            return new Response(JSON.stringify({ success: true, message: 'Desconectado com sucesso' }), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          
+          return new Response(JSON.stringify({ error: 'Não foi possível desconectar a instância' }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        } catch (e) {
+          console.error('disconnect error:', e);
+          return new Response(JSON.stringify({ error: e instanceof Error ? e.message : 'Erro ao desconectar' }), {
+            status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
+
       default:
         return new Response(JSON.stringify({ error: `Ação desconhecida: ${action}` }), {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
