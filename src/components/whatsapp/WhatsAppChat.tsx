@@ -1790,11 +1790,16 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
           throw new Error(uploadError.message);
         }
 
-        const { data: urlData } = supabase.storage
+        // Use signed URL since bucket is private
+        const { data: signedData, error: signedError } = await supabase.storage
           .from('whatsapp-media')
-          .getPublicUrl(fileName);
+          .createSignedUrl(fileName, 3600); // 1 hour expiry
 
-        const mediaUrl = urlData.publicUrl;
+        if (signedError || !signedData?.signedUrl) {
+          throw new Error('Falha ao gerar URL do documento');
+        }
+
+        const mediaUrl = signedData.signedUrl;
 
         const response = await supabase.functions.invoke("wapi-send", {
           body: {
@@ -1828,11 +1833,16 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
           throw new Error(uploadError.message);
         }
 
-        const { data: urlData } = supabase.storage
+        // Use signed URL since bucket is private
+        const { data: signedData, error: signedError } = await supabase.storage
           .from('whatsapp-media')
-          .getPublicUrl(fileName);
+          .createSignedUrl(fileName, 3600); // 1 hour expiry
 
-        const mediaUrl = urlData.publicUrl;
+        if (signedError || !signedData?.signedUrl) {
+          throw new Error('Falha ao gerar URL do vídeo');
+        }
+
+        const mediaUrl = signedData.signedUrl;
 
         const response = await supabase.functions.invoke("wapi-send", {
           body: {
