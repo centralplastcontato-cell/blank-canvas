@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, Check, Trash2, UserPlus, ArrowRightLeft, Crown, CalendarCheck } from "lucide-react";
+import { Bell, Check, Trash2, UserPlus, ArrowRightLeft, Crown, CalendarCheck, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -245,6 +245,22 @@ export function NotificationBell() {
                             </span>
                           )}
                         </div>
+                        
+                        {/* Quick action: Open WhatsApp externally */}
+                        {notification.data && typeof notification.data === "object" && "contact_phone" in notification.data && notification.data.contact_phone && (
+                          <div className="flex items-center gap-1.5 mt-2">
+                            <a
+                              href={`https://wa.me/${String(notification.data.contact_phone).replace(/\D/g, '').startsWith('55') ? String(notification.data.contact_phone).replace(/\D/g, '') : `55${String(notification.data.contact_phone).replace(/\D/g, '')}`}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-medium text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/40 hover:bg-green-200 dark:hover:bg-green-900/60 px-2 py-1 rounded-md transition-colors border border-green-200/50 dark:border-green-700/50"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              Abrir WhatsApp
+                            </a>
+                          </div>
+                        )}
                       </div>
                       
                       {/* Delete button */}
