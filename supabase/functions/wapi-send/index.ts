@@ -120,6 +120,17 @@ Deno.serve(async (req) => {
 
     console.log('wapi-send:', action, phone ? `phone:${phone}` : '', 'instance:', instance_id);
 
+    // Resolve company_id from conversation for message inserts
+    let companyId: string | null = null;
+    if (conversationId) {
+      const { data: convData } = await supabase
+        .from('wapi_conversations')
+        .select('company_id')
+        .eq('id', conversationId)
+        .single();
+      companyId = convData?.company_id || null;
+    }
+
     switch (action) {
       case 'send-text': {
         console.log('send-text: sending message to', phone);
@@ -151,6 +162,7 @@ Deno.serve(async (req) => {
             content: message,
             status: 'sent',
             timestamp: new Date().toISOString(),
+            company_id: companyId,
           });
           await supabase.from('wapi_conversations').update({ 
             last_message_at: new Date().toISOString(),
@@ -222,6 +234,7 @@ Deno.serve(async (req) => {
             media_url: mediaUrl || null,
             status: 'sent',
             timestamp: new Date().toISOString(),
+            company_id: companyId,
           });
           await supabase.from('wapi_conversations').update({ 
             last_message_at: new Date().toISOString(),
@@ -276,6 +289,7 @@ Deno.serve(async (req) => {
             media_url: audioMediaUrl || null,
             status: 'sent',
             timestamp: new Date().toISOString(),
+            company_id: companyId,
           });
           await supabase.from('wapi_conversations').update({ 
             last_message_at: new Date().toISOString(),
@@ -326,6 +340,7 @@ Deno.serve(async (req) => {
             media_url: docUrl,
             status: 'sent',
             timestamp: new Date().toISOString(),
+            company_id: companyId,
           });
           await supabase.from('wapi_conversations').update({ 
             last_message_at: new Date().toISOString(),
@@ -373,6 +388,7 @@ Deno.serve(async (req) => {
             media_url: videoUrl,
             status: 'sent',
             timestamp: new Date().toISOString(),
+            company_id: companyId,
           });
           await supabase.from('wapi_conversations').update({ 
             last_message_at: new Date().toISOString(),
