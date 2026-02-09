@@ -273,6 +273,28 @@ export default function Admin() {
     fetchLeads();
   }, [filters, refreshKey, role, canViewAll, allowedUnits, isLoadingUnitPerms]);
 
+  // Realtime subscription for campaign_leads (auto-refresh on INSERT/UPDATE/DELETE)
+  useEffect(() => {
+    if (!role) return;
+
+    const channel = supabase
+      .channel('campaign_leads_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'campaign_leads' },
+        (payload) => {
+          console.log('Lead realtime event:', payload.eventType);
+          // Trigger a refresh to update both table and kanban
+          setRefreshKey((prev) => prev + 1);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [role]);
+
   // Handle lead ID from URL parameters (deep linking from WhatsApp)
   useEffect(() => {
     const leadId = searchParams.get('lead');
