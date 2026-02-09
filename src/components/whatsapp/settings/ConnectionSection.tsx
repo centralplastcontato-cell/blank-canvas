@@ -53,7 +53,7 @@ const UNITS = [
   { value: "Trujillo", label: "Trujillo" },
 ];
 
-const webhookUrl = `https://knyzkwgdmclcwvzhdmyk.supabase.co/functions/v1/wapi-webhook`;
+const webhookUrl = `https://rsezgnkfhodltrsewlhz.supabase.co/functions/v1/wapi-webhook`;
 
 export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
   const [instances, setInstances] = useState<WapiInstance[]>([]);
@@ -95,52 +95,64 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
       .select("*")
       .order("unit", { ascending: true });
 
-    if (data && data.length > 0) {
-      const syncedInstances = await Promise.all(
-        data.map(async (instance) => {
-          try {
-            const response = await supabase.functions.invoke("wapi-send", {
-              body: { 
-                action: "get-status",
-                instanceId: instance.instance_id,
-                instanceToken: instance.instance_token,
-              },
-            });
+    if (data) {
+      // Load instances immediately from DB without waiting for status sync
+      setInstances(data as WapiInstance[]);
+      setIsLoading(false);
+      
+      // Sync status in background (non-blocking) if there are instances
+      if (data.length > 0) {
+        syncInstancesInBackground(data as WapiInstance[]);
+      }
+    } else {
+      setIsLoading(false);
+    }
+  };
 
-            const wapiStatus = response.data?.status;
-            const wapiPhone = response.data?.phoneNumber || response.data?.phone;
+  // Background sync without blocking the UI
+  const syncInstancesInBackground = async (instancesList: WapiInstance[]) => {
+    const updates = await Promise.all(
+      instancesList.map(async (instance) => {
+        try {
+          const response = await supabase.functions.invoke("wapi-send", {
+            body: { 
+              action: "get-status",
+              instanceId: instance.instance_id,
+              instanceToken: instance.instance_token,
+            },
+          });
 
-            if (wapiStatus && wapiStatus !== instance.status) {
-              const updateData: Record<string, unknown> = { status: wapiStatus };
-              
-              if (wapiStatus === 'connected' && wapiPhone) {
-                updateData.phone_number = wapiPhone;
-                updateData.connected_at = new Date().toISOString();
-              } else if (wapiStatus === 'disconnected') {
-                updateData.connected_at = null;
-              }
+          const wapiStatus = response.data?.status;
+          const wapiPhone = response.data?.phoneNumber || response.data?.phone;
 
-              await supabase
-                .from("wapi_instances")
-                .update(updateData)
-                .eq("id", instance.id);
-
-              return { ...instance, ...updateData } as WapiInstance;
+          if (wapiStatus && wapiStatus !== instance.status) {
+            const updateData: Record<string, unknown> = { status: wapiStatus };
+            
+            if (wapiStatus === 'connected' && wapiPhone) {
+              updateData.phone_number = wapiPhone;
+              updateData.connected_at = new Date().toISOString();
+            } else if (wapiStatus === 'disconnected') {
+              updateData.connected_at = null;
             }
 
-            return instance as WapiInstance;
-          } catch (err) {
-            console.error(`Error syncing status for instance ${instance.unit}:`, err);
-            return instance as WapiInstance;
-          }
-        })
-      );
+            await supabase
+              .from("wapi_instances")
+              .update(updateData)
+              .eq("id", instance.id);
 
-      setInstances(syncedInstances);
-    } else if (data) {
-      setInstances(data as WapiInstance[]);
-    }
-    setIsLoading(false);
+            return { ...instance, ...updateData } as WapiInstance;
+          }
+
+          return instance;
+        } catch (err) {
+          console.error(`Error syncing status for instance ${instance.unit}:`, err);
+          return instance;
+        }
+      })
+    );
+
+    // Update UI with synced data
+    setInstances(updates);
   };
 
   const handleSaveInstance = async () => {
