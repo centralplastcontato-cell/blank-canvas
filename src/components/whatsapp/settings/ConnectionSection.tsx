@@ -233,17 +233,41 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
   };
 
   const handleDeleteInstance = async (instance: WapiInstance) => {
+    if (!isAdmin) {
+      toast({
+        title: "Sem permissão",
+        description: "Apenas administradores podem excluir instâncias.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!confirm(`Tem certeza que deseja excluir a instância da unidade ${instance.unit}?`)) {
       return;
     }
 
     try {
-      const { error } = await supabase
+      const { error, count } = await supabase
         .from("wapi_instances")
         .delete()
-        .eq("id", instance.id);
+        .eq("id", instance.id)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Delete error:", error);
+        throw error;
+      }
+
+      // Check if deletion actually happened (RLS might silently block)
+      const { data: stillExists } = await supabase
+        .from("wapi_instances")
+        .select("id")
+        .eq("id", instance.id)
+        .single();
+
+      if (stillExists) {
+        throw new Error("Não foi possível excluir. Verifique se você tem permissão de administrador.");
+      }
 
       toast({
         title: "Sucesso",
@@ -252,9 +276,10 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
 
       fetchInstances();
     } catch (error: any) {
+      console.error("Delete instance error:", error);
       toast({
-        title: "Erro",
-        description: error.message || "Erro ao excluir instância.",
+        title: "Erro ao excluir",
+        description: error.message || "Erro ao excluir instância. Você precisa ser administrador.",
         variant: "destructive",
       });
     }
