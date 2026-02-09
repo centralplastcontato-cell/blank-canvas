@@ -72,6 +72,7 @@ export type Database = {
         Row: {
           campaign_id: string
           campaign_name: string | null
+          company_id: string | null
           created_at: string
           day_of_month: number | null
           day_preference: string | null
@@ -88,6 +89,7 @@ export type Database = {
         Insert: {
           campaign_id: string
           campaign_name?: string | null
+          company_id?: string | null
           created_at?: string
           day_of_month?: number | null
           day_preference?: string | null
@@ -104,6 +106,7 @@ export type Database = {
         Update: {
           campaign_id?: string
           campaign_name?: string | null
+          company_id?: string | null
           created_at?: string
           day_of_month?: number | null
           day_preference?: string | null
@@ -117,7 +120,15 @@ export type Database = {
           unit?: string | null
           whatsapp?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "campaign_leads_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       companies: {
         Row: {
@@ -767,6 +778,7 @@ export type Database = {
           bot_data: Json | null
           bot_enabled: boolean | null
           bot_step: string | null
+          company_id: string | null
           contact_name: string | null
           contact_phone: string
           contact_picture: string | null
@@ -791,6 +803,7 @@ export type Database = {
           bot_data?: Json | null
           bot_enabled?: boolean | null
           bot_step?: string | null
+          company_id?: string | null
           contact_name?: string | null
           contact_phone: string
           contact_picture?: string | null
@@ -815,6 +828,7 @@ export type Database = {
           bot_data?: Json | null
           bot_enabled?: boolean | null
           bot_step?: string | null
+          company_id?: string | null
           contact_name?: string | null
           contact_phone?: string
           contact_picture?: string | null
@@ -837,6 +851,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "wapi_conversations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "wapi_conversations_instance_id_fkey"
             columns: ["instance_id"]
             isOneToOne: false
@@ -855,6 +876,7 @@ export type Database = {
       wapi_instances: {
         Row: {
           addon_valid_until: string | null
+          company_id: string | null
           connected_at: string | null
           created_at: string
           credits_available: number | null
@@ -870,6 +892,7 @@ export type Database = {
         }
         Insert: {
           addon_valid_until?: string | null
+          company_id?: string | null
           connected_at?: string | null
           created_at?: string
           credits_available?: number | null
@@ -885,6 +908,7 @@ export type Database = {
         }
         Update: {
           addon_valid_until?: string | null
+          company_id?: string | null
           connected_at?: string | null
           created_at?: string
           credits_available?: number | null
@@ -898,7 +922,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "wapi_instances_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       wapi_messages: {
         Row: {
