@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Send, Loader2, MessageCircle, MapPin } from "lucide-react";
+import { X, Send, Loader2, MessageCircle, MapPin, Smile } from "lucide-react";
 import { campaignConfig } from "@/config/campaignConfig";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -35,7 +35,16 @@ export function LeadChatbot({ isOpen, onClose }: LeadChatbotProps) {
   const [inputType, setInputType] = useState<"name" | "whatsapp" | null>(null);
   const [isComplete, setIsComplete] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showEmojis, setShowEmojis] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const emojis = [
+    "😀","😂","😍","🥰","😎","🤩","😇","🥳","😘","😜",
+    "🤗","😊","🙃","😋","🤔","😏","😌","🥺","😢","😭",
+    "🎉","🎊","🎂","🎈","🎁","🎀","🎪","🎠","🏰","👑",
+    "⭐","🌟","✨","💫","🔥","❤️","💖","💕","💛","💙",
+    "👍","👏","🙌","💪","🤝","✌️","🫶","👋","🤞","🫡",
+  ];
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -428,7 +437,41 @@ export function LeadChatbot({ isOpen, onClose }: LeadChatbotProps) {
               <p className="text-sm text-muted-foreground mb-2">
                 {inputType === "name" ? "Digite seu nome:" : "Digite seu WhatsApp:"}
               </p>
+              {/* Emoji Picker */}
+              <AnimatePresence>
+                {showEmojis && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mb-2 grid grid-cols-10 gap-1 bg-muted rounded-xl p-2 max-h-32 overflow-y-auto"
+                  >
+                    {emojis.map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => {
+                          setInputValue((prev) => prev + emoji);
+                          setShowEmojis(false);
+                        }}
+                        className="text-lg hover:bg-card rounded p-1 transition-colors flex items-center justify-center"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
               <div className="flex gap-2">
+                {inputType === "name" && (
+                  <button
+                    type="button"
+                    onClick={() => setShowEmojis(!showEmojis)}
+                    className="bg-muted border border-border rounded-full p-3 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Smile className="w-5 h-5" />
+                  </button>
+                )}
                 <input
                   type={inputType === "whatsapp" ? "tel" : "text"}
                   value={inputValue}
