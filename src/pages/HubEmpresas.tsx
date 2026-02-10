@@ -148,9 +148,10 @@ function HubEmpresasContent() {
         <div className="grid gap-5 md:grid-cols-2">
           {companies.filter(c => c.parent_id !== null).map((child) => {
             const members = memberCounts[child.id] || 0;
-            const baseUrl = child.custom_domain ? `https://${child.custom_domain}` : window.location.origin;
+            const domainUrl = child.custom_domain ? `https://${child.custom_domain}` : window.location.origin;
+            // domainUrl is used for copy; window.location.origin for opening
             const copyLink = (path: string, label: string) => {
-              const url = `${baseUrl}${path}`;
+              const url = `${domainUrl}${path}`;
               navigator.clipboard.writeText(url);
               toast({ title: `${label} copiado!`, description: url });
             };
@@ -245,7 +246,7 @@ function HubEmpresasContent() {
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <button
-                          onClick={() => window.open(`${baseUrl}/auth/${child.slug}`, '_blank')}
+                          onClick={() => window.open(`${window.location.origin}/auth/${child.slug}`, '_blank')}
                           className="p-1 rounded hover:bg-muted transition-colors"
                           title="Abrir link"
                         >
@@ -268,7 +269,7 @@ function HubEmpresasContent() {
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <button
-                          onClick={() => window.open(`${baseUrl}/onboarding/${child.slug}`, '_blank')}
+                          onClick={() => window.open(`${window.location.origin}/onboarding/${child.slug}`, '_blank')}
                           className="p-1 rounded hover:bg-muted transition-colors"
                           title="Abrir link"
                         >
