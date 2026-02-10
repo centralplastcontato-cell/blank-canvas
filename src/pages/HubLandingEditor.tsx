@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Save, Eye, Loader2, Image, Play, MessageCircle, Tag, Palette } from "lucide-react";
+import { ArrowLeft, Save, Eye, Loader2, Image, Play, MessageCircle, Tag, Palette, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { HeroEditor } from "@/components/hub/landing-editor/HeroEditor";
 import { VideoEditor } from "@/components/hub/landing-editor/VideoEditor";
@@ -15,6 +15,7 @@ import { GalleryEditor } from "@/components/hub/landing-editor/GalleryEditor";
 import { TestimonialsEditor } from "@/components/hub/landing-editor/TestimonialsEditor";
 import { OfferEditor } from "@/components/hub/landing-editor/OfferEditor";
 import { ThemeEditor } from "@/components/hub/landing-editor/ThemeEditor";
+import { AIGeneratorDialog } from "@/components/hub/landing-editor/AIGeneratorDialog";
 import type {
   CompanyLandingPage,
   LPHero,
@@ -48,6 +49,7 @@ export default function HubLandingEditor() {
   const [companySlug, setCompanySlug] = useState("");
   const [lpData, setLpData] = useState(DEFAULT_LP);
   const [existingId, setExistingId] = useState<string | null>(null);
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!companyId) return;
@@ -172,6 +174,9 @@ export default function HubLandingEditor() {
               />
             </div>
             <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setAiDialogOpen(true)}>
+                <Sparkles className="h-4 w-4 mr-1" /> Criar com IA
+              </Button>
               {companySlug && (
                 <Button
                   variant="outline"
@@ -259,6 +264,13 @@ export default function HubLandingEditor() {
               </CardContent>
             </Card>
           </Tabs>
+          <AIGeneratorDialog
+            open={aiDialogOpen}
+            onOpenChange={setAiDialogOpen}
+            companyId={companyId!}
+            companyName={companyName}
+            onGenerated={(data) => setLpData(data)}
+          />
         </div>
       )}
     </HubLayout>
