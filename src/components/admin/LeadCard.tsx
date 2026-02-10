@@ -37,6 +37,7 @@ import {
   Trash2,
   MessageSquare,
   ChevronRight,
+  RotateCcw,
 } from "lucide-react";
 
 interface LeadCardProps {
@@ -101,6 +102,12 @@ export function LeadCard({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h3 className="font-semibold text-foreground truncate">{lead.name}</h3>
+              {lead.has_return && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-violet-500/15 border border-violet-500/30 rounded-full shrink-0">
+                  <RotateCcw className="w-3 h-3 text-violet-500" />
+                  <span className="text-[10px] font-semibold text-violet-600">Retornou</span>
+                </span>
+              )}
               {lead.observacoes && (
                 <MessageSquare className="w-3 h-3 text-primary shrink-0" />
               )}

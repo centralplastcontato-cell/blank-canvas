@@ -27,6 +27,7 @@ import {
   Trash2,
   CalendarCheck,
   RefreshCw,
+  RotateCcw,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { format } from "date-fns";
@@ -299,6 +300,19 @@ export function KanbanCard({
                     </TooltipTrigger>
                     <TooltipContent side="top" className="text-xs">
                       <p>✅ Follow-up #2 enviado</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+                {lead.has_return && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5 bg-gradient-to-r from-violet-500/20 to-violet-600/10 border border-violet-500/30 rounded-full">
+                        <RotateCcw className="w-3 h-3 text-violet-500" />
+                        <span className="text-[10px] font-semibold text-violet-600 uppercase tracking-wide">Retornou</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">
+                      <p>🔄 Lead retornou pela Landing Page</p>
                     </TooltipContent>
                   </Tooltip>
                 )}
