@@ -1959,8 +1959,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
     }
   };
 
-  // Common emojis for quick access
-  const commonEmojis = ['😊', '👍', '❤️', '🎉', '👋', '🙏', '😄', '🎂', '🎈', '⭐', '✨', '🔥'];
+  // Expanded emojis organized by category
+  const emojiCategories = {
+    '😀 Rostos': ['😊', '😄', '😁', '😆', '🤣', '😂', '🙂', '😉', '😍', '🥰', '😘', '😗', '😜', '🤪', '😎', '🤩', '🥳', '😇', '🤗', '🤔', '😏', '😢', '😭', '😤', '😡', '🥺', '😳', '🫣', '🤭', '😬'],
+    '👋 Gestos': ['👋', '👍', '👎', '👏', '🙏', '🤝', '✌️', '🤞', '🤙', '💪', '👊', '✋', '👌', '🫶', '❤️‍🔥', '💅'],
+    '❤️ Símbolos': ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '💕', '💖', '💗', '💓', '💘', '💝', '⭐', '✨', '🔥', '💯', '✅', '❌'],
+    '🎉 Festa': ['🎉', '🎊', '🎂', '🎈', '🎁', '🎀', '🪅', '🥂', '🍰', '🧁', '🎵', '🎶', '🏰', '👑', '🎠', '🎡'],
+    '📦 Objetos': ['📋', '📅', '🗓️', '📞', '💬', '📷', '🎥', '📍', '🏠', '💰', '💳', '📄', '✍️', '📌', '🔗', '⏰'],
+  };
+  
 
   const filteredConversations = conversations
     .filter((conv) => {
@@ -3122,17 +3129,24 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                               <Smile className="w-4 h-4" />
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-auto p-2" align="start">
-                            <div className="grid grid-cols-6 gap-1">
-                              {commonEmojis.map((emoji) => (
-                                <button
-                                  key={emoji}
-                                  type="button"
-                                  onClick={() => insertEmoji(emoji)}
-                                  className="text-xl p-1 hover:bg-muted rounded transition-colors"
-                                >
-                                  {emoji}
-                                </button>
+                          <PopoverContent className="w-72 p-2 max-h-64 overflow-y-auto" align="start">
+                            <div className="space-y-2">
+                              {Object.entries(emojiCategories).map(([category, emojis]) => (
+                                <div key={category}>
+                                  <p className="text-xs font-medium text-muted-foreground mb-1 px-1">{category}</p>
+                                  <div className="grid grid-cols-8 gap-0.5">
+                                    {emojis.map((emoji, idx) => (
+                                      <button
+                                        key={`${emoji}-${idx}`}
+                                        type="button"
+                                        onClick={() => insertEmoji(emoji)}
+                                        className="text-lg p-1 hover:bg-muted rounded transition-colors"
+                                      >
+                                        {emoji}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
                               ))}
                             </div>
                           </PopoverContent>
