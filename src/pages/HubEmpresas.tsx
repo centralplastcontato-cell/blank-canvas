@@ -295,6 +295,34 @@ function HubEmpresasContent() {
                       </div>
                     </div>
                   </div>
+                  {child.custom_domain && (
+                    <div className="flex items-center gap-2 p-2.5 rounded-lg border border-border bg-muted/30 text-left group mt-2">
+                      <Globe className="h-4 w-4 text-secondary shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-foreground">Landing Page</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{child.custom_domain}</p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => window.open(`https://${child.custom_domain}`, '_blank')}
+                          className="p-1 rounded hover:bg-muted transition-colors"
+                          title="Abrir LP"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5 text-primary" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(`https://${child.custom_domain}`);
+                            toast({ title: "Link da LP copiado!", description: `https://${child.custom_domain}` });
+                          }}
+                          className="p-1 rounded hover:bg-muted transition-colors"
+                          title="Copiar link"
+                        >
+                          <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <Separator />
