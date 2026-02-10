@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { insertWithCompany } from "@/lib/supabase-helpers";
+import { insertWithCompany, insertSingleWithCompany } from "@/lib/supabase-helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -1261,52 +1261,61 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
 
   // Create a new lead and classify it directly
   const createAndClassifyLead = async (status: string) => {
-    if (!selectedConversation || !selectedInstance) return;
+    if (!selectedConversation || !selectedInstance || isCreatingLead) return;
 
     setIsCreatingLead(true);
 
     try {
-      // Create a new lead with conversation data
       const contactName = selectedConversation.contact_name || selectedConversation.contact_phone;
       const cleanPhone = selectedConversation.contact_phone.replace(/\D/g, '');
 
-      const { data: newLead, error: createError } = await insertWithCompany('campaign_leads', {
-        name: contactName,
-        whatsapp: cleanPhone,
-        unit: selectedInstance.unit,
-        status: status as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido",
-        campaign_id: 'whatsapp-chat',
-        campaign_name: 'WhatsApp Chat',
-      }) as { data: any; error: any };
-      
-      // Fetch the created lead if no error
-      let createdLead = null;
-      if (!createError) {
-        const { data } = await supabase
+      // Check if a lead already exists for this whatsapp number to prevent duplicates
+      const { data: existingLead } = await supabase
+        .from('campaign_leads')
+        .select('id, name, whatsapp, unit, status')
+        .eq('whatsapp', cleanPhone)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let leadToLink = existingLead;
+
+      if (existingLead) {
+        // Lead already exists - just update its status instead of creating a new one
+        const validStatus = status as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido" | "transferido";
+        await supabase
           .from('campaign_leads')
-          .select('id, name, whatsapp, unit, status')
-          .eq('whatsapp', cleanPhone)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-        createdLead = data;
+          .update({ status: validStatus })
+          .eq('id', existingLead.id);
+        leadToLink = { ...existingLead, status: validStatus };
+      } else {
+        // No existing lead - create a new one using insertSingleWithCompany (returns created record)
+        const { data: newLead, error: createError } = await insertSingleWithCompany('campaign_leads', {
+          name: contactName,
+          whatsapp: cleanPhone,
+          unit: selectedInstance.unit,
+          status: status as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido",
+          campaign_id: 'whatsapp-chat',
+          campaign_name: 'WhatsApp Chat',
+        }) as { data: any; error: any };
+
+        if (createError) throw createError;
+        leadToLink = newLead;
       }
 
-      if (createError) {
-        throw createError;
+      if (!leadToLink?.id) {
+        throw new Error('Não foi possível obter o lead criado.');
       }
 
-      // Link the conversation to the new lead
+      // Link the conversation to the lead
       const { error: linkError } = await supabase
         .from('wapi_conversations')
-        .update({ lead_id: newLead.id })
+        .update({ lead_id: leadToLink.id })
         .eq('id', selectedConversation.id);
 
-      if (linkError) {
-        throw linkError;
-      }
+      if (linkError) throw linkError;
 
-      // Add history entry
+      // Add history entry (non-blocking)
       const statusLabels: Record<string, string> = {
         novo: 'Novo',
         em_contato: 'Visita',
@@ -1316,22 +1325,26 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
         perdido: 'Perdido',
       };
 
-      await supabase.from('lead_history').insert({
-        lead_id: newLead.id,
-        action: 'lead_created',
-        new_value: `Lead criado via WhatsApp com status: ${statusLabels[status]}`,
+      supabase.from('lead_history').insert({
+        lead_id: leadToLink.id,
+        action: existingLead ? 'status_update' : 'lead_created',
+        new_value: existingLead 
+          ? `Status atualizado para: ${statusLabels[status]}` 
+          : `Lead criado via WhatsApp com status: ${statusLabels[status]}`,
         user_id: userId,
+      }).then(({ error }) => {
+        if (error) console.error('Error saving lead history:', error);
       });
 
       // Update local state
-      setLinkedLead(newLead as Lead);
+      setLinkedLead(leadToLink as Lead);
       setConversations(prev => 
-        prev.map(c => c.id === selectedConversation.id ? { ...c, lead_id: newLead.id } : c)
+        prev.map(c => c.id === selectedConversation.id ? { ...c, lead_id: leadToLink.id } : c)
       );
-      setSelectedConversation({ ...selectedConversation, lead_id: newLead.id });
+      setSelectedConversation({ ...selectedConversation, lead_id: leadToLink.id });
 
       toast({
-        title: "Lead criado e classificado",
+        title: existingLead ? "Lead vinculado e atualizado" : "Lead criado e classificado",
         description: `${contactName} classificado como "${statusLabels[status]}"`,
       });
     } catch (error: any) {
