@@ -133,23 +133,23 @@ export function ConversationStatusActions({
 
       if (updateError) throw updateError;
 
-      // Add history entry
-      await insertWithCompany("lead_history", {
-        lead_id: linkedLead.id,
-        user_id: userId,
-        user_name: currentUserName,
-        action: "Alteração de status",
-        old_value: statusLabels[linkedLead.status] || linkedLead.status,
-        new_value: statusLabels[newStatus] || newStatus,
-      });
-
-      // Call the callback to update local state
+      // Update local state IMMEDIATELY after DB success to prevent double-clicks
       onStatusChange?.(linkedLead.id, newStatus);
 
       toast({
         title: "Status atualizado",
         description: `Lead movido para "${statusLabels[newStatus]}".`,
       });
+
+      // Add history entry in background (non-blocking)
+      insertWithCompany("lead_history", {
+        lead_id: linkedLead.id,
+        user_id: userId,
+        user_name: currentUserName,
+        action: "Alteração de status",
+        old_value: statusLabels[linkedLead.status] || linkedLead.status,
+        new_value: statusLabels[newStatus] || newStatus,
+      }).catch((err) => console.error("Error saving status history:", err));
 
       setIsOpen(false);
     } catch (error: unknown) {
