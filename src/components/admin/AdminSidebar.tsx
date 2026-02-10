@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Users, LogOut, RefreshCw, Headset, Settings, Pin, PinOff, Presentation, ChevronLeft, Building2 } from "lucide-react";
+import { Users, LogOut, RefreshCw, Headset, Settings, Pin, PinOff, ChevronLeft, Building2 } from "lucide-react";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -25,7 +25,6 @@ import { CompanySwitcher } from "./CompanySwitcher";
 
 interface AdminSidebarProps {
   canManageUsers: boolean;
-  canAccessB2B: boolean;
   isAdmin?: boolean;
   currentUserName: string;
   onRefresh: () => void;
@@ -35,7 +34,6 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ 
   canManageUsers,
-  canAccessB2B,
   isAdmin,
   currentUserName, 
   onRefresh, 
@@ -51,7 +49,7 @@ export function AdminSidebar({
   const allItems = [
     { title: "Central de Atendimento", url: "/atendimento", icon: Headset },
     ...(modules.config ? [{ title: "Configurações", url: "/configuracoes", icon: Settings }] : []),
-    ...(modules.comercial_b2b && canAccessB2B ? [{ title: "Comercial B2B", url: "/comercial-b2b", icon: Presentation }] : []),
+    
     ...(canManageUsers ? [{ title: "Gerenciar Usuários", url: "/users", icon: Users }] : []),
     ...(isAdmin ? [{ title: "Empresas", url: "/hub/empresas", icon: Building2 }] : []),
   ];

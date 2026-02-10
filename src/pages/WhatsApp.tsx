@@ -40,7 +40,7 @@ export default function WhatsApp() {
   const { role, isLoading: isLoadingRole, canManageUsers, isAdmin } = useUserRole(user?.id);
   const { allowedUnits, canViewAll, isLoading: isLoadingUnitPerms } = useUnitPermissions(user?.id);
   const { hasPermission } = usePermissions(user?.id);
-  const canAccessB2B = isAdmin || hasPermission('b2b.view');
+  
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -183,7 +183,7 @@ export default function WhatsApp() {
       <div className="min-h-screen flex w-full">
         <AdminSidebar 
           canManageUsers={canManageUsers}
-          canAccessB2B={canAccessB2B}
+          
           currentUserName={currentUserProfile?.full_name || user.email || ""} 
           onRefresh={handleRefresh} 
           onLogout={handleLogout} 

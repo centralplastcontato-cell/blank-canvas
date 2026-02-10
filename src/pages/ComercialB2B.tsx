@@ -1,13 +1,8 @@
- import { useState, useEffect } from "react";
- import { useNavigate } from "react-router-dom";
- import { SidebarProvider } from "@/components/ui/sidebar";
- import { AdminSidebar } from "@/components/admin/AdminSidebar";
- import { supabase } from "@/integrations/supabase/client";
- import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
- import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
- import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { 
-  Presentation, 
   DollarSign, 
   CheckCircle2, 
   Target, 
@@ -26,130 +21,22 @@ import {
   Building2,
   Monitor
 } from "lucide-react";
- import { Button } from "@/components/ui/button";
- import { toast } from "sonner";
- import { ProposalGenerator } from "@/components/admin/ProposalGenerator";
- import { B2BLeadsManager } from "@/components/admin/B2BLeadsManager";
- 
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { ProposalGenerator } from "@/components/admin/ProposalGenerator";
+import { B2BLeadsManager } from "@/components/admin/B2BLeadsManager";
+import { HubLayout } from "@/components/hub/HubLayout";
+
 const ComercialB2B = () => {
-  const navigate = useNavigate();
-  const [currentUserName, setCurrentUserName] = useState("");
-  const [role, setRole] = useState<string | null>(null);
-  const [hasB2BAccess, setHasB2BAccess] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [lpViewMode, setLpViewMode] = useState<'desktop' | 'mobile'>('desktop');
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        navigate("/auth");
-        return;
-      }
-      
-      // Fetch profile, role, and B2B permission in parallel
-      const [profileResult, roleResult, permissionResult] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("full_name")
-          .eq("user_id", session.user.id)
-          .single(),
-        supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", session.user.id)
-          .maybeSingle(),
-        supabase
-          .from("user_permissions")
-          .select("granted")
-          .eq("user_id", session.user.id)
-          .eq("permission", "b2b.view")
-          .maybeSingle()
-      ]);
-      
-      if (profileResult.data) {
-        setCurrentUserName(profileResult.data.full_name);
-      }
-      
-      const userRole = roleResult.data?.role;
-      if (userRole) {
-        setRole(userRole);
-      }
-      
-      // Admin has access by default, others need explicit permission
-      const isAdmin = userRole === "admin";
-      const hasPermission = permissionResult.data?.granted === true;
-      setHasB2BAccess(isAdmin || hasPermission);
-      
-      setIsLoading(false);
-    };
-    
-    checkAuth();
-  }, [navigate]);
- 
-   const handleLogout = async () => {
-     await supabase.auth.signOut();
-     navigate("/auth");
-   };
- 
-   const handleRefresh = () => {
-     window.location.reload();
-   };
- 
-   const copyToClipboard = (text: string, label: string) => {
-     navigator.clipboard.writeText(text);
-     setCopiedText(label);
-     toast.success("Copiado para a área de transferência!");
-     setTimeout(() => setCopiedText(null), 2000);
-   };
- 
-   const canManageUsers = role === "admin";
- 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  // Check if user has access to B2B section
-  if (!hasB2BAccess) {
-    return (
-      <SidebarProvider defaultOpen={false}>
-        <div className="min-h-screen flex w-full bg-background">
-          <AdminSidebar
-            canManageUsers={canManageUsers}
-            canAccessB2B={hasB2BAccess}
-            currentUserName={currentUserName}
-            onRefresh={handleRefresh}
-            onLogout={handleLogout}
-          />
-          
-          <main className="flex-1 overflow-auto">
-            <div className="p-6 max-w-6xl mx-auto">
-              <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-                <Shield className="h-16 w-16 text-muted-foreground/50 mb-4" />
-                <h1 className="text-2xl font-bold text-foreground mb-2">Acesso Restrito</h1>
-                <p className="text-muted-foreground max-w-md">
-                  Você não tem permissão para acessar a seção Comercial B2B. 
-                  Entre em contato com um administrador para solicitar acesso.
-                </p>
-                <Button 
-                  variant="outline" 
-                  className="mt-6"
-                  onClick={() => navigate("/admin")}
-                >
-                  Voltar para Gestão de Leads
-                </Button>
-              </div>
-            </div>
-          </main>
-        </div>
-      </SidebarProvider>
-    );
-  }
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedText(label);
+    toast.success("Copiado para a área de transferência!");
+    setTimeout(() => setCopiedText(null), 2000);
+  };
  
    const pitchText = `🎯 Transforme visitantes em contratos fechados — sem perder nenhum lead no WhatsApp.
  
@@ -165,33 +52,16 @@ const ComercialB2B = () => {
  
  Feito especialmente para buffets infantis. Agende uma demonstração!`;
  
-   return (
-     <SidebarProvider defaultOpen={false}>
-       <div className="min-h-screen flex w-full bg-background">
-          <AdminSidebar
-            canManageUsers={canManageUsers}
-            canAccessB2B={hasB2BAccess}
-            currentUserName={currentUserName}
-            onRefresh={handleRefresh}
-            onLogout={handleLogout}
-          />
-         
-         <main className="flex-1 overflow-auto">
-           <div className="p-6 max-w-6xl mx-auto">
-             {/* Header */}
-             <div className="mb-8">
-               <div className="flex items-center gap-3 mb-2">
-                 <div className="p-2 rounded-xl bg-gradient-to-br from-primary to-primary/60">
-                   <Presentation className="h-6 w-6 text-primary-foreground" />
-                 </div>
-                 <h1 className="text-3xl font-display font-bold text-foreground">
-                   Comercial B2B
-                 </h1>
-               </div>
-               <p className="text-muted-foreground">
-                 Materiais e informações para vender a plataforma para outros buffets
-               </p>
-             </div>
+  const header = (
+    <div>
+      <h1 className="text-xl font-display font-bold text-foreground">Comercial B2B</h1>
+    </div>
+  );
+
+  return (
+    <HubLayout currentPage="comercial-b2b" header={header}>
+      {() => (
+        <div className="max-w-6xl mx-auto">
  
              {/* Tabs */}
               <Tabs defaultValue="leads" className="space-y-6">
@@ -1061,11 +931,10 @@ Deixe o prospect falar. Anote objeções.
                   </Card>
                 </TabsContent>
               </Tabs>
-           </div>
-         </main>
-       </div>
-     </SidebarProvider>
-   );
- };
- 
- export default ComercialB2B;
+        </div>
+      )}
+    </HubLayout>
+  );
+};
+
+export default ComercialB2B;

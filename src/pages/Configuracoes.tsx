@@ -31,7 +31,7 @@ export default function Configuracoes() {
 
   const { role, isLoading: isLoadingRole, canManageUsers, isAdmin } = useUserRole(user?.id);
   const { hasPermission } = usePermissions(user?.id);
-  const canAccessB2B = isAdmin || hasPermission('b2b.view');
+  
   const canAccessConfig = isAdmin || hasPermission('config.view');
 
   useEffect(() => {
@@ -132,7 +132,6 @@ export default function Configuracoes() {
                   userName={currentUserProfile?.full_name || ""}
                   userEmail={user.email || ""}
                   canManageUsers={canManageUsers}
-                  canAccessB2B={canAccessB2B}
                   onRefresh={handleRefresh}
                   onLogout={handleLogout}
                 />
@@ -159,7 +158,7 @@ export default function Configuracoes() {
       <div className="min-h-screen flex w-full">
         <AdminSidebar 
           canManageUsers={canManageUsers}
-          canAccessB2B={canAccessB2B}
+          
           currentUserName={currentUserProfile?.full_name || user.email || ""} 
           onRefresh={handleRefresh} 
           onLogout={handleLogout} 

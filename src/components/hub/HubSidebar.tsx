@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
-import { BarChart3, Building2, Users, LogOut, ChevronLeft, Pin, PinOff, Smartphone, ClipboardList, Target } from "lucide-react";
+import { BarChart3, Building2, Users, LogOut, ChevronLeft, Pin, PinOff, Smartphone, ClipboardList, Target, Presentation } from "lucide-react";
 import logoCelebrei from "@/assets/logo-celebrei.png";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 const hubMenuItems = [
   { title: "Painel Hub", url: "/hub", icon: BarChart3 },
   { title: "Empresas", url: "/hub/empresas", icon: Building2 },
+  { title: "Comercial B2B", url: "/hub/comercial-b2b", icon: Presentation },
   { title: "Prospecção", url: "/hub/prospeccao", icon: Target },
   { title: "WhatsApp", url: "/hub/whatsapp", icon: Smartphone },
   { title: "Usuários", url: "/hub/users", icon: Users },

@@ -39,7 +39,7 @@ const App = () => (
             <Route path="/auth/:slug" element={<Auth />} />
             <Route path="/atendimento" element={<CentralAtendimento />} />
             <Route path="/configuracoes" element={<Configuracoes />} />
-            <Route path="/comercial-b2b" element={<ComercialB2B />} />
+            <Route path="/hub/comercial-b2b" element={<ComercialB2B />} />
             <Route path="/para-buffets" element={<ParaBuffets />} />
             <Route path="/dashboard" element={<Index />} />
             <Route path="/users" element={<Users />} />
@@ -58,6 +58,7 @@ const App = () => (
             <Route path="/admin" element={<Navigate to="/atendimento" replace />} />
             <Route path="/whatsapp" element={<Navigate to="/atendimento" replace />} />
             <Route path="/empresas" element={<Navigate to="/hub/empresas" replace />} />
+            <Route path="/comercial-b2b" element={<Navigate to="/hub/comercial-b2b" replace />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

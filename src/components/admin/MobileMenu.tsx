@@ -5,7 +5,6 @@ import {
   Users, 
   RefreshCw, 
   LogOut, 
-  Presentation,
   Building2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,12 +23,11 @@ interface MobileMenuProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   trigger: React.ReactNode;
-  currentPage: "atendimento" | "configuracoes" | "users" | "comercial-b2b";
+  currentPage: "atendimento" | "configuracoes" | "users";
   userName: string;
   userEmail: string;
   userAvatar?: string | null;
   canManageUsers: boolean;
-  canAccessB2B: boolean;
   isAdmin?: boolean;
   onRefresh?: () => void;
   onLogout: () => void;
@@ -53,7 +51,6 @@ export function MobileMenu({
   userEmail,
   userAvatar,
   canManageUsers,
-  canAccessB2B,
   isAdmin,
   onRefresh,
   onLogout,
@@ -74,13 +71,6 @@ export function MobileMenu({
       icon: Settings,
       path: "/configuracoes",
       show: true,
-    },
-    {
-      id: "comercial-b2b",
-      label: "Comercial B2B",
-      icon: Presentation,
-      path: "/comercial-b2b",
-      show: canAccessB2B,
     },
     {
       id: "users",
