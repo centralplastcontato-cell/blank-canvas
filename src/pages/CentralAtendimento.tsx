@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { isHubDomain } from "@/hooks/useDomainDetection";
 import { User, Session } from "@supabase/supabase-js";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useUnitPermissions } from "@/hooks/useUnitPermissions";
@@ -48,6 +49,13 @@ export interface LeadFilters {
 
 export default function CentralAtendimento() {
   const navigate = useNavigate();
+
+  // Guard: redirect to Hub dashboard if on Hub domain
+  useEffect(() => {
+    if (isHubDomain()) {
+      navigate("/hub", { replace: true });
+    }
+  }, [navigate]);
   const [searchParams, setSearchParams] = useSearchParams();
   const [user, setUser] = useState<User | null>(null);
   const [_session, setSession] = useState<Session | null>(null);
