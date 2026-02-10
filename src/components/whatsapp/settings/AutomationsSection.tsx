@@ -49,6 +49,7 @@ interface BotSettings {
   welcome_message: string;
   completion_message: string | null;
   transfer_message: string | null;
+  work_here_response: string | null;
   qualified_lead_message: string | null;
   // Next step question settings
   next_step_question: string | null;
@@ -735,6 +736,26 @@ export function AutomationsSection() {
                   onBlur={() => botSettings && updateBotSettings({ transfer_message: botSettings.transfer_message })}
                   className="min-h-[100px] text-base"
                   placeholder="Entendido, {nome}! Vou transferir..."
+                />
+              </div>
+
+              {/* Work Here Response */}
+              <div className="p-4 border rounded-lg bg-teal-50/50 dark:bg-teal-950/10 border-teal-500/30">
+                <Label className="text-sm font-medium flex items-center gap-2 mb-2">
+                  <span className="w-6 h-6 rounded-full bg-teal-500 text-white flex items-center justify-center text-xs">
+                    👷
+                  </span>
+                  Mensagem de RH (Trabalhe no Castelo)
+                </Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Mensagem enviada quando o lead escolhe a opção "Trabalhe no Castelo". O bot para e o lead é enviado para a aba RH do CRM. Use {`{nome}`} para incluir o nome.
+                </p>
+                <Textarea
+                  value={botSettings?.work_here_response || "Que legal que você quer fazer parte do nosso time! 🏰✨\n\nEnvie seu currículo aqui nesta conversa e nossa equipe de RH vai analisar!\n\nObrigado pelo interesse! 👑"}
+                  onChange={(e) => setBotSettings(prev => prev ? { ...prev, work_here_response: e.target.value } : null)}
+                  onBlur={() => botSettings && updateBotSettings({ work_here_response: botSettings.work_here_response })}
+                  className="min-h-[100px] text-base"
+                  placeholder="Que legal que você quer fazer parte do nosso time! 🏰✨..."
                 />
               </div>
 
