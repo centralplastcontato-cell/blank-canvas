@@ -13,9 +13,10 @@ import { USER_COMPANY_ROLE_LABELS } from "@/types/company";
 
 interface CompanySwitcherProps {
   collapsed?: boolean;
+  onDropdownOpenChange?: (open: boolean) => void;
 }
 
-export function CompanySwitcher({ collapsed = false }: CompanySwitcherProps) {
+export function CompanySwitcher({ collapsed = false, onDropdownOpenChange }: CompanySwitcherProps) {
   const { currentCompany, currentRole, userCompanies, switchCompany, isLoading } = useCompany();
 
   // Don't render if user has only one company
@@ -23,7 +24,7 @@ export function CompanySwitcher({ collapsed = false }: CompanySwitcherProps) {
 
   if (collapsed) {
     return (
-      <DropdownMenu>
+      <DropdownMenu onOpenChange={onDropdownOpenChange}>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
@@ -59,7 +60,7 @@ export function CompanySwitcher({ collapsed = false }: CompanySwitcherProps) {
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={onDropdownOpenChange}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
