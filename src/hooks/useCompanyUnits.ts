@@ -17,7 +17,7 @@ export function useCompanyUnits(companyId?: string) {
   const fetchUnits = useCallback(async () => {
     if (!companyId) {
       // Try to get from localStorage fallback
-      const storedCompanyId = localStorage.getItem('currentCompanyId') || 'a0000000-0000-0000-0000-000000000001';
+      const storedCompanyId = localStorage.getItem('selected_company_id') || 'a0000000-0000-0000-0000-000000000001';
       
       const { data, error } = await supabase
         .from('company_units')
