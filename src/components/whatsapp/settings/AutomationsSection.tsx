@@ -73,6 +73,10 @@ interface BotSettings {
   follow_up_2_enabled: boolean;
   follow_up_2_delay_hours: number;
   follow_up_2_message: string | null;
+  // Next step reminder settings
+  next_step_reminder_enabled: boolean;
+  next_step_reminder_delay_minutes: number;
+  next_step_reminder_message: string | null;
 }
 
 interface VipNumber {
@@ -1075,6 +1079,84 @@ export function AutomationsSection() {
               </div>
             </ScrollArea>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Lembrete de Próximos Passos */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="w-5 h-5" />
+            Lembrete de Próximos Passos
+          </CardTitle>
+          <CardDescription>
+            Reenvia a pergunta de próximos passos se o lead não responder dentro do tempo configurado
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Toggle */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg">
+            <div className="flex items-start sm:items-center gap-3 min-w-0">
+              <div className={`p-2 rounded-full shrink-0 ${botSettings?.next_step_reminder_enabled ? "bg-green-100 text-green-600" : "bg-muted text-muted-foreground"}`}>
+                <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
+              <div className="min-w-0">
+                <h4 className="font-medium text-sm sm:text-base">Lembrete ativo</h4>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  Envia uma mensagem automática se o lead não responder a pergunta de próximos passos
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={botSettings?.next_step_reminder_enabled ?? true}
+              onCheckedChange={(checked) => updateBotSettings({ next_step_reminder_enabled: checked })}
+              disabled={isSaving}
+              className="shrink-0 self-end sm:self-auto"
+            />
+          </div>
+
+          {/* Delay */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Tempo de espera</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={1}
+                max={120}
+                value={botSettings?.next_step_reminder_delay_minutes ?? 10}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 10;
+                  setBotSettings(prev => prev ? { ...prev, next_step_reminder_delay_minutes: val } : prev);
+                }}
+                onBlur={(e) => {
+                  const val = parseInt(e.target.value) || 10;
+                  updateBotSettings({ next_step_reminder_delay_minutes: val });
+                }}
+                className="w-24"
+                disabled={isSaving || !botSettings?.next_step_reminder_enabled}
+              />
+              <span className="text-sm text-muted-foreground">minutos</span>
+            </div>
+          </div>
+
+          {/* Message */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Mensagem de lembrete</Label>
+            <Textarea
+              value={botSettings?.next_step_reminder_message || "Oi {nome} estou por aqui escolha uma das opções.\n\n*1* - Agendar visita\n*2* - Tirar dúvidas\n*3* - Analisar com calma"}
+              onChange={(e) => {
+                setBotSettings(prev => prev ? { ...prev, next_step_reminder_message: e.target.value } : prev);
+              }}
+              onBlur={(e) => {
+                updateBotSettings({ next_step_reminder_message: e.target.value });
+              }}
+              className="min-h-[100px]"
+              disabled={isSaving || !botSettings?.next_step_reminder_enabled}
+            />
+            <p className="text-xs text-muted-foreground">
+              Use <code className="bg-muted px-1 rounded">{"{nome}"}</code> para inserir o nome do lead
+            </p>
+          </div>
         </CardContent>
       </Card>
 
