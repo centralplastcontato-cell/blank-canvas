@@ -1332,7 +1332,7 @@ async function processWebhookEvent(body: Record<string, unknown>) {
       
       // Fetch existing conversation (single DB call) - use maybeSingle to handle 0 or 1 rows
       const { data: ex, error: exErr } = await supabase.from('wapi_conversations')
-        .select('id, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, lead_id')
+        .select('id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, lead_id')
         .eq('instance_id', instance.id)
         .eq('remote_jid', rj)
         .maybeSingle();
@@ -1343,7 +1343,7 @@ async function processWebhookEvent(body: Record<string, unknown>) {
       
       console.log(`[Latency] conversation_fetch: ${Date.now() - processingStartAt}ms, found: ${!!ex}`);
       
-      let conv: { id: string; bot_enabled: boolean | null; bot_step: string | null; bot_data: Record<string, unknown> | null; lead_id: string | null };
+      let conv: { id: string; remote_jid: string; bot_enabled: boolean | null; bot_step: string | null; bot_data: Record<string, unknown> | null; lead_id: string | null };
       
       if (ex) {
         conv = ex;
@@ -1376,7 +1376,7 @@ async function processWebhookEvent(body: Record<string, unknown>) {
         // New conversation - need to check for existing lead
         // First, do a final check to prevent race conditions (upsert-like behavior)
         const { data: raceCheck } = await supabase.from('wapi_conversations')
-          .select('id, bot_enabled, bot_step, bot_data, lead_id')
+          .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id')
           .eq('instance_id', instance.id)
           .eq('remote_jid', rj)
           .maybeSingle();
@@ -1412,13 +1412,13 @@ async function processWebhookEvent(body: Record<string, unknown>) {
             lead_id: lead?.id || null, bot_enabled: shouldStartBot, 
             bot_step: shouldStartBot ? 'welcome' : null, bot_data: {},
             company_id: instance.company_id,
-          }).select('id, bot_enabled, bot_step, bot_data, lead_id').single();
+          }).select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id').single();
           
           if (ce) {
             // If insert fails due to unique constraint, fetch existing
             console.log(`[Webhook] Insert failed (likely duplicate): ${ce.message}`);
             const { data: fallback } = await supabase.from('wapi_conversations')
-              .select('id, bot_enabled, bot_step, bot_data, lead_id')
+              .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id')
               .eq('instance_id', instance.id)
               .eq('remote_jid', rj)
               .single();
