@@ -12,6 +12,7 @@ export interface CompanyModules {
   advanced: boolean;
   messages: boolean;
   comercial_b2b: boolean;
+  flow_builder: boolean;
 }
 
 const DEFAULT_MODULES: CompanyModules = {
@@ -25,6 +26,7 @@ const DEFAULT_MODULES: CompanyModules = {
   advanced: true,
   messages: true,
   comercial_b2b: true,
+  flow_builder: false,
 };
 
 export function parseModules(settings: Json | null | undefined): CompanyModules {
@@ -48,6 +50,7 @@ export function parseModules(settings: Json | null | undefined): CompanyModules 
     advanced: modules.advanced !== false,
     messages: modules.messages !== false,
     comercial_b2b: modules.comercial_b2b !== false,
+    flow_builder: modules.flow_builder === true,
   };
 }
 
@@ -67,4 +70,5 @@ export const MODULE_LABELS: Record<keyof CompanyModules, { label: string; descri
   advanced: { label: 'Avançado', description: 'Configurações avançadas do WhatsApp' },
   messages: { label: 'Mensagens', description: 'Templates e configurações de mensagens' },
   comercial_b2b: { label: 'Comercial B2B', description: 'Gestão comercial e prospecção B2B' },
+  flow_builder: { label: 'Flow Builder', description: 'Editor visual de fluxos de conversa' },
 };
