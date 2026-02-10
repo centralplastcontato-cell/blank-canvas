@@ -92,6 +92,14 @@ export default function Auth() {
 
       if (error) throw error;
 
+      // If logging in via branded slug, set the correct company context
+      if (slug) {
+        const { data: companyId } = await supabase.rpc("get_company_id_by_slug", { _slug: slug });
+        if (companyId) {
+          localStorage.setItem("selected_company_id", companyId);
+        }
+      }
+
       navigate("/atendimento");
     } catch (error: any) {
       let message = "Ocorreu um erro. Tente novamente.";
