@@ -23,6 +23,7 @@ import HubOnboarding from "./pages/HubOnboarding";
 import HubProspeccao from "./pages/HubProspeccao";
 import Onboarding from "./pages/Onboarding";
 import HubLandingEditor from "./pages/HubLandingEditor";
+import DynamicLandingPage from "./pages/DynamicLandingPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -54,6 +55,8 @@ const App = () => (
             <Route path="/hub/onboarding" element={<HubOnboarding />} />
             <Route path="/hub/prospeccao" element={<HubProspeccao />} />
             <Route path="/hub/landing-editor/:companyId" element={<HubLandingEditor />} />
+            {/* Public dynamic landing page by slug */}
+            <Route path="/lp/:slug" element={<DynamicLandingPage />} />
             {/* Public onboarding form */}
             <Route path="/onboarding/:slug" element={<Onboarding />} />
             {/* Redirects for old routes */}

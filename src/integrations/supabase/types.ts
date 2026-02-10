@@ -1353,6 +1353,38 @@ export type Database = {
         }[]
       }
       get_company_id_by_slug: { Args: { _slug: string }; Returns: string }
+      get_landing_page_by_domain: {
+        Args: { _domain: string }
+        Returns: {
+          company_id: string
+          company_logo: string
+          company_name: string
+          company_slug: string
+          footer: Json
+          gallery: Json
+          hero: Json
+          offer: Json
+          testimonials: Json
+          theme: Json
+          video: Json
+        }[]
+      }
+      get_landing_page_by_slug: {
+        Args: { _slug: string }
+        Returns: {
+          company_id: string
+          company_logo: string
+          company_name: string
+          company_slug: string
+          footer: Json
+          gallery: Json
+          hero: Json
+          offer: Json
+          testimonials: Json
+          theme: Json
+          video: Json
+        }[]
+      }
       get_profiles_for_transfer: {
         Args: never
         Returns: {
