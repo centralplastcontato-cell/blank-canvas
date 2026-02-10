@@ -981,6 +981,9 @@ export type Database = {
           next_step_analyze_response: string | null
           next_step_question: string | null
           next_step_questions_response: string | null
+          next_step_reminder_delay_minutes: number | null
+          next_step_reminder_enabled: boolean | null
+          next_step_reminder_message: string | null
           next_step_visit_response: string | null
           qualified_lead_message: string | null
           test_mode_enabled: boolean
@@ -1013,6 +1016,9 @@ export type Database = {
           next_step_analyze_response?: string | null
           next_step_question?: string | null
           next_step_questions_response?: string | null
+          next_step_reminder_delay_minutes?: number | null
+          next_step_reminder_enabled?: boolean | null
+          next_step_reminder_message?: string | null
           next_step_visit_response?: string | null
           qualified_lead_message?: string | null
           test_mode_enabled?: boolean
@@ -1045,6 +1051,9 @@ export type Database = {
           next_step_analyze_response?: string | null
           next_step_question?: string | null
           next_step_questions_response?: string | null
+          next_step_reminder_delay_minutes?: number | null
+          next_step_reminder_enabled?: boolean | null
+          next_step_reminder_message?: string | null
           next_step_visit_response?: string | null
           qualified_lead_message?: string | null
           test_mode_enabled?: boolean
