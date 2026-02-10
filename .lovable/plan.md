@@ -1,64 +1,134 @@
 
-## Adicionar opção "Trabalhe no Castelo" ao bot do WhatsApp
+
+## Integrar Flow Builder com Sistema de Permissoes em Camadas
 
 ### Resumo
 
-Adicionar a terceira opção ao menu do bot ("Trabalhe no Castelo") com uma resposta automática e envio do lead para uma aba exclusiva no CRM. O lead que escolher essa opção sera tratado de forma semelhante ao "Já sou cliente" -- o bot encerra a conversa, envia uma mensagem personalizada e registra o contato no CRM com uma unidade especial.
+Adicionar o Flow Builder ao projeto com um modelo de permissoes em duas camadas:
+1. **Hub (Master)** libera o modulo "Flow Builder" para cada empresa-filha
+2. **Admin da empresa** decide se ativa o Flow Builder e controla quem pode editar fluxos
 
-### Sugestao de resposta para a opcao 3
+Isso segue exatamente o padrao ja existente no projeto (ex: modulos WhatsApp, CRM, Dashboard que o Hub libera por empresa).
 
-> "Que legal que você quer fazer parte do nosso time! 🏰✨
->
-> Envie seu currículo aqui nesta conversa e nossa equipe de RH vai analisar!
->
-> Obrigado pelo interesse! 👑"
+---
 
-### O que muda
+### Como funciona o modelo de permissoes
 
-**1. Nova opcao no menu do bot (wapi-webhook)**
-- Atualizar `TIPO_OPTIONS` de 2 para 3 opcoes:
-  - 1 - Já sou cliente
-  - 2 - Quero um orçamento
-  - 3 - Trabalhe no Castelo
-- Atualizar `DEFAULT_QUESTIONS.tipo` para incluir a opcao 3 no texto da pergunta
+```text
++---------------------------+
+|     HUB (Master)          |
+|  CompanyModulesDialog     |
+|  Toggle: "Flow Builder"  |-----> Libera/bloqueia para empresa X
++---------------------------+
+            |
+            v
++---------------------------+
+|   Admin da Empresa        |
+|  AutomationsSection       |
+|  Toggle: "Usar Flow       |-----> Ativa/desativa na empresa
+|          Builder"         |
++---------------------------+
+            |
+            v
++---------------------------+
+|   Funcionarios            |
+|  Permissao granular:      |
+|  "flowbuilder.manage"     |-----> Quem pode criar/editar fluxos
++---------------------------+
+```
 
-**2. Tratamento da opcao 3 no fluxo do bot (wapi-webhook)**
-- Quando o lead responder "3", o bot:
-  - Envia a mensagem de resposta (configuravel via `settings.work_here_response` ou o padrao sugerido acima)
-  - Cria um lead no CRM com `unit = "Trabalhe Conosco"` e `status = "novo"` e `campaign_name = "WhatsApp (Bot) - RH"`
-  - Desativa o bot para essa conversa (`bot_step: "work_interest"`, `bot_enabled: false`)
-  - Cria notificacoes para os admins
+---
 
-**3. Nova unidade "Trabalhe Conosco" no CRM**
-- Criar uma nova unidade na tabela `company_units` com slug `trabalhe-conosco`
-- Isso automaticamente gera uma nova aba no Kanban do CRM
-- Leads com `unit = "Trabalhe Conosco"` aparecerao nessa aba exclusiva
+### Etapas de implementacao
 
-**4. Coluna de configuracao no bot_settings (opcional)**
-- Adicionar coluna `work_here_response` na tabela `wapi_bot_settings` para permitir personalizacao da mensagem
+**Etapa 1 — Banco de dados (migracao SQL)**
+
+- Criar 5 tabelas: `conversation_flows`, `flow_nodes`, `flow_node_options`, `flow_edges`, `flow_lead_state`
+- Todas com `company_id` e RLS filtrando por empresa
+- Adicionar coluna `use_flow_builder BOOLEAN DEFAULT false` na tabela `wapi_bot_settings`
+- RLS policies permitindo acesso apenas a membros da empresa
+
+**Etapa 2 — Camada 1: Hub libera o modulo**
+
+- Adicionar `flow_builder: boolean` ao `CompanyModules` em `useCompanyModules.ts`
+- Adicionar label no `MODULE_LABELS`: "Flow Builder" / "Editor visual de fluxos de conversa"
+- O `CompanyModulesDialog` ja vai exibir o toggle automaticamente (usa `moduleKeys` dinamico)
+- Valor padrao: `false` (desativado ate o Hub liberar)
+
+**Etapa 3 — Camada 2: Admin da empresa ativa o Flow Builder**
+
+- Na `AutomationsSection`, verificar se o modulo `flow_builder` esta liberado pelo Hub via `useCompanyModules()`
+- Se liberado: exibir toggle "Usar Flow Builder" que salva em `wapi_bot_settings.use_flow_builder`
+- Se nao liberado: nao exibir a opcao (ou exibir desabilitada com tooltip "Funcionalidade nao liberada")
+- Quando ativado: exibir link/botao para acessar o editor de fluxos
+
+**Etapa 4 — Camada 3: Permissao granular para funcionarios**
+
+- Adicionar permissao `flowbuilder.manage` na tabela `permission_definitions`
+- Funcionarios sem essa permissao veem o fluxo ativo mas nao podem editar
+- Admin e gestor da empresa podem conceder essa permissao via `PermissionsPanel`
+
+**Etapa 5 — Importar componentes do Flow Builder**
+
+- Copiar os 10 arquivos para `src/components/flowbuilder/`
+- Adaptar imports para o projeto (supabase client, shadcn, company_id no lugar de business_id)
+- Filtrar fluxos por `company_id` da empresa ativa
+- Verificar permissao `flowbuilder.manage` antes de permitir edicao
+
+**Etapa 6 — Integrar na interface de Configuracoes**
+
+- Adicionar secao "Fluxos de Conversa" no `WhatsAppConfig.tsx`
+- Visivel somente se `modules.flow_builder === true`
+- Dentro da secao: `FlowListManager` para gerenciar fluxos
+- Botoes de edicao condicionados a permissao `flowbuilder.manage`
+
+**Etapa 7 — Atualizar webhook (wapi-webhook)**
+
+- No processamento de mensagens, verificar `use_flow_builder` no `wapi_bot_settings`
+- Se ativo: carregar fluxo ativo da empresa, processar mensagem pelos nos/arestas
+- Se inativo: manter o bot fixo atual sem alteracoes
+- O processador de fluxo sera integrado diretamente no `index.ts` da edge function
 
 ---
 
 ### Detalhes tecnicos
 
-**Edge Function `wapi-webhook/index.ts`:**
+**Novo modulo em `useCompanyModules.ts`:**
+- Adicionar `flow_builder: boolean` ao `CompanyModules`
+- Default `false` no `DEFAULT_MODULES`
+- Parse com `modules.flow_builder === true` (opt-in, nao opt-out)
 
+**Nova permissao granular:**
+- Codigo: `flowbuilder.manage`
+- Categoria: `Automacoes`
+- Descricao: "Criar e editar fluxos de conversa no Flow Builder"
+
+**Logica de visibilidade:**
+- Hub nao liberou o modulo -> secao invisivel na empresa
+- Hub liberou, admin nao ativou -> toggle visivel mas desligado, editor oculto
+- Hub liberou, admin ativou -> editor visivel, webhook usa o fluxo
+- Funcionario sem permissao -> pode ver fluxo ativo mas nao editar
+
+**Arquivos novos:**
 ```text
-TIPO_OPTIONS atualizado:
-  { num: 1, value: 'Já sou cliente' }
-  { num: 2, value: 'Quero um orçamento' }
-  { num: 3, value: 'Trabalhe no Castelo' }
+src/components/flowbuilder/
+  types.ts
+  FlowBuilder.tsx
+  FlowCanvas.tsx
+  FlowNodeComponent.tsx
+  FlowEdgeComponent.tsx
+  FlowNodeEditor.tsx
+  FlowToolbar.tsx
+  FlowPreviewDialog.tsx
+  FlowListManager.tsx
+  useFlowBuilder.ts
 ```
 
-No bloco de tratamento do step `tipo` (apos a validacao):
-- Opcao 1: fluxo atual (transferido, sem lead)
-- Opcao 2: fluxo atual (continua qualificacao)
-- Opcao 3 (novo): encerra bot, cria lead com unidade "Trabalhe Conosco", envia resposta
-
-**Migracao SQL:**
-- Inserir unidade "Trabalhe Conosco" na tabela `company_units` para a empresa Castelo
-- Adicionar coluna `work_here_response` em `wapi_bot_settings`
-
 **Arquivos modificados:**
-- `supabase/functions/wapi-webhook/index.ts` -- nova opcao e tratamento
-- Nova migracao SQL -- unidade + coluna de configuracao
+- `src/hooks/useCompanyModules.ts` — adicionar `flow_builder`
+- `src/components/hub/CompanyModulesDialog.tsx` — automatico (ja usa moduleKeys)
+- `src/components/whatsapp/settings/AutomationsSection.tsx` — toggle + secao
+- `src/components/whatsapp/WhatsAppConfig.tsx` — nova secao condicional
+- `supabase/functions/wapi-webhook/index.ts` — logica do processador de fluxo
+- Migracao SQL — 5 tabelas + coluna em bot_settings + permissao
+
