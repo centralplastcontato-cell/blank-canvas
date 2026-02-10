@@ -21,6 +21,7 @@ import { NotificationBell } from "@/components/admin/NotificationBell";
 import { TransferAlertBanner } from "@/components/admin/TransferAlertBanner";
 import { ClientAlertBanner } from "@/components/admin/ClientAlertBanner";
 import { VisitAlertBanner } from "@/components/admin/VisitAlertBanner";
+import { QuestionsAlertBanner } from "@/components/admin/QuestionsAlertBanner";
 import { WhatsAppChat } from "@/components/whatsapp/WhatsAppChat";
 
 import { Button } from "@/components/ui/button";
@@ -670,6 +671,15 @@ export default function CentralAtendimento() {
           }}
         />
 
+        {/* Questions Alert Banner - Mobile */}
+        <QuestionsAlertBanner 
+          userId={user.id} 
+          onOpenConversation={(conversationId, phone) => {
+            setInitialPhone(phone);
+            setActiveTab("chat");
+          }}
+        />
+
         <main className="flex-1 flex flex-col overflow-hidden min-h-0">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "chat" | "leads")} className="flex-1 flex flex-col overflow-hidden min-h-0">
             <TabsList className="mx-3 mt-3 grid grid-cols-2">
@@ -943,6 +953,15 @@ export default function CentralAtendimento() {
 
           {/* Visit Alert Banner - Desktop */}
           <VisitAlertBanner 
+            userId={user.id} 
+            onOpenConversation={(conversationId, phone) => {
+              setInitialPhone(phone);
+              setActiveTab("chat");
+            }}
+          />
+
+          {/* Questions Alert Banner - Desktop */}
+          <QuestionsAlertBanner 
             userId={user.id} 
             onOpenConversation={(conversationId, phone) => {
               setInitialPhone(phone);
