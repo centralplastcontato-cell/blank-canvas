@@ -131,40 +131,47 @@ export function MobileMenu({
           </div>
         </SheetHeader>
         
-        <nav className="flex flex-col p-2">
+        <nav className="flex flex-col p-3 gap-1">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-1">
+            Navegação
+          </p>
           {menuItems
             .filter(item => item.show)
             .map((item) => (
               <Button
                 key={item.id}
                 variant={currentPage === item.id ? "secondary" : "ghost"}
-                className="justify-start h-11 px-3"
+                className="justify-start h-10 px-3 rounded-lg text-sm font-medium"
                 onClick={() => handleNavigation(item.path)}
               >
-                <item.icon className="w-5 h-5 mr-3" />
+                <item.icon className="w-4 h-4 mr-3 shrink-0" />
                 {item.label}
               </Button>
             ))}
           
           <Separator className="my-2" />
+
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-1">
+            Ações
+          </p>
           
           {onRefresh && (
             <Button
               variant="ghost"
-              className="justify-start h-11 px-3"
+              className="justify-start h-10 px-3 rounded-lg text-sm"
               onClick={handleRefresh}
             >
-              <RefreshCw className="w-5 h-5 mr-3" />
+              <RefreshCw className="w-4 h-4 mr-3 shrink-0" />
               Atualizar Dados
             </Button>
           )}
           
           <Button
             variant="ghost"
-            className="justify-start h-11 px-3 text-destructive hover:text-destructive hover:bg-destructive/10"
+            className="justify-start h-10 px-3 rounded-lg text-sm text-destructive hover:text-destructive hover:bg-destructive/10"
             onClick={handleLogout}
           >
-            <LogOut className="w-5 h-5 mr-3" />
+            <LogOut className="w-4 h-4 mr-3 shrink-0" />
             Sair da Conta
           </Button>
         </nav>
