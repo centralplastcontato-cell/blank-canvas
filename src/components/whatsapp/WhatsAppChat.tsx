@@ -407,7 +407,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
     try {
       // If there's a linked lead, delete its history and the lead itself
       if (linkedLead) {
-        // First delete lead history (to avoid foreign key constraint)
+        // First unlink the conversation from the lead (to avoid FK constraint)
+        await supabase
+          .from('wapi_conversations')
+          .update({ lead_id: null })
+          .eq('id', selectedConversation.id);
+
+        // Delete lead history (to avoid foreign key constraint)
         const { error: historyError } = await supabase
           .from('lead_history')
           .delete()
@@ -415,7 +421,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
         
         if (historyError) {
           console.error("[Delete] Error deleting lead history:", historyError);
-          // Continue anyway - history might not exist
         }
         
         // Delete the lead
