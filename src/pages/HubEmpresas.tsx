@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Company } from "@/types/company";
 import { HubLayout } from "@/components/hub/HubLayout";
@@ -8,7 +9,7 @@ import { CreateCompanyAdminDialog } from "@/components/hub/CreateCompanyAdminDia
 import { CompanyModulesDialog } from "@/components/hub/CompanyModulesDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Plus, Pencil, Users, Loader2, UserPlus, Link2, Copy, ClipboardList, MessageSquare, BarChart3, Clock, CheckCircle2, AlertCircle, Globe, AlertTriangle, ExternalLink, Settings2 } from "lucide-react";
+import { Building2, Plus, Pencil, Users, Loader2, UserPlus, Link2, Copy, ClipboardList, MessageSquare, BarChart3, Clock, CheckCircle2, AlertCircle, Globe, AlertTriangle, ExternalLink, Settings2, Layout } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -32,6 +33,7 @@ export default function HubEmpresas() {
 }
 
 function HubEmpresasContent() {
+  const navigate = useNavigate();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
@@ -307,6 +309,9 @@ function HubEmpresasContent() {
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => setModulesCompany(child)} title="Módulos">
                     <Settings2 className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => navigate(`/hub/landing-editor/${child.id}`)} title="Landing Page">
+                    <Layout className="h-3.5 w-3.5" />
                   </Button>
                 </div>
                 {members === 0 && (

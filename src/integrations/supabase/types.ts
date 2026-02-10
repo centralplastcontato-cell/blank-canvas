@@ -195,6 +195,59 @@ export type Database = {
           },
         ]
       }
+      company_landing_pages: {
+        Row: {
+          company_id: string
+          created_at: string
+          footer: Json
+          gallery: Json
+          hero: Json
+          id: string
+          is_published: boolean
+          offer: Json
+          testimonials: Json
+          theme: Json
+          updated_at: string
+          video: Json
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          footer?: Json
+          gallery?: Json
+          hero?: Json
+          id?: string
+          is_published?: boolean
+          offer?: Json
+          testimonials?: Json
+          theme?: Json
+          updated_at?: string
+          video?: Json
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          footer?: Json
+          gallery?: Json
+          hero?: Json
+          id?: string
+          is_published?: boolean
+          offer?: Json
+          testimonials?: Json
+          theme?: Json
+          updated_at?: string
+          video?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_landing_pages_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_onboarding: {
         Row: {
           additional_notes: string | null
