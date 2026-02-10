@@ -260,21 +260,26 @@ async function processFlowBuilderMessage(
 ) {
   const companyId = instance.company_id;
   
+  console.log(`[FlowBuilder] ========== PROCESSING MESSAGE ==========`);
+  console.log(`[FlowBuilder] Company: ${companyId}, Conv: ${conv.id}, Phone: ${contactPhone}`);
+  console.log(`[FlowBuilder] Content: "${content}", BotStep: ${conv.bot_step}, BotEnabled: ${conv.bot_enabled}`);
+  
   // 1. Find the default active flow for this company
   const { data: flow, error: flowErr } = await supabase
     .from('conversation_flows')
-    .select('id')
+    .select('id, name')
     .eq('company_id', companyId)
     .eq('is_default', true)
     .eq('is_active', true)
     .single();
   
   if (flowErr || !flow) {
-    console.log(`[FlowBuilder] No active default flow found for company ${companyId}`);
+    console.log(`[FlowBuilder] ❌ No active default flow found for company ${companyId}. Error: ${flowErr?.message || 'no flow'}`);
     return;
   }
   
   const flowId = flow.id;
+  console.log(`[FlowBuilder] ✅ Found flow: "${flow.name}" (${flowId})`);
   
   // 2. Fetch all nodes, edges, and options for this flow
   const [nodesRes, edgesRes] = await Promise.all([
@@ -285,8 +290,10 @@ async function processFlowBuilderMessage(
   const nodes = nodesRes.data || [];
   const edges = edgesRes.data || [];
   
+  console.log(`[FlowBuilder] Loaded ${nodes.length} nodes, ${edges.length} edges`);
+  
   if (nodes.length === 0) {
-    console.log(`[FlowBuilder] Flow ${flowId} has no nodes`);
+    console.log(`[FlowBuilder] ❌ Flow ${flowId} has no nodes`);
     return;
   }
   
@@ -300,13 +307,15 @@ async function processFlowBuilderMessage(
   
   const startNode = nodes.find(n => n.node_type === 'start');
   if (!startNode) {
-    console.log(`[FlowBuilder] No start node in flow ${flowId}`);
+    console.log(`[FlowBuilder] ❌ No start node in flow ${flowId}`);
     return;
   }
   
+  console.log(`[FlowBuilder] Lead state: ${state ? `exists (node: ${state.current_node_id}, waiting: ${state.waiting_for_reply})` : 'NEW (first message)'}`);
+  
   // 4. If no state, initialize at start node and send first message chain
   if (!state) {
-    console.log(`[FlowBuilder] Initializing flow state for conversation ${conv.id}`);
+    console.log(`[FlowBuilder] 🆕 Initializing flow state for conversation ${conv.id}`);
     
     // Create state at start node
     const { data: newState, error: stateErr } = await supabase
@@ -341,12 +350,13 @@ async function processFlowBuilderMessage(
       return;
     }
     
-    console.log(`[FlowBuilder] Processing reply for node ${currentNode.title} (${currentNode.node_type})`);
+    console.log(`[FlowBuilder] 💬 Processing reply for node "${currentNode.title}" (${currentNode.node_type}), extract_field: ${currentNode.extract_field || 'none'}`);
     
     // Extract data if needed
     const collectedData = (state.collected_data || {}) as Record<string, string>;
     if (currentNode.extract_field) {
       collectedData[currentNode.extract_field] = content.trim();
+      console.log(`[FlowBuilder] 📝 Extracted: ${currentNode.extract_field} = "${content.trim()}"`);
     }
     
     // Update collected_data
@@ -363,6 +373,8 @@ async function processFlowBuilderMessage(
     
     let matchedEdge = null;
     
+    console.log(`[FlowBuilder] Node has ${nodeOptions?.length || 0} options`);
+    
     if (nodeOptions && nodeOptions.length > 0) {
       // Try to match by number (e.g., user types "1", "2", etc.)
       const userChoice = content.trim();
@@ -370,6 +382,7 @@ async function processFlowBuilderMessage(
       
       if (numMatch) {
         const choiceNum = parseInt(numMatch[0]);
+        console.log(`[FlowBuilder] User chose number: ${choiceNum} (valid range: 1-${nodeOptions.length})`);
         if (choiceNum >= 1 && choiceNum <= nodeOptions.length) {
           const selectedOption = nodeOptions[choiceNum - 1];
           // Find edge for this option
@@ -403,6 +416,7 @@ async function processFlowBuilderMessage(
         
         // If still no match, re-send the question with options
         if (!matchedEdge) {
+          console.log(`[FlowBuilder] ⚠️ No option matched for input "${content}". Re-sending question.`);
           const optionsText = nodeOptions.map((o, i) => `*${i + 1}* - ${o.label}`).join('\n');
           const retryMsg = `Por favor, responda com o *número* da opção desejada:\n\n${optionsText}`;
           
@@ -426,8 +440,7 @@ async function processFlowBuilderMessage(
     }
     
     if (!matchedEdge) {
-      console.log(`[FlowBuilder] No matching edge from node ${currentNode.id}`);
-      // End flow - no more edges
+      console.log(`[FlowBuilder] ❌ No matching edge from node "${currentNode.title}" (${currentNode.id}). Flow ends here.`);
       await supabase.from('flow_lead_state').update({ waiting_for_reply: false }).eq('id', state.id);
       return;
     }
@@ -435,9 +448,12 @@ async function processFlowBuilderMessage(
     // Find target node
     const targetNode = nodes.find(n => n.id === matchedEdge!.target_node_id);
     if (!targetNode) {
-      console.log(`[FlowBuilder] Target node ${matchedEdge.target_node_id} not found`);
+      console.log(`[FlowBuilder] ❌ Target node ${matchedEdge.target_node_id} not found in flow`);
       return;
     }
+    
+    console.log(`[FlowBuilder] ➡️ Matched edge → advancing to "${targetNode.title}" (${targetNode.node_type})`);
+    console.log(`[FlowBuilder] Collected data so far: ${JSON.stringify(collectedData)}`);
     
     // Advance to target node
     await advanceFlowFromNode(supabase, instance, conv, state, targetNode, nodes, edges, contactPhone, contactName, collectedData);
@@ -458,7 +474,8 @@ async function advanceFlowFromNode(
 ) {
   const data = collectedData || (state.collected_data as Record<string, string>) || {};
   
-  console.log(`[FlowBuilder] Advancing to node: ${currentNode.title} (${currentNode.node_type})`);
+  console.log(`[FlowBuilder] ▶️ Advancing to node: "${currentNode.title}" (type: ${currentNode.node_type}, id: ${currentNode.id})`);
+  console.log(`[FlowBuilder] Data so far: ${JSON.stringify(data)}`);
   
   // Replace variables in message template
   const replaceVars = (text: string) => {
@@ -473,12 +490,17 @@ async function advanceFlowFromNode(
   switch (currentNode.node_type) {
     case 'start': {
       // Start node - just follow to next node
+      console.log(`[FlowBuilder] ⏩ Start node - auto-advancing`);
       const nextEdge = allEdges.find(e => e.source_node_id === currentNode.id);
       if (nextEdge) {
         const nextNode = allNodes.find(n => n.id === nextEdge.target_node_id);
         if (nextNode) {
           await advanceFlowFromNode(supabase, instance, conv, state, nextNode, allNodes, allEdges, contactPhone, contactName, data);
+        } else {
+          console.log(`[FlowBuilder] ❌ Next node not found: ${nextEdge.target_node_id}`);
         }
+      } else {
+        console.log(`[FlowBuilder] ❌ No edge from start node`);
       }
       break;
     }
@@ -487,6 +509,7 @@ async function advanceFlowFromNode(
       // Send message and auto-advance to next node
       if (currentNode.message_template) {
         const msg = replaceVars(currentNode.message_template);
+        console.log(`[FlowBuilder] 📤 Sending message: "${msg.substring(0, 80)}..."`);
         const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, msg);
         if (msgId) {
           await supabase.from('wapi_messages').insert({
@@ -528,6 +551,8 @@ async function advanceFlowFromNode(
         .eq('node_id', currentNode.id)
         .order('display_order', { ascending: true });
       
+      console.log(`[FlowBuilder] ❓ Question node with ${options?.length || 0} options, extract_field: ${currentNode.extract_field || 'none'}`);
+      
       let msg = currentNode.message_template ? replaceVars(currentNode.message_template) : currentNode.title;
       
       if (options && options.length > 0) {
@@ -535,6 +560,7 @@ async function advanceFlowFromNode(
         msg += `\n\n${optionsText}`;
       }
       
+      console.log(`[FlowBuilder] 📤 Sending question: "${msg.substring(0, 80)}..."`);
       const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, msg);
       if (msgId) {
         await supabase.from('wapi_messages').insert({
@@ -694,6 +720,7 @@ async function advanceFlowFromNode(
     }
     
     case 'end': {
+      console.log(`[FlowBuilder] 🏁 END node reached. Final collected data: ${JSON.stringify(data)}`);
       // Send final message and disable bot
       if (currentNode.message_template) {
         const msg = replaceVars(currentNode.message_template);
