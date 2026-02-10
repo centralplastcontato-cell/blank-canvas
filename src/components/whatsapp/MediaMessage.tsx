@@ -175,7 +175,7 @@ export function MediaMessage({
             <img
               src={currentUrl!}
               alt={content || "Imagem"}
-              className="rounded-lg max-w-full max-h-64 object-contain cursor-pointer"
+              className="max-w-full max-h-64 object-contain cursor-pointer block"
               onClick={() => window.open(currentUrl!, '_blank')}
               onError={handleImageError}
             />
@@ -188,7 +188,7 @@ export function MediaMessage({
           return (
             <video
               controls
-              className="rounded-lg max-w-full max-h-64"
+              className="max-w-full max-h-64 block"
               preload="metadata"
               onError={handleImageError}
             >
