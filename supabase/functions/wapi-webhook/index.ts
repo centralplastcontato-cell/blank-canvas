@@ -282,7 +282,7 @@ async function processBotQualification(
         console.log(`[Bot] Lead ${conv.lead_id} already qualified from LP, bot_step: ${conv.bot_step}`);
         
         // If we're waiting for proximo_passo answer, don't return - let it process below
-        if (conv.bot_step === 'proximo_passo') {
+        if (conv.bot_step === 'proximo_passo' || conv.bot_step === 'proximo_passo_reminded') {
           console.log(`[Bot] Lead is qualified but waiting for proximo_passo answer, continuing...`);
           // Don't return - continue to process the proximo_passo step below
         } else if (!conv.bot_step || conv.bot_step === 'welcome') {
@@ -370,7 +370,7 @@ async function processBotQualification(
     const firstQ = questions[firstStep];
     msg = settings.welcome_message + '\n\n' + (firstQ?.question || DEFAULT_QUESTIONS.nome.question);
     nextStep = firstStep;
-  } else if (questions[step] || step === 'proximo_passo') {
+  } else if (questions[step] || step === 'proximo_passo' || step === 'proximo_passo_reminded') {
     // Get the current question text for dynamic option extraction
     const currentQuestionText = questions[step]?.question;
     
@@ -387,7 +387,7 @@ async function processBotQualification(
       updated[step] = validation.value || content.trim();
       
       const currentQ = questions[step];
-      const nextStepKey = currentQ?.next || (step === 'proximo_passo' ? 'complete_final' : 'complete');
+      const nextStepKey = currentQ?.next || (step === 'proximo_passo' || step === 'proximo_passo_reminded' ? 'complete_final' : 'complete');
       
       // Special handling for "tipo" step - check if already client
       if (step === 'tipo') {
@@ -535,7 +535,7 @@ async function processBotQualification(
         // Only send completion message now - materials and next step question will follow
         msg = completionMsg;
         
-      } else if (nextStepKey === 'proximo_passo' || step === 'proximo_passo') {
+      } else if (nextStepKey === 'proximo_passo' || step === 'proximo_passo' || step === 'proximo_passo_reminded') {
         // Processing proximo_passo answer
         nextStep = 'complete_final';
         
@@ -1377,7 +1377,7 @@ async function processWebhookEvent(body: Record<string, unknown>) {
         if (!fromMe && ex.is_closed) upd.is_closed = false;
         // Only disable bot for manual (human) outgoing messages, not bot-sent messages
         // Bot steps that are part of the active flow should NOT trigger bot disable
-        const activeBotSteps = ['welcome', 'tipo', 'nome', 'mes', 'dia', 'convidados', 'sending_materials', 'proximo_passo'];
+        const activeBotSteps = ['welcome', 'tipo', 'nome', 'mes', 'dia', 'convidados', 'sending_materials', 'proximo_passo', 'proximo_passo_reminded'];
         const isBotActiveStep = activeBotSteps.includes(ex.bot_step || '');
         if (fromMe && ex.bot_step && ex.bot_step !== 'complete' && !isBotActiveStep) upd.bot_enabled = false;
         if (isGrp) { 

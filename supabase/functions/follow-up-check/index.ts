@@ -13,6 +13,9 @@ interface FollowUpSettings {
   follow_up_2_enabled: boolean;
   follow_up_2_delay_hours: number;
   follow_up_2_message: string | null;
+  next_step_reminder_enabled: boolean;
+  next_step_reminder_delay_minutes: number;
+  next_step_reminder_message: string | null;
   instance_id: string;
 }
 
@@ -44,8 +47,8 @@ Deno.serve(async (req) => {
     // Fetch all bot settings with any follow-up enabled
     const { data: allSettings, error: settingsError } = await supabase
       .from("wapi_bot_settings")
-      .select("instance_id, follow_up_enabled, follow_up_delay_hours, follow_up_message, follow_up_2_enabled, follow_up_2_delay_hours, follow_up_2_message")
-      .or("follow_up_enabled.eq.true,follow_up_2_enabled.eq.true");
+      .select("instance_id, follow_up_enabled, follow_up_delay_hours, follow_up_message, follow_up_2_enabled, follow_up_2_delay_hours, follow_up_2_message, next_step_reminder_enabled, next_step_reminder_delay_minutes, next_step_reminder_message")
+      .or("follow_up_enabled.eq.true,follow_up_2_enabled.eq.true,next_step_reminder_enabled.eq.true");
 
     if (settingsError) {
       console.error("[follow-up-check] Error fetching settings:", settingsError);
@@ -65,6 +68,16 @@ Deno.serve(async (req) => {
 
     // Process each instance with follow-up enabled
     for (const settings of allSettings) {
+      // Process next-step reminder (10 min default)
+      if (settings.next_step_reminder_enabled) {
+        const result = await processNextStepReminder({
+          supabase,
+          settings,
+        });
+        totalSuccessCount += result.successCount;
+        allErrors.push(...result.errors);
+      }
+
       // Process first follow-up
       if (settings.follow_up_enabled) {
         const result = await processFollowUp({
@@ -74,7 +87,7 @@ Deno.serve(async (req) => {
           delayHours: settings.follow_up_delay_hours || 24,
           message: settings.follow_up_message || getDefaultFollowUpMessage(1),
           historyAction: "Follow-up automático enviado",
-          checkPreviousAction: null, // First follow-up: just check if any was sent
+          checkPreviousAction: null,
         });
         totalSuccessCount += result.successCount;
         allErrors.push(...result.errors);
@@ -89,7 +102,7 @@ Deno.serve(async (req) => {
           delayHours: settings.follow_up_2_delay_hours || 48,
           message: settings.follow_up_2_message || getDefaultFollowUpMessage(2),
           historyAction: "Follow-up #2 automático enviado",
-          checkPreviousAction: "Follow-up automático enviado", // Second: only if first was sent
+          checkPreviousAction: "Follow-up automático enviado",
         });
         totalSuccessCount += result.successCount;
         allErrors.push(...result.errors);
@@ -115,6 +128,128 @@ Deno.serve(async (req) => {
     );
   }
 });
+
+// ============= NEXT STEP REMINDER (sends reminder when lead doesn't respond to proximo_passo question) =============
+
+interface NextStepReminderParams {
+  supabase: ReturnType<typeof createClient>;
+  settings: FollowUpSettings;
+}
+
+async function processNextStepReminder({
+  supabase,
+  settings,
+}: NextStepReminderParams): Promise<{ successCount: number; errors: string[] }> {
+  const errors: string[] = [];
+  let successCount = 0;
+  const delayMinutes = settings.next_step_reminder_delay_minutes || 10;
+
+  console.log(`[follow-up-check] Processing next-step reminder for instance ${settings.instance_id} with ${delayMinutes}min delay`);
+
+  const now = new Date();
+  const cutoffTime = new Date(now.getTime() - delayMinutes * 60 * 1000);
+  const maxWindow = new Date(now.getTime() - 24 * 60 * 60 * 1000); // max 24h window
+
+  // Find conversations stuck at proximo_passo step where last message is older than delay
+  const { data: stuckConversations, error: convError } = await supabase
+    .from("wapi_conversations")
+    .select("id, remote_jid, instance_id, lead_id, bot_data, contact_name")
+    .eq("instance_id", settings.instance_id)
+    .eq("bot_step", "proximo_passo")
+    .eq("last_message_from_me", true)
+    .lte("last_message_at", cutoffTime.toISOString())
+    .gte("last_message_at", maxWindow.toISOString());
+
+  if (convError) {
+    console.error(`[follow-up-check] Error fetching stuck conversations:`, convError);
+    return { successCount: 0, errors: [String(convError)] };
+  }
+
+  if (!stuckConversations || stuckConversations.length === 0) {
+    console.log(`[follow-up-check] No conversations need next-step reminder for instance ${settings.instance_id}`);
+    return { successCount: 0, errors: [] };
+  }
+
+  console.log(`[follow-up-check] Found ${stuckConversations.length} conversations needing next-step reminder`);
+
+  // Get instance credentials
+  const { data: instance } = await supabase
+    .from("wapi_instances")
+    .select("instance_id, instance_token")
+    .eq("id", settings.instance_id)
+    .single();
+
+  if (!instance) {
+    console.error(`[follow-up-check] No instance found for ${settings.instance_id}`);
+    return { successCount: 0, errors: [`Instance not found: ${settings.instance_id}`] };
+  }
+
+  const defaultReminderMsg = `Oi {nome} estou por aqui escolha uma das opções.\n\n*1* - Agendar visita\n*2* - Tirar dúvidas\n*3* - Analisar com calma`;
+  const reminderTemplate = settings.next_step_reminder_message || defaultReminderMsg;
+
+  for (const conv of stuckConversations) {
+    try {
+      const botData = (conv.bot_data || {}) as Record<string, string>;
+      const firstName = (botData.nome || conv.contact_name || "").split(" ")[0];
+      
+      const personalizedMessage = reminderTemplate
+        .replace(/\{nome\}/g, firstName);
+
+      const phone = conv.remote_jid.replace("@s.whatsapp.net", "").replace("@c.us", "");
+
+      const wapiResponse = await fetch(
+        `https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${instance.instance_token}`,
+          },
+          body: JSON.stringify({ phone, message: personalizedMessage }),
+        }
+      );
+
+      if (!wapiResponse.ok) {
+        const errorText = await wapiResponse.text();
+        console.error(`[follow-up-check] Failed to send reminder to ${phone}:`, errorText);
+        errors.push(`Failed reminder to ${phone}: ${errorText}`);
+        continue;
+      }
+
+      console.log(`[follow-up-check] Next-step reminder sent to ${phone}`);
+
+      // Save message
+      await supabase.from("wapi_messages").insert({
+        conversation_id: conv.id,
+        content: personalizedMessage,
+        from_me: true,
+        message_type: "text",
+        status: "sent",
+        timestamp: new Date().toISOString(),
+      });
+
+      // Update conversation: change step to proximo_passo_reminded so we don't resend
+      await supabase
+        .from("wapi_conversations")
+        .update({
+          bot_step: "proximo_passo_reminded",
+          last_message_at: new Date().toISOString(),
+          last_message_content: personalizedMessage.substring(0, 100),
+          last_message_from_me: true,
+        })
+        .eq("id", conv.id);
+
+      successCount++;
+    } catch (err) {
+      console.error(`[follow-up-check] Error processing reminder for conv ${conv.id}:`, err);
+      errors.push(`Error with conv ${conv.id}: ${String(err)}`);
+    }
+  }
+
+  return { successCount, errors };
+}
+
+// ============= FOLLOW-UP AFTER "ANALISAR COM CALMA" =============
 
 interface ProcessFollowUpParams {
   supabase: ReturnType<typeof createClient>;
