@@ -148,7 +148,10 @@ function HubEmpresasContent() {
         <div className="grid gap-5 md:grid-cols-2">
           {companies.filter(c => c.parent_id !== null).map((child) => {
             const members = memberCounts[child.id] || 0;
-            const domainUrl = child.custom_domain ? `https://${child.custom_domain}` : window.location.origin;
+            const rawDomain = child.custom_domain || '';
+            const domainUrl = rawDomain
+              ? (rawDomain.startsWith('http') ? rawDomain : `https://${rawDomain}`)
+              : window.location.origin;
             // domainUrl is used for copy; window.location.origin for opening
             const copyLink = (path: string, label: string) => {
               const url = `${domainUrl}${path}`;
