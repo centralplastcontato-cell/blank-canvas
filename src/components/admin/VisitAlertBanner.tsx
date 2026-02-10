@@ -59,6 +59,10 @@ export function VisitAlertBanner({ userId, onOpenConversation }: VisitAlertBanne
             data: n.data as unknown as VisitNotificationData,
           }));
         setAlerts(validAlerts);
+        // Play sound if there are unread visit alerts on load
+        if (validAlerts.length > 0 && notificationsEnabledRef.current) {
+          playVisitSound();
+        }
       }
     };
 
@@ -142,25 +146,25 @@ export function VisitAlertBanner({ userId, onOpenConversation }: VisitAlertBanne
   const remainingCount = alerts.length - 1;
 
   return (
-    <div className="bg-gradient-to-r from-blue-500/15 via-blue-500/10 to-blue-500/5 border-b-2 border-blue-500/40 px-4 py-4 animate-in slide-in-from-top duration-300">
+    <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 border-b-2 border-blue-400 px-4 py-4 animate-in slide-in-from-top duration-300 shadow-lg shadow-blue-500/40">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="flex items-center justify-center w-11 h-11 rounded-full bg-blue-500/25 shrink-0 ring-2 ring-blue-500/50 ring-offset-1 ring-offset-background">
-            <CalendarCheck className="w-5 h-5 text-blue-600" />
+          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-white/20 shrink-0 ring-2 ring-white/50 ring-offset-1 ring-offset-blue-600">
+            <CalendarCheck className="w-6 h-6 text-white" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-base font-bold text-foreground truncate">
+            <p className="text-base font-extrabold text-white truncate">
               🏰🗓️ VISITA AGENDADA - Ação urgente!
             </p>
-            <p className="text-sm text-muted-foreground truncate">
-              <span className="font-semibold text-foreground">
+            <p className="text-sm text-blue-100 truncate">
+              <span className="font-bold text-white">
                 {latestAlert.data.contact_name || latestAlert.data.contact_phone}
               </span>
-              <span className="text-blue-600 font-medium ml-1">
+              <span className="text-yellow-200 font-semibold ml-1">
                 ({latestAlert.data.unit})
               </span>
               {remainingCount > 0 && (
-                <span className="ml-1 font-medium">
+                <span className="ml-1 font-medium text-blue-100">
                   e mais {remainingCount} {remainingCount === 1 ? "visita" : "visitas"}
                 </span>
               )}
@@ -171,7 +175,7 @@ export function VisitAlertBanner({ userId, onOpenConversation }: VisitAlertBanne
         <div className="flex items-center gap-2 shrink-0">
           <Button
             size="sm"
-            className="h-9 gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-lg shadow-blue-500/30"
+            className="h-9 gap-1.5 bg-white text-blue-700 hover:bg-blue-50 font-bold shadow-lg"
             onClick={() => handleOpenConversation(latestAlert)}
           >
             <MessageSquare className="w-4 h-4" />
@@ -180,7 +184,7 @@ export function VisitAlertBanner({ userId, onOpenConversation }: VisitAlertBanne
           <Button
             size="icon"
             variant="ghost"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10"
             onClick={() => handleDismiss(latestAlert)}
           >
             <X className="w-4 h-4" />
