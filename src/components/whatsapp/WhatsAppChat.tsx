@@ -165,8 +165,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
   const [oldestMessageTimestamp, setOldestMessageTimestamp] = useState<string | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   
-  // Prevent multiple initial fetches
-  const initialFetchDone = useRef(false);
+  
   const [hasUserScrolledToTop, setHasUserScrolledToTop] = useState(false); // Track if user manually scrolled to top
   const [isAtBottom, setIsAtBottom] = useState(true); // Track if scroll is at bottom (for scroll-to-bottom button visibility)
   const [unreadNewMessagesCount, setUnreadNewMessagesCount] = useState(0); // Count of new messages while scrolled up
@@ -293,16 +292,17 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
   }, []);
 
   useEffect(() => {
-    // Only fetch once on mount - use ref to prevent re-fetches
-    if (initialFetchDone.current) return;
-    initialFetchDone.current = true;
-    
-    fetchInstances();
     fetchTemplates();
     fetchResponsaveis();
     fetchCurrentUserName();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Fetch instances whenever allowedUnits changes (separate effect)
+  useEffect(() => {
+    fetchInstances();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allowedUnits.join(',')]);
 
   const fetchCurrentUserName = async () => {
     const { data } = await supabase
@@ -2267,10 +2267,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
           <Button 
             variant="outline" 
             size="sm"
-            onClick={() => {
-              initialFetchDone.current = false;
-              fetchInstances();
-            }}
+            onClick={() => fetchInstances()}
           >
             Tentar novamente
           </Button>
