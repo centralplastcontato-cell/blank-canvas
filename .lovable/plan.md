@@ -1,94 +1,64 @@
 
+## Adicionar opção "Trabalhe no Castelo" ao bot do WhatsApp
 
-# Gerador de Landing Page por IA
+### Resumo
 
-## Ideia
-Ao invés de preencher campo por campo no editor, o admin do Hub terá um **botão "Criar com IA"** que abre um formulário simplificado. Nele, basta descrever o buffet em texto livre, enviar fotos e vídeo, informar o tema da promoção, e a IA gera toda a LP automaticamente -- textos profissionais, depoimentos realistas, oferta persuasiva, paleta de cores coerente.
+Adicionar a terceira opção ao menu do bot ("Trabalhe no Castelo") com uma resposta automática e envio do lead para uma aba exclusiva no CRM. O lead que escolher essa opção sera tratado de forma semelhante ao "Já sou cliente" -- o bot encerra a conversa, envia uma mensagem personalizada e registra o contato no CRM com uma unidade especial.
 
-O editor manual continua existindo para ajustes finos depois da geração.
+### Sugestao de resposta para a opcao 3
 
-## Fluxo do usuário
+> "Que legal que você quer fazer parte do nosso time! 🏰✨
+>
+> Envie seu currículo aqui nesta conversa e nossa equipe de RH vai analisar!
+>
+> Obrigado pelo interesse! 👑"
 
-1. Acessa `/hub/landing-editor/:companyId`
-2. Clica no botão **"Criar com IA"**
-3. Preenche um formulário simples:
-   - Descrição do buffet (texto livre)
-   - URL do vídeo institucional (opcional)
-   - Upload de fotos do espaço
-   - Tema da promoção (ex: "Férias de Julho - 20% off")
-   - Informações extras (diferenciais, endereço, etc.)
-4. Clica em **"Gerar LP"**
-5. A IA processa e preenche todos os campos JSONB automaticamente
-6. O admin revisa no editor e publica
+### O que muda
 
-## Componentes do plano
+**1. Nova opcao no menu do bot (wapi-webhook)**
+- Atualizar `TIPO_OPTIONS` de 2 para 3 opcoes:
+  - 1 - Já sou cliente
+  - 2 - Quero um orçamento
+  - 3 - Trabalhe no Castelo
+- Atualizar `DEFAULT_QUESTIONS.tipo` para incluir a opcao 3 no texto da pergunta
 
-### 1. Configurar API Key da OpenAI
-- Adicionar o secret `OPENAI_API_KEY` ao projeto (via Lovable Secrets)
+**2. Tratamento da opcao 3 no fluxo do bot (wapi-webhook)**
+- Quando o lead responder "3", o bot:
+  - Envia a mensagem de resposta (configuravel via `settings.work_here_response` ou o padrao sugerido acima)
+  - Cria um lead no CRM com `unit = "Trabalhe Conosco"` e `status = "novo"` e `campaign_name = "WhatsApp (Bot) - RH"`
+  - Desativa o bot para essa conversa (`bot_step: "work_interest"`, `bot_enabled: false`)
+  - Cria notificacoes para os admins
 
-### 2. Nova Edge Function: `generate-landing-page`
-- Recebe: `company_id`, `description`, `promo_theme`, `video_url`, `photo_urls[]`, `extra_info`
-- Chama a OpenAI API (GPT-4o) com um prompt estruturado que gera um JSON com todas as seções:
-  - `hero`: titulo impactante, subtitulo emocional, texto do CTA
-  - `video`: titulo da seção, URL do vídeo
-  - `gallery`: titulo da seção, array de URLs das fotos
-  - `testimonials`: 3-4 depoimentos realistas com nomes e ratings
-  - `offer`: titulo, descrição persuasiva, texto de destaque, CTA
-  - `theme`: paleta de cores harmoniosa baseada na descrição
-  - `footer`: configurações padrão
-- Retorna o JSON completo para o frontend preencher o editor
+**3. Nova unidade "Trabalhe Conosco" no CRM**
+- Criar uma nova unidade na tabela `company_units` com slug `trabalhe-conosco`
+- Isso automaticamente gera uma nova aba no Kanban do CRM
+- Leads com `unit = "Trabalhe Conosco"` aparecerao nessa aba exclusiva
 
-### 3. Componente `AIGeneratorDialog`
-- Dialog/modal no editor com o formulário simplificado
-- Campo de texto para descrição livre
-- Upload de fotos (reutiliza lógica do GalleryEditor)
-- Campo para URL do vídeo
-- Campo para tema da promoção
-- Campo para informações extras
-- Botão "Gerar LP" com loading state
-- Ao receber resposta, preenche todos os campos do editor automaticamente
-
-### 4. Integração no HubLandingEditor
-- Botão "Criar com IA" na barra de ações (ao lado de Salvar e Preview)
-- Quando a IA gera os dados, atualiza o state do `lpData` de uma vez
-- O admin pode revisar e ajustar antes de salvar
+**4. Coluna de configuracao no bot_settings (opcional)**
+- Adicionar coluna `work_here_response` na tabela `wapi_bot_settings` para permitir personalizacao da mensagem
 
 ---
 
-## Detalhes Técnicos
+### Detalhes tecnicos
 
-### Edge Function `generate-landing-page`
+**Edge Function `wapi-webhook/index.ts`:**
 
 ```text
-POST /generate-landing-page
-Body: {
-  company_id: string
-  company_name: string
-  description: string        // "Buffet infantil em SP, 3 salões..."
-  promo_theme: string        // "Férias Julho - 20% desconto"
-  video_url?: string
-  photo_urls: string[]
-  extra_info?: string        // "Estacionamento grátis, equipe bilíngue..."
-}
-
-Response: {
-  hero: { title, subtitle, cta_text }
-  video: { enabled, title, video_url, video_type }
-  gallery: { enabled, title, photos }
-  testimonials: { enabled, title, items[] }
-  offer: { enabled, title, description, highlight_text, cta_text }
-  theme: { primary_color, secondary_color, background_color, ... }
-  footer: { show_address, show_phone, show_instagram, custom_text }
-}
+TIPO_OPTIONS atualizado:
+  { num: 1, value: 'Já sou cliente' }
+  { num: 2, value: 'Quero um orçamento' }
+  { num: 3, value: 'Trabalhe no Castelo' }
 ```
 
-### Prompt da IA (resumo)
-O system prompt instruirá o modelo a agir como um copywriter especializado em landing pages para buffets infantis, gerando textos persuasivos em português brasileiro, com paleta de cores coerente e depoimentos realistas.
+No bloco de tratamento do step `tipo` (apos a validacao):
+- Opcao 1: fluxo atual (transferido, sem lead)
+- Opcao 2: fluxo atual (continua qualificacao)
+- Opcao 3 (novo): encerra bot, cria lead com unidade "Trabalhe Conosco", envia resposta
 
-### Arquivos a criar/editar
-- `supabase/functions/generate-landing-page/index.ts` -- nova edge function
-- `src/components/hub/landing-editor/AIGeneratorDialog.tsx` -- novo componente
-- `src/pages/HubLandingEditor.tsx` -- adicionar botão "Criar com IA"
+**Migracao SQL:**
+- Inserir unidade "Trabalhe Conosco" na tabela `company_units` para a empresa Castelo
+- Adicionar coluna `work_here_response` em `wapi_bot_settings`
 
-### Pré-requisito
-- Secret `OPENAI_API_KEY` precisa ser configurada no projeto
+**Arquivos modificados:**
+- `supabase/functions/wapi-webhook/index.ts` -- nova opcao e tratamento
+- Nova migracao SQL -- unidade + coluna de configuracao
