@@ -55,10 +55,11 @@ const DEFAULT_GUEST_OPTIONS = [
   { num: 6, value: '100 pessoas' },
 ];
 
-// Default tipo options (cliente ou orçamento)
+// Default tipo options (cliente, orçamento ou trabalhe conosco)
 const TIPO_OPTIONS = [
   { num: 1, value: 'Já sou cliente' },
   { num: 2, value: 'Quero um orçamento' },
+  { num: 3, value: 'Trabalhe no Castelo' },
 ];
 
 // Default próximo passo options
@@ -478,6 +479,94 @@ async function processBotQualification(
           console.log(`[Bot] Conversation transferred. Bot disabled. No lead created.`);
           return; // Exit early - don't continue with normal flow
         }
+        // Check if wants to work here (option 3)
+        const wantsWork = validation.value === 'Trabalhe no Castelo' || content.trim() === '3';
+        
+        if (wantsWork) {
+          console.log(`[Bot] User ${contactPhone} wants to work here. Creating RH lead.`);
+          
+          const defaultWorkResponse = `Que legal que você quer fazer parte do nosso time! 🏰✨\n\nEnvie seu currículo aqui nesta conversa e nossa equipe de RH vai analisar!\n\nObrigado pelo interesse! 👑`;
+          const workResponseTemplate = settings.work_here_response || defaultWorkResponse;
+          msg = replaceVariables(workResponseTemplate, updated);
+          nextStep = 'work_interest';
+          
+          // Send message
+          const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, msg);
+          
+          if (msgId) {
+            await supabase.from('wapi_messages').insert({
+              conversation_id: conv.id,
+              message_id: msgId,
+              from_me: true,
+              message_type: 'text',
+              content: msg,
+              status: 'sent',
+              timestamp: new Date().toISOString(),
+              company_id: instance.company_id,
+            });
+          }
+          
+          // Create lead with "Trabalhe Conosco" unit
+          const leadName = updated.nome || contactName || contactPhone;
+          const { data: newLead, error: leadErr } = await supabase.from('campaign_leads').insert({
+            name: leadName,
+            whatsapp: n,
+            unit: 'Trabalhe Conosco',
+            campaign_id: 'whatsapp-bot-rh',
+            campaign_name: 'WhatsApp (Bot) - RH',
+            status: 'novo',
+            company_id: instance.company_id,
+          }).select('id').single();
+          
+          if (leadErr) {
+            console.error(`[Bot] Error creating RH lead:`, leadErr.message);
+          } else {
+            console.log(`[Bot] RH Lead created: ${newLead.id}`);
+            await supabase.from('wapi_conversations').update({ lead_id: newLead.id }).eq('id', conv.id);
+          }
+          
+          // Disable bot
+          await supabase.from('wapi_conversations').update({
+            bot_step: 'work_interest',
+            bot_data: updated,
+            bot_enabled: false,
+            last_message_at: new Date().toISOString(),
+            last_message_content: msg.substring(0, 100),
+            last_message_from_me: true
+          }).eq('id', conv.id);
+          
+          // Create notifications for admins
+          try {
+            const { data: adminRoles } = await supabase
+              .from('user_roles')
+              .select('user_id')
+              .eq('role', 'admin');
+            
+            const notifications = (adminRoles || []).map(r => ({
+              user_id: r.user_id,
+              type: 'work_interest',
+              title: '👷 Interesse em trabalhar no Castelo',
+              message: `${leadName} quer trabalhar no Castelo! Enviou interesse via WhatsApp.`,
+              data: {
+                conversation_id: conv.id,
+                contact_name: leadName,
+                contact_phone: contactPhone,
+              },
+              read: false
+            }));
+            
+            if (notifications.length > 0) {
+              await supabase.from('notifications').insert(notifications);
+              console.log(`[Bot] Created ${notifications.length} notifications for work interest`);
+            }
+          } catch (notifErr) {
+            console.error('[Bot] Error creating work interest notifications:', notifErr);
+          }
+          
+          console.log(`[Bot] Work interest flow complete. Bot disabled.`);
+          return;
+        }
+        
         // If wants quote (option 2), continue with normal flow
         console.log(`[Bot] User ${contactPhone} wants a quote. Continuing qualification.`);
       }
