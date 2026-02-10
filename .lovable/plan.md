@@ -1,164 +1,94 @@
 
-# Plano: Dashboard como Página Inicial + Sistema de Permissões Granulares
 
-## Resumo
+# Gerador de Landing Page por IA
 
-Este plano aborda duas mudanças importantes:
-1. Tornar o painel administrativo (dashboard) a página inicial do sistema
-2. Criar um sistema flexível de permissões onde administradores podem ativar/desativar funcionalidades específicas para cada usuário
+## Ideia
+Ao invés de preencher campo por campo no editor, o admin do Hub terá um **botão "Criar com IA"** que abre um formulário simplificado. Nele, basta descrever o buffet em texto livre, enviar fotos e vídeo, informar o tema da promoção, e a IA gera toda a LP automaticamente -- textos profissionais, depoimentos realistas, oferta persuasiva, paleta de cores coerente.
 
----
+O editor manual continua existindo para ajustes finos depois da geração.
 
-## Parte 1: Dashboard como Página Inicial
+## Fluxo do usuário
 
-### O que será feito
-- A rota `/` passará a exibir o dashboard (gestão de leads) em vez da landing page promocional
-- A landing page promocional será movida para uma rota dedicada como `/promo` ou `/campanha`
-- O menu lateral será atualizado para refletir essa mudança
+1. Acessa `/hub/landing-editor/:companyId`
+2. Clica no botão **"Criar com IA"**
+3. Preenche um formulário simples:
+   - Descrição do buffet (texto livre)
+   - URL do vídeo institucional (opcional)
+   - Upload de fotos do espaço
+   - Tema da promoção (ex: "Férias de Julho - 20% off")
+   - Informações extras (diferenciais, endereço, etc.)
+4. Clica em **"Gerar LP"**
+5. A IA processa e preenche todos os campos JSONB automaticamente
+6. O admin revisa no editor e publica
 
-### Impacto
-- Usuários autenticados verão o dashboard ao acessar a raiz do site
-- Usuários não autenticados serão redirecionados para `/auth` (login)
-- A landing page continua acessível para campanhas de marketing
+## Componentes do plano
 
----
+### 1. Configurar API Key da OpenAI
+- Adicionar o secret `OPENAI_API_KEY` ao projeto (via Lovable Secrets)
 
-## Parte 2: Sistema de Permissões Granulares
+### 2. Nova Edge Function: `generate-landing-page`
+- Recebe: `company_id`, `description`, `promo_theme`, `video_url`, `photo_urls[]`, `extra_info`
+- Chama a OpenAI API (GPT-4o) com um prompt estruturado que gera um JSON com todas as seções:
+  - `hero`: titulo impactante, subtitulo emocional, texto do CTA
+  - `video`: titulo da seção, URL do vídeo
+  - `gallery`: titulo da seção, array de URLs das fotos
+  - `testimonials`: 3-4 depoimentos realistas com nomes e ratings
+  - `offer`: titulo, descrição persuasiva, texto de destaque, CTA
+  - `theme`: paleta de cores harmoniosa baseada na descrição
+  - `footer`: configurações padrão
+- Retorna o JSON completo para o frontend preencher o editor
 
-### Conceito
-Em vez de apenas 3 níveis de acesso (Admin, Comercial, Visualização), teremos permissões individuais que podem ser habilitadas ou desabilitadas por usuário. Isso permite:
+### 3. Componente `AIGeneratorDialog`
+- Dialog/modal no editor com o formulário simplificado
+- Campo de texto para descrição livre
+- Upload de fotos (reutiliza lógica do GalleryEditor)
+- Campo para URL do vídeo
+- Campo para tema da promoção
+- Campo para informações extras
+- Botão "Gerar LP" com loading state
+- Ao receber resposta, preenche todos os campos do editor automaticamente
 
-- Dar a um usuário comercial a permissão de exportar dados, mas não de editar leads
-- Permitir que um usuário visualize o Kanban mas não a tabela
-- Habilitar/desabilitar funcionalidades futuras sem reescrever código
-
-### Permissões Iniciais Propostas
-
-| Permissão | Descrição |
-|-----------|-----------|
-| `leads.view` | Visualizar lista de leads |
-| `leads.edit` | Editar informações de leads |
-| `leads.export` | Exportar leads para CSV |
-| `leads.assign` | Atribuir responsável a leads |
-| `users.view` | Ver lista de usuários |
-| `users.manage` | Criar, editar e excluir usuários |
-| `permissions.manage` | Gerenciar permissões de outros usuários |
-
-### Interface de Gerenciamento
-
-Na página de Usuários (`/users`), será adicionada uma nova seção onde o administrador pode:
-
-1. Ver todas as permissões disponíveis agrupadas por categoria
-2. Ativar/desativar cada permissão individualmente usando switches
-3. As permissões são salvas imediatamente ao clicar
-4. Perfis pré-definidos (Admin, Comercial, Visualização) podem aplicar um conjunto padrão de permissões
-
-### Exemplo Visual da Interface
-```
-┌─────────────────────────────────────────────────────┐
-│  Permissões de João Silva                           │
-├─────────────────────────────────────────────────────┤
-│  📋 Leads                                           │
-│  ├─ [✓] Visualizar leads                           │
-│  ├─ [✓] Editar leads                               │
-│  ├─ [ ] Exportar leads                             │
-│  └─ [✓] Atribuir responsável                       │
-│                                                     │
-│  👥 Usuários                                        │
-│  ├─ [ ] Ver lista de usuários                      │
-│  └─ [ ] Gerenciar usuários                         │
-│                                                     │
-│  🔐 Sistema                                         │
-│  └─ [ ] Gerenciar permissões                       │
-└─────────────────────────────────────────────────────┘
-```
+### 4. Integração no HubLandingEditor
+- Botão "Criar com IA" na barra de ações (ao lado de Salvar e Preview)
+- Quando a IA gera os dados, atualiza o state do `lpData` de uma vez
+- O admin pode revisar e ajustar antes de salvar
 
 ---
 
 ## Detalhes Técnicos
 
-### Banco de Dados
+### Edge Function `generate-landing-page`
 
-Nova tabela `user_permissions`:
+```text
+POST /generate-landing-page
+Body: {
+  company_id: string
+  company_name: string
+  description: string        // "Buffet infantil em SP, 3 salões..."
+  promo_theme: string        // "Férias Julho - 20% desconto"
+  video_url?: string
+  photo_urls: string[]
+  extra_info?: string        // "Estacionamento grátis, equipe bilíngue..."
+}
 
-```sql
-CREATE TABLE public.user_permissions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  permission TEXT NOT NULL,
-  granted BOOLEAN NOT NULL DEFAULT true,
-  granted_by UUID REFERENCES auth.users(id),
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(user_id, permission)
-);
-```
-
-Nova tabela `permission_definitions` (catálogo de permissões disponíveis):
-
-```sql
-CREATE TABLE public.permission_definitions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  code TEXT UNIQUE NOT NULL,
-  name TEXT NOT NULL,
-  description TEXT,
-  category TEXT NOT NULL,
-  is_active BOOLEAN DEFAULT true,
-  sort_order INT DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-```
-
-### Arquivos a Criar/Modificar
-
-| Arquivo | Ação |
-|---------|------|
-| `src/App.tsx` | Reorganizar rotas |
-| `src/pages/Dashboard.tsx` | Renomear Admin.tsx ou criar novo |
-| `src/pages/LandingPage.tsx` | Mover conteúdo do Index atual |
-| `src/hooks/usePermissions.ts` | Hook para verificar permissões do usuário |
-| `src/components/admin/PermissionsPanel.tsx` | Interface de gerenciamento de permissões |
-| `src/components/admin/AdminSidebar.tsx` | Atualizar links de navegação |
-| `src/types/crm.ts` | Adicionar tipos de permissões |
-| `supabase/functions/manage-user/index.ts` | Adicionar ações de permissão |
-
-### Hook de Permissões
-
-```typescript
-// Exemplo de uso
-const { hasPermission, permissions, isLoading } = usePermissions(userId);
-
-if (hasPermission('leads.export')) {
-  // Mostrar botão de exportar
+Response: {
+  hero: { title, subtitle, cta_text }
+  video: { enabled, title, video_url, video_type }
+  gallery: { enabled, title, photos }
+  testimonials: { enabled, title, items[] }
+  offer: { enabled, title, description, highlight_text, cta_text }
+  theme: { primary_color, secondary_color, background_color, ... }
+  footer: { show_address, show_phone, show_instagram, custom_text }
 }
 ```
 
-### Segurança
+### Prompt da IA (resumo)
+O system prompt instruirá o modelo a agir como um copywriter especializado em landing pages para buffets infantis, gerando textos persuasivos em português brasileiro, com paleta de cores coerente e depoimentos realistas.
 
-- Apenas administradores podem modificar permissões
-- A permissão `permissions.manage` é necessária para acessar o painel de permissões
-- RLS policies protegem a tabela `user_permissions`
-- Verificações são feitas tanto no frontend quanto no backend (Edge Function)
+### Arquivos a criar/editar
+- `supabase/functions/generate-landing-page/index.ts` -- nova edge function
+- `src/components/hub/landing-editor/AIGeneratorDialog.tsx` -- novo componente
+- `src/pages/HubLandingEditor.tsx` -- adicionar botão "Criar com IA"
 
----
-
-## Ordem de Implementação
-
-1. **Banco de dados**: Criar tabelas e inserir permissões iniciais
-2. **Hook de permissões**: Criar `usePermissions` para consumir as permissões
-3. **Rotas**: Reorganizar App.tsx
-4. **Landing page**: Mover para nova rota
-5. **Dashboard**: Ajustar para ser a página inicial
-6. **Sidebar**: Atualizar navegação
-7. **Painel de permissões**: Criar interface de gerenciamento
-8. **Edge Function**: Atualizar para suportar operações de permissão
-9. **Integração**: Aplicar verificações de permissão nos componentes existentes
-
----
-
-## Benefícios
-
-- **Flexibilidade**: Controle granular sobre o que cada usuário pode fazer
-- **Escalabilidade**: Novas funcionalidades podem ter suas próprias permissões
-- **Auditoria**: Registro de quem concedeu cada permissão
-- **Segurança**: Princípio do menor privilégio - usuários só têm acesso ao necessário
+### Pré-requisito
+- Secret `OPENAI_API_KEY` precisa ser configurada no projeto
