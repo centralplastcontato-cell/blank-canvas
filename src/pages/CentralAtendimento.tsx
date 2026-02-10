@@ -103,7 +103,7 @@ export default function CentralAtendimento() {
   const { hasPermission } = usePermissions(user?.id);
   const canEditName = isAdmin || hasPermission('leads.edit.name');
   const canEditDescription = isAdmin || hasPermission('leads.edit.description');
-  const canAccessB2B = isAdmin || hasPermission('b2b.view');
+  
   const canExportLeads = isAdmin || hasPermission('leads.export');
   const canDeleteLeads = isAdmin || hasPermission('leads.delete');
   const canAssignLeads = isAdmin || hasPermission('leads.assign');
@@ -585,7 +585,6 @@ export default function CentralAtendimento() {
                   userEmail={user.email || ""}
                   userAvatar={currentUserProfile?.avatar_url}
                   canManageUsers={canManageUsers}
-                  canAccessB2B={canAccessB2B}
                   isAdmin={isAdmin}
                   onRefresh={handleRefresh}
                   onLogout={handleLogout}
@@ -800,7 +799,7 @@ export default function CentralAtendimento() {
       <div className="h-dvh flex w-full overflow-hidden">
         <AdminSidebar 
           canManageUsers={canManageUsers}
-          canAccessB2B={canAccessB2B}
+          
           isAdmin={isAdmin}
           currentUserName={currentUserProfile?.full_name || user.email || ""} 
           onRefresh={handleRefresh} 

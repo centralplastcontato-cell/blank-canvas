@@ -98,7 +98,7 @@ export default function UsersPage() {
   const { isAdmin, isLoading: isLoadingRole, hasFetched, error: roleError, canManageUsers } = useUserRole(user?.id);
   const { hasPermission } = usePermissions(user?.id);
   const { currentCompanyId } = useCompany();
-  const canAccessB2B = isAdmin || hasPermission('b2b.view');
+  
   const [accessChecked, setAccessChecked] = useState(false);
 
   useEffect(() => {
@@ -878,7 +878,6 @@ export default function UsersPage() {
                   userName={currentUserProfile?.full_name || ""}
                   userEmail={user.email || ""}
                   canManageUsers={canManageUsers}
-                  canAccessB2B={canAccessB2B}
                   onRefresh={handleRefresh}
                   onLogout={handleLogout}
                 />
@@ -905,7 +904,7 @@ export default function UsersPage() {
       <div className="min-h-screen flex w-full">
         <AdminSidebar 
           canManageUsers={canManageUsers}
-          canAccessB2B={canAccessB2B}
+          
           currentUserName={currentUserProfile?.full_name || user.email || ""} 
           onRefresh={handleRefresh} 
           onLogout={handleLogout} 

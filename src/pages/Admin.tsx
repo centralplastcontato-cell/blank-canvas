@@ -81,7 +81,7 @@ export default function Admin() {
   const { hasPermission } = usePermissions(user?.id);
   const canEditName = isAdmin || hasPermission('leads.edit.name');
   const canEditDescription = isAdmin || hasPermission('leads.edit.description');
-  const canAccessB2B = isAdmin || hasPermission('b2b.view');
+  
   const canExportLeads = isAdmin || hasPermission('leads.export');
   const canDeleteLeads = isAdmin || hasPermission('leads.delete');
   const canAssignLeads = isAdmin || hasPermission('leads.assign');
@@ -615,7 +615,7 @@ export default function Admin() {
       <div className="min-h-screen flex w-full">
         <AdminSidebar 
           canManageUsers={canManageUsers}
-          canAccessB2B={canAccessB2B}
+          
           currentUserName={currentUserProfile?.full_name || user.email || ""} 
           onRefresh={handleRefresh} 
           onLogout={handleLogout} 
