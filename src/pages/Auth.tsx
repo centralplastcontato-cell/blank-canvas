@@ -39,22 +39,31 @@ export default function Auth() {
   }, [slug]);
 
   useEffect(() => {
+    // If accessing branded login (/auth/:slug), sign out first to show login form
+    if (slug) {
+      supabase.auth.signOut().then(() => {
+        // After sign out, no redirect needed — stay on login page
+      });
+      return;
+    }
+
+    // For /auth (no slug), redirect if already logged in
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (session?.user) {
-          navigate("/admin");
+          navigate("/atendimento");
         }
       }
     );
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        navigate("/admin");
+        navigate("/atendimento");
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, slug]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,7 +92,7 @@ export default function Auth() {
 
       if (error) throw error;
 
-      navigate("/admin");
+      navigate("/atendimento");
     } catch (error: any) {
       let message = "Ocorreu um erro. Tente novamente.";
       
