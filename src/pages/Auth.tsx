@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Lock, Mail, ArrowLeft } from "lucide-react";
+import { isHubDomain } from "@/hooks/useDomainDetection";
 import { z } from "zod";
 import logoCastelo from "@/assets/logo-castelo.png";
 
@@ -21,6 +22,13 @@ export default function Auth() {
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState<string | null>(null);
   const [isLoadingCompany, setIsLoadingCompany] = useState(!!slug);
+
+  // Redirect to Hub login if on Hub domain
+  useEffect(() => {
+    if (isHubDomain()) {
+      navigate("/hub-login", { replace: true });
+    }
+  }, [navigate]);
 
   useEffect(() => {
     if (slug) {
