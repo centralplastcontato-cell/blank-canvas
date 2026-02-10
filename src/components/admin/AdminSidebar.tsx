@@ -43,6 +43,7 @@ export function AdminSidebar({
   const collapsed = state === "collapsed";
   const location = useLocation();
   const [isPinned, setIsPinned] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const modules = useCompanyModules();
 
   // Build menu items dynamically based on permissions AND enabled modules
@@ -62,7 +63,7 @@ export function AdminSidebar({
   };
 
   const handleMouseLeave = () => {
-    if (!isPinned) {
+    if (!isPinned && !isDropdownOpen) {
       setOpen(false);
     }
   };
@@ -157,7 +158,7 @@ export function AdminSidebar({
       <SidebarContent>
         {/* Company Switcher */}
         <div className="px-2 pt-1">
-          <CompanySwitcher collapsed={collapsed} />
+          <CompanySwitcher collapsed={collapsed} onDropdownOpenChange={setIsDropdownOpen} />
         </div>
 
         <SidebarGroup>
