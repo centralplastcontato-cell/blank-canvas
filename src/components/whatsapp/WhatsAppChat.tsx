@@ -884,8 +884,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
       .from("wapi_instances")
       .select("id, instance_id, instance_token, status, unit");
 
-    // Filter by allowed units if not "all"
-    if (!allowedUnits.includes('all') && allowedUnits.length > 0) {
+    // Filter by allowed units - if empty, show nothing (user has no unit access)
+    if (!allowedUnits.includes('all')) {
+      if (allowedUnits.length === 0) {
+        setInstances([]);
+        setIsLoading(false);
+        return;
+      }
       query = query.in("unit", allowedUnits);
     }
 
