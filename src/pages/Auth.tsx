@@ -39,13 +39,9 @@ export default function Auth() {
   }, [slug]);
 
   useEffect(() => {
-    // If accessing branded login (/auth/:slug), sign out first to show login form
-    if (slug) {
-      supabase.auth.signOut().then(() => {
-        // After sign out, no redirect needed — stay on login page
-      });
-      return;
-    }
+    // If accessing branded login (/auth/:slug), just show the login form
+    // Don't sign out — that would kill sessions in other tabs (e.g. Hub)
+    if (slug) return;
 
     // For /auth (no slug), redirect if already logged in
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -85,6 +81,9 @@ export default function Auth() {
     setIsLoading(true);
 
     try {
+      // Sign out current session before signing in as different user
+      await supabase.auth.signOut();
+
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
