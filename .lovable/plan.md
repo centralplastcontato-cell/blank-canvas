@@ -1,118 +1,52 @@
 
 
-## Etapas 3b, 4 e 7 — Toggle do Admin, Permissao Granular e Processador de Fluxo no Webhook
+## Criar Fluxo de Exemplo para Castelo da Diversao
 
-### O que ja esta pronto
+### Objetivo
+Inserir um fluxo completo no banco de dados para a empresa **Castelo da Diversao** (`a0000000-0000-0000-0000-000000000001`), permitindo testar o processador `processFlowBuilderMessage` no webhook de ponta a ponta.
 
-- Banco de dados: 5 tabelas criadas + coluna `use_flow_builder` em `wapi_bot_settings` + permissao `flowbuilder.manage`
-- Camada 1 (Hub): modulo `flow_builder` em `useCompanyModules.ts` com toggle automatico no `CompanyModulesDialog`
-- Componentes do Flow Builder: 10 arquivos importados em `src/components/flowbuilder/`
-- Aba "Fluxos" no `WhatsAppConfig.tsx`: visivel somente se `modules.flow_builder === true`
+### Estrutura do Fluxo
 
-### O que falta implementar
-
----
-
-### Etapa 3b — Toggle "Usar Flow Builder" na AutomationsSection
-
-**Arquivo:** `src/components/whatsapp/settings/AutomationsSection.tsx`
-
-Adicionar um card na secao de Automacoes com:
-- Import de `useCompanyModules` para verificar se o Hub liberou o modulo
-- Toggle "Usar Flow Builder" que salva em `wapi_bot_settings.use_flow_builder`
-- Visivel somente quando `modules.flow_builder === true`
-- Quando ativado: exibir um aviso que o bot fixo sera substituido pelo fluxo visual
-- Adicionar `use_flow_builder` na interface `BotSettings` do componente
-- Adicionar ao `fetchBotSettings` e `updateBotSettings`
-
-O toggle fica dentro do card "Bot de Qualificacao", logo apos o toggle de "Bot Global", com o visual:
+O fluxo tera 5 nos conectados sequencialmente:
 
 ```text
-+--------------------------------------------------+
-| [icon] Flow Builder                    [Switch]   |
-| Substituir bot fixo pelo fluxo visual             |
-| Aviso: "O fluxo padrao sera usado no lugar..."    |
-+--------------------------------------------------+
+[Inicio] --> [Boas-vindas] --> [Pergunta: Nome] --> [Pergunta: Mes] --> [Fim]
 ```
 
----
+**Detalhes dos nos:**
 
-### Etapa 4 — Verificacao de permissao `flowbuilder.manage`
+| # | Tipo | Titulo | Mensagem/Acao |
+|---|------|--------|---------------|
+| 1 | start | Inicio | (sem mensagem) |
+| 2 | message | Boas-vindas | "Ola! Bem-vindo ao Castelo da Diversao! Vamos te ajudar a planejar sua festa." |
+| 3 | question | Nome do Cliente | "Qual e o seu nome?" (extract_field: customer_name) |
+| 4 | question | Mes da Festa | "Para qual mes voce esta planejando a festa? Digite o numero:\n\n*1* - Este mes\n*2* - Proximo mes\n*3* - Daqui 2+ meses" (3 opcoes) |
+| 5 | end | Fim | "Obrigado {nome}! Um atendente vai entrar em contato em breve." |
 
-**Arquivos:** `src/components/flowbuilder/FlowListManager.tsx`, `src/hooks/usePermissions.ts`
+**Arestas (conexoes):**
+- Inicio -> Boas-vindas (automatica)
+- Boas-vindas -> Pergunta Nome (automatica)
+- Pergunta Nome -> Pergunta Mes (fallback - qualquer resposta aceita como nome)
+- Opcao 1 (Este mes) -> Fim
+- Opcao 2 (Proximo mes) -> Fim
+- Opcao 3 (Daqui 2+ meses) -> Fim
 
-- No `FlowListManager`, verificar se o usuario tem permissao `flowbuilder.manage` via hook existente
-- Se nao tiver: ocultar botoes de criar, editar e excluir fluxos (modo somente leitura)
-- Admin e owner sempre tem acesso total (usar `isCompanyAdmin()` do CompanyContext)
+### Operacoes no banco
 
----
+Serao feitas **4 insercoes** usando o insert tool (dados, nao schema):
 
-### Etapa 7 — Processador de Fluxo no wapi-webhook
+1. **conversation_flows**: 1 registro (is_active=true, is_default=true)
+2. **flow_nodes**: 5 registros (start, message, question, question, end)
+3. **flow_node_options**: 3 registros (opcoes da pergunta de mes)
+4. **flow_edges**: 6 registros (conexoes entre nos)
 
-**Arquivo:** `supabase/functions/wapi-webhook/index.ts`
+### Tambem habilitar o modulo
 
-Adicionar uma funcao `processFlowBuilderMessage` que sera chamada no lugar de `processBotQualification` quando `use_flow_builder === true`.
-
-**Logica do processador:**
-
-1. No inicio de `processBotQualification`, verificar `settings.use_flow_builder`
-2. Se `true`: chamar `processFlowBuilderMessage()` e retornar
-3. Se `false`: continuar com o fluxo fixo atual (sem mudancas)
-
-**Funcao `processFlowBuilderMessage`:**
-
-1. Buscar o fluxo ativo/padrao da empresa (`conversation_flows` com `is_default = true` e `is_active = true`)
-2. Buscar o estado do lead (`flow_lead_state` por `conversation_id`)
-3. Se nao tem estado: criar estado no no inicial (start), enviar primeira mensagem
-4. Se tem estado e `waiting_for_reply = true`: processar resposta do lead
-5. Encontrar a aresta correspondente (por opcao escolhida ou fallback)
-6. Mover para o proximo no e executar a acao:
-   - `message`: enviar mensagem de texto
-   - `question`: enviar pergunta com opcoes numeradas
-   - `action`: executar acao (handoff, extract_data, send_media, schedule_visit)
-   - `end`: desabilitar bot, enviar mensagem final
-7. Salvar estado atualizado em `flow_lead_state`
-8. Criar/atualizar lead no CRM com dados extraidos
-
-**Acoes suportadas:**
-- `handoff`: desabilita bot, cria notificacao para equipe
-- `extract_data`: salva campo extraido (nome, mes, dia, convidados) no `collected_data` e no CRM
-- `send_media`: envia fotos/videos/PDFs dos materiais de venda (reutiliza funcoes existentes)
-- `schedule_visit`: marca `has_scheduled_visit` na conversa e atualiza status do lead
-
-**Integracao com o webhook existente (linha ~1583):**
-```text
-if (!fromMe && !isGrp && type === 'text' && content) {
-  // Buscar settings da instancia
-  // Se use_flow_builder: processFlowBuilderMessage(...)
-  // Senao: processBotQualification(...) (atual)
-}
-```
-
----
+Atualizar `companies.settings` para incluir `flow_builder: true` nos modulos habilitados, para que o toggle apareca na interface.
 
 ### Detalhes tecnicos
 
-**Mudancas na AutomationsSection:**
-- Adicionar `use_flow_builder: boolean` na interface `BotSettings`
-- Importar `useCompanyModules`
-- Novo card condicional (`modules.flow_builder && ...`)
-- Toggle salva via `updateBotSettings({ use_flow_builder: checked })`
-
-**Mudancas no FlowListManager:**
-- Importar `usePermissions` ou usar `useCompany().isCompanyAdmin()`
-- Verificar `flowbuilder.manage` antes de renderizar botoes de edicao
-- Manter listagem/visualizacao para todos
-
-**Mudancas no wapi-webhook:**
-- Nova funcao `processFlowBuilderMessage()` (~200 linhas)
-- Reutiliza funcoes existentes: `sendBotMessage`, `sendImage`, `sendVideo`, `sendDocument`
-- Leitura de `flow_nodes`, `flow_edges`, `flow_node_options`
-- CRUD de `flow_lead_state`
-- Integracao com `campaign_leads` para extrair dados
-
-**Arquivos modificados:**
-- `src/components/whatsapp/settings/AutomationsSection.tsx`
-- `src/components/flowbuilder/FlowListManager.tsx`
-- `supabase/functions/wapi-webhook/index.ts`
+- Todos os UUIDs serao gerados pelo banco (`gen_random_uuid()`) exceto onde precisamos referenciar entre tabelas - nesse caso usaremos UUIDs fixos para manter as foreign keys
+- O fluxo sera marcado como `is_default = true` e `is_active = true` para ser encontrado pelo webhook
+- Os nos terao posicoes X/Y sequenciais para visualizacao no canvas
 
