@@ -17,5 +17,5 @@ export function isHubDomain(): boolean {
 
 export function isPreviewDomain(): boolean {
   const hostname = window.location.hostname;
-  return hostname.includes("lovable.app") || hostname === "localhost";
+  return hostname.includes("lovable.app") || hostname.includes("lovableproject.com") || hostname === "localhost";
 }
