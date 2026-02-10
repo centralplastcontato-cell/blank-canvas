@@ -142,25 +142,25 @@ export function VisitAlertBanner({ userId, onOpenConversation }: VisitAlertBanne
   const remainingCount = alerts.length - 1;
 
   return (
-    <div className="bg-gradient-to-r from-blue-500/15 via-blue-500/5 to-transparent border-b border-blue-500/30 px-4 py-3 animate-in slide-in-from-top duration-300">
+    <div className="bg-gradient-to-r from-blue-500/15 via-blue-500/10 to-blue-500/5 border-b-2 border-blue-500/40 px-4 py-4 animate-in slide-in-from-top duration-300 animate-pulse">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="flex items-center justify-center w-9 h-9 rounded-full bg-blue-500/20 shrink-0 animate-pulse">
-            <CalendarCheck className="w-4 h-4 text-blue-600" />
+          <div className="flex items-center justify-center w-11 h-11 rounded-full bg-blue-500/25 shrink-0 animate-bounce" style={{ animationDuration: '2s' }}>
+            <CalendarCheck className="w-5 h-5 text-blue-600" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-foreground truncate">
-              🏰 Visita agendada - Ação urgente!
+            <p className="text-base font-bold text-foreground truncate">
+              🏰🗓️ VISITA AGENDADA - Ação urgente!
             </p>
-            <p className="text-xs text-muted-foreground truncate">
-              <span className="font-medium text-foreground">
+            <p className="text-sm text-muted-foreground truncate">
+              <span className="font-semibold text-foreground">
                 {latestAlert.data.contact_name || latestAlert.data.contact_phone}
               </span>
-              <span className="text-blue-600 ml-1">
+              <span className="text-blue-600 font-medium ml-1">
                 ({latestAlert.data.unit})
               </span>
               {remainingCount > 0 && (
-                <span className="ml-1">
+                <span className="ml-1 font-medium">
                   e mais {remainingCount} {remainingCount === 1 ? "visita" : "visitas"}
                 </span>
               )}
@@ -171,10 +171,10 @@ export function VisitAlertBanner({ userId, onOpenConversation }: VisitAlertBanne
         <div className="flex items-center gap-2 shrink-0">
           <Button
             size="sm"
-            className="h-8 gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+            className="h-9 gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-lg shadow-blue-500/30"
             onClick={() => handleOpenConversation(latestAlert)}
           >
-            <MessageSquare className="w-3.5 h-3.5" />
+            <MessageSquare className="w-4 h-4" />
             Abrir Chat
           </Button>
           <Button
