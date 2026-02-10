@@ -408,6 +408,242 @@ export type Database = {
           },
         ]
       }
+      conversation_flows: {
+        Row: {
+          company_id: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_default: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_flows_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      flow_edges: {
+        Row: {
+          condition_value: string | null
+          created_at: string
+          flow_id: string
+          id: string
+          label: string | null
+          source_handle: string | null
+          source_node_id: string
+          target_node_id: string
+        }
+        Insert: {
+          condition_value?: string | null
+          created_at?: string
+          flow_id: string
+          id?: string
+          label?: string | null
+          source_handle?: string | null
+          source_node_id: string
+          target_node_id: string
+        }
+        Update: {
+          condition_value?: string | null
+          created_at?: string
+          flow_id?: string
+          id?: string
+          label?: string | null
+          source_handle?: string | null
+          source_node_id?: string
+          target_node_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flow_edges_flow_id_fkey"
+            columns: ["flow_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_flows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flow_edges_source_node_id_fkey"
+            columns: ["source_node_id"]
+            isOneToOne: false
+            referencedRelation: "flow_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flow_edges_target_node_id_fkey"
+            columns: ["target_node_id"]
+            isOneToOne: false
+            referencedRelation: "flow_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      flow_lead_state: {
+        Row: {
+          collected_data: Json | null
+          conversation_id: string
+          created_at: string
+          current_node_id: string | null
+          flow_id: string
+          id: string
+          updated_at: string
+          waiting_for_input: boolean
+        }
+        Insert: {
+          collected_data?: Json | null
+          conversation_id: string
+          created_at?: string
+          current_node_id?: string | null
+          flow_id: string
+          id?: string
+          updated_at?: string
+          waiting_for_input?: boolean
+        }
+        Update: {
+          collected_data?: Json | null
+          conversation_id?: string
+          created_at?: string
+          current_node_id?: string | null
+          flow_id?: string
+          id?: string
+          updated_at?: string
+          waiting_for_input?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flow_lead_state_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "wapi_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flow_lead_state_current_node_id_fkey"
+            columns: ["current_node_id"]
+            isOneToOne: false
+            referencedRelation: "flow_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flow_lead_state_flow_id_fkey"
+            columns: ["flow_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_flows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      flow_node_options: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          node_id: string
+          sort_order: number
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label: string
+          node_id: string
+          sort_order?: number
+          value: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          node_id?: string
+          sort_order?: number
+          value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flow_node_options_node_id_fkey"
+            columns: ["node_id"]
+            isOneToOne: false
+            referencedRelation: "flow_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      flow_nodes: {
+        Row: {
+          action_type: string | null
+          content: string | null
+          created_at: string
+          flow_id: string
+          id: string
+          label: string
+          position_x: number
+          position_y: number
+          sort_order: number
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          action_type?: string | null
+          content?: string | null
+          created_at?: string
+          flow_id: string
+          id?: string
+          label?: string
+          position_x?: number
+          position_y?: number
+          sort_order?: number
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          action_type?: string | null
+          content?: string | null
+          created_at?: string
+          flow_id?: string
+          id?: string
+          label?: string
+          position_x?: number
+          position_y?: number
+          sort_order?: number
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flow_nodes_flow_id_fkey"
+            columns: ["flow_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_flows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_history: {
         Row: {
           action: string
@@ -990,6 +1226,7 @@ export type Database = {
           test_mode_number: string | null
           transfer_message: string | null
           updated_at: string
+          use_flow_builder: boolean | null
           welcome_message: string | null
           work_here_response: string | null
         }
@@ -1026,6 +1263,7 @@ export type Database = {
           test_mode_number?: string | null
           transfer_message?: string | null
           updated_at?: string
+          use_flow_builder?: boolean | null
           welcome_message?: string | null
           work_here_response?: string | null
         }
@@ -1062,6 +1300,7 @@ export type Database = {
           test_mode_number?: string | null
           transfer_message?: string | null
           updated_at?: string
+          use_flow_builder?: boolean | null
           welcome_message?: string | null
           work_here_response?: string | null
         }
