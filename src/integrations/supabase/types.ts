@@ -991,6 +991,7 @@ export type Database = {
           transfer_message: string | null
           updated_at: string
           welcome_message: string | null
+          work_here_response: string | null
         }
         Insert: {
           auto_send_materials?: boolean | null
@@ -1026,6 +1027,7 @@ export type Database = {
           transfer_message?: string | null
           updated_at?: string
           welcome_message?: string | null
+          work_here_response?: string | null
         }
         Update: {
           auto_send_materials?: boolean | null
@@ -1061,6 +1063,7 @@ export type Database = {
           transfer_message?: string | null
           updated_at?: string
           welcome_message?: string | null
+          work_here_response?: string | null
         }
         Relationships: [
           {
