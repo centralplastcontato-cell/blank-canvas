@@ -1,0 +1,1 @@
+UPDATE companies SET custom_domain = 'www.castelodadiversao.online' WHERE slug = 'castelo-da-diversao' AND custom_domain = 'https://www.castelodadiversao.online';

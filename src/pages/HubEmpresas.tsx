@@ -88,11 +88,16 @@ function HubEmpresasContent() {
     setIsLoading(false);
   };
 
+  const normalizeDomain = (domain: string) => {
+    if (!domain) return null;
+    return domain.replace(/^https?:\/\//, '').replace(/\/+$/, '') || null;
+  };
+
   const handleCreate = async (data: { name: string; slug: string; is_active: boolean; logo_url: string; custom_domain: string }) => {
     const hubCompany = companies.find(c => !c.parent_id);
     const { error } = await supabase.from("companies").insert({
       name: data.name, slug: data.slug, is_active: data.is_active, logo_url: data.logo_url || null,
-      custom_domain: data.custom_domain || null,
+      custom_domain: normalizeDomain(data.custom_domain),
       parent_id: hubCompany?.id || null,
     });
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); throw error; }
@@ -103,7 +108,7 @@ function HubEmpresasContent() {
     if (!editingCompany) return;
     const { error } = await supabase.from("companies").update({
       name: data.name, slug: data.slug, is_active: data.is_active, logo_url: data.logo_url || null,
-      custom_domain: data.custom_domain || null,
+      custom_domain: normalizeDomain(data.custom_domain),
     }).eq("id", editingCompany.id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); throw error; }
     toast({ title: "Empresa atualizada" }); setEditingCompany(null); fetchCompanies();
