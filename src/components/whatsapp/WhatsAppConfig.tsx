@@ -62,6 +62,14 @@ const allConfigSections = [
     icon: Bot,
   },
   {
+    id: "flows",
+    permissionKey: "automations" as const,
+    moduleKey: "flow_builder" as keyof CompanyModules | null,
+    title: "Fluxos",
+    description: "Editor visual de fluxos",
+    icon: GitBranch,
+  },
+  {
     id: "advanced",
     permissionKey: "advanced" as const,
     moduleKey: "advanced" as keyof CompanyModules | null,
@@ -76,14 +84,6 @@ const allConfigSections = [
     title: "Importar Dados",
     description: "Leads e conversas",
     icon: Upload,
-  },
-  {
-    id: "flows",
-    permissionKey: "automations" as const,
-    moduleKey: "flow_builder" as keyof CompanyModules | null,
-    title: "Fluxos",
-    description: "Editor visual de fluxos",
-    icon: GitBranch,
   },
   {
     id: "guide",
