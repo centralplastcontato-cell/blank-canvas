@@ -211,11 +211,63 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Insert lead – ignore if same whatsapp+company already exists
-    const { error: insertError } = await supabase
+    // Check if lead already exists
+    const { data: existingLead } = await supabase
       .from('campaign_leads')
-      .upsert(
-        {
+      .select('id, name, unit, month, day_of_month, guests, status')
+      .eq('whatsapp', normalizedPhone)
+      .eq('company_id', company_id)
+      .limit(1)
+      .maybeSingle();
+
+    if (existingLead) {
+      // Lead already exists — update created_at to move to top + log return in history
+      const newData = {
+        name: name.trim(),
+        unit: unit || null,
+        month: month || null,
+        day_of_month: day_of_month || null,
+        guests: guests || null,
+        campaign_name: campaign_name || null,
+        created_at: new Date().toISOString(),
+      };
+
+      const { error: updateError } = await supabase
+        .from('campaign_leads')
+        .update(newData)
+        .eq('id', existingLead.id);
+
+      if (updateError) {
+        console.error('Error updating returning lead:', updateError);
+      }
+
+      // Build a summary of what changed
+      const changes: string[] = [];
+      if (name.trim() !== existingLead.name) changes.push(`Nome: ${existingLead.name} → ${name.trim()}`);
+      if ((unit || null) !== existingLead.unit) changes.push(`Unidade: ${existingLead.unit || '-'} → ${unit || '-'}`);
+      if ((month || null) !== existingLead.month) changes.push(`Mês: ${existingLead.month || '-'} → ${month || '-'}`);
+      if ((day_of_month || null) !== existingLead.day_of_month) changes.push(`Dia: ${existingLead.day_of_month || '-'} → ${day_of_month || '-'}`);
+      if ((guests || null) !== existingLead.guests) changes.push(`Convidados: ${existingLead.guests || '-'} → ${guests || '-'}`);
+
+      const changeSummary = changes.length > 0 ? changes.join(' | ') : 'Mesmos dados';
+
+      // Add history entry for the return
+      await supabase.from('lead_history').insert({
+        lead_id: existingLead.id,
+        company_id: company_id,
+        user_id: null,
+        user_name: 'Sistema',
+        action: 'Lead retornou pela Landing Page',
+        old_value: `Status atual: ${existingLead.status}`,
+        new_value: changeSummary,
+      });
+
+      console.log(`Returning lead updated: ${name.trim()} - ${normalizedPhone} (company: ${company_id})`);
+    } else {
+      // New lead — insert
+      const { error: insertError } = await supabase
+        .from('campaign_leads')
+        .insert({
           name: name.trim(),
           whatsapp: normalizedPhone,
           unit: unit || null,
@@ -226,19 +278,18 @@ Deno.serve(async (req) => {
           campaign_name: campaign_name || null,
           status: 'novo',
           company_id: company_id,
-        },
-        { onConflict: 'whatsapp,company_id', ignoreDuplicates: true }
-      );
+        });
 
-    if (insertError) {
-      console.error('Error inserting lead:', insertError);
-      return new Response(
-        JSON.stringify({ error: 'Erro ao salvar. Tente novamente.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      if (insertError) {
+        console.error('Error inserting lead:', insertError);
+        return new Response(
+          JSON.stringify({ error: 'Erro ao salvar. Tente novamente.' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log(`New lead created: ${name.trim()} - ${normalizedPhone} (company: ${company_id})`);
     }
-
-    console.log(`Lead created successfully: ${name.trim()} - ${normalizedPhone} (company: ${company_id})`);
 
     return new Response(
       JSON.stringify({ success: true }),
