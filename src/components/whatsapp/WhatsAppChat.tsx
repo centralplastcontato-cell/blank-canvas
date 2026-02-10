@@ -886,9 +886,17 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
     
     // Ensure we have an active session before querying (RLS depends on auth.uid())
     const { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData?.session && retryCount < 2) {
+    console.log('[WhatsAppChat] fetchInstances attempt', retryCount, 'session:', !!sessionData?.session, 'allowedUnits:', allowedUnits);
+    
+    if (!sessionData?.session && retryCount < 3) {
       // Session not ready yet, retry after a short delay
-      setTimeout(() => fetchInstances(retryCount + 1), 500);
+      setTimeout(() => fetchInstances(retryCount + 1), 800);
+      return;
+    }
+    
+    if (!sessionData?.session) {
+      console.error('[WhatsAppChat] No session after retries');
+      setIsLoading(false);
       return;
     }
     
@@ -900,6 +908,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
     // Filter by allowed units - if empty, show nothing (user has no unit access)
     if (!allowedUnits.includes('all')) {
       if (allowedUnits.length === 0) {
+        console.log('[WhatsAppChat] No allowed units, showing empty');
         setInstances([]);
         setIsLoading(false);
         return;
@@ -908,11 +917,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
     }
 
     const { data, error } = await query.order("unit", { ascending: true });
+    console.log('[WhatsAppChat] Instances query result:', { count: data?.length, error: error?.message, data });
 
     if (error) {
       console.error('[WhatsAppChat] Error fetching instances:', error);
-      // If auth error, retry once
-      if (retryCount < 2) {
+      if (retryCount < 3) {
         setTimeout(() => fetchInstances(retryCount + 1), 1000);
         return;
       }
@@ -920,14 +929,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
 
     if (data && data.length > 0) {
       setInstances(data as WapiInstance[]);
-      // Only auto-select first instance if none is currently selected
       setSelectedInstance(prev => {
-        // If already have a selection, keep it (if still valid)
         if (prev) {
           const stillExists = data.some(inst => inst.id === prev.id);
           if (stillExists) return prev;
         }
-        // Otherwise select first
         return data[0] as WapiInstance;
       });
 
@@ -936,6 +942,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
       if (disconnected.length > 0) {
         syncInstanceStatuses(disconnected as WapiInstance[]);
       }
+    } else {
+      console.warn('[WhatsAppChat] No instances returned from query');
     }
     setIsLoading(false);
   };
@@ -2251,11 +2259,21 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
         <CardContent className="flex flex-col items-center justify-center h-full text-center">
           <WifiOff className="w-12 h-12 text-muted-foreground mb-4" />
           <h3 className="font-semibold mb-2">Nenhuma instância disponível</h3>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground mb-4">
             {allowedUnits.length === 0 
               ? "Você não tem permissão para acessar nenhuma unidade."
               : "O administrador ainda não configurou as instâncias para suas unidades."}
           </p>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => {
+              initialFetchDone.current = false;
+              fetchInstances();
+            }}
+          >
+            Tentar novamente
+          </Button>
         </CardContent>
       </Card>
     );
