@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
 import { useUserRole } from "@/hooks/useUserRole";
 import { usePermissions } from "@/hooks/usePermissions";
+
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
 import { WhatsAppConfig } from "@/components/whatsapp/WhatsAppConfig";
@@ -30,7 +31,7 @@ export default function Configuracoes() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const { role, isLoading: isLoadingRole, canManageUsers, isAdmin } = useUserRole(user?.id);
-  const { hasPermission } = usePermissions(user?.id);
+  const { hasPermission, isLoading: isLoadingPermissions } = usePermissions(user?.id);
   
   const canAccessConfig = isAdmin || hasPermission('config.view');
 
@@ -86,7 +87,7 @@ export default function Configuracoes() {
     window.location.reload();
   };
 
-  if (isLoading || isLoadingRole) {
+  if (isLoading || isLoadingRole || isLoadingPermissions) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
