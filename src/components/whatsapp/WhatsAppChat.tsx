@@ -913,8 +913,48 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
         // Otherwise select first
         return data[0] as WapiInstance;
       });
+
+      // Background sync: check real status for instances that appear disconnected
+      const disconnected = data.filter(i => i.status !== 'connected');
+      if (disconnected.length > 0) {
+        syncInstanceStatuses(disconnected as WapiInstance[]);
+      }
     }
     setIsLoading(false);
+  };
+
+  // Background check of real connection status via W-API
+  const syncInstanceStatuses = async (instancesToCheck: WapiInstance[]) => {
+    for (const instance of instancesToCheck) {
+      try {
+        const response = await supabase.functions.invoke("wapi-send", {
+          body: {
+            action: "get-status",
+            instanceId: instance.instance_id,
+            instanceToken: instance.instance_token,
+          },
+        });
+
+        if (response.data?.status === "connected" || response.data?.connected === true) {
+          // Update DB
+          await supabase
+            .from("wapi_instances")
+            .update({ status: "connected", connected_at: new Date().toISOString() })
+            .eq("id", instance.id);
+
+          // Update local state
+          setInstances(prev =>
+            prev.map(i => i.id === instance.id ? { ...i, status: "connected" } : i)
+          );
+          // If this was the selected instance, update it too
+          setSelectedInstance(prev =>
+            prev?.id === instance.id ? { ...prev, status: "connected" } : prev
+          );
+        }
+      } catch (error) {
+        console.error(`[SyncStatus] Error checking ${instance.unit}:`, error);
+      }
+    }
   };
 
   const fetchConversations = async (selectPhone?: string) => {
