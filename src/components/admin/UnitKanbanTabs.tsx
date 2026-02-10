@@ -67,7 +67,8 @@ export function UnitKanbanTabs({
             </TabsTrigger>
           )}
           {visibleUnits.map((unit) => {
-            const unitLeads = leads.filter((lead) => lead.unit === unit.name);
+            const allUnitNames = companyUnits.map(u => u.name);
+            const unitLeads = leads.filter((lead) => lead.unit === unit.name || (lead.unit && !allUnitNames.includes(lead.unit)));
             return (
               <TabsTrigger
                 key={unit.slug}
@@ -102,7 +103,8 @@ export function UnitKanbanTabs({
         )}
 
         {visibleUnits.map((unit) => {
-          const unitLeads = leads.filter((lead) => lead.unit === unit.name);
+          const allUnitNames = companyUnits.map(u => u.name);
+          const unitLeads = leads.filter((lead) => lead.unit === unit.name || (lead.unit && !allUnitNames.includes(lead.unit)));
           return (
             <TabsContent key={unit.slug} value={unit.slug} className="mt-4">
               <LeadsKanban
