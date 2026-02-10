@@ -31,7 +31,7 @@ export const campaignConfig = {
   // URGÊNCIA
   urgency: {
     message: "⏰ Vagas limitadas! Corra antes que acabe!",
-    spotsLeft: 8,
+    spotsLeft: 4,
     deadline: "Válida para os 10 primeiros contratos ou até 14/02",
     endDate: "2026-02-14T23:59:59", // Data final da promoção para contagem regressiva
   },
