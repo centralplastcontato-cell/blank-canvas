@@ -103,10 +103,10 @@ export function WhatsAppConfig({ userId, isAdmin }: WhatsAppConfigProps) {
   const configSections = useMemo(() => {
     return allConfigSections.filter(section => {
       const hasPermission = section.permissionKey === null || permissions[section.permissionKey];
-      const moduleEnabled = section.moduleKey === null || modules[section.moduleKey];
+      const moduleEnabled = isAdmin || section.moduleKey === null || modules[section.moduleKey];
       return hasPermission && moduleEnabled;
     });
-  }, [permissions, modules]);
+  }, [permissions, modules, isAdmin]);
 
   const [activeSection, setActiveSection] = useState<string | null>(null);
 
