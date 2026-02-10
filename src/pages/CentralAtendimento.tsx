@@ -205,7 +205,8 @@ export default function CentralAtendimento() {
 
       // Apply unit permission filter (before user-selected filters)
       if (!canViewAll && allowedUnits.length > 0 && !allowedUnits.includes('all')) {
-        query = query.in("unit", allowedUnits);
+        const unitsFilter = [...allowedUnits, "As duas"];
+        query = query.in("unit", unitsFilter);
       } else if (!canViewAll && allowedUnits.length === 0) {
         // No unit permission granted - return empty
         setLeads([]);
@@ -335,7 +336,8 @@ export default function CentralAtendimento() {
         let q = supabase.from("campaign_leads").select("id", { count: "exact", head: true });
         // Apply unit permission filter
         if (!canViewAll && allowedUnits.length > 0 && !allowedUnits.includes('all')) {
-          q = q.in("unit", allowedUnits);
+          const unitsFilter = [...allowedUnits, "As duas"];
+          q = q.in("unit", unitsFilter);
         }
         // Apply user-selected unit filter
         if (filters.unit && filters.unit !== "all") {
