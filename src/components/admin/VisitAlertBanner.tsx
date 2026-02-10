@@ -142,10 +142,10 @@ export function VisitAlertBanner({ userId, onOpenConversation }: VisitAlertBanne
   const remainingCount = alerts.length - 1;
 
   return (
-    <div className="bg-gradient-to-r from-blue-500/15 via-blue-500/10 to-blue-500/5 border-b-2 border-blue-500/40 px-4 py-4 animate-in slide-in-from-top duration-300 animate-pulse">
+    <div className="bg-gradient-to-r from-blue-500/15 via-blue-500/10 to-blue-500/5 border-b-2 border-blue-500/40 px-4 py-4 animate-in slide-in-from-top duration-300">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="flex items-center justify-center w-11 h-11 rounded-full bg-blue-500/25 shrink-0 animate-bounce" style={{ animationDuration: '2s' }}>
+          <div className="flex items-center justify-center w-11 h-11 rounded-full bg-blue-500/25 shrink-0 ring-2 ring-blue-500/50 ring-offset-1 ring-offset-background">
             <CalendarCheck className="w-5 h-5 text-blue-600" />
           </div>
           <div className="min-w-0 flex-1">
