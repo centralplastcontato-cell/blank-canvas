@@ -276,62 +276,82 @@ async function processBotQualification(
       .eq('id', conv.lead_id)
       .single();
     
-    // If lead already has all qualification data, send welcome message for qualified leads
-    // BUT: If bot_step is proximo_passo, we need to continue processing the user's choice!
-    if (existingLead?.name && existingLead?.month && existingLead?.day_preference && existingLead?.guests) {
-      console.log(`[Bot] Lead ${conv.lead_id} already qualified from LP, bot_step: ${conv.bot_step}`);
-      
-      // If we're waiting for proximo_passo answer, don't return - let it process below
-      if (conv.bot_step === 'proximo_passo') {
-        console.log(`[Bot] Lead is qualified but waiting for proximo_passo answer, continuing...`);
-        // Don't return - continue to process the proximo_passo step below
-      } else if (!conv.bot_step || conv.bot_step === 'welcome') {
-        // Only send welcome message if this is the first message from the lead
-        const defaultQualifiedMsg = `Olá, {nome}! 👋\n\nRecebemos seu interesse pelo site e já temos seus dados aqui:\n\n📅 Mês: {mes}\n🗓️ Dia: {dia}\n👥 Convidados: {convidados}\n\nNossa equipe vai te responder em breve! 🏰✨`;
-        const qualifiedTemplate = settings.qualified_lead_message || defaultQualifiedMsg;
+      // If lead already has all qualification data, send welcome message for qualified leads
+      // Then continue with materials + next step question (same as direct WhatsApp leads)
+      if (existingLead?.name && existingLead?.month && existingLead?.day_preference && existingLead?.guests) {
+        console.log(`[Bot] Lead ${conv.lead_id} already qualified from LP, bot_step: ${conv.bot_step}`);
         
-        const leadData = {
-          nome: existingLead.name,
-          mes: existingLead.month || '',
-          dia: existingLead.day_preference || '',
-          convidados: existingLead.guests || '',
-        };
-        
-        const welcomeMsg = replaceVariables(qualifiedTemplate, leadData);
-        
-        // Send welcome message
-        const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, welcomeMsg);
-        
-        if (msgId) {
-          // Save message to database
-          await supabase.from('wapi_messages').insert({
-            conversation_id: conv.id,
-            message_id: msgId,
-            from_me: true,
-            message_type: 'text',
-            company_id: instance.company_id,
-            content: welcomeMsg,
-            status: 'sent',
-            timestamp: new Date().toISOString()
-          });
+        // If we're waiting for proximo_passo answer, don't return - let it process below
+        if (conv.bot_step === 'proximo_passo') {
+          console.log(`[Bot] Lead is qualified but waiting for proximo_passo answer, continuing...`);
+          // Don't return - continue to process the proximo_passo step below
+        } else if (!conv.bot_step || conv.bot_step === 'welcome') {
+          // First message from LP lead — send welcome + materials + next step question (same as direct leads)
+          const defaultQualifiedMsg = `Olá, {nome}! 👋\n\nRecebemos seu interesse pelo site e já temos seus dados aqui:\n\n📅 Mês: {mes}\n🗓️ Dia: {dia}\n👥 Convidados: {convidados}`;
+          const qualifiedTemplate = settings.qualified_lead_message || defaultQualifiedMsg;
           
-          // Mark as qualified so we don't send again
+          const leadData: Record<string, string> = {
+            nome: existingLead.name,
+            mes: existingLead.month || '',
+            dia: existingLead.day_preference || '',
+            convidados: existingLead.guests || '',
+          };
+          
+          const welcomeMsg = replaceVariables(qualifiedTemplate, leadData);
+          
+          // Send welcome message
+          const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, welcomeMsg);
+          
+          if (msgId) {
+            // Save message to database
+            await supabase.from('wapi_messages').insert({
+              conversation_id: conv.id,
+              message_id: msgId,
+              from_me: true,
+              message_type: 'text',
+              company_id: instance.company_id,
+              content: welcomeMsg,
+              status: 'sent',
+              timestamp: new Date().toISOString()
+            });
+          }
+          
+          // Update step to sending_materials (same as direct flow)
           await supabase.from('wapi_conversations').update({
-            bot_step: 'qualified_from_lp',
-            bot_enabled: false,
+            bot_step: 'sending_materials',
+            bot_data: leadData,
             last_message_at: new Date().toISOString(),
             last_message_content: welcomeMsg.substring(0, 100),
             last_message_from_me: true
           }).eq('id', conv.id);
           
-          console.log(`[Bot] Sent qualified lead welcome message to ${contactPhone}`);
+          console.log(`[Bot] Sent qualified lead welcome message to ${contactPhone}, now sending materials...`);
+          
+          // Send materials + next step question in background (same as direct flow after qualification)
+          const defaultNextStepQuestion = `E agora, como você gostaria de continuar? 🤔\n\nResponda com o *número*:\n\n${buildMenuText(PROXIMO_PASSO_OPTIONS)}`;
+          const nextStepQuestion = settings.next_step_question || defaultNextStepQuestion;
+          
+          EdgeRuntime.waitUntil(
+            sendQualificationMaterialsThenQuestion(
+              supabase,
+              instance,
+              conv,
+              leadData,
+              settings,
+              nextStepQuestion
+            ).catch(err => console.error('[Bot] Error sending LP lead materials:', err))
+          );
+          
+          return;
+        } else if (conv.bot_step === 'sending_materials') {
+          // Materials are being sent, ignore incoming messages during this phase
+          console.log(`[Bot] Lead ${conv.lead_id} is in sending_materials phase, ignoring message`);
+          return;
+        } else {
+          // For other steps (like complete_final, qualified_from_lp), return
+          return;
         }
-        return;
-      } else {
-        // For other steps (like sending_materials, complete_final, qualified_from_lp), return
-        return;
       }
-    }
   }
 
   // Get questions from database
