@@ -211,8 +211,8 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Upsert lead – if the same whatsapp+company already exists, update it
-    const { error: upsertError } = await supabase
+    // Insert lead – ignore if same whatsapp+company already exists
+    const { error: insertError } = await supabase
       .from('campaign_leads')
       .upsert(
         {
@@ -227,11 +227,11 @@ Deno.serve(async (req) => {
           status: 'novo',
           company_id: company_id,
         },
-        { onConflict: 'whatsapp,company_id', ignoreDuplicates: false }
+        { onConflict: 'whatsapp,company_id', ignoreDuplicates: true }
       );
 
-    if (upsertError) {
-      console.error('Error upserting lead:', upsertError);
+    if (insertError) {
+      console.error('Error inserting lead:', insertError);
       return new Response(
         JSON.stringify({ error: 'Erro ao salvar. Tente novamente.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
