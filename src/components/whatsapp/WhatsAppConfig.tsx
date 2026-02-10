@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Wifi, MessageSquare, Bell, Bot, Settings, Lock, HelpCircle, FolderOpen, Upload } from "lucide-react";
+import { Wifi, MessageSquare, Bell, Bot, Settings, Lock, HelpCircle, FolderOpen, Upload, GitBranch } from "lucide-react";
 import { ConnectionSection } from "./settings/ConnectionSection";
 import { MessagesSection } from "./settings/MessagesSection";
 import { NotificationsSection } from "./settings/NotificationsSection";
@@ -8,6 +8,7 @@ import { AdvancedSection } from "./settings/AdvancedSection";
 import { VisualGuideSection } from "./settings/VisualGuideSection";
 import { SalesMaterialsSection } from "./settings/SalesMaterialsSection";
 import { DataImportSection } from "@/components/admin/DataImportSection";
+import { FlowListManager } from "@/components/flowbuilder/FlowListManager";
 import { useConfigPermissions } from "@/hooks/useConfigPermissions";
 import { useCompanyModules, type CompanyModules } from "@/hooks/useCompanyModules";
 import { cn } from "@/lib/utils";
@@ -77,6 +78,14 @@ const allConfigSections = [
     icon: Upload,
   },
   {
+    id: "flows",
+    permissionKey: "automations" as const,
+    moduleKey: "flow_builder" as keyof CompanyModules | null,
+    title: "Fluxos",
+    description: "Editor visual de fluxos",
+    icon: GitBranch,
+  },
+  {
     id: "guide",
     permissionKey: null as any,
     moduleKey: null,
@@ -124,6 +133,8 @@ export function WhatsAppConfig({ userId, isAdmin }: WhatsAppConfigProps) {
         return <AdvancedSection userId={userId} isAdmin={isAdmin} />;
       case "import":
         return <DataImportSection isAdmin={isAdmin} />;
+      case "flows":
+        return <FlowListManager />;
       case "guide":
         return <VisualGuideSection />;
       default:

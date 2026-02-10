@@ -451,33 +451,39 @@ export type Database = {
       }
       flow_edges: {
         Row: {
+          condition_type: string | null
           condition_value: string | null
+          condition_value_label: string | null
           created_at: string
+          display_order: number
           flow_id: string
           id: string
-          label: string | null
-          source_handle: string | null
           source_node_id: string
+          source_option_id: string | null
           target_node_id: string
         }
         Insert: {
+          condition_type?: string | null
           condition_value?: string | null
+          condition_value_label?: string | null
           created_at?: string
+          display_order?: number
           flow_id: string
           id?: string
-          label?: string | null
-          source_handle?: string | null
           source_node_id: string
+          source_option_id?: string | null
           target_node_id: string
         }
         Update: {
+          condition_type?: string | null
           condition_value?: string | null
+          condition_value_label?: string | null
           created_at?: string
+          display_order?: number
           flow_id?: string
           id?: string
-          label?: string | null
-          source_handle?: string | null
           source_node_id?: string
+          source_option_id?: string | null
           target_node_id?: string
         }
         Relationships: [
@@ -512,8 +518,9 @@ export type Database = {
           current_node_id: string | null
           flow_id: string
           id: string
+          last_sent_at: string | null
           updated_at: string
-          waiting_for_input: boolean
+          waiting_for_reply: boolean
         }
         Insert: {
           collected_data?: Json | null
@@ -522,8 +529,9 @@ export type Database = {
           current_node_id?: string | null
           flow_id: string
           id?: string
+          last_sent_at?: string | null
           updated_at?: string
-          waiting_for_input?: boolean
+          waiting_for_reply?: boolean
         }
         Update: {
           collected_data?: Json | null
@@ -532,8 +540,9 @@ export type Database = {
           current_node_id?: string | null
           flow_id?: string
           id?: string
+          last_sent_at?: string | null
           updated_at?: string
-          waiting_for_input?: boolean
+          waiting_for_reply?: boolean
         }
         Relationships: [
           {
@@ -562,26 +571,26 @@ export type Database = {
       flow_node_options: {
         Row: {
           created_at: string
+          display_order: number
           id: string
           label: string
           node_id: string
-          sort_order: number
           value: string
         }
         Insert: {
           created_at?: string
+          display_order?: number
           id?: string
           label: string
           node_id: string
-          sort_order?: number
           value: string
         }
         Update: {
           created_at?: string
+          display_order?: number
           id?: string
           label?: string
           node_id?: string
-          sort_order?: number
           value?: string
         }
         Relationships: [
@@ -596,42 +605,54 @@ export type Database = {
       }
       flow_nodes: {
         Row: {
+          action_config: Json | null
           action_type: string | null
-          content: string | null
+          allow_ai_interpretation: boolean | null
           created_at: string
+          display_order: number
+          extract_field: string | null
           flow_id: string
           id: string
-          label: string
+          message_template: string | null
+          node_type: string
           position_x: number
           position_y: number
-          sort_order: number
-          type: string
+          require_extraction: boolean | null
+          title: string
           updated_at: string
         }
         Insert: {
+          action_config?: Json | null
           action_type?: string | null
-          content?: string | null
+          allow_ai_interpretation?: boolean | null
           created_at?: string
+          display_order?: number
+          extract_field?: string | null
           flow_id: string
           id?: string
-          label?: string
+          message_template?: string | null
+          node_type: string
           position_x?: number
           position_y?: number
-          sort_order?: number
-          type: string
+          require_extraction?: boolean | null
+          title?: string
           updated_at?: string
         }
         Update: {
+          action_config?: Json | null
           action_type?: string | null
-          content?: string | null
+          allow_ai_interpretation?: boolean | null
           created_at?: string
+          display_order?: number
+          extract_field?: string | null
           flow_id?: string
           id?: string
-          label?: string
+          message_template?: string | null
+          node_type?: string
           position_x?: number
           position_y?: number
-          sort_order?: number
-          type?: string
+          require_extraction?: boolean | null
+          title?: string
           updated_at?: string
         }
         Relationships: [
