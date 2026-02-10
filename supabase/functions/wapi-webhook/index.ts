@@ -1355,7 +1355,11 @@ async function processWebhookEvent(body: Record<string, unknown>) {
           last_message_from_me: fromMe 
         };
         if (!fromMe && ex.is_closed) upd.is_closed = false;
-        if (fromMe && ex.bot_step && ex.bot_step !== 'complete') upd.bot_enabled = false;
+        // Only disable bot for manual (human) outgoing messages, not bot-sent messages
+        // Bot steps that are part of the active flow should NOT trigger bot disable
+        const activeBotSteps = ['welcome', 'tipo', 'nome', 'mes', 'dia', 'convidados', 'sending_materials', 'proximo_passo'];
+        const isBotActiveStep = activeBotSteps.includes(ex.bot_step || '');
+        if (fromMe && ex.bot_step && ex.bot_step !== 'complete' && !isBotActiveStep) upd.bot_enabled = false;
         if (isGrp) { 
           const gn = (msg as Record<string, unknown>).chat?.name || (msg as Record<string, unknown>).groupName || (msg as Record<string, unknown>).subject; 
           if (gn && gn !== ex.contact_name) upd.contact_name = gn; 
