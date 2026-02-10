@@ -179,7 +179,8 @@ export default function Admin() {
 
       // Apply unit permission filter (before user-selected filters)
       if (!canViewAll && allowedUnits.length > 0 && !allowedUnits.includes('all')) {
-        query = query.in("unit", allowedUnits);
+        const unitsFilter = [...allowedUnits, "As duas"];
+        query = query.in("unit", unitsFilter);
       } else if (!canViewAll && allowedUnits.length === 0) {
         // No unit permission granted - return empty
         setLeads([]);
@@ -308,7 +309,8 @@ export default function Admin() {
       const buildQuery = (statusFilter?: string, dateFilter?: string) => {
         let q = supabase.from("campaign_leads").select("id", { count: "exact", head: true });
         if (!canViewAll && allowedUnits.length > 0 && !allowedUnits.includes('all')) {
-          q = q.in("unit", allowedUnits);
+          const unitsFilter = [...allowedUnits, "As duas"];
+          q = q.in("unit", unitsFilter);
         }
         if (statusFilter) q = q.eq("status", statusFilter as LeadStatus);
         if (dateFilter) q = q.gte("created_at", dateFilter);
