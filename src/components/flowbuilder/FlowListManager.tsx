@@ -40,6 +40,7 @@ import {
   Copy,
 } from 'lucide-react';
 import { FlowBuilder } from './FlowBuilder';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface ConversationFlow {
   id: string;
@@ -53,9 +54,21 @@ interface ConversationFlow {
 
 export function FlowListManager() {
   const queryClient = useQueryClient();
-  const { currentCompany } = useCompany();
+  const { currentCompany, isCompanyAdmin } = useCompany();
   const companyId = currentCompany?.id;
   const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Permission check - get current user id for permission lookup
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined);
+  
+  React.useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setCurrentUserId(data.user?.id);
+    });
+  }, []);
+  
+  const { hasPermission } = usePermissions(currentUserId);
+  const canManageFlows = isCompanyAdmin() || hasPermission('flowbuilder.manage');
   
   const selectedFlowId = searchParams.get('flowId');
   
@@ -445,10 +458,12 @@ export function FlowListManager() {
             Crie fluxos visuais para guiar as conversas
           </p>
         </div>
-        <Button onClick={() => handleOpenDialog()} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Novo Fluxo
-        </Button>
+        {canManageFlows && (
+          <Button onClick={() => handleOpenDialog()} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Novo Fluxo
+          </Button>
+        )}
       </div>
 
       {/* Flow List */}
@@ -517,13 +532,14 @@ export function FlowListManager() {
                         toggleActiveMutation.mutate({ id: flow.id, is_active: checked })
                       }
                       className="scale-90"
+                      disabled={!canManageFlows}
                     />
                     <span className="text-xs text-muted-foreground">
                       {flow.is_active ? 'Ativo' : 'Inativo'}
                     </span>
                   </div>
                   <div className="flex items-center gap-1">
-                    {!flow.is_default && (
+                    {canManageFlows && !flow.is_default && (
                       <Button
                         variant="ghost"
                         size="icon"
@@ -534,40 +550,46 @@ export function FlowListManager() {
                         <Star className="h-3.5 w-3.5" />
                       </Button>
                     )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() => duplicateMutation.mutate(flow.id)}
-                      disabled={duplicateMutation.isPending}
-                      title="Duplicar fluxo"
-                    >
-                      <Copy className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() => handleOpenDialog(flow)}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-destructive hover:text-destructive"
-                      onClick={() => handleDeleteRequest(flow)}
-                      disabled={flow.is_default}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    {canManageFlows && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => duplicateMutation.mutate(flow.id)}
+                        disabled={duplicateMutation.isPending}
+                        title="Duplicar fluxo"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    {canManageFlows && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => handleOpenDialog(flow)}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    {canManageFlows && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive hover:text-destructive"
+                        onClick={() => handleDeleteRequest(flow)}
+                        disabled={flow.is_default}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       className="h-7 text-xs gap-1"
                       onClick={() => setSelectedFlowId(flow.id)}
                     >
                       <Eye className="h-3 w-3" />
-                      Editar
+                      {canManageFlows ? 'Editar' : 'Ver'}
                     </Button>
                   </div>
                 </div>

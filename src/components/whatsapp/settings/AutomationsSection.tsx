@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import { Bot, Clock, Forward, Zap, Plus, Trash2, Phone, Shield, Beaker, Power, Loader2, MessageSquare, Save, RotateCcw, Images, Video, FileText, Send, RefreshCw } from "lucide-react";
+import { Bot, Clock, Forward, Zap, Plus, Trash2, Phone, Shield, Beaker, Power, Loader2, MessageSquare, Save, RotateCcw, Images, Video, FileText, Send, RefreshCw, GitBranch } from "lucide-react";
+import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -78,6 +79,8 @@ interface BotSettings {
   next_step_reminder_enabled: boolean;
   next_step_reminder_delay_minutes: number;
   next_step_reminder_message: string | null;
+  // Flow Builder
+  use_flow_builder: boolean;
 }
 
 interface VipNumber {
@@ -106,6 +109,7 @@ const DEFAULT_QUESTIONS = [
 ];
 
 export function AutomationsSection() {
+  const modules = useCompanyModules();
   const [instances, setInstances] = useState<WapiInstance[]>([]);
   const [selectedInstance, setSelectedInstance] = useState<WapiInstance | null>(null);
   const [botSettings, setBotSettings] = useState<BotSettings | null>(null);
@@ -558,6 +562,34 @@ export function AutomationsSection() {
               <Badge variant="secondary">Bot Desativado</Badge>
             )}
           </div>
+
+          {/* Flow Builder Toggle - Only visible when module is enabled by Hub */}
+          {modules.flow_builder && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg border-dashed border-primary/50 bg-primary/5">
+              <div className="flex items-start sm:items-center gap-3 min-w-0">
+                <div className={`p-2 rounded-full shrink-0 ${botSettings?.use_flow_builder ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}>
+                  <GitBranch className="w-4 h-4 sm:w-5 sm:h-5" />
+                </div>
+                <div className="min-w-0">
+                  <h4 className="font-medium text-sm sm:text-base">Flow Builder</h4>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    Substituir bot fixo pelo fluxo visual personalizado
+                  </p>
+                  {botSettings?.use_flow_builder && (
+                    <p className="text-xs text-primary mt-1">
+                      ⚡ O fluxo padrão ativo será usado no lugar do bot de qualificação fixo
+                    </p>
+                  )}
+                </div>
+              </div>
+              <Switch
+                checked={botSettings?.use_flow_builder || false}
+                onCheckedChange={(checked) => updateBotSettings({ use_flow_builder: checked })}
+                disabled={isSaving}
+                className="shrink-0 self-end sm:self-auto"
+              />
+            </div>
+          )}
 
           {/* Message Delay Setting */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg">

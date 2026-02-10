@@ -248,14 +248,554 @@ async function sendBotMessage(instanceId: string, instanceToken: string, remoteJ
   }
 }
 
+// ============= FLOW BUILDER PROCESSOR =============
+
+async function processFlowBuilderMessage(
+  supabase: SupabaseClient,
+  instance: { id: string; instance_id: string; instance_token: string; unit: string | null; company_id: string },
+  conv: { id: string; remote_jid: string; bot_enabled: boolean | null; bot_step: string | null; bot_data: Record<string, unknown> | null; lead_id: string | null },
+  content: string,
+  contactPhone: string,
+  contactName: string | null
+) {
+  const companyId = instance.company_id;
+  
+  // 1. Find the default active flow for this company
+  const { data: flow, error: flowErr } = await supabase
+    .from('conversation_flows')
+    .select('id')
+    .eq('company_id', companyId)
+    .eq('is_default', true)
+    .eq('is_active', true)
+    .single();
+  
+  if (flowErr || !flow) {
+    console.log(`[FlowBuilder] No active default flow found for company ${companyId}`);
+    return;
+  }
+  
+  const flowId = flow.id;
+  
+  // 2. Fetch all nodes, edges, and options for this flow
+  const [nodesRes, edgesRes] = await Promise.all([
+    supabase.from('flow_nodes').select('*').eq('flow_id', flowId),
+    supabase.from('flow_edges').select('*').eq('flow_id', flowId),
+  ]);
+  
+  const nodes = nodesRes.data || [];
+  const edges = edgesRes.data || [];
+  
+  if (nodes.length === 0) {
+    console.log(`[FlowBuilder] Flow ${flowId} has no nodes`);
+    return;
+  }
+  
+  // 3. Fetch or create lead state
+  let { data: state } = await supabase
+    .from('flow_lead_state')
+    .select('*')
+    .eq('conversation_id', conv.id)
+    .eq('flow_id', flowId)
+    .maybeSingle();
+  
+  const startNode = nodes.find(n => n.node_type === 'start');
+  if (!startNode) {
+    console.log(`[FlowBuilder] No start node in flow ${flowId}`);
+    return;
+  }
+  
+  // 4. If no state, initialize at start node and send first message chain
+  if (!state) {
+    console.log(`[FlowBuilder] Initializing flow state for conversation ${conv.id}`);
+    
+    // Create state at start node
+    const { data: newState, error: stateErr } = await supabase
+      .from('flow_lead_state')
+      .insert({
+        conversation_id: conv.id,
+        flow_id: flowId,
+        current_node_id: startNode.id,
+        collected_data: {},
+        waiting_for_reply: false,
+      })
+      .select()
+      .single();
+    
+    if (stateErr) {
+      console.error(`[FlowBuilder] Error creating state:`, stateErr.message);
+      return;
+    }
+    
+    state = newState;
+    
+    // Follow edges from start node to first real node
+    await advanceFlowFromNode(supabase, instance, conv, state, startNode, nodes, edges, contactPhone, contactName, null);
+    return;
+  }
+  
+  // 5. If waiting_for_reply, process the user's response
+  if (state.waiting_for_reply && state.current_node_id) {
+    const currentNode = nodes.find(n => n.id === state.current_node_id);
+    if (!currentNode) {
+      console.log(`[FlowBuilder] Current node ${state.current_node_id} not found`);
+      return;
+    }
+    
+    console.log(`[FlowBuilder] Processing reply for node ${currentNode.title} (${currentNode.node_type})`);
+    
+    // Extract data if needed
+    const collectedData = (state.collected_data || {}) as Record<string, string>;
+    if (currentNode.extract_field) {
+      collectedData[currentNode.extract_field] = content.trim();
+    }
+    
+    // Update collected_data
+    await supabase.from('flow_lead_state').update({ collected_data: collectedData }).eq('id', state.id);
+    state.collected_data = collectedData;
+    
+    // Find matching edge from current node
+    // First check if this is a question node with options
+    const { data: nodeOptions } = await supabase
+      .from('flow_node_options')
+      .select('*')
+      .eq('node_id', currentNode.id)
+      .order('display_order', { ascending: true });
+    
+    let matchedEdge = null;
+    
+    if (nodeOptions && nodeOptions.length > 0) {
+      // Try to match by number (e.g., user types "1", "2", etc.)
+      const userChoice = content.trim();
+      const numMatch = userChoice.match(/^\d+$/);
+      
+      if (numMatch) {
+        const choiceNum = parseInt(numMatch[0]);
+        if (choiceNum >= 1 && choiceNum <= nodeOptions.length) {
+          const selectedOption = nodeOptions[choiceNum - 1];
+          // Find edge for this option
+          matchedEdge = edges.find(e => e.source_node_id === currentNode.id && e.source_option_id === selectedOption.id);
+          
+          // Store the selected option value
+          if (currentNode.extract_field) {
+            collectedData[currentNode.extract_field] = selectedOption.value;
+            await supabase.from('flow_lead_state').update({ collected_data: collectedData }).eq('id', state.id);
+          }
+        }
+      }
+      
+      if (!matchedEdge) {
+        // Try AI interpretation if enabled
+        if (currentNode.allow_ai_interpretation) {
+          // Simple text matching fallback
+          for (const opt of nodeOptions) {
+            if (content.toLowerCase().includes(opt.value.toLowerCase()) || content.toLowerCase().includes(opt.label.toLowerCase())) {
+              matchedEdge = edges.find(e => e.source_node_id === currentNode.id && e.source_option_id === opt.id);
+              if (matchedEdge) {
+                if (currentNode.extract_field) {
+                  collectedData[currentNode.extract_field] = opt.value;
+                  await supabase.from('flow_lead_state').update({ collected_data: collectedData }).eq('id', state.id);
+                }
+                break;
+              }
+            }
+          }
+        }
+        
+        // If still no match, re-send the question with options
+        if (!matchedEdge) {
+          const optionsText = nodeOptions.map((o, i) => `*${i + 1}* - ${o.label}`).join('\n');
+          const retryMsg = `Por favor, responda com o *número* da opção desejada:\n\n${optionsText}`;
+          
+          const retryMsgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, retryMsg);
+          if (retryMsgId) {
+            await supabase.from('wapi_messages').insert({
+              conversation_id: conv.id, message_id: retryMsgId, from_me: true,
+              message_type: 'text', content: retryMsg, status: 'sent',
+              timestamp: new Date().toISOString(), company_id: companyId,
+            });
+          }
+          return;
+        }
+      }
+    } else {
+      // No options - find any edge from this node (fallback/default edge)
+      matchedEdge = edges.find(e => e.source_node_id === currentNode.id && !e.source_option_id);
+      if (!matchedEdge) {
+        matchedEdge = edges.find(e => e.source_node_id === currentNode.id);
+      }
+    }
+    
+    if (!matchedEdge) {
+      console.log(`[FlowBuilder] No matching edge from node ${currentNode.id}`);
+      // End flow - no more edges
+      await supabase.from('flow_lead_state').update({ waiting_for_reply: false }).eq('id', state.id);
+      return;
+    }
+    
+    // Find target node
+    const targetNode = nodes.find(n => n.id === matchedEdge!.target_node_id);
+    if (!targetNode) {
+      console.log(`[FlowBuilder] Target node ${matchedEdge.target_node_id} not found`);
+      return;
+    }
+    
+    // Advance to target node
+    await advanceFlowFromNode(supabase, instance, conv, state, targetNode, nodes, edges, contactPhone, contactName, collectedData);
+  }
+}
+
+async function advanceFlowFromNode(
+  supabase: SupabaseClient,
+  instance: { id: string; instance_id: string; instance_token: string; unit: string | null; company_id: string },
+  conv: { id: string; remote_jid: string; bot_enabled: boolean | null; bot_step: string | null; bot_data: Record<string, unknown> | null; lead_id: string | null },
+  state: { id: string; collected_data: unknown },
+  currentNode: { id: string; node_type: string; title: string; message_template: string | null; action_type: string | null; action_config: unknown; extract_field: string | null; require_extraction: boolean | null },
+  allNodes: typeof currentNode[],
+  allEdges: { id: string; source_node_id: string; target_node_id: string; source_option_id: string | null; condition_type: string | null; condition_value: string | null }[],
+  contactPhone: string,
+  contactName: string | null,
+  collectedData: Record<string, string> | null
+) {
+  const data = collectedData || (state.collected_data as Record<string, string>) || {};
+  
+  console.log(`[FlowBuilder] Advancing to node: ${currentNode.title} (${currentNode.node_type})`);
+  
+  // Replace variables in message template
+  const replaceVars = (text: string) => {
+    let result = text;
+    for (const [key, value] of Object.entries(data)) {
+      result = result.replace(new RegExp(`\\{${key}\\}`, 'gi'), value);
+    }
+    result = result.replace(/\{nome\}/gi, data.nome || contactName || contactPhone);
+    return result;
+  };
+  
+  switch (currentNode.node_type) {
+    case 'start': {
+      // Start node - just follow to next node
+      const nextEdge = allEdges.find(e => e.source_node_id === currentNode.id);
+      if (nextEdge) {
+        const nextNode = allNodes.find(n => n.id === nextEdge.target_node_id);
+        if (nextNode) {
+          await advanceFlowFromNode(supabase, instance, conv, state, nextNode, allNodes, allEdges, contactPhone, contactName, data);
+        }
+      }
+      break;
+    }
+    
+    case 'message': {
+      // Send message and auto-advance to next node
+      if (currentNode.message_template) {
+        const msg = replaceVars(currentNode.message_template);
+        const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, msg);
+        if (msgId) {
+          await supabase.from('wapi_messages').insert({
+            conversation_id: conv.id, message_id: msgId, from_me: true,
+            message_type: 'text', content: msg, status: 'sent',
+            timestamp: new Date().toISOString(), company_id: instance.company_id,
+          });
+        }
+        
+        // Update conversation
+        await supabase.from('wapi_conversations').update({
+          last_message_at: new Date().toISOString(),
+          last_message_content: msg.substring(0, 100),
+          last_message_from_me: true,
+        }).eq('id', conv.id);
+      }
+      
+      // Auto-advance to next node
+      const nextEdge = allEdges.find(e => e.source_node_id === currentNode.id);
+      if (nextEdge) {
+        const nextNode = allNodes.find(n => n.id === nextEdge.target_node_id);
+        if (nextNode) {
+          // Small delay between messages
+          await new Promise(r => setTimeout(r, 2000));
+          await advanceFlowFromNode(supabase, instance, conv, state, nextNode, allNodes, allEdges, contactPhone, contactName, data);
+        }
+      } else {
+        // No more edges - end
+        await supabase.from('flow_lead_state').update({ current_node_id: currentNode.id, waiting_for_reply: false }).eq('id', state.id);
+      }
+      break;
+    }
+    
+    case 'question': {
+      // Send question with options and wait for reply
+      const { data: options } = await supabase
+        .from('flow_node_options')
+        .select('*')
+        .eq('node_id', currentNode.id)
+        .order('display_order', { ascending: true });
+      
+      let msg = currentNode.message_template ? replaceVars(currentNode.message_template) : currentNode.title;
+      
+      if (options && options.length > 0) {
+        const optionsText = options.map((o, i) => `*${i + 1}* - ${o.label}`).join('\n');
+        msg += `\n\n${optionsText}`;
+      }
+      
+      const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, msg);
+      if (msgId) {
+        await supabase.from('wapi_messages').insert({
+          conversation_id: conv.id, message_id: msgId, from_me: true,
+          message_type: 'text', content: msg, status: 'sent',
+          timestamp: new Date().toISOString(), company_id: instance.company_id,
+        });
+      }
+      
+      // Update state to wait for reply
+      await supabase.from('flow_lead_state').update({
+        current_node_id: currentNode.id,
+        waiting_for_reply: true,
+        last_sent_at: new Date().toISOString(),
+      }).eq('id', state.id);
+      
+      // Update conversation
+      await supabase.from('wapi_conversations').update({
+        bot_step: `flow_${currentNode.id}`,
+        last_message_at: new Date().toISOString(),
+        last_message_content: msg.substring(0, 100),
+        last_message_from_me: true,
+      }).eq('id', conv.id);
+      break;
+    }
+    
+    case 'action': {
+      const actionType = currentNode.action_type;
+      const actionConfig = (currentNode.action_config || {}) as Record<string, unknown>;
+      
+      console.log(`[FlowBuilder] Executing action: ${actionType}`);
+      
+      switch (actionType) {
+        case 'handoff': {
+          // Disable bot and notify team
+          if (currentNode.message_template) {
+            const msg = replaceVars(currentNode.message_template);
+            const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, msg);
+            if (msgId) {
+              await supabase.from('wapi_messages').insert({
+                conversation_id: conv.id, message_id: msgId, from_me: true,
+                message_type: 'text', content: msg, status: 'sent',
+                timestamp: new Date().toISOString(), company_id: instance.company_id,
+              });
+            }
+          }
+          
+          await supabase.from('wapi_conversations').update({
+            bot_enabled: false,
+            bot_step: 'flow_handoff',
+            last_message_at: new Date().toISOString(),
+            last_message_from_me: true,
+          }).eq('id', conv.id);
+          
+          await supabase.from('flow_lead_state').update({
+            current_node_id: currentNode.id,
+            waiting_for_reply: false,
+          }).eq('id', state.id);
+          
+          // Create notification
+          try {
+            const { data: adminRoles } = await supabase.from('user_roles').select('user_id').eq('role', 'admin');
+            const unitLower = instance.unit?.toLowerCase() || '';
+            const unitPermission = `leads.unit.${unitLower}`;
+            const { data: userPerms } = await supabase.from('user_permissions').select('user_id').eq('granted', true).in('permission', [unitPermission, 'leads.unit.all']);
+            
+            const userIds = new Set<string>();
+            userPerms?.forEach(p => userIds.add(p.user_id));
+            adminRoles?.forEach(r => userIds.add(r.user_id));
+            
+            const notifications = Array.from(userIds).map(userId => ({
+              user_id: userId,
+              type: 'flow_handoff',
+              title: '🔄 Lead transferido pelo Flow Builder',
+              message: `${data.nome || contactName || contactPhone} foi transferido para atendimento humano.`,
+              data: { conversation_id: conv.id, contact_phone: contactPhone, unit: instance.unit },
+              read: false,
+            }));
+            
+            if (notifications.length > 0) {
+              await supabase.from('notifications').insert(notifications);
+            }
+          } catch (e) {
+            console.error('[FlowBuilder] Notification error:', e);
+          }
+          break;
+        }
+        
+        case 'extract_data': {
+          // Data extraction already happened via extract_field. Now sync to CRM.
+          await syncCollectedDataToLead(supabase, instance, conv, data, contactPhone, contactName);
+          
+          // Auto-advance
+          const nextEdge = allEdges.find(e => e.source_node_id === currentNode.id);
+          if (nextEdge) {
+            const nextNode = allNodes.find(n => n.id === nextEdge.target_node_id);
+            if (nextNode) {
+              await advanceFlowFromNode(supabase, instance, conv, state, nextNode, allNodes, allEdges, contactPhone, contactName, data);
+            }
+          }
+          break;
+        }
+        
+        case 'schedule_visit': {
+          await supabase.from('wapi_conversations').update({ has_scheduled_visit: true }).eq('id', conv.id);
+          if (conv.lead_id) {
+            await supabase.from('campaign_leads').update({ status: 'em_contato' }).eq('id', conv.lead_id);
+          }
+          
+          if (currentNode.message_template) {
+            const msg = replaceVars(currentNode.message_template);
+            const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, msg);
+            if (msgId) {
+              await supabase.from('wapi_messages').insert({
+                conversation_id: conv.id, message_id: msgId, from_me: true,
+                message_type: 'text', content: msg, status: 'sent',
+                timestamp: new Date().toISOString(), company_id: instance.company_id,
+              });
+            }
+          }
+          
+          // Auto-advance
+          const nextEdge2 = allEdges.find(e => e.source_node_id === currentNode.id);
+          if (nextEdge2) {
+            const nextNode = allNodes.find(n => n.id === nextEdge2.target_node_id);
+            if (nextNode) {
+              await advanceFlowFromNode(supabase, instance, conv, state, nextNode, allNodes, allEdges, contactPhone, contactName, data);
+            }
+          }
+          break;
+        }
+        
+        default: {
+          // Unknown action, auto-advance
+          if (currentNode.message_template) {
+            const msg = replaceVars(currentNode.message_template);
+            const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, msg);
+            if (msgId) {
+              await supabase.from('wapi_messages').insert({
+                conversation_id: conv.id, message_id: msgId, from_me: true,
+                message_type: 'text', content: msg, status: 'sent',
+                timestamp: new Date().toISOString(), company_id: instance.company_id,
+              });
+            }
+          }
+          const nextEdge3 = allEdges.find(e => e.source_node_id === currentNode.id);
+          if (nextEdge3) {
+            const nextNode = allNodes.find(n => n.id === nextEdge3.target_node_id);
+            if (nextNode) {
+              await advanceFlowFromNode(supabase, instance, conv, state, nextNode, allNodes, allEdges, contactPhone, contactName, data);
+            }
+          }
+          break;
+        }
+      }
+      break;
+    }
+    
+    case 'end': {
+      // Send final message and disable bot
+      if (currentNode.message_template) {
+        const msg = replaceVars(currentNode.message_template);
+        const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, msg);
+        if (msgId) {
+          await supabase.from('wapi_messages').insert({
+            conversation_id: conv.id, message_id: msgId, from_me: true,
+            message_type: 'text', content: msg, status: 'sent',
+            timestamp: new Date().toISOString(), company_id: instance.company_id,
+          });
+        }
+      }
+      
+      // Sync data to CRM
+      await syncCollectedDataToLead(supabase, instance, conv, data, contactPhone, contactName);
+      
+      // Disable bot
+      await supabase.from('wapi_conversations').update({
+        bot_enabled: false,
+        bot_step: 'flow_complete',
+        last_message_at: new Date().toISOString(),
+        last_message_from_me: true,
+      }).eq('id', conv.id);
+      
+      await supabase.from('flow_lead_state').update({
+        current_node_id: currentNode.id,
+        waiting_for_reply: false,
+      }).eq('id', state.id);
+      break;
+    }
+    
+    default: {
+      // Unknown node type, try to advance
+      const nextEdge = allEdges.find(e => e.source_node_id === currentNode.id);
+      if (nextEdge) {
+        const nextNode = allNodes.find(n => n.id === nextEdge.target_node_id);
+        if (nextNode) {
+          await advanceFlowFromNode(supabase, instance, conv, state, nextNode, allNodes, allEdges, contactPhone, contactName, data);
+        }
+      }
+      break;
+    }
+  }
+}
+
+async function syncCollectedDataToLead(
+  supabase: SupabaseClient,
+  instance: { id: string; unit: string | null; company_id: string },
+  conv: { id: string; lead_id: string | null },
+  data: Record<string, string>,
+  contactPhone: string,
+  contactName: string | null
+) {
+  const n = normalizePhone(contactPhone);
+  const leadData: Record<string, unknown> = {};
+  
+  if (data.nome) leadData.name = data.nome;
+  if (data.mes) leadData.month = data.mes;
+  if (data.dia) leadData.day_preference = data.dia;
+  if (data.convidados) leadData.guests = data.convidados;
+  
+  if (Object.keys(leadData).length === 0 && !data.nome) return;
+  
+  if (conv.lead_id) {
+    await supabase.from('campaign_leads').update(leadData).eq('id', conv.lead_id);
+    console.log(`[FlowBuilder] Updated lead ${conv.lead_id}`);
+  } else {
+    const { data: newLead } = await supabase.from('campaign_leads').insert({
+      name: data.nome || contactName || contactPhone,
+      whatsapp: n,
+      unit: instance.unit,
+      campaign_id: 'flow-builder',
+      campaign_name: 'WhatsApp (Flow Builder)',
+      status: 'novo',
+      company_id: instance.company_id,
+      ...leadData,
+    }).select('id').single();
+    
+    if (newLead) {
+      await supabase.from('wapi_conversations').update({ lead_id: newLead.id }).eq('id', conv.id);
+      console.log(`[FlowBuilder] Created lead ${newLead.id}`);
+    }
+  }
+}
+
+// ============= ORIGINAL BOT QUALIFICATION =============
+
 async function processBotQualification(
   supabase: SupabaseClient,
-  instance: { id: string; instance_id: string; instance_token: string; unit: string | null },
+  instance: { id: string; instance_id: string; instance_token: string; unit: string | null; company_id: string },
   conv: { id: string; remote_jid: string; bot_enabled: boolean | null; bot_step: string | null; bot_data: Record<string, unknown> | null; lead_id: string | null },
   content: string, contactPhone: string, contactName: string | null
 ) {
   const settings = await getBotSettings(supabase, instance.id);
   if (!settings) return;
+  
+  // Check if Flow Builder mode is enabled — delegate to flow processor
+  if (settings.use_flow_builder) {
+    console.log(`[Bot] Flow Builder mode enabled for instance ${instance.id}, delegating...`);
+    await processFlowBuilderMessage(supabase, instance, conv, content, contactPhone, contactName);
+    return;
+  }
 
   const n = normalizePhone(contactPhone);
   const tn = settings.test_mode_number ? normalizePhone(settings.test_mode_number) : null;
@@ -1467,7 +2007,8 @@ async function processWebhookEvent(body: Record<string, unknown>) {
         // Only disable bot for manual (human) outgoing messages, not bot-sent messages
         // Bot steps that are part of the active flow should NOT trigger bot disable
         const activeBotSteps = ['welcome', 'tipo', 'nome', 'mes', 'dia', 'convidados', 'sending_materials', 'proximo_passo', 'proximo_passo_reminded'];
-        const isBotActiveStep = activeBotSteps.includes(ex.bot_step || '');
+        const isFlowBuilderStep = (ex.bot_step || '').startsWith('flow_');
+        const isBotActiveStep = activeBotSteps.includes(ex.bot_step || '') || isFlowBuilderStep;
         if (fromMe && ex.bot_step && ex.bot_step !== 'complete' && !isBotActiveStep) upd.bot_enabled = false;
         if (isGrp) { 
           const gn = (msg as Record<string, unknown>).chat?.name || (msg as Record<string, unknown>).groupName || (msg as Record<string, unknown>).subject; 
