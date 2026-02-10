@@ -226,15 +226,25 @@ function replaceVariables(text: string, data: Record<string, string>): string {
 async function sendBotMessage(instanceId: string, instanceToken: string, remoteJid: string, message: string): Promise<string | null> {
   try {
     const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '');
+    console.log(`[Bot] Sending message to ${phone} via instance ${instanceId}`);
     const res = await fetch(`${WAPI_BASE_URL}/message/send-text?instanceId=${instanceId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instanceToken}` },
       body: JSON.stringify({ phone, message, delayTyping: 1 }),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const errBody = await res.text();
+      console.error(`[Bot] send-text failed: ${res.status} ${errBody}`);
+      return null;
+    }
     const r = await res.json();
-    return r.messageId || r.id || null;
-  } catch { return null; }
+    const msgId = r.messageId || r.data?.messageId || r.id || null;
+    console.log(`[Bot] send-text response: msgId=${msgId}`);
+    return msgId;
+  } catch (e) {
+    console.error(`[Bot] send-text exception:`, e);
+    return null;
+  }
 }
 
 async function processBotQualification(
@@ -1456,10 +1466,13 @@ async function processWebhookEvent(body: Record<string, unknown>) {
         }).catch(err => console.error('[Media download error]', err));
       }
 
-      // Process bot qualification in background (don't block)
+      // Process bot qualification - MUST await to ensure bot messages are saved before function terminates
       if (!fromMe && !isGrp && type === 'text' && content) {
-        processBotQualification(supabase, instance, conv, content, phone, cName as string | null)
-          .catch(err => console.error('[Bot qualification error]', err));
+        try {
+          await processBotQualification(supabase, instance, conv, content, phone, cName as string | null);
+        } catch (err) {
+          console.error('[Bot qualification error]', err);
+        }
       }
       break;
     }
