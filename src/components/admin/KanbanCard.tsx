@@ -306,13 +306,14 @@ export function KanbanCard({
                 {lead.has_return && (
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <div className="flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5 bg-gradient-to-r from-violet-500/20 to-violet-600/10 border border-violet-500/30 rounded-full">
+                      <div className="flex-shrink-0 flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-violet-500/25 to-fuchsia-500/15 border border-violet-400/40 rounded-full shadow-sm shadow-violet-500/10 animate-pulse">
                         <RotateCcw className="w-3 h-3 text-violet-500" />
-                        <span className="text-[10px] font-semibold text-violet-600 uppercase tracking-wide">Retornou</span>
+                        <span className="text-[10px] font-bold text-violet-600 uppercase tracking-wider">Retornou</span>
                       </div>
                     </TooltipTrigger>
-                    <TooltipContent side="top" className="text-xs">
-                      <p>🔄 Lead retornou pela Landing Page</p>
+                    <TooltipContent side="top" className="text-xs max-w-[200px]">
+                      <p className="font-semibold">🔄 Lead retornou pela LP</p>
+                      <p className="text-muted-foreground mt-0.5">Este lead já preencheu o formulário antes e voltou com interesse renovado!</p>
                     </TooltipContent>
                   </Tooltip>
                 )}

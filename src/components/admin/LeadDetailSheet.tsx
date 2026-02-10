@@ -47,6 +47,7 @@ import {
   CheckCircle,
   AlertCircle,
   Trash2,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -338,6 +339,24 @@ export function LeadDetailSheet({
         </SheetHeader>
 
         <div className="mt-6 space-y-6">
+          {/* Return Banner */}
+          {lead.has_return && (
+            <div className="relative bg-gradient-to-r from-violet-500/15 via-fuchsia-500/10 to-violet-500/15 border border-violet-400/30 rounded-xl p-4 shadow-sm overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-violet-500/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+              <div className="relative flex items-start gap-3">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-violet-500/30 to-fuchsia-500/20 flex items-center justify-center border border-violet-400/30">
+                  <RotateCcw className="w-5 h-5 text-violet-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-bold text-violet-700 dark:text-violet-400">🔄 Lead retornou pela Landing Page!</h4>
+                  <p className="text-xs text-violet-600/80 dark:text-violet-400/70 mt-0.5 leading-relaxed">
+                    Este lead já preencheu o formulário anteriormente e voltou com interesse renovado. Priorize o atendimento!
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Lead Info */}
           <div className="grid grid-cols-2 gap-4">
             <div className="flex items-center gap-2 text-sm">
