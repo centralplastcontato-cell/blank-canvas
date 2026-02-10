@@ -68,7 +68,7 @@ export function UnitKanbanTabs({
           )}
           {visibleUnits.map((unit) => {
             const allUnitNames = companyUnits.map(u => u.name);
-            const unitLeads = leads.filter((lead) => lead.unit === unit.name || (lead.unit && !allUnitNames.includes(lead.unit)));
+            const unitLeads = leads.filter((lead) => lead.unit === unit.name || (lead.unit && !allUnitNames.includes(lead.unit) && lead.unit !== null));
             return (
               <TabsTrigger
                 key={unit.slug}
