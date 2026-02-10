@@ -14,11 +14,17 @@ export default function RootPage() {
     return <HubLandingPage />;
   }
 
+  const hostname = window.location.hostname;
+
+  // Castelo da Diversão domain → static landing page (original)
+  if (hostname === "www.castelodadiversao.online" || hostname === "castelodadiversao.online") {
+    return <LandingPage />;
+  }
+
   if (isPreviewDomain()) {
     return <LandingPage />;
   }
 
   // Custom domain → dynamic landing page
-  const hostname = window.location.hostname;
   return <DynamicLandingPage domain={hostname} />;
 }
