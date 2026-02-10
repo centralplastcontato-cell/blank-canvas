@@ -233,6 +233,7 @@ async function processNextStepReminder({
         .from("wapi_conversations")
         .update({
           bot_step: "proximo_passo_reminded",
+          bot_enabled: true,
           last_message_at: new Date().toISOString(),
           last_message_content: personalizedMessage.substring(0, 100),
           last_message_from_me: true,
