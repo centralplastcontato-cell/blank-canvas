@@ -1966,11 +1966,14 @@ async function processWebhookEvent(body: Record<string, unknown>) {
       await supabase.from('wapi_instances').update({ status: 'disconnected', connected_at: null }).eq('id', instance.id);
       break;
     case 'call': case 'webhookCall': case 'call_offer': case 'call_reject': case 'call_timeout': break;
-    case 'message': case 'message-received': case 'webhookReceived': {
+    case 'message': case 'message-received': case 'messages.upsert': case 'webhookReceived': {
       // ⏱️ LATENCY: Start timing at beginning of message processing
       const processingStartAt = Date.now();
       
-      const msg = (data as Record<string, unknown>)?.message || data || body;
+      // For messages.upsert, the message data is directly in `data` (with key, pushName, message, etc.)
+      // For other events, message may be nested in data.message
+      const rawData = data as Record<string, unknown>;
+      const msg = rawData?.key ? rawData : (rawData?.message as Record<string, unknown>) || rawData || body;
       if (!msg) break;
       const mc = (msg as Record<string, unknown>).message || (msg as Record<string, unknown>).msgContent || {};
       if ((mc as Record<string, unknown>).protocolMessage) break;
