@@ -58,6 +58,10 @@ export function ClientAlertBanner({ userId, onOpenConversation }: ClientAlertBan
             data: n.data as unknown as ClientNotificationData,
           }));
         setAlerts(validAlerts);
+        // Play sound if there are unread client alerts on load
+        if (validAlerts.length > 0 && notificationsEnabledRef.current) {
+          playClientSound();
+        }
       }
     };
 
@@ -141,25 +145,25 @@ export function ClientAlertBanner({ userId, onOpenConversation }: ClientAlertBan
   const remainingCount = alerts.length - 1;
 
   return (
-    <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent border-b border-amber-500/30 px-4 py-3 animate-in slide-in-from-top duration-300">
+    <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 border-b-2 border-amber-300 px-4 py-3 animate-in slide-in-from-top duration-300 shadow-lg shadow-amber-500/40">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="flex items-center justify-center w-9 h-9 rounded-full bg-amber-500/20 shrink-0">
-            <Crown className="w-4 h-4 text-amber-600" />
+          <div className="flex items-center justify-center w-11 h-11 rounded-full bg-white/20 shrink-0 ring-2 ring-white/50 ring-offset-1 ring-offset-amber-500">
+            <Crown className="w-5 h-5 text-white" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-foreground truncate">
-              Cliente existente precisa de atenção!
+            <p className="text-base font-extrabold text-white truncate">
+              👑 Cliente existente precisa de atenção!
             </p>
-            <p className="text-xs text-muted-foreground truncate">
-              <span className="font-medium text-foreground">
+            <p className="text-sm text-amber-100 truncate">
+              <span className="font-bold text-white">
                 {latestAlert.data.contact_name || latestAlert.data.contact_phone}
               </span>
-              <span className="text-amber-600 ml-1">
+              <span className="text-yellow-100 font-semibold ml-1">
                 ({latestAlert.data.unit})
               </span>
               {remainingCount > 0 && (
-                <span className="ml-1">
+                <span className="ml-1 font-medium text-amber-100">
                   e mais {remainingCount} {remainingCount === 1 ? "cliente" : "clientes"}
                 </span>
               )}
@@ -170,16 +174,16 @@ export function ClientAlertBanner({ userId, onOpenConversation }: ClientAlertBan
         <div className="flex items-center gap-2 shrink-0">
           <Button
             size="sm"
-            className="h-8 gap-1.5 bg-amber-600 hover:bg-amber-700 text-white"
+            className="h-9 gap-1.5 bg-white text-amber-700 hover:bg-amber-50 font-bold shadow-lg"
             onClick={() => handleOpenConversation(latestAlert)}
           >
-            <MessageSquare className="w-3.5 h-3.5" />
+            <MessageSquare className="w-4 h-4" />
             Abrir Chat
           </Button>
           <Button
             size="icon"
             variant="ghost"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10"
             onClick={() => handleDismiss(latestAlert)}
           >
             <X className="w-4 h-4" />
