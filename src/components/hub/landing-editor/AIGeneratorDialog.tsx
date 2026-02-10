@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, X, Sparkles, Loader2 } from "lucide-react";
+import { Upload, X, Sparkles, Loader2, DatabaseZap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { CompanyLandingPage } from "@/types/landing-page";
@@ -27,6 +27,71 @@ export function AIGeneratorDialog({ open, onOpenChange, companyId, companyName, 
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [loadingOnboarding, setLoadingOnboarding] = useState(false);
+  const [hasOnboarding, setHasOnboarding] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    // Check if onboarding data exists for this company
+    supabase
+      .from("company_onboarding")
+      .select("id")
+      .eq("company_id", companyId)
+      .limit(1)
+      .then(({ data }) => setHasOnboarding(!!data?.length));
+  }, [open, companyId]);
+
+  const loadFromOnboarding = async () => {
+    setLoadingOnboarding(true);
+    try {
+      const { data: ob } = await supabase
+        .from("company_onboarding")
+        .select("*")
+        .eq("company_id", companyId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!ob) {
+        toast.error("Nenhum onboarding encontrado para esta empresa");
+        return;
+      }
+
+      // Build description from onboarding data
+      const parts: string[] = [];
+      if (ob.buffet_name) parts.push(`Buffet: ${ob.buffet_name}`);
+      if (ob.city && ob.state) parts.push(`Localização: ${ob.city}/${ob.state}`);
+      if (ob.full_address) parts.push(`Endereço: ${ob.full_address}`);
+      if (ob.service_hours) parts.push(`Horário: ${ob.service_hours}`);
+      if (ob.attendants_count) parts.push(`${ob.attendants_count} atendentes`);
+      if (ob.multiple_units) parts.push("Múltiplas unidades");
+      if (ob.main_goal) parts.push(`Objetivo: ${ob.main_goal}`);
+      if (ob.brand_notes) parts.push(`Marca: ${ob.brand_notes}`);
+
+      setDescription(parts.join(". ") + ".");
+
+      // Extra info
+      const extras: string[] = [];
+      if (ob.instagram) extras.push(`Instagram: ${ob.instagram}`);
+      if (ob.website) extras.push(`Site: ${ob.website}`);
+      if (ob.contact_phone) extras.push(`Telefone: ${ob.contact_phone}`);
+      if (ob.additional_notes) extras.push(ob.additional_notes);
+      if (extras.length) setExtraInfo(extras.join("\n"));
+
+      // Videos
+      if (ob.video_urls?.length) setVideoUrl(ob.video_urls[0]);
+
+      // Photos
+      if (ob.photo_urls?.length) setPhotos(ob.photo_urls);
+
+      toast.success("Dados do onboarding carregados!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao carregar dados do onboarding");
+    } finally {
+      setLoadingOnboarding(false);
+    }
+  };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -110,6 +175,23 @@ export function AIGeneratorDialog({ open, onOpenChange, companyId, companyName, 
         </DialogHeader>
 
         <div className="space-y-4">
+          {hasOnboarding && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={loadFromOnboarding}
+              disabled={loadingOnboarding}
+            >
+              {loadingOnboarding ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <DatabaseZap className="h-4 w-4 mr-2" />
+              )}
+              Preencher com dados do Onboarding
+            </Button>
+          )}
+
           <div>
             <Label>Descrição do buffet *</Label>
             <Textarea
