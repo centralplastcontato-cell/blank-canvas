@@ -5,7 +5,8 @@ import {
   Users, 
   RefreshCw, 
   LogOut, 
-  Building2
+  Building2,
+  MessageSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,7 +24,7 @@ interface MobileMenuProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   trigger: React.ReactNode;
-  currentPage: "atendimento" | "configuracoes" | "users";
+  currentPage: "atendimento" | "configuracoes" | "users" | "whatsapp";
   userName: string;
   userEmail: string;
   userAvatar?: string | null;
@@ -63,6 +64,13 @@ export function MobileMenu({
       label: "Central de Atendimento",
       icon: Headset,
       path: "/atendimento",
+      show: true,
+    },
+    {
+      id: "whatsapp",
+      label: "WhatsApp",
+      icon: MessageSquare,
+      path: "/whatsapp",
       show: true,
     },
     {

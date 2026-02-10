@@ -6,18 +6,11 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useUnitPermissions } from "@/hooks/useUnitPermissions";
 import { usePermissions } from "@/hooks/usePermissions";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { MobileMenu } from "@/components/admin/MobileMenu";
 import { WhatsAppChat } from "@/components/whatsapp/WhatsAppChat";
-import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
-import { MessageSquare, Menu } from "lucide-react";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { Separator } from "@/components/ui/separator";
 import logoCastelo from "@/assets/logo-castelo.png";
 import { toast } from "@/hooks/use-toast";
 
@@ -112,55 +105,27 @@ export default function WhatsApp() {
   if (isMobile) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        {/* Mobile Header */}
         <header className="bg-card border-b border-border sticky top-0 z-10">
           <div className="px-3 py-3">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0 flex-1">
-                <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-                  <SheetTrigger asChild>
+                <MobileMenu
+                  isOpen={isMobileMenuOpen}
+                  onOpenChange={setIsMobileMenuOpen}
+                  trigger={
                     <Button variant="ghost" size="icon" className="h-9 w-9">
                       <Menu className="w-5 h-5" />
                     </Button>
-                  </SheetTrigger>
-                  <SheetContent side="left" className="w-72 p-0">
-                    <SheetHeader className="p-4 border-b border-border">
-                      <div className="flex items-center gap-3">
-                        <img src={logoCastelo} alt="Castelo da Diversão" className="h-10 w-auto" />
-                        <div>
-                          <SheetTitle className="text-left text-base">Castelo da Diversão</SheetTitle>
-                          <p className="text-xs text-muted-foreground">
-                            {currentUserProfile?.full_name || user.email}
-                          </p>
-                        </div>
-                      </div>
-                    </SheetHeader>
-                    
-                    <nav className="flex flex-col p-2">
-                      <Button variant="ghost" className="justify-start h-11 px-3" onClick={() => { navigate("/admin"); setIsMobileMenuOpen(false); }}>
-                        Gestão de Leads
-                      </Button>
-                      
-                      <Button variant="secondary" className="justify-start h-11 px-3" onClick={() => setIsMobileMenuOpen(false)}>
-                        <MessageSquare className="w-5 h-5 mr-3" />
-                        WhatsApp
-                      </Button>
-                      
-                      {canManageUsers && (
-                        <Button variant="ghost" className="justify-start h-11 px-3" onClick={() => { navigate("/users"); setIsMobileMenuOpen(false); }}>
-                          Gerenciar Usuários
-                        </Button>
-                      )}
-                      
-                      <Separator className="my-2" />
-                      
-                      <Button variant="ghost" className="justify-start h-11 px-3 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }}>
-                        Sair da Conta
-                      </Button>
-                    </nav>
-                  </SheetContent>
-                </Sheet>
-
+                  }
+                  currentPage="whatsapp"
+                  userName={currentUserProfile?.full_name || "Usuário"}
+                  userEmail={user.email || ""}
+                  userAvatar={null}
+                  canManageUsers={canManageUsers}
+                  isAdmin={isAdmin}
+                  onRefresh={handleRefresh}
+                  onLogout={handleLogout}
+                />
                 <div className="flex items-center gap-2 min-w-0">
                   <img src={logoCastelo} alt="Castelo da Diversão" className="h-8 w-auto shrink-0" />
                   <h1 className="font-display font-bold text-foreground text-sm truncate">WhatsApp</h1>
