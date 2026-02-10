@@ -881,8 +881,16 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
     };
   }, [hasMoreMessages, isInitialLoad, messages.length]);
 
-  const fetchInstances = async () => {
+  const fetchInstances = async (retryCount = 0) => {
     setIsLoading(true);
+    
+    // Ensure we have an active session before querying (RLS depends on auth.uid())
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session && retryCount < 2) {
+      // Session not ready yet, retry after a short delay
+      setTimeout(() => fetchInstances(retryCount + 1), 500);
+      return;
+    }
     
     // Build query based on allowed units
     let query = supabase
@@ -899,7 +907,16 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
       query = query.in("unit", allowedUnits);
     }
 
-    const { data } = await query.order("unit", { ascending: true });
+    const { data, error } = await query.order("unit", { ascending: true });
+
+    if (error) {
+      console.error('[WhatsAppChat] Error fetching instances:', error);
+      // If auth error, retry once
+      if (retryCount < 2) {
+        setTimeout(() => fetchInstances(retryCount + 1), 1000);
+        return;
+      }
+    }
 
     if (data && data.length > 0) {
       setInstances(data as WapiInstance[]);
