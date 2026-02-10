@@ -12,7 +12,7 @@ export interface UnitPermissions {
 export function useUnitPermissions(userId: string | undefined, companyId?: string) {
   const { units: companyUnits, isLoading: isLoadingUnits } = useCompanyUnits(companyId);
   const [unitPermissions, setUnitPermissions] = useState<UnitPermissions>({
-    canViewAll: true,
+    canViewAll: false,
     allowedUnits: [],
     unitAccess: {},
   });

@@ -688,12 +688,14 @@ export default function CentralAtendimento() {
             </TabsList>
 
             <TabsContent value="chat" className="flex-1 overflow-hidden min-h-0 mt-0 p-0">
-              <WhatsAppChat 
-                userId={user.id} 
-                allowedUnits={canViewAll ? ['all'] : allowedUnits} 
-                initialPhone={initialPhone}
-                onPhoneHandled={handlePhoneHandled}
-              />
+              {!isLoadingUnitPerms && (
+                <WhatsAppChat 
+                  userId={user.id} 
+                  allowedUnits={canViewAll ? ['all'] : allowedUnits} 
+                  initialPhone={initialPhone}
+                  onPhoneHandled={handlePhoneHandled}
+                />
+              )}
             </TabsContent>
 
             <TabsContent value="leads" className="flex-1 min-h-0 mt-0 data-[state=active]:flex data-[state=active]:flex-col overflow-hidden">
@@ -944,12 +946,14 @@ export default function CentralAtendimento() {
               {/* TabsList removed - buttons are now in the header */}
 
               <TabsContent value="chat" className="flex-1 overflow-hidden min-h-0 mt-0">
-                <WhatsAppChat 
-                  userId={user.id} 
-                  allowedUnits={canViewAll ? ['all'] : allowedUnits}
-                  initialPhone={initialPhone}
-                  onPhoneHandled={handlePhoneHandled}
-                />
+                {!isLoadingUnitPerms && (
+                  <WhatsAppChat 
+                    userId={user.id} 
+                    allowedUnits={canViewAll ? ['all'] : allowedUnits}
+                    initialPhone={initialPhone}
+                    onPhoneHandled={handlePhoneHandled}
+                  />
+                )}
               </TabsContent>
 
               <TabsContent value="leads" className="flex-1 overflow-auto min-h-0 mt-0">
