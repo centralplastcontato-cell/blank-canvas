@@ -274,27 +274,18 @@ export function LeadChatbot({ isOpen, onClose }: LeadChatbotProps) {
           console.log(`Lead criado para ${unit}`);
         };
         
-        // Se a unidade for "As duas", processar ambas as unidades
-        if (leadData.unit === "As duas") {
-          await Promise.all([
-            submitLead("Manchester"),
-            submitLead("Trujillo"),
-          ]);
+        // Submit lead (always as a single record, even for "As duas")
+        await submitLead(leadData.unit!);
 
-          // Enviar mensagem para ambas as unidades em segundo plano (fire and forget)
+        // Send welcome message(s) in background
+        if (leadData.unit === "As duas") {
           Promise.all([
             sendWelcomeMessage(whatsappValue, "Manchester", finalLeadData),
             sendWelcomeMessage(whatsappValue, "Trujillo", finalLeadData),
           ]).catch(err => console.error("Erro ao enviar mensagem automática:", err));
-        } else {
-          // Comportamento padrão: processar uma única unidade
-          await submitLead(leadData.unit!);
-
-          // Enviar mensagem automática em segundo plano (fire and forget)
-          if (leadData.unit) {
-            sendWelcomeMessage(whatsappValue, leadData.unit, finalLeadData)
-              .catch(err => console.error("Erro ao enviar mensagem automática:", err));
-          }
+        } else if (leadData.unit) {
+          sendWelcomeMessage(whatsappValue, leadData.unit, finalLeadData)
+            .catch(err => console.error("Erro ao enviar mensagem automática:", err));
         }
 
         // Mostrar confirmação imediatamente após salvar o lead
