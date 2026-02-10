@@ -1,6 +1,6 @@
 import { useCallback, useRef, useEffect } from "react";
 
-type SoundType = "message" | "lead" | "client" | "visit" | "generic";
+type SoundType = "message" | "lead" | "client" | "visit" | "questions" | "generic";
 
 interface SoundConfig {
   frequency: number;
@@ -32,6 +32,12 @@ const SOUND_CONFIGS: Record<SoundType, SoundConfig> = {
     pattern: [180, 60, 180, 60, 250], // Rising triple tone - celebratory
     secondFrequency: 698.46, // F5 - ascending second note
     thirdFrequency: 880, // A5 - highest note for urgency
+  },
+  questions: {
+    frequency: 659.25, // E5 - curious, inquisitive tone
+    duration: 0.25,
+    pattern: [200, 100, 200], // Two-tone chime - attention but not urgent
+    secondFrequency: 783.99, // G5 - ascending question-like interval
   },
   generic: {
     frequency: 660, // E5
@@ -160,6 +166,10 @@ export function useNotificationSounds() {
     playSound("visit");
   }, [playSound]);
 
+  const playQuestionsSound = useCallback(() => {
+    playSound("questions");
+  }, [playSound]);
+
   const setSoundEnabled = useCallback((enabled: boolean) => {
     soundEnabledRef.current = enabled;
   }, []);
@@ -170,6 +180,7 @@ export function useNotificationSounds() {
     playLeadSound,
     playClientSound,
     playVisitSound,
+    playQuestionsSound,
     setSoundEnabled,
   };
 }
