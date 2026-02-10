@@ -1,24 +1,43 @@
+import { useState } from "react";
 import { Instagram, Sparkles, MapPin } from "lucide-react";
-import { motion } from "framer-motion";
-import thumbTrujillo from "@/assets/thumb-trujillo.jpg";
-import thumbManchester from "@/assets/thumb-manchester.jpg";
+import { motion, AnimatePresence } from "framer-motion";
 
-const onboardingPhotos = [
-  "https://rsezgnkfhodltrsewlhz.supabase.co/storage/v1/object/public/onboarding-uploads/a0000000-0000-0000-0000-000000000001/photos/1770664109270.jpg",
-  "https://rsezgnkfhodltrsewlhz.supabase.co/storage/v1/object/public/onboarding-uploads/a0000000-0000-0000-0000-000000000001/photos/1770664113909.jpg",
+const manchesterPhotos = [
+  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/manchester/collections/1770337337388_0.jpeg",
+  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/manchester/collections/1770337338233_1.jpeg",
+  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/manchester/collections/1770337338780_2.jpeg",
+  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/manchester/collections/1770337339504_3.jpeg",
+  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/manchester/collections/1770337340211_4.jpeg",
+  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/manchester/collections/1770337340867_5.jpeg",
+  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/manchester/collections/1770337341426_6.jpeg",
+  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/manchester/collections/1770337342104_7.jpeg",
+  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/manchester/collections/1770337342975_8.jpeg",
+  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/manchester/collections/1770337343554_9.jpeg",
 ];
 
-const galleryItems = [
-  { src: thumbTrujillo, label: "Unidade Trujillo", location: "Trujillo" },
-  { src: thumbManchester, label: "Unidade Manchester", location: "Manchester" },
-  { src: onboardingPhotos[0], label: "Nosso Espaço", location: "Castelo" },
-  { src: onboardingPhotos[1], label: "Diversão Garantida", location: "Castelo" },
+const trujilloPhotos = [
+  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/trujillo/collections/1770337873541_0.jpeg",
+  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/trujillo/collections/1770337874866_1.jpeg",
+  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/trujillo/collections/1770337875484_2.jpeg",
+  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/trujillo/collections/1770337876098_3.jpeg",
+  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/trujillo/collections/1770337876811_4.jpeg",
+  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/trujillo/collections/1770337877432_5.jpeg",
+  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/trujillo/collections/1770337878592_6.jpeg",
+  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/trujillo/collections/1770337879265_7.jpeg",
+  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/trujillo/collections/1770337880085_8.jpeg",
+  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/trujillo/collections/1770337880807_9.jpeg",
+];
+
+const units = [
+  { name: "Manchester", photos: manchesterPhotos },
+  { name: "Trujillo", photos: trujilloPhotos },
 ];
 
 export const InstagramSection = () => {
+  const [activeUnit, setActiveUnit] = useState(0);
+
   return (
     <section className="py-20 relative overflow-hidden bg-gradient-to-br from-primary/5 via-background to-secondary/10">
-      {/* Decorative elements */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-10 left-10 w-32 h-32 bg-primary/10 rounded-full blur-3xl" />
         <div className="absolute bottom-10 right-10 w-40 h-40 bg-secondary/10 rounded-full blur-3xl" />
@@ -26,7 +45,7 @@ export const InstagramSection = () => {
 
       <div className="container mx-auto px-4 relative z-10">
         <motion.div
-          className="text-center mb-12"
+          className="text-center mb-10"
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
@@ -52,33 +71,53 @@ export const InstagramSection = () => {
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl mx-auto">
-          {galleryItems.map((item, index) => (
-            <motion.div
-              key={index}
-              className="group relative rounded-2xl overflow-hidden shadow-xl aspect-square"
-              initial={{ opacity: 0, scale: 0.9 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.4, delay: index * 0.1 }}
-              viewport={{ once: true }}
+        {/* Unit Tabs */}
+        <div className="flex justify-center gap-3 mb-8">
+          {units.map((unit, idx) => (
+            <button
+              key={unit.name}
+              onClick={() => setActiveUnit(idx)}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-full font-semibold transition-all duration-300 ${
+                activeUnit === idx
+                  ? "bg-primary text-primary-foreground shadow-lg scale-105"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              }`}
             >
-              <img
-                src={item.src}
-                alt={item.label}
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                loading="lazy"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                <p className="text-white font-semibold text-sm">{item.label}</p>
-                <div className="flex items-center gap-1 text-white/80 text-xs">
-                  <MapPin className="w-3 h-3" />
-                  <span>{item.location}</span>
-                </div>
-              </div>
-            </motion.div>
+              <MapPin className="w-4 h-4" />
+              {unit.name}
+            </button>
           ))}
         </div>
+
+        {/* Photo Grid */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeUnit}
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 max-w-5xl mx-auto"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.4 }}
+          >
+            {units[activeUnit].photos.map((src, index) => (
+              <motion.div
+                key={src}
+                className="group relative rounded-xl overflow-hidden shadow-lg aspect-square"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3, delay: index * 0.05 }}
+              >
+                <img
+                  src={src}
+                  alt={`${units[activeUnit].name} - Foto ${index + 1}`}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              </motion.div>
+            ))}
+          </motion.div>
+        </AnimatePresence>
 
         {/* Instagram CTA */}
         <motion.div
