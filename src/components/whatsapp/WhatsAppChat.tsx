@@ -405,8 +405,38 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
     setIsDeleting(true);
     
     try {
-      // If there's a linked lead, delete its history and the lead itself
-      if (linkedLead) {
+      // Find the lead to delete - use linkedLead state, or look it up
+      let leadToDelete = linkedLead;
+
+      if (!leadToDelete) {
+        // Try by lead_id on the conversation
+        if (selectedConversation.lead_id) {
+          const { data: leadById } = await supabase
+            .from('campaign_leads')
+            .select('id')
+            .eq('id', selectedConversation.lead_id)
+            .maybeSingle();
+          if (leadById) {
+            leadToDelete = { id: leadById.id } as typeof linkedLead;
+          }
+        }
+
+        // If still not found, try by phone number
+        if (!leadToDelete && selectedConversation.contact_phone) {
+          const phone = selectedConversation.contact_phone.replace(/\D/g, '');
+          const { data: leadByPhone } = await supabase
+            .from('campaign_leads')
+            .select('id')
+            .or(`whatsapp.eq.${phone},whatsapp.eq.+${phone}`)
+            .maybeSingle();
+          if (leadByPhone) {
+            leadToDelete = { id: leadByPhone.id } as typeof linkedLead;
+          }
+        }
+      }
+
+      // Delete the lead if found
+      if (leadToDelete) {
         // First unlink the conversation from the lead (to avoid FK constraint)
         await supabase
           .from('wapi_conversations')
@@ -417,7 +447,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
         const { error: historyError } = await supabase
           .from('lead_history')
           .delete()
-          .eq('lead_id', linkedLead.id);
+          .eq('lead_id', leadToDelete.id);
         
         if (historyError) {
           console.error("[Delete] Error deleting lead history:", historyError);
@@ -427,7 +457,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
         const { error: leadError } = await supabase
           .from('campaign_leads')
           .delete()
-          .eq('id', linkedLead.id);
+          .eq('id', leadToDelete.id);
         
         if (leadError) {
           console.error("[Delete] Error deleting lead:", leadError);
@@ -476,8 +506,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
       setLinkedLead(null);
       
       toast({
-        title: linkedLead ? "Lead excluído" : "Conversa excluída",
-        description: linkedLead 
+        title: leadToDelete ? "Lead excluído" : "Conversa excluída",
+        description: leadToDelete 
           ? "O lead, suas mensagens e a conversa foram removidos permanentemente."
           : "A conversa e suas mensagens foram removidas permanentemente.",
       });
