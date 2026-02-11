@@ -1,67 +1,70 @@
 
+# Otimizar espaço vertical na aba de Leads para telas menores
 
-## Novos tipos de no no Flow Builder: Delay e Timer
+## Problema
+Em telas menores (como a do comercial), a aba de Leads mostra muitos elementos empilhados antes da tabela:
+1. Header (titulo + botoes Chat/Leads + som + usuario)
+2. Banners de alerta (transferencia, cliente, visita, perguntas)
+3. Toggle Lista/CRM
+4. 6 cards de metricas (Total, Hoje, Novos, Em Contato, Fechados, Perdidos)
+5. Filtros (campanha, unidade, status, responsavel, etc.)
+6. **Somente aqui comeca a tabela de leads**
 
-### Resumo
+Isso faz com que os leads praticamente nao aparecam na tela.
 
-Adicionar dois novos tipos de no ao editor visual de fluxos:
+## Solucao proposta: Metricas e Filtros colapsaveis
 
-1. **Delay (Espera)** - Pausa configuravel entre mensagens (ex: aguardar 5 segundos antes de enviar a proxima)
-2. **Timer (Timeout)** - Se o lead nao responder em X minutos, segue por um caminho alternativo
+A ideia e manter todas as informacoes acessiveis, mas esconde-las por padrao para maximizar o espaco dos leads.
 
-### Detalhes de cada no
+### O que muda:
 
-**Delay:**
-- Tipo: `delay`
-- Configuracao: `delay_seconds` (numero de segundos para aguardar)
-- Comportamento: apos a espera, segue automaticamente para o proximo no conectado
-- Sem mensagem enviada, apenas uma pausa
-- Icone: Clock (relogio)
-- Cor: bg-cyan-500
+1. **Cards de metricas colapsaveis** -- Adicionar um botao "Metricas" que mostra/esconde os 6 cards. Por padrao ficam escondidos, e o usuario clica para ver quando precisar. Os numeros mais importantes (Total e Novos) podem aparecer inline no botao como badges para manter a visibilidade rapida.
 
-**Timer:**
-- Tipo: `timer`
-- Configuracao: `timeout_minutes` (minutos de inatividade antes de disparar o caminho alternativo)
-- Comportamento: aguarda resposta do lead. Se responder, segue pelo caminho "respondeu". Se nao responder no tempo, segue pelo caminho "timeout"
-- Tem duas saidas (como um condition node): "Respondeu" e "Timeout"
-- Icone: Timer (ampulheta/timer)
-- Cor: bg-amber-500
+2. **Filtros colapsaveis** -- Os filtros ja ocupam bastante espaco. Colocar tudo dentro de um botao "Filtros" que expande/colapsa. Quando houver filtros ativos, mostrar um badge com a quantidade de filtros aplicados.
 
-### Alteracoes tecnicas
+3. **Toggle Lista/CRM movido para o header** -- Mover o toggle Lista/CRM para dentro do header, ao lado dos botoes Chat/Leads, eliminando uma linha inteira de espaco.
 
-**1. `src/components/flowbuilder/types.ts`**
-- Adicionar `'delay' | 'timer'` ao tipo `NodeType`
-- Adicionar labels em `NODE_TYPE_LABELS`: Delay = "Espera", Timer = "Timer"
-- Adicionar cores em `NODE_TYPE_COLORS`: delay = cyan, timer = amber
+### Resultado visual:
 
-**2. `src/components/flowbuilder/FlowNodeComponent.tsx`**
-- Adicionar icones para delay (Clock) e timer (Timer) no mapa `NODE_ICONS`
-- Para nos do tipo `delay`: exibir badge com o tempo configurado (ex: "Espera: 10s")
-- Para nos do tipo `timer`: exibir badge com o tempo de timeout e renderizar duas opcoes fixas ("Respondeu" / "Timeout") com handles de conexao
+```text
+Antes (tela menor):                    Depois (tela menor):
++---------------------------+          +---------------------------+
+| Header + Chat/Leads       |          | Header + Chat/Leads/CRM  |
++---------------------------+          +---------------------------+
+| Banner Alerta             |          | Banner Alerta             |
++---------------------------+          +---------------------------+
+| [Lista] [CRM]             |          | [Metricas v] [Filtros v]  |
++---------------------------+          +---------------------------+
+| [Card][Card][Card]         |          |                           |
+| [Card][Card][Card]         |          |  TABELA DE LEADS          |
++---------------------------+          |  (espaco maximizado)      |
+| Filtros (campanha, etc.)   |          |                           |
++---------------------------+          |                           |
+| Tabela de Leads (pouco     |          |                           |
+| espaco visivel)            |          +---------------------------+
++---------------------------+
+```
 
-**3. `src/components/flowbuilder/FlowNodeEditor.tsx`**
-- Quando `node_type === 'delay'`: mostrar campo numerico para `delay_seconds` (salvo em `action_config.delay_seconds`)
-- Quando `node_type === 'timer'`: mostrar campo numerico para `timeout_minutes` (salvo em `action_config.timeout_minutes`), sem opcoes manuais (as duas saidas sao fixas)
-- Esconder campo de mensagem para delay (nao envia nada)
-- Mostrar campo de mensagem para timer (mensagem opcional a enviar quando timeout)
+## Detalhes tecnicos
 
-**4. `src/components/flowbuilder/FlowToolbar.tsx`**
-- Adicionar os dois novos botoes na barra: Delay (Espera) e Timer na lista `NODE_BUTTONS`
+### 1. Mover toggle Lista/CRM para o header (CentralAtendimento.tsx)
+- Quando `activeTab === "leads"`, mostrar os botoes Lista e CRM no header, ao lado dos botoes Chat/Leads
+- Remover o bloco de toggle duplicado dentro do TabsContent de leads
 
-**5. `src/components/flowbuilder/useFlowBuilder.ts`**
-- Atualizar `addNode` para definir `action_config` padrao para delay (`{ delay_seconds: 5 }`) e timer (`{ timeout_minutes: 10 }`)
-- Para nos timer, criar automaticamente duas opcoes fixas ("Respondeu" e "Timeout") ao adicionar o no
+### 2. Tornar MetricsCards colapsavel (CentralAtendimento.tsx)
+- Adicionar estado `showMetrics` (default: `false`)
+- Criar botao "Metricas" com badges inline mostrando Total e Novos
+- Ao clicar, expande/colapsa os MetricsCards
+- Usar componente Collapsible do Radix ja instalado
 
-**6. `src/components/flowbuilder/FlowCanvas.tsx`**
-- Garantir que nos timer renderizem as duas saidas com handles individuais (similar a question com opcoes)
+### 3. Tornar LeadsFilters colapsavel (CentralAtendimento.tsx)
+- Adicionar estado `showFilters` (default: `false`)
+- Criar botao "Filtros" com badge mostrando quantidade de filtros ativos
+- Ao clicar, expande/colapsa os filtros
 
-**7. `src/components/flowbuilder/FlowEdgeComponent.tsx`**
-- Adicionar label visual nas edges de timer: "Respondeu" ou "Timeout" (baseado em `condition_value`)
+### 4. Layout compacto da toolbar
+- Os botoes Metricas e Filtros ficam em uma unica linha horizontal compacta
+- Economiza no minimo 150-200px de altura vertical
 
-### Nenhuma migracao de banco necessaria
-
-Os novos tipos usam as colunas existentes:
-- `node_type` (string) aceita qualquer valor
-- `action_config` (jsonb) armazena os parametros de delay/timer
-- As saidas do timer usam `flow_node_options` + `flow_edges` ja existentes
-
+### Arquivos modificados:
+- `src/pages/CentralAtendimento.tsx` -- Reorganizar layout, adicionar estados de colapso, mover toggle
