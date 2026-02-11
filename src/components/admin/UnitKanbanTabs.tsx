@@ -14,9 +14,11 @@ interface UnitKanbanTabsProps {
   onNameUpdate?: (leadId: string, newName: string) => Promise<void>;
   onDescriptionUpdate?: (leadId: string, newDescription: string) => Promise<void>;
   onTransfer?: (lead: Lead) => void;
+  onDelete?: (leadId: string) => Promise<void>;
   canEdit: boolean;
   canEditName?: boolean;
   canEditDescription?: boolean;
+  canDelete?: boolean;
   allowedUnits: string[];
   canViewAll: boolean;
 }
@@ -29,9 +31,11 @@ export function UnitKanbanTabs({
   onNameUpdate,
   onDescriptionUpdate,
   onTransfer,
+  onDelete,
   canEdit,
   canEditName = false,
   canEditDescription = false,
+  canDelete = false,
   allowedUnits,
   canViewAll,
 }: UnitKanbanTabsProps) {
@@ -95,9 +99,11 @@ export function UnitKanbanTabs({
               onNameUpdate={onNameUpdate}
               onDescriptionUpdate={onDescriptionUpdate}
               onTransfer={onTransfer}
+              onDelete={onDelete}
               canEdit={canEdit}
               canEditName={canEditName}
               canEditDescription={canEditDescription}
+              canDelete={canDelete}
             />
           </TabsContent>
         )}
@@ -115,9 +121,11 @@ export function UnitKanbanTabs({
                 onNameUpdate={onNameUpdate}
                 onDescriptionUpdate={onDescriptionUpdate}
                 onTransfer={onTransfer}
+                onDelete={onDelete}
                 canEdit={canEdit}
                 canEditName={canEditName}
                 canEditDescription={canEditDescription}
+                canDelete={canDelete}
               />
             </TabsContent>
           );
