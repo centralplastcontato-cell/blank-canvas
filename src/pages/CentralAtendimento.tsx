@@ -1097,7 +1097,7 @@ export default function CentralAtendimento() {
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "chat" | "leads")} className="flex-1 flex flex-col overflow-hidden min-h-0">
               {/* TabsList removed - buttons are now in the header */}
 
-              <TabsContent value="chat" className="flex-1 overflow-hidden min-h-0 mt-0">
+              <TabsContent value="chat" className="flex-1 overflow-hidden min-h-0 mt-0 flex flex-col">
                 {!isLoadingUnitPerms && (
                   <WhatsAppChat 
                     userId={user.id} 
