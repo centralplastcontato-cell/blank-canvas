@@ -92,7 +92,7 @@ export function NotificationBell() {
       </PopoverTrigger>
       <PopoverContent 
         align="end" 
-        className="w-[calc(100vw-2rem)] max-w-sm p-0 border-border/50 shadow-2xl bg-background/95 backdrop-blur-xl"
+        className="w-[calc(100vw-2rem)] max-w-sm p-0 border-border shadow-2xl bg-background backdrop-blur-xl"
         sideOffset={8}
       >
         {/* Premium Header with Glassmorphism */}
