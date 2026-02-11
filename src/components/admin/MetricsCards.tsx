@@ -76,12 +76,12 @@ export function MetricsCards({ metrics, isLoading }: MetricsCardsProps) {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-3">
         {Array.from({ length: 6 }).map((_, i) => (
           <Card key={i} className="border-border/50 overflow-hidden">
-            <CardContent className="p-4">
-              <Skeleton className="h-4 w-20 mb-3" />
-              <Skeleton className="h-8 w-12" />
+            <CardContent className="p-3">
+              <Skeleton className="h-3 w-20 mb-2" />
+              <Skeleton className="h-6 w-12" />
             </CardContent>
           </Card>
         ))}
@@ -90,7 +90,7 @@ export function MetricsCards({ metrics, isLoading }: MetricsCardsProps) {
   }
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-3">
       {cards.map((metric) => (
         <Card 
           key={metric.title} 
@@ -102,16 +102,16 @@ export function MetricsCards({ metrics, isLoading }: MetricsCardsProps) {
           `}
         >
           <div className={`absolute inset-0 bg-gradient-to-br ${metric.gradient} pointer-events-none`} />
-          <CardContent className="p-4 relative z-10">
-            <div className="flex items-center gap-2.5 mb-3">
-              <div className={`p-2 rounded-lg ${metric.iconBg} shadow-sm`}>
-                <metric.icon className={`w-4 h-4 ${metric.iconColor}`} />
+          <CardContent className="p-3 relative z-10">
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className={`p-1.5 rounded-md ${metric.iconBg} shadow-sm`}>
+                <metric.icon className={`w-3.5 h-3.5 ${metric.iconColor}`} />
               </div>
-              <span className="text-xs text-muted-foreground font-medium truncate">
+              <span className="text-[11px] text-muted-foreground font-medium truncate">
                 {metric.title}
               </span>
             </div>
-            <p className="text-2xl font-bold text-foreground tracking-tight">{metric.value}</p>
+            <p className="text-xl font-bold text-foreground tracking-tight">{metric.value}</p>
           </CardContent>
         </Card>
       ))}

@@ -630,19 +630,19 @@ export default function Admin() {
           onLogout={handleLogout} 
         />
         
-        <SidebarInset className="flex-1">
+        <SidebarInset className="flex-1 flex flex-col h-screen overflow-hidden">
           {/* Desktop Header */}
-          <header className="bg-card border-b border-border sticky top-0 z-10">
-            <div className="px-4 py-3 flex items-center gap-4">
+          <header className="bg-card border-b border-border sticky top-0 z-10 shrink-0">
+            <div className="px-4 py-2 flex items-center gap-4">
               <SidebarTrigger />
               <div>
-                <h1 className="font-display font-bold text-foreground text-lg">Gestão de Leads</h1>
-                <p className="text-sm text-muted-foreground">{currentUserProfile?.full_name || user.email}</p>
+                <h1 className="font-display font-bold text-foreground text-lg leading-tight">Gestão de Leads</h1>
+                <p className="text-xs text-muted-foreground">{currentUserProfile?.full_name || user.email}</p>
               </div>
             </div>
           </header>
 
-          <main className="p-6">
+          <main className="flex-1 overflow-auto p-4 space-y-3">
             <MetricsCards metrics={leadMetrics} isLoading={isLoadingLeads} />
             <LeadsFilters filters={filters} onFiltersChange={setFilters} responsaveis={responsaveis} onExport={canExportLeads ? handleExport : undefined} />
 
