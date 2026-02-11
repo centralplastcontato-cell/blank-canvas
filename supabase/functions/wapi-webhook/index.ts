@@ -1346,6 +1346,8 @@ async function processBotQualification(
   let nextStep: string;
   let msg: string = '';
   const updated = { ...botData };
+  // Clear inactive reminder flag so follow-up can re-trigger if lead stops again at next step
+  delete (updated as Record<string, unknown>)._inactive_reminded;
 
   if (step === 'welcome') {
     // Send welcome message + first question
