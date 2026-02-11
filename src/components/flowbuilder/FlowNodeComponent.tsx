@@ -11,7 +11,9 @@ import {
   ArrowRight,
   GripVertical,
   Pencil,
-  Copy
+  Copy,
+  Clock,
+  Timer
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -35,6 +37,8 @@ const NODE_ICONS: Record<string, React.ReactNode> = {
   action: <Zap className="w-4 h-4" />,
   condition: <GitBranch className="w-4 h-4" />,
   end: <Square className="w-4 h-4" />,
+  delay: <Clock className="w-4 h-4" />,
+  timer: <Timer className="w-4 h-4" />,
 };
 
 export function FlowNodeComponent({
@@ -198,6 +202,22 @@ export function FlowNodeComponent({
         {node.extract_field && (
           <div className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-xs ml-1 flex-wrap">
             📝 Extrai: {node.extract_field.split(',').map(f => EXTRACT_FIELD_LABELS[f.trim()] || f.trim()).join(', ')}
+          </div>
+        )}
+
+        {/* Delay badge */}
+        {node.node_type === 'delay' && (
+          <div className="inline-flex items-center gap-1 px-2 py-1 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 rounded text-xs">
+            <Clock className="w-3 h-3" />
+            Espera: {node.action_config?.delay_seconds || 5}s
+          </div>
+        )}
+
+        {/* Timer badge */}
+        {node.node_type === 'timer' && (
+          <div className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded text-xs">
+            <Timer className="w-3 h-3" />
+            Timeout: {node.action_config?.timeout_minutes || 10} min
           </div>
         )}
 

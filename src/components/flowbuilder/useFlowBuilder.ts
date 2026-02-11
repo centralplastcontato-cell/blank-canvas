@@ -236,26 +236,55 @@ export function useFlowBuilder(flowId?: string) {
       ? { x: Math.round(x), y: Math.round(y) } 
       : getSmartPosition(selectedNodeId || undefined);
 
-    const nodeInsert = {
+    const titleMap: Record<string, string> = {
+      message: 'Mensagem', question: 'Pergunta', action: 'Ação',
+      condition: 'Condição', end: 'Fim', delay: 'Espera', timer: 'Timer',
+    };
+
+    const nodeInsert: Record<string, any> = {
       flow_id: flow.id,
       node_type: type,
-      title: `Novo ${type === 'message' ? 'Mensagem' : type === 'question' ? 'Pergunta' : type === 'action' ? 'Ação' : type === 'condition' ? 'Condição' : 'Fim'}`,
+      title: `Novo ${titleMap[type] || type}`,
       position_x: Math.round(position.x),
       position_y: Math.round(position.y),
       display_order: nodes.length,
-      message_template: (type === 'message' || type === 'question') ? '' : null,
+      message_template: (type === 'message' || type === 'question' || type === 'timer') ? '' : null,
     };
+
+    if (type === 'delay') {
+      nodeInsert.action_config = { delay_seconds: 5 };
+    } else if (type === 'timer') {
+      nodeInsert.action_config = { timeout_minutes: 10 };
+    }
 
     try {
       const { data, error } = await supabase
         .from('flow_nodes')
-        .insert(nodeInsert)
+        .insert(nodeInsert as any)
         .select()
         .single();
 
       if (error) throw error;
 
-      const newNode: FlowNode = { ...data, options: [] };
+      let options: FlowNodeOption[] = [];
+
+      // For timer nodes, create two fixed options: "Respondeu" and "Timeout"
+      if (type === 'timer') {
+        const optionsToCreate = [
+          { node_id: data.id, label: 'Respondeu', value: 'responded', display_order: 0 },
+          { node_id: data.id, label: 'Timeout', value: 'timeout', display_order: 1 },
+        ];
+        for (const opt of optionsToCreate) {
+          const { data: optData, error: optError } = await supabase
+            .from('flow_node_options')
+            .insert(opt)
+            .select()
+            .single();
+          if (!optError && optData) options.push(optData);
+        }
+      }
+
+      const newNode: FlowNode = { ...data, options };
       setNodes(prev => [...prev, newNode]);
       setSelectedNodeId(data.id);
       setHasChanges(true);

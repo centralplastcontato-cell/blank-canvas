@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FlowEdge } from './types';
 import { X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface FlowEdgeComponentProps {
   edge: FlowEdge;
@@ -188,6 +189,25 @@ export function FlowEdgeComponent({
         >
           <div className="text-xs text-center bg-background/95 rounded-full px-2 py-1 border shadow-sm truncate font-medium">
             {edge.condition_value}
+          </div>
+        </foreignObject>
+      )}
+
+      {/* Timer edge labels (Respondeu / Timeout) */}
+      {edge.condition_type === 'option_selected' && edge.condition_value && ['responded', 'timeout'].includes(edge.condition_value) && (
+        <foreignObject
+          x={buttonX - 45}
+          y={buttonY + 15}
+          width="90"
+          height="24"
+        >
+          <div className={cn(
+            "text-xs text-center rounded-full px-2 py-1 border shadow-sm font-medium",
+            edge.condition_value === 'responded'
+              ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700"
+              : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700"
+          )}>
+            {edge.condition_value === 'responded' ? '✅ Respondeu' : '⏰ Timeout'}
           </div>
         </foreignObject>
       )}
