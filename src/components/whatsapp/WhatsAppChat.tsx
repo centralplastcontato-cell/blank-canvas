@@ -140,6 +140,8 @@ interface WhatsAppChatProps {
   allowedUnits: string[];
   initialPhone?: string | null;
   onPhoneHandled?: () => void;
+  externalSelectedUnit?: string | null;
+  onInstancesLoaded?: (instances: { id: string; unit: string | null; status: string | null }[]) => void;
 }
 
 // Component for displaying media with auto-download capability
@@ -151,7 +153,7 @@ import { SalesMaterialsMenu } from "@/components/whatsapp/SalesMaterialsMenu";
 import { ShareToGroupDialog } from "@/components/whatsapp/ShareToGroupDialog";
 import { useFilterOrder } from "@/hooks/useFilterOrder";
 
-export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandled }: WhatsAppChatProps) {
+export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandled, externalSelectedUnit, onInstancesLoaded }: WhatsAppChatProps) {
   const [instances, setInstances] = useState<WapiInstance[]>([]);
   const [selectedInstance, setSelectedInstance] = useState<WapiInstance | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -164,8 +166,19 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
   const [isLoadingMoreMessages, setIsLoadingMoreMessages] = useState(false);
   const [oldestMessageTimestamp, setOldestMessageTimestamp] = useState<string | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  
-  
+
+  // Sync with external unit selection from header
+  useEffect(() => {
+    if (externalSelectedUnit && instances.length > 0) {
+      const match = instances.find(i => i.unit === externalSelectedUnit);
+      if (match && match.id !== selectedInstance?.id) {
+        setSelectedInstance(match);
+        setSelectedConversation(null);
+        setMessages([]);
+      }
+    }
+  }, [externalSelectedUnit, instances]);
+
   const [hasUserScrolledToTop, setHasUserScrolledToTop] = useState(false); // Track if user manually scrolled to top
   const [isAtBottom, setIsAtBottom] = useState(true); // Track if scroll is at bottom (for scroll-to-bottom button visibility)
   const [unreadNewMessagesCount, setUnreadNewMessagesCount] = useState(0); // Count of new messages while scrolled up
@@ -985,6 +998,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
 
     if (data && data.length > 0) {
       setInstances(data as WapiInstance[]);
+      onInstancesLoaded?.(data.map(d => ({ id: d.id, unit: d.unit, status: d.status })));
       setSelectedInstance(prev => {
         if (prev) {
           const stillExists = data.some(inst => inst.id === prev.id);
@@ -2359,36 +2373,37 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Header with Unit Tabs - Premium Glassmorphism */}
-      <div className="flex items-center justify-between gap-2 mt-3 mb-3 px-1 shrink-0">
-        {/* Unit Tabs - only show if multiple instances */}
-        {instances.length > 1 ? (
-          <Tabs 
-            value={selectedInstance?.id || ""} 
-            onValueChange={handleInstanceChange}
-            className="flex-1"
-          >
-            <TabsList className="bg-card/80 backdrop-blur-sm border border-border/60 shadow-sm">
-              {instances.map((instance) => (
-                <TabsTrigger 
-                  key={instance.id} 
-                  value={instance.id}
-                  disabled={instance.status !== 'connected'}
-                  className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                >
-                  <Building2 className="w-4 h-4" />
-                  {instance.unit}
-                  {instance.status !== 'connected' && (
-                    <WifiOff className="w-3 h-3 text-destructive" />
-                  )}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-        ) : (
-          <div className="flex-1" />
-        )}
-      </div>
+      {/* Header with Unit Tabs - only show if multiple instances AND no external control */}
+      {!externalSelectedUnit && (
+        <div className="flex items-center justify-between gap-2 mt-3 mb-3 px-1 shrink-0">
+          {instances.length > 1 ? (
+            <Tabs 
+              value={selectedInstance?.id || ""} 
+              onValueChange={handleInstanceChange}
+              className="flex-1"
+            >
+              <TabsList className="bg-card/80 backdrop-blur-sm border border-border/60 shadow-sm">
+                {instances.map((instance) => (
+                  <TabsTrigger 
+                    key={instance.id} 
+                    value={instance.id}
+                    disabled={instance.status !== 'connected'}
+                    className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                  >
+                    <Building2 className="w-4 h-4" />
+                    {instance.unit}
+                    {instance.status !== 'connected' && (
+                      <WifiOff className="w-3 h-3 text-destructive" />
+                    )}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          ) : (
+            <div className="flex-1" />
+          )}
+        </div>
+      )}
 
       {/* Disconnected warning - Premium styled */}
       {hasDisconnectedInstances && selectedInstance?.status !== 'connected' && (
