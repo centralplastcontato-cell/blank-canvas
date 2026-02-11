@@ -210,7 +210,7 @@ export function LeadChatbot({ isOpen, onClose }: LeadChatbotProps) {
       const phoneWithCountry = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
 
       // Montar mensagem com os dados do lead
-      const message = `Olá!\n\nVim pelo site do Castelo da Diversão e gostaria de saber mais sobre a promoção!\n\n*Meus dados:*\nNome: ${leadInfo.name || ''}\nUnidade: ${unit}\nData: ${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}\nConvidados: ${leadInfo.guests || ''}\n\nVou dar continuidade no seu atendimento!!\n\nEscolha a opção que mais te agrada:\n*1* - Receber agora meu orçamento\n*2* - Falar com um atendente`;
+      const message = `Olá! 👋🏼✨\n\nVim pelo site do *Castelo da Diversão* e gostaria de saber mais sobre a promoção! 🎉🏰\n\n📋 *Meus dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}\n👥 Convidados: ${leadInfo.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n*1* - 📩 Receber agora meu orçamento\n*2* - 💬 Falar com um atendente`;
 
       // Enviar mensagem via edge function passando apenas a unit (a edge function busca a instância)
       const { error } = await supabase.functions.invoke('wapi-send', {
@@ -499,7 +499,7 @@ export function LeadChatbot({ isOpen, onClose }: LeadChatbotProps) {
               <div className="flex flex-wrap justify-center gap-2">
                 <a
                   href={`https://wa.me/5515991336278?text=${encodeURIComponent(
-                    `Olá!\n\nVim pelo site do Castelo da Diversão e gostaria de saber mais sobre a promoção!\n\n*Meus dados:*\nNome: ${leadData.name || ''}\nUnidade: ${leadData.unit || ''}\nData: ${leadData.dayOfMonth || ''}/${leadData.month || ''}\nConvidados: ${leadData.guests || ''}\n\nVou dar continuidade no seu atendimento!!\n\nEscolha a opção que mais te agrada:\n*1* - Receber agora meu orçamento\n*2* - Falar com um atendente`
+                    `Olá! 👋🏼✨\n\nVim pelo site do *Castelo da Diversão* e gostaria de saber mais sobre a promoção! 🎉🏰\n\n📋 *Meus dados:*\n👤 Nome: ${leadData.name || ''}\n📍 Unidade: ${leadData.unit || ''}\n📅 Data: ${leadData.dayOfMonth || ''}/${leadData.month || ''}\n👥 Convidados: ${leadData.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n*1* - 📩 Receber agora meu orçamento\n*2* - 💬 Falar com um atendente`
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -511,7 +511,7 @@ export function LeadChatbot({ isOpen, onClose }: LeadChatbotProps) {
                 </a>
                 <a
                   href={`https://wa.me/5515974034646?text=${encodeURIComponent(
-                    `Olá!\n\nVim pelo site do Castelo da Diversão e gostaria de saber mais sobre a promoção!\n\n*Meus dados:*\nNome: ${leadData.name || ''}\nUnidade: ${leadData.unit || ''}\nData: ${leadData.dayOfMonth || ''}/${leadData.month || ''}\nConvidados: ${leadData.guests || ''}\n\nVou dar continuidade no seu atendimento!!\n\nEscolha a opção que mais te agrada:\n*1* - Receber agora meu orçamento\n*2* - Falar com um atendente`
+                    `Olá! 👋🏼✨\n\nVim pelo site do *Castelo da Diversão* e gostaria de saber mais sobre a promoção! 🎉🏰\n\n📋 *Meus dados:*\n👤 Nome: ${leadData.name || ''}\n📍 Unidade: ${leadData.unit || ''}\n📅 Data: ${leadData.dayOfMonth || ''}/${leadData.month || ''}\n👥 Convidados: ${leadData.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n*1* - 📩 Receber agora meu orçamento\n*2* - 💬 Falar com um atendente`
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
