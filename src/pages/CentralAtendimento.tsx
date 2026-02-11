@@ -12,7 +12,7 @@ import { useUnreadCountRealtime, useLeadsRealtime } from "@/hooks/useRealtimeOpt
 import { Lead, LeadStatus, UserWithRole, Profile, AppRole } from "@/types/crm";
 import { LeadsTable } from "@/components/admin/LeadsTable";
 import { LeadsFilters } from "@/components/admin/LeadsFilters";
-import { LeadsKanban } from "@/components/admin/LeadsKanban";
+import { UnitKanbanTabs } from "@/components/admin/UnitKanbanTabs";
 import { LeadDetailSheet } from "@/components/admin/LeadDetailSheet";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
@@ -767,7 +767,7 @@ export default function CentralAtendimento() {
                     onPageChange={setCurrentPage}
                   />
                 ) : (
-                  <LeadsKanban
+                  <UnitKanbanTabs
                     leads={leads}
                     responsaveis={responsaveis}
                     onLeadClick={handleLeadClick}
@@ -790,7 +790,6 @@ export default function CentralAtendimento() {
                       await supabase.from("lead_history").insert({ lead_id: leadId, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de nome", old_value: lead.name, new_value: newName });
                       const { error } = await supabase.from("campaign_leads").update({ name: newName }).eq("id", leadId);
                       if (error) throw error;
-                      // Also update contact_name in linked conversations
                       await supabase.from("wapi_conversations").update({ contact_name: newName }).eq("lead_id", leadId);
                       setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, name: newName } : l));
                       toast({ title: "Nome atualizado", description: `O nome foi alterado para "${newName}".` });
@@ -809,6 +808,8 @@ export default function CentralAtendimento() {
                     canEditDescription={canEditDescription}
                     canDelete={canDeleteLeads}
                     onDelete={canDeleteLeads ? handleDeleteLead : undefined}
+                    allowedUnits={allowedUnits}
+                    canViewAll={canViewAll}
                   />
                 )}
               </PullToRefresh>
@@ -1039,7 +1040,7 @@ export default function CentralAtendimento() {
                   </TabsContent>
 
                  <TabsContent value="kanban" className="mt-4 flex-1 min-h-0 overflow-hidden">
-                    <LeadsKanban
+                    <UnitKanbanTabs
                       leads={leads}
                       responsaveis={responsaveis}
                       onLeadClick={handleLeadClick}
@@ -1062,7 +1063,6 @@ export default function CentralAtendimento() {
                         await supabase.from("lead_history").insert({ lead_id: leadId, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de nome", old_value: lead.name, new_value: newName });
                         const { error } = await supabase.from("campaign_leads").update({ name: newName }).eq("id", leadId);
                         if (error) throw error;
-                        // Also update contact_name in linked conversations
                         await supabase.from("wapi_conversations").update({ contact_name: newName }).eq("lead_id", leadId);
                         setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, name: newName } : l));
                         toast({ title: "Nome atualizado", description: `O nome foi alterado para "${newName}".` });
@@ -1081,6 +1081,8 @@ export default function CentralAtendimento() {
                       canEditDescription={canEditDescription}
                       canDelete={canDeleteLeads}
                       onDelete={canDeleteLeads ? handleDeleteLead : undefined}
+                      allowedUnits={allowedUnits}
+                      canViewAll={canViewAll}
                     />
                   </TabsContent>
                 </Tabs>
