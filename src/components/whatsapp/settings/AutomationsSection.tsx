@@ -79,6 +79,10 @@ interface BotSettings {
   next_step_reminder_enabled: boolean;
   next_step_reminder_delay_minutes: number;
   next_step_reminder_message: string | null;
+  // Bot inactive follow-up
+  bot_inactive_followup_enabled: boolean;
+  bot_inactive_followup_delay_minutes: number;
+  bot_inactive_followup_message: string | null;
   // Flow Builder
   use_flow_builder: boolean;
 }
@@ -1205,6 +1209,87 @@ export function AutomationsSection() {
               }}
               className="min-h-[100px]"
               disabled={isSaving || !botSettings?.next_step_reminder_enabled}
+            />
+            <p className="text-xs text-muted-foreground">
+              Use <code className="bg-muted px-1 rounded">{"{nome}"}</code> para inserir o nome do lead
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Bot Inactive Follow-up */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bot className="w-5 h-5" />
+            Follow-up para Leads Inativos no Bot
+          </CardTitle>
+          <CardDescription>
+            Envia uma mensagem automática quando o lead para de responder durante o fluxo do bot (ex: parou no passo "nome")
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Toggle */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg">
+            <div className="flex items-start sm:items-center gap-3 min-w-0">
+              <div className={`p-2 rounded-full shrink-0 ${botSettings?.bot_inactive_followup_enabled ? "bg-green-100 text-green-600" : "bg-muted text-muted-foreground"}`}>
+                <Bot className="w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
+              <div className="min-w-0">
+                <h4 className="font-medium text-sm sm:text-base">Follow-up ativo</h4>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  Envia mensagem se o lead não responder às perguntas do bot
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={botSettings?.bot_inactive_followup_enabled || false}
+              onCheckedChange={(checked) => updateBotSettings({ bot_inactive_followup_enabled: checked })}
+              disabled={isSaving}
+              className="shrink-0 self-end sm:self-auto"
+            />
+          </div>
+
+          {/* Delay */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Tempo de espera</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={5}
+                max={1440}
+                value={botSettings?.bot_inactive_followup_delay_minutes ?? 30}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 30;
+                  setBotSettings(prev => prev ? { ...prev, bot_inactive_followup_delay_minutes: val } : prev);
+                }}
+                onBlur={(e) => {
+                  const val = Math.max(5, Math.min(1440, parseInt(e.target.value) || 30));
+                  updateBotSettings({ bot_inactive_followup_delay_minutes: val });
+                }}
+                className="w-24"
+                disabled={isSaving || !botSettings?.bot_inactive_followup_enabled}
+              />
+              <span className="text-sm text-muted-foreground">minutos</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Recomendado: 30 minutos. O bot será desativado após o envio.
+            </p>
+          </div>
+
+          {/* Message */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Mensagem</Label>
+            <Textarea
+              value={botSettings?.bot_inactive_followup_message || "Oi {nome}, notei que você não conseguiu concluir. Estou por aqui caso precise de ajuda! 😊\n\nPodemos continuar de onde paramos?"}
+              onChange={(e) => {
+                setBotSettings(prev => prev ? { ...prev, bot_inactive_followup_message: e.target.value } : prev);
+              }}
+              onBlur={(e) => {
+                updateBotSettings({ bot_inactive_followup_message: e.target.value });
+              }}
+              className="min-h-[100px]"
+              disabled={isSaving || !botSettings?.bot_inactive_followup_enabled}
             />
             <p className="text-xs text-muted-foreground">
               Use <code className="bg-muted px-1 rounded">{"{nome}"}</code> para inserir o nome do lead

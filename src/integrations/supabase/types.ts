@@ -1223,6 +1223,9 @@ export type Database = {
           auto_send_presentation_video: boolean | null
           auto_send_promo_video: boolean | null
           bot_enabled: boolean
+          bot_inactive_followup_delay_minutes: number | null
+          bot_inactive_followup_enabled: boolean | null
+          bot_inactive_followup_message: string | null
           company_id: string | null
           completion_message: string | null
           created_at: string
@@ -1260,6 +1263,9 @@ export type Database = {
           auto_send_presentation_video?: boolean | null
           auto_send_promo_video?: boolean | null
           bot_enabled?: boolean
+          bot_inactive_followup_delay_minutes?: number | null
+          bot_inactive_followup_enabled?: boolean | null
+          bot_inactive_followup_message?: string | null
           company_id?: string | null
           completion_message?: string | null
           created_at?: string
@@ -1297,6 +1303,9 @@ export type Database = {
           auto_send_presentation_video?: boolean | null
           auto_send_promo_video?: boolean | null
           bot_enabled?: boolean
+          bot_inactive_followup_delay_minutes?: number | null
+          bot_inactive_followup_enabled?: boolean | null
+          bot_inactive_followup_message?: string | null
           company_id?: string | null
           completion_message?: string | null
           created_at?: string

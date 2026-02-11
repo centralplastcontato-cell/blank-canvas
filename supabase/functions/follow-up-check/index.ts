@@ -16,6 +16,9 @@ interface FollowUpSettings {
   next_step_reminder_enabled: boolean;
   next_step_reminder_delay_minutes: number;
   next_step_reminder_message: string | null;
+  bot_inactive_followup_enabled: boolean;
+  bot_inactive_followup_delay_minutes: number;
+  bot_inactive_followup_message: string | null;
   instance_id: string;
 }
 
@@ -47,8 +50,8 @@ Deno.serve(async (req) => {
     // Fetch all bot settings with any follow-up enabled
     const { data: allSettings, error: settingsError } = await supabase
       .from("wapi_bot_settings")
-      .select("instance_id, follow_up_enabled, follow_up_delay_hours, follow_up_message, follow_up_2_enabled, follow_up_2_delay_hours, follow_up_2_message, next_step_reminder_enabled, next_step_reminder_delay_minutes, next_step_reminder_message")
-      .or("follow_up_enabled.eq.true,follow_up_2_enabled.eq.true,next_step_reminder_enabled.eq.true");
+      .select("instance_id, follow_up_enabled, follow_up_delay_hours, follow_up_message, follow_up_2_enabled, follow_up_2_delay_hours, follow_up_2_message, next_step_reminder_enabled, next_step_reminder_delay_minutes, next_step_reminder_message, bot_inactive_followup_enabled, bot_inactive_followup_delay_minutes, bot_inactive_followup_message")
+      .or("follow_up_enabled.eq.true,follow_up_2_enabled.eq.true,next_step_reminder_enabled.eq.true,bot_inactive_followup_enabled.eq.true");
 
     if (settingsError) {
       console.error("[follow-up-check] Error fetching settings:", settingsError);
@@ -68,6 +71,16 @@ Deno.serve(async (req) => {
 
     // Process each instance with follow-up enabled
     for (const settings of allSettings) {
+      // Process bot inactive follow-up (leads who stopped responding during bot flow)
+      if (settings.bot_inactive_followup_enabled) {
+        const result = await processBotInactiveFollowUp({
+          supabase,
+          settings,
+        });
+        totalSuccessCount += result.successCount;
+        allErrors.push(...result.errors);
+      }
+
       // Process next-step reminder (10 min default)
       if (settings.next_step_reminder_enabled) {
         const result = await processNextStepReminder({
@@ -509,4 +522,129 @@ Temos pacotes especiais e datas disponíveis para {mes}. Que tal agendar uma vis
 
 Estamos aqui para te ajudar! 😊`;
   }
+}
+
+// ============= BOT INACTIVE FOLLOW-UP (leads who stopped responding during bot flow) =============
+
+interface BotInactiveFollowUpParams {
+  supabase: ReturnType<typeof createClient>;
+  settings: FollowUpSettings;
+}
+
+async function processBotInactiveFollowUp({
+  supabase,
+  settings,
+}: BotInactiveFollowUpParams): Promise<{ successCount: number; errors: string[] }> {
+  const errors: string[] = [];
+  let successCount = 0;
+  const delayMinutes = settings.bot_inactive_followup_delay_minutes || 30;
+
+  console.log(`[follow-up-check] Processing bot-inactive follow-up for instance ${settings.instance_id} with ${delayMinutes}min delay`);
+
+  const now = new Date();
+  const cutoffTime = new Date(now.getTime() - delayMinutes * 60 * 1000);
+  const maxWindow = new Date(now.getTime() - 24 * 60 * 60 * 1000); // max 24h window
+
+  // Bot steps where a lead can be "stuck" (bot sent question, lead never replied)
+  const activeBotSteps = ["nome", "mes", "dia", "convidados", "welcome"];
+
+  // Find conversations stuck at active bot steps where last message is from bot and older than delay
+  const { data: stuckConversations, error: convError } = await supabase
+    .from("wapi_conversations")
+    .select("id, remote_jid, instance_id, lead_id, bot_data, contact_name, bot_step")
+    .eq("instance_id", settings.instance_id)
+    .eq("bot_enabled", true)
+    .eq("last_message_from_me", true)
+    .in("bot_step", activeBotSteps)
+    .lte("last_message_at", cutoffTime.toISOString())
+    .gte("last_message_at", maxWindow.toISOString());
+
+  if (convError) {
+    console.error(`[follow-up-check] Error fetching stuck bot conversations:`, convError);
+    return { successCount: 0, errors: [String(convError)] };
+  }
+
+  if (!stuckConversations || stuckConversations.length === 0) {
+    console.log(`[follow-up-check] No conversations need bot-inactive follow-up for instance ${settings.instance_id}`);
+    return { successCount: 0, errors: [] };
+  }
+
+  console.log(`[follow-up-check] Found ${stuckConversations.length} conversations needing bot-inactive follow-up`);
+
+  // Get instance credentials
+  const { data: instance } = await supabase
+    .from("wapi_instances")
+    .select("instance_id, instance_token")
+    .eq("id", settings.instance_id)
+    .single();
+
+  if (!instance) {
+    console.error(`[follow-up-check] No instance found for ${settings.instance_id}`);
+    return { successCount: 0, errors: [`Instance not found: ${settings.instance_id}`] };
+  }
+
+  const defaultMsg = `Oi {nome}, notei que você não conseguiu concluir. Estou por aqui caso precise de ajuda! 😊
+
+Podemos continuar de onde paramos?`;
+  const messageTemplate = settings.bot_inactive_followup_message || defaultMsg;
+
+  for (const conv of stuckConversations) {
+    try {
+      const botData = (conv.bot_data || {}) as Record<string, string>;
+      const firstName = (botData.nome || conv.contact_name || "").split(" ")[0] || "cliente";
+      
+      const personalizedMessage = messageTemplate.replace(/\{nome\}/g, firstName);
+      const phone = conv.remote_jid.replace("@s.whatsapp.net", "").replace("@c.us", "");
+
+      const wapiResponse = await fetch(
+        `https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${instance.instance_token}`,
+          },
+          body: JSON.stringify({ phone, message: personalizedMessage }),
+        }
+      );
+
+      if (!wapiResponse.ok) {
+        const errorText = await wapiResponse.text();
+        console.error(`[follow-up-check] Failed to send bot-inactive follow-up to ${phone}:`, errorText);
+        errors.push(`Failed bot-inactive follow-up to ${phone}: ${errorText}`);
+        continue;
+      }
+
+      console.log(`[follow-up-check] Bot-inactive follow-up sent to ${phone} (was stuck at step: ${conv.bot_step})`);
+
+      // Save message
+      await supabase.from("wapi_messages").insert({
+        conversation_id: conv.id,
+        content: personalizedMessage,
+        from_me: true,
+        message_type: "text",
+        status: "sent",
+        timestamp: new Date().toISOString(),
+      });
+
+      // Disable bot and mark as reminded so we don't resend
+      await supabase
+        .from("wapi_conversations")
+        .update({
+          bot_step: "bot_inactive_reminded",
+          bot_enabled: false,
+          last_message_at: new Date().toISOString(),
+          last_message_content: personalizedMessage.substring(0, 100),
+          last_message_from_me: true,
+        })
+        .eq("id", conv.id);
+
+      successCount++;
+    } catch (err) {
+      console.error(`[follow-up-check] Error processing bot-inactive follow-up for conv ${conv.id}:`, err);
+      errors.push(`Error with conv ${conv.id}: ${String(err)}`);
+    }
+  }
+
+  return { successCount, errors };
 }
