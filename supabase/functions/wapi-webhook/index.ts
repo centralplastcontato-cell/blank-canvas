@@ -1081,7 +1081,7 @@ async function processBotQualification(
             unit: 'Trabalhe Conosco',
             campaign_id: 'whatsapp-bot-rh',
             campaign_name: 'WhatsApp (Bot) - RH',
-            status: 'novo',
+            status: 'trabalhe_conosco',
             company_id: instance.company_id,
           }).select('id').single();
           
