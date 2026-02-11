@@ -475,6 +475,22 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
         console.error("[Delete] Error deleting flow lead state:", flowStateError);
       }
 
+      // Fix orphan messages with NULL company_id before deleting
+      // (RLS may block deletion of messages without company_id)
+      const { data: convData } = await supabase
+        .from('wapi_conversations')
+        .select('company_id')
+        .eq('id', selectedConversation.id)
+        .single();
+      
+      if (convData?.company_id) {
+        await supabase
+          .from('wapi_messages')
+          .update({ company_id: convData.company_id })
+          .eq('conversation_id', selectedConversation.id)
+          .is('company_id', null);
+      }
+
       // Delete all messages for this conversation
       const { error: messagesError } = await supabase
         .from('wapi_messages')
