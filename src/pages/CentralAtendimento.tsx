@@ -1086,9 +1086,9 @@ export default function CentralAtendimento() {
                 )}
               </TabsContent>
 
-              <TabsContent value="leads" className="flex-1 overflow-auto min-h-0 mt-0">
+              <TabsContent value="leads" className="flex-1 overflow-hidden min-h-0 mt-0 flex flex-col">
                 {/* Collapsible toolbar for Metrics and Filters */}
-                <div className="flex items-center gap-2 mb-3 flex-wrap">
+                <div className="shrink-0 flex items-center gap-2 mb-3 flex-wrap">
                   {/* Metrics toggle button */}
                   <Button
                     variant={showMetrics ? "default" : "outline"}
@@ -1126,20 +1126,21 @@ export default function CentralAtendimento() {
                 </div>
 
                 {/* Collapsible Metrics */}
-                <Collapsible open={showMetrics}>
+                <Collapsible open={showMetrics} className="shrink-0">
                   <CollapsibleContent>
                     <MetricsCards metrics={leadMetrics} isLoading={isLoadingLeads} />
                   </CollapsibleContent>
                 </Collapsible>
 
                 {/* Collapsible Filters */}
-                <Collapsible open={showFilters}>
+                <Collapsible open={showFilters} className="shrink-0">
                   <CollapsibleContent>
                     <LeadsFilters filters={filters} onFiltersChange={setFilters} responsaveis={responsaveis} onExport={canExportLeads ? handleExport : undefined} />
                   </CollapsibleContent>
                 </Collapsible>
 
-                {/* Leads content - now takes maximum space */}
+                {/* Leads content - fills remaining space */}
+                <div className="flex-1 min-h-0 flex flex-col">
                 {viewMode === "list" ? (
                   <LeadsTable
                     leads={leads}
@@ -1201,6 +1202,7 @@ export default function CentralAtendimento() {
                     onDelete={canDeleteLeads ? handleDeleteLead : undefined}
                   />
                 )}
+                </div>
               </TabsContent>
 
             </Tabs>
