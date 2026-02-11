@@ -1,52 +1,43 @@
 
 
-## Correcao: Adicionar Opcao 3 (Trabalhe no Castelo) na pergunta do bot
+## Correcao: Lead da Jessica e visibilidade de "Trabalhe Conosco" no CRM
 
-### Problema
+### Problema 1: Card da Jessica nao aparece
 
-O texto da pergunta do step `tipo` nas duas instancias (Manchester e Trujillo) so mostra as opcoes 1 e 2. A opcao 3 ("Trabalhe no Castelo") esta faltando no texto, embora o codigo do webhook ja suporte essa opcao.
+A conversa da Jessica Yolanda foi processada pelo **Flow Builder** (antes da correcao que fizemos). O Flow Builder marcou `bot_step = 'flow_complete'` mas **nao criou nenhum lead** na tabela `campaign_leads`, entao `lead_id` ficou `null`.
 
-### Texto atual (nas duas instancias)
+Sem um lead vinculado, o card dela nao aparece corretamente na interface do WhatsApp e nao existe no CRM.
 
-```
-Voce ja e nosso cliente e tem uma festa agendada, ou gostaria de receber um orcamento? 🎉
-
-Responda com o *numero*:
-
-*1* - Ja sou cliente
-*2* - Quero um orcamento
-```
-
-### Texto corrigido
-
-```
-Voce ja e nosso cliente e tem uma festa agendada, ou gostaria de receber um orcamento? 🎉
-
-Responda com o *numero*:
-
-*1* - Ja sou cliente
-*2* - Quero um orcamento
-*3* - Trabalhe no Castelo
-```
-
-### Solucao
-
-Executar um UPDATE na tabela `wapi_bot_questions` para as duas instancias, adicionando a opcao 3 no texto da pergunta:
+**Solucao**: Criar o lead manualmente no banco e vincular a conversa:
 
 ```sql
-UPDATE wapi_bot_questions
-SET question_text = E'Você já é nosso cliente e tem uma festa agendada, ou gostaria de receber um orçamento? 🎉\n\nResponda com o *número*:\n\n*1* - Já sou cliente\n*2* - Quero um orçamento\n*3* - Trabalhe no Castelo'
-WHERE step = 'tipo'
-AND instance_id IN (
-  '9b846163-9580-436b-a33e-1e0eca106514',
-  '3f39419e-e7f5-4c3b-8ebd-1703e6c7a0c7'
-);
+-- 1. Criar lead para Jessica
+INSERT INTO campaign_leads (name, whatsapp, unit, campaign_id, campaign_name, status, company_id)
+VALUES ('Jessica Yolanda', '5515996382612', 'Trabalhe Conosco', 'whatsapp-bot-rh', 'WhatsApp (Bot) - RH', 'novo', 'a0000000-0000-0000-0000-000000000001')
+RETURNING id;
+
+-- 2. Vincular o lead a conversa (usar o ID retornado acima)
+UPDATE wapi_conversations
+SET lead_id = '<ID_RETORNADO>', bot_step = 'work_interest'
+WHERE id = '6bb469cb-8e74-4599-bdda-37ffa892e246';
 ```
+
+### Problema 2: Card "Trabalhe no Castelo" nao aparece no CRM
+
+A unidade "Trabalhe Conosco" ja existe na tabela `company_units` e o lead do Victor (o teste que funcionou) ja esta la com `unit = 'Trabalhe Conosco'`. O Kanban do CRM filtra leads por unidade usando as abas de `UnitKanbanTabs.tsx`.
+
+O card **deveria aparecer** na aba "Trabalhe Conosco" do Kanban. Se nao esta aparecendo, pode ser por permissao do usuario logado (o usuario precisa ter acesso a unidade "Trabalhe Conosco" nas permissoes ou ser admin/gestor com visualizacao total).
+
+Verificaremos as permissoes e, se necessario, ajustaremos o acesso.
+
+### Resumo das acoes
+
+1. **Migracao SQL**: Criar lead da Jessica e vincular a conversa
+2. **Verificacao**: Confirmar que leads com `unit = 'Trabalhe Conosco'` aparecem na aba correta do CRM
+3. **Permissoes**: Verificar se o usuario logado tem acesso a unidade "Trabalhe Conosco"
 
 ### Impacto
 
-- Apenas atualizacao de dados (2 registros na tabela `wapi_bot_questions`)
-- Nenhuma alteracao de codigo -- o webhook ja processa a opcao 3 corretamente
-- Nenhum deploy necessario
-- Novas conversas ja mostrarao a opcao 3 imediatamente
-
+- Apenas correcao de dados (1 INSERT + 1 UPDATE)
+- Nenhuma alteracao de codigo necessaria
+- A Jessica passara a aparecer tanto no chat quanto no CRM
