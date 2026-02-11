@@ -551,7 +551,7 @@ async function processBotInactiveFollowUp({
   const maxWindow = new Date(now.getTime() - 24 * 60 * 60 * 1000); // max 24h window
 
   // Bot steps where a lead can be "stuck" (bot sent question, lead never replied)
-  const activeBotSteps = ["nome", "mes", "dia", "convidados", "welcome"];
+  const activeBotSteps = ["nome", "tipo", "mes", "dia", "convidados", "welcome"];
 
   // Find conversations stuck at active bot steps where last message is from bot and older than delay
   const { data: stuckConversations, error: convError } = await supabase
