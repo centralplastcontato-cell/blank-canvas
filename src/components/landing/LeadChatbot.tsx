@@ -294,7 +294,7 @@ export function LeadChatbot({ isOpen, onClose }: LeadChatbotProps) {
           {
             id: "complete",
             type: "bot",
-            content: `Prontinho 🎉\n\nRecebemos suas informações e nossa equipe vai entrar em contato em breve para confirmar valores e disponibilidade da sua data.\n\nPromoção válida conforme regras da campanha: ${campaignConfig.campaignName}`,
+            content: `Prontinho 🎉\n\nRecebemos suas informações e nossa equipe vai entrar em contato em breve para confirmar valores e disponibilidade da sua data.\n\nPromoção válida conforme regras da campanha: ${campaignConfig.campaignName}\n\nAcabei de te enviar uma mensagem no seu WhatsApp, dá uma olhadinha lá! 📲`,
           },
         ]);
         setIsComplete(true);
