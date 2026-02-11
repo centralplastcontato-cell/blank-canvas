@@ -1273,7 +1273,7 @@ export function AutomationsSection() {
               <span className="text-sm text-muted-foreground">minutos</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Recomendado: 30 minutos. O bot será desativado após o envio.
+              Recomendado: 30 minutos.
             </p>
           </div>
 
@@ -1294,6 +1294,12 @@ export function AutomationsSection() {
             <p className="text-xs text-muted-foreground">
               Use <code className="bg-muted px-1 rounded">{"{nome}"}</code> para inserir o nome do lead
             </p>
+            <div className="bg-primary/10 rounded-lg p-3 mt-2">
+              <p className="text-xs text-primary font-medium mb-1">💡 Pergunta re-enviada automaticamente</p>
+              <p className="text-xs text-primary/80">
+                Além desta mensagem, o sistema re-envia a pergunta do passo onde o lead parou (ex: nome, mês, convidados), mantendo o bot ativo para processar a resposta. O lembrete é enviado apenas uma vez por conversa.
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
