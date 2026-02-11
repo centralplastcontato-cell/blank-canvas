@@ -1999,7 +1999,19 @@ async function processWebhookEvent(body: Record<string, unknown>) {
     return;
   }
 
-  const evt = event || body.event;
+  let evt = event || body.event;
+
+  // If event is undefined but body contains message-like data, treat as message
+  if (!evt) {
+    const rawD = data as Record<string, unknown> | undefined;
+    const hasKey = rawD?.key || body.key;
+    const hasRemoteJid = rawD?.key?.remoteJid || rawD?.remoteJid || rawD?.from || body.key?.remoteJid || body.remoteJid || body.from;
+    const hasMessageContent = rawD?.message || rawD?.msgContent || rawD?.body || rawD?.text || body.message || body.body || body.text;
+    if (hasKey || (hasRemoteJid && hasMessageContent)) {
+      console.log('[Webhook] No event field but message data detected, routing as messages.upsert');
+      evt = 'messages.upsert';
+    }
+  }
 
   switch (evt) {
     case 'connection': case 'webhookConnected': {
