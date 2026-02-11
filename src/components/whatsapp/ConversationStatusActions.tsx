@@ -19,7 +19,8 @@ import {
   XCircle,
   Sparkles,
   MoreVertical,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Briefcase
 } from "lucide-react";
 
 interface Lead {
@@ -47,6 +48,13 @@ const STATUS_CONFIG = [
     icon: Sparkles, 
     color: 'text-blue-500',
     bgColor: 'bg-blue-500/10'
+  },
+  { 
+    value: 'trabalhe_conosco', 
+    label: 'Trabalhe Conosco', 
+    icon: Briefcase, 
+    color: 'text-teal-500',
+    bgColor: 'bg-teal-500/10'
   },
   { 
     value: 'em_contato', 
@@ -116,6 +124,7 @@ export function ConversationStatusActions({
     try {
       const statusLabels: Record<string, string> = {
         novo: 'Novo',
+        trabalhe_conosco: 'Trabalhe Conosco',
         em_contato: 'Visita',
         orcamento_enviado: 'Orçamento Enviado',
         aguardando_resposta: 'Negociando',
@@ -125,7 +134,7 @@ export function ConversationStatusActions({
       };
 
       // Update the lead status - cast to valid status type
-      const validStatus = newStatus as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido" | "transferido";
+      const validStatus = newStatus as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido" | "transferido" | "trabalhe_conosco";
       const { error: updateError } = await supabase
         .from("campaign_leads")
         .update({ status: validStatus })
