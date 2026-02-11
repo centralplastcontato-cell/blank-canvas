@@ -198,10 +198,12 @@ export function FlowNodeEditor({
     }
   };
 
-  const showMessageField = ['start', 'message', 'question', 'action', 'end'].includes(node.node_type);
+  const showMessageField = ['start', 'message', 'question', 'action', 'end', 'timer'].includes(node.node_type);
   const showActionField = node.node_type === 'action';
   const showExtractField = ['question', 'action'].includes(node.node_type);
   const showOptionsField = node.node_type === 'question';
+  const showDelayField = node.node_type === 'delay';
+  const showTimerField = node.node_type === 'timer';
 
   const content = (
     <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -236,6 +238,40 @@ export function FlowNodeEditor({
           />
           <p className="text-xs text-muted-foreground">
             Use {'{'}nome{'}'} para variáveis dinâmicas
+          </p>
+        </div>
+      )}
+
+      {/* Delay config */}
+      {showDelayField && (
+        <div className="space-y-2">
+          <Label>Tempo de Espera (segundos)</Label>
+          <Input
+            type="number"
+            min={1}
+            max={300}
+            value={node.action_config?.delay_seconds || 5}
+            onChange={(e) => onUpdate({ action_config: { ...node.action_config, delay_seconds: parseInt(e.target.value) || 5 } })}
+          />
+          <p className="text-xs text-muted-foreground">
+            O bot aguardará este tempo antes de seguir para a próxima etapa
+          </p>
+        </div>
+      )}
+
+      {/* Timer config */}
+      {showTimerField && (
+        <div className="space-y-2">
+          <Label>Timeout de Inatividade (minutos)</Label>
+          <Input
+            type="number"
+            min={1}
+            max={1440}
+            value={node.action_config?.timeout_minutes || 10}
+            onChange={(e) => onUpdate({ action_config: { ...node.action_config, timeout_minutes: parseInt(e.target.value) || 10 } })}
+          />
+          <p className="text-xs text-muted-foreground">
+            Se o lead não responder neste tempo, segue pelo caminho "Timeout". As saídas "Respondeu" e "Timeout" são criadas automaticamente.
           </p>
         </div>
       )}

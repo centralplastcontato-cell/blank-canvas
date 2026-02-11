@@ -1,7 +1,7 @@
 // Flow Builder Types
 // Using string types for database compatibility
 
-export type NodeType = 'start' | 'message' | 'question' | 'action' | 'condition' | 'end';
+export type NodeType = 'start' | 'message' | 'question' | 'action' | 'condition' | 'end' | 'delay' | 'timer';
 
 export type ActionType = 'send_media' | 'send_pdf' | 'send_video' | 'extract_data' | 'schedule_visit' | 'handoff' | 'ai_response' | 'check_party_availability' | 'check_visit_availability' | 'disable_followup' | 'disable_ai' | 'mark_existing_customer';
 
@@ -103,6 +103,8 @@ export const NODE_TYPE_LABELS: Record<NodeType, string> = {
   action: 'Ação',
   condition: 'Condição',
   end: 'Fim',
+  delay: 'Espera',
+  timer: 'Timer',
 };
 
 export const NODE_TYPE_COLORS: Record<NodeType, string> = {
@@ -112,6 +114,8 @@ export const NODE_TYPE_COLORS: Record<NodeType, string> = {
   action: 'bg-purple-500',
   condition: 'bg-orange-500',
   end: 'bg-red-500',
+  delay: 'bg-cyan-500',
+  timer: 'bg-amber-500',
 };
 
 export const ACTION_TYPE_LABELS: Record<ActionType, string> = {

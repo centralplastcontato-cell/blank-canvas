@@ -29,6 +29,8 @@ const NODE_BUTTONS: { type: NodeType; disabled?: boolean }[] = [
   { type: 'question' },
   { type: 'action' },
   { type: 'condition' },
+  { type: 'delay' },
+  { type: 'timer' },
   { type: 'end' },
 ];
 
