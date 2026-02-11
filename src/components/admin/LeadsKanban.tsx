@@ -39,6 +39,7 @@ export function LeadsKanban({
 }: LeadsKanbanProps) {
   const columns: LeadStatus[] = [
     "novo",
+    "trabalhe_conosco",
     "em_contato",
     "orcamento_enviado",
     "aguardando_resposta",
