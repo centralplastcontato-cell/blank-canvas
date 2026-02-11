@@ -435,6 +435,16 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
         }
       }
       
+      // Delete flow lead state for this conversation (FK constraint)
+      const { error: flowStateError } = await supabase
+        .from('flow_lead_state')
+        .delete()
+        .eq('conversation_id', selectedConversation.id);
+      
+      if (flowStateError) {
+        console.error("[Delete] Error deleting flow lead state:", flowStateError);
+      }
+
       // Delete all messages for this conversation
       const { error: messagesError } = await supabase
         .from('wapi_messages')
