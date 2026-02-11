@@ -248,6 +248,70 @@ async function sendBotMessage(instanceId: string, instanceToken: string, remoteJ
   }
 }
 
+async function sendBotImage(instanceId: string, instanceToken: string, remoteJid: string, imageUrl: string, caption: string): Promise<string | null> {
+  try {
+    const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '');
+    // Download image and convert to base64
+    const imgRes = await fetch(imageUrl);
+    if (!imgRes.ok) return null;
+    const buf = await imgRes.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 32768) {
+      const chunk = bytes.subarray(i, Math.min(i + 32768, bytes.length));
+      bin += String.fromCharCode.apply(null, Array.from(chunk));
+    }
+    const ct = imgRes.headers.get('content-type') || 'image/jpeg';
+    const base64 = `data:${ct};base64,${btoa(bin)}`;
+    const res = await fetch(`${WAPI_BASE_URL}/message/send-image?instanceId=${instanceId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instanceToken}` },
+      body: JSON.stringify({ phone, image: base64, caption }),
+    });
+    if (!res.ok) return null;
+    const r = await res.json();
+    return r.messageId || null;
+  } catch (e) {
+    console.error(`[Bot] send-image exception:`, e);
+    return null;
+  }
+}
+
+async function sendBotVideo(instanceId: string, instanceToken: string, remoteJid: string, videoUrl: string, caption: string): Promise<string | null> {
+  try {
+    const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '');
+    const res = await fetch(`${WAPI_BASE_URL}/message/send-video?instanceId=${instanceId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instanceToken}` },
+      body: JSON.stringify({ phone, video: videoUrl, caption }),
+    });
+    if (!res.ok) return null;
+    const r = await res.json();
+    return r.messageId || null;
+  } catch (e) {
+    console.error(`[Bot] send-video exception:`, e);
+    return null;
+  }
+}
+
+async function sendBotDocument(instanceId: string, instanceToken: string, remoteJid: string, docUrl: string, fileName: string): Promise<string | null> {
+  try {
+    const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '');
+    const ext = docUrl.split('.').pop()?.split('?')[0] || 'pdf';
+    const res = await fetch(`${WAPI_BASE_URL}/message/send-document?instanceId=${instanceId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instanceToken}` },
+      body: JSON.stringify({ phone, document: docUrl, fileName, extension: ext }),
+    });
+    if (!res.ok) return null;
+    const r = await res.json();
+    return r.messageId || null;
+  } catch (e) {
+    console.error(`[Bot] send-document exception:`, e);
+    return null;
+  }
+}
+
 // ============= FLOW BUILDER PROCESSOR =============
 
 async function processFlowBuilderMessage(
@@ -374,6 +438,22 @@ async function processFlowBuilderMessage(
     let matchedEdge = null;
     
     console.log(`[FlowBuilder] Node has ${nodeOptions?.length || 0} options`);
+    
+    // Timer nodes: any reply triggers "responded" path automatically
+    if (currentNode.node_type === 'timer' && nodeOptions && nodeOptions.length > 0) {
+      const respondedOpt = nodeOptions.find((o: any) => o.value === 'responded');
+      if (respondedOpt) {
+        const respondedEdge = edges.find(e => e.source_node_id === currentNode.id && e.source_option_id === respondedOpt.id);
+        if (respondedEdge) {
+          const targetNode = nodes.find(n => n.id === respondedEdge.target_node_id);
+          if (targetNode) {
+            console.log(`[FlowBuilder] ⏱️ Timer: Lead responded, following "responded" path`);
+            await advanceFlowFromNode(supabase, instance, conv, state, targetNode, nodes, edges, contactPhone, contactName, collectedData);
+          }
+          return;
+        }
+      }
+    }
     
     if (nodeOptions && nodeOptions.length > 0) {
       // Try to match by number (e.g., user types "1", "2", etc.)
@@ -593,20 +673,52 @@ async function advanceFlowFromNode(
       
       console.log(`[FlowBuilder] Executing action: ${actionType}`);
       
+      // Helper to send optional message and save it
+      const sendActionMessage = async () => {
+        if (currentNode.message_template) {
+          const msg = replaceVars(currentNode.message_template);
+          const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, msg);
+          if (msgId) {
+            await supabase.from('wapi_messages').insert({
+              conversation_id: conv.id, message_id: msgId, from_me: true,
+              message_type: 'text', content: msg, status: 'sent',
+              timestamp: new Date().toISOString(), company_id: instance.company_id,
+            });
+          }
+          await supabase.from('wapi_conversations').update({
+            last_message_at: new Date().toISOString(),
+            last_message_content: msg.substring(0, 100),
+            last_message_from_me: true,
+          }).eq('id', conv.id);
+        }
+      };
+      
+      // Helper to auto-advance to next node
+      const autoAdvance = async () => {
+        const nextEdge = allEdges.find(e => e.source_node_id === currentNode.id);
+        if (nextEdge) {
+          const nextNode = allNodes.find(n => n.id === nextEdge.target_node_id);
+          if (nextNode) {
+            await advanceFlowFromNode(supabase, instance, conv, state, nextNode, allNodes, allEdges, contactPhone, contactName, data);
+          }
+        } else {
+          await supabase.from('flow_lead_state').update({ current_node_id: currentNode.id, waiting_for_reply: false }).eq('id', state.id);
+        }
+      };
+      
+      // Helper to save a media message to DB
+      const saveMediaMsg = async (msgId: string, type: string, content: string, mediaUrl?: string) => {
+        await supabase.from('wapi_messages').insert({
+          conversation_id: conv.id, message_id: msgId, from_me: true,
+          message_type: type, content, media_url: mediaUrl || null,
+          status: 'sent', timestamp: new Date().toISOString(), company_id: instance.company_id,
+        });
+      };
+      
       switch (actionType) {
         case 'handoff': {
           // Disable bot and notify team
-          if (currentNode.message_template) {
-            const msg = replaceVars(currentNode.message_template);
-            const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, msg);
-            if (msgId) {
-              await supabase.from('wapi_messages').insert({
-                conversation_id: conv.id, message_id: msgId, from_me: true,
-                message_type: 'text', content: msg, status: 'sent',
-                timestamp: new Date().toISOString(), company_id: instance.company_id,
-              });
-            }
-          }
+          await sendActionMessage();
           
           await supabase.from('wapi_conversations').update({
             bot_enabled: false,
@@ -635,7 +747,7 @@ async function advanceFlowFromNode(
               user_id: userId,
               type: 'flow_handoff',
               title: '🔄 Lead transferido pelo Flow Builder',
-              message: `${data.nome || contactName || contactPhone} foi transferido para atendimento humano.`,
+              message: `${data.customer_name || data.nome || contactName || contactPhone} foi transferido para atendimento humano.`,
               data: { conversation_id: conv.id, contact_phone: contactPhone, unit: instance.unit },
               read: false,
             }));
@@ -652,15 +764,7 @@ async function advanceFlowFromNode(
         case 'extract_data': {
           // Data extraction already happened via extract_field. Now sync to CRM.
           await syncCollectedDataToLead(supabase, instance, conv, data, contactPhone, contactName);
-          
-          // Auto-advance
-          const nextEdge = allEdges.find(e => e.source_node_id === currentNode.id);
-          if (nextEdge) {
-            const nextNode = allNodes.find(n => n.id === nextEdge.target_node_id);
-            if (nextNode) {
-              await advanceFlowFromNode(supabase, instance, conv, state, nextNode, allNodes, allEdges, contactPhone, contactName, data);
-            }
-          }
+          await autoAdvance();
           break;
         }
         
@@ -669,50 +773,232 @@ async function advanceFlowFromNode(
           if (conv.lead_id) {
             await supabase.from('campaign_leads').update({ status: 'em_contato' }).eq('id', conv.lead_id);
           }
+          await sendActionMessage();
+          await autoAdvance();
+          break;
+        }
+        
+        case 'send_media': {
+          // Send photo gallery from sales_materials
+          console.log(`[FlowBuilder] 📸 Sending photo gallery`);
+          await sendActionMessage();
           
-          if (currentNode.message_template) {
-            const msg = replaceVars(currentNode.message_template);
-            const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, msg);
-            if (msgId) {
-              await supabase.from('wapi_messages').insert({
-                conversation_id: conv.id, message_id: msgId, from_me: true,
-                message_type: 'text', content: msg, status: 'sent',
-                timestamp: new Date().toISOString(), company_id: instance.company_id,
-              });
+          const unit = instance.unit;
+          if (unit) {
+            const { data: photoMats } = await supabase.from('sales_materials')
+              .select('photo_urls, name')
+              .eq('company_id', instance.company_id)
+              .eq('type', 'photo_collection')
+              .eq('unit', unit)
+              .eq('is_active', true)
+              .order('sort_order')
+              .limit(1);
+            
+            const photos = photoMats?.[0]?.photo_urls || [];
+            if (photos.length > 0) {
+              console.log(`[FlowBuilder] Sending ${photos.length} photos`);
+              // Send photos (limit concurrency to avoid rate limits)
+              for (const photoUrl of photos) {
+                const msgId = await sendBotImage(instance.instance_id, instance.instance_token, conv.remote_jid, photoUrl, '');
+                if (msgId) await saveMediaMsg(msgId, 'image', '📷', photoUrl);
+                await new Promise(r => setTimeout(r, 1500));
+              }
             }
           }
           
-          // Auto-advance
-          const nextEdge2 = allEdges.find(e => e.source_node_id === currentNode.id);
-          if (nextEdge2) {
-            const nextNode = allNodes.find(n => n.id === nextEdge2.target_node_id);
-            if (nextNode) {
-              await advanceFlowFromNode(supabase, instance, conv, state, nextNode, allNodes, allEdges, contactPhone, contactName, data);
+          await new Promise(r => setTimeout(r, 2000));
+          await autoAdvance();
+          break;
+        }
+        
+        case 'send_pdf': {
+          // Send PDF package matching guest count
+          console.log(`[FlowBuilder] 📄 Sending PDF package`);
+          
+          const unit = instance.unit;
+          if (unit) {
+            const guestsStr = data.guest_count || data.convidados || '';
+            const guestMatch = guestsStr.match(/(\d+)/);
+            const guestCount = guestMatch ? parseInt(guestMatch[1]) : null;
+            
+            const { data: pdfMats } = await supabase.from('sales_materials')
+              .select('*')
+              .eq('company_id', instance.company_id)
+              .eq('type', 'pdf_package')
+              .eq('unit', unit)
+              .eq('is_active', true)
+              .order('guest_count');
+            
+            let matchingPdf = null;
+            if (pdfMats && pdfMats.length > 0) {
+              if (guestCount) {
+                matchingPdf = pdfMats.find(p => p.guest_count === guestCount);
+                if (!matchingPdf) {
+                  matchingPdf = pdfMats.find(p => (p.guest_count || 0) >= guestCount) || pdfMats[pdfMats.length - 1];
+                }
+              } else {
+                matchingPdf = pdfMats[0];
+              }
             }
+            
+            if (matchingPdf) {
+              await sendActionMessage();
+              await new Promise(r => setTimeout(r, 1000));
+              
+              const fileName = (matchingPdf.name?.replace(/[^a-zA-Z0-9\s\-]/g, '').trim() || 'Pacote') + '.pdf';
+              const msgId = await sendBotDocument(instance.instance_id, instance.instance_token, conv.remote_jid, matchingPdf.file_url, fileName);
+              if (msgId) await saveMediaMsg(msgId, 'document', fileName, matchingPdf.file_url);
+            } else {
+              console.log(`[FlowBuilder] No PDF found for unit ${unit}`);
+              await sendActionMessage();
+            }
+          } else {
+            await sendActionMessage();
           }
+          
+          await new Promise(r => setTimeout(r, 2000));
+          await autoAdvance();
+          break;
+        }
+        
+        case 'send_video': {
+          // Send video from sales_materials
+          console.log(`[FlowBuilder] 🎬 Sending video`);
+          
+          const unit = instance.unit;
+          if (unit) {
+            const { data: videoMats } = await supabase.from('sales_materials')
+              .select('file_url, name')
+              .eq('company_id', instance.company_id)
+              .eq('type', 'video')
+              .eq('unit', unit)
+              .eq('is_active', true)
+              .order('sort_order')
+              .limit(1);
+            
+            if (videoMats && videoMats.length > 0) {
+              const video = videoMats[0];
+              // Fetch caption
+              const { data: captions } = await supabase.from('sales_material_captions')
+                .select('caption_text')
+                .eq('caption_type', 'video')
+                .eq('is_active', true)
+                .limit(1);
+              const caption = captions?.[0]?.caption_text?.replace(/\{unidade\}/gi, unit) || '';
+              
+              await sendActionMessage();
+              await new Promise(r => setTimeout(r, 1000));
+              
+              const msgId = await sendBotVideo(instance.instance_id, instance.instance_token, conv.remote_jid, video.file_url, caption);
+              if (msgId) await saveMediaMsg(msgId, 'video', caption || '🎬', video.file_url);
+            } else {
+              await sendActionMessage();
+            }
+          } else {
+            await sendActionMessage();
+          }
+          
+          await new Promise(r => setTimeout(r, 2000));
+          await autoAdvance();
+          break;
+        }
+        
+        case 'disable_followup': {
+          // Disable follow-up messages for this conversation
+          console.log(`[FlowBuilder] 🔕 Disabling follow-ups`);
+          await sendActionMessage();
+          
+          // Mark conversation to prevent follow-up-check from triggering
+          await supabase.from('wapi_conversations').update({
+            bot_step: 'flow_no_followup',
+          }).eq('id', conv.id);
+          
+          await autoAdvance();
+          break;
+        }
+        
+        case 'disable_ai': {
+          // Disable AI/bot for this conversation
+          console.log(`[FlowBuilder] 🤖 Disabling AI`);
+          await sendActionMessage();
+          
+          await supabase.from('wapi_conversations').update({
+            bot_enabled: false,
+            bot_step: 'flow_ai_disabled',
+          }).eq('id', conv.id);
+          
+          await supabase.from('flow_lead_state').update({
+            current_node_id: currentNode.id,
+            waiting_for_reply: false,
+          }).eq('id', state.id);
+          
+          // Don't auto-advance - bot is disabled
+          break;
+        }
+        
+        case 'mark_existing_customer': {
+          // Mark lead as existing customer and notify team
+          console.log(`[FlowBuilder] 👤 Marking as existing customer`);
+          await sendActionMessage();
+          
+          // Update lead status
+          if (conv.lead_id) {
+            await supabase.from('campaign_leads').update({ status: 'em_contato' }).eq('id', conv.lead_id);
+          }
+          
+          // Notify team
+          try {
+            const { data: adminRoles } = await supabase.from('user_roles').select('user_id').eq('role', 'admin');
+            const unitLower = instance.unit?.toLowerCase() || '';
+            const unitPermission = `leads.unit.${unitLower}`;
+            const { data: userPerms } = await supabase.from('user_permissions').select('user_id').eq('granted', true).in('permission', [unitPermission, 'leads.unit.all']);
+            
+            const userIds = new Set<string>();
+            userPerms?.forEach(p => userIds.add(p.user_id));
+            adminRoles?.forEach(r => userIds.add(r.user_id));
+            
+            const leadName = data.customer_name || data.nome || contactName || contactPhone;
+            const notifications = Array.from(userIds).map(userId => ({
+              user_id: userId,
+              type: 'existing_client',
+              title: '👤 Cliente existente identificado',
+              message: `${leadName} foi marcado como cliente existente pelo Flow Builder.`,
+              data: { conversation_id: conv.id, contact_phone: contactPhone, unit: instance.unit },
+              read: false,
+            }));
+            
+            if (notifications.length > 0) {
+              await supabase.from('notifications').insert(notifications);
+            }
+          } catch (e) {
+            console.error('[FlowBuilder] Notification error:', e);
+          }
+          
+          await autoAdvance();
+          break;
+        }
+        
+        case 'check_party_availability':
+        case 'check_visit_availability': {
+          // Placeholder: send message and advance (calendar integration TBD)
+          console.log(`[FlowBuilder] 📅 ${actionType} (advancing)`);
+          await sendActionMessage();
+          await autoAdvance();
+          break;
+        }
+        
+        case 'ai_response': {
+          // Placeholder: send message and advance (AI integration TBD)
+          console.log(`[FlowBuilder] 🤖 AI response (advancing)`);
+          await sendActionMessage();
+          await autoAdvance();
           break;
         }
         
         default: {
-          // Unknown action, auto-advance
-          if (currentNode.message_template) {
-            const msg = replaceVars(currentNode.message_template);
-            const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, msg);
-            if (msgId) {
-              await supabase.from('wapi_messages').insert({
-                conversation_id: conv.id, message_id: msgId, from_me: true,
-                message_type: 'text', content: msg, status: 'sent',
-                timestamp: new Date().toISOString(), company_id: instance.company_id,
-              });
-            }
-          }
-          const nextEdge3 = allEdges.find(e => e.source_node_id === currentNode.id);
-          if (nextEdge3) {
-            const nextNode = allNodes.find(n => n.id === nextEdge3.target_node_id);
-            if (nextNode) {
-              await advanceFlowFromNode(supabase, instance, conv, state, nextNode, allNodes, allEdges, contactPhone, contactName, data);
-            }
-          }
+          // Unknown action, send message and advance
+          await sendActionMessage();
+          await autoAdvance();
           break;
         }
       }
@@ -752,6 +1038,57 @@ async function advanceFlowFromNode(
       break;
     }
     
+    case 'delay': {
+      // Wait for configured seconds, then auto-advance
+      const delaySec = ((currentNode.action_config as Record<string, unknown>)?.delay_seconds as number) || 5;
+      console.log(`[FlowBuilder] ⏳ Delay node: waiting ${delaySec}s`);
+      await new Promise(r => setTimeout(r, delaySec * 1000));
+      
+      const nextEdge = allEdges.find(e => e.source_node_id === currentNode.id);
+      if (nextEdge) {
+        const nextNode = allNodes.find(n => n.id === nextEdge.target_node_id);
+        if (nextNode) {
+          await advanceFlowFromNode(supabase, instance, conv, state, nextNode, allNodes, allEdges, contactPhone, contactName, data);
+        }
+      }
+      break;
+    }
+    
+    case 'timer': {
+      // Send optional message and wait for reply with timeout
+      console.log(`[FlowBuilder] ⏱️ Timer node: waiting for reply (timeout: ${((currentNode.action_config as Record<string, unknown>)?.timeout_minutes as number) || 10}min)`);
+      
+      if (currentNode.message_template) {
+        const msg = replaceVars(currentNode.message_template);
+        const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, msg);
+        if (msgId) {
+          await supabase.from('wapi_messages').insert({
+            conversation_id: conv.id, message_id: msgId, from_me: true,
+            message_type: 'text', content: msg, status: 'sent',
+            timestamp: new Date().toISOString(), company_id: instance.company_id,
+          });
+        }
+        
+        await supabase.from('wapi_conversations').update({
+          last_message_at: new Date().toISOString(),
+          last_message_content: msg.substring(0, 100),
+          last_message_from_me: true,
+        }).eq('id', conv.id);
+      }
+      
+      // Set state to wait for reply
+      await supabase.from('flow_lead_state').update({
+        current_node_id: currentNode.id,
+        waiting_for_reply: true,
+        last_sent_at: new Date().toISOString(),
+      }).eq('id', state.id);
+      
+      await supabase.from('wapi_conversations').update({
+        bot_step: `flow_timer_${currentNode.id}`,
+      }).eq('id', conv.id);
+      break;
+    }
+    
     default: {
       // Unknown node type, try to advance
       const nextEdge = allEdges.find(e => e.source_node_id === currentNode.id);
@@ -777,12 +1114,21 @@ async function syncCollectedDataToLead(
   const n = normalizePhone(contactPhone);
   const leadData: Record<string, unknown> = {};
   
-  if (data.nome) leadData.name = data.nome;
-  if (data.mes) leadData.month = data.mes;
-  if (data.dia) leadData.day_preference = data.dia;
-  if (data.convidados) leadData.guests = data.convidados;
+  // Map both legacy bot field names and Flow Builder extract field names
+  if (data.nome || data.customer_name) leadData.name = data.customer_name || data.nome;
+  if (data.mes || data.event_date) leadData.month = data.event_date || data.mes;
+  if (data.dia || data.preferred_slot) leadData.day_preference = data.preferred_slot || data.dia;
+  if (data.convidados || data.guest_count) leadData.guests = data.guest_count || data.convidados;
   
-  if (Object.keys(leadData).length === 0 && !data.nome) return;
+  // Store additional Flow Builder fields in observacoes
+  const extraFields: string[] = [];
+  if (data.child_name) extraFields.push(`Criança: ${data.child_name}`);
+  if (data.child_age) extraFields.push(`Idade: ${data.child_age}`);
+  if (data.event_type) extraFields.push(`Tipo: ${data.event_type}`);
+  if (data.visit_date) extraFields.push(`Visita: ${data.visit_date}`);
+  if (extraFields.length > 0) leadData.observacoes = extraFields.join(' | ');
+  
+  if (Object.keys(leadData).length === 0 && !data.nome && !data.customer_name) return;
   
   if (conv.lead_id) {
     await supabase.from('campaign_leads').update(leadData).eq('id', conv.lead_id);
