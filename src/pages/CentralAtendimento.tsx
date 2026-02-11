@@ -33,7 +33,7 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/s
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
-import { LayoutList, Columns, Menu, Bell, BellOff, MessageSquare, BarChart3, Filter, ChevronDown } from "lucide-react";
+import { LayoutList, Columns, Menu, Bell, BellOff, MessageSquare, BarChart3, Filter, ChevronDown, Building2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import logoCastelo from "@/assets/logo-castelo.png";
 
@@ -92,6 +92,8 @@ export default function CentralAtendimento() {
   const [showMetrics, setShowMetrics] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [initialPhone, setInitialPhone] = useState<string | null>(null);
+  const [chatInstances, setChatInstances] = useState<{ id: string; unit: string | null; status: string | null }[]>([]);
+  const [selectedChatUnit, setSelectedChatUnit] = useState<string | null>(null);
 
   // Handle URL params for phone navigation
   useEffect(() => {
@@ -952,6 +954,26 @@ export default function CentralAtendimento() {
                   </Button>
                 </div>
 
+                {/* Unit selector in header when on chat tab */}
+                {activeTab === "chat" && chatInstances.length > 1 && (
+                  <div className="flex items-center gap-1 ml-2 bg-border rounded-lg p-1">
+                    {chatInstances.map((inst) => (
+                      <Button
+                        key={inst.id}
+                        variant={selectedChatUnit === inst.unit ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setSelectedChatUnit(inst.unit)}
+                        className={`h-7 px-3 rounded-md transition-all text-xs ${
+                          selectedChatUnit === inst.unit ? "shadow-sm" : "hover:bg-background/80"
+                        }`}
+                      >
+                        <Building2 className="w-3.5 h-3.5 mr-1" />
+                        {inst.unit}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+
                 {/* Lista/CRM toggle in header when on leads tab */}
                 {activeTab === "leads" && (
                   <div className="flex items-center gap-1 ml-2 bg-border rounded-lg p-1">
@@ -1082,6 +1104,13 @@ export default function CentralAtendimento() {
                     allowedUnits={canViewAll ? ['all'] : allowedUnits}
                     initialPhone={initialPhone}
                     onPhoneHandled={handlePhoneHandled}
+                    externalSelectedUnit={selectedChatUnit}
+                    onInstancesLoaded={(instances) => {
+                      setChatInstances(instances);
+                      if (!selectedChatUnit && instances.length > 0) {
+                        setSelectedChatUnit(instances[0].unit);
+                      }
+                    }}
                   />
                 )}
               </TabsContent>
