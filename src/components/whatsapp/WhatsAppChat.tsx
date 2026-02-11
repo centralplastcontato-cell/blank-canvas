@@ -2887,6 +2887,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                         <span className="text-xs font-medium text-muted-foreground">Status:</span>
                         {[
                           { value: 'novo', label: 'Novo', color: 'bg-blue-500' },
+                          { value: 'trabalhe_conosco', label: 'Trab. Conosco', color: 'bg-teal-500' },
                           { value: 'em_contato', label: 'Visita', color: 'bg-yellow-500' },
                           { value: 'orcamento_enviado', label: 'Orçamento', color: 'bg-purple-500' },
                           { value: 'aguardando_resposta', label: 'Negociando', color: 'bg-orange-500' },
@@ -2903,7 +2904,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                             )}
                             onClick={async () => {
                               const oldStatus = linkedLead.status;
-                              const newStatus = statusOption.value as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido";
+                              const newStatus = statusOption.value as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido" | "trabalhe_conosco";
                               
                               if (oldStatus === newStatus) return;
                               
@@ -2956,6 +2957,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                         <span className="text-xs font-medium text-destructive shrink-0">⚠ Não classificado:</span>
                         {[
                           { value: 'novo', label: 'Novo', color: 'bg-blue-500' },
+                          { value: 'trabalhe_conosco', label: 'Trab. Conosco', color: 'bg-teal-500' },
                           { value: 'em_contato', label: 'Visita', color: 'bg-yellow-500' },
                           { value: 'orcamento_enviado', label: 'Orçamento', color: 'bg-purple-500' },
                           { value: 'aguardando_resposta', label: 'Negociando', color: 'bg-orange-500' },
@@ -3523,6 +3525,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                         <span className="text-xs font-medium text-muted-foreground">Status:</span>
                         {[
                           { value: 'novo', label: 'Novo', color: 'bg-blue-500' },
+                          { value: 'trabalhe_conosco', label: 'Trab.', color: 'bg-teal-500' },
                           { value: 'em_contato', label: 'Contato', color: 'bg-yellow-500' },
                           { value: 'orcamento_enviado', label: 'Orçamento', color: 'bg-purple-500' },
                           { value: 'aguardando_resposta', label: 'Aguard.', color: 'bg-orange-500' },
@@ -3539,7 +3542,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                             )}
                             onClick={async () => {
                               const oldStatus = linkedLead.status;
-                              const newStatus = statusOption.value as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido";
+                              const newStatus = statusOption.value as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido" | "trabalhe_conosco";
                               
                               if (oldStatus === newStatus) return;
                               
@@ -3559,6 +3562,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                               
                               const statusLabels: Record<string, string> = {
                                 novo: 'Novo',
+                                trabalhe_conosco: 'Trabalhe Conosco',
                                 em_contato: 'Em Contato',
                                 orcamento_enviado: 'Orçamento Enviado',
                                 aguardando_resposta: 'Aguardando Resposta',
@@ -3593,6 +3597,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                       <span className="text-[10px] font-medium text-destructive shrink-0">⚠ Não classificado:</span>
                       {[
                         { value: 'novo', label: 'Novo', color: 'bg-blue-500' },
+                        { value: 'trabalhe_conosco', label: 'Trab.', color: 'bg-teal-500' },
                         { value: 'em_contato', label: 'Contato', color: 'bg-yellow-500' },
                         { value: 'orcamento_enviado', label: 'Orçam.', color: 'bg-purple-500' },
                         { value: 'aguardando_resposta', label: 'Aguard.', color: 'bg-orange-500' },
