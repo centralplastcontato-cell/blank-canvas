@@ -170,6 +170,7 @@ export function LeadInfoPopover({
  
   const statusOptions = [
     { value: 'novo', label: 'Novo', color: 'bg-blue-500' },
+    { value: 'trabalhe_conosco', label: 'Trabalhe Conosco', color: 'bg-teal-500' },
     { value: 'em_contato', label: 'Visita', color: 'bg-yellow-500' },
     { value: 'orcamento_enviado', label: 'Orçamento', color: 'bg-purple-500' },
     { value: 'aguardando_resposta', label: 'Negociando', color: 'bg-orange-500' },
@@ -181,6 +182,7 @@ export function LeadInfoPopover({
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case 'novo': return 'bg-blue-500';
+      case 'trabalhe_conosco': return 'bg-teal-500';
       case 'em_contato': return 'bg-yellow-500 text-yellow-950';
       case 'orcamento_enviado': return 'bg-purple-500';
       case 'aguardando_resposta': return 'bg-orange-500';
@@ -194,6 +196,7 @@ export function LeadInfoPopover({
   const getStatusLabel = (status: string) => {
     switch (status) {
       case 'novo': return 'Novo';
+      case 'trabalhe_conosco': return 'Trabalhe Conosco';
       case 'em_contato': return 'Visita';
       case 'orcamento_enviado': return 'Orçamento Enviado';
       case 'aguardando_resposta': return 'Negociando';
