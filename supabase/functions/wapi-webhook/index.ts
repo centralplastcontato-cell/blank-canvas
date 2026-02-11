@@ -828,25 +828,69 @@ async function processBotQualification(
   const tn = settings.test_mode_number ? normalizePhone(settings.test_mode_number) : null;
   const isTest = tn && n.includes(tn.replace(/^55/, ''));
   
-  // Bot runs if: test mode enabled AND is test number, OR global bot enabled (and not test mode only)
-  const shouldRun = conv.bot_enabled !== false && (
-    (settings.test_mode_enabled && isTest) || 
-    (settings.bot_enabled && !settings.test_mode_enabled)
-  );
+  // Check if bot settings allow running
+  const botSettingsAllow = (settings.test_mode_enabled && isTest) || (settings.bot_enabled && !settings.test_mode_enabled);
   
-  if (!shouldRun) return;
+  // If bot_enabled is false, check if this is an LP lead that needs bot activation
+  // This happens when the LP sends the first message (outgoing), creating the conversation with bot_enabled=false
+  // Then when the lead responds, bot_enabled is still false but we need to activate the flow
+  if (conv.bot_enabled === false && botSettingsAllow) {
+    // Check if there's an LP lead linked or findable by phone number
+    const vars = [n, n.replace(/^55/, ''), `55${n}`];
+    let lpLead = null;
+    
+    if (conv.lead_id) {
+      const { data: linked } = await supabase.from('campaign_leads')
+        .select('id, name, month, day_of_month, guests, campaign_id')
+        .eq('id', conv.lead_id)
+        .single();
+      if (linked?.campaign_id && !linked.campaign_id.startsWith('whatsapp')) lpLead = linked;
+    }
+    
+    if (!lpLead) {
+      const { data: found } = await supabase.from('campaign_leads')
+        .select('id, name, month, day_of_month, guests, campaign_id')
+        .or(vars.map(p => `whatsapp.ilike.%${p}%`).join(','))
+        .eq('company_id', instance.company_id)
+        .not('campaign_id', 'like', 'whatsapp%')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (found) lpLead = found;
+    }
+    
+    if (lpLead && lpLead.name && lpLead.month) {
+      console.log(`[Bot] LP lead detected (${lpLead.id}), re-enabling bot for conversation ${conv.id}`);
+      // Re-enable bot and link lead
+      await supabase.from('wapi_conversations').update({
+        bot_enabled: true,
+        bot_step: 'welcome',
+        lead_id: lpLead.id,
+      }).eq('id', conv.id);
+      conv.bot_enabled = true;
+      conv.bot_step = 'welcome';
+      conv.lead_id = lpLead.id;
+    } else {
+      return; // No LP lead found, don't activate bot
+    }
+  } else if (conv.bot_enabled === false) {
+    return;
+  }
+  
+  if (!botSettingsAllow) return;
   if (await isVipNumber(supabase, instance.id, contactPhone)) return;
   
   // Check if lead already exists and has complete data - send welcome message instead of bot
   if (conv.lead_id) {
     const { data: existingLead } = await supabase.from('campaign_leads')
-      .select('name, month, day_preference, guests')
+      .select('name, month, day_preference, day_of_month, guests')
       .eq('id', conv.lead_id)
       .single();
     
       // If lead already has all qualification data, send welcome message for qualified leads
-      // Then continue with materials + next step question (same as direct WhatsApp leads)
-      if (existingLead?.name && existingLead?.month && existingLead?.day_preference && existingLead?.guests) {
+      // LP leads have day_of_month, bot leads have day_preference - check both
+      const hasCompleteData = existingLead?.name && existingLead?.month && (existingLead?.day_preference || existingLead?.day_of_month) && existingLead?.guests;
+      if (hasCompleteData) {
         console.log(`[Bot] Lead ${conv.lead_id} already qualified from LP, bot_step: ${conv.bot_step}`);
         
         // If we're waiting for proximo_passo answer, don't return - let it process below
@@ -858,10 +902,11 @@ async function processBotQualification(
           const defaultQualifiedMsg = `Olá, {nome}! 👋\n\nRecebemos seu interesse pelo site e já temos seus dados aqui:\n\n📅 Mês: {mes}\n🗓️ Dia: {dia}\n👥 Convidados: {convidados}`;
           const qualifiedTemplate = settings.qualified_lead_message || defaultQualifiedMsg;
           
+          const dayDisplay = existingLead.day_of_month ? `Dia ${existingLead.day_of_month}` : (existingLead.day_preference || '');
           const leadData: Record<string, string> = {
             nome: existingLead.name,
             mes: existingLead.month || '',
-            dia: existingLead.day_preference || '',
+            dia: dayDisplay,
             convidados: existingLead.guests || '',
           };
           
