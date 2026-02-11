@@ -301,7 +301,7 @@ export function LeadChatbot({ isOpen, onClose }: LeadChatbotProps) {
         // Auto-close chat after 5 seconds
         setTimeout(() => {
           onClose();
-        }, 5000);
+        }, 10000);
       } catch (error) {
         console.error("Erro ao salvar lead:", error);
         toast({
