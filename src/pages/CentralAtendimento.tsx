@@ -728,7 +728,7 @@ export default function CentralAtendimento() {
             <TabsContent value="leads" className="flex-1 min-h-0 mt-0 data-[state=active]:flex data-[state=active]:flex-col overflow-hidden">
               <PullToRefresh 
                 onRefresh={handleRefresh} 
-                className="flex-1 px-3 py-4"
+                className="flex-1 min-h-0 px-3 py-4"
               >
                 {/* View Mode Toggle - at top like unit tabs in Chat */}
                 <div className="flex items-center gap-2 mb-4">
