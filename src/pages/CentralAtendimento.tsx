@@ -1094,25 +1094,27 @@ export default function CentralAtendimento() {
           />
 
           <main className="flex-1 flex flex-col overflow-hidden min-h-0 p-4">
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "chat" | "leads")} className="flex-1 flex flex-col overflow-hidden min-h-0">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "chat" | "leads")} className="flex-1 flex flex-col overflow-hidden min-h-0 [&>[data-state=active]]:flex-1 [&>[data-state=active]]:flex [&>[data-state=active]]:flex-col [&>[data-state=active]]:min-h-0">
               {/* TabsList removed - buttons are now in the header */}
 
-              <TabsContent value="chat" className="flex-1 overflow-hidden min-h-0 mt-0 flex flex-col">
-                {!isLoadingUnitPerms && (
-                  <WhatsAppChat 
-                    userId={user.id} 
-                    allowedUnits={canViewAll ? ['all'] : allowedUnits}
-                    initialPhone={initialPhone}
-                    onPhoneHandled={handlePhoneHandled}
-                    externalSelectedUnit={selectedChatUnit}
-                    onInstancesLoaded={(instances) => {
-                      setChatInstances(instances);
-                      if (!selectedChatUnit && instances.length > 0) {
-                        setSelectedChatUnit(instances[0].unit);
-                      }
-                    }}
-                  />
-                )}
+              <TabsContent value="chat" className="flex-1 overflow-hidden min-h-0 mt-0">
+                <div className="h-full">
+                  {!isLoadingUnitPerms && (
+                    <WhatsAppChat 
+                      userId={user.id} 
+                      allowedUnits={canViewAll ? ['all'] : allowedUnits}
+                      initialPhone={initialPhone}
+                      onPhoneHandled={handlePhoneHandled}
+                      externalSelectedUnit={selectedChatUnit}
+                      onInstancesLoaded={(instances) => {
+                        setChatInstances(instances);
+                        if (!selectedChatUnit && instances.length > 0) {
+                          setSelectedChatUnit(instances[0].unit);
+                        }
+                      }}
+                    />
+                  )}
+                </div>
               </TabsContent>
 
               <TabsContent value="leads" className="flex-1 overflow-hidden min-h-0 mt-0 flex flex-col">
