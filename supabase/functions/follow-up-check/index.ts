@@ -69,6 +69,11 @@ Deno.serve(async (req) => {
     let totalSuccessCount = 0;
     const allErrors: string[] = [];
 
+    // Process flow builder timer timeouts (global, not per-instance)
+    const timerResult = await processFlowTimerTimeouts({ supabase });
+    totalSuccessCount += timerResult.successCount;
+    allErrors.push(...timerResult.errors);
+
     // Process each instance with follow-up enabled
     for (const settings of allSettings) {
       // Process bot inactive follow-up (leads who stopped responding during bot flow)
@@ -643,6 +648,219 @@ Podemos continuar de onde paramos?`;
     } catch (err) {
       console.error(`[follow-up-check] Error processing bot-inactive follow-up for conv ${conv.id}:`, err);
       errors.push(`Error with conv ${conv.id}: ${String(err)}`);
+    }
+  }
+
+  return { successCount, errors };
+}
+
+// ============= FLOW BUILDER TIMER TIMEOUT (checks expired timer nodes and triggers timeout path) =============
+
+const WAPI_BASE_URL = 'https://api.w-api.app/v1';
+
+interface FlowTimerParams {
+  supabase: ReturnType<typeof createClient>;
+}
+
+async function processFlowTimerTimeouts({
+  supabase,
+}: FlowTimerParams): Promise<{ successCount: number; errors: string[] }> {
+  const errors: string[] = [];
+  let successCount = 0;
+
+  console.log(`[follow-up-check] Processing flow builder timer timeouts...`);
+
+  // Find all flow_lead_state records that are waiting for reply
+  const { data: waitingStates, error: statesError } = await supabase
+    .from('flow_lead_state')
+    .select('id, conversation_id, flow_id, current_node_id, last_sent_at, collected_data')
+    .eq('waiting_for_reply', true)
+    .not('current_node_id', 'is', null)
+    .not('last_sent_at', 'is', null);
+
+  if (statesError) {
+    console.error(`[follow-up-check] Error fetching waiting states:`, statesError);
+    return { successCount: 0, errors: [String(statesError)] };
+  }
+
+  if (!waitingStates || waitingStates.length === 0) {
+    console.log(`[follow-up-check] No flow timer states waiting`);
+    return { successCount: 0, errors: [] };
+  }
+
+  console.log(`[follow-up-check] Found ${waitingStates.length} waiting flow states to check`);
+
+  for (const state of waitingStates) {
+    try {
+      // Get the current node to check if it's a timer
+      const { data: currentNode } = await supabase
+        .from('flow_nodes')
+        .select('id, node_type, action_config, message_template, flow_id')
+        .eq('id', state.current_node_id)
+        .single();
+
+      if (!currentNode || currentNode.node_type !== 'timer') {
+        continue; // Not a timer node, skip
+      }
+
+      const timeoutMinutes = ((currentNode.action_config as Record<string, unknown>)?.timeout_minutes as number) || 10;
+      const lastSentAt = new Date(state.last_sent_at!);
+      const now = new Date();
+      const elapsedMinutes = (now.getTime() - lastSentAt.getTime()) / (60 * 1000);
+
+      if (elapsedMinutes < timeoutMinutes) {
+        continue; // Timer hasn't expired yet
+      }
+
+      console.log(`[follow-up-check] ⏱️ Timer expired for state ${state.id} (${elapsedMinutes.toFixed(1)}min > ${timeoutMinutes}min)`);
+
+      // Get the timeout option and edge
+      const { data: nodeOptions } = await supabase
+        .from('flow_node_options')
+        .select('id, value')
+        .eq('node_id', currentNode.id);
+
+      const timeoutOption = nodeOptions?.find((o: any) => o.value === 'timeout');
+      if (!timeoutOption) {
+        console.log(`[follow-up-check] No timeout option found for timer node ${currentNode.id}`);
+        continue;
+      }
+
+      const { data: timeoutEdge } = await supabase
+        .from('flow_edges')
+        .select('id, target_node_id')
+        .eq('source_node_id', currentNode.id)
+        .eq('source_option_id', timeoutOption.id)
+        .single();
+
+      if (!timeoutEdge) {
+        console.log(`[follow-up-check] No timeout edge found for timer node ${currentNode.id}`);
+        // Mark as no longer waiting to avoid re-checking
+        await supabase.from('flow_lead_state').update({
+          waiting_for_reply: false,
+        }).eq('id', state.id);
+        continue;
+      }
+
+      // Get conversation and instance info
+      const { data: conv } = await supabase
+        .from('wapi_conversations')
+        .select('id, remote_jid, instance_id, company_id, contact_name, bot_data')
+        .eq('id', state.conversation_id)
+        .single();
+
+      if (!conv) {
+        console.log(`[follow-up-check] Conversation not found for state ${state.id}`);
+        continue;
+      }
+
+      const { data: instance } = await supabase
+        .from('wapi_instances')
+        .select('id, instance_id, instance_token, unit, company_id')
+        .eq('id', conv.instance_id)
+        .single();
+
+      if (!instance) {
+        console.log(`[follow-up-check] Instance not found for conversation ${conv.id}`);
+        continue;
+      }
+
+      // Get target node
+      const { data: targetNode } = await supabase
+        .from('flow_nodes')
+        .select('id, node_type, title, message_template, action_type, action_config, extract_field')
+        .eq('id', timeoutEdge.target_node_id)
+        .single();
+
+      if (!targetNode) {
+        console.log(`[follow-up-check] Target node not found for timeout edge`);
+        continue;
+      }
+
+      const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
+      const collectedData = (state.collected_data || {}) as Record<string, string>;
+      const firstName = collectedData.customer_name || collectedData.nome || 
+        (conv.contact_name || '').split(' ')[0] || 'cliente';
+
+      // Helper to replace variables in messages
+      const replaceVars = (template: string) => {
+        return template
+          .replace(/\{nome\}/g, firstName)
+          .replace(/\{customer_name\}/g, collectedData.customer_name || firstName)
+          .replace(/\{event_date\}/g, collectedData.event_date || '')
+          .replace(/\{guest_count\}/g, collectedData.guest_count || '')
+          .replace(/\{child_name\}/g, collectedData.child_name || '')
+          .replace(/\{child_age\}/g, collectedData.child_age || '');
+      };
+
+      // Send target node message if it has one
+      if (targetNode.message_template) {
+        const msg = replaceVars(targetNode.message_template);
+        const res = await fetch(`${WAPI_BASE_URL}/message/send-text?instanceId=${instance.instance_id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
+          body: JSON.stringify({ phone, message: msg, delayTyping: 1 }),
+        });
+
+        if (res.ok) {
+          const r = await res.json();
+          const msgId = r.messageId || r.data?.messageId || r.id || null;
+
+          await supabase.from('wapi_messages').insert({
+            conversation_id: conv.id, message_id: msgId, from_me: true,
+            message_type: 'text', content: msg, status: 'sent',
+            timestamp: new Date().toISOString(), company_id: instance.company_id,
+          });
+
+          await supabase.from('wapi_conversations').update({
+            last_message_at: new Date().toISOString(),
+            last_message_content: msg.substring(0, 100),
+            last_message_from_me: true,
+          }).eq('id', conv.id);
+        } else {
+          const errText = await res.text();
+          console.error(`[follow-up-check] Failed to send timer timeout message: ${errText}`);
+        }
+      }
+
+      // Update flow state to target node
+      await supabase.from('flow_lead_state').update({
+        current_node_id: targetNode.id,
+        waiting_for_reply: targetNode.node_type === 'question' || targetNode.node_type === 'timer',
+        last_sent_at: new Date().toISOString(),
+      }).eq('id', state.id);
+
+      // Update conversation bot_step
+      const newBotStep = targetNode.node_type === 'end' ? 'flow_complete' : `flow_node_${targetNode.id}`;
+      await supabase.from('wapi_conversations').update({
+        bot_step: newBotStep,
+        bot_enabled: targetNode.node_type !== 'end',
+      }).eq('id', conv.id);
+
+      // Handle handoff action on target node
+      if (targetNode.node_type === 'action' && targetNode.action_type === 'handoff') {
+        await supabase.from('wapi_conversations').update({
+          bot_enabled: false,
+          bot_step: 'flow_handoff',
+        }).eq('id', conv.id);
+        
+        await supabase.from('flow_lead_state').update({
+          waiting_for_reply: false,
+        }).eq('id', state.id);
+      }
+
+      // Handle end node
+      if (targetNode.node_type === 'end') {
+        await supabase.from('flow_lead_state').update({
+          waiting_for_reply: false,
+        }).eq('id', state.id);
+      }
+
+      console.log(`[follow-up-check] ⏱️ Timer timeout processed: state ${state.id} → node ${targetNode.title} (${targetNode.node_type})`);
+      successCount++;
+    } catch (err) {
+      console.error(`[follow-up-check] Error processing timer timeout for state ${state.id}:`, err);
+      errors.push(`Timer error state ${state.id}: ${String(err)}`);
     }
   }
 
