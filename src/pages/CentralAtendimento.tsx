@@ -12,7 +12,7 @@ import { useUnreadCountRealtime, useLeadsRealtime } from "@/hooks/useRealtimeOpt
 import { Lead, LeadStatus, UserWithRole, Profile, AppRole } from "@/types/crm";
 import { LeadsTable } from "@/components/admin/LeadsTable";
 import { LeadsFilters } from "@/components/admin/LeadsFilters";
-import { UnitKanbanTabs } from "@/components/admin/UnitKanbanTabs";
+import { LeadsKanban } from "@/components/admin/LeadsKanban";
 import { LeadDetailSheet } from "@/components/admin/LeadDetailSheet";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
@@ -767,7 +767,7 @@ export default function CentralAtendimento() {
                     onPageChange={setCurrentPage}
                   />
                 ) : (
-                  <UnitKanbanTabs
+                  <LeadsKanban
                     leads={leads}
                     responsaveis={responsaveis}
                     onLeadClick={handleLeadClick}
@@ -808,8 +808,6 @@ export default function CentralAtendimento() {
                     canEditDescription={canEditDescription}
                     canDelete={canDeleteLeads}
                     onDelete={canDeleteLeads ? handleDeleteLead : undefined}
-                    allowedUnits={allowedUnits}
-                    canViewAll={canViewAll}
                   />
                 )}
               </PullToRefresh>
@@ -1040,7 +1038,7 @@ export default function CentralAtendimento() {
                   </TabsContent>
 
                  <TabsContent value="kanban" className="mt-4 flex-1 min-h-0 overflow-hidden">
-                    <UnitKanbanTabs
+                    <LeadsKanban
                       leads={leads}
                       responsaveis={responsaveis}
                       onLeadClick={handleLeadClick}
@@ -1081,8 +1079,6 @@ export default function CentralAtendimento() {
                       canEditDescription={canEditDescription}
                       canDelete={canDeleteLeads}
                       onDelete={canDeleteLeads ? handleDeleteLead : undefined}
-                      allowedUnits={allowedUnits}
-                      canViewAll={canViewAll}
                     />
                   </TabsContent>
                 </Tabs>
