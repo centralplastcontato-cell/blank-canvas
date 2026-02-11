@@ -1097,7 +1097,7 @@ export default function CentralAtendimento() {
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "chat" | "leads")} className="h-full relative">
               {/* TabsList removed - buttons are now in the header */}
 
-              <TabsContent value="chat" className="absolute inset-0 mt-0 overflow-hidden">
+              <TabsContent value="chat" className="absolute inset-0 mt-0 overflow-hidden data-[state=inactive]:hidden">
                 <div className="h-full">
                   {!isLoadingUnitPerms && (
                     <WhatsAppChat 
@@ -1117,7 +1117,7 @@ export default function CentralAtendimento() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="leads" className="absolute inset-0 mt-0 overflow-hidden flex flex-col">
+              <TabsContent value="leads" className="absolute inset-0 mt-0 overflow-hidden flex flex-col data-[state=inactive]:hidden">
                 {/* Collapsible toolbar for Metrics and Filters */}
                 <div className="shrink-0 flex items-center gap-2 mb-3 flex-wrap">
                   {/* Metrics toggle button */}
