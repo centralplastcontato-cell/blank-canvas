@@ -7,10 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import { Bot, Clock, Forward, Zap, Plus, Trash2, Phone, Shield, Beaker, Power, Loader2, MessageSquare, Save, RotateCcw, Images, Video, FileText, Send, RefreshCw, GitBranch } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Bot, Clock, Forward, Zap, Plus, Trash2, Phone, Shield, Beaker, Power, Loader2, MessageSquare, Save, RotateCcw, Images, Video, FileText, Send, RefreshCw, GitBranch, Map } from "lucide-react";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { BotJourneyDiagram } from "./BotJourneyDiagram";
 import {
   Dialog,
   DialogContent,
@@ -52,12 +54,10 @@ interface BotSettings {
   transfer_message: string | null;
   work_here_response: string | null;
   qualified_lead_message: string | null;
-  // Next step question settings
   next_step_question: string | null;
   next_step_visit_response: string | null;
   next_step_questions_response: string | null;
   next_step_analyze_response: string | null;
-  // Auto-send materials settings
   auto_send_materials: boolean;
   auto_send_photos: boolean;
   auto_send_presentation_video: boolean;
@@ -65,25 +65,19 @@ interface BotSettings {
   auto_send_pdf: boolean;
   auto_send_photos_intro: string | null;
   auto_send_pdf_intro: string | null;
-  // Message delay settings
   message_delay_seconds: number;
-  // Follow-up settings
   follow_up_enabled: boolean;
   follow_up_delay_hours: number;
   follow_up_message: string | null;
-  // Second follow-up settings
   follow_up_2_enabled: boolean;
   follow_up_2_delay_hours: number;
   follow_up_2_message: string | null;
-  // Next step reminder settings
   next_step_reminder_enabled: boolean;
   next_step_reminder_delay_minutes: number;
   next_step_reminder_message: string | null;
-  // Bot inactive follow-up
   bot_inactive_followup_enabled: boolean;
   bot_inactive_followup_delay_minutes: number;
   bot_inactive_followup_message: string | null;
-  // Flow Builder
   use_flow_builder: boolean;
 }
 
@@ -123,7 +117,6 @@ export function AutomationsSection() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingQuestions, setIsSavingQuestions] = useState(false);
   
-  // New VIP number form state
   const [showAddVipDialog, setShowAddVipDialog] = useState(false);
   const [newVipPhone, setNewVipPhone] = useState("");
   const [newVipName, setNewVipName] = useState("");
@@ -177,7 +170,6 @@ export function AutomationsSection() {
     if (data) {
       setBotSettings(data);
     } else {
-      // Create default settings for this instance
       const { data: newSettings, error: createError } = await supabase
         .from("wapi_bot_settings")
         .insert({
@@ -305,13 +297,11 @@ export function AutomationsSection() {
     setIsSavingQuestions(true);
 
     try {
-      // Delete existing questions
       await supabase
         .from("wapi_bot_questions")
         .delete()
         .eq("instance_id", selectedInstance.id);
 
-      // Insert default questions
       const newQuestions = DEFAULT_QUESTIONS.map(q => ({
         ...q,
         instance_id: selectedInstance.id,
@@ -347,7 +337,6 @@ export function AutomationsSection() {
 
     setIsAddingVip(true);
 
-    // Normalize phone number
     const normalizedPhone = newVipPhone.replace(/\D/g, "");
 
     const { error } = await supabase
@@ -444,7 +433,7 @@ export function AutomationsSection() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Instance Selector */}
       {instances.length > 1 && (
         <div className="flex items-center gap-3">
@@ -470,1054 +459,1093 @@ export function AutomationsSection() {
         </div>
       )}
 
-      {/* Bot Status Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bot className="w-5 h-5" />
-            Bot de Qualificação
-          </CardTitle>
-          <CardDescription>
-            Qualifica leads automaticamente perguntando nome, mês, dia e número de convidados
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Global Toggle */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg">
-            <div className="flex items-start sm:items-center gap-3 min-w-0">
-              <div className={`p-2 rounded-full shrink-0 ${botSettings?.bot_enabled ? "bg-green-100 text-green-600" : "bg-muted text-muted-foreground"}`}>
-                <Power className="w-4 h-4 sm:w-5 sm:h-5" />
-              </div>
-              <div className="min-w-0">
-                <h4 className="font-medium text-sm sm:text-base">Bot Global</h4>
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  Ativa o bot para todos os novos contatos nesta unidade
-                </p>
-              </div>
-            </div>
-            <Switch
-              checked={botSettings?.bot_enabled || false}
-              onCheckedChange={(checked) => updateBotSettings({ bot_enabled: checked })}
-              disabled={isSaving}
-              className="shrink-0 self-end sm:self-auto"
-            />
-          </div>
+      {/* Tabs */}
+      <Tabs defaultValue="geral" className="w-full">
+        <TabsList className="w-full flex overflow-x-auto h-auto flex-wrap gap-1 bg-muted/50 p-1">
+          <TabsTrigger value="geral" className="flex items-center gap-1.5 text-xs sm:text-sm">
+            <Power className="w-3.5 h-3.5" />
+            <span>Geral</span>
+          </TabsTrigger>
+          <TabsTrigger value="perguntas" className="flex items-center gap-1.5 text-xs sm:text-sm">
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>Perguntas</span>
+          </TabsTrigger>
+          <TabsTrigger value="followups" className="flex items-center gap-1.5 text-xs sm:text-sm">
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Follow-ups</span>
+          </TabsTrigger>
+          <TabsTrigger value="vip" className="flex items-center gap-1.5 text-xs sm:text-sm">
+            <Shield className="w-3.5 h-3.5" />
+            <span>VIP</span>
+          </TabsTrigger>
+          <TabsTrigger value="jornada" className="flex items-center gap-1.5 text-xs sm:text-sm">
+            <Map className="w-3.5 h-3.5" />
+            <span>Jornada</span>
+          </TabsTrigger>
+        </TabsList>
 
-          {/* Test Mode Toggle */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg border-dashed border-yellow-500/50 bg-yellow-50/50 dark:bg-yellow-950/10">
-            <div className="flex items-start sm:items-center gap-3 min-w-0">
-              <div className={`p-2 rounded-full shrink-0 ${botSettings?.test_mode_enabled ? "bg-yellow-100 text-yellow-600" : "bg-muted text-muted-foreground"}`}>
-                <Beaker className="w-4 h-4 sm:w-5 sm:h-5" />
-              </div>
-              <div className="min-w-0">
-                <h4 className="font-medium text-sm sm:text-base flex flex-wrap items-center gap-2">
-                  Modo de Teste
-                  <Badge variant="outline" className="text-yellow-600 border-yellow-500 text-xs">Beta</Badge>
-                </h4>
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  Ativa o bot apenas para o número de teste (ignora toggle global)
-                </p>
-              </div>
-            </div>
-            <Switch
-              checked={botSettings?.test_mode_enabled || false}
-              onCheckedChange={(checked) => updateBotSettings({ test_mode_enabled: checked })}
-              disabled={isSaving}
-              className="shrink-0 self-end sm:self-auto"
-            />
-          </div>
-
-          {/* Test Number Input */}
-          {botSettings?.test_mode_enabled && (
-            <div className="ml-2 sm:ml-4 p-3 sm:p-4 border-l-2 border-yellow-500 bg-yellow-50/30 dark:bg-yellow-950/5 rounded-r-lg">
-              <Label htmlFor="test-number" className="text-sm font-medium">Número de Teste</Label>
-              <p className="text-xs text-muted-foreground mb-2">
-                O bot será ativado apenas para este número, independente do toggle global
-              </p>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Input
-                  id="test-number"
-                  placeholder="+55 15 98112-1710"
-                  value={botSettings?.test_mode_number || ""}
-                  onChange={(e) => setBotSettings({ ...botSettings, test_mode_number: e.target.value })}
-                  className="flex-1 sm:max-w-[200px] text-base"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => updateBotSettings({ test_mode_number: botSettings?.test_mode_number })}
-                  disabled={isSaving}
-                  className="w-full sm:w-auto"
-                >
-                  {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Salvar"}
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Status Summary */}
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-muted-foreground">Status atual:</span>
-            {botSettings?.bot_enabled ? (
-              <Badge variant="default" className="bg-green-500">Bot Ativo para Todos</Badge>
-            ) : botSettings?.test_mode_enabled ? (
-              <Badge variant="outline" className="text-yellow-600 border-yellow-500">Apenas Modo Teste</Badge>
-            ) : (
-              <Badge variant="secondary">Bot Desativado</Badge>
-            )}
-          </div>
-
-          {/* Flow Builder Toggle - Only visible when module is enabled by Hub */}
-          {modules.flow_builder && (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg border-dashed border-primary/50 bg-primary/5">
-              <div className="flex items-start sm:items-center gap-3 min-w-0">
-                <div className={`p-2 rounded-full shrink-0 ${botSettings?.use_flow_builder ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}>
-                  <GitBranch className="w-4 h-4 sm:w-5 sm:h-5" />
-                </div>
-                <div className="min-w-0">
-                  <h4 className="font-medium text-sm sm:text-base">Flow Builder</h4>
-                  <p className="text-xs sm:text-sm text-muted-foreground">
-                    Substituir bot fixo pelo fluxo visual personalizado
-                  </p>
-                  {botSettings?.use_flow_builder && (
-                    <p className="text-xs text-primary mt-1">
-                      ⚡ O fluxo padrão ativo será usado no lugar do bot de qualificação fixo
-                    </p>
-                  )}
-                </div>
-              </div>
-              <Switch
-                checked={botSettings?.use_flow_builder || false}
-                onCheckedChange={(checked) => updateBotSettings({ use_flow_builder: checked })}
-                disabled={isSaving}
-                className="shrink-0 self-end sm:self-auto"
-              />
-            </div>
-          )}
-
-          {/* Message Delay Setting */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg">
-            <div className="flex items-start sm:items-center gap-3 min-w-0">
-              <div className="p-2 rounded-full shrink-0 bg-muted text-muted-foreground">
-                <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
-              </div>
-              <div className="min-w-0">
-                <h4 className="font-medium text-sm sm:text-base">Delay entre Mensagens</h4>
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  Tempo de espera entre cada mensagem enviada pelo bot
-                </p>
-              </div>
-            </div>
-            <Select
-              value={String(botSettings?.message_delay_seconds || 5)}
-              onValueChange={(value) => updateBotSettings({ message_delay_seconds: parseInt(value) })}
-              disabled={isSaving}
-            >
-              <SelectTrigger className="w-[120px] shrink-0">
-                <SelectValue placeholder="5 segundos" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="3">3 segundos</SelectItem>
-                <SelectItem value="5">5 segundos</SelectItem>
-                <SelectItem value="10">10 segundos</SelectItem>
-                <SelectItem value="15">15 segundos</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Bot Questions Editor */}
-      <Card>
-        <CardHeader className="space-y-3">
-          <div className="flex flex-col gap-3">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
-                Perguntas do Bot
+        {/* ============ TAB: GERAL ============ */}
+        <TabsContent value="geral" className="space-y-6 mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bot className="w-5 h-5" />
+                Bot de Qualificação
               </CardTitle>
-              <CardDescription className="text-xs sm:text-sm mt-1">
-                Personalize as perguntas que o bot faz para qualificar os leads
+              <CardDescription>
+                Qualifica leads automaticamente perguntando nome, mês, dia e número de convidados
               </CardDescription>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={resetQuestions}
-                disabled={isSavingQuestions}
-                className="flex-1 sm:flex-none text-xs sm:text-sm"
-              >
-                <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                <span className="hidden xs:inline">Restaurar</span>
-                <span className="xs:hidden">Reset</span>
-              </Button>
-              <Button
-                size="sm"
-                onClick={saveQuestions}
-                disabled={isSavingQuestions || botQuestions.length === 0}
-                className="flex-1 sm:flex-none text-xs sm:text-sm"
-              >
-                {isSavingQuestions ? (
-                  <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin mr-1 sm:mr-2" />
-                ) : (
-                  <Save className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                )}
-                Salvar
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {botQuestions.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <MessageSquare className="w-10 h-10 mx-auto mb-3 opacity-50" />
-              <p className="text-sm">Nenhuma pergunta configurada</p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-4"
-                onClick={resetQuestions}
-                disabled={isSavingQuestions}
-              >
-                Criar Perguntas Padrão
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {/* Welcome Message */}
-              <div className="p-4 border rounded-lg bg-muted/30">
-                <Label className="text-sm font-medium flex items-center gap-2 mb-2">
-                  <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs">0</span>
-                  Mensagem de Boas-vindas
-                </Label>
-                <Textarea
-                  value={botSettings?.welcome_message || ""}
-                  onChange={(e) => setBotSettings(prev => prev ? { ...prev, welcome_message: e.target.value } : null)}
-                  onBlur={() => botSettings && updateBotSettings({ welcome_message: botSettings.welcome_message })}
-                  className="min-h-[80px] text-base"
-                  placeholder="Olá! 👋 Bem-vindo ao Castelo da Diversão!"
-                />
-              </div>
-
-              {/* Questions */}
-              <Accordion type="multiple" className="w-full">
-                {botQuestions.map((question, index) => (
-                  <AccordionItem key={question.id} value={question.id}>
-                    <AccordionTrigger className="hover:no-underline">
-                      <div className="flex items-center gap-3">
-                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${question.is_active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-                          {index + 1}
-                        </span>
-                        <span className={question.is_active ? '' : 'text-muted-foreground line-through'}>
-                          {getStepLabel(question.step)}
-                        </span>
-                        {!question.is_active && (
-                          <Badge variant="secondary" className="text-xs">Desativada</Badge>
-                        )}
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="space-y-4 pt-4">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-sm">Pergunta ativa</Label>
-                        <Switch
-                          checked={question.is_active}
-                          onCheckedChange={(checked) => updateQuestion(index, 'is_active', checked)}
-                        />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label className="text-sm">Pergunta</Label>
-                        <Textarea
-                          value={question.question_text}
-                          onChange={(e) => updateQuestion(index, 'question_text', e.target.value)}
-                          className="min-h-[100px] text-base"
-                          placeholder="Digite a pergunta..."
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-sm">
-                          Confirmação <span className="text-muted-foreground">(opcional)</span>
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Mensagem exibida após a resposta. Use {`{${question.step}}`} para incluir a resposta.
-                        </p>
-                        <Input
-                          value={question.confirmation_text || ""}
-                          onChange={(e) => updateQuestion(index, 'confirmation_text', e.target.value || null)}
-                          placeholder={`Ex: Muito prazer, {${question.step}}! 👑`}
-                          className="text-base"
-                        />
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-
-              {/* Transfer Message (for existing clients) */}
-              <div className="p-4 border rounded-lg bg-cyan-50/50 dark:bg-cyan-950/10 border-cyan-500/30">
-                <Label className="text-sm font-medium flex items-center gap-2 mb-2">
-                  <span className="w-6 h-6 rounded-full bg-cyan-500 text-white flex items-center justify-center text-xs">
-                    <Forward className="w-3 h-3" />
-                  </span>
-                  Mensagem de Transferência (Clientes)
-                </Label>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Mensagem enviada quando o lead diz que já é cliente. O bot para e transfere para a equipe. Use {`{nome}`} para incluir o nome.
-                </p>
-                <Textarea
-                  value={botSettings?.transfer_message || "Entendido, {nome}! 🏰\n\nVou transferir sua conversa para nossa equipe comercial que vai te ajudar com sua festa.\n\nAguarde um momento, por favor! 👑"}
-                  onChange={(e) => setBotSettings(prev => prev ? { ...prev, transfer_message: e.target.value } : null)}
-                  onBlur={() => botSettings && updateBotSettings({ transfer_message: botSettings.transfer_message })}
-                  className="min-h-[100px] text-base"
-                  placeholder="Entendido, {nome}! Vou transferir..."
-                />
-              </div>
-
-              {/* Work Here Response */}
-              <div className="p-4 border rounded-lg bg-teal-50/50 dark:bg-teal-950/10 border-teal-500/30">
-                <Label className="text-sm font-medium flex items-center gap-2 mb-2">
-                  <span className="w-6 h-6 rounded-full bg-teal-500 text-white flex items-center justify-center text-xs">
-                    👷
-                  </span>
-                  Mensagem de RH (Trabalhe no Castelo)
-                </Label>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Mensagem enviada quando o lead escolhe a opção "Trabalhe no Castelo". O bot para e o lead é enviado para a aba RH do CRM. Use {`{nome}`} para incluir o nome.
-                </p>
-                <Textarea
-                  value={botSettings?.work_here_response || "Que legal que você quer fazer parte do nosso time! 🏰✨\n\nEnvie seu currículo aqui nesta conversa e nossa equipe de RH vai analisar!\n\nObrigado pelo interesse! 👑"}
-                  onChange={(e) => setBotSettings(prev => prev ? { ...prev, work_here_response: e.target.value } : null)}
-                  onBlur={() => botSettings && updateBotSettings({ work_here_response: botSettings.work_here_response })}
-                  className="min-h-[100px] text-base"
-                  placeholder="Que legal que você quer fazer parte do nosso time! 🏰✨..."
-                />
-              </div>
-
-              {/* Completion Message */}
-              <div className="p-4 border rounded-lg bg-green-50/50 dark:bg-green-950/10 border-green-500/30">
-                <Label className="text-sm font-medium flex items-center gap-2 mb-2">
-                  <span className="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center text-xs">✓</span>
-                  Mensagem de Conclusão (Orçamento)
-                </Label>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Mensagem enviada ao finalizar a qualificação de quem quer orçamento. Use {`{nome}`}, {`{mes}`}, {`{dia}`} e {`{convidados}`} para incluir as respostas.
-                </p>
-                <Textarea
-                  value={botSettings?.completion_message || "Perfeito, {nome}! 🏰✨\n\nAnotei tudo aqui:\n\n📅 Mês: {mes}\n🗓️ Dia: {dia}\n👥 Convidados: {convidados}\n\nNossa equipe vai entrar em contato em breve! 👑🎉"}
-                  onChange={(e) => setBotSettings(prev => prev ? { ...prev, completion_message: e.target.value } : null)}
-                  onBlur={() => botSettings && updateBotSettings({ completion_message: botSettings.completion_message })}
-                  className="min-h-[120px] text-base"
-                  placeholder="Perfeito, {nome}! 🏰✨..."
-                />
-              </div>
-
-              {/* Next Step Question */}
-              <div className="p-4 border rounded-lg bg-amber-50/50 dark:bg-amber-950/10 border-amber-500/30">
-                <Label className="text-sm font-medium flex items-center gap-2 mb-2">
-                  <span className="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs">❓</span>
-                  Pergunta do Próximo Passo
-                </Label>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Após a mensagem de conclusão, o bot pergunta como o lead quer continuar. Formato de menu numerado.
-                </p>
-                <Textarea
-                  value={botSettings?.next_step_question || "E agora, como você gostaria de continuar? 🤔\n\nResponda com o *número*:\n\n*1* - Agendar visita\n*2* - Tirar dúvidas\n*3* - Analisar com calma"}
-                  onChange={(e) => setBotSettings(prev => prev ? { ...prev, next_step_question: e.target.value } : null)}
-                  onBlur={() => botSettings && updateBotSettings({ next_step_question: botSettings.next_step_question })}
-                  className="min-h-[120px] text-base"
-                  placeholder="E agora, como você gostaria de continuar? 🤔..."
-                />
-                
-                {/* Response for each option */}
-                <div className="mt-4 space-y-3 pl-3 border-l-2 border-amber-500/30">
-                  <div>
-                    <Label className="text-xs font-medium text-amber-700 dark:text-amber-400">Resposta: Agendar Visita (1)</Label>
-                    <Textarea
-                      value={botSettings?.next_step_visit_response || "Ótima escolha! 🏰✨\n\nNossa equipe vai entrar em contato para agendar sua visita ao Castelo da Diversão!\n\nAguarde um momento que já vamos te chamar! 👑"}
-                      onChange={(e) => setBotSettings(prev => prev ? { ...prev, next_step_visit_response: e.target.value } : null)}
-                      onBlur={() => botSettings && updateBotSettings({ next_step_visit_response: botSettings.next_step_visit_response })}
-                      className="min-h-[80px] text-sm mt-1"
-                    />
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Global Toggle */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg">
+                <div className="flex items-start sm:items-center gap-3 min-w-0">
+                  <div className={`p-2 rounded-full shrink-0 ${botSettings?.bot_enabled ? "bg-green-100 text-green-600" : "bg-muted text-muted-foreground"}`}>
+                    <Power className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
-                  <div>
-                    <Label className="text-xs font-medium text-amber-700 dark:text-amber-400">Resposta: Tirar Dúvidas (2)</Label>
-                    <Textarea
-                      value={botSettings?.next_step_questions_response || "Claro! 💬\n\nPode mandar sua dúvida aqui que nossa equipe vai te responder rapidinho!\n\nEstamos à disposição! 👑"}
-                      onChange={(e) => setBotSettings(prev => prev ? { ...prev, next_step_questions_response: e.target.value } : null)}
-                      onBlur={() => botSettings && updateBotSettings({ next_step_questions_response: botSettings.next_step_questions_response })}
-                      className="min-h-[80px] text-sm mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs font-medium text-amber-700 dark:text-amber-400">Resposta: Analisar com Calma (3)</Label>
-                    <Textarea
-                      value={botSettings?.next_step_analyze_response || "Sem problemas! 📋\n\nVou enviar nossos materiais para você analisar com calma. Quando estiver pronto, é só chamar aqui!\n\nEstamos à disposição! 👑✨"}
-                      onChange={(e) => setBotSettings(prev => prev ? { ...prev, next_step_analyze_response: e.target.value } : null)}
-                      onBlur={() => botSettings && updateBotSettings({ next_step_analyze_response: botSettings.next_step_analyze_response })}
-                      className="min-h-[80px] text-sm mt-1"
-                    />
+                  <div className="min-w-0">
+                    <h4 className="font-medium text-sm sm:text-base">Bot Global</h4>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      Ativa o bot para todos os novos contatos nesta unidade
+                    </p>
                   </div>
                 </div>
-              </div>
-
-              {/* Qualified Lead Welcome Message (from LP) */}
-              <div className="p-4 border rounded-lg bg-purple-50/50 dark:bg-purple-950/10 border-purple-500/30">
-                <Label className="text-sm font-medium flex items-center gap-2 mb-2">
-                  <span className="w-6 h-6 rounded-full bg-purple-500 text-white flex items-center justify-center text-xs">🌐</span>
-                  Boas-vindas para Leads do Site
-                </Label>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Mensagem automática enviada quando um lead que veio pela Landing Page (já qualificado) envia a primeira mensagem. Use {`{nome}`}, {`{mes}`}, {`{dia}`} e {`{convidados}`}.
-                </p>
-                <Textarea
-                  value={botSettings?.qualified_lead_message || "Olá, {nome}! 👋\n\nRecebemos seu interesse pelo site e já temos seus dados aqui:\n\n📅 Mês: {mes}\n🗓️ Dia: {dia}\n👥 Convidados: {convidados}\n\nNossa equipe vai te responder em breve! 🏰✨"}
-                  onChange={(e) => setBotSettings(prev => prev ? { ...prev, qualified_lead_message: e.target.value } : null)}
-                  onBlur={() => botSettings && updateBotSettings({ qualified_lead_message: botSettings.qualified_lead_message })}
-                  className="min-h-[120px] text-base"
-                  placeholder="Olá, {nome}! 👋 Recebemos seu interesse..."
+                <Switch
+                  checked={botSettings?.bot_enabled || false}
+                  onCheckedChange={(checked) => updateBotSettings({ bot_enabled: checked })}
+                  disabled={isSaving}
+                  className="shrink-0 self-end sm:self-auto"
                 />
               </div>
 
-              {/* Auto-Send Materials Section */}
-              <div className="p-4 border rounded-lg bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-950/10 dark:to-purple-950/10 border-blue-500/30">
-                <Label className="text-sm font-medium flex items-center gap-2 mb-3">
-                  <span className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 text-white flex items-center justify-center text-xs">
-                    <Send className="w-3 h-3" />
-                  </span>
-                  Envio Automático de Materiais
-                </Label>
-                <p className="text-xs text-muted-foreground mb-4">
-                  Após a qualificação, o bot pode enviar automaticamente fotos, vídeos e o PDF do pacote
-                </p>
+              {/* Test Mode Toggle */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg border-dashed border-yellow-500/50 bg-yellow-50/50 dark:bg-yellow-950/10">
+                <div className="flex items-start sm:items-center gap-3 min-w-0">
+                  <div className={`p-2 rounded-full shrink-0 ${botSettings?.test_mode_enabled ? "bg-yellow-100 text-yellow-600" : "bg-muted text-muted-foreground"}`}>
+                    <Beaker className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="font-medium text-sm sm:text-base flex flex-wrap items-center gap-2">
+                      Modo de Teste
+                      <Badge variant="outline" className="text-yellow-600 border-yellow-500 text-xs">Beta</Badge>
+                    </h4>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      Ativa o bot apenas para o número de teste (ignora toggle global)
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={botSettings?.test_mode_enabled || false}
+                  onCheckedChange={(checked) => updateBotSettings({ test_mode_enabled: checked })}
+                  disabled={isSaving}
+                  className="shrink-0 self-end sm:self-auto"
+                />
+              </div>
 
-                {/* Master Toggle */}
-                <div className="flex items-center justify-between p-3 border rounded-lg bg-background/50 mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-full ${botSettings?.auto_send_materials ? "bg-green-100 text-green-600 dark:bg-green-950/50" : "bg-muted text-muted-foreground"}`}>
-                      <Send className="w-4 h-4" />
+              {/* Test Number Input */}
+              {botSettings?.test_mode_enabled && (
+                <div className="ml-2 sm:ml-4 p-3 sm:p-4 border-l-2 border-yellow-500 bg-yellow-50/30 dark:bg-yellow-950/5 rounded-r-lg">
+                  <Label htmlFor="test-number" className="text-sm font-medium">Número de Teste</Label>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    O bot será ativado apenas para este número, independente do toggle global
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Input
+                      id="test-number"
+                      placeholder="+55 15 98112-1710"
+                      value={botSettings?.test_mode_number || ""}
+                      onChange={(e) => setBotSettings({ ...botSettings, test_mode_number: e.target.value })}
+                      className="flex-1 sm:max-w-[200px] text-base"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => updateBotSettings({ test_mode_number: botSettings?.test_mode_number })}
+                      disabled={isSaving}
+                      className="w-full sm:w-auto"
+                    >
+                      {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Salvar"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Status Summary */}
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground">Status atual:</span>
+                {botSettings?.bot_enabled ? (
+                  <Badge variant="default" className="bg-green-500">Bot Ativo para Todos</Badge>
+                ) : botSettings?.test_mode_enabled ? (
+                  <Badge variant="outline" className="text-yellow-600 border-yellow-500">Apenas Modo Teste</Badge>
+                ) : (
+                  <Badge variant="secondary">Bot Desativado</Badge>
+                )}
+              </div>
+
+              {/* Flow Builder Toggle */}
+              {modules.flow_builder && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg border-dashed border-primary/50 bg-primary/5">
+                  <div className="flex items-start sm:items-center gap-3 min-w-0">
+                    <div className={`p-2 rounded-full shrink-0 ${botSettings?.use_flow_builder ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}>
+                      <GitBranch className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
-                    <div>
-                      <p className="font-medium text-sm">Enviar Materiais Automaticamente</p>
-                      <p className="text-xs text-muted-foreground">Ativa o envio de materiais após qualificação</p>
+                    <div className="min-w-0">
+                      <h4 className="font-medium text-sm sm:text-base">Flow Builder</h4>
+                      <p className="text-xs sm:text-sm text-muted-foreground">
+                        Substituir bot fixo pelo fluxo visual personalizado
+                      </p>
+                      {botSettings?.use_flow_builder && (
+                        <p className="text-xs text-primary mt-1">
+                          ⚡ O fluxo padrão ativo será usado no lugar do bot de qualificação fixo
+                        </p>
+                      )}
                     </div>
                   </div>
                   <Switch
-                    checked={botSettings?.auto_send_materials ?? true}
-                    onCheckedChange={(checked) => updateBotSettings({ auto_send_materials: checked } as Partial<BotSettings>)}
+                    checked={botSettings?.use_flow_builder || false}
+                    onCheckedChange={(checked) => updateBotSettings({ use_flow_builder: checked })}
                     disabled={isSaving}
+                    className="shrink-0 self-end sm:self-auto"
+                  />
+                </div>
+              )}
+
+              {/* Message Delay Setting */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg">
+                <div className="flex items-start sm:items-center gap-3 min-w-0">
+                  <div className="p-2 rounded-full shrink-0 bg-muted text-muted-foreground">
+                    <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="font-medium text-sm sm:text-base">Delay entre Mensagens</h4>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      Tempo de espera entre cada mensagem enviada pelo bot
+                    </p>
+                  </div>
+                </div>
+                <Select
+                  value={String(botSettings?.message_delay_seconds || 5)}
+                  onValueChange={(value) => updateBotSettings({ message_delay_seconds: parseInt(value) })}
+                  disabled={isSaving}
+                >
+                  <SelectTrigger className="w-[120px] shrink-0">
+                    <SelectValue placeholder="5 segundos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="3">3 segundos</SelectItem>
+                    <SelectItem value="5">5 segundos</SelectItem>
+                    <SelectItem value="10">10 segundos</SelectItem>
+                    <SelectItem value="15">15 segundos</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Coming Soon Features */}
+          <div className="space-y-4 opacity-60">
+            <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              Em Desenvolvimento
+            </h3>
+            
+            <Card className="opacity-75">
+              <CardHeader className="py-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    Respostas Fora do Horário
+                  </CardTitle>
+                  <Badge variant="secondary">Em breve</Badge>
+                </div>
+                <CardDescription className="text-xs">
+                  Envie mensagens automáticas fora do expediente
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="opacity-75">
+              <CardHeader className="py-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Forward className="w-4 h-4" />
+                    Encaminhamento Automático
+                  </CardTitle>
+                  <Badge variant="secondary">Em breve</Badge>
+                </div>
+                <CardDescription className="text-xs">
+                  Direcione conversas automaticamente para o responsável correto
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* ============ TAB: PERGUNTAS ============ */}
+        <TabsContent value="perguntas" className="space-y-6 mt-4">
+          <Card>
+            <CardHeader className="space-y-3">
+              <div className="flex flex-col gap-3">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                    <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                    Perguntas do Bot
+                  </CardTitle>
+                  <CardDescription className="text-xs sm:text-sm mt-1">
+                    Personalize as perguntas que o bot faz para qualificar os leads
+                  </CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={resetQuestions}
+                    disabled={isSavingQuestions}
+                    className="flex-1 sm:flex-none text-xs sm:text-sm"
+                  >
+                    <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                    <span className="hidden xs:inline">Restaurar</span>
+                    <span className="xs:hidden">Reset</span>
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={saveQuestions}
+                    disabled={isSavingQuestions || botQuestions.length === 0}
+                    className="flex-1 sm:flex-none text-xs sm:text-sm"
+                  >
+                    {isSavingQuestions ? (
+                      <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin mr-1 sm:mr-2" />
+                    ) : (
+                      <Save className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                    )}
+                    Salvar
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {botQuestions.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <MessageSquare className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm">Nenhuma pergunta configurada</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-4"
+                    onClick={resetQuestions}
+                    disabled={isSavingQuestions}
+                  >
+                    Criar Perguntas Padrão
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Welcome Message */}
+                  <div className="p-4 border rounded-lg bg-muted/30">
+                    <Label className="text-sm font-medium flex items-center gap-2 mb-2">
+                      <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs">0</span>
+                      Mensagem de Boas-vindas
+                    </Label>
+                    <Textarea
+                      value={botSettings?.welcome_message || ""}
+                      onChange={(e) => setBotSettings(prev => prev ? { ...prev, welcome_message: e.target.value } : null)}
+                      onBlur={() => botSettings && updateBotSettings({ welcome_message: botSettings.welcome_message })}
+                      className="min-h-[80px] text-base"
+                      placeholder="Olá! 👋 Bem-vindo ao Castelo da Diversão!"
+                    />
+                  </div>
+
+                  {/* Questions */}
+                  <Accordion type="multiple" className="w-full">
+                    {botQuestions.map((question, index) => (
+                      <AccordionItem key={question.id} value={question.id}>
+                        <AccordionTrigger className="hover:no-underline">
+                          <div className="flex items-center gap-3">
+                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${question.is_active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                              {index + 1}
+                            </span>
+                            <span className={question.is_active ? '' : 'text-muted-foreground line-through'}>
+                              {getStepLabel(question.step)}
+                            </span>
+                            {!question.is_active && (
+                              <Badge variant="secondary" className="text-xs">Desativada</Badge>
+                            )}
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="space-y-4 pt-4">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-sm">Pergunta ativa</Label>
+                            <Switch
+                              checked={question.is_active}
+                              onCheckedChange={(checked) => updateQuestion(index, 'is_active', checked)}
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label className="text-sm">Pergunta</Label>
+                            <Textarea
+                              value={question.question_text}
+                              onChange={(e) => updateQuestion(index, 'question_text', e.target.value)}
+                              className="min-h-[100px] text-base"
+                              placeholder="Digite a pergunta..."
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-sm">
+                              Confirmação <span className="text-muted-foreground">(opcional)</span>
+                            </Label>
+                            <p className="text-xs text-muted-foreground">
+                              Mensagem exibida após a resposta. Use {`{${question.step}}`} para incluir a resposta.
+                            </p>
+                            <Input
+                              value={question.confirmation_text || ""}
+                              onChange={(e) => updateQuestion(index, 'confirmation_text', e.target.value || null)}
+                              placeholder={`Ex: Muito prazer, {${question.step}}! 👑`}
+                              className="text-base"
+                            />
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
+
+                  {/* Transfer Message (for existing clients) */}
+                  <div className="p-4 border rounded-lg bg-cyan-50/50 dark:bg-cyan-950/10 border-cyan-500/30">
+                    <Label className="text-sm font-medium flex items-center gap-2 mb-2">
+                      <span className="w-6 h-6 rounded-full bg-cyan-500 text-white flex items-center justify-center text-xs">
+                        <Forward className="w-3 h-3" />
+                      </span>
+                      Mensagem de Transferência (Clientes)
+                    </Label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Mensagem enviada quando o lead diz que já é cliente. O bot para e transfere para a equipe. Use {`{nome}`} para incluir o nome.
+                    </p>
+                    <Textarea
+                      value={botSettings?.transfer_message || "Entendido, {nome}! 🏰\n\nVou transferir sua conversa para nossa equipe comercial que vai te ajudar com sua festa.\n\nAguarde um momento, por favor! 👑"}
+                      onChange={(e) => setBotSettings(prev => prev ? { ...prev, transfer_message: e.target.value } : null)}
+                      onBlur={() => botSettings && updateBotSettings({ transfer_message: botSettings.transfer_message })}
+                      className="min-h-[100px] text-base"
+                      placeholder="Entendido, {nome}! Vou transferir..."
+                    />
+                  </div>
+
+                  {/* Work Here Response */}
+                  <div className="p-4 border rounded-lg bg-teal-50/50 dark:bg-teal-950/10 border-teal-500/30">
+                    <Label className="text-sm font-medium flex items-center gap-2 mb-2">
+                      <span className="w-6 h-6 rounded-full bg-teal-500 text-white flex items-center justify-center text-xs">
+                        👷
+                      </span>
+                      Mensagem de RH (Trabalhe no Castelo)
+                    </Label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Mensagem enviada quando o lead escolhe a opção "Trabalhe no Castelo". O bot para e o lead é enviado para a aba RH do CRM. Use {`{nome}`} para incluir o nome.
+                    </p>
+                    <Textarea
+                      value={botSettings?.work_here_response || "Que legal que você quer fazer parte do nosso time! 🏰✨\n\nEnvie seu currículo aqui nesta conversa e nossa equipe de RH vai analisar!\n\nObrigado pelo interesse! 👑"}
+                      onChange={(e) => setBotSettings(prev => prev ? { ...prev, work_here_response: e.target.value } : null)}
+                      onBlur={() => botSettings && updateBotSettings({ work_here_response: botSettings.work_here_response })}
+                      className="min-h-[100px] text-base"
+                      placeholder="Que legal que você quer fazer parte do nosso time! 🏰✨..."
+                    />
+                  </div>
+
+                  {/* Completion Message */}
+                  <div className="p-4 border rounded-lg bg-green-50/50 dark:bg-green-950/10 border-green-500/30">
+                    <Label className="text-sm font-medium flex items-center gap-2 mb-2">
+                      <span className="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center text-xs">✓</span>
+                      Mensagem de Conclusão (Orçamento)
+                    </Label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Mensagem enviada ao finalizar a qualificação de quem quer orçamento. Use {`{nome}`}, {`{mes}`}, {`{dia}`} e {`{convidados}`} para incluir as respostas.
+                    </p>
+                    <Textarea
+                      value={botSettings?.completion_message || "Perfeito, {nome}! 🏰✨\n\nAnotei tudo aqui:\n\n📅 Mês: {mes}\n🗓️ Dia: {dia}\n👥 Convidados: {convidados}\n\nNossa equipe vai entrar em contato em breve! 👑🎉"}
+                      onChange={(e) => setBotSettings(prev => prev ? { ...prev, completion_message: e.target.value } : null)}
+                      onBlur={() => botSettings && updateBotSettings({ completion_message: botSettings.completion_message })}
+                      className="min-h-[120px] text-base"
+                      placeholder="Perfeito, {nome}! 🏰✨..."
+                    />
+                  </div>
+
+                  {/* Next Step Question */}
+                  <div className="p-4 border rounded-lg bg-amber-50/50 dark:bg-amber-950/10 border-amber-500/30">
+                    <Label className="text-sm font-medium flex items-center gap-2 mb-2">
+                      <span className="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs">❓</span>
+                      Pergunta do Próximo Passo
+                    </Label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Após a mensagem de conclusão, o bot pergunta como o lead quer continuar. Formato de menu numerado.
+                    </p>
+                    <Textarea
+                      value={botSettings?.next_step_question || "E agora, como você gostaria de continuar? 🤔\n\nResponda com o *número*:\n\n*1* - Agendar visita\n*2* - Tirar dúvidas\n*3* - Analisar com calma"}
+                      onChange={(e) => setBotSettings(prev => prev ? { ...prev, next_step_question: e.target.value } : null)}
+                      onBlur={() => botSettings && updateBotSettings({ next_step_question: botSettings.next_step_question })}
+                      className="min-h-[120px] text-base"
+                      placeholder="E agora, como você gostaria de continuar? 🤔..."
+                    />
+                    
+                    {/* Response for each option */}
+                    <div className="mt-4 space-y-3 pl-3 border-l-2 border-amber-500/30">
+                      <div>
+                        <Label className="text-xs font-medium text-amber-700 dark:text-amber-400">Resposta: Agendar Visita (1)</Label>
+                        <Textarea
+                          value={botSettings?.next_step_visit_response || "Ótima escolha! 🏰✨\n\nNossa equipe vai entrar em contato para agendar sua visita ao Castelo da Diversão!\n\nAguarde um momento que já vamos te chamar! 👑"}
+                          onChange={(e) => setBotSettings(prev => prev ? { ...prev, next_step_visit_response: e.target.value } : null)}
+                          onBlur={() => botSettings && updateBotSettings({ next_step_visit_response: botSettings.next_step_visit_response })}
+                          className="min-h-[80px] text-sm mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs font-medium text-amber-700 dark:text-amber-400">Resposta: Tirar Dúvidas (2)</Label>
+                        <Textarea
+                          value={botSettings?.next_step_questions_response || "Claro! 💬\n\nPode mandar sua dúvida aqui que nossa equipe vai te responder rapidinho!\n\nEstamos à disposição! 👑"}
+                          onChange={(e) => setBotSettings(prev => prev ? { ...prev, next_step_questions_response: e.target.value } : null)}
+                          onBlur={() => botSettings && updateBotSettings({ next_step_questions_response: botSettings.next_step_questions_response })}
+                          className="min-h-[80px] text-sm mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs font-medium text-amber-700 dark:text-amber-400">Resposta: Analisar com Calma (3)</Label>
+                        <Textarea
+                          value={botSettings?.next_step_analyze_response || "Sem problemas! 📋\n\nVou enviar nossos materiais para você analisar com calma. Quando estiver pronto, é só chamar aqui!\n\nEstamos à disposição! 👑✨"}
+                          onChange={(e) => setBotSettings(prev => prev ? { ...prev, next_step_analyze_response: e.target.value } : null)}
+                          onBlur={() => botSettings && updateBotSettings({ next_step_analyze_response: botSettings.next_step_analyze_response })}
+                          className="min-h-[80px] text-sm mt-1"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Qualified Lead Welcome Message (from LP) */}
+                  <div className="p-4 border rounded-lg bg-purple-50/50 dark:bg-purple-950/10 border-purple-500/30">
+                    <Label className="text-sm font-medium flex items-center gap-2 mb-2">
+                      <span className="w-6 h-6 rounded-full bg-purple-500 text-white flex items-center justify-center text-xs">🌐</span>
+                      Boas-vindas para Leads do Site
+                    </Label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Mensagem automática enviada quando um lead que veio pela Landing Page (já qualificado) envia a primeira mensagem. Use {`{nome}`}, {`{mes}`}, {`{dia}`} e {`{convidados}`}.
+                    </p>
+                    <Textarea
+                      value={botSettings?.qualified_lead_message || "Olá, {nome}! 👋\n\nRecebemos seu interesse pelo site e já temos seus dados aqui:\n\n📅 Mês: {mes}\n🗓️ Dia: {dia}\n👥 Convidados: {convidados}\n\nNossa equipe vai te responder em breve! 🏰✨"}
+                      onChange={(e) => setBotSettings(prev => prev ? { ...prev, qualified_lead_message: e.target.value } : null)}
+                      onBlur={() => botSettings && updateBotSettings({ qualified_lead_message: botSettings.qualified_lead_message })}
+                      className="min-h-[120px] text-base"
+                      placeholder="Olá, {nome}! 👋 Recebemos seu interesse..."
+                    />
+                  </div>
+
+                  {/* Auto-Send Materials Section */}
+                  <div className="p-4 border rounded-lg bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-950/10 dark:to-purple-950/10 border-blue-500/30">
+                    <Label className="text-sm font-medium flex items-center gap-2 mb-3">
+                      <span className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 text-white flex items-center justify-center text-xs">
+                        <Send className="w-3 h-3" />
+                      </span>
+                      Envio Automático de Materiais
+                    </Label>
+                    <p className="text-xs text-muted-foreground mb-4">
+                      Após a qualificação, o bot pode enviar automaticamente fotos, vídeos e o PDF do pacote
+                    </p>
+
+                    {/* Master Toggle */}
+                    <div className="flex items-center justify-between p-3 border rounded-lg bg-background/50 mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-full ${botSettings?.auto_send_materials ? "bg-green-100 text-green-600 dark:bg-green-950/50" : "bg-muted text-muted-foreground"}`}>
+                          <Send className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">Enviar Materiais Automaticamente</p>
+                          <p className="text-xs text-muted-foreground">Ativa o envio de materiais após qualificação</p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={botSettings?.auto_send_materials ?? true}
+                        onCheckedChange={(checked) => updateBotSettings({ auto_send_materials: checked } as Partial<BotSettings>)}
+                        disabled={isSaving}
+                      />
+                    </div>
+
+                    {/* Individual Material Toggles */}
+                    {botSettings?.auto_send_materials && (
+                      <div className="space-y-3 pl-2 border-l-2 border-blue-500/30 ml-3">
+                        {/* Photos */}
+                        <div className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-background/50 transition-colors">
+                          <div className="flex items-center gap-2">
+                            <Images className="w-4 h-4 text-blue-500" />
+                            <span className="text-sm">Fotos da Unidade</span>
+                          </div>
+                          <Switch
+                            checked={botSettings?.auto_send_photos ?? true}
+                            onCheckedChange={(checked) => updateBotSettings({ auto_send_photos: checked } as Partial<BotSettings>)}
+                            disabled={isSaving}
+                          />
+                        </div>
+
+                        {/* Presentation Video */}
+                        <div className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-background/50 transition-colors">
+                          <div className="flex items-center gap-2">
+                            <Video className="w-4 h-4 text-purple-500" />
+                            <span className="text-sm">Vídeo de Apresentação</span>
+                          </div>
+                          <Switch
+                            checked={botSettings?.auto_send_presentation_video ?? true}
+                            onCheckedChange={(checked) => updateBotSettings({ auto_send_presentation_video: checked } as Partial<BotSettings>)}
+                            disabled={isSaving}
+                          />
+                        </div>
+
+                        {/* Promo Video */}
+                        <div className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-background/50 transition-colors">
+                          <div className="flex items-center gap-2">
+                            <Video className="w-4 h-4 text-amber-500" />
+                            <div>
+                              <span className="text-sm">Vídeo da Promoção</span>
+                              <p className="text-xs text-muted-foreground">Apenas para festas em Fev/Mar</p>
+                            </div>
+                          </div>
+                          <Switch
+                            checked={botSettings?.auto_send_promo_video ?? true}
+                            onCheckedChange={(checked) => updateBotSettings({ auto_send_promo_video: checked } as Partial<BotSettings>)}
+                            disabled={isSaving}
+                          />
+                        </div>
+
+                        {/* PDF Package */}
+                        <div className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-background/50 transition-colors">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-red-500" />
+                            <div>
+                              <span className="text-sm">PDF do Pacote</span>
+                              <p className="text-xs text-muted-foreground">Baseado na qtde de convidados</p>
+                            </div>
+                          </div>
+                          <Switch
+                            checked={botSettings?.auto_send_pdf ?? true}
+                            onCheckedChange={(checked) => updateBotSettings({ auto_send_pdf: checked } as Partial<BotSettings>)}
+                            disabled={isSaving}
+                          />
+                        </div>
+
+                        {/* Custom Messages */}
+                        <div className="space-y-3 pt-3 border-t border-border/50">
+                          <div className="space-y-2">
+                            <Label className="text-xs font-medium">Mensagem antes das fotos</Label>
+                            <Input
+                              value={botSettings?.auto_send_photos_intro || "✨ Conheça nosso espaço incrível! 🏰🎉"}
+                              onChange={(e) => setBotSettings(prev => prev ? { ...prev, auto_send_photos_intro: e.target.value } : null)}
+                              onBlur={() => botSettings && updateBotSettings({ auto_send_photos_intro: botSettings.auto_send_photos_intro } as Partial<BotSettings>)}
+                              className="text-sm"
+                              placeholder="✨ Conheça nosso espaço..."
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-xs font-medium">Mensagem antes do PDF</Label>
+                            <p className="text-xs text-muted-foreground">
+                              Use {`{nome}`}, {`{convidados}`} e {`{unidade}`}
+                            </p>
+                            <Textarea
+                              value={botSettings?.auto_send_pdf_intro || "📋 Oi {nome}! Segue o pacote completo para {convidados} na unidade {unidade}. Qualquer dúvida é só chamar! 💜"}
+                              onChange={(e) => setBotSettings(prev => prev ? { ...prev, auto_send_pdf_intro: e.target.value } : null)}
+                              onBlur={() => botSettings && updateBotSettings({ auto_send_pdf_intro: botSettings.auto_send_pdf_intro } as Partial<BotSettings>)}
+                              className="text-sm min-h-[60px]"
+                              placeholder="📋 Oi {nome}! Segue o pacote..."
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Floating Save Button for Mobile */}
+                  <div className="sticky bottom-0 pt-4 pb-2 bg-gradient-to-t from-background via-background to-transparent -mx-4 px-4 sm:-mx-6 sm:px-6">
+                    <Button
+                      onClick={saveQuestions}
+                      disabled={isSavingQuestions || botQuestions.length === 0}
+                      className="w-full"
+                      size="lg"
+                    >
+                      {isSavingQuestions ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      ) : (
+                        <Save className="w-4 h-4 mr-2" />
+                      )}
+                      Salvar Alterações
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ============ TAB: FOLLOW-UPS ============ */}
+        <TabsContent value="followups" className="space-y-6 mt-4">
+          {/* Lembrete de Próximos Passos */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="w-5 h-5" />
+                Lembrete de Próximos Passos
+              </CardTitle>
+              <CardDescription>
+                Reenvia a pergunta de próximos passos se o lead não responder dentro do tempo configurado
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg">
+                <div className="flex items-start sm:items-center gap-3 min-w-0">
+                  <div className={`p-2 rounded-full shrink-0 ${botSettings?.next_step_reminder_enabled ? "bg-green-100 text-green-600" : "bg-muted text-muted-foreground"}`}>
+                    <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="font-medium text-sm sm:text-base">Lembrete ativo</h4>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      Envia uma mensagem automática se o lead não responder a pergunta de próximos passos
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={botSettings?.next_step_reminder_enabled ?? true}
+                  onCheckedChange={(checked) => updateBotSettings({ next_step_reminder_enabled: checked })}
+                  disabled={isSaving}
+                  className="shrink-0 self-end sm:self-auto"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Tempo de espera</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={120}
+                    value={botSettings?.next_step_reminder_delay_minutes ?? 10}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 10;
+                      setBotSettings(prev => prev ? { ...prev, next_step_reminder_delay_minutes: val } : prev);
+                    }}
+                    onBlur={(e) => {
+                      const val = parseInt(e.target.value) || 10;
+                      updateBotSettings({ next_step_reminder_delay_minutes: val });
+                    }}
+                    className="w-24"
+                    disabled={isSaving || !botSettings?.next_step_reminder_enabled}
+                  />
+                  <span className="text-sm text-muted-foreground">minutos</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Mensagem de lembrete</Label>
+                <Textarea
+                  value={botSettings?.next_step_reminder_message || "Oi {nome} estou por aqui escolha uma das opções.\n\n*1* - Agendar visita\n*2* - Tirar dúvidas\n*3* - Analisar com calma"}
+                  onChange={(e) => {
+                    setBotSettings(prev => prev ? { ...prev, next_step_reminder_message: e.target.value } : prev);
+                  }}
+                  onBlur={(e) => {
+                    updateBotSettings({ next_step_reminder_message: e.target.value });
+                  }}
+                  className="min-h-[100px]"
+                  disabled={isSaving || !botSettings?.next_step_reminder_enabled}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Use <code className="bg-muted px-1 rounded">{"{nome}"}</code> para inserir o nome do lead
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Bot Inactive Follow-up */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bot className="w-5 h-5" />
+                Follow-up para Leads Inativos no Bot
+              </CardTitle>
+              <CardDescription>
+                Envia uma mensagem automática quando o lead para de responder durante o fluxo do bot (ex: parou no passo "nome")
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg">
+                <div className="flex items-start sm:items-center gap-3 min-w-0">
+                  <div className={`p-2 rounded-full shrink-0 ${botSettings?.bot_inactive_followup_enabled ? "bg-green-100 text-green-600" : "bg-muted text-muted-foreground"}`}>
+                    <Bot className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="font-medium text-sm sm:text-base">Follow-up ativo</h4>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      Envia mensagem se o lead não responder às perguntas do bot
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={botSettings?.bot_inactive_followup_enabled || false}
+                  onCheckedChange={(checked) => updateBotSettings({ bot_inactive_followup_enabled: checked })}
+                  disabled={isSaving}
+                  className="shrink-0 self-end sm:self-auto"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Tempo de espera</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={5}
+                    max={1440}
+                    value={botSettings?.bot_inactive_followup_delay_minutes ?? 30}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 30;
+                      setBotSettings(prev => prev ? { ...prev, bot_inactive_followup_delay_minutes: val } : prev);
+                    }}
+                    onBlur={(e) => {
+                      const val = Math.max(5, Math.min(1440, parseInt(e.target.value) || 30));
+                      updateBotSettings({ bot_inactive_followup_delay_minutes: val });
+                    }}
+                    className="w-24"
+                    disabled={isSaving || !botSettings?.bot_inactive_followup_enabled}
+                  />
+                  <span className="text-sm text-muted-foreground">minutos</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Recomendado: 30 minutos.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Mensagem</Label>
+                <Textarea
+                  value={botSettings?.bot_inactive_followup_message || "Oi {nome}, notei que você não conseguiu concluir. Estou por aqui caso precise de ajuda! 😊\n\nPodemos continuar de onde paramos?"}
+                  onChange={(e) => {
+                    setBotSettings(prev => prev ? { ...prev, bot_inactive_followup_message: e.target.value } : prev);
+                  }}
+                  onBlur={(e) => {
+                    updateBotSettings({ bot_inactive_followup_message: e.target.value });
+                  }}
+                  className="min-h-[100px]"
+                  disabled={isSaving || !botSettings?.bot_inactive_followup_enabled}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Use <code className="bg-muted px-1 rounded">{"{nome}"}</code> para inserir o nome do lead
+                </p>
+                <div className="bg-primary/10 rounded-lg p-3 mt-2">
+                  <p className="text-xs text-primary font-medium mb-1">💡 Pergunta re-enviada automaticamente</p>
+                  <p className="text-xs text-primary/80">
+                    Além desta mensagem, o sistema re-envia a pergunta do passo onde o lead parou (ex: nome, mês, convidados), mantendo o bot ativo para processar a resposta. O lembrete é enviado apenas uma vez por conversa.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Follow-up Automático */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <RefreshCw className="w-5 h-5" />
+                Follow-up Automático
+              </CardTitle>
+              <CardDescription>
+                Envia mensagens de acompanhamento para leads que escolheram "Analisar com calma"
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* First Follow-up */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">1ª Mensagem</Badge>
+                </div>
+                
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg">
+                  <div className="flex items-start sm:items-center gap-3 min-w-0">
+                    <div className={`p-2 rounded-full shrink-0 ${botSettings?.follow_up_enabled ? "bg-green-100 text-green-600" : "bg-muted text-muted-foreground"}`}>
+                      <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="font-medium text-sm sm:text-base">Primeiro Follow-up</h4>
+                      <p className="text-xs sm:text-sm text-muted-foreground">
+                        Primeira mensagem automática após o período configurado
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={botSettings?.follow_up_enabled || false}
+                    onCheckedChange={(checked) => updateBotSettings({ follow_up_enabled: checked })}
+                    disabled={isSaving}
+                    className="shrink-0 self-end sm:self-auto"
                   />
                 </div>
 
-                {/* Individual Material Toggles */}
-                {botSettings?.auto_send_materials && (
-                  <div className="space-y-3 pl-2 border-l-2 border-blue-500/30 ml-3">
-                    {/* Photos */}
-                    <div className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-background/50 transition-colors">
-                      <div className="flex items-center gap-2">
-                        <Images className="w-4 h-4 text-blue-500" />
-                        <span className="text-sm">Fotos da Unidade</span>
-                      </div>
-                      <Switch
-                        checked={botSettings?.auto_send_photos ?? true}
-                        onCheckedChange={(checked) => updateBotSettings({ auto_send_photos: checked } as Partial<BotSettings>)}
-                        disabled={isSaving}
-                      />
+                <div className="space-y-2">
+                  <Label htmlFor="follow-up-delay">Tempo de espera</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="follow-up-delay"
+                      type="number"
+                      min={1}
+                      max={72}
+                      value={botSettings?.follow_up_delay_hours || 24}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value) || 24;
+                        setBotSettings(prev => prev ? { ...prev, follow_up_delay_hours: value } : prev);
+                      }}
+                      onBlur={(e) => {
+                        const value = Math.max(1, Math.min(72, parseInt(e.target.value) || 24));
+                        updateBotSettings({ follow_up_delay_hours: value });
+                      }}
+                      className="w-24"
+                      disabled={isSaving || !botSettings?.follow_up_enabled}
+                    />
+                    <span className="text-sm text-muted-foreground">horas</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="follow-up-message" className="flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4" />
+                    Mensagem
+                  </Label>
+                  <Textarea
+                    id="follow-up-message"
+                    placeholder="Olá, {nome}! 👋 Passando para saber se teve a chance de analisar as informações..."
+                    value={botSettings?.follow_up_message || ""}
+                    onChange={(e) => {
+                      setBotSettings(prev => prev ? { ...prev, follow_up_message: e.target.value } : prev);
+                    }}
+                    onBlur={(e) => {
+                      updateBotSettings({ follow_up_message: e.target.value });
+                    }}
+                    className="min-h-[100px]"
+                    disabled={isSaving || !botSettings?.follow_up_enabled}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Variáveis: {"{nome}"}, {"{unidade}"}, {"{mes}"}, {"{convidados}"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-dashed" />
+
+              {/* Second Follow-up */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">2ª Mensagem</Badge>
+                  <span className="text-xs text-muted-foreground">Enviada apenas se não houver resposta</span>
+                </div>
+                
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg border-dashed">
+                  <div className="flex items-start sm:items-center gap-3 min-w-0">
+                    <div className={`p-2 rounded-full shrink-0 ${botSettings?.follow_up_2_enabled ? "bg-amber-100 text-amber-600" : "bg-muted text-muted-foreground"}`}>
+                      <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
-
-                    {/* Presentation Video */}
-                    <div className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-background/50 transition-colors">
-                      <div className="flex items-center gap-2">
-                        <Video className="w-4 h-4 text-purple-500" />
-                        <span className="text-sm">Vídeo de Apresentação</span>
-                      </div>
-                      <Switch
-                        checked={botSettings?.auto_send_presentation_video ?? true}
-                        onCheckedChange={(checked) => updateBotSettings({ auto_send_presentation_video: checked } as Partial<BotSettings>)}
-                        disabled={isSaving}
-                      />
-                    </div>
-
-                    {/* Promo Video */}
-                    <div className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-background/50 transition-colors">
-                      <div className="flex items-center gap-2">
-                        <Video className="w-4 h-4 text-amber-500" />
-                        <div>
-                          <span className="text-sm">Vídeo da Promoção</span>
-                          <p className="text-xs text-muted-foreground">Apenas para festas em Fev/Mar</p>
-                        </div>
-                      </div>
-                      <Switch
-                        checked={botSettings?.auto_send_promo_video ?? true}
-                        onCheckedChange={(checked) => updateBotSettings({ auto_send_promo_video: checked } as Partial<BotSettings>)}
-                        disabled={isSaving}
-                      />
-                    </div>
-
-                    {/* PDF Package */}
-                    <div className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-background/50 transition-colors">
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-red-500" />
-                        <div>
-                          <span className="text-sm">PDF do Pacote</span>
-                          <p className="text-xs text-muted-foreground">Baseado na qtde de convidados</p>
-                        </div>
-                      </div>
-                      <Switch
-                        checked={botSettings?.auto_send_pdf ?? true}
-                        onCheckedChange={(checked) => updateBotSettings({ auto_send_pdf: checked } as Partial<BotSettings>)}
-                        disabled={isSaving}
-                      />
-                    </div>
-
-                    {/* Custom Messages */}
-                    <div className="space-y-3 pt-3 border-t border-border/50">
-                      <div className="space-y-2">
-                        <Label className="text-xs font-medium">Mensagem antes das fotos</Label>
-                        <Input
-                          value={botSettings?.auto_send_photos_intro || "✨ Conheça nosso espaço incrível! 🏰🎉"}
-                          onChange={(e) => setBotSettings(prev => prev ? { ...prev, auto_send_photos_intro: e.target.value } : null)}
-                          onBlur={() => botSettings && updateBotSettings({ auto_send_photos_intro: botSettings.auto_send_photos_intro } as Partial<BotSettings>)}
-                          className="text-sm"
-                          placeholder="✨ Conheça nosso espaço..."
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-xs font-medium">Mensagem antes do PDF</Label>
-                        <p className="text-xs text-muted-foreground">
-                          Use {`{nome}`}, {`{convidados}`} e {`{unidade}`}
-                        </p>
-                        <Textarea
-                          value={botSettings?.auto_send_pdf_intro || "📋 Oi {nome}! Segue o pacote completo para {convidados} na unidade {unidade}. Qualquer dúvida é só chamar! 💜"}
-                          onChange={(e) => setBotSettings(prev => prev ? { ...prev, auto_send_pdf_intro: e.target.value } : null)}
-                          onBlur={() => botSettings && updateBotSettings({ auto_send_pdf_intro: botSettings.auto_send_pdf_intro } as Partial<BotSettings>)}
-                          className="text-sm min-h-[60px]"
-                          placeholder="📋 Oi {nome}! Segue o pacote..."
-                        />
-                      </div>
+                    <div className="min-w-0">
+                      <h4 className="font-medium text-sm sm:text-base">Segundo Follow-up</h4>
+                      <p className="text-xs sm:text-sm text-muted-foreground">
+                        Segunda tentativa caso o lead não responda à primeira
+                      </p>
                     </div>
                   </div>
-                )}
-              </div>
+                  <Switch
+                    checked={botSettings?.follow_up_2_enabled || false}
+                    onCheckedChange={(checked) => updateBotSettings({ follow_up_2_enabled: checked })}
+                    disabled={isSaving || !botSettings?.follow_up_enabled}
+                    className="shrink-0 self-end sm:self-auto"
+                  />
+                </div>
 
-              {/* Floating Save Button for Mobile */}
-              <div className="sticky bottom-0 pt-4 pb-2 bg-gradient-to-t from-background via-background to-transparent -mx-4 px-4 sm:-mx-6 sm:px-6">
-                <Button
-                  onClick={saveQuestions}
-                  disabled={isSavingQuestions || botQuestions.length === 0}
-                  className="w-full"
-                  size="lg"
-                >
-                  {isSavingQuestions ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <Save className="w-4 h-4 mr-2" />
-                  )}
-                  Salvar Alterações
-                </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                <div className="space-y-2">
+                  <Label htmlFor="follow-up-2-delay">Tempo de espera após primeira mensagem</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="follow-up-2-delay"
+                      type="number"
+                      min={24}
+                      max={96}
+                      value={botSettings?.follow_up_2_delay_hours || 48}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value) || 48;
+                        setBotSettings(prev => prev ? { ...prev, follow_up_2_delay_hours: value } : prev);
+                      }}
+                      onBlur={(e) => {
+                        const value = Math.max(24, Math.min(96, parseInt(e.target.value) || 48));
+                        updateBotSettings({ follow_up_2_delay_hours: value });
+                      }}
+                      className="w-24"
+                      disabled={isSaving || !botSettings?.follow_up_2_enabled}
+                    />
+                    <span className="text-sm text-muted-foreground">horas (desde a escolha original)</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Deve ser maior que o tempo da primeira mensagem. Recomendado: 48h.
+                  </p>
+                </div>
 
-      {/* VIP List */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
+                <div className="space-y-2">
+                  <Label htmlFor="follow-up-2-message" className="flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4" />
+                    Mensagem
+                  </Label>
+                  <Textarea
+                    id="follow-up-2-message"
+                    placeholder="Olá, {nome}! 👋 Ainda não tivemos retorno sobre a festa..."
+                    value={botSettings?.follow_up_2_message || ""}
+                    onChange={(e) => {
+                      setBotSettings(prev => prev ? { ...prev, follow_up_2_message: e.target.value } : prev);
+                    }}
+                    onBlur={(e) => {
+                      updateBotSettings({ follow_up_2_message: e.target.value });
+                    }}
+                    className="min-h-[100px]"
+                    disabled={isSaving || !botSettings?.follow_up_2_enabled}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Variáveis: {"{nome}"}, {"{unidade}"}, {"{mes}"}, {"{convidados}"}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ============ TAB: VIP ============ */}
+        <TabsContent value="vip" className="space-y-6 mt-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="w-5 h-5" />
+                    Lista VIP
+                  </CardTitle>
+                  <CardDescription>
+                    Números que nunca receberão mensagens automáticas do bot
+                  </CardDescription>
+                </div>
+                <Dialog open={showAddVipDialog} onOpenChange={setShowAddVipDialog}>
+                  <DialogTrigger asChild>
+                    <Button size="sm">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Adicionar
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Adicionar Número VIP</DialogTitle>
+                      <DialogDescription>
+                        Este número não receberá mensagens automáticas do bot de qualificação
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="vip-phone">Número de Telefone *</Label>
+                        <Input
+                          id="vip-phone"
+                          placeholder="+55 11 99999-9999"
+                          value={newVipPhone}
+                          onChange={(e) => setNewVipPhone(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="vip-name">Nome (opcional)</Label>
+                        <Input
+                          id="vip-name"
+                          placeholder="Ex: João Silva"
+                          value={newVipName}
+                          onChange={(e) => setNewVipName(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="vip-reason">Motivo (opcional)</Label>
+                        <Input
+                          id="vip-reason"
+                          placeholder="Ex: Cliente antigo, Fornecedor"
+                          value={newVipReason}
+                          onChange={(e) => setNewVipReason(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setShowAddVipDialog(false)}>
+                        Cancelar
+                      </Button>
+                      <Button onClick={addVipNumber} disabled={!newVipPhone.trim() || isAddingVip}>
+                        {isAddingVip ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                        Adicionar
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {vipNumbers.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Phone className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm">Nenhum número na lista VIP</p>
+                  <p className="text-xs mt-1">Adicione números que não devem receber mensagens automáticas</p>
+                </div>
+              ) : (
+                <ScrollArea className="h-[300px]">
+                  <div className="space-y-2">
+                    {vipNumbers.map((vip) => (
+                      <div
+                        key={vip.id}
+                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-primary/10 rounded-full">
+                            <Phone className="w-4 h-4 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">
+                              {vip.name || formatPhoneNumber(vip.phone)}
+                            </p>
+                            {vip.name && (
+                              <p className="text-xs text-muted-foreground">{formatPhoneNumber(vip.phone)}</p>
+                            )}
+                            {vip.reason && (
+                              <p className="text-xs text-muted-foreground">{vip.reason}</p>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => removeVipNumber(vip.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ============ TAB: JORNADA ============ */}
+        <TabsContent value="jornada" className="mt-4">
+          <Card>
+            <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Shield className="w-5 h-5" />
-                Lista VIP
+                <Map className="w-5 h-5" />
+                Jornada do Lead no Bot
               </CardTitle>
               <CardDescription>
-                Números que nunca receberão mensagens automáticas do bot
+                Visualização dos passos que o lead percorre durante a qualificação automática
               </CardDescription>
-            </div>
-            <Dialog open={showAddVipDialog} onOpenChange={setShowAddVipDialog}>
-              <DialogTrigger asChild>
-                <Button size="sm">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Adicionar
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Adicionar Número VIP</DialogTitle>
-                  <DialogDescription>
-                    Este número não receberá mensagens automáticas do bot de qualificação
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="vip-phone">Número de Telefone *</Label>
-                    <Input
-                      id="vip-phone"
-                      placeholder="+55 11 99999-9999"
-                      value={newVipPhone}
-                      onChange={(e) => setNewVipPhone(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="vip-name">Nome (opcional)</Label>
-                    <Input
-                      id="vip-name"
-                      placeholder="Ex: João Silva"
-                      value={newVipName}
-                      onChange={(e) => setNewVipName(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="vip-reason">Motivo (opcional)</Label>
-                    <Input
-                      id="vip-reason"
-                      placeholder="Ex: Cliente antigo, Fornecedor"
-                      value={newVipReason}
-                      onChange={(e) => setNewVipReason(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setShowAddVipDialog(false)}>
-                    Cancelar
-                  </Button>
-                  <Button onClick={addVipNumber} disabled={!newVipPhone.trim() || isAddingVip}>
-                    {isAddingVip ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                    Adicionar
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {vipNumbers.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Phone className="w-10 h-10 mx-auto mb-3 opacity-50" />
-              <p className="text-sm">Nenhum número na lista VIP</p>
-              <p className="text-xs mt-1">Adicione números que não devem receber mensagens automáticas</p>
-            </div>
-          ) : (
-            <ScrollArea className="h-[300px]">
-              <div className="space-y-2">
-                {vipNumbers.map((vip) => (
-                  <div
-                    key={vip.id}
-                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-primary/10 rounded-full">
-                        <Phone className="w-4 h-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">
-                          {vip.name || formatPhoneNumber(vip.phone)}
-                        </p>
-                        {vip.name && (
-                          <p className="text-xs text-muted-foreground">{formatPhoneNumber(vip.phone)}</p>
-                        )}
-                        {vip.reason && (
-                          <p className="text-xs text-muted-foreground">{vip.reason}</p>
-                        )}
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => removeVipNumber(vip.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Lembrete de Próximos Passos */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="w-5 h-5" />
-            Lembrete de Próximos Passos
-          </CardTitle>
-          <CardDescription>
-            Reenvia a pergunta de próximos passos se o lead não responder dentro do tempo configurado
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Toggle */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg">
-            <div className="flex items-start sm:items-center gap-3 min-w-0">
-              <div className={`p-2 rounded-full shrink-0 ${botSettings?.next_step_reminder_enabled ? "bg-green-100 text-green-600" : "bg-muted text-muted-foreground"}`}>
-                <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
-              </div>
-              <div className="min-w-0">
-                <h4 className="font-medium text-sm sm:text-base">Lembrete ativo</h4>
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  Envia uma mensagem automática se o lead não responder a pergunta de próximos passos
-                </p>
-              </div>
-            </div>
-            <Switch
-              checked={botSettings?.next_step_reminder_enabled ?? true}
-              onCheckedChange={(checked) => updateBotSettings({ next_step_reminder_enabled: checked })}
-              disabled={isSaving}
-              className="shrink-0 self-end sm:self-auto"
-            />
-          </div>
-
-          {/* Delay */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Tempo de espera</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                min={1}
-                max={120}
-                value={botSettings?.next_step_reminder_delay_minutes ?? 10}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 10;
-                  setBotSettings(prev => prev ? { ...prev, next_step_reminder_delay_minutes: val } : prev);
-                }}
-                onBlur={(e) => {
-                  const val = parseInt(e.target.value) || 10;
-                  updateBotSettings({ next_step_reminder_delay_minutes: val });
-                }}
-                className="w-24"
-                disabled={isSaving || !botSettings?.next_step_reminder_enabled}
-              />
-              <span className="text-sm text-muted-foreground">minutos</span>
-            </div>
-          </div>
-
-          {/* Message */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Mensagem de lembrete</Label>
-            <Textarea
-              value={botSettings?.next_step_reminder_message || "Oi {nome} estou por aqui escolha uma das opções.\n\n*1* - Agendar visita\n*2* - Tirar dúvidas\n*3* - Analisar com calma"}
-              onChange={(e) => {
-                setBotSettings(prev => prev ? { ...prev, next_step_reminder_message: e.target.value } : prev);
-              }}
-              onBlur={(e) => {
-                updateBotSettings({ next_step_reminder_message: e.target.value });
-              }}
-              className="min-h-[100px]"
-              disabled={isSaving || !botSettings?.next_step_reminder_enabled}
-            />
-            <p className="text-xs text-muted-foreground">
-              Use <code className="bg-muted px-1 rounded">{"{nome}"}</code> para inserir o nome do lead
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Bot Inactive Follow-up */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bot className="w-5 h-5" />
-            Follow-up para Leads Inativos no Bot
-          </CardTitle>
-          <CardDescription>
-            Envia uma mensagem automática quando o lead para de responder durante o fluxo do bot (ex: parou no passo "nome")
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Toggle */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg">
-            <div className="flex items-start sm:items-center gap-3 min-w-0">
-              <div className={`p-2 rounded-full shrink-0 ${botSettings?.bot_inactive_followup_enabled ? "bg-green-100 text-green-600" : "bg-muted text-muted-foreground"}`}>
-                <Bot className="w-4 h-4 sm:w-5 sm:h-5" />
-              </div>
-              <div className="min-w-0">
-                <h4 className="font-medium text-sm sm:text-base">Follow-up ativo</h4>
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  Envia mensagem se o lead não responder às perguntas do bot
-                </p>
-              </div>
-            </div>
-            <Switch
-              checked={botSettings?.bot_inactive_followup_enabled || false}
-              onCheckedChange={(checked) => updateBotSettings({ bot_inactive_followup_enabled: checked })}
-              disabled={isSaving}
-              className="shrink-0 self-end sm:self-auto"
-            />
-          </div>
-
-          {/* Delay */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Tempo de espera</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                min={5}
-                max={1440}
-                value={botSettings?.bot_inactive_followup_delay_minutes ?? 30}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 30;
-                  setBotSettings(prev => prev ? { ...prev, bot_inactive_followup_delay_minutes: val } : prev);
-                }}
-                onBlur={(e) => {
-                  const val = Math.max(5, Math.min(1440, parseInt(e.target.value) || 30));
-                  updateBotSettings({ bot_inactive_followup_delay_minutes: val });
-                }}
-                className="w-24"
-                disabled={isSaving || !botSettings?.bot_inactive_followup_enabled}
-              />
-              <span className="text-sm text-muted-foreground">minutos</span>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Recomendado: 30 minutos.
-            </p>
-          </div>
-
-          {/* Message */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Mensagem</Label>
-            <Textarea
-              value={botSettings?.bot_inactive_followup_message || "Oi {nome}, notei que você não conseguiu concluir. Estou por aqui caso precise de ajuda! 😊\n\nPodemos continuar de onde paramos?"}
-              onChange={(e) => {
-                setBotSettings(prev => prev ? { ...prev, bot_inactive_followup_message: e.target.value } : prev);
-              }}
-              onBlur={(e) => {
-                updateBotSettings({ bot_inactive_followup_message: e.target.value });
-              }}
-              className="min-h-[100px]"
-              disabled={isSaving || !botSettings?.bot_inactive_followup_enabled}
-            />
-            <p className="text-xs text-muted-foreground">
-              Use <code className="bg-muted px-1 rounded">{"{nome}"}</code> para inserir o nome do lead
-            </p>
-            <div className="bg-primary/10 rounded-lg p-3 mt-2">
-              <p className="text-xs text-primary font-medium mb-1">💡 Pergunta re-enviada automaticamente</p>
-              <p className="text-xs text-primary/80">
-                Além desta mensagem, o sistema re-envia a pergunta do passo onde o lead parou (ex: nome, mês, convidados), mantendo o bot ativo para processar a resposta. O lembrete é enviado apenas uma vez por conversa.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Follow-up Automático */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <RefreshCw className="w-5 h-5" />
-            Follow-up Automático
-          </CardTitle>
-          <CardDescription>
-            Envia mensagens de acompanhamento para leads que escolheram "Analisar com calma"
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* First Follow-up */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">1ª Mensagem</Badge>
-            </div>
-            
-            {/* Toggle Follow-up 1 */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg">
-              <div className="flex items-start sm:items-center gap-3 min-w-0">
-                <div className={`p-2 rounded-full shrink-0 ${botSettings?.follow_up_enabled ? "bg-green-100 text-green-600" : "bg-muted text-muted-foreground"}`}>
-                  <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5" />
-                </div>
-                <div className="min-w-0">
-                  <h4 className="font-medium text-sm sm:text-base">Primeiro Follow-up</h4>
-                  <p className="text-xs sm:text-sm text-muted-foreground">
-                    Primeira mensagem automática após o período configurado
-                  </p>
-                </div>
-              </div>
-              <Switch
-                checked={botSettings?.follow_up_enabled || false}
-                onCheckedChange={(checked) => updateBotSettings({ follow_up_enabled: checked })}
-                disabled={isSaving}
-                className="shrink-0 self-end sm:self-auto"
-              />
-            </div>
-
-            {/* Delay Configuration 1 */}
-            <div className="space-y-2">
-              <Label htmlFor="follow-up-delay">Tempo de espera</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  id="follow-up-delay"
-                  type="number"
-                  min={1}
-                  max={72}
-                  value={botSettings?.follow_up_delay_hours || 24}
-                  onChange={(e) => {
-                    const value = parseInt(e.target.value) || 24;
-                    setBotSettings(prev => prev ? { ...prev, follow_up_delay_hours: value } : prev);
-                  }}
-                  onBlur={(e) => {
-                    const value = Math.max(1, Math.min(72, parseInt(e.target.value) || 24));
-                    updateBotSettings({ follow_up_delay_hours: value });
-                  }}
-                  className="w-24"
-                  disabled={isSaving || !botSettings?.follow_up_enabled}
-                />
-                <span className="text-sm text-muted-foreground">horas</span>
-              </div>
-            </div>
-
-            {/* Follow-up Message 1 */}
-            <div className="space-y-2">
-              <Label htmlFor="follow-up-message" className="flex items-center gap-2">
-                <MessageSquare className="w-4 h-4" />
-                Mensagem
-              </Label>
-              <Textarea
-                id="follow-up-message"
-                placeholder="Olá, {nome}! 👋 Passando para saber se teve a chance de analisar as informações..."
-                value={botSettings?.follow_up_message || ""}
-                onChange={(e) => {
-                  setBotSettings(prev => prev ? { ...prev, follow_up_message: e.target.value } : prev);
-                }}
-                onBlur={(e) => {
-                  updateBotSettings({ follow_up_message: e.target.value });
-                }}
-                className="min-h-[100px]"
-                disabled={isSaving || !botSettings?.follow_up_enabled}
-              />
-              <p className="text-xs text-muted-foreground">
-                Variáveis: {"{nome}"}, {"{unidade}"}, {"{mes}"}, {"{convidados}"}
-              </p>
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div className="border-t border-dashed" />
-
-          {/* Second Follow-up */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">2ª Mensagem</Badge>
-              <span className="text-xs text-muted-foreground">Enviada apenas se não houver resposta</span>
-            </div>
-            
-            {/* Toggle Follow-up 2 */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg border-dashed">
-              <div className="flex items-start sm:items-center gap-3 min-w-0">
-                <div className={`p-2 rounded-full shrink-0 ${botSettings?.follow_up_2_enabled ? "bg-amber-100 text-amber-600" : "bg-muted text-muted-foreground"}`}>
-                  <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5" />
-                </div>
-                <div className="min-w-0">
-                  <h4 className="font-medium text-sm sm:text-base">Segundo Follow-up</h4>
-                  <p className="text-xs sm:text-sm text-muted-foreground">
-                    Segunda tentativa caso o lead não responda à primeira
-                  </p>
-                </div>
-              </div>
-              <Switch
-                checked={botSettings?.follow_up_2_enabled || false}
-                onCheckedChange={(checked) => updateBotSettings({ follow_up_2_enabled: checked })}
-                disabled={isSaving || !botSettings?.follow_up_enabled}
-                className="shrink-0 self-end sm:self-auto"
-              />
-            </div>
-
-            {/* Delay Configuration 2 */}
-            <div className="space-y-2">
-              <Label htmlFor="follow-up-2-delay">Tempo de espera após primeira mensagem</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  id="follow-up-2-delay"
-                  type="number"
-                  min={24}
-                  max={96}
-                  value={botSettings?.follow_up_2_delay_hours || 48}
-                  onChange={(e) => {
-                    const value = parseInt(e.target.value) || 48;
-                    setBotSettings(prev => prev ? { ...prev, follow_up_2_delay_hours: value } : prev);
-                  }}
-                  onBlur={(e) => {
-                    const value = Math.max(24, Math.min(96, parseInt(e.target.value) || 48));
-                    updateBotSettings({ follow_up_2_delay_hours: value });
-                  }}
-                  className="w-24"
-                  disabled={isSaving || !botSettings?.follow_up_2_enabled}
-                />
-                <span className="text-sm text-muted-foreground">horas (desde a escolha original)</span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Deve ser maior que o tempo da primeira mensagem. Recomendado: 48h.
-              </p>
-            </div>
-
-            {/* Follow-up Message 2 */}
-            <div className="space-y-2">
-              <Label htmlFor="follow-up-2-message" className="flex items-center gap-2">
-                <MessageSquare className="w-4 h-4" />
-                Mensagem
-              </Label>
-              <Textarea
-                id="follow-up-2-message"
-                placeholder="Olá, {nome}! 👋 Ainda não tivemos retorno sobre a festa..."
-                value={botSettings?.follow_up_2_message || ""}
-                onChange={(e) => {
-                  setBotSettings(prev => prev ? { ...prev, follow_up_2_message: e.target.value } : prev);
-                }}
-                onBlur={(e) => {
-                  updateBotSettings({ follow_up_2_message: e.target.value });
-                }}
-                className="min-h-[100px]"
-                disabled={isSaving || !botSettings?.follow_up_2_enabled}
-              />
-              <p className="text-xs text-muted-foreground">
-                Variáveis: {"{nome}"}, {"{unidade}"}, {"{mes}"}, {"{convidados}"}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Coming Soon Features */}
-      <div className="space-y-4 opacity-60">
-        <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-          <Clock className="w-4 h-4" />
-          Em Desenvolvimento
-        </h3>
-        
-        {/* Respostas Fora do Horário */}
-        <Card className="opacity-75">
-          <CardHeader className="py-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Clock className="w-4 h-4" />
-                Respostas Fora do Horário
-              </CardTitle>
-              <Badge variant="secondary">Em breve</Badge>
-            </div>
-            <CardDescription className="text-xs">
-              Envie mensagens automáticas fora do expediente
-            </CardDescription>
-          </CardHeader>
-        </Card>
-
-        {/* Encaminhamento Automático */}
-        <Card className="opacity-75">
-          <CardHeader className="py-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Forward className="w-4 h-4" />
-                Encaminhamento Automático
-              </CardTitle>
-              <Badge variant="secondary">Em breve</Badge>
-            </div>
-            <CardDescription className="text-xs">
-              Direcione conversas automaticamente para o responsável correto
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
+            </CardHeader>
+            <CardContent>
+              <BotJourneyDiagram />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
