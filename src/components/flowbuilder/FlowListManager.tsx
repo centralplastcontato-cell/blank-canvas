@@ -578,7 +578,7 @@ export function FlowListManager() {
                         size="icon"
                         className="h-7 w-7 text-destructive hover:text-destructive"
                         onClick={() => handleDeleteRequest(flow)}
-                        disabled={flow.is_default}
+                        disabled={flow.is_default && flows.length > 1}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
