@@ -860,8 +860,31 @@ async function processBotQualification(
     }
     
     if (lpLead && lpLead.name && lpLead.month) {
-      console.log(`[Bot] LP lead detected (${lpLead.id}), re-enabling bot for conversation ${conv.id}`);
-      // Re-enable bot and link lead
+      console.log(`[Bot] LP lead detected (${lpLead.id}), checking response: "${content}"`);
+      
+      // Check if lead chose option 2 (falar com atendente) — don't activate bot
+      const normalized = content.trim();
+      if (normalized === '2') {
+        console.log(`[Bot] LP lead chose option 2 (atendente), keeping bot disabled`);
+        await supabase.from('wapi_conversations').update({
+          bot_enabled: false,
+          bot_step: null,
+          lead_id: lpLead.id,
+        }).eq('id', conv.id);
+        // Send a confirmation message
+        const transferMsg = settings.transfer_message || 'Ótimo! Um atendente vai falar com você em breve. Aguarde! 😊';
+        const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, transferMsg);
+        if (msgId) {
+          await supabase.from('wapi_messages').insert({
+            conversation_id: conv.id, message_id: msgId, from_me: true, message_type: 'text',
+            company_id: instance.company_id, content: transferMsg, status: 'sent', timestamp: new Date().toISOString()
+          });
+        }
+        return;
+      }
+      
+      // Option 1 or any other response — re-enable bot and send materials
+      console.log(`[Bot] LP lead chose option 1 or responded, re-enabling bot for conversation ${conv.id}`);
       await supabase.from('wapi_conversations').update({
         bot_enabled: true,
         bot_step: 'welcome',
