@@ -995,7 +995,7 @@ export default function CentralAtendimento() {
                {/* View mode toggle - Premium Style */}
                <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "list" | "kanban")} className="h-full flex flex-col">
                   <div className="mb-4 flex items-center gap-3">
-                    <div className="bg-muted rounded-lg p-1 inline-flex">
+                    <div className="bg-border rounded-lg p-1 inline-flex">
                       <TabsList className="bg-transparent">
                         <TabsTrigger 
                           value="list" 
