@@ -31,7 +31,9 @@ import { AnimatedBadge } from "@/components/ui/animated-badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
-import { LayoutList, Columns, Menu, Bell, BellOff, MessageSquare } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
+import { LayoutList, Columns, Menu, Bell, BellOff, MessageSquare, BarChart3, Filter, ChevronDown } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import logoCastelo from "@/assets/logo-castelo.png";
 
@@ -87,6 +89,8 @@ export default function CentralAtendimento() {
   const [activeTab, setActiveTab] = useState<"chat" | "leads">("chat");
   const [unreadCount, setUnreadCount] = useState(0);
   const [newLeadsCount, setNewLeadsCount] = useState(0);
+  const [showMetrics, setShowMetrics] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [initialPhone, setInitialPhone] = useState<string | null>(null);
 
   // Handle URL params for phone navigation
@@ -579,6 +583,18 @@ export default function CentralAtendimento() {
       .slice(0, 2);
   };
 
+  const activeFiltersCount = [
+    filters.campaign !== "all",
+    filters.unit !== "all",
+    filters.status !== "all",
+    filters.responsavel !== "all",
+    filters.month !== "all",
+    !!filters.startDate,
+    !!filters.endDate,
+    !!filters.search,
+    filters.hasScheduledVisit,
+  ].filter(Boolean).length;
+
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   // Mobile layout with Sheet
@@ -730,24 +746,75 @@ export default function CentralAtendimento() {
                 onRefresh={handleRefresh} 
                 className="flex-1 min-h-0 px-3 py-4"
               >
-                {/* View Mode Toggle - at top like unit tabs in Chat */}
-                <div className="flex items-center gap-2 mb-4">
-                  <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "list" | "kanban")} className="flex-1">
-                    <TabsList>
-                      <TabsTrigger value="list" className="flex items-center gap-2">
-                        <LayoutList className="w-4 h-4" />
-                        Lista
-                      </TabsTrigger>
-                      <TabsTrigger value="kanban" className="flex items-center gap-2">
-                        <Columns className="w-4 h-4" />
-                        CRM
-                      </TabsTrigger>
-                    </TabsList>
-                  </Tabs>
+                {/* Compact toolbar: View mode + Metrics + Filters */}
+                <div className="flex items-center gap-2 mb-3 flex-wrap">
+                  {/* View mode toggle */}
+                  <div className="flex items-center gap-1 bg-border rounded-lg p-0.5">
+                    <Button
+                      variant={viewMode === "list" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setViewMode("list")}
+                      className={`h-7 px-2.5 rounded-md text-xs ${viewMode === "list" ? "shadow-sm" : ""}`}
+                    >
+                      <LayoutList className="w-3.5 h-3.5 mr-1" />
+                      Lista
+                    </Button>
+                    <Button
+                      variant={viewMode === "kanban" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setViewMode("kanban")}
+                      className={`h-7 px-2.5 rounded-md text-xs ${viewMode === "kanban" ? "shadow-sm" : ""}`}
+                    >
+                      <Columns className="w-3.5 h-3.5 mr-1" />
+                      CRM
+                    </Button>
+                  </div>
+
+                  {/* Metrics toggle */}
+                  <Button
+                    variant={showMetrics ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowMetrics(!showMetrics)}
+                    className="gap-1 h-7 text-xs px-2"
+                  >
+                    <BarChart3 className="w-3.5 h-3.5" />
+                    <Badge variant="secondary" className="h-4 px-1 text-[9px] bg-primary/10 text-primary border-0">
+                      {leadMetrics.total}
+                    </Badge>
+                    <ChevronDown className={`w-3 h-3 transition-transform ${showMetrics ? 'rotate-180' : ''}`} />
+                  </Button>
+
+                  {/* Filters toggle */}
+                  <Button
+                    variant={showFilters ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="gap-1 h-7 text-xs px-2"
+                  >
+                    <Filter className="w-3.5 h-3.5" />
+                    Filtros
+                    {activeFiltersCount > 0 && (
+                      <Badge variant="destructive" className="h-4 px-1 text-[9px]">
+                        {activeFiltersCount}
+                      </Badge>
+                    )}
+                    <ChevronDown className={`w-3 h-3 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+                  </Button>
                 </div>
 
-                <MetricsCards metrics={leadMetrics} isLoading={isLoadingLeads} />
-                <LeadsFilters filters={filters} onFiltersChange={setFilters} responsaveis={responsaveis} onExport={canExportLeads ? handleExport : undefined} />
+                {/* Collapsible Metrics */}
+                <Collapsible open={showMetrics}>
+                  <CollapsibleContent>
+                    <MetricsCards metrics={leadMetrics} isLoading={isLoadingLeads} />
+                  </CollapsibleContent>
+                </Collapsible>
+
+                {/* Collapsible Filters */}
+                <Collapsible open={showFilters}>
+                  <CollapsibleContent>
+                    <LeadsFilters filters={filters} onFiltersChange={setFilters} responsaveis={responsaveis} onExport={canExportLeads ? handleExport : undefined} />
+                  </CollapsibleContent>
+                </Collapsible>
 
                 {viewMode === "list" ? (
                   <LeadsTable
@@ -884,6 +951,34 @@ export default function CentralAtendimento() {
                     )}
                   </Button>
                 </div>
+
+                {/* Lista/CRM toggle in header when on leads tab */}
+                {activeTab === "leads" && (
+                  <div className="flex items-center gap-1 ml-2 bg-border rounded-lg p-1">
+                    <Button
+                      variant={viewMode === "list" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setViewMode("list")}
+                      className={`h-7 px-3 rounded-md transition-all text-xs ${
+                        viewMode === "list" ? "shadow-sm" : "hover:bg-background/80"
+                      }`}
+                    >
+                      <LayoutList className="w-3.5 h-3.5 mr-1" />
+                      Lista
+                    </Button>
+                    <Button
+                      variant={viewMode === "kanban" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setViewMode("kanban")}
+                      className={`h-7 px-3 rounded-md transition-all text-xs ${
+                        viewMode === "kanban" ? "shadow-sm" : "hover:bg-background/80"
+                      }`}
+                    >
+                      <Columns className="w-3.5 h-3.5 mr-1" />
+                      CRM
+                    </Button>
+                  </div>
+                )}
                 
                 {/* Sound Toggle - Separate */}
                 <Button
@@ -992,96 +1087,120 @@ export default function CentralAtendimento() {
               </TabsContent>
 
               <TabsContent value="leads" className="flex-1 overflow-auto min-h-0 mt-0">
-               {/* View mode toggle - Premium Style */}
-               <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "list" | "kanban")} className="h-full flex flex-col">
-                  <div className="mb-4 flex items-center gap-3">
-                    <div className="bg-border rounded-lg p-1 inline-flex">
-                      <TabsList className="bg-transparent">
-                        <TabsTrigger 
-                          value="list" 
-                          className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
-                        >
-                          <LayoutList className="w-4 h-4" />
-                          Lista
-                        </TabsTrigger>
-                        <TabsTrigger 
-                          value="kanban" 
-                          className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
-                        >
-                          <Columns className="w-4 h-4" />
-                          CRM
-                        </TabsTrigger>
-                      </TabsList>
-                    </div>
-                  </div>
+                {/* Collapsible toolbar for Metrics and Filters */}
+                <div className="flex items-center gap-2 mb-3 flex-wrap">
+                  {/* Metrics toggle button */}
+                  <Button
+                    variant={showMetrics ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowMetrics(!showMetrics)}
+                    className="gap-1.5 h-8"
+                  >
+                    <BarChart3 className="w-4 h-4" />
+                    Métricas
+                    <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px] bg-primary/10 text-primary border-0">
+                      {leadMetrics.total}
+                    </Badge>
+                    <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-amber-500/10 text-amber-600 border-0">
+                      +{leadMetrics.novo}
+                    </Badge>
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showMetrics ? 'rotate-180' : ''}`} />
+                  </Button>
 
-                  <MetricsCards metrics={leadMetrics} isLoading={isLoadingLeads} />
-                 <LeadsFilters filters={filters} onFiltersChange={setFilters} responsaveis={responsaveis} onExport={canExportLeads ? handleExport : undefined} />
+                  {/* Filters toggle button */}
+                  <Button
+                    variant={showFilters ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="gap-1.5 h-8"
+                  >
+                    <Filter className="w-4 h-4" />
+                    Filtros
+                    {activeFiltersCount > 0 && (
+                      <Badge variant="destructive" className="ml-1 h-5 px-1.5 text-[10px]">
+                        {activeFiltersCount}
+                      </Badge>
+                    )}
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+                  </Button>
+                </div>
 
-                 <TabsContent value="list" className="mt-4 flex-1 min-h-0 overflow-hidden">
-                    <LeadsTable
-                      leads={leads}
-                      isLoading={isLoadingLeads}
-                      totalCount={totalCount}
-                      responsaveis={responsaveis}
-                      onLeadClick={handleLeadClick}
-                      onStatusChange={handleStatusChange}
-                      onRefresh={handleRefresh}
-                      canEdit={canEditLeads}
-                      isAdmin={isAdmin}
-                      currentUserId={user.id}
-                      currentUserName={currentUserProfile?.full_name || user.email || ""}
-                      currentPage={currentPage}
-                      pageSize={pageSize}
-                      onPageChange={setCurrentPage}
-                    />
-                  </TabsContent>
+                {/* Collapsible Metrics */}
+                <Collapsible open={showMetrics}>
+                  <CollapsibleContent>
+                    <MetricsCards metrics={leadMetrics} isLoading={isLoadingLeads} />
+                  </CollapsibleContent>
+                </Collapsible>
 
-                 <TabsContent value="kanban" className="mt-4 flex-1 min-h-0 overflow-hidden">
-                    <LeadsKanban
-                      leads={leads}
-                      responsaveis={responsaveis}
-                      onLeadClick={handleLeadClick}
-                      onStatusChange={async (leadId, newStatus) => {
-                        try {
-                          const lead = leads.find((l) => l.id === leadId);
-                          if (!lead) return;
-                          await supabase.from("lead_history").insert({ lead_id: leadId, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de status", old_value: lead.status, new_value: newStatus });
-                          const { error } = await supabase.from("campaign_leads").update({ status: newStatus }).eq("id", leadId);
-                          if (error) throw error;
-                          handleStatusChange(leadId, newStatus);
-                        } catch (error) {
-                          console.error("Error updating status:", error);
-                          toast({ title: "Erro ao atualizar status", description: "Tente novamente.", variant: "destructive" });
-                        }
-                      }}
-                      onNameUpdate={async (leadId, newName) => {
+                {/* Collapsible Filters */}
+                <Collapsible open={showFilters}>
+                  <CollapsibleContent>
+                    <LeadsFilters filters={filters} onFiltersChange={setFilters} responsaveis={responsaveis} onExport={canExportLeads ? handleExport : undefined} />
+                  </CollapsibleContent>
+                </Collapsible>
+
+                {/* Leads content - now takes maximum space */}
+                {viewMode === "list" ? (
+                  <LeadsTable
+                    leads={leads}
+                    isLoading={isLoadingLeads}
+                    totalCount={totalCount}
+                    responsaveis={responsaveis}
+                    onLeadClick={handleLeadClick}
+                    onStatusChange={handleStatusChange}
+                    onRefresh={handleRefresh}
+                    canEdit={canEditLeads}
+                    isAdmin={isAdmin}
+                    currentUserId={user.id}
+                    currentUserName={currentUserProfile?.full_name || user.email || ""}
+                    currentPage={currentPage}
+                    pageSize={pageSize}
+                    onPageChange={setCurrentPage}
+                  />
+                ) : (
+                  <LeadsKanban
+                    leads={leads}
+                    responsaveis={responsaveis}
+                    onLeadClick={handleLeadClick}
+                    onStatusChange={async (leadId, newStatus) => {
+                      try {
                         const lead = leads.find((l) => l.id === leadId);
                         if (!lead) return;
-                        await supabase.from("lead_history").insert({ lead_id: leadId, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de nome", old_value: lead.name, new_value: newName });
-                        const { error } = await supabase.from("campaign_leads").update({ name: newName }).eq("id", leadId);
+                        await supabase.from("lead_history").insert({ lead_id: leadId, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de status", old_value: lead.status, new_value: newStatus });
+                        const { error } = await supabase.from("campaign_leads").update({ status: newStatus }).eq("id", leadId);
                         if (error) throw error;
-                        await supabase.from("wapi_conversations").update({ contact_name: newName }).eq("lead_id", leadId);
-                        setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, name: newName } : l));
-                        toast({ title: "Nome atualizado", description: `O nome foi alterado para "${newName}".` });
-                      }}
-                      onDescriptionUpdate={async (leadId, newDescription) => {
-                        const lead = leads.find((l) => l.id === leadId);
-                        if (!lead) return;
-                        await supabase.from("lead_history").insert({ lead_id: leadId, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de observações", old_value: lead.observacoes || "", new_value: newDescription });
-                        const { error } = await supabase.from("campaign_leads").update({ observacoes: newDescription }).eq("id", leadId);
-                        if (error) throw error;
-                        setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, observacoes: newDescription } : l));
-                        toast({ title: "Observação atualizada", description: "A observação foi salva com sucesso." });
-                      }}
-                      canEdit={canEditLeads}
-                      canEditName={canEditName}
-                      canEditDescription={canEditDescription}
-                      canDelete={canDeleteLeads}
-                      onDelete={canDeleteLeads ? handleDeleteLead : undefined}
-                    />
-                  </TabsContent>
-                </Tabs>
+                        handleStatusChange(leadId, newStatus);
+                      } catch (error) {
+                        console.error("Error updating status:", error);
+                        toast({ title: "Erro ao atualizar status", description: "Tente novamente.", variant: "destructive" });
+                      }
+                    }}
+                    onNameUpdate={async (leadId, newName) => {
+                      const lead = leads.find((l) => l.id === leadId);
+                      if (!lead) return;
+                      await supabase.from("lead_history").insert({ lead_id: leadId, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de nome", old_value: lead.name, new_value: newName });
+                      const { error } = await supabase.from("campaign_leads").update({ name: newName }).eq("id", leadId);
+                      if (error) throw error;
+                      await supabase.from("wapi_conversations").update({ contact_name: newName }).eq("lead_id", leadId);
+                      setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, name: newName } : l));
+                      toast({ title: "Nome atualizado", description: `O nome foi alterado para "${newName}".` });
+                    }}
+                    onDescriptionUpdate={async (leadId, newDescription) => {
+                      const lead = leads.find((l) => l.id === leadId);
+                      if (!lead) return;
+                      await supabase.from("lead_history").insert({ lead_id: leadId, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de observações", old_value: lead.observacoes || "", new_value: newDescription });
+                      const { error } = await supabase.from("campaign_leads").update({ observacoes: newDescription }).eq("id", leadId);
+                      if (error) throw error;
+                      setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, observacoes: newDescription } : l));
+                      toast({ title: "Observação atualizada", description: "A observação foi salva com sucesso." });
+                    }}
+                    canEdit={canEditLeads}
+                    canEditName={canEditName}
+                    canEditDescription={canEditDescription}
+                    canDelete={canDeleteLeads}
+                    onDelete={canDeleteLeads ? handleDeleteLead : undefined}
+                  />
+                )}
               </TabsContent>
 
             </Tabs>
