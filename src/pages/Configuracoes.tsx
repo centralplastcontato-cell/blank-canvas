@@ -9,6 +9,7 @@ import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
 import { WhatsAppConfig } from "@/components/whatsapp/WhatsAppConfig";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logoCastelo from "@/assets/logo-castelo.png";
@@ -20,6 +21,7 @@ interface Profile {
   full_name: string;
   email: string;
   is_active: boolean;
+  avatar_url: string | null;
 }
 
 export default function Configuracoes() {
@@ -110,14 +112,18 @@ export default function Configuracoes() {
     );
   }
 
+  const getInitials = (name: string) => {
+    return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+  };
+
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   // Mobile layout
   if (isMobile) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
+      <div className="h-dvh flex flex-col overflow-hidden bg-gradient-to-br from-background to-muted/30">
         {/* Mobile Header */}
-        <header className="bg-card border-b border-border sticky top-0 z-10">
+        <header className="bg-card/80 backdrop-blur-sm border-b border-border/60 shrink-0 z-10 shadow-subtle">
           <div className="px-3 py-3">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -156,23 +162,35 @@ export default function Configuracoes() {
   // Desktop layout
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
+      <div className="h-dvh flex w-full overflow-hidden">
         <AdminSidebar 
           canManageUsers={canManageUsers}
-          
+          isAdmin={isAdmin}
           currentUserName={currentUserProfile?.full_name || user.email || ""} 
           onRefresh={handleRefresh} 
           onLogout={handleLogout} 
         />
         
-        <SidebarInset className="flex-1 flex flex-col">
-          {/* Desktop Header */}
-          <header className="bg-card border-b border-border sticky top-0 z-10">
-            <div className="px-4 py-3 flex items-center gap-4">
-              <SidebarTrigger />
-              <div>
-                <h1 className="font-display font-bold text-foreground text-lg">Configurações</h1>
-                <p className="text-sm text-muted-foreground">{currentUserProfile?.full_name || user.email}</p>
+        <SidebarInset className="flex-1 flex flex-col overflow-hidden min-w-0 bg-gradient-to-br from-background to-muted/30">
+          {/* Desktop Header - Premium Glass Effect */}
+          <header className="bg-card/80 backdrop-blur-sm border-b border-border/60 shrink-0 z-10 shadow-subtle">
+            <div className="px-4 py-2.5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
+                <h1 className="font-display font-bold text-foreground">Configurações</h1>
+              </div>
+              
+              {/* User Info Desktop - Premium Style */}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 bg-border rounded-full pl-3 pr-1 py-1">
+                  <span className="text-sm text-muted-foreground hidden lg:block">{currentUserProfile?.full_name || user.email}</span>
+                  <Avatar className="h-8 w-8 border-2 border-primary/20">
+                    <AvatarImage src={currentUserProfile?.avatar_url || undefined} />
+                    <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground text-sm font-medium">
+                      {getInitials(currentUserProfile?.full_name || user.email || "U")}
+                    </AvatarFallback>
+                  </Avatar>
+                </div>
               </div>
             </div>
           </header>
