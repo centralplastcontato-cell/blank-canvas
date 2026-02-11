@@ -1,43 +1,59 @@
 
 
-## Correcao: Lead da Jessica e visibilidade de "Trabalhe Conosco" no CRM
+## Correcao definitiva: Leads "Trabalhe Conosco" nao aparecem no CRM
 
-### Problema 1: Card da Jessica nao aparece
+### Diagnostico
 
-A conversa da Jessica Yolanda foi processada pelo **Flow Builder** (antes da correcao que fizemos). O Flow Builder marcou `bot_step = 'flow_complete'` mas **nao criou nenhum lead** na tabela `campaign_leads`, entao `lead_id` ficou `null`.
+Apos analise detalhada do banco de dados e do codigo, os dados estao corretos:
+- Leads existem com `unit = 'Trabalhe Conosco'`
+- Permissoes estao concedidas (`leads.unit.trabalhe-conosco = true`)
+- A unidade existe em `company_units`
 
-Sem um lead vinculado, o card dela nao aparece corretamente na interface do WhatsApp e nao existe no CRM.
+O problema esta no **codigo frontend**, especificamente em um bug de timing/race condition:
 
-**Solucao**: Criar o lead manualmente no banco e vincular a conversa:
+### Causa raiz identificada
 
-```sql
--- 1. Criar lead para Jessica
-INSERT INTO campaign_leads (name, whatsapp, unit, campaign_id, campaign_name, status, company_id)
-VALUES ('Jessica Yolanda', '5515996382612', 'Trabalhe Conosco', 'whatsapp-bot-rh', 'WhatsApp (Bot) - RH', 'novo', 'a0000000-0000-0000-0000-000000000001')
-RETURNING id;
+O hook `useCompanyUnits` faz a consulta ao banco **antes da autenticacao estar pronta**. Como a tabela `company_units` tem RLS, a query retorna vazio. O hook resolve com `units = []` e nunca re-busca, pois seu `useCallback` depende apenas de `companyId` (que nao muda).
 
--- 2. Vincular o lead a conversa (usar o ID retornado acima)
-UPDATE wapi_conversations
-SET lead_id = '<ID_RETORNADO>', bot_step = 'work_interest'
-WHERE id = '6bb469cb-8e74-4599-bdda-37ffa892e246';
-```
+Com `companyUnits = []`, o hook `useUnitPermissions` so verifica `leads.unit.all` (que e `false` para Jamile), e `allowedUnits` fica vazio. O CentralAtendimento interpreta `allowedUnits.length === 0` como "sem permissao" e mostra zero leads.
 
-### Problema 2: Card "Trabalhe no Castelo" nao aparece no CRM
+### Plano de correcao
 
-A unidade "Trabalhe Conosco" ja existe na tabela `company_units` e o lead do Victor (o teste que funcionou) ja esta la com `unit = 'Trabalhe Conosco'`. O Kanban do CRM filtra leads por unidade usando as abas de `UnitKanbanTabs.tsx`.
+#### 1. Corrigir `useCompanyUnits` para re-buscar apos autenticacao
 
-O card **deveria aparecer** na aba "Trabalhe Conosco" do Kanban. Se nao esta aparecendo, pode ser por permissao do usuario logado (o usuario precisa ter acesso a unidade "Trabalhe Conosco" nas permissoes ou ser admin/gestor com visualizacao total).
+Adicionar uma dependencia no estado de autenticacao para que o hook re-execute a consulta quando o usuario estiver autenticado:
 
-Verificaremos as permissoes e, se necessario, ajustaremos o acesso.
+- Adicionar listener `onAuthStateChange` dentro do hook
+- Quando o estado de auth mudar, chamar `fetchUnits()` novamente
+- Isso garante que as unidades sejam carregadas DEPOIS do RLS estar ativo
 
-### Resumo das acoes
+#### 2. Adicionar logs de debug temporarios
 
-1. **Migracao SQL**: Criar lead da Jessica e vincular a conversa
-2. **Verificacao**: Confirmar que leads com `unit = 'Trabalhe Conosco'` aparecem na aba correta do CRM
-3. **Permissoes**: Verificar se o usuario logado tem acesso a unidade "Trabalhe Conosco"
+Adicionar `console.log` no `useUnitPermissions` para rastrear:
+- Quantas `companyUnits` foram carregadas
+- Quais `allowedUnits` foram resolvidas
+- Se `canViewAll` esta correto
+
+Isso ajudara a confirmar se o fix resolveu o problema.
+
+#### 3. Garantir re-fetch no `useUnitPermissions`
+
+O `useUnitPermissions` ja depende de `companyUnits` no callback, entao quando `useCompanyUnits` atualizar, ele vai re-executar automaticamente.
+
+### Detalhes tecnicos
+
+**Arquivo: `src/hooks/useCompanyUnits.ts`**
+- Adicionar `supabase.auth.onAuthStateChange` dentro de um `useEffect`
+- Quando o evento for `SIGNED_IN`, chamar `fetchUnits()` para recarregar as unidades com o RLS ativo
+- Limpar o listener no cleanup do useEffect
+
+**Arquivo: `src/hooks/useUnitPermissions.ts`**
+- Adicionar `console.log` com os valores de `companyUnits.length`, `allowedUnits` e `canViewAll` para debug
 
 ### Impacto
 
-- Apenas correcao de dados (1 INSERT + 1 UPDATE)
-- Nenhuma alteracao de codigo necessaria
-- A Jessica passara a aparecer tanto no chat quanto no CRM
+- Correcao de 2 arquivos (hooks)
+- Nenhuma mudanca no banco de dados
+- Resolve o problema para TODOS os usuarios, nao apenas "Trabalhe Conosco"
+- Os logs de debug podem ser removidos depois da confirmacao
+
