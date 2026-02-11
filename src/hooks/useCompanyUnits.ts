@@ -16,7 +16,6 @@ export function useCompanyUnits(companyId?: string) {
 
   const fetchUnits = useCallback(async () => {
     if (!companyId) {
-      // Try to get from localStorage fallback
       const storedCompanyId = localStorage.getItem('selected_company_id') || 'a0000000-0000-0000-0000-000000000001';
       
       const { data, error } = await supabase
@@ -57,6 +56,16 @@ export function useCompanyUnits(companyId?: string) {
     fetchUnits();
   }, [fetchUnits]);
 
+  // Re-fetch when auth state changes (fixes RLS race condition)
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        console.log('[useCompanyUnits] Auth state changed, re-fetching units');
+        fetchUnits();
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [fetchUnits]);
   // Helper: get unit names as simple string array
   const unitNames = units.map(u => u.name);
 

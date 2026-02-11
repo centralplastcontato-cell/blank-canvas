@@ -71,6 +71,8 @@ export function useUnitPermissions(userId: string | undefined, companyId?: strin
         }
       }
 
+      console.log('[useUnitPermissions] companyUnits:', companyUnits.length, 'canViewAll:', canViewAll, 'allowedUnits:', allowedUnits);
+
       setUnitPermissions({
         canViewAll,
         allowedUnits,
