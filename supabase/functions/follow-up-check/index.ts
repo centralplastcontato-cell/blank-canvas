@@ -593,12 +593,42 @@ async function processBotInactiveFollowUp({
 Podemos continuar de onde paramos?`;
   const messageTemplate = settings.bot_inactive_followup_message || defaultMsg;
 
+  // Pre-fetch bot questions for this instance to re-ask the current step question
+  const { data: botQuestions } = await supabase
+    .from("wapi_bot_questions")
+    .select("step, question_text")
+    .eq("instance_id", settings.instance_id)
+    .eq("is_active", true);
+
+  // Map step to question text for quick lookup
+  const stepQuestionMap: Record<string, string> = {};
+  if (botQuestions) {
+    for (const q of botQuestions) {
+      stepQuestionMap[q.step] = q.question_text;
+    }
+  }
+
   for (const conv of stuckConversations) {
     try {
-      const botData = (conv.bot_data || {}) as Record<string, string>;
-      const firstName = (botData.nome || conv.contact_name || "").split(" ")[0] || "cliente";
+      const botData = (conv.bot_data || {}) as Record<string, unknown>;
       
-      const personalizedMessage = messageTemplate.replace(/\{nome\}/g, firstName);
+      // Skip if already reminded (prevent duplicate reminders)
+      if (botData._inactive_reminded) {
+        console.log(`[follow-up-check] Skipping conv ${conv.id} - already reminded`);
+        continue;
+      }
+      
+      const firstName = (String(botData.nome || conv.contact_name || "")).split(" ")[0] || "cliente";
+      
+      let personalizedMessage = messageTemplate.replace(/\{nome\}/g, firstName);
+
+      // Append the original question the lead didn't answer
+      const currentStep = conv.bot_step as string;
+      const stepQuestion = stepQuestionMap[currentStep];
+      if (stepQuestion) {
+        const personalizedQuestion = stepQuestion.replace(/\{nome\}/g, firstName);
+        personalizedMessage += `\n\n${personalizedQuestion}`;
+      }
       const phone = conv.remote_jid.replace("@s.whatsapp.net", "").replace("@c.us", "");
 
       const wapiResponse = await fetch(
@@ -632,12 +662,16 @@ Podemos continuar de onde paramos?`;
         timestamp: new Date().toISOString(),
       });
 
-      // Disable bot and mark as reminded so we don't resend
+      // If we re-asked the question, keep bot enabled so it can process the answer
+      // Mark _inactive_reminded in bot_data to prevent duplicate reminders
+      const hasReAskedQuestion = !!stepQuestion;
+      const updatedBotData = { ...botData, _inactive_reminded: true };
       await supabase
         .from("wapi_conversations")
         .update({
-          bot_step: "bot_inactive_reminded",
-          bot_enabled: false,
+          bot_step: hasReAskedQuestion ? conv.bot_step : "bot_inactive_reminded",
+          bot_enabled: hasReAskedQuestion,
+          bot_data: updatedBotData,
           last_message_at: new Date().toISOString(),
           last_message_content: personalizedMessage.substring(0, 100),
           last_message_from_me: true,
