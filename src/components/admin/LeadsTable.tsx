@@ -569,7 +569,7 @@ function PaginationControls({
   };
 
   return (
-    <div className="px-3 py-1 border-t border-border shrink-0 bg-muted/80">
+    <div className="px-3 py-1 border-t border-border shrink-0 bg-muted">
       <Pagination>
         <PaginationContent>
           <PaginationItem>
