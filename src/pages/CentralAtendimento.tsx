@@ -843,7 +843,7 @@ export default function CentralAtendimento() {
                 <h1 className="font-display font-bold text-foreground">Central de Atendimento</h1>
                 
                 {/* Quick Tab Buttons - Premium Style */}
-                <div className="flex items-center gap-1.5 ml-3 bg-muted/50 rounded-lg p-1">
+                <div className="flex items-center gap-1.5 ml-3 bg-border rounded-lg p-1">
                   <Button
                     variant={activeTab === "chat" ? "default" : "ghost"}
                     size="sm"
