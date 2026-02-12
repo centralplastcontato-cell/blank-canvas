@@ -13,6 +13,8 @@ interface ProspectData {
   city: string;
   state: string;
   instagram: string;
+  has_website: string;
+  website: string;
   monthly_leads: string;
   lead_cost: string;
   has_lead_clarity: string;
@@ -78,6 +80,8 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
     city: "",
     state: "",
     instagram: "",
+    has_website: "",
+    website: "",
     monthly_leads: "",
     lead_cost: "",
     has_lead_clarity: "",
@@ -91,7 +95,7 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
   const canProceed = () => {
     switch (step) {
       case 0:
-        return data.buffet_name.trim().length >= 2 && data.city.trim().length >= 2 && data.state.length > 0;
+        return data.buffet_name.trim().length >= 2 && data.city.trim().length >= 2 && data.state.length > 0 && data.instagram.trim().length >= 2 && data.has_website.length > 0 && (data.has_website === "Não" || data.website.trim().length >= 4);
       case 1:
         return data.monthly_leads && data.lead_cost && data.has_lead_clarity && data.lead_organization;
       case 2:
@@ -118,7 +122,8 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
           phone: data.whatsapp,
           city: data.city.trim(),
           state: data.state,
-          instagram: data.instagram.trim() || null,
+          instagram: data.instagram.trim(),
+          how_found_us: data.has_website === "Sim" ? `Site: ${data.website.trim()}` : "Sem site",
           monthly_leads: data.monthly_leads,
           lead_cost: data.lead_cost,
           has_lead_clarity: data.has_lead_clarity === "Sim, tenho total controle",
@@ -145,8 +150,8 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
     setStep(0);
     setData({
       buffet_name: "", contact_name: "", whatsapp: "", email: "",
-      city: "", state: "", instagram: "", monthly_leads: "",
-      lead_cost: "", has_lead_clarity: "", lead_organization: "",
+      city: "", state: "", instagram: "", has_website: "", website: "",
+      monthly_leads: "", lead_cost: "", has_lead_clarity: "", lead_organization: "",
     });
     setIsComplete(false);
     setIsSaving(false);
@@ -302,7 +307,7 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
                   </div>
                   <div>
                     <label className="text-sm font-medium text-foreground mb-1.5 block">
-                      Instagram (opcional)
+                      Instagram *
                     </label>
                     <input
                       type="text"
@@ -313,6 +318,44 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
                       maxLength={100}
                     />
                   </div>
+                  <div>
+                    <label className="text-sm font-medium text-foreground mb-1.5 block">
+                      Possui site? *
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {["Sim", "Não"].map((opt) => (
+                        <button
+                          key={opt}
+                          onClick={() => {
+                            updateField("has_website", opt);
+                            if (opt === "Não") updateField("website", "");
+                          }}
+                          className={`text-sm px-3 py-2.5 rounded-xl border transition-all ${
+                            data.has_website === opt
+                              ? "border-primary bg-primary/10 text-primary font-medium"
+                              : "border-border bg-muted text-foreground hover:border-primary/50"
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {data.has_website === "Sim" && (
+                    <div>
+                      <label className="text-sm font-medium text-foreground mb-1.5 block">
+                        Qual é o site? *
+                      </label>
+                      <input
+                        type="url"
+                        value={data.website}
+                        onChange={(e) => updateField("website", e.target.value)}
+                        placeholder="https://www.seubuffet.com.br"
+                        className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                        maxLength={200}
+                      />
+                    </div>
+                  )}
                 </motion.div>
               ) : step === 1 ? (
                 <motion.div
