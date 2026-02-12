@@ -6,12 +6,14 @@ import { HubDashboardFilters, DashboardFilters, getDefaultFilters } from "@/comp
 import { HubSalesFunnel } from "@/components/hub/HubSalesFunnel";
 import { HubUnitRanking } from "@/components/hub/HubUnitRanking";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Building2, Users, MessageSquare, TrendingUp, UserPlus,
-  CheckCircle, XCircle, BarChart3, Percent, Timer
+  Building2, Users, MessageSquare, UserPlus,
+  CheckCircle, XCircle, BarChart3, Percent, Timer,
+  Phone
 } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface LeadRecord {
   company_id: string;
@@ -32,6 +34,9 @@ interface CompanyMetrics {
   totalConversations: number;
   activeConversations: number;
   totalMessages: number;
+  lastLeadAt: string | null;
+  whatsappStatus: 'connected' | 'disconnected' | 'unknown';
+  whatsappPhone: string | null;
 }
 
 interface ConversationTiming {
@@ -120,6 +125,19 @@ function HubDashboardContent({ userId }: { userId: string }) {
           const { count: messagesCount } = await supabase
             .from("wapi_messages").select("id", { count: "exact", head: true }).eq("company_id", company.id);
 
+          // Fetch WhatsApp instance for this company
+          const { data: instances } = await supabase
+            .from("wapi_instances")
+            .select("status, phone_number")
+            .eq("company_id", company.id)
+            .order("connected_at", { ascending: false })
+            .limit(1);
+
+          const instance = instances?.[0];
+          const lastLead = allLeads.length > 0
+            ? allLeads.reduce((latest, l) => l.created_at > latest ? l.created_at : latest, allLeads[0].created_at)
+            : null;
+
           metrics.push({
             companyId: company.id, companyName: company.name, logoUrl: company.logo_url,
             totalLeads: allLeads.length,
@@ -130,6 +148,9 @@ function HubDashboardContent({ userId }: { userId: string }) {
             totalConversations: allConvos.length,
             activeConversations: allConvos.filter(c => !c.is_closed).length,
             totalMessages: messagesCount || 0,
+            lastLeadAt: lastLead,
+            whatsappStatus: instance?.status === 'open' || instance?.status === 'connected' ? 'connected' : instance ? 'disconnected' : 'unknown',
+            whatsappPhone: instance?.phone_number || null,
           });
         }
         setCompanyMetrics(metrics);
@@ -258,62 +279,124 @@ function HubDashboardContent({ userId }: { userId: string }) {
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
-            {filteredMetrics.map((m) => (
-              <Card key={m.companyId} className="hover:shadow-md transition-shadow">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-3">
-                    {m.logoUrl ? (
-                      <img src={m.logoUrl} alt={m.companyName} className="h-10 w-10 rounded-lg object-contain bg-muted" />
-                    ) : (
-                      <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <Building2 className="h-5 w-5 text-primary" />
+            {filteredMetrics.map((m) => {
+              const companyConvRate = m.totalLeads > 0 ? ((m.leadsClosed / m.totalLeads) * 100).toFixed(1) : "0";
+              const companyTimings = conversationTimings.filter(t => t.company_id === m.companyId && t.first_message_at);
+              let companyAvgResponse = "—";
+              if (companyTimings.length > 0) {
+                const totalMin = companyTimings.reduce((sum, t) => {
+                  const diff = new Date(t.first_message_at!).getTime() - new Date(t.created_at).getTime();
+                  return sum + Math.max(0, diff / 60000);
+                }, 0);
+                const avg = totalMin / companyTimings.length;
+                companyAvgResponse = avg < 60 ? `${Math.round(avg)}min` : avg < 1440 ? `${(avg / 60).toFixed(1)}h` : `${(avg / 1440).toFixed(1)}d`;
+              }
+
+              return (
+                <Card key={m.companyId} className="hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {m.logoUrl ? (
+                          <img src={m.logoUrl} alt={m.companyName} className="h-10 w-10 rounded-lg object-contain bg-muted" />
+                        ) : (
+                          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                            <Building2 className="h-5 w-5 text-primary" />
+                          </div>
+                        )}
+                        <div>
+                          <CardTitle className="text-base">{m.companyName}</CardTitle>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <span className={`h-2 w-2 rounded-full ${m.whatsappStatus === 'connected' ? 'bg-emerald-500' : m.whatsappStatus === 'disconnected' ? 'bg-destructive' : 'bg-muted-foreground'}`} />
+                            <span className="text-xs text-muted-foreground">
+                              {m.whatsappStatus === 'connected' ? 'WhatsApp conectado' : m.whatsappStatus === 'disconnected' ? 'WhatsApp desconectado' : 'Sem instância'}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                    )}
-                    <CardTitle className="text-base">{m.companyName}</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Leads total</span>
-                        <span className="font-semibold">{m.totalLeads}</span>
+                      {m.whatsappPhone && (
+                        <a
+                          href={`https://wa.me/${m.whatsappPhone.replace(/\D/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-colors text-xs font-medium"
+                        >
+                          <Phone className="h-3.5 w-3.5" />
+                          WhatsApp
+                        </a>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    {/* KPIs row */}
+                    <div className="grid grid-cols-4 gap-2 mb-3">
+                      <div className="text-center p-2 rounded-lg bg-muted/50">
+                        <p className="text-lg font-bold text-foreground">{m.totalLeads}</p>
+                        <p className="text-[10px] text-muted-foreground">Leads</p>
                       </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Leads hoje</span>
-                        <Badge variant="secondary" className="text-xs">{m.leadsToday}</Badge>
+                      <div className="text-center p-2 rounded-lg bg-muted/50">
+                        <p className="text-lg font-bold text-emerald-600">{companyConvRate}%</p>
+                        <p className="text-[10px] text-muted-foreground">Conversão</p>
                       </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Novos</span>
-                        <span className="font-medium text-amber-600">{m.leadsNew}</span>
+                      <div className="text-center p-2 rounded-lg bg-muted/50">
+                        <p className="text-lg font-bold text-foreground">{companyAvgResponse}</p>
+                        <p className="text-[10px] text-muted-foreground">T. Resposta</p>
+                      </div>
+                      <div className="text-center p-2 rounded-lg bg-muted/50">
+                        <p className="text-lg font-bold text-foreground">{m.leadsToday}</p>
+                        <p className="text-[10px] text-muted-foreground">Hoje</p>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Fechados</span>
-                        <span className="font-medium text-emerald-600">{m.leadsClosed}</span>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Novos</span>
+                          <span className="font-medium text-amber-600">{m.leadsNew}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Fechados</span>
+                          <span className="font-medium text-emerald-600">{m.leadsClosed}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Perdidos</span>
+                          <span className="font-medium text-destructive">{m.leadsLost}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Perdidos</span>
-                        <span className="font-medium text-rose-600">{m.leadsLost}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Conversas</span>
-                        <span className="font-semibold">{m.totalConversations}</span>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Conversas</span>
+                          <span className="font-semibold">{m.totalConversations}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Ativas</span>
+                          <span className="font-medium text-primary">{m.activeConversations}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Mensagens</span>
+                          <span className="font-semibold">{m.totalMessages}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="mt-3 pt-3 border-t flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground flex items-center gap-1.5">
-                      <MessageSquare className="h-3.5 w-3.5" /> {m.totalMessages} mensagens
-                    </span>
-                    <span className="text-muted-foreground flex items-center gap-1.5">
-                      <TrendingUp className="h-3.5 w-3.5" /> {m.activeConversations} ativas
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+
+                    {/* Last lead + footer */}
+                    <div className="mt-3 pt-3 border-t flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1.5">
+                        <Timer className="h-3 w-3" />
+                        {m.lastLeadAt
+                          ? `Último lead: ${formatDistanceToNow(new Date(m.lastLeadAt), { addSuffix: true, locale: ptBR })}`
+                          : 'Sem leads'}
+                      </span>
+                      {m.whatsappPhone && (
+                        <span className="font-mono text-[10px]">
+                          {m.whatsappPhone}
+                        </span>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>
