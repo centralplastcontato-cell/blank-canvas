@@ -422,11 +422,17 @@ async function processFollowUp({
 
       // Compose follow-up message with variable replacements
       const firstName = lead.name.split(" ")[0];
-      const personalizedMessage = message
+      let personalizedMessage = message
         .replace(/\{nome\}/g, firstName)
         .replace(/\{unidade\}/g, lead.unit || "nossa unidade")
         .replace(/\{mes\}/g, lead.month || "")
         .replace(/\{convidados\}/g, lead.guests || "");
+
+      // Append numbered options if not already present in the message
+      const hasOptions = /\*1\*/.test(personalizedMessage) && /\*2\*/.test(personalizedMessage);
+      if (!hasOptions) {
+        personalizedMessage += `\n\n*1* - Agendar visita\n*2* - Tirar dúvidas\n*3* - Analisar com calma`;
+      }
 
       // Send the message via W-API
       const wapiResponse = await fetch(
@@ -463,13 +469,15 @@ async function processFollowUp({
         timestamp: new Date().toISOString(),
       });
 
-      // Update conversation last message
+      // Update conversation: reactivate bot at proximo_passo so it processes the lead's reply
       await supabase
         .from("wapi_conversations")
         .update({
           last_message_at: new Date().toISOString(),
           last_message_content: personalizedMessage.substring(0, 100),
           last_message_from_me: true,
+          bot_enabled: true,
+          bot_step: "proximo_passo",
         })
         .eq("id", conversation.id);
 
@@ -622,12 +630,27 @@ Podemos continuar de onde paramos?`;
       
       let personalizedMessage = messageTemplate.replace(/\{nome\}/g, firstName);
 
-      // Append the original question the lead didn't answer
+      // Append the original question the lead didn't answer (from DB or DEFAULT_QUESTIONS fallback)
       const currentStep = conv.bot_step as string;
       const stepQuestion = stepQuestionMap[currentStep];
       if (stepQuestion) {
         const personalizedQuestion = stepQuestion.replace(/\{nome\}/g, firstName);
         personalizedMessage += `\n\n${personalizedQuestion}`;
+      } else {
+        // Fallback: use default question for this step
+        const DEFAULT_QUESTIONS_MAP: Record<string, string> = {
+          nome: 'Para começar, me conta: qual é o seu nome? 👑',
+          tipo: `Você já é nosso cliente e tem uma festa agendada, ou gostaria de receber um orçamento? 🎉\n\nResponda com o *número*:\n\n*1* - Já sou cliente\n*2* - Quero um orçamento\n*3* - Trabalhe no Castelo`,
+          mes: `Que legal! 🎉 E pra qual mês você tá pensando em fazer essa festa incrível?\n\n📅 Responda com o *número*:\n\n*1* - Fevereiro\n*2* - Março\n*3* - Abril\n*4* - Maio\n*5* - Junho\n*6* - Julho\n*7* - Agosto\n*8* - Setembro\n*9* - Outubro\n*10* - Novembro\n*11* - Dezembro`,
+          dia: `Maravilha! Tem preferência de dia da semana? 🗓️\n\nResponda com o *número*:\n\n*1* - Segunda a Quinta\n*2* - Sexta\n*3* - Sábado\n*4* - Domingo`,
+          convidados: `E quantos convidados você pretende chamar pra essa festa mágica? 🎈\n\n👥 Responda com o *número*:\n\n*1* - 50 pessoas\n*2* - 60 pessoas\n*3* - 70 pessoas\n*4* - 80 pessoas\n*5* - 90 pessoas\n*6* - 100 pessoas`,
+          welcome: 'Para começar, me conta: qual é o seu nome? 👑',
+        };
+        const fallbackQuestion = DEFAULT_QUESTIONS_MAP[currentStep];
+        if (fallbackQuestion) {
+          const personalizedQuestion = fallbackQuestion.replace(/\{nome\}/g, firstName);
+          personalizedMessage += `\n\n${personalizedQuestion}`;
+        }
       }
       const phone = conv.remote_jid.replace("@s.whatsapp.net", "").replace("@c.us", "");
 
@@ -662,15 +685,14 @@ Podemos continuar de onde paramos?`;
         timestamp: new Date().toISOString(),
       });
 
-      // If we re-asked the question, keep bot enabled so it can process the answer
+      // Always keep bot enabled so it can process the lead's reply
       // Mark _inactive_reminded in bot_data to prevent duplicate reminders
-      const hasReAskedQuestion = !!stepQuestion;
       const updatedBotData = { ...botData, _inactive_reminded: true };
       await supabase
         .from("wapi_conversations")
         .update({
-          bot_step: hasReAskedQuestion ? conv.bot_step : "bot_inactive_reminded",
-          bot_enabled: hasReAskedQuestion,
+          bot_step: conv.bot_step, // keep current step so bot re-processes the answer
+          bot_enabled: true, // always reactivate
           bot_data: updatedBotData,
           last_message_at: new Date().toISOString(),
           last_message_content: personalizedMessage.substring(0, 100),
