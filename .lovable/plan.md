@@ -1,57 +1,114 @@
 
 
-# Corrigir Preview do WhatsApp por Dominio
+# Resolucao robusta de tenant por dominio (www vs sem www)
 
 ## Problema
-Os crawlers do WhatsApp (e de redes sociais em geral) nao executam JavaScript. Eles leem apenas o HTML estatico servido pelo servidor. Como ambos os dominios (`hubcelebrei.com.br` e `www.castelodadiversao.online`) apontam para o mesmo CDN do Lovable e servem o mesmo `index.html`, ambos exibem a mesma miniatura e descricao do Celebrei.
+O campo `custom_domain` da tabela `companies` armazena `www.castelodadiversao.online`, mas quando o usuario acessa `castelodadiversao.online` (sem www), a resolucao falha porque a comparacao e exata. Isso causa mistura de OG/branding entre Hub e buffet.
 
-O `react-helmet-async` corrige o titulo na aba do navegador (para usuarios humanos), mas nao afeta o que o WhatsApp ve ao gerar a preview.
+## Estrategia (3 passos incrementais, 1 unica implementacao)
 
-## Solucao
+Reutilizar o campo `custom_domain` existente como `domain_primary` (evitando renomear). Adicionar apenas `domain_canonical` como coluna computada/armazenada. Nao adicionar `domain_aliases` como coluna separada -- a logica de aliases sera feita via normalizacao no codigo e no RPC (mais simples, menos migracao).
 
-Utilizar um script inline no `index.html` que roda **antes** do React carregar e substitui as meta tags OG com base no hostname. Embora os crawlers tradicionais do WhatsApp nao executem JS completo, versoes mais recentes dos crawlers de algumas plataformas fazem pre-renderizacao parcial. Alem disso, essa abordagem garante consistencia para qualquer serviço que faca uma renderizacao minima.
+## Alteracoes
 
-### Alteracao no `index.html`
+### Passo 1: Migracao do banco (1 unica migracao)
 
-Adicionar um bloco `<script>` inline **sincrono** (sem `type="module"`) no `<head>`, logo apos as meta tags estaticas, que:
-
-1. Detecta o `window.location.hostname`
-2. Define um mapa de dominio para meta dados (titulo, descricao, imagem, url)
-3. Substitui as meta tags OG existentes via `document.querySelector` e `.setAttribute`
+Adicionar coluna `domain_canonical` a tabela `companies`:
 
 ```text
-Mapa de dominios:
-- castelodadiversao.online / www.castelodadiversao.online
-  -> Titulo: "Castelo da Diversao | Buffet Infantil"
-  -> Descricao: "O melhor buffet infantil para a festa do seu filho!"
-  -> Imagem: "https://www.castelodadiversao.online/og-image.jpg"
-  -> URL: "https://www.castelodadiversao.online"
+ALTER TABLE companies ADD COLUMN domain_canonical text;
 
-- hubcelebrei.com.br / celebrei.com.br (e www)
-  -> Manter os valores atuais (Celebrei)
+-- Preencher para empresas existentes: remover www. e lowercase
+UPDATE companies 
+SET domain_canonical = lower(regexp_replace(custom_domain, '^www\.', ''))
+WHERE custom_domain IS NOT NULL;
 
-- Qualquer outro dominio
-  -> Manter fallback atual (Celebrei)
+-- Atualizar a RPC get_landing_page_by_domain para comparar com canonical
+CREATE OR REPLACE FUNCTION get_landing_page_by_domain(_domain text)
+RETURNS TABLE(...) AS $$
+  -- Normalizar input: lowercase + remover www.
+  WITH normalized AS (
+    SELECT lower(regexp_replace(_domain, '^www\.', '')) AS canonical
+  )
+  SELECT ... FROM companies c JOIN company_landing_pages lp ...
+  WHERE c.domain_canonical = (SELECT canonical FROM normalized)
+    AND c.is_active = true AND lp.is_published = true
+  LIMIT 1;
+$$
 ```
 
-### Limitacao Importante
+Tambem criar uma RPC nova `get_company_by_domain` para resolver tenant sem precisar de landing page:
 
-Essa abordagem funciona para navegadores e crawlers que executam JS basico, mas o **crawler do WhatsApp especificamente** pode nao executar este script. Para garantir 100% de funcionamento no WhatsApp, seria necessario configurar um proxy reverso (como Cloudflare Worker) no dominio `castelodadiversao.online` que intercepte user agents de crawlers e retorne o HTML da edge function `og-preview`. Essa configuracao e feita fora do Lovable, no painel de DNS/CDN do dominio.
+```text
+CREATE OR REPLACE FUNCTION get_company_by_domain(_domain text)
+RETURNS TABLE(id uuid, name text, slug text, logo_url text, custom_domain text, settings jsonb)
+AS $$
+  SELECT id, name, slug, logo_url, custom_domain, settings
+  FROM companies
+  WHERE domain_canonical = lower(regexp_replace(_domain, '^www\.', ''))
+    AND is_active = true
+  LIMIT 1;
+$$
+```
 
-### Alternativa Complementar
+### Passo 2: Frontend -- normalizacao e resolucao de tenant
 
-Atualizar a edge function `og-preview` para tambem ser usada como URL de compartilhamento nos materiais de vendas e mensagens automaticas do bot. Em vez de compartilhar `www.castelodadiversao.online` diretamente, o sistema compartilharia a URL da edge function que faz o redirect automatico:
-`https://rsezgnkfhodltrsewlhz.supabase.co/functions/v1/og-preview?domain=castelodadiversao`
+**`src/hooks/useDomainDetection.ts`** -- Adicionar funcao `normalizeHostname`:
+- Remove `www.`, converte para lowercase, remove porta
+- Exportar como `getCanonicalHost()`
+- Atualizar `isHubDomain()` para usar hostname normalizado
 
-Porem isso muda a URL visivel na mensagem, o que pode nao ser desejavel.
+**`src/pages/RootPage.tsx`** -- Usar hostname normalizado:
+- Em vez de comparar com `www.castelodadiversao.online` E `castelodadiversao.online` separadamente, normalizar e comparar com `castelodadiversao.online` apenas
+- Passar hostname normalizado para `DynamicLandingPage`
 
-## Resumo das Alteracoes
+**`src/pages/DynamicLandingPage.tsx`** -- Ja funciona, pois o RPC normaliza no banco
 
-### Arquivo: `index.html`
-- Adicionar script inline sincrono no `<head>` para detectar hostname e substituir meta tags OG dinamicamente
-- Atualizar tambem o `<title>`, canonical URL e structured data com base no dominio
+### Passo 3: OG dinamico por empresa
 
-### Resultado Esperado
-- Navegadores e alguns crawlers modernos verao as meta tags corretas por dominio
-- Para garantia total no WhatsApp, recomenda-se configurar um Cloudflare Worker no dominio customizado (acao externa ao Lovable)
+**`index.html`** -- Atualizar script inline:
+- O script ja usa `indexOf('castelodadiversao')` que funciona para ambos www e sem www
+- Adicionar suporte generico: consultar um mapa de dominios ou manter o pattern atual
+
+**`src/pages/DynamicLandingPage.tsx`** -- Ja tem `<Helmet>` com dados dinamicos. Enriquecer com:
+- `og:description` usando `data.hero.subtitle`
+- `og:url` usando `domain_primary` da empresa
+- `og:image` usando `data.company_logo`
+
+### Passo 4: Redirect opcional para dominio primario
+
+**`src/hooks/useDomainDetection.ts`** -- Adicionar funcao `redirectToPrimaryDomain`:
+- Recebe `domain_primary` da empresa resolvida
+- Se `window.location.hostname` != `domain_primary`, faz `window.location.replace()`
+- Controlado por flag em `company.settings.force_primary_domain` (default: false)
+- Chamado no RootPage apos resolver empresa
+
+### Passo 5: Debug logging (dev only)
+
+No `RootPage.tsx`, adicionar log condicional:
+```text
+if (import.meta.env.DEV) {
+  console.log('[TenantResolver]', { hostname, canonicalHost, company, redirect });
+}
+```
+
+## Arquivos alterados
+
+1. **Migracao SQL** -- 1 arquivo de migracao com: coluna `domain_canonical`, UPDATE existentes, RPCs atualizadas
+2. **`src/hooks/useDomainDetection.ts`** -- normalizeHostname, getCanonicalHost, redirectToPrimaryDomain
+3. **`src/pages/RootPage.tsx`** -- usar canonical host, chamar redirect, logs dev
+4. **`src/pages/DynamicLandingPage.tsx`** -- enriquecer Helmet com mais meta tags OG
+5. **`supabase/functions/og-preview/index.ts`** -- atualizar para usar canonical na busca
+
+## O que NAO sera alterado (economia de creditos)
+- Tabela `companies` NAO sera renomeada nem tera campo `domain_aliases` separado (aliases sao resolvidos via normalizacao)
+- Campo `custom_domain` continua sendo o `domain_primary` (sem renomear)
+- Paginas internas (Auth, Dashboard, etc.) ja tem Helmet configurado -- nao serao tocadas
+- `index.html` -- script inline ja cobre o caso do Castelo, nao precisa mudar
+
+## Resultado esperado
+- `www.castelodadiversao.online` -> resolve Castelo, OG do Castelo
+- `castelodadiversao.online` -> resolve Castelo (via canonical), opcionalmente redireciona para www
+- Qualquer futuro buffet com dominio proprio -> funciona automaticamente (basta preencher `custom_domain`)
+- Dominio desconhecido -> Hub padrao, OG do Hub
 
