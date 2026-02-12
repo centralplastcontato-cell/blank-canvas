@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ArrowRight, ArrowLeft, Send, Loader2, CheckCircle2, BarChart3, Users, DollarSign, Target } from "lucide-react";
+import { X, ArrowRight, ArrowLeft, Send, Loader2, CheckCircle2, BarChart3, Users, DollarSign, Target, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -19,6 +19,7 @@ interface ProspectData {
   lead_cost: string;
   has_lead_clarity: string;
   lead_organization: string;
+  investment_willingness: string;
 }
 
 interface HubProspectWizardProps {
@@ -30,7 +31,17 @@ const STEPS = [
   { title: "Sobre seu buffet", icon: BarChart3 },
   { title: "Volume e custo", icon: DollarSign },
   { title: "Organização", icon: Target },
+  { title: "Investimento", icon: Sparkles },
   { title: "Seus dados", icon: Users },
+];
+
+const INVESTMENT_OPTIONS = [
+  "Até R$ 300/mês",
+  "R$ 300 a R$ 600/mês",
+  "R$ 600 a R$ 1.000/mês",
+  "R$ 1.000 a R$ 2.000/mês",
+  "Acima de R$ 2.000/mês",
+  "Preciso entender melhor o retorno",
 ];
 
 const MONTHLY_LEADS_OPTIONS = [
@@ -87,6 +98,7 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
     lead_cost: "",
     has_lead_clarity: "",
     lead_organization: "",
+    investment_willingness: "",
   });
 
   const updateField = (field: keyof ProspectData, value: string) => {
@@ -102,6 +114,8 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
       case 2:
         return !!data.has_lead_clarity && !!data.lead_organization;
       case 3:
+        return !!data.investment_willingness;
+      case 4:
         return (
           data.contact_name.trim().length >= 2 &&
           data.whatsapp.replace(/\D/g, "").length >= 10 &&
@@ -131,6 +145,7 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
           lead_cost: data.lead_cost,
           has_lead_clarity: data.has_lead_clarity === "Sim, tenho total controle",
           lead_organization: data.lead_organization,
+          main_challenges: `Investimento: ${data.investment_willingness}`,
           source: "hub_landing",
         },
       });
@@ -155,6 +170,7 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
       buffet_name: "", contact_name: "", whatsapp: "", email: "",
       city: "", state: "", instagram: "", has_website: "", website: "",
       monthly_leads: "", lead_cost: "", has_lead_clarity: "", lead_organization: "",
+      investment_willingness: "",
     });
     setIsComplete(false);
     setIsSaving(false);
@@ -462,9 +478,46 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
                     </div>
                   </div>
                 </motion.div>
-              ) : (
+              ) : step === 3 ? (
                 <motion.div
                   key="step-3"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-5"
+                >
+                  <div>
+                    <label className="text-sm font-medium text-foreground mb-2 block flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-primary" />
+                      Quanto estaria disposto a investir mensalmente para:
+                    </label>
+                    <div className="bg-muted/50 rounded-xl p-3 mb-3 space-y-1.5">
+                      <p className="text-xs text-muted-foreground flex items-center gap-2">✅ Landing page profissional para captar leads</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-2">✅ Reduzir custo por lead</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-2">✅ Atendimento automático 24/7 via WhatsApp</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-2">✅ Follow-up inteligente e classificação de leads</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-2">✅ CRM completo com visão clara de cada lead</p>
+                    </div>
+                    <div className="space-y-2">
+                      {INVESTMENT_OPTIONS.map((opt) => (
+                        <button
+                          key={opt}
+                          onClick={() => updateField("investment_willingness", opt)}
+                          className={`w-full text-sm px-3 py-2.5 rounded-xl border transition-all text-left ${
+                            data.investment_willingness === opt
+                              ? "border-primary bg-primary/10 text-primary font-medium"
+                              : "border-border bg-muted text-foreground hover:border-primary/50"
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="step-4"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
