@@ -1638,23 +1638,36 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
     setIsSavingEdit(true);
 
     try {
-      const response = await supabase.functions.invoke("wapi-send", {
-        body: {
-          action: "edit-text",
-          phone: selectedConversation.contact_phone,
-          messageId: messageId,
-          newContent: editingContent.trim(),
-          conversationId: selectedConversation.id,
-          instanceId: selectedInstance.instance_id,
-          instanceToken: selectedInstance.instance_token,
-        },
-      });
+      const trimmedContent = editingContent.trim();
 
-      if (response.error) throw new Error(response.error.message);
+      if (messageId) {
+        // Has W-API message ID - try to edit via W-API
+        const response = await supabase.functions.invoke("wapi-send", {
+          body: {
+            action: "edit-text",
+            phone: selectedConversation.contact_phone,
+            messageId: messageId,
+            newContent: trimmedContent,
+            conversationId: selectedConversation.id,
+            instanceId: selectedInstance.instance_id,
+            instanceToken: selectedInstance.instance_token,
+          },
+        });
+
+        if (response.error) throw new Error(response.error.message);
+        
+        const responseData = response.data;
+        if (responseData?.error) throw new Error(responseData.error);
+      }
+
+      // Always update locally in DB
+      await supabase.from('wapi_messages')
+        .update({ content: trimmedContent })
+        .eq('id', msgId);
 
       // Update local message
       setMessages(prev => prev.map(m => 
-        m.id === msgId ? { ...m, content: editingContent.trim() } : m
+        m.id === msgId ? { ...m, content: trimmedContent } : m
       ));
 
       toast({ title: "Mensagem editada" });
