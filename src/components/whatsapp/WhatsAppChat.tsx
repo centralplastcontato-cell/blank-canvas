@@ -3124,6 +3124,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                           { value: 'aguardando_resposta', label: 'Negociando', color: 'bg-orange-500' },
                           { value: 'fechado', label: 'Fechado', color: 'bg-green-500' },
                           { value: 'perdido', label: 'Perdido', color: 'bg-red-500' },
+                          { value: 'transferido', label: 'Transferência', color: 'bg-cyan-500' },
                         ].map((statusOption) => (
                           <Button
                             key={statusOption.value}
@@ -3135,7 +3136,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                             )}
                             onClick={async () => {
                               const oldStatus = linkedLead.status;
-                              const newStatus = statusOption.value as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido" | "trabalhe_conosco";
+                              const newStatus = statusOption.value as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido" | "trabalhe_conosco" | "transferido";
                               
                               if (oldStatus === newStatus) return;
                               
@@ -3160,6 +3161,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                                 aguardando_resposta: 'Negociando',
                                 fechado: 'Fechado',
                                 perdido: 'Perdido',
+                                transferido: 'Transferência',
                               };
                               
                               await supabase.from('lead_history').insert({
@@ -3194,6 +3196,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                           { value: 'aguardando_resposta', label: 'Negociando', color: 'bg-orange-500' },
                           { value: 'fechado', label: 'Fechado', color: 'bg-green-500' },
                           { value: 'perdido', label: 'Perdido', color: 'bg-red-500' },
+                          { value: 'transferido', label: 'Transferência', color: 'bg-cyan-500' },
                         ].map((statusOption) => (
                           <Button
                             key={statusOption.value}
@@ -3832,11 +3835,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                         {[
                           { value: 'novo', label: 'Novo', color: 'bg-blue-500' },
                           { value: 'trabalhe_conosco', label: 'Trab.', color: 'bg-teal-500' },
-                          { value: 'em_contato', label: 'Contato', color: 'bg-yellow-500' },
+                          { value: 'em_contato', label: 'Visita', color: 'bg-yellow-500' },
                           { value: 'orcamento_enviado', label: 'Orçamento', color: 'bg-purple-500' },
-                          { value: 'aguardando_resposta', label: 'Aguard.', color: 'bg-orange-500' },
+                          { value: 'aguardando_resposta', label: 'Negoc.', color: 'bg-orange-500' },
                           { value: 'fechado', label: 'Fechado', color: 'bg-green-500' },
                           { value: 'perdido', label: 'Perdido', color: 'bg-red-500' },
+                          { value: 'transferido', label: 'Transf.', color: 'bg-cyan-500' },
                         ].map((statusOption) => (
                           <Button
                             key={statusOption.value}
@@ -3848,7 +3852,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                             )}
                             onClick={async () => {
                               const oldStatus = linkedLead.status;
-                              const newStatus = statusOption.value as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido" | "trabalhe_conosco";
+                              const newStatus = statusOption.value as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido" | "trabalhe_conosco" | "transferido";
                               
                               if (oldStatus === newStatus) return;
                               
@@ -3869,11 +3873,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                               const statusLabels: Record<string, string> = {
                                 novo: 'Novo',
                                 trabalhe_conosco: 'Trabalhe Conosco',
-                                em_contato: 'Em Contato',
+                                em_contato: 'Visita',
                                 orcamento_enviado: 'Orçamento Enviado',
-                                aguardando_resposta: 'Aguardando Resposta',
+                                aguardando_resposta: 'Negociando',
                                 fechado: 'Fechado',
                                 perdido: 'Perdido',
+                                transferido: 'Transferência',
                               };
                               
                               await supabase.from('lead_history').insert({
@@ -3902,13 +3907,14 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="text-[10px] font-medium text-destructive shrink-0">⚠ Não classificado:</span>
                       {[
-                        { value: 'novo', label: 'Novo', color: 'bg-blue-500' },
-                        { value: 'trabalhe_conosco', label: 'Trab.', color: 'bg-teal-500' },
-                        { value: 'em_contato', label: 'Contato', color: 'bg-yellow-500' },
-                        { value: 'orcamento_enviado', label: 'Orçam.', color: 'bg-purple-500' },
-                        { value: 'aguardando_resposta', label: 'Aguard.', color: 'bg-orange-500' },
-                        { value: 'fechado', label: 'Fechado', color: 'bg-green-500' },
-                        { value: 'perdido', label: 'Perdido', color: 'bg-red-500' },
+                          { value: 'novo', label: 'Novo', color: 'bg-blue-500' },
+                          { value: 'trabalhe_conosco', label: 'Trab.', color: 'bg-teal-500' },
+                          { value: 'em_contato', label: 'Visita', color: 'bg-yellow-500' },
+                          { value: 'orcamento_enviado', label: 'Orçam.', color: 'bg-purple-500' },
+                          { value: 'aguardando_resposta', label: 'Negoc.', color: 'bg-orange-500' },
+                          { value: 'fechado', label: 'Fechado', color: 'bg-green-500' },
+                          { value: 'perdido', label: 'Perdido', color: 'bg-red-500' },
+                          { value: 'transferido', label: 'Transf.', color: 'bg-cyan-500' },
                       ].map((statusOption) => (
                         <Button
                           key={statusOption.value}
