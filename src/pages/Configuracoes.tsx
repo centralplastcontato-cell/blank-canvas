@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Helmet } from "react-helmet-async";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
@@ -122,6 +123,7 @@ export default function Configuracoes() {
   if (isMobile) {
     return (
       <div className="h-dvh flex flex-col overflow-hidden bg-gradient-to-br from-background to-muted/30">
+        <Helmet><title>Configurações</title></Helmet>
         {/* Mobile Header */}
         <header className="bg-card/80 backdrop-blur-sm border-b border-border/60 shrink-0 z-10 shadow-subtle">
           <div className="px-3 py-3">
@@ -162,6 +164,7 @@ export default function Configuracoes() {
   // Desktop layout
   return (
     <SidebarProvider>
+      <Helmet><title>Configurações</title></Helmet>
       <div className="h-dvh flex w-full overflow-hidden">
         <AdminSidebar 
           canManageUsers={canManageUsers}

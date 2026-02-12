@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { Helmet } from "react-helmet-async";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { isHubDomain, isPreviewDomain } from "@/hooks/useDomainDetection";
@@ -112,6 +113,11 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
 
   return (
     <div style={themeStyle}>
+      <Helmet>
+        <title>{data.company_name} | Buffet Infantil</title>
+        <meta property="og:title" content={`${data.company_name} | Buffet Infantil`} />
+        {data.company_logo && <meta property="og:image" content={data.company_logo} />}
+      </Helmet>
       <DLPHero
         hero={data.hero}
         theme={data.theme}
