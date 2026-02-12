@@ -2309,7 +2309,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
       // Favorites first, then by last message
       if (a.is_favorite && !b.is_favorite) return -1;
       if (!a.is_favorite && b.is_favorite) return 1;
-      return 0;
+      const timeA = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+      const timeB = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+      return timeB - timeA;
     });
 
   const toggleConversationClosed = async (conv: Conversation) => {
