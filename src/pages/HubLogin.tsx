@@ -134,8 +134,8 @@ export default function HubLogin() {
       <div className="w-full max-w-md relative z-10">
         <div className="rounded-3xl p-8 border border-primary/20 bg-gradient-to-br from-primary/5 via-background to-accent/5 backdrop-blur-sm shadow-lg">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <img src={logoCelebrei} alt="Celebrei" className="h-14 w-auto object-contain" />
+            <div className="w-48 h-48 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <img src={logoCelebrei} alt="Celebrei" className="h-42 w-auto object-contain" />
             </div>
             <h1 className="font-display text-2xl font-bold text-foreground">Hub Celebrei</h1>
             <p className="text-muted-foreground mt-2">Acesso ao painel de gestão</p>

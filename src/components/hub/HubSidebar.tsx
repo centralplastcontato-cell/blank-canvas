@@ -77,8 +77,8 @@ export function HubSidebar({ currentUserName, onLogout }: HubSidebarProps) {
       >
         <SidebarHeader className="p-3">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0">
-              <img src={logoCelebrei} alt="Celebrei" className="h-8 w-8 object-contain" />
+            <div className="h-[72px] w-[72px] rounded-lg flex items-center justify-center shrink-0">
+              <img src={logoCelebrei} alt="Celebrei" className="h-16 w-16 object-contain" />
             </div>
             {!collapsed && (
               <>
