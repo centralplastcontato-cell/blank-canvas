@@ -1,41 +1,36 @@
 
-# Correção: Conversa com nova mensagem deve subir para o topo da lista
+# Correção dos botões de status no WhatsApp
 
 ## Problema
+Existem 4 arrays de status no `WhatsAppChat.tsx`. Dois deles (mobile, linhas ~3832 e ~3904) usam labels errados ("Contato" e "Aguard." em vez de "Visita" e "Negoc."). Alem disso, **todas as 4 arrays** estao sem o status **"Transferência"** (`transferido`).
 
-A lista de conversas ja e ordenada por `last_message_at` quando os dados sao carregados e quando chega um evento em tempo real. Porem, o **sort final de exibição** (que roda antes de renderizar a lista) so ordena por favoritos, sem manter a ordem por data da ultima mensagem como criterio secundario.
-
-## Solução
-
-Ajustar o sort final da lista filtrada para:
-1. Favoritos primeiro (como ja funciona)
-2. Dentro de cada grupo (favoritos e nao-favoritos), ordenar por `last_message_at` decrescente (mais recente primeiro)
-
-## Mudança
+## Alterações
 
 **Arquivo:** `src/components/whatsapp/WhatsAppChat.tsx`
 
-Alterar o `.sort()` da lista filtrada (linhas 2308-2313) de:
+### 1. Mobile - Lead vinculado (linhas 3832-3840)
+- `em_contato`: "Contato" -> **"Visita"**
+- `aguardando_resposta`: "Aguard." -> **"Negoc."**
+- Adicionar `{ value: 'transferido', label: 'Transf.', color: 'bg-cyan-500' }`
+- Incluir `"transferido"` no type cast da linha 3851
 
-```typescript
-.sort((a, b) => {
-  if (a.is_favorite && !b.is_favorite) return -1;
-  if (!a.is_favorite && b.is_favorite) return 1;
-  return 0;
-});
-```
+### 2. Mobile - Lead nao vinculado (linhas 3904-3912)
+- `em_contato`: "Contato" -> **"Visita"**
+- `aguardando_resposta`: "Aguard." -> **"Negoc."**
+- `orcamento_enviado`: "Orçam." -> **"Orçam."** (manter abreviado)
+- Adicionar `{ value: 'transferido', label: 'Transf.', color: 'bg-cyan-500' }`
 
-Para:
+### 3. Desktop - Lead vinculado (linhas 3119-3127)
+- Adicionar `{ value: 'transferido', label: 'Transferência', color: 'bg-cyan-500' }`
+- Incluir `"transferido"` no type cast da linha 3138
+- Adicionar `transferido: 'Transferência'` no `statusLabels` (linha 3156)
 
-```typescript
-.sort((a, b) => {
-  if (a.is_favorite && !b.is_favorite) return -1;
-  if (!a.is_favorite && b.is_favorite) return 1;
-  // Dentro do mesmo grupo, ordenar por ultima mensagem (mais recente primeiro)
-  const timeA = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
-  const timeB = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
-  return timeB - timeA;
-});
-```
+### 4. Desktop - Lead nao vinculado (linhas 3189-3197)
+- Adicionar `{ value: 'transferido', label: 'Transferência', color: 'bg-cyan-500' }`
 
-Isso garante que quando uma mensagem nova chega e o `last_message_at` e atualizado via realtime, a conversa sobe automaticamente para o topo da lista (respeitando favoritos acima).
+### 5. statusLabels do mobile (linhas 3869-3877)
+- Corrigir `em_contato: 'Em Contato'` -> **`em_contato: 'Visita'`**
+- Corrigir `aguardando_resposta: 'Aguardando Resposta'` -> **`aguardando_resposta: 'Negociando'`**
+- Adicionar `transferido: 'Transferência'`
+
+Nenhuma alteracao em banco de dados e necessaria — o enum `lead_status` ja inclui `transferido`.
