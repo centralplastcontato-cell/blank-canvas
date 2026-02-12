@@ -1,36 +1,48 @@
 
-# Correção dos botões de status no WhatsApp
+
+# Correcao dos badges de status na lista de conversas do WhatsApp
 
 ## Problema
-Existem 4 arrays de status no `WhatsAppChat.tsx`. Dois deles (mobile, linhas ~3832 e ~3904) usam labels errados ("Contato" e "Aguard." em vez de "Visita" e "Negoc."). Alem disso, **todas as 4 arrays** estao sem o status **"Transferência"** (`transferido`).
+Os badges de status exibidos ao lado do nome do lead na lista de conversas (linhas 2940-2957 do `WhatsAppChat.tsx`) possuem labels inconsistentes e estao sem dois status.
 
-## Alterações
+## Alteracoes
 
-**Arquivo:** `src/components/whatsapp/WhatsAppChat.tsx`
+**Arquivo:** `src/components/whatsapp/WhatsAppChat.tsx` (linhas 2940-2957)
 
-### 1. Mobile - Lead vinculado (linhas 3832-3840)
+### Labels a corrigir
 - `em_contato`: "Contato" -> **"Visita"**
-- `aguardando_resposta`: "Aguard." -> **"Negoc."**
-- Adicionar `{ value: 'transferido', label: 'Transf.', color: 'bg-cyan-500' }`
-- Incluir `"transferido"` no type cast da linha 3851
+- `aguardando_resposta`: "Aguardando" -> **"Negociando"**
 
-### 2. Mobile - Lead nao vinculado (linhas 3904-3912)
-- `em_contato`: "Contato" -> **"Visita"**
-- `aguardando_resposta`: "Aguard." -> **"Negoc."**
-- `orcamento_enviado`: "Orçam." -> **"Orçam."** (manter abreviado)
-- Adicionar `{ value: 'transferido', label: 'Transf.', color: 'bg-cyan-500' }`
+### Status a adicionar (cor + label)
+- `transferido`: cor **bg-cyan-500**, label **"Transf."**
+- `trabalhe_conosco`: cor **bg-teal-500**, label **"Trab."**
 
-### 3. Desktop - Lead vinculado (linhas 3119-3127)
-- Adicionar `{ value: 'transferido', label: 'Transferência', color: 'bg-cyan-500' }`
-- Incluir `"transferido"` no type cast da linha 3138
-- Adicionar `transferido: 'Transferência'` no `statusLabels` (linha 3156)
+### Resultado final do bloco
 
-### 4. Desktop - Lead nao vinculado (linhas 3189-3197)
-- Adicionar `{ value: 'transferido', label: 'Transferência', color: 'bg-cyan-500' }`
+```tsx
+<Badge 
+  className={cn(
+    "text-[10px] h-4 px-1.5",
+    linkedLead.status === 'novo' && "bg-blue-500",
+    linkedLead.status === 'em_contato' && "bg-yellow-500 text-yellow-950",
+    linkedLead.status === 'orcamento_enviado' && "bg-purple-500",
+    linkedLead.status === 'aguardando_resposta' && "bg-orange-500",
+    linkedLead.status === 'fechado' && "bg-green-500",
+    linkedLead.status === 'perdido' && "bg-red-500",
+    linkedLead.status === 'transferido' && "bg-cyan-500",
+    linkedLead.status === 'trabalhe_conosco' && "bg-teal-500"
+  )}
+>
+  {linkedLead.status === 'novo' && 'Novo'}
+  {linkedLead.status === 'em_contato' && 'Visita'}
+  {linkedLead.status === 'orcamento_enviado' && 'Orcamento'}
+  {linkedLead.status === 'aguardando_resposta' && 'Negociando'}
+  {linkedLead.status === 'fechado' && 'Fechado'}
+  {linkedLead.status === 'perdido' && 'Perdido'}
+  {linkedLead.status === 'transferido' && 'Transf.'}
+  {linkedLead.status === 'trabalhe_conosco' && 'Trab.'}
+</Badge>
+```
 
-### 5. statusLabels do mobile (linhas 3869-3877)
-- Corrigir `em_contato: 'Em Contato'` -> **`em_contato: 'Visita'`**
-- Corrigir `aguardando_resposta: 'Aguardando Resposta'` -> **`aguardando_resposta: 'Negociando'`**
-- Adicionar `transferido: 'Transferência'`
+Apenas 1 arquivo alterado, sem impacto em banco de dados.
 
-Nenhuma alteracao em banco de dados e necessaria — o enum `lead_status` ja inclui `transferido`.
