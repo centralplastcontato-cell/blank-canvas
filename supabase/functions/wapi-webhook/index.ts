@@ -2647,8 +2647,13 @@ async function processWebhookEvent(body: Record<string, unknown>) {
               else if ((mcd as Record<string, unknown>).imageMessage) pv = '📷 Imagem';
               else if ((mcd as Record<string, unknown>).documentMessage) pv = '📄 ' + ((mcd as Record<string, unknown>).documentMessage?.fileName || 'Documento');
               
+              // Check if bot is in an active step - don't disable it during qualification flow
+              const statusActiveBotSteps = ['welcome', 'tipo', 'nome', 'mes', 'dia', 'convidados', 'sending_materials', 'proximo_passo', 'proximo_passo_reminded'];
+              const statusIsFlowStep = (ec.bot_step || '').startsWith('flow_');
+              const statusIsBotActive = statusActiveBotSteps.includes(ec.bot_step || '') || statusIsFlowStep;
+              
               let cv;
-              if (ec) { cv = ec; await supabase.from('wapi_conversations').update({ last_message_at: new Date().toISOString(), last_message_content: pv.substring(0, 100), last_message_from_me: true, ...(ec.bot_step && ec.bot_step !== 'complete' ? { bot_enabled: false } : {}) }).eq('id', ec.id); }
+              if (ec) { cv = ec; await supabase.from('wapi_conversations').update({ last_message_at: new Date().toISOString(), last_message_content: pv.substring(0, 100), last_message_from_me: true, ...(ec.bot_step && ec.bot_step !== 'complete' && !statusIsBotActive ? { bot_enabled: false } : {}) }).eq('id', ec.id); }
               else { const { data: nc } = await supabase.from('wapi_conversations').insert({ instance_id: instance.id, remote_jid: rj, contact_phone: p, contact_name: (body?.chat as Record<string, unknown>)?.name || p, last_message_at: new Date().toISOString(), last_message_content: pv.substring(0, 100), last_message_from_me: true, bot_enabled: false, company_id: instance.company_id }).select().single(); cv = nc; }
               
               if (cv) {
@@ -2733,12 +2738,16 @@ async function processWebhookEvent(body: Record<string, unknown>) {
                     company_id: instance.company_id,
                   });
                   
-                  // Update conversation
+                  // Update conversation - but don't disable bot during active steps
+                  const unknownActiveBotSteps = ['welcome', 'tipo', 'nome', 'mes', 'dia', 'convidados', 'sending_materials', 'proximo_passo', 'proximo_passo_reminded'];
+                  const unknownIsFlowStep = (existingConv.bot_step || '').startsWith('flow_');
+                  const unknownIsBotActive = unknownActiveBotSteps.includes(existingConv.bot_step || '') || unknownIsFlowStep;
+                  
                   await supabase.from('wapi_conversations').update({
                     last_message_at: new Date().toISOString(),
                     last_message_content: content.substring(0, 100),
                     last_message_from_me: true,
-                    ...(existingConv.bot_step && existingConv.bot_step !== 'complete' ? { bot_enabled: false } : {})
+                    ...(existingConv.bot_step && existingConv.bot_step !== 'complete' && !unknownIsBotActive ? { bot_enabled: false } : {})
                   }).eq('id', existingConv.id);
                   
                   console.log(`[Unknown event] Message saved successfully`);
