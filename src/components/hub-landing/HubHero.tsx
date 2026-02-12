@@ -47,7 +47,7 @@ export default function HubHero({ onOpenWizard }: HubHeroProps) {
               className="inline-flex items-center gap-2 bg-white/5 backdrop-blur-sm text-white/80 text-sm font-medium px-4 py-2 rounded-full mb-8 border border-white/10"
             >
               <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-              Plataforma #1 para buffets infantis
+              A melhor plataforma para buffets infantis
             </motion.div>
 
             <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-[1.08] tracking-tight">
