@@ -891,7 +891,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
     const isNewMessage = messagesLength > prevMessagesLengthRef.current;
     const isFromMe = lastMessage?.from_me;
     
-    if (isNewMessage && messagesLength > 0) {
+    if (isNewMessage && messagesLength > 0 && !isLoadingMoreRef.current) {
       // Always scroll for my sent messages
       // For incoming messages, only scroll if user is near bottom
       if (isFromMe || isAtBottomRef.current) {
@@ -1351,6 +1351,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
             const newScrollHeight = viewport.scrollHeight;
             const scrollDiff = newScrollHeight - previousScrollHeight;
             viewport.scrollTop = previousScrollTop + scrollDiff;
+            // Reset flag AFTER scroll restoration so auto-scroll effect doesn't fire in between
+            isLoadingMoreRef.current = false;
           });
         });
       }
