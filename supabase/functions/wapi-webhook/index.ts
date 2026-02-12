@@ -379,6 +379,21 @@ async function processFlowBuilderMessage(
   
   // 4. If no state, initialize at start node and send first message chain
   if (!state) {
+    // ✅ GUARD: Check if conversation already completed a flow before (any flow)
+    // This prevents restarting the flow if the default flow changed or state was somehow lost
+    const { data: anyCompletedState } = await supabase
+      .from('flow_lead_state')
+      .select('id, current_node_id, waiting_for_reply')
+      .eq('conversation_id', conv.id)
+      .eq('waiting_for_reply', false)
+      .limit(1)
+      .maybeSingle();
+    
+    if (anyCompletedState) {
+      console.log(`[FlowBuilder] ⛔ Conversation ${conv.id} already completed a flow (state: ${anyCompletedState.id}). Not restarting.`);
+      return;
+    }
+    
     console.log(`[FlowBuilder] 🆕 Initializing flow state for conversation ${conv.id}`);
     
     // Create state at start node
@@ -403,6 +418,12 @@ async function processFlowBuilderMessage(
     
     // Follow edges from start node to first real node
     await advanceFlowFromNode(supabase, instance, conv, state, startNode, nodes, edges, contactPhone, contactName, null);
+    return;
+  }
+  
+  // ✅ GUARD: If state exists but NOT waiting for reply, flow is done - don't process
+  if (!state.waiting_for_reply) {
+    console.log(`[FlowBuilder] ⛔ Flow already completed for conversation ${conv.id} (waiting_for_reply=false). Ignoring message.`);
     return;
   }
   
@@ -1181,6 +1202,13 @@ async function processBotQualification(
   // This happens when the LP sends the first message (outgoing), creating the conversation with bot_enabled=false
   // Then when the lead responds, bot_enabled is still false but we need to activate the flow
   if (conv.bot_enabled === false && botSettingsAllow) {
+    // ✅ GUARD: Don't re-activate bot if the flow was already completed
+    const completedBotSteps = ['complete_final', 'flow_complete', 'flow_handoff', 'flow_ai_disabled', 'flow_no_followup', 'qualified_from_lp', 'transferred', 'work_interest', 'sending_materials'];
+    if (completedBotSteps.includes(conv.bot_step || '') || (conv.bot_step || '').startsWith('flow_')) {
+      console.log(`[Bot] Flow already completed (step: ${conv.bot_step}), not re-activating bot for ${contactPhone}`);
+      return;
+    }
+    
     // Check if there's an LP lead linked or findable by phone number
     const vars = [n, n.replace(/^55/, ''), `55${n}`];
     let lpLead = null;
