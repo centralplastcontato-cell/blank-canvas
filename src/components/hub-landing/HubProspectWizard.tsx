@@ -28,7 +28,8 @@ interface HubProspectWizardProps {
 
 const STEPS = [
   { title: "Sobre seu buffet", icon: BarChart3 },
-  { title: "Gestão de leads", icon: Target },
+  { title: "Volume e custo", icon: DollarSign },
+  { title: "Organização", icon: Target },
   { title: "Seus dados", icon: Users },
 ];
 
@@ -93,12 +94,14 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
   };
 
   const canProceed = () => {
-    switch (step) {
+     switch (step) {
       case 0:
         return data.buffet_name.trim().length >= 2 && data.city.trim().length >= 2 && data.state.length > 0 && data.instagram.trim().length >= 2 && data.has_website.length > 0 && (data.has_website === "Não" || data.website.trim().length >= 4);
       case 1:
-        return data.monthly_leads && data.lead_cost && data.has_lead_clarity && data.lead_organization;
+        return !!data.monthly_leads && !!data.lead_cost;
       case 2:
+        return !!data.has_lead_clarity && !!data.lead_organization;
+      case 3:
         return (
           data.contact_name.trim().length >= 2 &&
           data.whatsapp.replace(/\D/g, "").length >= 10 &&
@@ -357,7 +360,7 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
                     </div>
                   )}
                 </motion.div>
-              ) : step === 1 ? (
+               ) : step === 1 ? (
                 <motion.div
                   key="step-1"
                   initial={{ opacity: 0, x: 20 }}
@@ -407,6 +410,15 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
                       ))}
                     </div>
                   </div>
+                </motion.div>
+              ) : step === 2 ? (
+                <motion.div
+                  key="step-2"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-5"
+                >
                   <div>
                     <label className="text-sm font-medium text-foreground mb-2 block flex items-center gap-2">
                       <Target className="h-4 w-4 text-primary" />
@@ -452,7 +464,7 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
                 </motion.div>
               ) : (
                 <motion.div
-                  key="step-2"
+                  key="step-3"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
