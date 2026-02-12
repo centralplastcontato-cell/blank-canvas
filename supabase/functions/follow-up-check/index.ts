@@ -469,7 +469,9 @@ async function processFollowUp({
         timestamp: new Date().toISOString(),
       });
 
-      // Update conversation: reactivate bot at proximo_passo so it processes the lead's reply
+      // Update conversation: reactivate bot but keep step as complete_final
+      // The webhook already handles complete_final responses by treating them as proximo_passo
+      // We do NOT set bot_step to 'proximo_passo' to avoid processNextStepReminder sending a duplicate
       await supabase
         .from("wapi_conversations")
         .update({
@@ -477,7 +479,6 @@ async function processFollowUp({
           last_message_content: personalizedMessage.substring(0, 100),
           last_message_from_me: true,
           bot_enabled: true,
-          bot_step: "proximo_passo",
         })
         .eq("id", conversation.id);
 
