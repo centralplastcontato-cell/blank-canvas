@@ -20,7 +20,8 @@ import {
   Sparkles,
   MoreVertical,
   ArrowRightLeft,
-  Briefcase
+  Briefcase,
+  Package
 } from "lucide-react";
 
 interface Lead {
@@ -98,6 +99,13 @@ const STATUS_CONFIG = [
     color: 'text-cyan-500',
     bgColor: 'bg-cyan-500/10'
   },
+  { 
+    value: 'fornecedor', 
+    label: 'Fornecedor', 
+    icon: Package, 
+    color: 'text-indigo-500',
+    bgColor: 'bg-indigo-500/10'
+  },
 ];
 
 export function ConversationStatusActions({
@@ -131,10 +139,11 @@ export function ConversationStatusActions({
         fechado: 'Fechado',
         perdido: 'Perdido',
         transferido: 'Transferência',
+        fornecedor: 'Fornecedor',
       };
 
       // Update the lead status - cast to valid status type
-      const validStatus = newStatus as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido" | "transferido" | "trabalhe_conosco";
+      const validStatus = newStatus as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido" | "transferido" | "trabalhe_conosco" | "fornecedor";
       const { error: updateError } = await supabase
         .from("campaign_leads")
         .update({ status: validStatus })

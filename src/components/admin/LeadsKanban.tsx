@@ -46,6 +46,7 @@ export function LeadsKanban({
     "fechado",
     "perdido",
     "transferido",
+    "fornecedor",
   ];
 
   // Mobile column navigation state

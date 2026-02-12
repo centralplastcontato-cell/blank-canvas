@@ -392,6 +392,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
         aguardando_resposta: 'Negociando',
         fechado: 'Fechado',
         perdido: 'Perdido',
+        fornecedor: 'Fornecedor',
       };
 
       await supabase.from("notifications").insert({
@@ -1484,6 +1485,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
         aguardando_resposta: 'Negociando',
         fechado: 'Fechado',
         perdido: 'Perdido',
+        fornecedor: 'Fornecedor',
       };
 
       supabase.from('lead_history').insert({
@@ -2954,6 +2956,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                                 perdido: 'Perdido',
                                 transferido: 'Transf.',
                                 trabalhe_conosco: 'Trab.',
+                                fornecedor: 'Fornec.',
                               } as Record<string, string>)[linkedLead.status] ?? linkedLead.status}
                             </Badge>
                           </div>
@@ -3005,6 +3008,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                             aguardando_resposta: 'Negociando',
                             fechado: 'Fechado',
                             perdido: 'Perdido',
+                            fornecedor: 'Fornecedor',
                           };
                           
                           const { error } = await supabase
@@ -3126,6 +3130,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                           { value: 'fechado', label: 'Fechado', color: 'bg-green-500' },
                           { value: 'perdido', label: 'Perdido', color: 'bg-red-500' },
                           { value: 'transferido', label: 'Transferência', color: 'bg-cyan-500' },
+                          { value: 'fornecedor', label: 'Fornecedor', color: 'bg-indigo-500' },
                         ].map((statusOption) => (
                           <Button
                             key={statusOption.value}
@@ -3137,7 +3142,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                             )}
                             onClick={async () => {
                               const oldStatus = linkedLead.status;
-                              const newStatus = statusOption.value as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido" | "trabalhe_conosco" | "transferido";
+                              const newStatus = statusOption.value as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido" | "trabalhe_conosco" | "transferido" | "fornecedor";
                               
                               if (oldStatus === newStatus) return;
                               
@@ -3163,6 +3168,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                                 fechado: 'Fechado',
                                 perdido: 'Perdido',
                                 transferido: 'Transferência',
+                                fornecedor: 'Fornecedor',
                               };
                               
                               await supabase.from('lead_history').insert({
@@ -3198,6 +3204,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                           { value: 'fechado', label: 'Fechado', color: 'bg-green-500' },
                           { value: 'perdido', label: 'Perdido', color: 'bg-red-500' },
                           { value: 'transferido', label: 'Transferência', color: 'bg-cyan-500' },
+                          { value: 'fornecedor', label: 'Fornecedor', color: 'bg-indigo-500' },
                         ].map((statusOption) => (
                           <Button
                             key={statusOption.value}
@@ -3842,6 +3849,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                           { value: 'fechado', label: 'Fechado', color: 'bg-green-500' },
                           { value: 'perdido', label: 'Perdido', color: 'bg-red-500' },
                           { value: 'transferido', label: 'Transf.', color: 'bg-cyan-500' },
+                          { value: 'fornecedor', label: 'Fornec.', color: 'bg-indigo-500' },
                         ].map((statusOption) => (
                           <Button
                             key={statusOption.value}
@@ -3853,7 +3861,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                             )}
                             onClick={async () => {
                               const oldStatus = linkedLead.status;
-                              const newStatus = statusOption.value as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido" | "trabalhe_conosco" | "transferido";
+                              const newStatus = statusOption.value as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido" | "trabalhe_conosco" | "transferido" | "fornecedor";
                               
                               if (oldStatus === newStatus) return;
                               
@@ -3880,6 +3888,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                                 fechado: 'Fechado',
                                 perdido: 'Perdido',
                                 transferido: 'Transferência',
+                                fornecedor: 'Fornecedor',
                               };
                               
                               await supabase.from('lead_history').insert({
@@ -3916,6 +3925,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                           { value: 'fechado', label: 'Fechado', color: 'bg-green-500' },
                           { value: 'perdido', label: 'Perdido', color: 'bg-red-500' },
                           { value: 'transferido', label: 'Transf.', color: 'bg-cyan-500' },
+                          { value: 'fornecedor', label: 'Fornec.', color: 'bg-indigo-500' },
                       ].map((statusOption) => (
                         <Button
                           key={statusOption.value}
