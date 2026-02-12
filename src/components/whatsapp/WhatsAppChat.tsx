@@ -16,7 +16,8 @@ import {
   ArrowLeft, Building2, Star, StarOff, Link2, FileText, Smile,
   Image as ImageIcon, Mic, Paperclip, Loader2, Square, X, Pause, Play,
   Users, ArrowRightLeft, Trash2,
-  CalendarCheck, Briefcase, FileCheck, ArrowDown, Video
+  CalendarCheck, Briefcase, FileCheck, ArrowDown, Video,
+  Pencil, Copy, SpellCheck, Undo2
 } from "lucide-react";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -205,6 +206,20 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
   const [showShareToGroupDialog, setShowShareToGroupDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Edit message state
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  
+  // Fix text (AI correction) state
+  const [isFixingText, setIsFixingText] = useState(false);
+  
+  // Undo send state
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [pendingUndoMessageId, setPendingUndoMessageId] = useState<string | null>(null);
+  const pendingUndoDataRef = useRef<{ messageText: string; optimisticId: string } | null>(null);
+  
   const [closedLeadConversationIds, setClosedLeadConversationIds] = useState<Set<string>>(new Set());
   const [orcamentoEnviadoConversationIds, setOrcamentoEnviadoConversationIds] = useState<Set<string>>(new Set());
   const [conversationLeadsMap, setConversationLeadsMap] = useState<Record<string, Lead | null>>({});
@@ -1514,9 +1529,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
     setNewMessage(""); // Clear immediately for UX
     setIsSending(true);
 
-    // Optimistic update - show message immediately
+    // Optimistic update - show message immediately with pending status
+    const optimisticId = `optimistic-${Date.now()}`;
     const optimisticMessage: Message = {
-      id: `optimistic-${Date.now()}`,
+      id: optimisticId,
       conversation_id: selectedConversation.id,
       message_id: null,
       from_me: true,
@@ -1529,39 +1545,168 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
     
     setMessages(prev => [...prev, optimisticMessage]);
 
+    // Undo Send: delay actual sending by 5 seconds
+    const convId = selectedConversation.id;
+    const convPhone = selectedConversation.contact_phone;
+    const instId = selectedInstance.instance_id;
+    const instToken = selectedInstance.instance_token;
+
+    pendingUndoDataRef.current = { messageText: messageToSend, optimisticId };
+    setPendingUndoMessageId(optimisticId);
+
+    const sendActual = async () => {
+      try {
+        const response = await supabase.functions.invoke("wapi-send", {
+          body: {
+            action: "send-text",
+            phone: convPhone,
+            message: messageToSend,
+            conversationId: convId,
+            instanceId: instId,
+            instanceToken: instToken,
+          },
+        });
+
+        if (response.error) {
+          throw new Error(response.error.message);
+        }
+
+        // Update optimistic message to sent status
+        setMessages(prev => prev.map(m => 
+          m.id === optimisticId ? { ...m, status: 'sent' } : m
+        ));
+      } catch (error: unknown) {
+        // Remove optimistic message on error
+        setMessages(prev => prev.filter(m => m.id !== optimisticId));
+        setNewMessage(messageToSend); // Restore message to input
+        
+        toast({
+          title: "Erro ao enviar",
+          description: error instanceof Error ? error.message : "Não foi possível enviar a mensagem.",
+          variant: "destructive",
+        });
+      }
+      setPendingUndoMessageId(null);
+      pendingUndoDataRef.current = null;
+    };
+
+    // Set 5-second timer
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    undoTimerRef.current = setTimeout(() => {
+      sendActual();
+    }, 5000);
+
+    // Show undo toast
+    toast({
+      title: "Mensagem enviada",
+      description: "Clique em Desfazer para cancelar o envio.",
+      action: (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            // Cancel the timer
+            if (undoTimerRef.current) {
+              clearTimeout(undoTimerRef.current);
+              undoTimerRef.current = null;
+            }
+            // Remove optimistic message
+            setMessages(prev => prev.filter(m => m.id !== optimisticId));
+            // Restore text to input
+            setNewMessage(messageToSend);
+            setPendingUndoMessageId(null);
+            pendingUndoDataRef.current = null;
+            
+            toast({
+              title: "Envio cancelado",
+              description: "A mensagem foi restaurada no campo de texto.",
+            });
+          }}
+        >
+          <Undo2 className="w-3 h-3 mr-1" />
+          Desfazer
+        </Button>
+      ),
+    });
+
+    setIsSending(false);
+  };
+
+  // Edit message handler
+  const handleSaveEdit = async (msgId: string, messageId: string | null) => {
+    if (!editingContent.trim() || !selectedConversation || !selectedInstance) return;
+    setIsSavingEdit(true);
+
     try {
       const response = await supabase.functions.invoke("wapi-send", {
         body: {
-          action: "send-text",
+          action: "edit-text",
           phone: selectedConversation.contact_phone,
-          message: messageToSend,
+          messageId: messageId,
+          newContent: editingContent.trim(),
           conversationId: selectedConversation.id,
           instanceId: selectedInstance.instance_id,
           instanceToken: selectedInstance.instance_token,
         },
       });
 
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
+      if (response.error) throw new Error(response.error.message);
 
-      // Update optimistic message to sent status while waiting for realtime
+      // Update local message
       setMessages(prev => prev.map(m => 
-        m.id === optimisticMessage.id ? { ...m, status: 'sent' } : m
+        m.id === msgId ? { ...m, content: editingContent.trim() } : m
       ));
+
+      toast({ title: "Mensagem editada" });
     } catch (error: unknown) {
-      // Remove optimistic message on error
-      setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
-      setNewMessage(messageToSend); // Restore message to input
-      
       toast({
-        title: "Erro ao enviar",
-        description: error instanceof Error ? error.message : "Não foi possível enviar a mensagem.",
+        title: "Erro ao editar",
+        description: error instanceof Error ? error.message : "Não foi possível editar a mensagem.",
         variant: "destructive",
       });
     }
 
-    setIsSending(false);
+    setEditingMessageId(null);
+    setEditingContent("");
+    setIsSavingEdit(false);
+  };
+
+  // Fix text with AI
+  const handleFixText = async () => {
+    if (!newMessage.trim() || isFixingText) return;
+    setIsFixingText(true);
+
+    try {
+      const response = await supabase.functions.invoke("fix-text", {
+        body: { text: newMessage },
+      });
+
+      if (response.error) throw new Error(response.error.message);
+
+      const { corrected, hasChanges } = response.data;
+      if (hasChanges) {
+        setNewMessage(corrected);
+        toast({ title: "Texto corrigido", description: "O texto foi corrigido automaticamente." });
+      } else {
+        toast({ title: "Texto OK", description: "Nenhuma correção necessária." });
+      }
+    } catch (error: unknown) {
+      toast({
+        title: "Erro na correção",
+        description: error instanceof Error ? error.message : "Não foi possível corrigir o texto.",
+        variant: "destructive",
+      });
+    }
+
+    setIsFixingText(false);
+  };
+
+  // Check if message is editable (from_me, text, less than 15 min)
+  const isMessageEditable = (msg: Message) => {
+    if (!msg.from_me || msg.message_type !== 'text') return false;
+    const msgTime = new Date(msg.timestamp).getTime();
+    const now = Date.now();
+    return (now - msgTime) < 15 * 60 * 1000; // 15 minutes
   };
 
   // Direct text message sender for SalesMaterialsMenu
@@ -3097,21 +3242,22 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                             <div
                               key={msg.id}
                               className={cn(
-                                "flex",
+                                "flex group",
                                 msg.from_me ? "justify-end" : "justify-start"
                               )}
                             >
-                              <div
-                                className={cn(
-                                  "max-w-[85%] sm:max-w-[75%] rounded-lg text-sm shadow-sm",
-                                  msg.from_me
-                                    ? "bg-primary text-primary-foreground"
-                                    : "bg-card border",
-                                  (msg.message_type === 'image' || msg.message_type === 'video')
-                                    ? "p-0 overflow-hidden"
-                                    : "px-3 py-2"
-                                )}
-                              >
+                              <div className={cn("relative", msg.from_me ? "flex flex-row-reverse items-start gap-1" : "flex items-start gap-1")}>
+                                <div
+                                  className={cn(
+                                    "max-w-[85%] sm:max-w-[75%] rounded-lg text-sm shadow-sm",
+                                    msg.from_me
+                                      ? "bg-primary text-primary-foreground"
+                                      : "bg-card border",
+                                    (msg.message_type === 'image' || msg.message_type === 'video')
+                                      ? "p-0 overflow-hidden"
+                                      : "px-3 py-2"
+                                  )}
+                                >
 {(msg.message_type === 'image' || msg.message_type === 'video' || msg.message_type === 'audio' || msg.message_type === 'document') && (
                                   <div className={(msg.message_type === 'image' || msg.message_type === 'video') ? "" : "mb-2"}>
                                     <MediaMessage
@@ -3130,9 +3276,37 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                                     />
                                   </div>
                                 )}
-                                {msg.message_type === 'text' && (
+                                {msg.message_type === 'text' && editingMessageId === msg.id ? (
+                                  <div className="space-y-2">
+                                    <Textarea
+                                      value={editingContent}
+                                      onChange={(e) => setEditingContent(e.target.value)}
+                                      className="min-h-[40px] text-sm bg-background text-foreground"
+                                      rows={2}
+                                      autoFocus
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                          e.preventDefault();
+                                          handleSaveEdit(msg.id, msg.message_id);
+                                        }
+                                        if (e.key === 'Escape') {
+                                          setEditingMessageId(null);
+                                          setEditingContent("");
+                                        }
+                                      }}
+                                    />
+                                    <div className="flex gap-1 justify-end">
+                                      <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => { setEditingMessageId(null); setEditingContent(""); }}>
+                                        Cancelar
+                                      </Button>
+                                      <Button size="sm" className="h-6 text-xs" onClick={() => handleSaveEdit(msg.id, msg.message_id)} disabled={isSavingEdit}>
+                                        {isSavingEdit ? <Loader2 className="w-3 h-3 animate-spin" /> : "Salvar"}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ) : msg.message_type === 'text' ? (
                                   <p className="whitespace-pre-wrap break-words">{msg.content}</p>
-                                )}
+                                ) : null}
                                 {msg.message_type !== 'text' && msg.content && msg.content !== '[Imagem]' && msg.content !== '[Áudio]' && (
                                   <p className={cn("whitespace-pre-wrap break-words mt-1", (msg.message_type === 'image' || msg.message_type === 'video') && "px-2")}>{msg.content}</p>
                                 )}
@@ -3149,6 +3323,39 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                                   </span>
                                   {msg.from_me && getStatusIcon(msg.status)}
                                 </div>
+                                </div>
+                                {/* Context menu for editable messages */}
+                                {isMessageEditable(msg) && editingMessageId !== msg.id && (
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                                      >
+                                        <Pencil className="w-3 h-3" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align={msg.from_me ? "end" : "start"}>
+                                      <DropdownMenuItem onClick={() => {
+                                        setEditingMessageId(msg.id);
+                                        setEditingContent(msg.content || "");
+                                      }}>
+                                        <Pencil className="w-4 h-4 mr-2" />
+                                        Editar
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => {
+                                        if (msg.content) {
+                                          navigator.clipboard.writeText(msg.content);
+                                          toast({ title: "Copiado!" });
+                                        }
+                                      }}>
+                                        <Copy className="w-4 h-4 mr-2" />
+                                        Copiar
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                )}
                               </div>
                             </div>
                           ))
@@ -3363,6 +3570,19 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                           className="text-base sm:text-sm flex-1 min-h-[40px] max-h-32 resize-y py-2"
                           rows={1}
                         />
+                        {newMessage.trim() && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="shrink-0 h-9 w-9"
+                            onClick={handleFixText}
+                            disabled={isFixingText}
+                            title="Corrigir texto com IA"
+                          >
+                            {isFixingText ? <Loader2 className="w-4 h-4 animate-spin" /> : <SpellCheck className="w-4 h-4" />}
+                          </Button>
+                        )}
                         {newMessage.trim() ? (
                           <Button 
                             type="submit" 
@@ -3736,21 +3956,22 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                         <div
                           key={msg.id}
                           className={cn(
-                            "flex",
+                            "flex group",
                             msg.from_me ? "justify-end" : "justify-start"
                           )}
                         >
-                          <div
-                            className={cn(
-                              "max-w-[85%] rounded-lg text-sm shadow-sm",
-                              msg.from_me
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-card border",
-                              (msg.message_type === 'image' || msg.message_type === 'video')
-                                ? "p-0 overflow-hidden"
-                                : "px-3 py-2"
-                            )}
-                          >
+                          <div className={cn("relative", msg.from_me ? "flex flex-row-reverse items-start gap-1" : "flex items-start gap-1")}>
+                            <div
+                              className={cn(
+                                "max-w-[85%] rounded-lg text-sm shadow-sm",
+                                msg.from_me
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-card border",
+                                (msg.message_type === 'image' || msg.message_type === 'video')
+                                  ? "p-0 overflow-hidden"
+                                  : "px-3 py-2"
+                              )}
+                            >
 {(msg.message_type === 'image' || msg.message_type === 'video' || msg.message_type === 'audio' || msg.message_type === 'document') && (
                               <div className={(msg.message_type === 'image' || msg.message_type === 'video') ? "" : "mb-2"}>
                                 <MediaMessage
@@ -3769,9 +3990,37 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                                 />
                               </div>
                             )}
-                            {msg.message_type === 'text' && (
+                            {msg.message_type === 'text' && editingMessageId === msg.id ? (
+                              <div className="space-y-2">
+                                <Textarea
+                                  value={editingContent}
+                                  onChange={(e) => setEditingContent(e.target.value)}
+                                  className="min-h-[40px] text-sm bg-background text-foreground"
+                                  rows={2}
+                                  autoFocus
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                      e.preventDefault();
+                                      handleSaveEdit(msg.id, msg.message_id);
+                                    }
+                                    if (e.key === 'Escape') {
+                                      setEditingMessageId(null);
+                                      setEditingContent("");
+                                    }
+                                  }}
+                                />
+                                <div className="flex gap-1 justify-end">
+                                  <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => { setEditingMessageId(null); setEditingContent(""); }}>
+                                    Cancelar
+                                  </Button>
+                                  <Button size="sm" className="h-6 text-xs" onClick={() => handleSaveEdit(msg.id, msg.message_id)} disabled={isSavingEdit}>
+                                    {isSavingEdit ? <Loader2 className="w-3 h-3 animate-spin" /> : "Salvar"}
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : msg.message_type === 'text' ? (
                               <p className="whitespace-pre-wrap break-words">{msg.content}</p>
-                            )}
+                            ) : null}
                             <div className={cn(
                               "flex items-center gap-1 mt-1",
                               msg.from_me ? "justify-end" : "justify-start",
@@ -3785,6 +4034,39 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                               </span>
                               {msg.from_me && getStatusIcon(msg.status)}
                             </div>
+                            </div>
+                            {/* Context menu for editable messages - mobile */}
+                            {isMessageEditable(msg) && editingMessageId !== msg.id && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity shrink-0"
+                                  >
+                                    <Pencil className="w-3 h-3" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align={msg.from_me ? "end" : "start"}>
+                                  <DropdownMenuItem onClick={() => {
+                                    setEditingMessageId(msg.id);
+                                    setEditingContent(msg.content || "");
+                                  }}>
+                                    <Pencil className="w-4 h-4 mr-2" />
+                                    Editar
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => {
+                                    if (msg.content) {
+                                      navigator.clipboard.writeText(msg.content);
+                                      toast({ title: "Copiado!" });
+                                    }
+                                  }}>
+                                    <Copy className="w-4 h-4 mr-2" />
+                                    Copiar
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
                           </div>
                         </div>
                       ))
@@ -3888,6 +4170,19 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                       className="text-base flex-1 min-h-[40px] max-h-[50vh] resize-y py-2"
                       rows={1}
                     />
+                    {newMessage.trim() && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0 h-9 w-9"
+                        onClick={handleFixText}
+                        disabled={isFixingText}
+                        title="Corrigir texto com IA"
+                      >
+                        {isFixingText ? <Loader2 className="w-4 h-4 animate-spin" /> : <SpellCheck className="w-4 h-4" />}
+                      </Button>
+                    )}
                     {newMessage.trim() ? (
                       <Button type="submit" size="icon" disabled={isSending || !canSendMessages} className="shrink-0">
                         <Send className="w-4 h-4" />

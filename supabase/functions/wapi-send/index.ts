@@ -1007,6 +1007,83 @@ Deno.serve(async (req) => {
         }
       }
 
+      case 'edit-text': {
+        // Edit a sent message - fallback: delete original + send new
+        const { messageId: editMsgId, newContent, conversationId: editConvId } = body;
+        
+        if (!editMsgId || !newContent) {
+          return new Response(JSON.stringify({ error: 'messageId e newContent são obrigatórios' }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        // Try W-API edit endpoint first
+        const editRes = await wapiRequest(
+          `${WAPI_BASE_URL}/message/edit?instanceId=${instance_id}`,
+          instance_token,
+          'PUT',
+          { messageId: editMsgId, text: newContent }
+        );
+
+        if (editRes.ok) {
+          // Edit succeeded - update DB
+          await supabase.from('wapi_messages')
+            .update({ content: newContent })
+            .eq('message_id', editMsgId);
+
+          return new Response(JSON.stringify({ success: true, method: 'edit' }), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        // Fallback: delete + resend
+        console.log('Edit not supported, falling back to delete+resend');
+        
+        // Try to delete the original message
+        const deleteRes = await wapiRequest(
+          `${WAPI_BASE_URL}/message/delete?instanceId=${instance_id}`,
+          instance_token,
+          'DELETE',
+          { messageId: editMsgId, forEveryone: true }
+        );
+
+        if (!deleteRes.ok) {
+          console.warn('Delete failed:', deleteRes.error, '- sending new message anyway');
+        }
+
+        // Send the new message
+        const resendRes = await wapiRequest(
+          `${WAPI_BASE_URL}/message/send-text?instanceId=${instance_id}`,
+          instance_token,
+          'POST',
+          { phone, message: newContent }
+        );
+
+        if (!resendRes.ok) {
+          return new Response(JSON.stringify({ error: resendRes.error || 'Falha ao reenviar mensagem' }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        const newMsgId = (resendRes.data as { messageId?: string })?.messageId;
+
+        // Update message in DB
+        await supabase.from('wapi_messages')
+          .update({ content: newContent, message_id: newMsgId || editMsgId })
+          .eq('message_id', editMsgId);
+
+        // Update conversation preview
+        if (editConvId) {
+          await supabase.from('wapi_conversations').update({
+            last_message_content: newContent.substring(0, 100),
+          }).eq('id', editConvId);
+        }
+
+        return new Response(JSON.stringify({ success: true, method: 'delete-resend', messageId: newMsgId }), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       default:
         return new Response(JSON.stringify({ error: `Ação desconhecida: ${action}` }), {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
