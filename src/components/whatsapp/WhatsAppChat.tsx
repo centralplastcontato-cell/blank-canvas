@@ -18,7 +18,7 @@ import {
   Image as ImageIcon, Mic, Paperclip, Loader2, Square, X, Pause, Play,
   Users, ArrowRightLeft, Trash2,
   CalendarCheck, Briefcase, FileCheck, ArrowDown, Video,
-  Pencil, Copy, Undo2
+  Pencil, Copy
 } from "lucide-react";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -215,9 +215,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
   
   
   // Undo send state
-  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [pendingUndoMessageId, setPendingUndoMessageId] = useState<string | null>(null);
-  const pendingUndoDataRef = useRef<{ messageText: string; optimisticId: string } | null>(null);
   
   const [closedLeadConversationIds, setClosedLeadConversationIds] = useState<Set<string>>(new Set());
   const [orcamentoEnviadoConversationIds, setOrcamentoEnviadoConversationIds] = useState<Set<string>>(new Set());
@@ -1557,83 +1554,38 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
     const instId = selectedInstance.instance_id;
     const instToken = selectedInstance.instance_token;
 
-    pendingUndoDataRef.current = { messageText: messageToSend, optimisticId };
-    setPendingUndoMessageId(optimisticId);
+    // Send message immediately (no undo delay)
+    try {
+      const response = await supabase.functions.invoke("wapi-send", {
+        body: {
+          action: "send-text",
+          phone: convPhone,
+          message: messageToSend,
+          conversationId: convId,
+          instanceId: instId,
+          instanceToken: instToken,
+        },
+      });
 
-    const sendActual = async () => {
-      try {
-        const response = await supabase.functions.invoke("wapi-send", {
-          body: {
-            action: "send-text",
-            phone: convPhone,
-            message: messageToSend,
-            conversationId: convId,
-            instanceId: instId,
-            instanceToken: instToken,
-          },
-        });
-
-        if (response.error) {
-          throw new Error(response.error.message);
-        }
-
-        // Update optimistic message to sent status
-        setMessages(prev => prev.map(m => 
-          m.id === optimisticId ? { ...m, status: 'sent' } : m
-        ));
-      } catch (error: unknown) {
-        // Remove optimistic message on error
-        setMessages(prev => prev.filter(m => m.id !== optimisticId));
-        setNewMessage(messageToSend); // Restore message to input
-        
-        toast({
-          title: "Erro ao enviar",
-          description: error instanceof Error ? error.message : "Não foi possível enviar a mensagem.",
-          variant: "destructive",
-        });
+      if (response.error) {
+        throw new Error(response.error.message);
       }
-      setPendingUndoMessageId(null);
-      pendingUndoDataRef.current = null;
-    };
 
-    // Set 5-second timer
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    undoTimerRef.current = setTimeout(() => {
-      sendActual();
-    }, 5000);
-
-    // Show undo toast
-    toast({
-      title: "Mensagem enviada",
-      description: "Clique em Desfazer para cancelar o envio.",
-      action: (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            // Cancel the timer
-            if (undoTimerRef.current) {
-              clearTimeout(undoTimerRef.current);
-              undoTimerRef.current = null;
-            }
-            // Remove optimistic message
-            setMessages(prev => prev.filter(m => m.id !== optimisticId));
-            // Restore text to input
-            setNewMessage(messageToSend);
-            setPendingUndoMessageId(null);
-            pendingUndoDataRef.current = null;
-            
-            toast({
-              title: "Envio cancelado",
-              description: "A mensagem foi restaurada no campo de texto.",
-            });
-          }}
-        >
-          <Undo2 className="w-3 h-3 mr-1" />
-          Desfazer
-        </Button>
-      ),
-    });
+      // Update optimistic message to sent status
+      setMessages(prev => prev.map(m => 
+        m.id === optimisticId ? { ...m, status: 'sent' } : m
+      ));
+    } catch (error: unknown) {
+      // Remove optimistic message on error
+      setMessages(prev => prev.filter(m => m.id !== optimisticId));
+      setNewMessage(messageToSend); // Restore message to input
+      
+      toast({
+        title: "Erro ao enviar",
+        description: error instanceof Error ? error.message : "Não foi possível enviar a mensagem.",
+        variant: "destructive",
+      });
+    }
 
     setIsSending(false);
   };
