@@ -153,6 +153,77 @@ export function TransferLeadDialog({
 
       if (updateError) throw updateError;
 
+      // --- Conversation migration: move conversation to target user's instance ---
+      // Find conversation linked to this lead
+      const { data: linkedConv } = await supabase
+        .from("wapi_conversations")
+        .select("id, instance_id")
+        .eq("lead_id", lead.id)
+        .maybeSingle();
+
+      if (linkedConv) {
+        const companyId = localStorage.getItem('selected_company_id') || 'a0000000-0000-0000-0000-000000000001';
+
+        // Get target user's unit permissions
+        const { data: targetPerms } = await supabase
+          .from("user_permissions")
+          .select("permission, granted")
+          .eq("user_id", selectedUserId)
+          .like("permission", "leads.unit.%");
+
+        const hasAll = targetPerms?.some(p => p.permission === "leads.unit.all" && p.granted);
+        const defaultAll = !targetPerms || targetPerms.length === 0;
+
+        if (!hasAll && !defaultAll) {
+          const allowedSlugs = targetPerms
+            .filter(p => p.granted && p.permission !== "leads.unit.all")
+            .map(p => p.permission.replace("leads.unit.", ""));
+
+          // Check if target has access to current instance
+          const { data: currentInstance } = await supabase
+            .from("wapi_instances")
+            .select("unit")
+            .eq("id", linkedConv.instance_id)
+            .single();
+
+          const currentUnitSlug = currentInstance?.unit?.toLowerCase() || "";
+          const hasAccessToCurrent = allowedSlugs.some(s => s === currentUnitSlug);
+
+          if (!hasAccessToCurrent && allowedSlugs.length > 0) {
+            const { data: targetInstances } = await supabase
+              .from("wapi_instances")
+              .select("id, unit")
+              .eq("company_id", companyId)
+              .in("unit", allowedSlugs);
+
+            if (targetInstances && targetInstances.length > 0) {
+              const newInstance = targetInstances[0];
+
+              await supabase
+                .from("wapi_conversations")
+                .update({ instance_id: newInstance.id })
+                .eq("id", linkedConv.id);
+
+              // Update lead unit
+              if (newInstance.unit) {
+                const { data: unitData } = await supabase
+                  .from("company_units")
+                  .select("name")
+                  .eq("company_id", companyId)
+                  .eq("slug", newInstance.unit)
+                  .single();
+
+                await supabase
+                  .from("campaign_leads")
+                  .update({ unit: unitData?.name || newInstance.unit })
+                  .eq("id", lead.id);
+              }
+            }
+          }
+        }
+      }
+      // --- End conversation migration ---
+
       // Add history entry
       await insertWithCompany("lead_history", {
         lead_id: lead.id,
