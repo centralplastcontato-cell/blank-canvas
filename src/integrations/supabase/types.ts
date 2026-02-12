@@ -152,6 +152,7 @@ export type Database = {
         Row: {
           created_at: string
           custom_domain: string | null
+          domain_canonical: string | null
           id: string
           is_active: boolean
           logo_url: string | null
@@ -164,6 +165,7 @@ export type Database = {
         Insert: {
           created_at?: string
           custom_domain?: string | null
+          domain_canonical?: string | null
           id?: string
           is_active?: boolean
           logo_url?: string | null
@@ -176,6 +178,7 @@ export type Database = {
         Update: {
           created_at?: string
           custom_domain?: string | null
+          domain_canonical?: string | null
           id?: string
           is_active?: boolean
           logo_url?: string | null
@@ -1631,6 +1634,17 @@ export type Database = {
         Returns: {
           logo_url: string
           name: string
+        }[]
+      }
+      get_company_by_domain: {
+        Args: { _domain: string }
+        Returns: {
+          custom_domain: string
+          id: string
+          logo_url: string
+          name: string
+          settings: Json
+          slug: string
         }[]
       }
       get_company_id_by_slug: { Args: { _slug: string }; Returns: string }

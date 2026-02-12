@@ -1,4 +1,4 @@
-import { isHubDomain, isPreviewDomain } from "@/hooks/useDomainDetection";
+import { getCanonicalHost, isHubDomain, isPreviewDomain } from "@/hooks/useDomainDetection";
 import LandingPage from "./LandingPage";
 import HubLandingPage from "./HubLandingPage";
 import DynamicLandingPage from "./DynamicLandingPage";
@@ -7,17 +7,25 @@ import DynamicLandingPage from "./DynamicLandingPage";
  * Routes the root "/" path based on domain:
  * - hubcelebrei.com.br → Hub landing page (Celebrei platform)
  * - lovable.app / localhost → Castelo/Buffet landing page (default)
+ * - castelodadiversao.online → Static Castelo LP (via canonical match)
  * - Any other domain → Dynamic LP (company custom domain)
  */
 export default function RootPage() {
+  const canonical = getCanonicalHost();
+
+  if (import.meta.env.DEV) {
+    console.log("[TenantResolver]", {
+      hostname: window.location.hostname,
+      canonicalHost: canonical,
+    });
+  }
+
   if (isHubDomain()) {
     return <HubLandingPage />;
   }
 
-  const hostname = window.location.hostname;
-
-  // Castelo da Diversão domain → static landing page (original)
-  if (hostname === "www.castelodadiversao.online" || hostname === "castelodadiversao.online") {
+  // Castelo da Diversão — matches both www and naked domain via canonical
+  if (canonical === "castelodadiversao.online") {
     return <LandingPage />;
   }
 
@@ -25,6 +33,6 @@ export default function RootPage() {
     return <LandingPage />;
   }
 
-  // Custom domain → dynamic landing page
-  return <DynamicLandingPage domain={hostname} />;
+  // Custom domain → dynamic landing page (pass raw hostname, RPC normalizes)
+  return <DynamicLandingPage domain={window.location.hostname} />;
 }

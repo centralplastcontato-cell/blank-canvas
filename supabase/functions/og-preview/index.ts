@@ -70,17 +70,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Dynamic: look up company by custom_domain or slug
+    // Dynamic: look up company by domain_canonical or slug
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Try matching by slug first, then by custom_domain
+    // Normalize: lowercase + strip www.
+    const canonicalDomain = domain.toLowerCase().replace(/^www\./, "");
+
+    // Try matching by domain_canonical first, then by slug
     const { data: company } = await supabase
       .from("companies")
-      .select("id, name, logo_url, custom_domain, slug")
-      .or(`slug.eq.${domain},custom_domain.ilike.%${domain}%`)
+      .select("id, name, logo_url, custom_domain, slug, domain_canonical")
+      .or(`domain_canonical.eq.${canonicalDomain},slug.eq.${domain}`)
       .eq("is_active", true)
       .limit(1)
       .maybeSingle();

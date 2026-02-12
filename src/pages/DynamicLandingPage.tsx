@@ -115,8 +115,15 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
     <div style={themeStyle}>
       <Helmet>
         <title>{data.company_name} | Buffet Infantil</title>
+        <meta name="description" content={(data.hero as any)?.subtitle || `Conheça o ${data.company_name} - buffet infantil`} />
+        <meta property="og:type" content="website" />
         <meta property="og:title" content={`${data.company_name} | Buffet Infantil`} />
+        <meta property="og:description" content={(data.hero as any)?.subtitle || `Conheça o ${data.company_name} - buffet infantil`} />
         {data.company_logo && <meta property="og:image" content={data.company_logo} />}
+        {domain && <meta property="og:url" content={`https://${domain}`} />}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={`${data.company_name} | Buffet Infantil`} />
+        {data.company_logo && <meta name="twitter:image" content={data.company_logo} />}
       </Helmet>
       <DLPHero
         hero={data.hero}
