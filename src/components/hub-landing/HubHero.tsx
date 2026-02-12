@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import heroMockup from "@/assets/hub-hero-mockup.jpg";
+import logoCelebrei2 from "@/assets/logo-celebrei-2.png";
 
 interface HubHeroProps {
   onOpenWizard: () => void;
@@ -40,6 +41,15 @@ export default function HubHero({ onOpenWizard }: HubHeroProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, ease: "easeOut" }}
           >
+            <motion.img
+              src={logoCelebrei2}
+              alt="Hub Celebrei"
+              className="h-20 sm:h-24 w-auto mb-6"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1, duration: 0.5 }}
+            />
+
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
