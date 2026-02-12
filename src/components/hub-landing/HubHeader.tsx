@@ -23,7 +23,7 @@ export default function HubHeader({ onOpenWizard }: HubHeaderProps) {
             onClick={onOpenWizard}
             className="hidden sm:inline-flex"
           >
-            Diagnóstico gratuito
+            Agendar conversa
           </Button>
           <Button
             onClick={onOpenWizard}

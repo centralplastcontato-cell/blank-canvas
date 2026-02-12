@@ -34,7 +34,7 @@ export default function HubCTA({ onOpenWizard }: HubCTAProps) {
             className="text-base px-10 py-6 rounded-2xl font-bold shadow-lg hover:shadow-floating transition-all hover:scale-[1.02]"
             onClick={onOpenWizard}
           >
-            Fazer diagnóstico gratuito
+            Agendar uma conversa
             <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </div>

@@ -183,10 +183,10 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
             {!isComplete ? (
               <>
                 <h3 className="font-display text-lg font-bold text-primary-foreground">
-                  Diagnóstico gratuito
+                  Agendar uma conversa
                 </h3>
                 <p className="text-sm text-primary-foreground/80 mt-1">
-                  Descubra quanto seu buffet pode crescer
+                  Vamos entender como podemos ajudar seu buffet
                 </p>
                 {/* Progress */}
                 <div className="flex gap-2 mt-4">
@@ -416,7 +416,7 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
                   className="space-y-4"
                 >
                   <p className="text-sm text-muted-foreground">
-                    Quase lá! Deixe seus dados para recebermos o diagnóstico personalizado.
+                    Quase lá! Deixe seus dados para agendarmos uma conversa.
                   </p>
                   <div>
                     <label className="text-sm font-medium text-foreground mb-1.5 block">
