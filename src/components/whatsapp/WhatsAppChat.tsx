@@ -3241,10 +3241,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                                 msg.from_me ? "justify-end" : "justify-start"
                               )}
                             >
-                              <div className={cn("relative", msg.from_me ? "flex flex-row-reverse items-start gap-1" : "flex items-start gap-1")}>
+                              <div className={cn("relative w-full", msg.from_me ? "flex flex-row-reverse items-start gap-1" : "flex items-start gap-1")}>
                                 <div
                                   className={cn(
-                                    "max-w-[85%] sm:max-w-[75%] min-w-[80px] rounded-lg text-sm shadow-sm",
+                                    "max-w-[85%] sm:max-w-[75%] rounded-lg text-sm shadow-sm",
                                     msg.from_me
                                       ? "bg-primary text-primary-foreground"
                                       : "bg-card border",
@@ -3949,10 +3949,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                             msg.from_me ? "justify-end" : "justify-start"
                           )}
                         >
-                          <div className={cn("relative", msg.from_me ? "flex flex-row-reverse items-start gap-1" : "flex items-start gap-1")}>
+                          <div className={cn("relative w-full", msg.from_me ? "flex flex-row-reverse items-start gap-1" : "flex items-start gap-1")}>
                             <div
                               className={cn(
-                                "max-w-[85%] min-w-[80px] rounded-lg text-sm shadow-sm",
+                                "max-w-[85%] rounded-lg text-sm shadow-sm",
                                 msg.from_me
                                   ? "bg-primary text-primary-foreground"
                                   : "bg-card border",
