@@ -15,6 +15,7 @@ import LandingPage from "./pages/LandingPage";
 import ComercialB2B from "./pages/ComercialB2B";
 import ParaBuffets from "./pages/ParaBuffets";
 import HubLogin from "./pages/HubLogin";
+import HubLandingPage from "./pages/HubLandingPage";
 import HubDashboard from "./pages/HubDashboard";
 import HubEmpresas from "./pages/HubEmpresas";
 import HubUsers from "./pages/HubUsers";
@@ -47,6 +48,7 @@ const App = () => (
             <Route path="/users" element={<Users />} />
             <Route path="/promo" element={<LandingPage />} />
             {/* Hub portal - independent */}
+            <Route path="/hub-landing" element={<HubLandingPage />} />
             <Route path="/hub-login" element={<HubLogin />} />
             <Route path="/hub" element={<HubDashboard />} />
             <Route path="/hub/empresas" element={<HubEmpresas />} />
