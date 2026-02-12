@@ -1,67 +1,77 @@
 
-## Limitacao Importante e Solucao Proposta
 
-### O Problema Fundamental
+# Historico Completo do Chat na Transferencia de Leads
 
-Crawlers do WhatsApp e Facebook **nao executam JavaScript**. Eles acessam diretamente a URL compartilhada e leem o HTML estatico. Como ambos os dominios (`hubcelebrei.com.br` e `castelodadiversao.online`) servem o mesmo `index.html` pelo CDN do Lovable, **nao e possivel interceptar o request no nivel do CDN** para servir HTML diferente por dominio.
+## Problema Identificado
 
-Uma Edge Function do Supabase vive em `rsezgnkfhodltrsewlhz.supabase.co/functions/v1/...` -- ela nao intercepta o trafego dos dominios customizados.
+Atualmente, quando um lead e transferido:
+- Apenas o `responsavel_id` do lead e atualizado na tabela `campaign_leads`
+- A conversa (`wapi_conversations`) permanece vinculada ao `instance_id` original
+- As mensagens (`wapi_messages`) permanecem vinculadas ao `conversation_id` original
+- Se o usuario que recebeu a transferencia nao tem acesso a mesma instancia/unidade, ele **nao consegue ver a conversa nem o historico**
 
-### Solucao: Edge Function como "Proxy de Preview"
+## Solucao Proposta
 
-A abordagem viavel e criar uma Edge Function `og-preview` que:
-1. Recebe o dominio como parametro (ou detecta via header `Referer`/`Origin`)
-2. Retorna HTML completo com meta tags OG especificas para aquele dominio
-3. Inclui um `<meta http-equiv="refresh">` para redirecionar usuarios humanos para o site real
+Ao transferir um lead, verificar se o usuario destino tem acesso a mesma instancia. Se nao tiver, **mover a conversa para uma instancia que o usuario destino tenha acesso**, mantendo todas as mensagens intactas (pois as mensagens sao vinculadas ao `conversation_id`, nao ao `instance_id`).
 
-**Uso pratico**: Ao inves de compartilhar `https://www.castelodadiversao.online` diretamente, compartilha-se:
-`https://rsezgnkfhodltrsewlhz.supabase.co/functions/v1/og-preview?domain=castelodadiversao`
+### Alteracoes em `src/components/whatsapp/WhatsAppChat.tsx`
 
-O crawler ve as meta tags do Castelo. O usuario humano e redirecionado para o site.
+Na funcao `handleTransferLead`, adicionar logica para:
 
-### Implementacao
+1. **Buscar as instancias do usuario destino** -- consultar `wapi_instances` filtrando pelas unidades permitidas do usuario destino (via `user_permissions` com prefixo `leads.unit.`)
+2. **Verificar se o usuario destino tem acesso a instancia atual da conversa** -- comparar o `instance_id` da conversa com as instancias acessiveis
+3. **Se nao tiver acesso**, atualizar o `instance_id` da conversa (`wapi_conversations`) para uma instancia que o usuario destino tenha acesso
+4. **Atualizar o `company_id` das mensagens** se necessario (caso a transferencia seja entre empresas diferentes)
 
-**1. Criar Edge Function `og-preview`** (`supabase/functions/og-preview/index.ts`)
+### Fluxo da Transferencia Atualizado
 
-- Detecta o parametro `domain` na query string
-- Mapeia dominios para seus metadados:
-  - `hubcelebrei` -> titulo "Celebrei", imagem `/og-para-buffets.jpg`, descricao da plataforma
-  - `castelodadiversao` -> titulo "Castelo da Diversao", imagem do logo/og do Castelo, descricao do buffet
-  - Dominios dinamicos -> busca dados da tabela `companies` + `company_landing_pages`
-- Retorna HTML com OG tags e redirect automatico
-
-- Para dominios dinamicos (outros buffets), busca `company_name`, `logo_url` e dados da landing page na tabela `companies` via `custom_domain`
-
-**2. Atualizar `supabase/config.toml`**
-
-- Adicionar `[functions.og-preview]` com `verify_jwt = false`
-
-**3. Adicionar imagem OG do Castelo**
-
-- Sera necessario ter uma imagem OG do Castelo da Diversao disponivel publicamente (pode ser no bucket `landing-pages` ou na pasta `public/`)
-
-### Exemplo do HTML retornado para Castelo
-
-```html
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8" />
-  <meta property="og:title" content="Castelo da Diversao | Buffet Infantil" />
-  <meta property="og:description" content="O melhor buffet infantil..." />
-  <meta property="og:image" content="https://url-da-imagem-do-castelo.jpg" />
-  <meta property="og:url" content="https://www.castelodadiversao.online" />
-  <meta http-equiv="refresh" content="0;url=https://www.castelodadiversao.online" />
-</head>
-<body>Redirecionando...</body>
-</html>
+```text
+Transferir Lead
+      |
+      v
+Atualizar campaign_leads.responsavel_id
+      |
+      v
+Buscar instancias do usuario destino
+      |
+      v
+Usuario destino tem acesso a instancia atual?
+    /     \
+  Sim      Nao
+   |        |
+   v        v
+  Fim    Buscar instancia do usuario destino
+            |
+            v
+         Atualizar wapi_conversations.instance_id
+         para instancia do destino
+            |
+            v
+           Fim
 ```
 
-### Limitacao desta abordagem
+### Detalhes Tecnicos
 
-- A URL compartilhada no WhatsApp sera a URL da Edge Function (longa), nao o dominio bonito do buffet
-- Para resolver isso de forma definitiva, seria necessario um servico externo (Cloudflare Worker, por exemplo) no dominio do Castelo que intercepte crawlers antes de servir o SPA
+**Passo 1**: Buscar permissoes de unidade do usuario destino:
+- Consultar `user_permissions` com `permission LIKE 'leads.unit.%'` para o `selectedTransferUserId`
+- Se tiver `leads.unit.all`, tem acesso a tudo
+- Caso contrario, extrair os slugs das unidades (ex: `leads.unit.centro` -> `centro`)
 
-### Consideracao sobre o index.html
+**Passo 2**: Buscar instancias acessiveis:
+- Consultar `wapi_instances` filtrando por `unit IN (unidades_do_usuario_destino)` e `company_id` da empresa atual
 
-O `index.html` atual continuara com os metadados da Celebrei. Quando alguem compartilhar diretamente `castelodadiversao.online`, o preview mostrara Celebrei. A Edge Function so funciona quando a URL compartilhada e a da propria function.
+**Passo 3**: Mover a conversa:
+- `UPDATE wapi_conversations SET instance_id = <nova_instancia> WHERE id = <conversation_id>`
+- As mensagens (`wapi_messages`) nao precisam ser movidas pois sao vinculadas ao `conversation_id`
+
+**Passo 4**: Atualizar a unidade do lead:
+- `UPDATE campaign_leads SET unit = <unidade_nova_instancia> WHERE id = <lead_id>`
+
+### Caso Especial
+
+Se o usuario destino tiver permissao `leads.unit.all` ou ja tiver acesso a mesma instancia, nenhuma movimentacao de conversa e necessaria -- o comportamento atual ja funciona.
+
+### Resultado Esperado
+
+Apos a transferencia, o usuario destino abre o WhatsApp, ve a conversa na sua instancia/unidade e tem acesso ao **historico completo de mensagens** sem perda de dados.
+
