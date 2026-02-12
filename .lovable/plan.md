@@ -1,43 +1,57 @@
 
-# Titulo dinamico nas abas do navegador por dominio
+
+# Corrigir Preview do WhatsApp por Dominio
 
 ## Problema
-O `index.html` tem um titulo estatico "Celebrei | A melhor plataforma para buffets infantis" que aparece em todas as abas do navegador, independente do dominio acessado. Quando alguem acessa `www.castelodadiversao.online`, a aba mostra "Celebrei" em vez de "Castelo da Diversao".
+Os crawlers do WhatsApp (e de redes sociais em geral) nao executam JavaScript. Eles leem apenas o HTML estatico servido pelo servidor. Como ambos os dominios (`hubcelebrei.com.br` e `www.castelodadiversao.online`) apontam para o mesmo CDN do Lovable e servem o mesmo `index.html`, ambos exibem a mesma miniatura e descricao do Celebrei.
+
+O `react-helmet-async` corrige o titulo na aba do navegador (para usuarios humanos), mas nao afeta o que o WhatsApp ve ao gerar a preview.
 
 ## Solucao
-Usar o `react-helmet-async` (ja instalado e configurado no projeto) para definir o titulo e meta tags dinamicamente em cada pagina, respeitando o dominio/marca.
 
-## Alteracoes
+Utilizar um script inline no `index.html` que roda **antes** do React carregar e substitui as meta tags OG com base no hostname. Embora os crawlers tradicionais do WhatsApp nao executem JS completo, versoes mais recentes dos crawlers de algumas plataformas fazem pre-renderizacao parcial. Alem disso, essa abordagem garante consistencia para qualquer serviço que faca uma renderizacao minima.
 
-### 1. `src/pages/LandingPage.tsx` (Castelo da Diversao)
-Adicionar `<Helmet>` com titulo "Castelo da Diversao | Buffet Infantil" e meta tags OG apontando para o dominio correto (`www.castelodadiversao.online`).
+### Alteracao no `index.html`
 
-### 2. `src/pages/DynamicLandingPage.tsx` (LPs dinamicas por dominio)
-Adicionar `<Helmet>` usando os dados ja carregados (`data.company_name`, `data.hero`, `data.company_logo`) para definir titulo e meta tags OG dinamicamente para cada empresa.
+Adicionar um bloco `<script>` inline **sincrono** (sem `type="module"`) no `<head>`, logo apos as meta tags estaticas, que:
 
-### 3. `src/pages/HubLandingPage.tsx` (Hub Celebrei)
-Adicionar `<Helmet>` com titulo "Celebrei | A melhor plataforma para buffets infantis" -- assim o titulo so aparece quando realmente e o dominio do Hub.
+1. Detecta o `window.location.hostname`
+2. Define um mapa de dominio para meta dados (titulo, descricao, imagem, url)
+3. Substitui as meta tags OG existentes via `document.querySelector` e `.setAttribute`
 
-### 4. Paginas internas (Auth, CentralAtendimento, Index/Dashboard, etc.)
-Adicionar `<Helmet>` com titulos descritivos simples:
-- Auth: "Login"
-- CentralAtendimento/Atendimento: "Atendimento"
-- Dashboard: "Dashboard"
-- Configuracoes: "Configuracoes"
-- Users: "Usuarios"
+```text
+Mapa de dominios:
+- castelodadiversao.online / www.castelodadiversao.online
+  -> Titulo: "Castelo da Diversao | Buffet Infantil"
+  -> Descricao: "O melhor buffet infantil para a festa do seu filho!"
+  -> Imagem: "https://www.castelodadiversao.online/og-image.jpg"
+  -> URL: "https://www.castelodadiversao.online"
 
-Cada titulo sera prefixado com o nome da empresa quando disponivel (ex: "Castelo da Diversao - Atendimento").
+- hubcelebrei.com.br / celebrei.com.br (e www)
+  -> Manter os valores atuais (Celebrei)
 
-### 5. `index.html` -- manter como esta
-O titulo estatico do `index.html` serve como fallback enquanto o React nao carrega. O `<Helmet>` sobrescreve automaticamente assim que a pagina renderiza.
+- Qualquer outro dominio
+  -> Manter fallback atual (Celebrei)
+```
 
-## Resultado
-- `www.castelodadiversao.online` mostra "Castelo da Diversao | Buffet Infantil" na aba
-- `hubcelebrei.com.br` mostra "Celebrei | A melhor plataforma para buffets infantis"
-- Dominios customizados de empresas mostram o nome da empresa
-- Paginas internas mostram o contexto correto
+### Limitacao Importante
 
-## Detalhes tecnicos
-- O `react-helmet-async` ja esta instalado e o `<HelmetProvider>` ja envolve o `<App>` no `main.tsx`
-- Basta importar `{ Helmet } from "react-helmet-async"` e adicionar o componente `<Helmet>` com `<title>` dentro do JSX de cada pagina
-- Para as LPs dinamicas, o titulo sera `{data.company_name} | Buffet Infantil` usando os dados ja disponíveis no state
+Essa abordagem funciona para navegadores e crawlers que executam JS basico, mas o **crawler do WhatsApp especificamente** pode nao executar este script. Para garantir 100% de funcionamento no WhatsApp, seria necessario configurar um proxy reverso (como Cloudflare Worker) no dominio `castelodadiversao.online` que intercepte user agents de crawlers e retorne o HTML da edge function `og-preview`. Essa configuracao e feita fora do Lovable, no painel de DNS/CDN do dominio.
+
+### Alternativa Complementar
+
+Atualizar a edge function `og-preview` para tambem ser usada como URL de compartilhamento nos materiais de vendas e mensagens automaticas do bot. Em vez de compartilhar `www.castelodadiversao.online` diretamente, o sistema compartilharia a URL da edge function que faz o redirect automatico:
+`https://rsezgnkfhodltrsewlhz.supabase.co/functions/v1/og-preview?domain=castelodadiversao`
+
+Porem isso muda a URL visivel na mensagem, o que pode nao ser desejavel.
+
+## Resumo das Alteracoes
+
+### Arquivo: `index.html`
+- Adicionar script inline sincrono no `<head>` para detectar hostname e substituir meta tags OG dinamicamente
+- Atualizar tambem o `<title>`, canonical URL e structured data com base no dominio
+
+### Resultado Esperado
+- Navegadores e alguns crawlers modernos verao as meta tags corretas por dominio
+- Para garantia total no WhatsApp, recomenda-se configurar um Cloudflare Worker no dominio customizado (acao externa ao Lovable)
+
