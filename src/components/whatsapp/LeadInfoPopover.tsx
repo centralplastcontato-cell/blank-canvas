@@ -177,6 +177,7 @@ export function LeadInfoPopover({
     { value: 'fechado', label: 'Fechado', color: 'bg-green-500' },
     { value: 'perdido', label: 'Perdido', color: 'bg-red-500' },
     { value: 'transferido', label: 'Transferência', color: 'bg-cyan-500' },
+    { value: 'fornecedor', label: 'Fornecedor', color: 'bg-indigo-500' },
   ];
 
   const getStatusBadgeClass = (status: string) => {
@@ -189,6 +190,7 @@ export function LeadInfoPopover({
       case 'fechado': return 'bg-green-500';
       case 'perdido': return 'bg-red-500';
       case 'transferido': return 'bg-cyan-500';
+      case 'fornecedor': return 'bg-indigo-500';
       default: return '';
     }
   };
@@ -203,6 +205,7 @@ export function LeadInfoPopover({
       case 'fechado': return 'Fechado';
       case 'perdido': return 'Perdido';
       case 'transferido': return 'Transferência';
+      case 'fornecedor': return 'Fornecedor';
       default: return status;
     }
   };
