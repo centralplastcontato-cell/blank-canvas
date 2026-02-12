@@ -369,6 +369,78 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
 
       if (updateError) throw updateError;
 
+      // --- Conversation migration: move conversation to target user's instance ---
+      if (selectedConversation && selectedInstance) {
+        const currentInstanceId = selectedConversation.instance_id;
+        const companyId = localStorage.getItem('selected_company_id') || 'a0000000-0000-0000-0000-000000000001';
+
+        // Step 1: Get target user's unit permissions
+        const { data: targetPerms } = await supabase
+          .from("user_permissions")
+          .select("permission, granted")
+          .eq("user_id", selectedTransferUserId)
+          .like("permission", "leads.unit.%");
+
+        const hasAll = targetPerms?.some(p => p.permission === "leads.unit.all" && p.granted);
+        // If no permissions set at all, default is "all"
+        const defaultAll = !targetPerms || targetPerms.length === 0;
+
+        if (!hasAll && !defaultAll) {
+          // Extract allowed unit slugs
+          const allowedSlugs = targetPerms
+            .filter(p => p.granted && p.permission !== "leads.unit.all")
+            .map(p => p.permission.replace("leads.unit.", ""));
+
+          // Step 2: Check if target user has access to current instance
+          const { data: currentInstance } = await supabase
+            .from("wapi_instances")
+            .select("unit")
+            .eq("id", currentInstanceId)
+            .single();
+
+          const currentUnitSlug = currentInstance?.unit?.toLowerCase() || "";
+          const hasAccessToCurrent = allowedSlugs.some(s => s === currentUnitSlug);
+
+          if (!hasAccessToCurrent && allowedSlugs.length > 0) {
+            // Step 3: Find an instance the target user can access
+            const { data: targetInstances } = await supabase
+              .from("wapi_instances")
+              .select("id, unit")
+              .eq("company_id", companyId)
+              .in("unit", allowedSlugs);
+
+            if (targetInstances && targetInstances.length > 0) {
+              const newInstance = targetInstances[0];
+
+              // Move conversation to new instance
+              await supabase
+                .from("wapi_conversations")
+                .update({ instance_id: newInstance.id })
+                .eq("id", selectedConversation.id);
+
+              // Update lead unit to match new instance
+              if (newInstance.unit) {
+                // Find the unit name from company_units by slug
+                const { data: unitData } = await supabase
+                  .from("company_units")
+                  .select("name")
+                  .eq("company_id", companyId)
+                  .eq("slug", newInstance.unit)
+                  .single();
+
+                await supabase
+                  .from("campaign_leads")
+                  .update({ unit: unitData?.name || newInstance.unit })
+                  .eq("id", linkedLead.id);
+              }
+
+              console.log(`[Transfer] Moved conversation ${selectedConversation.id} to instance ${newInstance.id} (unit: ${newInstance.unit})`);
+            }
+          }
+        }
+      }
+      // --- End conversation migration ---
+
       // Add history entry
       await supabase.from("lead_history").insert({
         lead_id: linkedLead.id,
