@@ -119,7 +119,7 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
         return (
           data.contact_name.trim().length >= 2 &&
           data.whatsapp.replace(/\D/g, "").length >= 10 &&
-          /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())
+          data.email.trim().includes("@")
         );
       default:
         return false;
