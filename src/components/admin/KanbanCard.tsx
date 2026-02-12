@@ -262,8 +262,8 @@ export function KanbanCard({
                 </Button>
               </div>
             ) : (
-              <div className="flex items-center gap-1 flex-1 min-w-0">
-                <p className="font-semibold text-sm truncate flex-1 min-w-0" title={lead.name}>{lead.name}</p>
+              <div className="flex items-center gap-1 flex-1 min-w-0 flex-wrap">
+                <p className="font-semibold text-sm truncate max-w-[140px] flex-shrink min-w-0" title={lead.name}>{lead.name.length > 22 ? lead.name.substring(0, 22) + '…' : lead.name}</p>
                 {lead.has_scheduled_visit && (
                   <Tooltip>
                     <TooltipTrigger asChild>
