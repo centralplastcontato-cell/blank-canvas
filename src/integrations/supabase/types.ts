@@ -719,6 +719,69 @@ export type Database = {
           },
         ]
       }
+      lead_intelligence: {
+        Row: {
+          abandonment_type: string | null
+          company_id: string
+          created_at: string | null
+          followup_count: number | null
+          id: string
+          intent_tags: Json | null
+          last_agent_message_at: string | null
+          last_customer_message_at: string | null
+          lead_id: string
+          priority_flag: boolean
+          score: number
+          temperature: string
+          updated_at: string | null
+        }
+        Insert: {
+          abandonment_type?: string | null
+          company_id: string
+          created_at?: string | null
+          followup_count?: number | null
+          id?: string
+          intent_tags?: Json | null
+          last_agent_message_at?: string | null
+          last_customer_message_at?: string | null
+          lead_id: string
+          priority_flag?: boolean
+          score?: number
+          temperature?: string
+          updated_at?: string | null
+        }
+        Update: {
+          abandonment_type?: string | null
+          company_id?: string
+          created_at?: string | null
+          followup_count?: number | null
+          id?: string
+          intent_tags?: Json | null
+          last_agent_message_at?: string | null
+          last_customer_message_at?: string | null
+          lead_id?: string
+          priority_flag?: boolean
+          score?: number
+          temperature?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_intelligence_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_intelligence_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "campaign_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       message_templates: {
         Row: {
           company_id: string | null
@@ -1694,6 +1757,7 @@ export type Database = {
       get_user_company_ids: { Args: { _user_id: string }; Returns: string[] }
       get_user_default_company: { Args: { _user_id: string }; Returns: string }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      recalculate_lead_score: { Args: { _lead_id: string }; Returns: undefined }
       user_has_company_access: {
         Args: { _company_id: string; _user_id: string }
         Returns: boolean
