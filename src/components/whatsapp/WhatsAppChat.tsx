@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { LEAD_STATUS_COLORS, type LeadStatus } from "@/types/crm";
 import { supabase } from "@/integrations/supabase/client";
 import { insertWithCompany, insertSingleWithCompany } from "@/lib/supabase-helpers";
 import { Button } from "@/components/ui/button";
@@ -2940,24 +2941,20 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                             <Badge 
                               className={cn(
                                 "text-[10px] h-4 px-1.5",
-                                linkedLead.status === 'novo' && "bg-blue-500",
-                                linkedLead.status === 'em_contato' && "bg-yellow-500 text-yellow-950",
-                                linkedLead.status === 'orcamento_enviado' && "bg-purple-500",
-                                linkedLead.status === 'aguardando_resposta' && "bg-orange-500",
-                                linkedLead.status === 'fechado' && "bg-green-500",
-                                linkedLead.status === 'perdido' && "bg-red-500",
-                                linkedLead.status === 'transferido' && "bg-cyan-500",
-                                linkedLead.status === 'trabalhe_conosco' && "bg-teal-500"
+                                LEAD_STATUS_COLORS[linkedLead.status as LeadStatus],
+                                linkedLead.status === 'em_contato' && "text-yellow-950"
                               )}
                             >
-                              {linkedLead.status === 'novo' && 'Novo'}
-                              {linkedLead.status === 'em_contato' && 'Visita'}
-                              {linkedLead.status === 'orcamento_enviado' && 'Orçamento'}
-                              {linkedLead.status === 'aguardando_resposta' && 'Negociando'}
-                              {linkedLead.status === 'fechado' && 'Fechado'}
-                              {linkedLead.status === 'perdido' && 'Perdido'}
-                              {linkedLead.status === 'transferido' && 'Transf.'}
-                              {linkedLead.status === 'trabalhe_conosco' && 'Trab.'}
+                              {({
+                                novo: 'Novo',
+                                em_contato: 'Visita',
+                                orcamento_enviado: 'Orçamento',
+                                aguardando_resposta: 'Negociando',
+                                fechado: 'Fechado',
+                                perdido: 'Perdido',
+                                transferido: 'Transf.',
+                                trabalhe_conosco: 'Trab.',
+                              } as Record<string, string>)[linkedLead.status] ?? linkedLead.status}
                             </Badge>
                           </div>
                         )}
