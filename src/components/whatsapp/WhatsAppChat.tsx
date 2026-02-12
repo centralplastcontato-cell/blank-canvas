@@ -18,7 +18,7 @@ import {
   Image as ImageIcon, Mic, Paperclip, Loader2, Square, X, Pause, Play,
   Users, ArrowRightLeft, Trash2,
   CalendarCheck, Briefcase, FileCheck, ArrowDown, Video,
-  Pencil, Copy, SpellCheck, Undo2
+  Pencil, Copy, Undo2
 } from "lucide-react";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -213,8 +213,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
   const [editingContent, setEditingContent] = useState("");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   
-  // Fix text (AI correction) state
-  const [isFixingText, setIsFixingText] = useState(false);
   
   // Undo send state
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1687,35 +1685,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
     setIsSavingEdit(false);
   };
 
-  // Fix text with AI
-  const handleFixText = async () => {
-    if (!newMessage.trim() || isFixingText) return;
-    setIsFixingText(true);
-
-    try {
-      const response = await supabase.functions.invoke("fix-text", {
-        body: { text: newMessage },
-      });
-
-      if (response.error) throw new Error(response.error.message);
-
-      const { corrected, hasChanges } = response.data;
-      if (hasChanges) {
-        setNewMessage(corrected);
-        toast({ title: "Texto corrigido", description: "O texto foi corrigido automaticamente." });
-      } else {
-        toast({ title: "Texto OK", description: "Nenhuma correção necessária." });
-      }
-    } catch (error: unknown) {
-      toast({
-        title: "Erro na correção",
-        description: error instanceof Error ? error.message : "Não foi possível corrigir o texto.",
-        variant: "destructive",
-      });
-    }
-
-    setIsFixingText(false);
-  };
 
   // Check if message is editable (from_me, text, less than 15 min)
   const isMessageEditable = (msg: Message) => {
@@ -3595,20 +3564,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                           disabled={isSending || !canSendMessages}
                           className="text-base sm:text-sm flex-1 min-h-[40px] max-h-32 resize-y py-2"
                           rows={1}
+                          spellCheck={true}
                         />
-                        {newMessage.trim() && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="shrink-0 h-9 w-9"
-                            onClick={handleFixText}
-                            disabled={isFixingText}
-                            title="Corrigir texto com IA"
-                          >
-                            {isFixingText ? <Loader2 className="w-4 h-4 animate-spin" /> : <SpellCheck className="w-4 h-4" />}
-                          </Button>
-                        )}
                         {newMessage.trim() ? (
                           <Button 
                             type="submit" 
@@ -4201,20 +4158,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                       disabled={isSending || !canSendMessages}
                       className="text-base flex-1 min-h-[40px] max-h-[50vh] resize-y py-2"
                       rows={1}
+                      spellCheck={true}
                     />
-                    {newMessage.trim() && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="shrink-0 h-9 w-9"
-                        onClick={handleFixText}
-                        disabled={isFixingText}
-                        title="Corrigir texto com IA"
-                      >
-                        {isFixingText ? <Loader2 className="w-4 h-4 animate-spin" /> : <SpellCheck className="w-4 h-4" />}
-                      </Button>
-                    )}
                     {newMessage.trim() ? (
                       <Button type="submit" size="icon" disabled={isSending || !canSendMessages} className="shrink-0">
                         <Send className="w-4 h-4" />
