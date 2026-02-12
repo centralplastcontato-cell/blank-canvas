@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Helmet } from "react-helmet-async";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
@@ -901,6 +902,7 @@ export default function UsersPage() {
   // Desktop layout with Sidebar
   return (
     <SidebarProvider>
+      <Helmet><title>Usuários</title></Helmet>
       <div className="min-h-screen flex w-full">
         <AdminSidebar 
           canManageUsers={canManageUsers}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Helmet } from "react-helmet-async";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { isHubDomain } from "@/hooks/useDomainDetection";
@@ -603,6 +604,7 @@ export default function CentralAtendimento() {
   if (isMobile) {
     return (
       <div className="h-dvh flex flex-col overflow-hidden bg-background">
+        <Helmet><title>Atendimento</title></Helmet>
         {/* Mobile Header */}
         <header className="bg-card border-b border-border shrink-0 z-10">
           <div className="px-3 py-3">
@@ -893,6 +895,7 @@ export default function CentralAtendimento() {
   // Desktop layout with Sidebar
   return (
     <SidebarProvider>
+      <Helmet><title>Atendimento</title></Helmet>
       <div className="h-dvh flex w-full overflow-hidden">
         <AdminSidebar 
           canManageUsers={canManageUsers}

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { OfferSection } from "@/components/landing/OfferSection";
 import { BenefitsSection } from "@/components/landing/BenefitsSection";
@@ -18,6 +19,11 @@ const LandingPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Castelo da Diversão | Buffet Infantil</title>
+        <meta property="og:title" content="Castelo da Diversão | Buffet Infantil" />
+        <meta property="og:url" content="https://www.castelodadiversao.online" />
+      </Helmet>
       <HeroSection onCtaClick={openChat} />
       <OfferSection onCtaClick={openChat} />
       <BenefitsSection />

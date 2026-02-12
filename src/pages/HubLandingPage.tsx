@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Helmet } from "react-helmet-async";
 import HubHeader from "@/components/hub-landing/HubHeader";
 import HubHero from "@/components/hub-landing/HubHero";
 import HubFeatures from "@/components/hub-landing/HubFeatures";
@@ -12,6 +13,9 @@ export default function HubLandingPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Celebrei | A melhor plataforma para buffets infantis</title>
+      </Helmet>
       <HubHeader onOpenWizard={() => setIsWizardOpen(true)} />
       <HubHero onOpenWizard={() => setIsWizardOpen(true)} />
       <HubFeatures />
