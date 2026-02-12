@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import logoCelebrei from "@/assets/logo-celebrei.png";
+import logoCelebrei from "@/assets/logo-celebrei-1.png";
 
 interface HubHeaderProps {
   onOpenWizard?: () => void;

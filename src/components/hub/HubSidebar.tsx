@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
 import { BarChart3, Building2, Users, LogOut, ChevronLeft, Pin, PinOff, Smartphone, ClipboardList, Target, Presentation } from "lucide-react";
-import logoCelebrei from "@/assets/logo-celebrei.png";
+import logoCelebrei from "@/assets/logo-celebrei-2.png";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
