@@ -2945,15 +2945,19 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
                                 linkedLead.status === 'orcamento_enviado' && "bg-purple-500",
                                 linkedLead.status === 'aguardando_resposta' && "bg-orange-500",
                                 linkedLead.status === 'fechado' && "bg-green-500",
-                                linkedLead.status === 'perdido' && "bg-red-500"
+                                linkedLead.status === 'perdido' && "bg-red-500",
+                                linkedLead.status === 'transferido' && "bg-cyan-500",
+                                linkedLead.status === 'trabalhe_conosco' && "bg-teal-500"
                               )}
                             >
                               {linkedLead.status === 'novo' && 'Novo'}
-                              {linkedLead.status === 'em_contato' && 'Contato'}
+                              {linkedLead.status === 'em_contato' && 'Visita'}
                               {linkedLead.status === 'orcamento_enviado' && 'Orçamento'}
-                              {linkedLead.status === 'aguardando_resposta' && 'Aguardando'}
+                              {linkedLead.status === 'aguardando_resposta' && 'Negociando'}
                               {linkedLead.status === 'fechado' && 'Fechado'}
                               {linkedLead.status === 'perdido' && 'Perdido'}
+                              {linkedLead.status === 'transferido' && 'Transf.'}
+                              {linkedLead.status === 'trabalhe_conosco' && 'Trab.'}
                             </Badge>
                           </div>
                         )}
