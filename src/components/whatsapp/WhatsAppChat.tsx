@@ -1324,9 +1324,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
     } finally {
       setIsLoadingMessages(false);
       setIsLoadingMoreMessages(false);
-      isLoadingMoreRef.current = false;
       
+      // IMPORTANT: Only reset isLoadingMoreRef here for non-loadMore calls.
+      // For loadMore, the caller (loadMoreMessages) resets it AFTER scroll restoration
+      // to prevent the auto-scroll effect from snapping to bottom.
       if (!loadMore) {
+        isLoadingMoreRef.current = false;
         // Mark initial load complete after a brief delay for scroll (handled by useEffect)
         setTimeout(() => setIsInitialLoad(false), 400);
       }
