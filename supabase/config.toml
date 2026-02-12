@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.fix-text]
 verify_jwt = false
+
+[functions.og-preview]
+verify_jwt = false
