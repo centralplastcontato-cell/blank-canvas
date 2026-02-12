@@ -1329,8 +1329,20 @@ async function processBotQualification(
           // Materials are being sent, ignore incoming messages during this phase
           console.log(`[Bot] Lead ${conv.lead_id} is in sending_materials phase, ignoring message`);
           return;
+        } else if (conv.bot_step === 'complete_final') {
+          // Lead responded after a follow-up reactivated the bot
+          // Treat their response as a proximo_passo choice
+          console.log(`[Bot] Lead ${conv.lead_id} responded after follow-up (complete_final). Treating as proximo_passo.`);
+          
+          // Update step to proximo_passo so the normal flow handles it
+          await supabase.from('wapi_conversations').update({
+            bot_step: 'proximo_passo',
+          }).eq('id', conv.id);
+          
+          // Re-read conv with updated step and fall through to normal processing
+          conv.bot_step = 'proximo_passo';
         } else {
-          // For other steps (like complete_final, qualified_from_lp), return
+          // For other steps (like qualified_from_lp), return
           return;
         }
       }
