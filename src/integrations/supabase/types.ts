@@ -791,6 +791,36 @@ export type Database = {
           },
         ]
       }
+      lead_score_snapshots: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          lead_id: string
+          score: number
+          snapshot_date: string
+          temperature: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          lead_id: string
+          score: number
+          snapshot_date?: string
+          temperature: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          lead_id?: string
+          score?: number
+          snapshot_date?: string
+          temperature?: string
+        }
+        Relationships: []
+      }
       message_templates: {
         Row: {
           company_id: string | null
