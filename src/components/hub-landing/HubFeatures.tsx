@@ -1,4 +1,4 @@
-import { MessageSquare, BarChart3, Users, Zap, Bot, Send } from "lucide-react";
+import { MessageSquare, BarChart3, Users, Zap, Bot, Send, Brain } from "lucide-react";
 import { motion } from "framer-motion";
 
 const features = [
@@ -36,6 +36,13 @@ const features = [
     description: "Envio automático de PDFs, fotos e vídeos do buffet. Personalizado por unidade e faixa de convidados.",
     gradient: "from-castle/20 to-castle/5",
     iconColor: "text-castle",
+  },
+  {
+    icon: Brain,
+    title: "Inteligência Artificial",
+    description: "Score automático, temperatura do lead, resumos por IA e alertas de risco. Priorize quem está pronto para fechar.",
+    gradient: "from-emerald-500/20 to-emerald-500/5",
+    iconColor: "text-emerald-500",
   },
   {
     icon: MessageSquare,
