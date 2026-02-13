@@ -21,8 +21,8 @@ function timeAgo(date: string | null) {
 function LeadRow({ item }: { item: LeadIntelligence }) {
   const navigate = useNavigate();
   return (
-    <>
-      <div className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card/50 hover:bg-card transition-colors">
+    <div className="p-3 rounded-lg border bg-card/50 hover:bg-card transition-colors">
+      <div className="flex items-center justify-between gap-3">
         <div className="flex-1 min-w-0">
           <p className="font-medium text-sm truncate">{item.lead_name}</p>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -50,7 +50,7 @@ function LeadRow({ item }: { item: LeadIntelligence }) {
         </Button>
       </div>
       <InlineAISummary leadId={item.lead_id} />
-    </>
+    </div>
   );
 }
 
