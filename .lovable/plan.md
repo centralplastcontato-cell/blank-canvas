@@ -1,56 +1,63 @@
 
 
-## Compartilhamento de Contatos (vCard) no WhatsApp Chat
+## Indicacao Visual para Mensagens de Follow-up Automatico
 
-### Resumo
-Adicionar a funcionalidade de enviar contatos (vCard) pelo chat, com um dialog para preencher nome e telefone do contato, e envio via W-API.
+### O Problema
+Hoje, as mensagens de follow-up automatico (lembrete de proximo passo, follow-up 1/2, e follow-up de inatividade no bot) sao salvas como `message_type: "text"` normal, sem nenhum marcador. Isso confunde o atendente que nao sabe se a mensagem foi enviada manualmente ou pelo sistema.
 
-### O que muda para o usuario
+### A Solucao
+Adicionar um campo `metadata` (JSONB) nas mensagens de follow-up com `{ "source": "follow_up" }` ou similar, e no frontend exibir um pequeno badge/etiqueta indicando que a mensagem foi automatica.
 
-1. No menu de anexos (icone de clipe), aparece uma nova opcao **"Contato"** com icone de pessoa
-2. Ao clicar, abre um dialog simples com dois campos: **Nome** e **Telefone**
-3. Ao confirmar, o contato e enviado como vCard para o destinatario
-4. A mensagem aparece no chat como "[Contato] Nome - Telefone"
+### Visual Proposto
+- Um mini-badge discreto **abaixo do balao** da mensagem, com icone de relogio (Clock) e texto como "Enviado automaticamente"
+- Cor: cinza suave (`text-muted-foreground`), bem menor que o texto normal
+- Nao muda a cor do balao em si, apenas adiciona a etiqueta para nao poluir a interface
+- Exemplo visual:
+
+```text
++-------------------------------------+
+|  Oi Juliana! Notamos que voce nao   |
+|  respondeu ainda. Podemos ajudar?   |
+|                          14:32  ✓✓  |
++-------------------------------------+
+  🕐 Enviado automaticamente
+```
 
 ### Detalhes Tecnicos
 
-#### 1. Edge Function `wapi-send` - novo case `send-contact`
+#### 1. Banco de dados - Nova coluna `metadata`
+- Adicionar coluna `metadata` (tipo `jsonb`, nullable) na tabela `wapi_messages`
+- Migracao simples: `ALTER TABLE wapi_messages ADD COLUMN metadata jsonb DEFAULT NULL`
 
-Adicionar um novo case no switch de actions que:
-- Recebe `contactName` e `contactPhone` no body
-- Monta o vCard no formato padrao:
-```text
-BEGIN:VCARD
-VERSION:3.0
-FN:{contactName}
-TEL;type=CELL;waid={phone}:+{phone}
-END:VCARD
-```
-- Chama o endpoint W-API `POST /v1/message/send-contact?instanceId={id}` com o payload de contato
-- Salva a mensagem no banco (`wapi_messages`) com `message_type: 'contact'` e conteudo `[Contato] Nome`
-- Atualiza `last_message_content` na conversa
+#### 2. Edge Function `follow-up-check` - Marcar mensagens
+- Em todos os 4 pontos onde mensagens de follow-up sao inseridas (linhas ~240, ~463, ~680, ~866), adicionar o campo `metadata` no insert:
+  - Lembrete de proximo passo: `{ "source": "auto_reminder", "type": "next_step_reminder" }`
+  - Follow-up 1: `{ "source": "auto_reminder", "type": "follow_up_1" }`
+  - Follow-up 2: `{ "source": "auto_reminder", "type": "follow_up_2" }`
+  - Follow-up inatividade bot: `{ "source": "auto_reminder", "type": "bot_inactive" }`
 
-#### 2. Frontend `WhatsAppChat.tsx`
+#### 3. Tipos TypeScript - Atualizar interface `Message`
+- Em `WhatsAppChat.tsx`, adicionar `metadata?: Record<string, string> | null` na interface `Message`
 
-- Adicionar estado `showContactDialog` e campos `contactName` / `contactPhone`
-- Adicionar funcao `handleSendContact` que:
-  - Cria mensagem otimista (como os outros tipos)
-  - Invoca `wapi-send` com action `send-contact`
-  - Atualiza status da mensagem
-- No menu de anexos (Paperclip dropdown), adicionar item **"Contato"** com icone `Users` - em ambos os layouts (desktop e mobile)
-- Adicionar um `Dialog` com formulario simples (nome + telefone) e botao "Enviar"
+#### 4. Query de mensagens - Incluir `metadata`
+- Atualizar o select de mensagens para incluir o campo `metadata`
 
-#### 3. Renderizacao da mensagem
-
-- No componente `MediaMessage` ou na renderizacao inline do chat, tratar `message_type === 'contact'` para exibir um card visual com icone de pessoa, nome e telefone
-
-#### 4. Config TOML
-Nenhuma alteracao necessaria - a funcao `wapi-send` ja existe.
-
-#### 5. Banco de dados
-Nenhuma migracao necessaria - o campo `message_type` em `wapi_messages` ja aceita texto livre e `content` armazena a informacao do contato.
+#### 5. Frontend `WhatsAppChat.tsx` - Renderizar indicador
+- Na renderizacao de cada mensagem (balao), verificar se `msg.metadata?.source === 'auto_reminder'`
+- Se sim, renderizar abaixo do balao:
+  ```
+  <div className="flex items-center gap-1 mt-0.5 text-[10px] text-muted-foreground/70">
+    <Clock className="w-2.5 h-2.5" />
+    <span>Enviado automaticamente</span>
+  </div>
+  ```
+- O texto pode variar conforme o `type`:
+  - `next_step_reminder` -> "Lembrete automatico"
+  - `follow_up_1` -> "Follow-up automatico"
+  - `follow_up_2` -> "2o follow-up automatico"
+  - `bot_inactive` -> "Reenvio por inatividade"
 
 ### Arquivos modificados
-- `supabase/functions/wapi-send/index.ts` - novo case `send-contact`
-- `src/components/whatsapp/WhatsAppChat.tsx` - dialog, estado, funcao de envio, item no menu
-
+- `supabase/migrations/` - Nova migracao para coluna `metadata`
+- `supabase/functions/follow-up-check/index.ts` - Adicionar metadata nos 4 inserts
+- `src/components/whatsapp/WhatsAppChat.tsx` - Interface Message, query select, renderizacao do badge
