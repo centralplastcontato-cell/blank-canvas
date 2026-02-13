@@ -378,16 +378,42 @@ export function LeadInfoPopover({
                )}
              </div>
              
+              {/* Bot Toggle */}
+              <div className="pt-2 border-t flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground">Bot:</span>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1 text-amber-600 hover:text-amber-700 hover:bg-amber-50 border-amber-200"
+                    onClick={() => onReactivateBot(selectedConversation)}
+                    title="Reativar bot e enviar mensagem de retomada"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    Reativar
+                  </Button>
+                  <Button
+                    variant={selectedConversation.bot_enabled !== false ? "secondary" : "ghost"}
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => onToggleConversationBot(selectedConversation)}
+                  >
+                    <Bot className="w-3 h-3" />
+                    {selectedConversation.bot_enabled !== false ? "Ativo" : "Inativo"}
+                  </Button>
+                </div>
+              </div>
+
               {/* Share to Group button */}
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full text-xs h-7 gap-2"
-                onClick={onShowShareToGroupDialog}
-              >
-                <UsersRound className="w-3 h-3" />
-                Compartilhar em Grupo
-              </Button>
+               <Button 
+                 variant="outline" 
+                 size="sm" 
+                 className="w-full text-xs h-7 gap-2"
+                 onClick={onShowShareToGroupDialog}
+               >
+                 <UsersRound className="w-3 h-3" />
+                 Compartilhar em Grupo
+               </Button>
 
               {/* Transfer button */}
               {canTransferLeads && (
