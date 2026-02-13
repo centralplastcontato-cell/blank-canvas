@@ -6,7 +6,8 @@ import {
   RefreshCw, 
   LogOut, 
   Building2,
-  MessageSquare
+  MessageSquare,
+  Brain
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +19,7 @@ import {
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useCompanyModules } from "@/hooks/useCompanyModules";
 
 
 interface MobileMenuProps {
@@ -57,6 +59,7 @@ export function MobileMenu({
   onLogout,
 }: MobileMenuProps) {
   const navigate = useNavigate();
+  const modules = useCompanyModules();
 
   const menuItems = [
     {
@@ -72,6 +75,13 @@ export function MobileMenu({
       icon: MessageSquare,
       path: "/whatsapp",
       show: true,
+    },
+    {
+      id: "inteligencia",
+      label: "Inteligência",
+      icon: Brain,
+      path: "/inteligencia",
+      show: !!modules.inteligencia,
     },
     {
       id: "configuracoes",
