@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MessageCircle, Snowflake, Flame, AlertTriangle } from "lucide-react";
 import { TemperatureBadge } from "./TemperatureBadge";
+import { InlineAISummary } from "./InlineAISummary";
 import { LeadIntelligence } from "@/hooks/useLeadIntelligence";
 import { LEAD_STATUS_LABELS, LeadStatus } from "@/types/crm";
 import { formatDistanceToNow } from "date-fns";
@@ -20,33 +21,36 @@ function timeAgo(date: string | null) {
 function LeadRow({ item }: { item: LeadIntelligence }) {
   const navigate = useNavigate();
   return (
-    <div className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card/50 hover:bg-card transition-colors">
-      <div className="flex-1 min-w-0">
-        <p className="font-medium text-sm truncate">{item.lead_name}</p>
-        <div className="flex items-center gap-2 mt-1 flex-wrap">
-          <span className="text-xs text-muted-foreground">
-            Score: <strong>{item.score}</strong>
-          </span>
-          <TemperatureBadge temperature={item.temperature} />
-          <span className="text-xs text-muted-foreground">
-            {LEAD_STATUS_LABELS[item.lead_status as LeadStatus] || item.lead_status}
-          </span>
+    <>
+      <div className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card/50 hover:bg-card transition-colors">
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-sm truncate">{item.lead_name}</p>
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            <span className="text-xs text-muted-foreground">
+              Score: <strong>{item.score}</strong>
+            </span>
+            <TemperatureBadge temperature={item.temperature} />
+            <span className="text-xs text-muted-foreground">
+              {LEAD_STATUS_LABELS[item.lead_status as LeadStatus] || item.lead_status}
+            </span>
+          </div>
+          {item.last_customer_message_at && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Última msg: {timeAgo(item.last_customer_message_at)}
+            </p>
+          )}
         </div>
-        {item.last_customer_message_at && (
-          <p className="text-xs text-muted-foreground mt-1">
-            Última msg: {timeAgo(item.last_customer_message_at)}
-          </p>
-        )}
+        <Button
+          size="icon"
+          variant="outline"
+          className="shrink-0 h-8 w-8"
+          onClick={() => navigate(`/atendimento?phone=${item.lead_whatsapp}`)}
+        >
+          <MessageCircle className="h-4 w-4" />
+        </Button>
       </div>
-      <Button
-        size="icon"
-        variant="outline"
-        className="shrink-0 h-8 w-8"
-        onClick={() => navigate(`/atendimento?phone=${item.lead_whatsapp}`)}
-      >
-        <MessageCircle className="h-4 w-4" />
-      </Button>
-    </div>
+      <InlineAISummary leadId={item.lead_id} />
+    </>
   );
 }
 
