@@ -1,11 +1,12 @@
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-const TEMP_CONFIG: Record<string, { label: string; className: string }> = {
-  frio: { label: '❄️ Frio', className: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
-  morno: { label: '🌤️ Morno', className: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' },
-  quente: { label: '🔥 Quente', className: 'bg-orange-500/20 text-orange-300 border-orange-500/30' },
-  pronto: { label: '🎯 Pronto', className: 'bg-green-500/20 text-green-300 border-green-500/30' },
+const TEMP_CONFIG: Record<string, { label: string; className: string; tooltip: string }> = {
+  frio: { label: '❄️ Frio', className: 'bg-blue-500/20 text-blue-300 border-blue-500/30', tooltip: 'Baixo engajamento. O lead não interagiu recentemente ou tem poucas interações registradas.' },
+  morno: { label: '🌤️ Morno', className: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30', tooltip: 'Engajamento moderado. O lead respondeu mas ainda não avançou para visita ou orçamento.' },
+  quente: { label: '🔥 Quente', className: 'bg-orange-500/20 text-orange-300 border-orange-500/30', tooltip: 'Alto engajamento. O lead pediu visita, orçamento ou demonstrou forte interesse.' },
+  pronto: { label: '🎯 Pronto', className: 'bg-green-500/20 text-green-300 border-green-500/30', tooltip: 'Pronto para fechar! Lead com score máximo, orçamento enviado ou visita agendada.' },
 };
 
 interface TemperatureBadgeProps {
@@ -16,8 +17,17 @@ interface TemperatureBadgeProps {
 export function TemperatureBadge({ temperature, className }: TemperatureBadgeProps) {
   const config = TEMP_CONFIG[temperature] || TEMP_CONFIG.frio;
   return (
-    <Badge variant="outline" className={cn(config.className, className)}>
-      {config.label}
-    </Badge>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge variant="outline" className={cn(config.className, "cursor-help", className)}>
+            {config.label}
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-[240px] text-xs">
+          {config.tooltip}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
