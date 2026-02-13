@@ -88,7 +88,15 @@
 
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Cache-busting: append build timestamp to main script
+      (function() {
+        var s = document.createElement('script');
+        s.type = 'module';
+        s.src = '/src/main.tsx?v=' + Date.now();
+        document.body.appendChild(s);
+      })();
+    </script>
     <!-- Recover from stale JS chunks after deploy (fixes infinite loading) -->
     <script>
       window.addEventListener('error', function(e) {
