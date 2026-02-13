@@ -7,7 +7,8 @@ import { TemperatureBadge } from "./TemperatureBadge";
 import { InlineAISummary } from "./InlineAISummary";
 import { LeadIntelligence } from "@/hooks/useLeadIntelligence";
 import { LEAD_STATUS_LABELS, LeadStatus } from "@/types/crm";
-import { format, isToday } from "date-fns";
+import { format, isToday, formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface LeadsDoDiaTabProps {
@@ -73,6 +74,7 @@ export function LeadsDoDiaTab({ data, canExport }: LeadsDoDiaTabProps) {
                   <TableHead>Score</TableHead>
                   <TableHead>Temperatura</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Atualizado</TableHead>
                   <TableHead className="text-right">Ação</TableHead>
                 </TableRow>
               </TableHeader>
@@ -89,6 +91,9 @@ export function LeadsDoDiaTab({ data, canExport }: LeadsDoDiaTabProps) {
                       </TableCell>
                       <TableCell className="text-sm">
                         {LEAD_STATUS_LABELS[item.lead_status as LeadStatus] || item.lead_status}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(item.updated_at), { addSuffix: true, locale: ptBR })}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button

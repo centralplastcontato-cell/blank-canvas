@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MessageCircle, Snowflake, Flame, AlertTriangle } from "lucide-react";
+import { MessageCircle, Snowflake, Flame, AlertTriangle, RefreshCw } from "lucide-react";
 import { TemperatureBadge } from "./TemperatureBadge";
 import { InlineAISummary } from "./InlineAISummary";
 import { LeadIntelligence } from "@/hooks/useLeadIntelligence";
@@ -39,6 +39,10 @@ function LeadRow({ item }: { item: LeadIntelligence }) {
               Última msg: {timeAgo(item.last_customer_message_at)}
             </p>
           )}
+          <p className="text-xs text-muted-foreground/60 mt-0.5 flex items-center gap-1">
+            <RefreshCw className="h-3 w-3" />
+            Score: {timeAgo(item.updated_at)}
+          </p>
         </div>
         <Button
           size="icon"
