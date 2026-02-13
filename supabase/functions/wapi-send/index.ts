@@ -493,6 +493,72 @@ Deno.serve(async (req) => {
         });
       }
 
+      case 'send-contact': {
+        const { contactName, contactPhone } = body;
+        
+        if (!contactName || !contactPhone) {
+          return new Response(JSON.stringify({ error: 'Nome e telefone do contato são obrigatórios' }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        const cleanContactPhone = contactPhone.replace(/\D/g, '');
+        
+        const vcard = `BEGIN:VCARD\nVERSION:3.0\nFN:${contactName}\nTEL;type=CELL;waid=${cleanContactPhone}:+${cleanContactPhone}\nEND:VCARD`;
+
+        const res = await wapiRequest(
+          `${WAPI_BASE_URL}/message/send-contact?instanceId=${instance_id}`,
+          instance_token,
+          'POST',
+          {
+            phone,
+            contact: {
+              fullName: contactName,
+              organization: '',
+              phoneNumber: `+${cleanContactPhone}`,
+              wuid: cleanContactPhone,
+              displayName: contactName,
+            },
+            name: {
+              formatted_name: contactName,
+              first_name: contactName,
+            },
+            vcard,
+          }
+        );
+        
+        if (!res.ok) {
+          return new Response(JSON.stringify({ error: res.error }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        const messageId = (res.data as { messageId?: string })?.messageId;
+        
+        if (conversationId) {
+          const contactContent = `[Contato] ${contactName} - ${contactPhone}`;
+          await supabase.from('wapi_messages').insert({
+            conversation_id: conversationId,
+            message_id: messageId,
+            from_me: true,
+            message_type: 'contact',
+            content: contactContent,
+            status: 'sent',
+            timestamp: new Date().toISOString(),
+            company_id: companyId,
+          });
+          await supabase.from('wapi_conversations').update({ 
+            last_message_at: new Date().toISOString(),
+            last_message_content: `👤 ${contactName}`,
+            last_message_from_me: true,
+          }).eq('id', conversationId);
+        }
+
+        return new Response(JSON.stringify({ success: true, messageId }), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       case 'get-status': {
         try {
           // Strategy: Try multiple endpoints in order of reliability
