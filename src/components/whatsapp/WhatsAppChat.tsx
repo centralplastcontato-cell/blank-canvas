@@ -3620,7 +3620,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                               handleSendMessage();
                             }
                           }}
-                          disabled={isSending || !canSendMessages}
+                          disabled={!canSendMessages}
                           className="text-base sm:text-sm flex-1 min-h-[40px] max-h-32 resize-y py-2"
                           rows={1}
                           spellCheck={true}
@@ -4215,7 +4215,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                           handleSendMessage();
                         }
                       }}
-                      disabled={isSending || !canSendMessages}
+                      disabled={!canSendMessages}
                       className="text-base flex-1 min-h-[40px] max-h-[50vh] resize-y py-2"
                       rows={1}
                       spellCheck={true}
