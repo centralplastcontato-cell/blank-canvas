@@ -16,12 +16,13 @@ import { PrioridadesTab } from "@/components/inteligencia/PrioridadesTab";
 import { FunilTab } from "@/components/inteligencia/FunilTab";
 import { LeadsDoDiaTab } from "@/components/inteligencia/LeadsDoDiaTab";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 
 export default function Inteligencia() {
   const navigate = useNavigate();
   const modules = useCompanyModules();
-  const { data, isLoading } = useLeadIntelligence();
+  const { data, isLoading, refetch } = useLeadIntelligence();
   const { data: stageDurations, isLoading: isDurationsLoading } = useLeadStageDurations();
   const { currentCompany } = useCompany();
 
@@ -143,7 +144,7 @@ export default function Inteligencia() {
             navigate("/auth");
           }}
         />
-        <main className="flex-1 p-3 md:p-6 overflow-x-hidden overflow-y-auto">
+        <PullToRefresh onRefresh={async () => { await refetch(); }} className="flex-1 p-3 md:p-6 overflow-x-hidden overflow-y-auto">
           <div className="max-w-7xl mx-auto space-y-6">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-3">
@@ -307,7 +308,7 @@ export default function Inteligencia() {
               </TabsContent>
             </Tabs>
           </div>
-        </main>
+        </PullToRefresh>
       </div>
     </SidebarProvider>
   );
