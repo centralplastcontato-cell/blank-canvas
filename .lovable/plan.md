@@ -1,57 +1,52 @@
 
-# Resumo Automático do Lead com IA
 
-## O que vai ser feito
-Ao abrir os detalhes de um lead, o sistema vai analisar as mensagens do WhatsApp e gerar automaticamente:
-1. **Resumo da conversa** - O que o lead quer, contexto principal
-2. **Sugestao de proxima acao** - O que o atendente deveria fazer agora
+# Salvar Resumo IA no Banco de Dados
 
-O resumo aparece como um card dentro do LeadDetailSheet (painel lateral de detalhes do lead).
+## O que muda
+Atualmente o resumo da IA e gerado sob demanda e perdido ao fechar o painel. Com essa mudanca, o resumo sera salvo na tabela `lead_intelligence` (que ja existe e tem relacao 1:1 com o lead), evitando chamadas desnecessarias a IA e mantendo o historico.
 
-## Como funciona
-
-1. O usuario abre o detalhe de um lead
-2. O frontend busca as ultimas mensagens do WhatsApp desse lead (via conversation vinculada)
-3. Envia para uma edge function que chama o Gemini 3 Flash Preview
-4. A IA retorna um resumo + sugestao de acao
-5. O resultado aparece em um card com icone de IA
+## Como vai funcionar
+1. Ao clicar em "Gerar", a edge function gera o resumo e salva no banco
+2. Ao abrir um lead que ja tem resumo salvo, ele aparece automaticamente (sem precisar clicar em "Gerar")
+3. O botao muda para "Atualizar" quando ja existe resumo
+4. Data/hora da ultima geracao aparece no card
 
 ## Etapas tecnicas
 
-### 1. Criar Edge Function `lead-summary`
+### 1. Migracaco: adicionar colunas em `lead_intelligence`
+Adicionar 3 colunas na tabela existente `lead_intelligence`:
+- `ai_summary` (text, nullable) - o resumo gerado
+- `ai_next_action` (text, nullable) - a sugestao de proxima acao
+- `ai_summary_at` (timestamptz, nullable) - quando o resumo foi gerado
+
+Nao precisa de novas tabelas nem RLS (a tabela ja tem policies corretas por company).
+
+### 2. Atualizar Edge Function `lead-summary`
 **Arquivo:** `supabase/functions/lead-summary/index.ts`
 
-- Recebe `lead_id` e `company_id`
-- Busca a conversa vinculada ao lead em `wapi_conversations` (via `lead_id`)
-- Busca as ultimas 30 mensagens de `wapi_messages` dessa conversa
-- Envia para o Lovable AI Gateway com modelo `google/gemini-3-flash-preview`
-- Prompt do sistema instrui a IA a retornar um resumo curto e uma sugestao de proxima acao
-- Retorna JSON: `{ summary: string, nextAction: string }`
-- Trata erros 429 (rate limit) e 402 (creditos)
+Apos gerar o resumo com sucesso, salvar na tabela `lead_intelligence`:
+- UPDATE em `lead_intelligence` SET `ai_summary`, `ai_next_action`, `ai_summary_at = now()` WHERE `lead_id = ?`
+- Se nao existir registro em `lead_intelligence`, fazer INSERT (upsert)
 
-### 2. Registrar no config.toml
-Adicionar `[functions.lead-summary]` com `verify_jwt = false`
-
-### 3. Criar hook `useLeadSummary`
+### 3. Atualizar hook `useLeadSummary`
 **Arquivo:** `src/hooks/useLeadSummary.ts`
 
-- Recebe `leadId` como parametro
-- Usa `supabase.functions.invoke('lead-summary', { body: { lead_id, company_id } })`
-- Retorna `{ summary, nextAction, isLoading, error, refetch }`
-- So executa quando o sheet esta aberto e tem um lead selecionado
+- Ao inicializar (quando `leadId` muda), buscar o resumo salvo em `lead_intelligence` (campos `ai_summary`, `ai_next_action`, `ai_summary_at`)
+- Se existir resumo salvo, preencher o estado automaticamente (sem precisar chamar a edge function)
+- `fetchSummary` continua funcionando para regenerar/atualizar
 
-### 4. Atualizar `LeadDetailSheet.tsx`
-- Importar e usar o hook `useLeadSummary`
-- Adicionar um card de "Resumo IA" logo apos as informacoes basicas do lead
-- Mostra icone de Brain/Sparkles, o resumo e a sugestao de acao
-- Botao para regenerar o resumo
-- Estado de loading com skeleton
-- Mensagens de erro amigaveis para rate limit e creditos
+### 4. Atualizar UI no `LeadDetailSheet.tsx`
+**Arquivo:** `src/components/admin/LeadDetailSheet.tsx`
+
+- Mostrar a data/hora do ultimo resumo abaixo do card (ex: "Gerado em 13/02 as 14:30")
+- Se ja tem resumo salvo, mostrar direto sem precisar clicar em "Gerar"
+- Botao sempre mostra "Atualizar" quando ja tem resumo
 
 ### Arquivos modificados
 | Arquivo | Acao |
 |---------|------|
-| `supabase/functions/lead-summary/index.ts` | Criar |
-| `supabase/config.toml` | Adicionar funcao |
-| `src/hooks/useLeadSummary.ts` | Criar |
-| `src/components/admin/LeadDetailSheet.tsx` | Adicionar card de resumo IA |
+| Migracao SQL | Adicionar 3 colunas em `lead_intelligence` |
+| `supabase/functions/lead-summary/index.ts` | Salvar resumo no banco apos gerar |
+| `src/hooks/useLeadSummary.ts` | Carregar resumo salvo ao abrir lead |
+| `src/components/admin/LeadDetailSheet.tsx` | Mostrar data do resumo, carregar automatico |
+
