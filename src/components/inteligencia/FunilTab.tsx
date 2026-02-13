@@ -1,16 +1,16 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LEAD_STATUS_LABELS, LeadStatus } from "@/types/crm";
 import { LeadIntelligence } from "@/hooks/useLeadIntelligence";
 import { formatDuration } from "@/hooks/useLeadStageDurations";
+import { useScoreSnapshots } from "@/hooks/useScoreSnapshots";
 import { ArrowDown, Clock } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
-  AreaChart, Area, CartesianGrid,
+  PieChart, Pie, Cell,
+  AreaChart, Area, CartesianGrid, ReferenceLine,
 } from "recharts";
-import { format, subDays, startOfDay, isAfter } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 interface FunilTabProps {
   data: LeadIntelligence[];
@@ -49,6 +49,9 @@ const SCORE_RANGES = [
 ];
 
 export function FunilTab({ data, stageDurations }: FunilTabProps) {
+  const [trendDays, setTrendDays] = useState<number>(14);
+  const { data: scoreTrend = [], isLoading: trendLoading } = useScoreSnapshots(trendDays);
+
   const counts: Record<string, number> = {};
   FUNNEL_STEPS.forEach(s => { counts[s] = 0; });
   
@@ -86,75 +89,65 @@ export function FunilTab({ data, stageDurations }: FunilTabProps) {
       }));
   }, [data]);
 
-  // Score trend over last 14 days (by lead created_at date, showing avg score)
-  const scoreTrend = useMemo(() => {
-    const days = 14;
-    const now = new Date();
-    const cutoff = startOfDay(subDays(now, days));
-
-    const buckets: Record<string, { total: number; count: number }> = {};
-    for (let i = 0; i <= days; i++) {
-      const d = startOfDay(subDays(now, days - i));
-      const key = format(d, 'dd/MM');
-      buckets[key] = { total: 0, count: 0 };
-    }
-
-    data.forEach(d => {
-      const created = new Date(d.lead_created_at || d.created_at);
-      if (isAfter(created, cutoff)) {
-        const key = format(startOfDay(created), 'dd/MM');
-        if (buckets[key]) {
-          buckets[key].total += d.score;
-          buckets[key].count += 1;
-        }
-      }
-    });
-
-    return Object.entries(buckets).map(([date, { total, count }]) => ({
-      date,
-      avgScore: count > 0 ? Math.round(total / count) : null,
-      leads: count,
-    }));
-  }, [data]);
+  // Period options for trend chart
+  const periodOptions = [
+    { value: 7, label: '7d' },
+    { value: 14, label: '14d' },
+    { value: 30, label: '30d' },
+  ];
 
   return (
     <div className="space-y-4">
       {/* Trend chart */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Tendência de Score (últimos 14 dias)</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Evolução do Score</CardTitle>
+            <ToggleGroup type="single" value={String(trendDays)} onValueChange={v => v && setTrendDays(Number(v))} size="sm">
+              {periodOptions.map(p => (
+                <ToggleGroupItem key={p.value} value={String(p.value)} className="text-xs px-2.5">
+                  {p.label}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={scoreTrend}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
-                <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} className="fill-muted-foreground" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                  }}
-                  formatter={(value: number | null, name: string) => {
-                    if (name === 'avgScore') return [value ?? '—', 'Score médio'];
-                    return [value, 'Leads'];
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="avgScore"
-                  stroke="hsl(var(--primary))"
-                  fill="hsl(var(--primary) / 0.15)"
-                  strokeWidth={2}
-                  connectNulls={false}
-                  dot={{ r: 3, fill: 'hsl(var(--primary))' }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          {trendLoading ? (
+            <div className="h-48 flex items-center justify-center text-sm text-muted-foreground">Carregando...</div>
+          ) : (
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={scoreTrend}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                    }}
+                    formatter={(value: number | null, name: string) => {
+                      if (name === 'avgScore') return [value ?? '—', 'Score médio'];
+                      return [value, 'Leads'];
+                    }}
+                  />
+                  <ReferenceLine y={50} stroke="hsl(var(--muted-foreground))" strokeDasharray="6 4" strokeOpacity={0.5} label={{ value: 'Meta', position: 'right', fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
+                  <Area
+                    type="monotone"
+                    dataKey="avgScore"
+                    stroke="hsl(var(--primary))"
+                    fill="hsl(var(--primary) / 0.15)"
+                    strokeWidth={2}
+                    connectNulls={false}
+                    dot={{ r: 3, fill: 'hsl(var(--primary))' }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </CardContent>
       </Card>
 
