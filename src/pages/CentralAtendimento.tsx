@@ -34,7 +34,7 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/s
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
-import { LayoutList, Columns, Menu, Bell, BellOff, MessageSquare, BarChart3, Filter, ChevronDown, Building2, BrainCircuit } from "lucide-react";
+import { LayoutList, Columns, Menu, Bell, BellOff, MessageSquare, BarChart3, Filter, ChevronDown, Building2, Brain } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import logoCastelo from "@/assets/logo-castelo.png";
 
@@ -658,7 +658,7 @@ export default function CentralAtendimento() {
                   )}
                 </Button>
                 <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate("/inteligencia")}>
-                  <BrainCircuit className="w-5 h-5 text-accent" />
+                  <Brain className="w-5 h-5 text-[hsl(155,75%,38%)]" style={{ filter: 'drop-shadow(0 0 4px hsl(155 75% 38% / 0.5))' }} />
                 </Button>
                 <NotificationBell />
               </div>
@@ -1021,7 +1021,7 @@ export default function CentralAtendimento() {
                   className="h-8 px-3 rounded-lg transition-all duration-200 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:text-emerald-300 dark:hover:bg-emerald-900/20"
                   title="Inteligência"
                 >
-                  <BrainCircuit className="w-4 h-4 mr-1.5" />
+                  <Brain className="w-4 h-4 mr-1.5 text-[hsl(155,75%,38%)]" />
                   <span className="hidden lg:inline text-sm">Inteligência</span>
                 </Button>
 
@@ -1051,7 +1051,7 @@ export default function CentralAtendimento() {
               {/* User Info Desktop - Premium Style */}
               <div className="flex items-center gap-3">
                 <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigate("/inteligencia")}>
-                  <BrainCircuit className="w-5 h-5 text-accent" />
+                  <Brain className="w-5 h-5 text-[hsl(155,75%,38%)]" style={{ filter: 'drop-shadow(0 0 4px hsl(155 75% 38% / 0.5))' }} />
                 </Button>
                 <NotificationBell />
                 <div className="flex items-center gap-2 bg-border rounded-full pl-3 pr-1 py-1">
