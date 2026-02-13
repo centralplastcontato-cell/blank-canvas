@@ -2,14 +2,13 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MessageCircle, Download } from "lucide-react";
+import { MessageCircle, Download, RefreshCw } from "lucide-react";
 import { TemperatureBadge } from "./TemperatureBadge";
 import { InlineAISummary } from "./InlineAISummary";
 import { LeadIntelligence } from "@/hooks/useLeadIntelligence";
 import { LEAD_STATUS_LABELS, LeadStatus } from "@/types/crm";
 import { format, isToday, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface LeadsDoDiaTabProps {
   data: LeadIntelligence[];
@@ -48,75 +47,67 @@ export function LeadsDoDiaTab({ data, canExport }: LeadsDoDiaTabProps) {
   };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-base">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-base font-semibold">
           Leads do Dia ({todayLeads.length})
-        </CardTitle>
+        </h3>
         {canExport && todayLeads.length > 0 && (
           <Button size="sm" variant="outline" onClick={handleExport}>
             <Download className="h-4 w-4 mr-1" />
             Exportar
           </Button>
         )}
-      </CardHeader>
-      <CardContent>
-        {todayLeads.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">
-            Nenhum lead novo hoje
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Score</TableHead>
-                  <TableHead>Temperatura</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Atualizado</TableHead>
-                  <TableHead className="text-right">Ação</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {todayLeads.map(item => (
-                  <React.Fragment key={item.id}>
-                    <TableRow>
-                      <TableCell className="font-medium">{item.lead_name}</TableCell>
-                      <TableCell>
-                        <span className="font-semibold">{item.score}</span>
-                      </TableCell>
-                      <TableCell>
-                        <TemperatureBadge temperature={item.temperature} />
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {LEAD_STATUS_LABELS[item.lead_status as LeadStatus] || item.lead_status}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(item.updated_at), { addSuffix: true, locale: ptBR })}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => navigate(`/atendimento?phone=${item.lead_whatsapp}`)}
-                        >
-                          <MessageCircle className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                    <TableRow className="border-0">
-                      <TableCell colSpan={5} className="pt-0 pb-2 border-b">
-                        <InlineAISummary leadId={item.lead_id} />
-                      </TableCell>
-                    </TableRow>
-                  </React.Fragment>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      </div>
+
+      {todayLeads.length === 0 ? (
+        <Card>
+          <CardContent className="py-8">
+            <p className="text-sm text-muted-foreground text-center">
+              Nenhum lead novo hoje
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {todayLeads.map(item => (
+            <Card key={item.id}>
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold truncate">{item.lead_name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {LEAD_STATUS_LABELS[item.lead_status as LeadStatus] || item.lead_status}
+                    </p>
+                  </div>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="shrink-0"
+                    onClick={() => navigate(`/atendimento?phone=${item.lead_whatsapp}`)}
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="flex items-center gap-4 flex-wrap">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground">Score:</span>
+                    <span className="font-bold text-sm">{item.score}</span>
+                  </div>
+                  <TemperatureBadge temperature={item.temperature} />
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground/60">
+                    <RefreshCw className="h-3 w-3" />
+                    {formatDistanceToNow(new Date(item.updated_at), { addSuffix: true, locale: ptBR })}
+                  </div>
+                </div>
+
+                <InlineAISummary leadId={item.lead_id} />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
