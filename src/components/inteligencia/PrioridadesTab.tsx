@@ -1,8 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MessageCircle, AlertTriangle, Snowflake, Flame, Info } from "lucide-react";
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { MessageCircle, Snowflake, Flame, AlertTriangle } from "lucide-react";
 import { TemperatureBadge } from "./TemperatureBadge";
 import { LeadIntelligence } from "@/hooks/useLeadIntelligence";
 import { LEAD_STATUS_LABELS, LeadStatus } from "@/types/crm";
@@ -65,107 +64,81 @@ export function PrioridadesTab({ data }: PrioridadesTabProps) {
   );
 
   return (
-    <TooltipProvider>
-      <div className="grid gap-6 md:grid-cols-3">
-        {/* Atender Agora */}
-        <Card className="border-green-500/30">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Flame className="h-5 w-5 text-green-400" />
-              Atender Agora
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-[260px] text-xs">
-                  Leads com score acima de 60, ou com orçamento enviado/visita solicitada e score acima de 20. Leads frios são excluídos.
-                </TooltipContent>
-              </Tooltip>
-              <span className="ml-auto text-sm font-normal text-muted-foreground">
-                {atenderAgora.length}
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 max-h-[500px] overflow-y-auto">
-            {atenderAgora.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Nenhum lead prioritário
-              </p>
-            ) : (
-              atenderAgora.map(item => <LeadRow key={item.id} item={item} />)
-            )}
-          </CardContent>
-        </Card>
+    <div className="grid gap-6 md:grid-cols-3">
+      {/* Atender Agora */}
+      <Card className="border-green-500/30">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Flame className="h-5 w-5 text-green-400" />
+            Atender Agora
+            <span className="ml-auto text-sm font-normal text-muted-foreground">
+              {atenderAgora.length}
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 max-h-[500px] overflow-y-auto">
+          {atenderAgora.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Nenhum lead prioritário
+            </p>
+          ) : (
+            atenderAgora.map(item => <LeadRow key={item.id} item={item} />)
+          )}
+        </CardContent>
+      </Card>
 
-        {/* Em Risco */}
-        <Card className="border-orange-500/30">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-orange-400" />
-              Em Risco
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-[260px] text-xs">
-                  Leads que pararam de responder (abandono detectado) mas não são prioritários. Precisam de follow-up para não serem perdidos.
-                </TooltipContent>
-              </Tooltip>
-              <span className="ml-auto text-sm font-normal text-muted-foreground">
-                {emRisco.length}
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 max-h-[500px] overflow-y-auto">
-            {emRisco.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Nenhum lead em risco
-              </p>
-            ) : (
-              emRisco.map(item => (
-                <div key={item.id}>
-                  <LeadRow item={item} />
-                  {item.abandonment_type && (
-                    <p className="text-xs text-orange-400 ml-3 mt-1">
-                      Abandono: {item.abandonment_type.replace('_', ' ')}
-                    </p>
-                  )}
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+      {/* Em Risco */}
+      <Card className="border-orange-500/30">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-orange-400" />
+            Em Risco
+            <span className="ml-auto text-sm font-normal text-muted-foreground">
+              {emRisco.length}
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 max-h-[500px] overflow-y-auto">
+          {emRisco.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Nenhum lead em risco
+            </p>
+          ) : (
+            emRisco.map(item => (
+              <div key={item.id}>
+                <LeadRow item={item} />
+                {item.abandonment_type && (
+                  <p className="text-xs text-orange-400 ml-3 mt-1">
+                    Abandono: {item.abandonment_type.replace('_', ' ')}
+                  </p>
+                )}
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
 
-        {/* Frios */}
-        <Card className="border-blue-500/30">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Snowflake className="h-5 w-5 text-blue-400" />
-              Frios
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-[260px] text-xs">
-                  Leads com score abaixo de 20, sem padrão de abandono e sem flag de prioridade. Baixo engajamento até o momento.
-                </TooltipContent>
-              </Tooltip>
-              <span className="ml-auto text-sm font-normal text-muted-foreground">
-                {frios.length}
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 max-h-[500px] overflow-y-auto">
-            {frios.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Nenhum lead frio
-              </p>
-            ) : (
-              frios.map(item => <LeadRow key={item.id} item={item} />)
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </TooltipProvider>
+      {/* Frios */}
+      <Card className="border-blue-500/30">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Snowflake className="h-5 w-5 text-blue-400" />
+            Frios
+            <span className="ml-auto text-sm font-normal text-muted-foreground">
+              {frios.length}
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 max-h-[500px] overflow-y-auto">
+          {frios.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Nenhum lead frio
+            </p>
+          ) : (
+            frios.map(item => <LeadRow key={item.id} item={item} />)
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
