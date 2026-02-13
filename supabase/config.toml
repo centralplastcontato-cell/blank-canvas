@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.og-preview]
 verify_jwt = false
+
+[functions.lead-summary]
+verify_jwt = false
