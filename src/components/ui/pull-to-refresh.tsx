@@ -54,9 +54,9 @@ export function PullToRefresh({
       const distance = Math.min(diff * resistance, maxPull);
       setPullDistance(distance);
       
-      // Prevent default scroll when pulling down
-      if (distance > 10) {
-        e.preventDefault();
+      // Only prevent default scroll when clearly pulling to refresh
+      if (distance > 20 && diff > 30) {
+        try { e.preventDefault(); } catch (_) { /* passive listener */ }
       }
     }
   }, [isPulling, isRefreshing, maxPull]);
