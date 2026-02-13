@@ -11,7 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Brain, Loader2, ShieldAlert, HelpCircle, Flame, AlertTriangle, Snowflake, Target, Thermometer, BarChart3, TrendingUp } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Brain, Loader2, ShieldAlert, HelpCircle, Flame, AlertTriangle, Snowflake, Target, Thermometer, BarChart3, TrendingUp, Search } from "lucide-react";
 import { PrioridadesTab } from "@/components/inteligencia/PrioridadesTab";
 import { FunilTab } from "@/components/inteligencia/FunilTab";
 import { LeadsDoDiaTab } from "@/components/inteligencia/LeadsDoDiaTab";
@@ -32,6 +33,7 @@ export default function Inteligencia() {
   const [permLoading, setPermLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string } | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { units } = useCompanyUnits(currentCompany?.id);
   const { canViewAll, allowedUnits, isLoading: isLoadingUnitPerms } = useUnitPermissions(currentUser?.id, currentCompany?.id);
@@ -112,17 +114,29 @@ export default function Inteligencia() {
     );
   }
 
-  // Filter data by unit permissions and selected unit
+  // Filter data by unit permissions, selected unit, and search query
   const filteredData = (data || []).filter(d => {
-    // Admin sees all
+    // Unit filter
+    let unitMatch = true;
     if (isAdmin || canViewAll) {
-      if (selectedUnit === "all") return true;
-      return d.lead_unit === selectedUnit || d.lead_unit === "As duas";
+      if (selectedUnit !== "all") {
+        unitMatch = d.lead_unit === selectedUnit || d.lead_unit === "As duas";
+      }
+    } else {
+      unitMatch = allowedUnits.includes(d.lead_unit || "") || d.lead_unit === "As duas";
+      if (selectedUnit !== "all") {
+        unitMatch = d.lead_unit === selectedUnit || d.lead_unit === "As duas";
+      }
     }
-    // Non-admin: filter by allowed units
-    const unitMatch = allowedUnits.includes(d.lead_unit || "") || d.lead_unit === "As duas";
-    if (selectedUnit === "all") return unitMatch;
-    return (d.lead_unit === selectedUnit || d.lead_unit === "As duas");
+
+    // Search filter
+    if (!unitMatch) return false;
+    if (!searchQuery.trim()) return true;
+    
+    const q = searchQuery.trim().toLowerCase();
+    const nameMatch = (d.lead_name || "").toLowerCase().includes(q);
+    const phoneMatch = (d.lead_whatsapp || "").replace(/\D/g, "").includes(q.replace(/\D/g, ""));
+    return nameMatch || phoneMatch;
   });
 
   // Build unit options for selector
@@ -268,6 +282,17 @@ export default function Inteligencia() {
                   </DialogContent>
                 </Dialog>
               </div>
+            </div>
+
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome ou telefone..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 max-w-sm"
+              />
             </div>
 
             <Tabs defaultValue="prioridades">
