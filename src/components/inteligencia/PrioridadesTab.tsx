@@ -84,7 +84,7 @@ export function PrioridadesTab({ data }: PrioridadesTabProps) {
             </span>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 max-h-[500px] overflow-y-auto">
+        <CardContent className="space-y-2 max-h-[calc(100vh-220px)] overflow-y-auto">
           {atenderAgora.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">
               Nenhum lead prioritário
@@ -106,7 +106,7 @@ export function PrioridadesTab({ data }: PrioridadesTabProps) {
             </span>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 max-h-[500px] overflow-y-auto">
+        <CardContent className="space-y-2 max-h-[calc(100vh-220px)] overflow-y-auto">
           {emRisco.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">
               Nenhum lead em risco
@@ -137,7 +137,7 @@ export function PrioridadesTab({ data }: PrioridadesTabProps) {
             </span>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 max-h-[500px] overflow-y-auto">
+        <CardContent className="space-y-2 max-h-[calc(100vh-220px)] overflow-y-auto">
           {frios.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">
               Nenhum lead frio
