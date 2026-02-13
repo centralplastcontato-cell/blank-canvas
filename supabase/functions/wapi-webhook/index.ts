@@ -1214,7 +1214,7 @@ async function processBotQualification(
   // If bot_enabled is false, check if this is an LP lead that needs bot activation
   // This happens when the LP sends the first message (outgoing), creating the conversation with bot_enabled=false
   // Then when the lead responds, bot_enabled is still false but we need to activate the flow
-  if (conv.bot_enabled === false && botSettingsAllow) {
+  if ((conv.bot_enabled === false || conv.bot_step === 'lp_sent') && botSettingsAllow) {
     // ✅ GUARD: Don't re-activate bot if the flow was already completed
     const completedBotSteps = ['complete_final', 'flow_complete', 'flow_handoff', 'flow_ai_disabled', 'flow_no_followup', 'qualified_from_lp', 'transferred', 'work_interest', 'sending_materials'];
     if (completedBotSteps.includes(conv.bot_step || '') || (conv.bot_step || '').startsWith('flow_')) {
