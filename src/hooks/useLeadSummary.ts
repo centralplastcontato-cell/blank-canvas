@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentCompanyId } from "@/hooks/useCurrentCompanyId";
 
@@ -13,6 +13,12 @@ export function useLeadSummary(leadId: string | null) {
   const [data, setData] = useState<LeadSummaryResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Reset when leadId changes
+  useEffect(() => {
+    setData(null);
+    setError(null);
+  }, [leadId]);
 
   const fetchSummary = useCallback(async () => {
     if (!leadId || !companyId) return;
