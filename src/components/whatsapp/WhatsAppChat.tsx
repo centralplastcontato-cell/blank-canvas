@@ -1615,6 +1615,20 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     setNewMessage(""); // Clear immediately for UX
     setIsSending(true);
 
+    // Auto-disable bot when human sends a message
+    if (selectedConversation.bot_enabled) {
+      supabase
+        .from("wapi_conversations")
+        .update({ bot_enabled: false, bot_step: null })
+        .eq("id", selectedConversation.id)
+        .then(() => {
+          // Update local state
+          setSelectedConversation(prev => prev ? { ...prev, bot_enabled: false, bot_step: null } : null);
+          setConversations(prev => prev.map(c => c.id === selectedConversation.id ? { ...c, bot_enabled: false, bot_step: null } : c));
+          console.log('[Bot] Auto-desativado por envio humano');
+        });
+    }
+
     // Optimistic update - show message immediately with pending status
     const optimisticId = `optimistic-${Date.now()}`;
     const optimisticMessage: Message = {
