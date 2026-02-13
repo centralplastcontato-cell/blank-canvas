@@ -1846,6 +1846,77 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     });
   };
 
+  const reactivateBot = async (conv: Conversation) => {
+    if (!canToggleBot) {
+      toast({ title: "Sem permissão", description: "Você não tem permissão para reativar o bot.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      // Reset bot state: enable bot and set step to 'welcome' so the webhook picks up LP data
+      const newStep = (conv.bot_step === 'lp_sent' || !conv.bot_step) ? 'welcome' : conv.bot_step;
+      
+      // Also clear flow_lead_state if using flow builder, so it can restart
+      if (selectedInstance) {
+        const { data: botSettings } = await supabase
+          .from('wapi_bot_settings')
+          .select('use_flow_builder')
+          .eq('instance_id', selectedInstance.id)
+          .single();
+        
+        if (botSettings?.use_flow_builder) {
+          // Delete flow state so it restarts
+          await supabase
+            .from('flow_lead_state')
+            .delete()
+            .eq('conversation_id', conv.id);
+        }
+      }
+
+      await supabase
+        .from('wapi_conversations')
+        .update({ bot_enabled: true, bot_step: newStep })
+        .eq('id', conv.id);
+
+      // Update local state
+      setConversations(prev => 
+        prev.map(c => c.id === conv.id ? { ...c, bot_enabled: true, bot_step: newStep } : c)
+      );
+      if (selectedConversation?.id === conv.id) {
+        setSelectedConversation(prev => prev ? { ...prev, bot_enabled: true, bot_step: newStep } : null);
+      }
+
+      // Send a prompt message to the lead so the webhook processes the response
+      const promptMsg = 'Oi! Desculpe, tive um probleminha técnico 😅\nPodemos continuar de onde paramos?\n\nResponda *1* para continuar';
+      
+      const { error } = await supabase.functions.invoke('wapi-send', {
+        body: {
+          action: 'send-text',
+          phone: conv.contact_phone.replace(/\D/g, ''),
+          message: promptMsg,
+          unit: selectedInstance?.unit || undefined,
+          conversation_id: conv.id,
+        },
+      });
+
+      if (error) {
+        console.error('Erro ao enviar mensagem de reativação:', error);
+      }
+
+      toast({
+        title: "Bot reativado ✅",
+        description: "Uma mensagem foi enviada ao lead. Quando ele responder, o bot continuará o fluxo.",
+      });
+    } catch (error) {
+      console.error("Erro ao reativar bot:", error);
+      toast({
+        title: "Erro ao reativar",
+        description: "Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const applyTemplate = (template: MessageTemplate) => {
     let message = template.template;
     
@@ -3009,6 +3080,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         onShowShareToGroupDialog={() => canShareToGroup && linkedLead && setShowShareToGroupDialog(true)}
                         onCreateAndClassifyLead={createAndClassifyLead}
                         onToggleConversationBot={toggleConversationBot}
+                        onReactivateBot={reactivateBot}
                         onToggleFavorite={toggleFavorite}
                         onLeadNameChange={(newName) => {
                           setLinkedLead(prev => prev ? { ...prev, name: newName } : null);
@@ -3716,6 +3788,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                       onShowShareToGroupDialog={() => canShareToGroup && linkedLead && setShowShareToGroupDialog(true)}
                       onCreateAndClassifyLead={createAndClassifyLead}
                       onToggleConversationBot={toggleConversationBot}
+                      onReactivateBot={reactivateBot}
                       onToggleFavorite={toggleFavorite}
                       onLeadNameChange={(newName) => {
                         setLinkedLead(prev => prev ? { ...prev, name: newName } : null);
