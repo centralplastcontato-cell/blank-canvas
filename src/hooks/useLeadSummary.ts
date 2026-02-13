@@ -5,6 +5,7 @@ import { useCurrentCompanyId } from "@/hooks/useCurrentCompanyId";
 interface LeadSummaryResult {
   summary: string;
   nextAction: string;
+  suggestedMessage?: string;
   hasConversation: boolean;
   generatedAt?: string | null;
 }
@@ -28,7 +29,7 @@ export function useLeadSummary(leadId: string | null) {
       try {
         const { data: intel, error: fetchError } = await supabase
           .from('lead_intelligence')
-          .select('ai_summary, ai_next_action, ai_summary_at')
+          .select('ai_summary, ai_next_action, ai_suggested_message, ai_summary_at')
           .eq('lead_id', leadId)
           .maybeSingle();
 
@@ -36,6 +37,7 @@ export function useLeadSummary(leadId: string | null) {
           setData({
             summary: intel.ai_summary as string,
             nextAction: (intel.ai_next_action as string) || '',
+            suggestedMessage: (intel.ai_suggested_message as string) || '',
             hasConversation: true,
             generatedAt: intel.ai_summary_at as string | null,
           });
