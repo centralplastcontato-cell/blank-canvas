@@ -1,28 +1,41 @@
 
 
-# Adicionar Tooltips Explicativas nas Colunas de Prioridades
+# Alterar Funil para "% do total"
 
 ## O que sera feito
-Adicionar um icone de informacao (i) ao lado do titulo de cada coluna com um tooltip que explica os criterios de classificacao dos leads.
+Substituir a metrica "% do anterior" por "% do total" no funil de conversao, usando o total de leads como base de calculo para todas as etapas.
 
 ## Alteracoes
 
-### Arquivo: `src/components/inteligencia/PrioridadesTab.tsx`
+### Arquivo: `src/components/inteligencia/FunilTab.tsx`
 
-Adicionar tooltips nos titulos das tres colunas usando o componente `Tooltip` ja existente no projeto (`@/components/ui/tooltip`).
-
-**Atender Agora** - Tooltip:
-"Leads com score acima de 60, ou com orcamento enviado/visita solicitada e score acima de 20. Leads frios sao excluidos."
-
-**Em Risco** - Tooltip:
-"Leads que pararam de responder (abandono detectado) mas nao sao prioritarios. Precisam de follow-up para nao serem perdidos."
-
-**Frios** - Tooltip:
-"Leads com score abaixo de 20, sem padrao de abandono e sem flag de prioridade. Baixo engajamento ate o momento."
+- Remover o calculo de conversao baseado na etapa anterior (linhas 46-51)
+- Substituir por um texto que mostra "X% do total" usando `total` (que ja existe no codigo) como base
+- A nota so aparece quando `idx > 0` (a primeira etapa nao precisa, pois e o proprio total)
+- Texto resultante: ex. "32% do total"
 
 ### Detalhes tecnicos
-- Importar `Tooltip, TooltipTrigger, TooltipContent, TooltipProvider` de `@/components/ui/tooltip`
-- Importar `Info` icon de `lucide-react`
-- Envolver cada `CardTitle` com um `Tooltip` contendo um botao com o icone `Info` (h-4 w-4, text-muted-foreground)
-- Envolver o componente inteiro com `TooltipProvider` para garantir funcionamento
+
+Trecho atual (linhas 46-51):
+```typescript
+let conversionNote = '';
+if (idx > 0 && idx < FUNNEL_STEPS.length - 1) {
+  const prevCount = counts[FUNNEL_STEPS[idx - 1]] || 0;
+  if (prevCount > 0) {
+    const convRate = ((count / prevCount) * 100).toFixed(0);
+    conversionNote = `${convRate}% do anterior`;
+  }
+}
+```
+
+Sera substituido por:
+```typescript
+let conversionNote = '';
+if (idx > 0) {
+  const convRate = ((count / total) * 100).toFixed(0);
+  conversionNote = `${convRate}% do total`;
+}
+```
+
+Nota: a variavel `total` ja existe (linha 30: `const total = data.length || 1`), entao nenhuma nova variavel e necessaria.
 
