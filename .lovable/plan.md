@@ -1,52 +1,46 @@
 
 
-# Salvar Resumo IA no Banco de Dados
+# Resumo IA dentro do card do lead
 
-## O que muda
-Atualmente o resumo da IA e gerado sob demanda e perdido ao fechar o painel. Com essa mudanca, o resumo sera salvo na tabela `lead_intelligence` (que ja existe e tem relacao 1:1 com o lead), evitando chamadas desnecessarias a IA e mantendo o historico.
+## Problema atual
+O "Resumo IA" aparece como um elemento separado, fora do card do lead (como mostra o screenshot). Isso causa uma quebra visual -- parece desconectado.
 
-## Como vai funcionar
-1. Ao clicar em "Gerar", a edge function gera o resumo e salva no banco
-2. Ao abrir um lead que ja tem resumo salvo, ele aparece automaticamente (sem precisar clicar em "Gerar")
-3. O botao muda para "Atualizar" quando ja existe resumo
-4. Data/hora da ultima geracao aparece no card
+## Solucao
+Mover o componente `InlineAISummary` para **dentro** do card/borda do lead, logo abaixo das informacoes (nome, score, temperatura, status).
 
-## Etapas tecnicas
+## Alteracoes
 
-### 1. Migracaco: adicionar colunas em `lead_intelligence`
-Adicionar 3 colunas na tabela existente `lead_intelligence`:
-- `ai_summary` (text, nullable) - o resumo gerado
-- `ai_next_action` (text, nullable) - a sugestao de proxima acao
-- `ai_summary_at` (timestamptz, nullable) - quando o resumo foi gerado
+### 1. PrioridadesTab.tsx -- componente `LeadRow`
+Atualmente o `InlineAISummary` esta como irmao (sibling) do div com borda. Mover para **dentro** do div `.rounded-lg.border`, abaixo do conteudo do lead.
 
-Nao precisa de novas tabelas nem RLS (a tabela ja tem policies corretas por company).
+Estrutura atual:
+```text
+<>
+  <div class="border rounded-lg p-3">  -- card do lead
+    ...info do lead...
+  </div>
+  <InlineAISummary />                   -- fora do card
+</>
+```
 
-### 2. Atualizar Edge Function `lead-summary`
-**Arquivo:** `supabase/functions/lead-summary/index.ts`
+Estrutura nova:
+```text
+<div class="border rounded-lg p-3">    -- card do lead
+  ...info do lead...
+  <InlineAISummary />                   -- dentro do card
+</div>
+```
 
-Apos gerar o resumo com sucesso, salvar na tabela `lead_intelligence`:
-- UPDATE em `lead_intelligence` SET `ai_summary`, `ai_next_action`, `ai_summary_at = now()` WHERE `lead_id = ?`
-- Se nao existir registro em `lead_intelligence`, fazer INSERT (upsert)
+O Fragment (`<>...</>`) deixa de ser necessario.
 
-### 3. Atualizar hook `useLeadSummary`
-**Arquivo:** `src/hooks/useLeadSummary.ts`
-
-- Ao inicializar (quando `leadId` muda), buscar o resumo salvo em `lead_intelligence` (campos `ai_summary`, `ai_next_action`, `ai_summary_at`)
-- Se existir resumo salvo, preencher o estado automaticamente (sem precisar chamar a edge function)
-- `fetchSummary` continua funcionando para regenerar/atualizar
-
-### 4. Atualizar UI no `LeadDetailSheet.tsx`
-**Arquivo:** `src/components/admin/LeadDetailSheet.tsx`
-
-- Mostrar a data/hora do ultimo resumo abaixo do card (ex: "Gerado em 13/02 as 14:30")
-- Se ja tem resumo salvo, mostrar direto sem precisar clicar em "Gerar"
-- Botao sempre mostra "Atualizar" quando ja tem resumo
+### 2. LeadsDoDiaTab.tsx
+Mover o `InlineAISummary` para dentro da mesma `TableRow` do lead (na ultima celula ou como conteudo extra na primeira celula), em vez de usar um `TableRow` separado com `colSpan`. Alternativa: manter o TableRow extra mas remover o padding superior para que visualmente fique colado ao row do lead.
 
 ### Arquivos modificados
-| Arquivo | Acao |
-|---------|------|
-| Migracao SQL | Adicionar 3 colunas em `lead_intelligence` |
-| `supabase/functions/lead-summary/index.ts` | Salvar resumo no banco apos gerar |
-| `src/hooks/useLeadSummary.ts` | Carregar resumo salvo ao abrir lead |
-| `src/components/admin/LeadDetailSheet.tsx` | Mostrar data do resumo, carregar automatico |
+| Arquivo | Mudanca |
+|---------|---------|
+| `src/components/inteligencia/PrioridadesTab.tsx` | Mover `InlineAISummary` para dentro do div do card |
+| `src/components/inteligencia/LeadsDoDiaTab.tsx` | Integrar `InlineAISummary` visualmente ao row do lead |
+
+Nenhum arquivo novo. Sem mudancas de logica, apenas reposicionamento de componente no JSX.
 
