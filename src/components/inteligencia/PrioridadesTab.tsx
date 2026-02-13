@@ -40,13 +40,12 @@ function LeadRow({ item }: { item: LeadIntelligence }) {
         )}
       </div>
       <Button
-        size="sm"
+        size="icon"
         variant="outline"
-        className="shrink-0"
+        className="shrink-0 h-8 w-8"
         onClick={() => navigate(`/atendimento?phone=${item.lead_whatsapp}`)}
       >
-        <MessageCircle className="h-4 w-4 mr-1" />
-        Chat
+        <MessageCircle className="h-4 w-4" />
       </Button>
     </div>
   );
