@@ -1,41 +1,57 @@
 
+# Resumo Automático do Lead com IA
 
-# Alterar Funil para "% do total"
+## O que vai ser feito
+Ao abrir os detalhes de um lead, o sistema vai analisar as mensagens do WhatsApp e gerar automaticamente:
+1. **Resumo da conversa** - O que o lead quer, contexto principal
+2. **Sugestao de proxima acao** - O que o atendente deveria fazer agora
 
-## O que sera feito
-Substituir a metrica "% do anterior" por "% do total" no funil de conversao, usando o total de leads como base de calculo para todas as etapas.
+O resumo aparece como um card dentro do LeadDetailSheet (painel lateral de detalhes do lead).
 
-## Alteracoes
+## Como funciona
 
-### Arquivo: `src/components/inteligencia/FunilTab.tsx`
+1. O usuario abre o detalhe de um lead
+2. O frontend busca as ultimas mensagens do WhatsApp desse lead (via conversation vinculada)
+3. Envia para uma edge function que chama o Gemini 3 Flash Preview
+4. A IA retorna um resumo + sugestao de acao
+5. O resultado aparece em um card com icone de IA
 
-- Remover o calculo de conversao baseado na etapa anterior (linhas 46-51)
-- Substituir por um texto que mostra "X% do total" usando `total` (que ja existe no codigo) como base
-- A nota so aparece quando `idx > 0` (a primeira etapa nao precisa, pois e o proprio total)
-- Texto resultante: ex. "32% do total"
+## Etapas tecnicas
 
-### Detalhes tecnicos
+### 1. Criar Edge Function `lead-summary`
+**Arquivo:** `supabase/functions/lead-summary/index.ts`
 
-Trecho atual (linhas 46-51):
-```typescript
-let conversionNote = '';
-if (idx > 0 && idx < FUNNEL_STEPS.length - 1) {
-  const prevCount = counts[FUNNEL_STEPS[idx - 1]] || 0;
-  if (prevCount > 0) {
-    const convRate = ((count / prevCount) * 100).toFixed(0);
-    conversionNote = `${convRate}% do anterior`;
-  }
-}
-```
+- Recebe `lead_id` e `company_id`
+- Busca a conversa vinculada ao lead em `wapi_conversations` (via `lead_id`)
+- Busca as ultimas 30 mensagens de `wapi_messages` dessa conversa
+- Envia para o Lovable AI Gateway com modelo `google/gemini-3-flash-preview`
+- Prompt do sistema instrui a IA a retornar um resumo curto e uma sugestao de proxima acao
+- Retorna JSON: `{ summary: string, nextAction: string }`
+- Trata erros 429 (rate limit) e 402 (creditos)
 
-Sera substituido por:
-```typescript
-let conversionNote = '';
-if (idx > 0) {
-  const convRate = ((count / total) * 100).toFixed(0);
-  conversionNote = `${convRate}% do total`;
-}
-```
+### 2. Registrar no config.toml
+Adicionar `[functions.lead-summary]` com `verify_jwt = false`
 
-Nota: a variavel `total` ja existe (linha 30: `const total = data.length || 1`), entao nenhuma nova variavel e necessaria.
+### 3. Criar hook `useLeadSummary`
+**Arquivo:** `src/hooks/useLeadSummary.ts`
 
+- Recebe `leadId` como parametro
+- Usa `supabase.functions.invoke('lead-summary', { body: { lead_id, company_id } })`
+- Retorna `{ summary, nextAction, isLoading, error, refetch }`
+- So executa quando o sheet esta aberto e tem um lead selecionado
+
+### 4. Atualizar `LeadDetailSheet.tsx`
+- Importar e usar o hook `useLeadSummary`
+- Adicionar um card de "Resumo IA" logo apos as informacoes basicas do lead
+- Mostra icone de Brain/Sparkles, o resumo e a sugestao de acao
+- Botao para regenerar o resumo
+- Estado de loading com skeleton
+- Mensagens de erro amigaveis para rate limit e creditos
+
+### Arquivos modificados
+| Arquivo | Acao |
+|---------|------|
+| `supabase/functions/lead-summary/index.ts` | Criar |
+| `supabase/config.toml` | Adicionar funcao |
+| `src/hooks/useLeadSummary.ts` | Criar |
+| `src/components/admin/LeadDetailSheet.tsx` | Adicionar card de resumo IA |
