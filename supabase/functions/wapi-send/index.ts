@@ -101,6 +101,84 @@ async function wapiRequest(url: string, token: string, method: string, body?: un
   }
 }
 
+// Helper to find or create a conversation for LP/bot outbound messages
+async function findOrCreateConversation(
+  supabase: ReturnType<typeof createClient>,
+  phone: string,
+  instanceExternalId: string,
+): Promise<{ conversationId: string; companyId: string } | null> {
+  try {
+    // Normalize phone for remote_jid format
+    const cleanPhone = phone.replace(/\D/g, '');
+    const remoteJid = `${cleanPhone}@s.whatsapp.net`;
+
+    // Find the internal instance record
+    const { data: instanceRecord } = await supabase
+      .from('wapi_instances')
+      .select('id, company_id')
+      .eq('instance_id', instanceExternalId)
+      .single();
+
+    if (!instanceRecord) {
+      console.log('findOrCreateConversation: instance not found for', instanceExternalId);
+      return null;
+    }
+
+    // Check if conversation already exists
+    const { data: existing } = await supabase
+      .from('wapi_conversations')
+      .select('id, company_id')
+      .eq('instance_id', instanceRecord.id)
+      .eq('remote_jid', remoteJid)
+      .maybeSingle();
+
+    if (existing) {
+      console.log('findOrCreateConversation: found existing conversation', existing.id);
+      return { conversationId: existing.id, companyId: existing.company_id };
+    }
+
+    // Create new conversation
+    const { data: newConv, error: createError } = await supabase
+      .from('wapi_conversations')
+      .insert({
+        instance_id: instanceRecord.id,
+        company_id: instanceRecord.company_id,
+        remote_jid: remoteJid,
+        contact_phone: cleanPhone,
+        contact_name: cleanPhone, // Will be updated when webhook receives reply
+        bot_enabled: true,
+        bot_step: 'lp_sent',
+        last_message_from_me: true,
+      })
+      .select('id, company_id')
+      .single();
+
+    if (createError) {
+      // Handle unique constraint violation (race condition)
+      if (createError.code === '23505') {
+        const { data: retry } = await supabase
+          .from('wapi_conversations')
+          .select('id, company_id')
+          .eq('instance_id', instanceRecord.id)
+          .eq('remote_jid', remoteJid)
+          .single();
+        if (retry) {
+          console.log('findOrCreateConversation: found after conflict', retry.id);
+          return { conversationId: retry.id, companyId: retry.company_id };
+        }
+      }
+      console.error('findOrCreateConversation: create error', createError);
+      return null;
+    }
+
+    console.log('findOrCreateConversation: created new conversation', newConv.id);
+    return { conversationId: newConv.id, companyId: newConv.company_id };
+  } catch (err) {
+    console.error('findOrCreateConversation error:', err);
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -153,25 +231,38 @@ Deno.serve(async (req) => {
 
         const messageId = (res.data as { messageId?: string })?.messageId;
         
-        if (conversationId) {
+        // Resolve or create conversation for DB tracking
+        let resolvedConvId = conversationId;
+        let resolvedCompanyId = companyId;
+        
+        if (!resolvedConvId && phone) {
+          // Auto-find or create conversation (LP/bot outbound flow)
+          const convResult = await findOrCreateConversation(supabase, phone, instance_id);
+          if (convResult) {
+            resolvedConvId = convResult.conversationId;
+            resolvedCompanyId = convResult.companyId;
+          }
+        }
+        
+        if (resolvedConvId) {
           await supabase.from('wapi_messages').insert({
-            conversation_id: conversationId,
+            conversation_id: resolvedConvId,
             message_id: messageId,
             from_me: true,
             message_type: 'text',
             content: message,
             status: 'sent',
             timestamp: new Date().toISOString(),
-            company_id: companyId,
+            company_id: resolvedCompanyId,
           });
           await supabase.from('wapi_conversations').update({ 
             last_message_at: new Date().toISOString(),
             last_message_content: message.substring(0, 100),
             last_message_from_me: true,
-          }).eq('id', conversationId);
+          }).eq('id', resolvedConvId);
         }
 
-        return new Response(JSON.stringify({ success: true, messageId }), {
+        return new Response(JSON.stringify({ success: true, messageId, conversationId: resolvedConvId }), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
