@@ -26,23 +26,29 @@
  import { format } from "date-fns";
  import { ptBR } from "date-fns/locale";
  
- interface B2BLead {
-   id: string;
-   company_name: string;
-   contact_name: string;
-   email: string;
-   phone: string | null;
-   city: string | null;
-   state: string | null;
-   monthly_parties: number | null;
-   current_tools: string | null;
-   main_challenges: string | null;
-   how_found_us: string | null;
-   status: string;
-   notes: string | null;
-   created_at: string;
-   updated_at: string;
- }
+interface B2BLead {
+  id: string;
+  company_name: string;
+  contact_name: string;
+  email: string;
+  phone: string | null;
+  city: string | null;
+  state: string | null;
+  monthly_parties: number | null;
+  current_tools: string | null;
+  main_challenges: string | null;
+  how_found_us: string | null;
+  status: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  instagram: string | null;
+  monthly_leads: string | null;
+  lead_cost: string | null;
+  has_lead_clarity: boolean | null;
+  lead_organization: string | null;
+  source: string | null;
+}
  
  const statusOptions = [
    { value: "novo", label: "Novo", color: "bg-blue-500" },
@@ -403,6 +409,16 @@
  
                  {/* Business Info */}
                  <div className="grid sm:grid-cols-2 gap-4 pt-4 border-t">
+                   {selectedLead.instagram && (
+                     <div className="space-y-1">
+                       <Label className="text-muted-foreground">Instagram</Label>
+                       <p className="font-medium">
+                         <a href={`https://instagram.com/${selectedLead.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                           {selectedLead.instagram}
+                         </a>
+                       </p>
+                     </div>
+                   )}
                    {selectedLead.monthly_parties && (
                      <div className="space-y-1">
                        <Label className="text-muted-foreground">Festas por mês</Label>
@@ -412,12 +428,48 @@
                        </p>
                      </div>
                    )}
+                   {selectedLead.monthly_leads && (
+                     <div className="space-y-1">
+                       <Label className="text-muted-foreground">Leads por mês</Label>
+                       <p className="font-medium">{selectedLead.monthly_leads}</p>
+                     </div>
+                   )}
+                   {selectedLead.lead_cost && (
+                     <div className="space-y-1">
+                       <Label className="text-muted-foreground">Custo por lead</Label>
+                       <p className="font-medium">{selectedLead.lead_cost}</p>
+                     </div>
+                   )}
+                   {selectedLead.has_lead_clarity !== null && (
+                     <div className="space-y-1">
+                       <Label className="text-muted-foreground">Clareza dos leads</Label>
+                       <p className="font-medium">{selectedLead.has_lead_clarity ? "Sim, tem controle" : "Não tem clareza"}</p>
+                     </div>
+                   )}
+                   {selectedLead.lead_organization && (
+                     <div className="space-y-1">
+                       <Label className="text-muted-foreground">Organização atual</Label>
+                       <p className="font-medium">{selectedLead.lead_organization}</p>
+                     </div>
+                   )}
+                   {selectedLead.current_tools && (
+                     <div className="space-y-1">
+                       <Label className="text-muted-foreground">Ferramentas atuais</Label>
+                       <p className="font-medium">{selectedLead.current_tools}</p>
+                     </div>
+                   )}
                    {selectedLead.how_found_us && (
                      <div className="space-y-1">
                        <Label className="text-muted-foreground">Como nos encontrou</Label>
                        <p className="font-medium">
                          {howFoundUsLabels[selectedLead.how_found_us] || selectedLead.how_found_us}
                        </p>
+                     </div>
+                   )}
+                   {selectedLead.source && (
+                     <div className="space-y-1">
+                       <Label className="text-muted-foreground">Origem</Label>
+                       <Badge variant="outline">{selectedLead.source}</Badge>
                      </div>
                    )}
                  </div>
