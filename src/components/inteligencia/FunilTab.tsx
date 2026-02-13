@@ -44,12 +44,9 @@ export function FunilTab({ data }: FunilTabProps) {
 
           // Conversion rate from previous step
           let conversionNote = '';
-          if (idx > 0 && idx < FUNNEL_STEPS.length - 1) {
-            const prevCount = counts[FUNNEL_STEPS[idx - 1]] || 0;
-            if (prevCount > 0) {
-              const convRate = ((count / prevCount) * 100).toFixed(0);
-              conversionNote = `${convRate}% do anterior`;
-            }
+          if (idx > 0) {
+            const convRate = ((count / total) * 100).toFixed(0);
+            conversionNote = `${convRate}% do total`;
           }
 
           return (
