@@ -21,6 +21,7 @@ import {
   Pencil, Copy
 } from "lucide-react";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
+import { LinkPreviewCard, extractFirstUrl } from "@/components/whatsapp/LinkPreviewCard";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useChatNotificationToggle } from "@/hooks/useChatNotificationToggle";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -3515,7 +3516,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                     </div>
                                   </div>
                                 ) : msg.message_type === 'text' ? (
-                                  <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                                  <>
+                                    <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                                    {extractFirstUrl(msg.content) && (
+                                      <LinkPreviewCard url={extractFirstUrl(msg.content)!} fromMe={msg.from_me} />
+                                    )}
+                                  </>
                                 ) : null}
                                 {msg.message_type !== 'text' && msg.content && msg.content !== '[Imagem]' && msg.content !== '[Áudio]' && (
                                   <p className={cn("whitespace-pre-wrap break-words mt-1", (msg.message_type === 'image' || msg.message_type === 'video') && "px-2")}>{msg.content}</p>
@@ -4253,7 +4259,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                 </div>
                               </div>
                             ) : msg.message_type === 'text' ? (
-                              <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                              <>
+                                <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                                {extractFirstUrl(msg.content) && (
+                                  <LinkPreviewCard url={extractFirstUrl(msg.content)!} fromMe={msg.from_me} />
+                                )}
+                              </>
                             ) : null}
                             <div className={cn(
                               "flex items-center gap-1 mt-1",
