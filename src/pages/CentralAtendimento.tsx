@@ -34,7 +34,7 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/s
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
-import { LayoutList, Columns, Menu, Bell, BellOff, MessageSquare, BarChart3, Filter, ChevronDown, Building2 } from "lucide-react";
+import { LayoutList, Columns, Menu, Bell, BellOff, MessageSquare, BarChart3, Filter, ChevronDown, Building2, BrainCircuit } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import logoCastelo from "@/assets/logo-castelo.png";
 
@@ -1010,6 +1010,18 @@ export default function CentralAtendimento() {
                   </div>
                 )}
                 
+                {/* Inteligência Shortcut */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate("/inteligencia")}
+                  className="h-8 px-3 rounded-lg transition-all duration-200 text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  title="Inteligência"
+                >
+                  <BrainCircuit className="w-4 h-4 mr-1.5" />
+                  <span className="hidden lg:inline text-sm">Inteligência</span>
+                </Button>
+
                 {/* Sound Toggle - Separate */}
                 <Button
                   variant="ghost"
