@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { useLeadIntelligence } from "@/hooks/useLeadIntelligence";
+import { useLeadStageDurations } from "@/hooks/useLeadStageDurations";
 import { useUnitPermissions } from "@/hooks/useUnitPermissions";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -21,6 +22,7 @@ export default function Inteligencia() {
   const navigate = useNavigate();
   const modules = useCompanyModules();
   const { data, isLoading } = useLeadIntelligence();
+  const { data: stageDurations, isLoading: isDurationsLoading } = useLeadStageDurations();
   const { currentCompany } = useCompany();
 
   const [isAdmin, setIsAdmin] = useState(false);
@@ -247,7 +249,18 @@ export default function Inteligencia() {
                           Funil de Conversão
                         </h3>
                         <p className="text-muted-foreground">
-                          Mostra a distribuição dos leads por etapa do CRM (Novo → Visita → Orçamento → Negociando → Fechado/Perdido). O percentual indica quanto cada etapa representa do total de leads.
+                          Mostra a distribuição dos leads por etapa do CRM (Novo → Visita → Orçamento → Negociando → Fechado/Perdido). O percentual indica quanto cada etapa representa do total de leads. O ícone de relógio mostra o tempo médio que os leads ficam em cada etapa.
+                        </p>
+                      </div>
+
+                      {/* Alertas */}
+                      <div className="space-y-1.5">
+                        <h3 className="font-semibold flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-primary" />
+                          Alertas em Tempo Real
+                        </h3>
+                        <p className="text-muted-foreground">
+                          Você recebe notificações automáticas quando um lead muda de temperatura (esquentou ou esfriou), entra em risco de abandono ou se torna prioritário.
                         </p>
                       </div>
                     </div>
@@ -274,12 +287,12 @@ export default function Inteligencia() {
               </TabsContent>
 
               <TabsContent value="funil">
-                {isLoading || isLoadingUnitPerms ? (
+                {isLoading || isLoadingUnitPerms || isDurationsLoading ? (
                   <div className="flex justify-center py-12">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                   </div>
                 ) : (
-                  <FunilTab data={filteredData} />
+                  <FunilTab data={filteredData} stageDurations={stageDurations} />
                 )}
               </TabsContent>
 

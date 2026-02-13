@@ -1,10 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LEAD_STATUS_LABELS, LeadStatus } from "@/types/crm";
 import { LeadIntelligence } from "@/hooks/useLeadIntelligence";
-import { ArrowDown } from "lucide-react";
+import { formatDuration } from "@/hooks/useLeadStageDurations";
+import { ArrowDown, Clock } from "lucide-react";
 
 interface FunilTabProps {
   data: LeadIntelligence[];
+  stageDurations?: Record<string, number>;
 }
 
 const FUNNEL_STEPS: LeadStatus[] = [
@@ -16,7 +18,7 @@ const FUNNEL_STEPS: LeadStatus[] = [
   'perdido',
 ];
 
-export function FunilTab({ data }: FunilTabProps) {
+export function FunilTab({ data, stageDurations }: FunilTabProps) {
   const counts: Record<string, number> = {};
   FUNNEL_STEPS.forEach(s => { counts[s] = 0; });
   
@@ -41,8 +43,9 @@ export function FunilTab({ data }: FunilTabProps) {
           const pct = ((count / total) * 100).toFixed(1);
           const barWidth = Math.max((count / maxCount) * 100, 4);
           const isLoss = status === 'perdido';
+          const avgHours = stageDurations?.[status];
 
-          // Conversion rate from previous step
+          // Conversion rate from total
           let conversionNote = '';
           if (idx > 0) {
             const convRate = ((count / total) * 100).toFixed(0);
@@ -63,6 +66,12 @@ export function FunilTab({ data }: FunilTabProps) {
                   </p>
                   {conversionNote && (
                     <p className="text-xs text-muted-foreground">{conversionNote}</p>
+                  )}
+                  {avgHours != null && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                      <Clock className="h-3 w-3" />
+                      ~{formatDuration(avgHours)}
+                    </p>
                   )}
                 </div>
                 <div className="flex-1">
