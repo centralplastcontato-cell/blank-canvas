@@ -518,6 +518,19 @@ async function processFlowBuilderMessage(
         // If still no match, re-send the question with options
         if (!matchedEdge) {
           console.log(`[FlowBuilder] ⚠️ No option matched for input "${content}". Re-sending question.`);
+          
+          // Register invalid reply in lead_history for score penalty
+          if (conv.lead_id) {
+            await supabase.from('lead_history').insert({
+              lead_id: conv.lead_id,
+              action: 'bot_invalid_reply',
+              new_value: content.substring(0, 200),
+              old_value: currentNode.title,
+              company_id: instance.company_id,
+            });
+            console.log(`[FlowBuilder] Registered bot_invalid_reply for lead ${conv.lead_id}`);
+          }
+          
           const optionsText = nodeOptions.map((o, i) => `*${i + 1}* - ${o.label}`).join('\n');
           const retryMsg = `Por favor, responda com o *número* da opção desejada:\n\n${optionsText}`;
           
@@ -1406,6 +1419,18 @@ async function processBotQualification(
       msg = validation.error || 'Não entendi sua resposta. Por favor, tente novamente.';
       nextStep = step;
       console.log(`[Bot] Invalid answer for step ${step}: "${content.substring(0, 50)}"`);
+      
+      // Register invalid reply in lead_history for score penalty
+      if (conv.lead_id) {
+        await supabase.from('lead_history').insert({
+          lead_id: conv.lead_id,
+          action: 'bot_invalid_reply',
+          new_value: content.substring(0, 200),
+          old_value: step,
+          company_id: instance.company_id,
+        });
+        console.log(`[Bot] Registered bot_invalid_reply for lead ${conv.lead_id}`);
+      }
     } else {
       // Valid answer - save and proceed
       updated[step] = validation.value || content.trim();
