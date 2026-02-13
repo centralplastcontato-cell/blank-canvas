@@ -209,6 +209,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [showShareToGroupDialog, setShowShareToGroupDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   
+  // Contact sharing state
+  const [showContactDialog, setShowContactDialog] = useState(false);
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [isSendingContact, setIsSendingContact] = useState(false);
+  
   // Edit message state
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState("");
@@ -1689,6 +1695,62 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     setTimeout(() => {
       messageTextareaRef.current?.focus();
     }, 50);
+  };
+
+  // Send contact (vCard) handler
+  const handleSendContact = async () => {
+    if (!contactName.trim() || !contactPhone.trim() || !selectedConversation || !selectedInstance) return;
+    
+    setIsSendingContact(true);
+    
+    const contactContent = `[Contato] ${contactName.trim()} - ${contactPhone.trim()}`;
+    const optimisticId = `optimistic-${Date.now()}`;
+    const optimisticMessage: Message = {
+      id: optimisticId,
+      conversation_id: selectedConversation.id,
+      message_id: null,
+      from_me: true,
+      message_type: 'contact',
+      content: contactContent,
+      media_url: null,
+      status: 'pending',
+      timestamp: new Date().toISOString(),
+    };
+    
+    setMessages(prev => [...prev, optimisticMessage]);
+    setShowContactDialog(false);
+    
+    try {
+      const response = await supabase.functions.invoke("wapi-send", {
+        body: {
+          action: "send-contact",
+          phone: selectedConversation.contact_phone,
+          contactName: contactName.trim(),
+          contactPhone: contactPhone.trim(),
+          conversationId: selectedConversation.id,
+          instanceId: selectedInstance.instance_id,
+          instanceToken: selectedInstance.instance_token,
+        },
+      });
+
+      if (response.error) throw new Error(response.error.message);
+
+      setMessages(prev => prev.map(m => 
+        m.id === optimisticId ? { ...m, status: 'sent' } : m
+      ));
+      
+      setContactName("");
+      setContactPhone("");
+    } catch (error: unknown) {
+      setMessages(prev => prev.filter(m => m.id !== optimisticId));
+      toast({
+        title: "Erro ao enviar contato",
+        description: error instanceof Error ? error.message : "Não foi possível enviar o contato.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingContact(false);
+    }
   };
 
   // Edit message handler
@@ -3401,6 +3463,29 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                     />
                                   </div>
                                 )}
+                                {msg.message_type === 'contact' && (
+                                  <div className={cn(
+                                    "flex items-center gap-3 p-2 rounded-lg border min-w-[180px]",
+                                    msg.from_me
+                                      ? "border-primary-foreground/20 bg-primary-foreground/10"
+                                      : "border-border bg-muted/30"
+                                  )}>
+                                    <div className={cn(
+                                      "p-2 rounded-full",
+                                      msg.from_me ? "bg-primary-foreground/20" : "bg-primary/10"
+                                    )}>
+                                      <Users className={cn("w-4 h-4", msg.from_me ? "text-primary-foreground" : "text-primary")} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className={cn("text-sm font-medium truncate", msg.from_me ? "text-primary-foreground" : "text-foreground")}>
+                                        {msg.content?.replace('[Contato] ', '').split(' - ')[0] || 'Contato'}
+                                      </p>
+                                      <p className={cn("text-xs truncate", msg.from_me ? "text-primary-foreground/70" : "text-muted-foreground")}>
+                                        {msg.content?.split(' - ')[1] || ''}
+                                      </p>
+                                    </div>
+                                  </div>
+                                )}
                                 {msg.message_type === 'text' && editingMessageId === msg.id ? (
                                   <div className="space-y-2">
                                     <Textarea
@@ -3678,6 +3763,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                             <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
                               <FileText className="w-4 h-4 mr-2" />
                               Arquivo
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => setShowContactDialog(true)}>
+                              <Users className="w-4 h-4 mr-2" />
+                              Contato
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -4111,6 +4201,29 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                 />
                               </div>
                             )}
+                            {msg.message_type === 'contact' && (
+                              <div className={cn(
+                                "flex items-center gap-3 p-2 rounded-lg border min-w-[180px]",
+                                msg.from_me
+                                  ? "border-primary-foreground/20 bg-primary-foreground/10"
+                                  : "border-border bg-muted/30"
+                              )}>
+                                <div className={cn(
+                                  "p-2 rounded-full",
+                                  msg.from_me ? "bg-primary-foreground/20" : "bg-primary/10"
+                                )}>
+                                  <Users className={cn("w-4 h-4", msg.from_me ? "text-primary-foreground" : "text-primary")} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className={cn("text-sm font-medium truncate", msg.from_me ? "text-primary-foreground" : "text-foreground")}>
+                                    {msg.content?.replace('[Contato] ', '').split(' - ')[0] || 'Contato'}
+                                  </p>
+                                  <p className={cn("text-xs truncate", msg.from_me ? "text-primary-foreground/70" : "text-muted-foreground")}>
+                                    {msg.content?.split(' - ')[1] || ''}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
                             {msg.message_type === 'text' && editingMessageId === msg.id ? (
                               <div className="space-y-2">
                                 <Textarea
@@ -4239,6 +4352,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
                           <FileText className="w-4 h-4 mr-2" />
                           Arquivo
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => setShowContactDialog(true)}>
+                          <Users className="w-4 h-4 mr-2" />
+                          Contato
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -4568,6 +4686,58 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           instances={instances}
         />
       )}
+
+      {/* Send Contact Dialog */}
+      <Dialog open={showContactDialog} onOpenChange={(open) => {
+        setShowContactDialog(open);
+        if (!open) { setContactName(""); setContactPhone(""); }
+      }}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Enviar Contato
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label htmlFor="contact-name">Nome</Label>
+              <Input
+                id="contact-name"
+                placeholder="Nome do contato"
+                value={contactName}
+                onChange={(e) => setContactName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="contact-phone">Telefone</Label>
+              <Input
+                id="contact-phone"
+                placeholder="5511999999999"
+                value={contactPhone}
+                onChange={(e) => setContactPhone(e.target.value)}
+              />
+            </div>
+            <Button 
+              className="w-full" 
+              onClick={handleSendContact}
+              disabled={!contactName.trim() || !contactPhone.trim() || isSendingContact}
+            >
+              {isSendingContact ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  Enviar Contato
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
