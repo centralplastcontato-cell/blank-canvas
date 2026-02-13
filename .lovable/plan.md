@@ -1,34 +1,98 @@
 
 
-# Migrar de Lovable AI Gateway para OpenAI direto
+# Plano de Integração: SaaS Custom Domains no Celebrei
 
-## O que muda
-As duas Edge Functions que usam IA (`lead-summary` e `fix-text`) vao passar a chamar a API da OpenAI diretamente usando a sua chave `OPENAI_API_KEY` que ja esta configurada no projeto.
+## Problema Atual
+Cada empresa no Hub Celebrei pode ter seu domínio customizado (ex: `buffetxyz.com.br`), mas quando alguém compartilha o link no WhatsApp/Facebook, a miniatura e as informações que aparecem são sempre as mesmas (do Celebrei) em vez de serem da empresa específica. Isso acontece porque o app é uma SPA (Single Page Application) e os robôs das redes sociais não executam JavaScript.
 
-## Alteracoes
+## Por que o SaaS Custom Domains resolve isso
+A API do serviço possui campos nativos por domínio:
+- **meta_title** - Título que aparece no preview
+- **meta_description** - Descrição do preview
+- **meta_image_url** - Imagem da miniatura (OG image)
+- **meta_favicon_url** - Favicon do navegador
 
-### 1. `supabase/functions/lead-summary/index.ts`
-- Trocar `LOVABLE_API_KEY` por `OPENAI_API_KEY`
-- Trocar URL de `https://ai.gateway.lovable.dev/v1/chat/completions` para `https://api.openai.com/v1/chat/completions`
-- Trocar modelo de `google/gemini-3-flash-preview` para `gpt-4o-mini` (bom custo-beneficio para resumos)
-- Atualizar mensagens de erro
+Ou seja, o serviço injeta automaticamente os meta tags corretos para cada domínio ANTES do HTML chegar ao navegador/crawler. Sem necessidade de Cloudflare Worker ou Edge Function para interceptar bots.
 
-### 2. `supabase/functions/fix-text/index.ts`
-- Mesmas trocas: `OPENAI_API_KEY`, URL da OpenAI, modelo `gpt-4o-mini`
-- Atualizar mensagens de erro
+## Como funciona a arquitetura
 
-### Modelo escolhido
-- **gpt-4o-mini**: rapido, barato e suficiente para resumos e correcao de texto
-- Se preferir mais qualidade, pode usar `gpt-4o` (mais caro)
+```text
+Visitante/Bot acessa buffetxyz.com.br
+          |
+          v
+  SaaS Custom Domains (proxy reverso)
+    - Injeta meta tags OG corretos
+    - SSL automático
+    - DDoS protection
+          |
+          v
+  Lovable App (upstream: naked-screen-charm.lovable.app)
+    - Serve o SPA normalmente
+    - RootPage detecta domínio e carrega LP dinâmica
+```
 
-## Arquivos modificados
+## Etapas de Implementação
 
-| Arquivo | Acao |
-|---------|------|
-| `supabase/functions/lead-summary/index.ts` | Trocar gateway e chave para OpenAI |
-| `supabase/functions/fix-text/index.ts` | Trocar gateway e chave para OpenAI |
+### 1. Configuração Inicial no SaaS Custom Domains
+- Criar conta em app.saascustomdomains.com
+- Criar um **Upstream** apontando para o domínio publicado do Lovable (`naked-screen-charm.lovable.app`, porta 443, TLS habilitado)
+- Obter a API key nas configurações
 
-## Observacoes
-- A secret `OPENAI_API_KEY` ja existe no projeto, nao precisa configurar nada
-- Os prompts permanecem identicos, so muda o provedor
-- O tratamento de erros 429/402 continua funcionando (OpenAI usa os mesmos codigos HTTP)
+### 2. Salvar API Key como Secret
+- Adicionar `SCD_API_TOKEN` como secret do projeto no Lovable
+- Adicionar `SCD_ACCOUNT_UUID` e `SCD_UPSTREAM_UUID` como secrets
+
+### 3. Criar Edge Function `manage-custom-domain`
+Uma nova Edge Function que será chamada quando uma empresa cadastrar/atualizar seu domínio customizado no Hub. Ela fará:
+- **POST** para criar o domínio no SaaS Custom Domains com os meta tags OG corretos (título, descrição, imagem da empresa)
+- **PUT** para atualizar quando a empresa mudar logo/nome
+- **DELETE** para remover quando necessário
+- Retornar as instruções DNS (CNAME) que o cliente precisa configurar
+
+### 4. Atualizar o Fluxo de Cadastro de Domínio no Hub
+No painel de administração (Hub Empresas), quando o admin configurar o domínio customizado de uma empresa:
+- Chamar a Edge Function para registrar o domínio no SaaS Custom Domains
+- Exibir as instruções DNS retornadas (CNAME record) para o cliente
+- Mostrar o status do domínio (pendente, ativo, erro)
+
+### 5. Sincronizar Meta Tags com Dados da LP
+Quando a landing page de uma empresa for atualizada (hero title, subtitle, logo), atualizar automaticamente os meta tags no SaaS Custom Domains via API.
+
+### 6. Simplificação - Remover Workarounds
+- A Edge Function `og-preview` pode ser mantida como fallback, mas não será mais necessária para os domínios gerenciados pelo SaaS Custom Domains
+- O script inline no `index.html` para override de OG por domínio pode ser simplificado
+- O Cloudflare Worker de interceptação de bots não será mais necessário
+
+## Detalhes Técnicos
+
+### Edge Function `manage-custom-domain`
+Endpoints da API que serão usados:
+- `POST /api/v1/accounts/:account_uuid/upstreams/:upstream_uuid/custom_domains` - Criar domínio
+- `PUT /api/v1/accounts/:account_uuid/upstreams/:upstream_uuid/custom_domains/:uuid` - Atualizar
+- `DELETE /api/v1/accounts/:account_uuid/upstreams/:upstream_uuid/custom_domains/:uuid` - Remover
+
+Campos enviados ao criar/atualizar:
+```text
+{
+  "custom_domain": {
+    "host": "buffetxyz.com.br",
+    "meta_title": "Buffet XYZ | Buffet Infantil",
+    "meta_description": "O melhor buffet para a festa do seu filho!",
+    "meta_image_url": "https://storage.../logo-buffet-xyz.jpg",
+    "meta_favicon_url": "https://storage.../favicon-xyz.png"
+  }
+}
+```
+
+### Mudança no DNS dos clientes
+Em vez de apontar para o IP do Lovable/Cloudflare, os clientes apontarão um **CNAME** para o endereço fornecido pelo SaaS Custom Domains. O serviço cuida do SSL automaticamente.
+
+### Banco de Dados
+Adicionar coluna `scd_domain_uuid` na tabela `companies` para armazenar o ID do domínio no SaaS Custom Domains, permitindo atualizações e exclusões futuras.
+
+## Pré-requisitos
+1. Criar conta no SaaS Custom Domains (tem free trial)
+2. Configurar o upstream apontando para o Lovable
+3. Gerar API token
+4. Compartilhar as 3 credenciais (API token, Account UUID, Upstream UUID) para salvar como secrets no projeto
+
