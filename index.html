@@ -3,6 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     
     <!-- Primary Meta Tags -->
     <title>Celebrei | A melhor plataforma para buffets infantis</title>
@@ -85,6 +88,40 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <!-- Recover from stale JS chunks after deploy (fixes infinite loading) -->
+    <script>
+      window.addEventListener('error', function(e) {
+        if (
+          e.message &&
+          (e.message.indexOf('Failed to fetch dynamically imported module') !== -1 ||
+           e.message.indexOf('Importing a module script failed') !== -1 ||
+           e.message.indexOf('error loading dynamically imported module') !== -1 ||
+           e.message.indexOf('is not a valid JavaScript MIME type') !== -1 ||
+           e.message.indexOf('ChunkLoadError') !== -1)
+        ) {
+          var reloaded = sessionStorage.getItem('chunk_reload');
+          if (!reloaded) {
+            sessionStorage.setItem('chunk_reload', '1');
+            window.location.reload();
+          }
+        }
+      });
+      window.addEventListener('unhandledrejection', function(e) {
+        var msg = e.reason && (e.reason.message || String(e.reason));
+        if (
+          msg &&
+          (msg.indexOf('Failed to fetch dynamically imported module') !== -1 ||
+           msg.indexOf('Importing a module script failed') !== -1 ||
+           msg.indexOf('error loading dynamically imported module') !== -1)
+        ) {
+          var reloaded = sessionStorage.getItem('chunk_reload');
+          if (!reloaded) {
+            sessionStorage.setItem('chunk_reload', '1');
+            window.location.reload();
+          }
+        }
+      });
+    </script>
     
     <!-- Structured Data - LocalBusiness -->
     <script type="application/ld+json">
