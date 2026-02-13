@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useLeadSummary } from "@/hooks/useLeadSummary";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +20,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -33,8 +35,10 @@ import {
   Clock,
   Loader2,
   History,
-  CheckCircle,
   RotateCcw,
+  Sparkles,
+  RefreshCw,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -71,6 +75,7 @@ export function LeadDetailSheet({
   const [isSaving, setIsSaving] = useState(false);
   const [history, setHistory] = useState<LeadHistory[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const { data: aiSummary, isLoading: isLoadingSummary, error: summaryError, fetchSummary } = useLeadSummary(lead?.id || null);
 
   // Navigate to WhatsApp chat with this lead's phone
   const openWhatsAppChat = () => {
@@ -250,6 +255,64 @@ export function LeadDetailSheet({
               <Badge className="bg-primary/10 text-primary">
                 {lead.campaign_id}
               </Badge>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* AI Summary Card */}
+          <div className="relative bg-gradient-to-r from-primary/10 via-accent/5 to-primary/10 border border-primary/20 rounded-xl p-4 shadow-sm overflow-hidden">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+            <div className="relative">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                    <Sparkles className="w-4 h-4 text-primary" />
+                  </div>
+                  <h4 className="text-sm font-bold text-foreground">Resumo IA</h4>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={fetchSummary}
+                  disabled={isLoadingSummary}
+                  className="h-7 px-2 text-xs"
+                >
+                  <RefreshCw className={`w-3 h-3 mr-1 ${isLoadingSummary ? 'animate-spin' : ''}`} />
+                  {aiSummary ? 'Atualizar' : 'Gerar'}
+                </Button>
+              </div>
+
+              {isLoadingSummary && (
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-1/2 mt-3" />
+                </div>
+              )}
+
+              {summaryError && !isLoadingSummary && (
+                <div className="flex items-start gap-2 text-sm text-destructive">
+                  <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <span>{summaryError}</span>
+                </div>
+              )}
+
+              {aiSummary && !isLoadingSummary && !summaryError && (
+                <div className="space-y-3">
+                  <p className="text-sm text-foreground/80 leading-relaxed">{aiSummary.summary}</p>
+                  <div className="bg-primary/10 rounded-lg p-2.5 border border-primary/15">
+                    <p className="text-xs font-semibold text-primary mb-0.5">💡 Próxima ação sugerida:</p>
+                    <p className="text-sm text-foreground/90">{aiSummary.nextAction}</p>
+                  </div>
+                </div>
+              )}
+
+              {!aiSummary && !isLoadingSummary && !summaryError && (
+                <p className="text-xs text-muted-foreground text-center py-2">
+                  Clique em "Gerar" para criar um resumo com IA
+                </p>
+              )}
             </div>
           </div>
 
