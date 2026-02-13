@@ -1,49 +1,46 @@
 
+# Corrigir leads frios aparecendo em "Atender Agora"
 
-# Corrigir visibilidade do modulo Inteligencia no sidebar
-
-## Diagnostico
-
-O codigo esta 100% correto. O problema e que nos dados do banco, a empresa **Castelo da Diversao** tem `enabled_modules` sem o campo `inteligencia`:
-
-```text
-enabled_modules: {
-  whatsapp: true, crm: true, dashboard: true, ...
-  // inteligencia NAO EXISTE aqui
-}
-```
-
-Como `useCompanyModules` usa `modules.inteligencia === true` (diferente dos outros modulos que usam `!== false`), quando o campo nao existe no JSON, retorna `false`.
-
-## Causa raiz
-
-Quando os modulos foram salvos anteriormente (antes do campo `inteligencia` existir no codigo), o JSON foi salvo sem esse campo. O toggle aparece no dialog, mas se voce nao clicou "Salvar" depois da atualizacao do codigo, o campo nao foi persistido.
+## Problema
+A funcao `recalculate_lead_score` marca `priority_flag = true` para leads com status `orcamento_enviado`, mesmo que o score seja baixo (<=20) e a temperatura seja "frio". Isso faz 168+ leads frios aparecerem na coluna "Atender Agora", que deveria mostrar apenas leads quentes/prontos.
 
 ## Solucao
 
-Duas acoes simples:
+### 1. Corrigir a funcao SQL `recalculate_lead_score`
+Adicionar condicao para que `priority_flag` so seja `true` se o lead **nao for frio** (score > 20):
 
-### 1. Atualizar os dados no banco (imediato)
+```text
+-- Antes (linha 155-157):
+IF v_score > 60 THEN v_priority := true; END IF;
+IF v_conv IS NOT NULL AND (v_conv.bot_data->>'proximo_passo') = '1' THEN v_priority := true; END IF;
+IF v_lead.status = 'orcamento_enviado' THEN v_priority := true; END IF;
 
-Executar uma query SQL para adicionar `inteligencia: true` ao JSON de `enabled_modules` da empresa Castelo da Diversao:
-
-```sql
-UPDATE companies
-SET settings = jsonb_set(
-  COALESCE(settings, '{}'::jsonb),
-  '{enabled_modules,inteligencia}',
-  'true'::jsonb
-)
-WHERE id = 'a0000000-0000-0000-0000-000000000001';
+-- Depois:
+IF v_score > 60 THEN v_priority := true; END IF;
+IF v_score > 20 AND v_conv IS NOT NULL AND (v_conv.bot_data->>'proximo_passo') = '1' THEN v_priority := true; END IF;
+IF v_score > 20 AND v_lead.status = 'orcamento_enviado' THEN v_priority := true; END IF;
 ```
 
-### 2. Tornar o modulo resiliente (melhoria de codigo)
+### 2. Adicionar filtro extra no componente React
+No `PrioridadesTab.tsx`, filtrar "Atender Agora" para excluir leads frios como camada de seguranca:
 
-Nenhuma mudanca de codigo e estritamente necessaria -- basta re-salvar os modulos pelo dialog. Porem, se quiser que `inteligencia` apareca automaticamente para empresas que ja tinham modulos salvos, podemos mudar a logica de `=== true` para `!== false` (assim como os outros modulos). Isso faria o modulo aparecer por padrao para todos, o que pode nao ser desejado no MVP.
+```text
+-- Antes:
+const atenderAgora = activeLeads.filter(d => d.priority_flag);
 
-**Recomendacao**: manter `=== true` (opt-in) e apenas salvar via dialog ou SQL.
+-- Depois:
+const atenderAgora = activeLeads.filter(d => d.priority_flag && d.temperature !== 'frio');
+```
 
-### Resultado esperado
+### 3. Recalcular os scores existentes
+Executar novamente o recalculo para todos os leads para aplicar a nova logica.
 
-Apos a query SQL, o item "Inteligencia" com icone Brain aparecera no sidebar do AdminSidebar automaticamente ao recarregar a pagina.
+## Resultado esperado
+- "Atender Agora": apenas leads mornos, quentes ou prontos com priority_flag
+- "Frios": todos os leads com score < 20 (independente de priority_flag)
+- Leads com `orcamento_enviado` mas sem atividade recente ficam em "Frios" ate interagirem novamente
 
+## Detalhes tecnicos
+- Arquivo SQL: nova migration com `CREATE OR REPLACE FUNCTION recalculate_lead_score`
+- Arquivo React: `src/components/inteligencia/PrioridadesTab.tsx` linha 56
+- Recalculo via bloco PL/pgSQL iterando `campaign_leads`
