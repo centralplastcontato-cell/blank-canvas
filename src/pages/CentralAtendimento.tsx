@@ -1015,7 +1015,7 @@ export default function CentralAtendimento() {
                   variant="ghost"
                   size="sm"
                   onClick={() => navigate("/inteligencia")}
-                  className="h-8 px-3 rounded-lg transition-all duration-200 text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  className="h-8 px-3 rounded-lg transition-all duration-200 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:text-emerald-300 dark:hover:bg-emerald-900/20"
                   title="Inteligência"
                 >
                   <BrainCircuit className="w-4 h-4 mr-1.5" />
