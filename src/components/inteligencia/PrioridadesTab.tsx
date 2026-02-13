@@ -56,7 +56,7 @@ export function PrioridadesTab({ data }: PrioridadesTabProps) {
     d => d.lead_status !== 'fechado' && d.lead_status !== 'perdido'
   );
 
-  const atenderAgora = activeLeads.filter(d => d.priority_flag);
+  const atenderAgora = activeLeads.filter(d => d.priority_flag && d.temperature !== 'frio');
   const emRisco = activeLeads.filter(
     d => d.abandonment_type && !d.priority_flag
   );
