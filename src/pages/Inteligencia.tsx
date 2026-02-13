@@ -8,7 +8,9 @@ import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Brain, Loader2, ShieldAlert } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Brain, Loader2, ShieldAlert, HelpCircle, Flame, AlertTriangle, Snowflake, Target, Thermometer, BarChart3, TrendingUp } from "lucide-react";
 import { PrioridadesTab } from "@/components/inteligencia/PrioridadesTab";
 import { FunilTab } from "@/components/inteligencia/FunilTab";
 import { LeadsDoDiaTab } from "@/components/inteligencia/LeadsDoDiaTab";
@@ -151,19 +153,107 @@ export default function Inteligencia() {
                   </p>
                 </div>
               </div>
-              {unitOptions.length > 1 && (
-                <Select value={selectedUnit} onValueChange={setSelectedUnit}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Todas as unidades" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas as unidades</SelectItem>
-                    {unitOptions.map(u => (
-                      <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+              <div className="flex items-center gap-2">
+                {unitOptions.length > 1 && (
+                  <Select value={selectedUnit} onValueChange={setSelectedUnit}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Todas as unidades" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as unidades</SelectItem>
+                      {unitOptions.map(u => (
+                        <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="icon" className="shrink-0">
+                      <HelpCircle className="h-5 w-5" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <Brain className="h-5 w-5 text-primary" />
+                        Guia de Inteligência
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-5 text-sm">
+                      {/* Score */}
+                      <div className="space-y-1.5">
+                        <h3 className="font-semibold flex items-center gap-2">
+                          <TrendingUp className="h-4 w-4 text-primary" />
+                          Score (0–100)
+                        </h3>
+                        <p className="text-muted-foreground">
+                          Pontuação automática que mede o nível de engajamento do lead. Considera interações no WhatsApp, avanço de status no CRM e tempo sem resposta. Quanto maior, mais engajado o lead está.
+                        </p>
+                      </div>
+
+                      {/* Temperatura */}
+                      <div className="space-y-2">
+                        <h3 className="font-semibold flex items-center gap-2">
+                          <Thermometer className="h-4 w-4 text-primary" />
+                          Temperatura
+                        </h3>
+                        <div className="space-y-2 pl-1">
+                          <div className="flex items-start gap-2">
+                            <span className="text-blue-400 shrink-0">❄️</span>
+                            <div><strong>Frio</strong> — Baixo engajamento. O lead não interagiu recentemente ou tem poucas interações.</div>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <span className="text-yellow-400 shrink-0">🌤️</span>
+                            <div><strong>Morno</strong> — Engajamento moderado. Respondeu mas ainda não avançou para visita ou orçamento.</div>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <span className="text-orange-400 shrink-0">🔥</span>
+                            <div><strong>Quente</strong> — Alto engajamento. Pediu visita, orçamento ou demonstrou forte interesse.</div>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <span className="text-green-400 shrink-0">🎯</span>
+                            <div><strong>Pronto</strong> — Pronto para fechar! Score máximo, orçamento enviado ou visita agendada.</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Prioridades */}
+                      <div className="space-y-2">
+                        <h3 className="font-semibold flex items-center gap-2">
+                          <Target className="h-4 w-4 text-primary" />
+                          Cards de Prioridade
+                        </h3>
+                        <div className="space-y-2 pl-1">
+                          <div className="flex items-start gap-2">
+                            <Flame className="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
+                            <div><strong>Atender Agora</strong> — Leads prioritários com bom score e temperatura acima de frio. São os que mais precisam de atenção imediata.</div>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <AlertTriangle className="h-4 w-4 text-orange-400 shrink-0 mt-0.5" />
+                            <div><strong>Em Risco</strong> — Leads que pararam de responder (abandono detectado). Precisam de follow-up urgente para não serem perdidos.</div>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <Snowflake className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
+                            <div><strong>Frios</strong> — Leads com score abaixo de 20 e sem padrão de abandono. Baixo engajamento, podem ser reaquecidos.</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Funil */}
+                      <div className="space-y-1.5">
+                        <h3 className="font-semibold flex items-center gap-2">
+                          <BarChart3 className="h-4 w-4 text-primary" />
+                          Funil de Conversão
+                        </h3>
+                        <p className="text-muted-foreground">
+                          Mostra a distribuição dos leads por etapa do CRM (Novo → Visita → Orçamento → Negociando → Fechado/Perdido). O percentual indica quanto cada etapa representa do total de leads.
+                        </p>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
 
             <Tabs defaultValue="prioridades">
