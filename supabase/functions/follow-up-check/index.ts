@@ -244,6 +244,7 @@ async function processNextStepReminder({
         message_type: "text",
         status: "sent",
         timestamp: new Date().toISOString(),
+        metadata: { source: "auto_reminder", type: "next_step_reminder" },
       });
 
       // Update conversation: change step to proximo_passo_reminded so we don't resend
@@ -467,6 +468,7 @@ async function processFollowUp({
         message_type: "text",
         status: "sent",
         timestamp: new Date().toISOString(),
+        metadata: { source: "auto_reminder", type: followUpNumber === 1 ? "follow_up_1" : "follow_up_2" },
       });
 
       // Update conversation: reactivate bot but keep step as complete_final
@@ -684,6 +686,7 @@ Podemos continuar de onde paramos?`;
         message_type: "text",
         status: "sent",
         timestamp: new Date().toISOString(),
+        metadata: { source: "auto_reminder", type: "bot_inactive" },
       });
 
       // Always keep bot enabled so it can process the lead's reply
