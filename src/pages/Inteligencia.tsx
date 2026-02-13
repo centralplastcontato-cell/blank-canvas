@@ -111,7 +111,7 @@ export default function Inteligencia() {
             navigate("/auth");
           }}
         />
-        <main className="flex-1 p-4 md:p-6 overflow-auto">
+        <main className="flex-1 p-3 md:p-6 overflow-x-hidden overflow-y-auto">
           <div className="max-w-7xl mx-auto space-y-6">
             <div className="flex items-center gap-3">
               <Brain className="h-7 w-7 text-primary" />
