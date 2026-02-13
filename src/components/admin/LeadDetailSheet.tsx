@@ -75,7 +75,7 @@ export function LeadDetailSheet({
   const [isSaving, setIsSaving] = useState(false);
   const [history, setHistory] = useState<LeadHistory[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-  const { data: aiSummary, isLoading: isLoadingSummary, error: summaryError, fetchSummary } = useLeadSummary(lead?.id || null);
+  const { data: aiSummary, isLoading: isLoadingSummary, isFetchingSaved, error: summaryError, fetchSummary } = useLeadSummary(lead?.id || null);
 
   // Navigate to WhatsApp chat with this lead's phone
   const openWhatsAppChat = () => {
@@ -305,13 +305,25 @@ export function LeadDetailSheet({
                     <p className="text-xs font-semibold text-primary mb-0.5">💡 Próxima ação sugerida:</p>
                     <p className="text-sm text-foreground/90">{aiSummary.nextAction}</p>
                   </div>
+                  {aiSummary.generatedAt && (
+                    <p className="text-[10px] text-muted-foreground text-right">
+                      Gerado em {format(new Date(aiSummary.generatedAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                    </p>
+                  )}
                 </div>
               )}
 
-              {!aiSummary && !isLoadingSummary && !summaryError && (
+              {!aiSummary && !isLoadingSummary && !isFetchingSaved && !summaryError && (
                 <p className="text-xs text-muted-foreground text-center py-2">
                   Clique em "Gerar" para criar um resumo com IA
                 </p>
+              )}
+
+              {isFetchingSaved && !isLoadingSummary && (
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-2/3" />
+                </div>
               )}
             </div>
           </div>

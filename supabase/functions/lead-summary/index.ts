@@ -44,11 +44,14 @@ serve(async (req) => {
     }
 
     if (!conversation) {
-      return new Response(JSON.stringify({ 
+      const noConvResult = { 
         summary: 'Nenhuma conversa encontrada para este lead.',
         nextAction: 'Inicie o contato via WhatsApp.',
         hasConversation: false 
-      }), {
+      };
+      // Save to lead_intelligence
+      await saveSummaryToDb(supabase, lead_id, company_id, noConvResult.summary, noConvResult.nextAction);
+      return new Response(JSON.stringify(noConvResult), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -71,11 +74,13 @@ serve(async (req) => {
     }
 
     if (!messages || messages.length === 0) {
-      return new Response(JSON.stringify({ 
+      const noMsgResult = { 
         summary: 'Conversa encontrada, mas sem mensagens registradas.',
         nextAction: 'Envie a primeira mensagem para o lead.',
         hasConversation: true 
-      }), {
+      };
+      await saveSummaryToDb(supabase, lead_id, company_id, noMsgResult.summary, noMsgResult.nextAction);
+      return new Response(JSON.stringify(noMsgResult), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -165,6 +170,9 @@ Responda APENAS o JSON, sem markdown, sem explicações.`
       }
     }
 
+    // Save to database
+    await saveSummaryToDb(supabase, lead_id, company_id, summary, nextAction);
+
     return new Response(JSON.stringify({ summary, nextAction, hasConversation: true }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -177,3 +185,23 @@ Responda APENAS o JSON, sem markdown, sem explicações.`
     });
   }
 });
+
+async function saveSummaryToDb(supabase: any, leadId: string, companyId: string, summary: string, nextAction: string) {
+  try {
+    const { error } = await supabase
+      .from('lead_intelligence')
+      .upsert({
+        lead_id: leadId,
+        company_id: companyId,
+        ai_summary: summary,
+        ai_next_action: nextAction,
+        ai_summary_at: new Date().toISOString(),
+      }, { onConflict: 'lead_id' });
+
+    if (error) {
+      console.error('Error saving AI summary:', error);
+    }
+  } catch (e) {
+    console.error('Error in saveSummaryToDb:', e);
+  }
+}

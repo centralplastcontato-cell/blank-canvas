@@ -6,18 +6,48 @@ interface LeadSummaryResult {
   summary: string;
   nextAction: string;
   hasConversation: boolean;
+  generatedAt?: string | null;
 }
 
 export function useLeadSummary(leadId: string | null) {
   const companyId = useCurrentCompanyId();
   const [data, setData] = useState<LeadSummaryResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isFetchingSaved, setIsFetchingSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Reset when leadId changes
+  // Load saved summary when leadId changes
   useEffect(() => {
     setData(null);
     setError(null);
+
+    if (!leadId) return;
+
+    const loadSaved = async () => {
+      setIsFetchingSaved(true);
+      try {
+        const { data: intel, error: fetchError } = await supabase
+          .from('lead_intelligence')
+          .select('ai_summary, ai_next_action, ai_summary_at')
+          .eq('lead_id', leadId)
+          .maybeSingle();
+
+        if (!fetchError && intel?.ai_summary) {
+          setData({
+            summary: intel.ai_summary as string,
+            nextAction: (intel.ai_next_action as string) || '',
+            hasConversation: true,
+            generatedAt: intel.ai_summary_at as string | null,
+          });
+        }
+      } catch (e) {
+        console.error('Error loading saved summary:', e);
+      } finally {
+        setIsFetchingSaved(false);
+      }
+    };
+
+    loadSaved();
   }, [leadId]);
 
   const fetchSummary = useCallback(async () => {
@@ -32,7 +62,6 @@ export function useLeadSummary(leadId: string | null) {
       });
 
       if (fnError) {
-        // Check for specific status codes in the error
         const msg = fnError.message || '';
         if (msg.includes('429')) {
           setError('Limite de requisições excedido. Tente novamente em alguns segundos.');
@@ -49,7 +78,10 @@ export function useLeadSummary(leadId: string | null) {
         return;
       }
 
-      setData(result);
+      setData({
+        ...result,
+        generatedAt: new Date().toISOString(),
+      });
     } catch (e: any) {
       setError(e.message || 'Erro inesperado');
     } finally {
@@ -57,5 +89,5 @@ export function useLeadSummary(leadId: string | null) {
     }
   }, [leadId, companyId]);
 
-  return { data, isLoading, error, fetchSummary };
+  return { data, isLoading, isFetchingSaved, error, fetchSummary };
 }
