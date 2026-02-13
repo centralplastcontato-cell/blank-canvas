@@ -121,9 +121,10 @@ export default function Inteligencia() {
   });
 
   // Build unit options for selector
+  const physicalUnits = units.filter(u => u.slug !== 'trabalhe-conosco');
   const unitOptions = isAdmin || canViewAll
-    ? units.map(u => ({ value: u.name, label: u.name }))
-    : units.filter(u => allowedUnits.includes(u.name)).map(u => ({ value: u.name, label: u.name }));
+    ? physicalUnits.map(u => ({ value: u.name, label: u.name }))
+    : physicalUnits.filter(u => allowedUnits.includes(u.name)).map(u => ({ value: u.name, label: u.name }));
 
   return (
     <SidebarProvider defaultOpen={false}>
