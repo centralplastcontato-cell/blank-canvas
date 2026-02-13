@@ -169,8 +169,8 @@ export default function Inteligencia() {
                 )}
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button variant="outline" size="icon" className="shrink-0">
-                      <HelpCircle className="h-5 w-5" />
+                    <Button variant="outline" size="icon" className="shrink-0 h-10 w-10 border-red-500 text-red-500 hover:bg-red-500/10 hover:text-red-600">
+                      <HelpCircle className="h-6 w-6" />
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
