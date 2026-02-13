@@ -1,46 +1,28 @@
 
-# Corrigir leads frios aparecendo em "Atender Agora"
 
-## Problema
-A funcao `recalculate_lead_score` marca `priority_flag = true` para leads com status `orcamento_enviado`, mesmo que o score seja baixo (<=20) e a temperatura seja "frio". Isso faz 168+ leads frios aparecerem na coluna "Atender Agora", que deveria mostrar apenas leads quentes/prontos.
+# Adicionar Tooltips Explicativas nas Colunas de Prioridades
 
-## Solucao
+## O que sera feito
+Adicionar um icone de informacao (i) ao lado do titulo de cada coluna com um tooltip que explica os criterios de classificacao dos leads.
 
-### 1. Corrigir a funcao SQL `recalculate_lead_score`
-Adicionar condicao para que `priority_flag` so seja `true` se o lead **nao for frio** (score > 20):
+## Alteracoes
 
-```text
--- Antes (linha 155-157):
-IF v_score > 60 THEN v_priority := true; END IF;
-IF v_conv IS NOT NULL AND (v_conv.bot_data->>'proximo_passo') = '1' THEN v_priority := true; END IF;
-IF v_lead.status = 'orcamento_enviado' THEN v_priority := true; END IF;
+### Arquivo: `src/components/inteligencia/PrioridadesTab.tsx`
 
--- Depois:
-IF v_score > 60 THEN v_priority := true; END IF;
-IF v_score > 20 AND v_conv IS NOT NULL AND (v_conv.bot_data->>'proximo_passo') = '1' THEN v_priority := true; END IF;
-IF v_score > 20 AND v_lead.status = 'orcamento_enviado' THEN v_priority := true; END IF;
-```
+Adicionar tooltips nos titulos das tres colunas usando o componente `Tooltip` ja existente no projeto (`@/components/ui/tooltip`).
 
-### 2. Adicionar filtro extra no componente React
-No `PrioridadesTab.tsx`, filtrar "Atender Agora" para excluir leads frios como camada de seguranca:
+**Atender Agora** - Tooltip:
+"Leads com score acima de 60, ou com orcamento enviado/visita solicitada e score acima de 20. Leads frios sao excluidos."
 
-```text
--- Antes:
-const atenderAgora = activeLeads.filter(d => d.priority_flag);
+**Em Risco** - Tooltip:
+"Leads que pararam de responder (abandono detectado) mas nao sao prioritarios. Precisam de follow-up para nao serem perdidos."
 
--- Depois:
-const atenderAgora = activeLeads.filter(d => d.priority_flag && d.temperature !== 'frio');
-```
+**Frios** - Tooltip:
+"Leads com score abaixo de 20, sem padrao de abandono e sem flag de prioridade. Baixo engajamento ate o momento."
 
-### 3. Recalcular os scores existentes
-Executar novamente o recalculo para todos os leads para aplicar a nova logica.
+### Detalhes tecnicos
+- Importar `Tooltip, TooltipTrigger, TooltipContent, TooltipProvider` de `@/components/ui/tooltip`
+- Importar `Info` icon de `lucide-react`
+- Envolver cada `CardTitle` com um `Tooltip` contendo um botao com o icone `Info` (h-4 w-4, text-muted-foreground)
+- Envolver o componente inteiro com `TooltipProvider` para garantir funcionamento
 
-## Resultado esperado
-- "Atender Agora": apenas leads mornos, quentes ou prontos com priority_flag
-- "Frios": todos os leads com score < 20 (independente de priority_flag)
-- Leads com `orcamento_enviado` mas sem atividade recente ficam em "Frios" ate interagirem novamente
-
-## Detalhes tecnicos
-- Arquivo SQL: nova migration com `CREATE OR REPLACE FUNCTION recalculate_lead_score`
-- Arquivo React: `src/components/inteligencia/PrioridadesTab.tsx` linha 56
-- Recalculo via bloco PL/pgSQL iterando `campaign_leads`
