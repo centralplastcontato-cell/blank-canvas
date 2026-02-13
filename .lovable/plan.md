@@ -1,42 +1,66 @@
 
-# Indicador "Ultima atualizacao do score" na tela de Inteligencia
+# Mensagem Sugerida pela IA para Envio no WhatsApp
 
 ## O que muda
-Adicionar um indicador discreto mostrando **quando o score de cada lead foi atualizado pela ultima vez**, usando o campo `updated_at` que ja existe na tabela `lead_intelligence` e ja esta disponivel no hook `useLeadIntelligence`.
+Quando a IA gerar o resumo de um lead, ela tambem elaborara uma **mensagem personalizada** pronta para enviar ao lead. O usuario clica em um botao e e redirecionado para o chat do WhatsApp com a mensagem ja preenchida no campo de texto.
 
-## Onde aparece
+## Fluxo do usuario
+1. Abre o Resumo IA (Prioridades ou Leads do Dia)
+2. Ve o resumo, proxima acao e agora tambem a **mensagem sugerida**
+3. Clica no botao "Enviar no WhatsApp"
+4. E redirecionado para `/atendimento?phone=XXX&draft=MENSAGEM`
+5. A mensagem aparece no campo de texto do chat, pronta para revisar e enviar manualmente
 
-### 1. Aba Prioridades (`PrioridadesTab.tsx`)
-- No componente `LeadRow`, abaixo da linha "Ultima msg", adicionar uma linha com icone de relogio mostrando "Score atualizado ha X min/horas"
-- Usa o campo `item.updated_at` com `formatDistanceToNow` (ja importado no arquivo)
+## Alteracoes
 
-### 2. Aba Leads do Dia (`LeadsDoDiaTab.tsx`)
-- Adicionar uma nova coluna "Atualizado" na tabela
-- Exibe o tempo relativo da ultima atualizacao do score
+### 1. Edge Function `lead-summary` (backend)
+- Atualizar o prompt do sistema para pedir um terceiro campo: `"suggestedMessage"` -- uma mensagem curta, cordial e personalizada que o atendente pode enviar diretamente ao lead
+- O retorno passa a incluir `{ summary, nextAction, suggestedMessage }`
+- Salvar o campo na tabela `lead_intelligence` (coluna nova `ai_suggested_message`)
 
-## Detalhes tecnicos
+### 2. Migration SQL
+Adicionar coluna na tabela `lead_intelligence`:
 
-### Dados
-- O campo `updated_at` ja existe em `LeadIntelligence` e ja e retornado pelo hook `useLeadIntelligence` -- nenhuma mudanca no banco ou no hook e necessaria
-
-### PrioridadesTab.tsx
-- Adicionar abaixo da linha de "Ultima msg" (linha ~37-41):
 ```text
-<p className="text-xs text-muted-foreground/60 mt-0.5 flex items-center gap-1">
-  <RefreshCw className="h-3 w-3" />
-  Score: {timeAgo(item.updated_at)}
-</p>
+ALTER TABLE public.lead_intelligence 
+  ADD COLUMN IF NOT EXISTS ai_suggested_message text;
 ```
-- Importar `RefreshCw` do lucide-react
 
-### LeadsDoDiaTab.tsx
-- Adicionar coluna `Atualizado` ao `TableHeader`
-- Adicionar `TableCell` com tempo relativo usando `formatDistanceToNow(new Date(item.updated_at), { addSuffix: true, locale: ptBR })`
-- Importar `ptBR` de `date-fns/locale` e `formatDistanceToNow` de `date-fns`
+### 3. Hook `useLeadSummary`
+- Atualizar o tipo `LeadSummaryResult` para incluir `suggestedMessage?: string`
+- Carregar o campo salvo (`ai_suggested_message`) ao buscar resumo existente
+- Retornar o campo no resultado do `fetchSummary`
+
+### 4. Componente `InlineAISummary`
+- Exibir a mensagem sugerida abaixo da "Proxima acao" em um card destacado com icone de WhatsApp
+- Botao "Copiar" para copiar a mensagem
+- Botao "Enviar no WhatsApp" que navega para `/atendimento?phone=XXX&draft=MENSAGEM_ENCODED`
+- Precisa receber `leadWhatsapp` como prop adicional
+
+### 5. `PrioridadesTab` e `LeadsDoDiaTab`
+- Passar `leadWhatsapp={item.lead_whatsapp}` para o `InlineAISummary`
+
+### 6. `CentralAtendimento` + `WhatsAppChat`
+- Ler o query param `draft` da URL
+- Propagar como prop `initialDraft` para `WhatsAppChat`
+- No `WhatsAppChat`, quando `initialDraft` existir, setar `setNewMessage(initialDraft)` apos selecionar a conversa
 
 ## Arquivos modificados
 
 | Arquivo | Acao |
 |---------|------|
-| `src/components/inteligencia/PrioridadesTab.tsx` | Adicionar indicador de atualizacao no LeadRow |
-| `src/components/inteligencia/LeadsDoDiaTab.tsx` | Adicionar coluna "Atualizado" na tabela |
+| Migration SQL | Adicionar coluna `ai_suggested_message` |
+| `supabase/functions/lead-summary/index.ts` | Adicionar `suggestedMessage` no prompt e retorno |
+| `src/hooks/useLeadSummary.ts` | Incluir campo `suggestedMessage` |
+| `src/components/inteligencia/InlineAISummary.tsx` | Exibir mensagem sugerida + botoes |
+| `src/components/inteligencia/PrioridadesTab.tsx` | Passar `leadWhatsapp` para InlineAISummary |
+| `src/components/inteligencia/LeadsDoDiaTab.tsx` | Passar `leadWhatsapp` para InlineAISummary |
+| `src/pages/CentralAtendimento.tsx` | Ler param `draft` da URL |
+| `src/components/whatsapp/WhatsAppChat.tsx` | Receber e aplicar `initialDraft` |
+
+## Detalhes tecnicos
+
+- A mensagem sugerida e gerada pelo mesmo request de IA que ja existe (sem custo adicional)
+- O param `draft` na URL e codificado com `encodeURIComponent` e decodificado com `decodeURIComponent`
+- O envio permanece manual: o usuario ve a mensagem no campo de texto e decide se envia ou edita
+- O `LeadDetailSheet` tambem pode se beneficiar disso futuramente, pois ja usa o mesmo hook
