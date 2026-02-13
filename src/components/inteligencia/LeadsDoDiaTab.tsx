@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MessageCircle, Download, RefreshCw } from "lucide-react";
 import { TemperatureBadge } from "./TemperatureBadge";
@@ -102,7 +102,7 @@ export function LeadsDoDiaTab({ data, canExport }: LeadsDoDiaTabProps) {
                   </div>
                 </div>
 
-                <InlineAISummary leadId={item.lead_id} />
+                <InlineAISummary leadId={item.lead_id} leadWhatsapp={item.lead_whatsapp} />
               </CardContent>
             </Card>
           ))}

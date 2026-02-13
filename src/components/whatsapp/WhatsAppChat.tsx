@@ -141,6 +141,7 @@ interface WhatsAppChatProps {
   userId: string;
   allowedUnits: string[];
   initialPhone?: string | null;
+  initialDraft?: string | null;
   onPhoneHandled?: () => void;
   externalSelectedUnit?: string | null;
   onInstancesLoaded?: (instances: { id: string; unit: string | null; status: string | null }[]) => void;
@@ -155,7 +156,7 @@ import { SalesMaterialsMenu } from "@/components/whatsapp/SalesMaterialsMenu";
 import { ShareToGroupDialog } from "@/components/whatsapp/ShareToGroupDialog";
 import { useFilterOrder } from "@/hooks/useFilterOrder";
 
-export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandled, externalSelectedUnit, onInstancesLoaded }: WhatsAppChatProps) {
+export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft, onPhoneHandled, externalSelectedUnit, onInstancesLoaded }: WhatsAppChatProps) {
   const [instances, setInstances] = useState<WapiInstance[]>([]);
   const [selectedInstance, setSelectedInstance] = useState<WapiInstance | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -652,6 +653,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, onPhoneHandle
 
   // Track if initialPhone has been processed
   const [initialPhoneProcessed, setInitialPhoneProcessed] = useState(false);
+  const [draftApplied, setDraftApplied] = useState(false);
+
+  // Apply initialDraft to message input when conversation is selected
+  useEffect(() => {
+    if (initialDraft && selectedConversation && !draftApplied) {
+      setNewMessage(initialDraft);
+      setDraftApplied(true);
+    }
+  }, [initialDraft, selectedConversation, draftApplied]);
 
   useEffect(() => {
     if (selectedInstance) {

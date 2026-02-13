@@ -93,25 +93,29 @@ export default function CentralAtendimento() {
   const [showMetrics, setShowMetrics] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [initialPhone, setInitialPhone] = useState<string | null>(null);
+  const [initialDraft, setInitialDraft] = useState<string | null>(null);
   const [chatInstances, setChatInstances] = useState<{ id: string; unit: string | null; status: string | null }[]>([]);
   const [selectedChatUnit, setSelectedChatUnit] = useState<string | null>(null);
 
   // Handle URL params for phone navigation
   useEffect(() => {
     const phoneParam = searchParams.get("phone");
+    const draftParam = searchParams.get("draft");
     if (phoneParam) {
       setInitialPhone(phoneParam);
+      setInitialDraft(draftParam ? decodeURIComponent(draftParam) : null);
       setActiveTab("chat");
     }
   }, [searchParams]);
 
   const handlePhoneHandled = () => {
-    // Clear the phone param from URL after it's been processed
-    if (searchParams.has("phone")) {
+    if (searchParams.has("phone") || searchParams.has("draft")) {
       searchParams.delete("phone");
+      searchParams.delete("draft");
       setSearchParams(searchParams, { replace: true });
     }
     setInitialPhone(null);
+    setInitialDraft(null);
   };
 
   const { role, isLoading: isLoadingRole, isAdmin, canEdit, canManageUsers } = useUserRole(user?.id);
@@ -740,6 +744,7 @@ export default function CentralAtendimento() {
                   userId={user.id} 
                   allowedUnits={canViewAll ? ['all'] : allowedUnits} 
                   initialPhone={initialPhone}
+                  initialDraft={initialDraft}
                   onPhoneHandled={handlePhoneHandled}
                 />
               )}
@@ -1107,6 +1112,7 @@ export default function CentralAtendimento() {
                       userId={user.id} 
                       allowedUnits={canViewAll ? ['all'] : allowedUnits}
                       initialPhone={initialPhone}
+                      initialDraft={initialDraft}
                       onPhoneHandled={handlePhoneHandled}
                       externalSelectedUnit={selectedChatUnit}
                       onInstancesLoaded={(instances) => {

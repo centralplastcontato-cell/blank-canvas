@@ -115,9 +115,10 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `Você é um assistente comercial de buffets de festas infantis. Analise a conversa de WhatsApp entre o atendente e o lead e retorne EXATAMENTE um JSON com dois campos:
+            content: `Você é um assistente comercial de buffets de festas infantis. Analise a conversa de WhatsApp entre o atendente e o lead e retorne EXATAMENTE um JSON com três campos:
 - "summary": Resumo curto (2-3 frases) do contexto da conversa. O que o lead quer, qual o status atual, informações principais coletadas.
 - "nextAction": Uma sugestão objetiva e prática da próxima ação que o atendente deveria tomar.
+- "suggestedMessage": Uma mensagem curta, cordial e personalizada que o atendente pode enviar diretamente ao lead via WhatsApp. Use o nome do lead se disponível. Seja natural e humano, não robótico.
 
 Responda APENAS o JSON, sem markdown, sem explicações.`
           },
@@ -156,12 +157,14 @@ Responda APENAS o JSON, sem markdown, sem explicações.`
     // Parse JSON response from AI
     let summary = 'Não foi possível gerar o resumo.';
     let nextAction = 'Tente novamente.';
+    let suggestedMessage = '';
 
     try {
       const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       const parsed = JSON.parse(cleaned);
       summary = parsed.summary || summary;
       nextAction = parsed.nextAction || nextAction;
+      suggestedMessage = parsed.suggestedMessage || '';
     } catch {
       // If AI didn't return valid JSON, use the raw text as summary
       if (raw.length > 10) {
@@ -171,9 +174,9 @@ Responda APENAS o JSON, sem markdown, sem explicações.`
     }
 
     // Save to database
-    await saveSummaryToDb(supabase, lead_id, company_id, summary, nextAction);
+    await saveSummaryToDb(supabase, lead_id, company_id, summary, nextAction, suggestedMessage);
 
-    return new Response(JSON.stringify({ summary, nextAction, hasConversation: true }), {
+    return new Response(JSON.stringify({ summary, nextAction, suggestedMessage, hasConversation: true }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -186,7 +189,7 @@ Responda APENAS o JSON, sem markdown, sem explicações.`
   }
 });
 
-async function saveSummaryToDb(supabase: any, leadId: string, companyId: string, summary: string, nextAction: string) {
+async function saveSummaryToDb(supabase: any, leadId: string, companyId: string, summary: string, nextAction: string, suggestedMessage: string = '') {
   try {
     const { error } = await supabase
       .from('lead_intelligence')
@@ -195,6 +198,7 @@ async function saveSummaryToDb(supabase: any, leadId: string, companyId: string,
         company_id: companyId,
         ai_summary: summary,
         ai_next_action: nextAction,
+        ai_suggested_message: suggestedMessage,
         ai_summary_at: new Date().toISOString(),
       }, { onConflict: 'lead_id' });
 

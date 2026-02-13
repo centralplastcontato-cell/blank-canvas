@@ -53,7 +53,7 @@ function LeadRow({ item }: { item: LeadIntelligence }) {
           <MessageCircle className="h-4 w-4" />
         </Button>
       </div>
-      <InlineAISummary leadId={item.lead_id} />
+      <InlineAISummary leadId={item.lead_id} leadWhatsapp={item.lead_whatsapp} />
     </div>
   );
 }

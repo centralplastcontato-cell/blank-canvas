@@ -723,6 +723,7 @@ export type Database = {
         Row: {
           abandonment_type: string | null
           ai_next_action: string | null
+          ai_suggested_message: string | null
           ai_summary: string | null
           ai_summary_at: string | null
           company_id: string
@@ -741,6 +742,7 @@ export type Database = {
         Insert: {
           abandonment_type?: string | null
           ai_next_action?: string | null
+          ai_suggested_message?: string | null
           ai_summary?: string | null
           ai_summary_at?: string | null
           company_id: string
@@ -759,6 +761,7 @@ export type Database = {
         Update: {
           abandonment_type?: string | null
           ai_next_action?: string | null
+          ai_suggested_message?: string | null
           ai_summary?: string | null
           ai_summary_at?: string | null
           company_id?: string

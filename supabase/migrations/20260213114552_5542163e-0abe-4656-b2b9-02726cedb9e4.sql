@@ -1,0 +1,1 @@
+ALTER TABLE public.lead_intelligence ADD COLUMN IF NOT EXISTS ai_suggested_message text;
