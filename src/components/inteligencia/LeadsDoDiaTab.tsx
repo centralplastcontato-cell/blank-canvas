@@ -100,8 +100,8 @@ export function LeadsDoDiaTab({ data, canExport }: LeadsDoDiaTabProps) {
                         </Button>
                       </TableCell>
                     </TableRow>
-                    <TableRow>
-                      <TableCell colSpan={5} className="pt-0 pb-2">
+                    <TableRow className="border-0">
+                      <TableCell colSpan={5} className="pt-0 pb-2 border-b">
                         <InlineAISummary leadId={item.lead_id} />
                       </TableCell>
                     </TableRow>
