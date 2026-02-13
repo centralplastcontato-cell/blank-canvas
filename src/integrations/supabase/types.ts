@@ -1631,6 +1631,7 @@ export type Database = {
           media_url: string | null
           message_id: string | null
           message_type: string
+          metadata: Json | null
           status: string | null
           timestamp: string
         }
@@ -1646,6 +1647,7 @@ export type Database = {
           media_url?: string | null
           message_id?: string | null
           message_type?: string
+          metadata?: Json | null
           status?: string | null
           timestamp?: string
         }
@@ -1661,6 +1663,7 @@ export type Database = {
           media_url?: string | null
           message_id?: string | null
           message_type?: string
+          metadata?: Json | null
           status?: string | null
           timestamp?: string
         }

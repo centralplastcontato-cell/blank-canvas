@@ -1,0 +1,1 @@
+ALTER TABLE public.wapi_messages ADD COLUMN metadata jsonb DEFAULT NULL;

@@ -136,6 +136,7 @@ interface Message {
   media_url: string | null;
   status: string;
   timestamp: string;
+  metadata?: Record<string, string> | null;
 }
 
 interface WhatsAppChatProps {
@@ -1352,7 +1353,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       // Build query with cursor-based pagination - select only necessary columns
       let query = supabase
         .from("wapi_messages")
-        .select("id, conversation_id, message_id, from_me, message_type, content, media_url, status, timestamp")
+        .select("id, conversation_id, message_id, from_me, message_type, content, media_url, status, timestamp, metadata")
         .eq("conversation_id", conversationId)
         .order("timestamp", { ascending: false })
         .limit(MESSAGES_LIMIT);
@@ -3573,6 +3574,21 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                   </DropdownMenu>
                                 )}
                               </div>
+                              {msg.metadata?.source === 'auto_reminder' && (
+                                <div className={cn(
+                                  "flex items-center gap-1 mt-0.5 text-[10px] text-muted-foreground/70",
+                                  msg.from_me ? "justify-end mr-1" : "justify-start ml-1"
+                                )}>
+                                  <Clock className="w-2.5 h-2.5" />
+                                  <span>
+                                    {msg.metadata.type === 'next_step_reminder' ? 'Lembrete automático' :
+                                     msg.metadata.type === 'follow_up_1' ? 'Follow-up automático' :
+                                     msg.metadata.type === 'follow_up_2' ? '2º follow-up automático' :
+                                     msg.metadata.type === 'bot_inactive' ? 'Reenvio por inatividade' :
+                                     'Enviado automaticamente'}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           ))
                         )}
@@ -4313,6 +4329,21 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                               </DropdownMenu>
                             )}
                           </div>
+                          {msg.metadata?.source === 'auto_reminder' && (
+                            <div className={cn(
+                              "flex items-center gap-1 mt-0.5 text-[10px] text-muted-foreground/70",
+                              msg.from_me ? "justify-end mr-1" : "justify-start ml-1"
+                            )}>
+                              <Clock className="w-2.5 h-2.5" />
+                              <span>
+                                {msg.metadata.type === 'next_step_reminder' ? 'Lembrete automático' :
+                                 msg.metadata.type === 'follow_up_1' ? 'Follow-up automático' :
+                                 msg.metadata.type === 'follow_up_2' ? '2º follow-up automático' :
+                                 msg.metadata.type === 'bot_inactive' ? 'Reenvio por inatividade' :
+                                 'Enviado automaticamente'}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       ))
                       )}
