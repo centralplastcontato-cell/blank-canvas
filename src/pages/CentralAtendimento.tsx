@@ -657,6 +657,9 @@ export default function CentralAtendimento() {
                     <BellOff className="w-5 h-5" />
                   )}
                 </Button>
+                <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate("/inteligencia")}>
+                  <BrainCircuit className="w-5 h-5 text-primary" />
+                </Button>
                 <NotificationBell />
               </div>
             </div>
@@ -1047,6 +1050,9 @@ export default function CentralAtendimento() {
               
               {/* User Info Desktop - Premium Style */}
               <div className="flex items-center gap-3">
+                <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigate("/inteligencia")}>
+                  <BrainCircuit className="w-5 h-5 text-primary" />
+                </Button>
                 <NotificationBell />
                 <div className="flex items-center gap-2 bg-border rounded-full pl-3 pr-1 py-1">
                   <span className="text-sm text-muted-foreground hidden lg:block">{currentUserProfile?.full_name || user.email}</span>
