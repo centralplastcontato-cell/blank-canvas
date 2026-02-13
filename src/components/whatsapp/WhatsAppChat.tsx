@@ -226,6 +226,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const audioInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const messageTextareaRef = useRef<HTMLTextAreaElement>(null);
   const isLoadingMoreRef = useRef(false);
 
   // Audio recording hook
@@ -1670,6 +1671,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     }
 
     setIsSending(false);
+    // Refocus textarea after sending so user can type immediately
+    setTimeout(() => {
+      messageTextareaRef.current?.focus();
+    }, 50);
   };
 
   // Edit message handler
@@ -3591,6 +3596,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                           </DropdownMenuContent>
                         </DropdownMenu>
                         <Textarea
+                          ref={messageTextareaRef}
                           placeholder="Digite uma mensagem..."
                           value={newMessage}
                           onChange={(e) => setNewMessage(e.target.value)}
@@ -4187,6 +4193,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                     <Textarea
                       placeholder="Digite uma mensagem..."
                       value={newMessage}
+                      ref={messageTextareaRef}
                       onChange={(e) => setNewMessage(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
