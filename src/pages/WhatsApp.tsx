@@ -9,7 +9,7 @@ import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
 import { WhatsAppChat } from "@/components/whatsapp/WhatsAppChat";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { Menu } from "lucide-react";
+import { Menu, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logoCastelo from "@/assets/logo-castelo.png";
 import { toast } from "@/hooks/use-toast";
@@ -129,9 +129,12 @@ export default function WhatsApp() {
                 <div className="flex items-center gap-2 min-w-0">
                   <img src={logoCastelo} alt="Castelo da Diversão" className="h-8 w-auto shrink-0" />
                   <h1 className="font-display font-bold text-foreground text-sm truncate">WhatsApp</h1>
-                </div>
               </div>
+              <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate("/inteligencia")}>
+                <Brain className="w-5 h-5 text-primary" />
+              </Button>
             </div>
+          </div>
           </div>
         </header>
 
