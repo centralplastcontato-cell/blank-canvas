@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -133,6 +134,8 @@ function formatTimeAgo(dateStr: string | null): string {
 }
 
 function IncompleteLeadsSection({ leads }: { leads: IncompleteLead[] }) {
+  const navigate = useNavigate();
+
   if (leads.length === 0) {
     return (
       <Card>
@@ -167,14 +170,12 @@ function IncompleteLeadsSection({ leads }: { leads: IncompleteLead[] }) {
                 </span>
               </div>
             </div>
-            <a
-              href={`https://wa.me/${lead.whatsapp.replace(/\D/g, "")}`}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={() => navigate(`/atendimento?phone=${lead.whatsapp}`)}
               className="shrink-0 p-2 rounded-lg bg-green-500/10 text-green-600 hover:bg-green-500/20 transition-colors"
             >
               <Phone className="h-4 w-4" />
-            </a>
+            </button>
           </CardContent>
         </Card>
       ))}
