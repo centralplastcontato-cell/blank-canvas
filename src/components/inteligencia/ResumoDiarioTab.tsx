@@ -71,7 +71,13 @@ function getActionIcon(action: string) {
   return "📌";
 }
 
+function isAlertEvent(action: string): boolean {
+  return action.includes("alerta") || action === "bot_invalid_reply" || action.includes("follow");
+}
+
 function TimelineSection({ events }: { events: TimelineEvent[] }) {
+  const [filter, setFilter] = useState<"all" | "alerts">("all");
+
   if (events.length === 0) {
     return (
       <Card>
@@ -82,19 +88,45 @@ function TimelineSection({ events }: { events: TimelineEvent[] }) {
     );
   }
 
+  const filteredEvents = filter === "all" ? events : events.filter(e => isAlertEvent(e.action));
+  const alertCount = events.filter(e => isAlertEvent(e.action)).length;
+
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Clock className="h-5 w-5 text-primary" />
-          Timeline do Dia
-          <span className="text-xs font-normal text-muted-foreground ml-auto">
-            {events.length} evento{events.length !== 1 ? "s" : ""}
-          </span>
-        </CardTitle>
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Clock className="h-5 w-5 text-primary" />
+            Timeline do Dia
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            <div className="inline-flex h-8 items-center rounded-md bg-muted p-0.5 text-muted-foreground">
+              <button
+                onClick={() => setFilter("all")}
+                className={cn(
+                  "inline-flex items-center justify-center rounded-sm px-2.5 py-1 text-xs font-medium transition-all",
+                  filter === "all" && "bg-background text-foreground shadow-sm"
+                )}
+              >
+                Tudo ({events.length})
+              </button>
+              <button
+                onClick={() => setFilter("alerts")}
+                className={cn(
+                  "inline-flex items-center justify-center rounded-sm px-2.5 py-1 text-xs font-medium transition-all",
+                  filter === "alerts" && "bg-background text-foreground shadow-sm"
+                )}
+              >
+                Alertas ({alertCount})
+              </button>
+            </div>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-0">
-        {events.map((event) => (
+        {filteredEvents.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">Nenhum alerta neste dia</p>
+        ) : filteredEvents.map((event) => (
           <div key={event.index} className="flex items-start gap-3 py-3 border-b last:border-b-0 border-border/50">
             <span className="text-[10px] font-bold bg-primary/10 text-primary rounded-full h-5 w-5 flex items-center justify-center shrink-0 mt-0.5">
               {event.index}
@@ -123,7 +155,7 @@ function TimelineSection({ events }: { events: TimelineEvent[] }) {
             </div>
           </div>
         ))}
-      </CardContent>
+        </CardContent>
     </Card>
   );
 }
