@@ -236,12 +236,20 @@ async function processNextStepReminder({
 
       console.log(`[follow-up-check] Next-step reminder sent to ${phone}`);
 
+      // Extract message_id from W-API response to prevent duplicate inserts by webhook
+      let sentMsgId: string | null = null;
+      try {
+        const wapiData = await wapiResponse.json();
+        sentMsgId = wapiData?.result?.key?.id || wapiData?.key?.id || null;
+      } catch { /* ignore parse errors */ }
+
       // Save message
       await supabase.from("wapi_messages").insert({
         conversation_id: conv.id,
         content: personalizedMessage,
         from_me: true,
         message_type: "text",
+        message_id: sentMsgId,
         status: "sent",
         timestamp: new Date().toISOString(),
         metadata: { source: "auto_reminder", type: "next_step_reminder" },
@@ -460,12 +468,20 @@ async function processFollowUp({
 
       console.log(`[follow-up-check] Follow-up #${followUpNumber} sent successfully to ${lead.name}`);
 
+      // Extract message_id from W-API response to prevent duplicate inserts by webhook
+      let sentMsgId: string | null = null;
+      try {
+        const wapiData = await wapiResponse.json();
+        sentMsgId = wapiData?.result?.key?.id || wapiData?.key?.id || null;
+      } catch { /* ignore parse errors */ }
+
       // Save the message to the database
       await supabase.from("wapi_messages").insert({
         conversation_id: conversation.id,
         content: personalizedMessage,
         from_me: true,
         message_type: "text",
+        message_id: sentMsgId,
         status: "sent",
         timestamp: new Date().toISOString(),
         metadata: { source: "auto_reminder", type: followUpNumber === 1 ? "follow_up_1" : "follow_up_2" },
@@ -678,12 +694,20 @@ Podemos continuar de onde paramos?`;
 
       console.log(`[follow-up-check] Bot-inactive follow-up sent to ${phone} (was stuck at step: ${conv.bot_step})`);
 
+      // Extract message_id from W-API response to prevent duplicate inserts by webhook
+      let sentMsgId: string | null = null;
+      try {
+        const wapiData = await wapiResponse.json();
+        sentMsgId = wapiData?.result?.key?.id || wapiData?.key?.id || null;
+      } catch { /* ignore parse errors */ }
+
       // Save message
       await supabase.from("wapi_messages").insert({
         conversation_id: conv.id,
         content: personalizedMessage,
         from_me: true,
         message_type: "text",
+        message_id: sentMsgId,
         status: "sent",
         timestamp: new Date().toISOString(),
         metadata: { source: "auto_reminder", type: "bot_inactive" },

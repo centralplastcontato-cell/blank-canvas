@@ -2662,13 +2662,34 @@ async function processWebhookEvent(body: Record<string, unknown>) {
       }
 
       // Insert message immediately (don't wait for media download)
+      // For outgoing messages (fromMe), check if already saved (e.g. by follow-up-check with metadata)
       const insertStartAt = Date.now();
-      await supabase.from('wapi_messages').insert({
-        conversation_id: conv.id, message_id: msgId, from_me: fromMe, message_type: type, content,
-        media_url: url, media_key: key, media_direct_path: path, status: fromMe ? 'sent' : 'received',
-        timestamp: messageTimestamp,
-        company_id: instance.company_id,
-      });
+      if (fromMe && msgId) {
+        const { data: existingMsg } = await supabase.from('wapi_messages')
+          .select('id')
+          .eq('conversation_id', conv.id)
+          .eq('message_id', msgId)
+          .limit(1)
+          .maybeSingle();
+        
+        if (existingMsg) {
+          console.log(`[Bot] Skipping duplicate outgoing message ${msgId} - already saved`);
+        } else {
+          await supabase.from('wapi_messages').insert({
+            conversation_id: conv.id, message_id: msgId, from_me: fromMe, message_type: type, content,
+            media_url: url, media_key: key, media_direct_path: path, status: 'sent',
+            timestamp: messageTimestamp,
+            company_id: instance.company_id,
+          });
+        }
+      } else {
+        await supabase.from('wapi_messages').insert({
+          conversation_id: conv.id, message_id: msgId, from_me: fromMe, message_type: type, content,
+          media_url: url, media_key: key, media_direct_path: path, status: fromMe ? 'sent' : 'received',
+          timestamp: messageTimestamp,
+          company_id: instance.company_id,
+        });
+      }
       
       console.log(`[Latency] message_inserted: ${Date.now() - insertStartAt}ms (total: ${Date.now() - processingStartAt}ms)`);
 
