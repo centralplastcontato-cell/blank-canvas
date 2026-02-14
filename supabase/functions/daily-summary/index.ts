@@ -37,58 +37,71 @@ serve(async (req) => {
     todayStart.setHours(0, 0, 0, 0);
     const todayISO = todayStart.toISOString();
 
-    // Fetch leads created today
+    // Fetch leads created today (for "novos" metric only)
     const { data: todayLeads } = await supabase
       .from("campaign_leads")
       .select("id, name, status, whatsapp, created_at")
       .eq("company_id", company_id)
       .gte("created_at", todayISO);
 
-    // Fetch conversations for today's leads to get bot_data
-    const leadIds = (todayLeads || []).map((l: any) => l.id);
+    const novos = (todayLeads || []).length;
+
+    // Fetch ALL status change events today (not just for today's leads)
+    const { data: statusChanges } = await supabase
+      .from("lead_history")
+      .select("lead_id, action, new_value, created_at")
+      .eq("company_id", company_id)
+      .gte("created_at", todayISO)
+      .in("action", ["status_change", "Alteracao de status"]);
+
+    // Count transitions by new_value
+    let orcamentos = 0;
+    let visitas = 0;
+    let fechados = 0;
+    const activeLeadIds = new Set<string>();
+
+    for (const ev of (statusChanges || [])) {
+      const nv = (ev.new_value || "").toLowerCase().replace(/\s+/g, "_");
+      if (nv === "orcamento_enviado" || nv === "orçamento_enviado") orcamentos++;
+      if (nv === "em_contato") visitas++;
+      if (nv === "fechado") fechados++;
+      activeLeadIds.add(ev.lead_id);
+    }
+
+    // Also add today's leads to the active set
+    for (const l of (todayLeads || [])) {
+      activeLeadIds.add(l.id);
+    }
+
+    const allActiveIds = [...activeLeadIds];
+
+    // Fetch conversations for active leads to get bot_data
     let conversations: any[] = [];
-    if (leadIds.length > 0) {
+    if (allActiveIds.length > 0) {
       const { data: convs } = await supabase
         .from("wapi_conversations")
         .select("lead_id, bot_data, bot_step")
         .eq("company_id", company_id)
-        .in("lead_id", leadIds);
+        .in("lead_id", allActiveIds);
       conversations = convs || [];
     }
 
-    // Fetch intelligence for today's leads
+    // Fetch intelligence for active leads
     let intelligenceData: any[] = [];
-    if (leadIds.length > 0) {
+    if (allActiveIds.length > 0) {
       const { data: intel } = await supabase
         .from("lead_intelligence")
         .select("lead_id, score, temperature, abandonment_type")
-        .in("lead_id", leadIds);
+        .in("lead_id", allActiveIds);
       intelligenceData = intel || [];
     }
 
-    // Fetch today's lead_history events
-    const { data: historyEvents } = await supabase
-      .from("lead_history")
-      .select("lead_id, action, old_value, new_value, user_name, created_at")
-      .eq("company_id", company_id)
-      .gte("created_at", todayISO)
-      .order("created_at", { ascending: true })
-      .limit(50);
-
-    // Build metrics
-    const leads = todayLeads || [];
+    // Count "vão pensar" and "querem humano" from bot_data
     const convMap = new Map(conversations.map((c: any) => [c.lead_id, c]));
-    const intelMap = new Map(intelligenceData.map((i: any) => [i.lead_id, i]));
-
-    const novos = leads.length;
-    const visitas = leads.filter((l: any) => l.status === "em_contato").length;
-    const orcamentos = leads.filter((l: any) => l.status === "orcamento_enviado").length;
-    const fechados = leads.filter((l: any) => l.status === "fechado").length;
-
     let querPensar = 0;
     let querHumano = 0;
-    for (const lead of leads) {
-      const conv = convMap.get(lead.id);
+    for (const id of allActiveIds) {
+      const conv = convMap.get(id);
       if (!conv?.bot_data) continue;
       const pp = (conv.bot_data as any)?.proximo_passo;
       if (pp === "3") querPensar++;
@@ -107,9 +120,20 @@ serve(async (req) => {
       taxaConversao,
     };
 
-    // Build timeline from history
+    const leads = todayLeads || [];
+    const leadIds = leads.map((l: any) => l.id);
+    const intelMap = new Map(intelligenceData.map((i: any) => [i.lead_id, i]));
+
+    // Fetch all history events today for timeline
+    const { data: historyEvents } = await supabase
+      .from("lead_history")
+      .select("lead_id, action, old_value, new_value, user_name, created_at")
+      .eq("company_id", company_id)
+      .gte("created_at", todayISO)
+      .order("created_at", { ascending: true })
+      .limit(50);
+
     const leadNameMap = new Map(leads.map((l: any) => [l.id, l.name]));
-    // Also fetch names for leads in history that might not be from today
     const historyLeadIds = [...new Set((historyEvents || []).map((e: any) => e.lead_id))];
     let allLeadNames = new Map(leadNameMap);
     if (historyLeadIds.length > 0) {
