@@ -74,6 +74,9 @@ Deno.serve(async (req) => {
     totalSuccessCount += timerResult.successCount;
     allErrors.push(...timerResult.errors);
 
+    // Process stale proximo_passo_reminded alerts (global, runs once)
+    await processStaleRemindedAlerts({ supabase });
+
     // Process each instance with follow-up enabled
     for (const settings of allSettings) {
       // Process bot inactive follow-up (leads who stopped responding during bot flow)
@@ -955,4 +958,82 @@ async function processFlowTimerTimeouts({
   }
 
   return { successCount, errors };
+}
+
+// ============= STALE REMINDED ALERTS (notify when lead stuck at proximo_passo_reminded for 2h+) =============
+
+async function processStaleRemindedAlerts({
+  supabase,
+}: { supabase: ReturnType<typeof createClient> }): Promise<void> {
+  const STALE_HOURS = 2;
+  const cutoff = new Date(Date.now() - STALE_HOURS * 60 * 60 * 1000).toISOString();
+
+  // Find conversations stuck at proximo_passo_reminded for 2h+ with no reply
+  const { data: staleConvs, error } = await supabase
+    .from("wapi_conversations")
+    .select("id, company_id, lead_id, contact_name, contact_phone, last_message_at")
+    .eq("bot_step", "proximo_passo_reminded")
+    .eq("last_message_from_me", true)
+    .lte("last_message_at", cutoff);
+
+  if (error || !staleConvs || staleConvs.length === 0) {
+    if (error) console.error("[follow-up-check] Error fetching stale reminded convs:", error);
+    return;
+  }
+
+  console.log(`[follow-up-check] Found ${staleConvs.length} leads stale at proximo_passo_reminded (2h+)`);
+
+  // Check which leads already have this alert (avoid duplicates)
+  const leadIds = staleConvs.map(c => c.lead_id).filter(Boolean);
+  if (leadIds.length === 0) return;
+
+  const { data: existingAlerts } = await supabase
+    .from("lead_history")
+    .select("lead_id")
+    .in("lead_id", leadIds)
+    .eq("action", "alerta_reminded_2h");
+
+  const alreadyAlerted = new Set((existingAlerts || []).map(a => a.lead_id));
+  const newStale = staleConvs.filter(c => c.lead_id && !alreadyAlerted.has(c.lead_id));
+
+  if (newStale.length === 0) return;
+
+  console.log(`[follow-up-check] Creating alerts for ${newStale.length} new stale leads`);
+
+  for (const conv of newStale) {
+    const leadName = conv.contact_name || "Lead";
+
+    // Record in lead_history to prevent duplicate alerts
+    await supabase.from("lead_history").insert({
+      lead_id: conv.lead_id,
+      company_id: conv.company_id,
+      action: "alerta_reminded_2h",
+      new_value: `Sem resposta há mais de ${STALE_HOURS}h após lembrete`,
+    });
+
+    // Notify all company users
+    const { data: companyUsers } = await supabase
+      .from("user_companies")
+      .select("user_id")
+      .eq("company_id", conv.company_id);
+
+    if (companyUsers) {
+      const notifications = companyUsers.map(u => ({
+        user_id: u.user_id,
+        type: "stale_reminded",
+        title: "⏰ Lead sem resposta após lembrete",
+        message: `${leadName} está há mais de ${STALE_HOURS}h sem responder após o lembrete de próximo passo.`,
+        data: {
+          lead_id: conv.lead_id,
+          lead_name: leadName,
+          phone: conv.contact_phone,
+          stale_since: conv.last_message_at,
+        },
+      }));
+
+      await supabase.from("notifications").insert(notifications);
+    }
+
+    console.log(`[follow-up-check] ⏰ Stale alert created for ${leadName} (lead ${conv.lead_id})`);
+  }
 }
