@@ -76,7 +76,26 @@ function buildMenuText(options: { num: number; value: string }[]): string {
 
 // Validation functions
 function validateName(input: string): { valid: boolean; value?: string; error?: string } {
-  const name = input.trim();
+  let name = input.trim();
+  
+  // Extract name from common phrases like "meu nome é Victor", "me chamo Ana", "sou o Pedro", etc.
+  const namePatterns = [
+    /^(?:(?:o\s+)?meu\s+nome\s+(?:é|e)\s+)(.+)/i,
+    /^(?:me\s+chamo\s+)(.+)/i,
+    /^(?:(?:eu\s+)?sou\s+(?:o|a)\s+)(.+)/i,
+    /^(?:pode\s+me\s+chamar\s+(?:de\s+)?)(.+)/i,
+    /^(?:é\s+)(.+)/i,
+    /^(?:nome:?\s+)(.+)/i,
+  ];
+  
+  for (const pattern of namePatterns) {
+    const match = name.match(pattern);
+    if (match && match[1]) {
+      name = match[1].trim();
+      break;
+    }
+  }
+  
   if (name.length < 2) {
     return { valid: false, error: 'Hmm, não consegui entender seu nome 🤔\n\nPor favor, digite seu nome:' };
   }
@@ -84,6 +103,8 @@ function validateName(input: string): { valid: boolean; value?: string; error?: 
   if (!/^[\p{L}\s'-]+$/u.test(name)) {
     return { valid: false, error: 'Por favor, digite apenas seu nome (sem números ou símbolos):' };
   }
+  // Capitalize first letter of each word
+  name = name.replace(/\b\w/g, (c) => c.toUpperCase());
   return { valid: true, value: name };
 }
 
