@@ -88,7 +88,7 @@ function TimelineSection({ events }: { events: TimelineEvent[] }) {
     );
   }
 
-  const filteredEvents = filter === "all" ? events : events.filter(e => isAlertEvent(e.action));
+  const filteredEvents = filter === "all" ? events.filter(e => !isAlertEvent(e.action)) : events.filter(e => isAlertEvent(e.action));
   const alertCount = events.filter(e => isAlertEvent(e.action)).length;
 
   return (
@@ -108,7 +108,7 @@ function TimelineSection({ events }: { events: TimelineEvent[] }) {
                   filter === "all" && "bg-background text-foreground shadow-sm"
                 )}
               >
-                Tudo ({events.length})
+                Eventos ({events.filter(e => !isAlertEvent(e.action)).length})
               </button>
               <button
                 onClick={() => setFilter("alerts")}
