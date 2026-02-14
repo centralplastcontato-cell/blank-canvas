@@ -111,13 +111,51 @@ function validateName(input: string): { valid: boolean; value?: string; error?: 
 function validateMenuChoice(input: string, options: { num: number; value: string }[], stepName: string): { valid: boolean; value?: string; error?: string } {
   const normalized = input.trim();
   
-  // Extract number from input - accept "3", "3 sábado", "3-sábado", etc.
+  // 1. Extract number from input - accept "3", "3 sábado", "3-sábado", etc.
   const numMatch = normalized.match(/^(\d+)/);
   if (numMatch) {
     const num = parseInt(numMatch[1]);
     const option = options.find(opt => opt.num === num);
     if (option) {
       return { valid: true, value: option.value };
+    }
+  }
+  
+  // 2. Try to match by text similarity (fuzzy match)
+  const lower = normalized.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').trim();
+  if (lower.length >= 3) {
+    // Exact or partial match against option values
+    for (const opt of options) {
+      const optLower = opt.value.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').trim();
+      // Check if input contains the option text or vice versa
+      if (optLower === lower || optLower.includes(lower) || lower.includes(optLower)) {
+        console.log(`[Bot] Text match: "${normalized}" → "${opt.value}" (option ${opt.num})`);
+        return { valid: true, value: opt.value };
+      }
+    }
+    
+    // Keyword-based matching for common variations
+    const keywordMap: Record<string, string[]> = {
+      'cliente': ['cliente', 'ja sou', 'já sou', 'sou cliente', 'festa agendada'],
+      'orçamento': ['orcamento', 'orçamento', 'quero um', 'quero orcamento', 'quero orçamento', 'receber orcamento', 'receber orçamento', 'budget', 'preço', 'preco', 'valor', 'quanto custa'],
+      'trabalhe': ['trabalhe', 'trabalhar', 'emprego', 'vaga', 'curriculo', 'currículo', 'trabalho'],
+      'visita': ['visita', 'agendar', 'conhecer', 'ir ai', 'ir aí', 'quero visitar', 'quero conhecer'],
+      'dúvidas': ['duvida', 'dúvida', 'duvidas', 'dúvidas', 'pergunta', 'perguntar', 'saber mais', 'tirar duvida'],
+      'analisar': ['analisar', 'pensar', 'calma', 'depois', 'mais tarde', 'vou pensar', 'vou analisar'],
+    };
+    
+    for (const opt of options) {
+      const optLower = opt.value.toLowerCase();
+      for (const [keyword, variations] of Object.entries(keywordMap)) {
+        if (optLower.includes(keyword)) {
+          for (const variation of variations) {
+            if (lower.includes(variation)) {
+              console.log(`[Bot] Keyword match: "${normalized}" → "${opt.value}" (keyword: ${variation})`);
+              return { valid: true, value: opt.value };
+            }
+          }
+        }
+      }
     }
   }
   
