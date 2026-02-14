@@ -1,31 +1,41 @@
 
 
-## Correcao: Delay de follow-up nao salvando para a instancia correta
+## Corrigir Lógica da Aba "Atender Agora"
 
-### Diagnostico
-O sistema possui **duas instancias WhatsApp** com configuracoes independentes (`wapi_bot_settings`):
+### Problema
+A aba "Atender Agora" exige que o lead tenha `priority_flag = true`, o que só acontece em 3 cenários específicos (score > 60, agendou visita, ou orçamento enviado). Leads novos em atendimento ativo, como a Janaína (score 45, temperatura quente), ficam invisíveis.
 
-- **LITE-I2660D** (9b846163): delay de inatividade = **6 min** (atualizado corretamente)
-- **LITE-MY22EC** (3f39419e): delay de inatividade = **30 min** (nunca foi atualizado)
+### Solução
+Mudar a lógica do frontend para que "Atender Agora" mostre **todos os leads ativos com temperatura acima de "frio"**, independente do `priority_flag`. O `priority_flag` passa a ser um indicador visual extra (ex: destaque no card), mas não mais um filtro eliminatório.
 
-O lead "Vitor" pertence a instancia LITE-MY22EC, que ainda tem 30 min de delay. As alteracoes feitas na tela de Configuracoes so salvaram para a outra instancia.
+### Mudanças
 
-### Causa Raiz
-A tela de Automacoes (`AutomationsSection.tsx`) provavelmente busca/salva o `wapi_bot_settings` filtrando por `instance_id`, mas pode estar usando a instancia errada (a primeira encontrada, em vez da instancia selecionada pelo contexto da empresa atual).
+**Arquivo: `src/components/inteligencia/PrioridadesTab.tsx`**
 
-### Solucao
+Alterar o filtro de "Atender Agora" de:
+```typescript
+const atenderAgora = activeLeads.filter(
+  d => d.priority_flag && d.temperature !== 'frio'
+);
+```
 
-1. **Investigar** como o `AutomationsSection` determina qual `instance_id` usar ao carregar e salvar as configuracoes
-2. **Corrigir** para que o componente use o `instance_id` correto da empresa/instancia atualmente selecionada
-3. **Atualizar imediatamente** o valor no banco para a instancia 3f39419e (LITE-MY22EC) de 30 para o valor desejado (ex: 6 min)
-4. **Garantir** que a interface mostre/edite as configuracoes da instancia correta com base no contexto da empresa selecionada
+Para:
+```typescript
+const atenderAgora = activeLeads.filter(
+  d => d.temperature !== 'frio' && !d.abandonment_type
+);
+```
 
-### Detalhes Tecnicos
+Isso inclui todos os leads ativos com temperatura **morno**, **quente** ou **pronto** que não estejam em abandono (os de abandono ficam na coluna "Em Risco").
 
-**Arquivos a verificar/modificar:**
-- `src/components/whatsapp/settings/AutomationsSection.tsx` -- verificar como o `instance_id` e determinado no fetch/save
-- Migracao ou query direta para corrigir o valor atual no banco
+### Resultado esperado
+- Leads novos em atendimento ativo (como Janaína) aparecem em "Atender Agora"
+- Leads em risco de abandono continuam em "Em Risco"
+- Leads frios (score < 20) continuam em "Frios"
+- Leads fechados/perdidos continuam excluídos das prioridades
 
-**Correcao imediata no banco:**
-- UPDATE `wapi_bot_settings` SET `bot_inactive_followup_delay_minutes` = 6 WHERE `instance_id` = '3f39419e-e7f5-4c3b-8ebd-1703e6c7a0c7'
+### Detalhes Técnicos
+- Apenas 1 linha de código muda no frontend
+- Não requer alteração no banco de dados
+- O `priority_flag` no banco continua sendo calculado normalmente (pode ser usado no futuro para badges ou ordenação)
 
