@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/sheet";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { toast } from "@/hooks/use-toast";
+import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Camera, Menu, Save, KeyRound, User as UserIcon } from "lucide-react";
 import logoCastelo from "@/assets/logo-castelo.png";
 import { z } from "zod";
@@ -38,6 +39,7 @@ export default function UserSettings() {
   // Profile state
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [bio, setBio] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   
@@ -85,13 +87,14 @@ export default function UserSettings() {
       
       supabase
         .from("profiles")
-        .select("full_name, avatar_url")
+        .select("full_name, avatar_url, bio")
         .eq("user_id", user.id)
         .single()
         .then(({ data }) => {
           if (data) {
             setFullName(data.full_name || "");
             setAvatarUrl(data.avatar_url);
+            setBio((data as any).bio || "");
           }
         });
     }
@@ -138,10 +141,10 @@ export default function UserSettings() {
 
       setIsSavingProfile(true);
 
-      // Update profile name
+      // Update profile name and bio
       const { error: profileError } = await supabase
         .from("profiles")
-        .update({ full_name: nameResult.data, email: email.trim() })
+        .update({ full_name: nameResult.data, email: email.trim(), bio: bio.trim() || null } as any)
         .eq("user_id", user?.id);
 
       if (profileError) throw profileError;
@@ -451,9 +454,21 @@ export default function UserSettings() {
                   placeholder="seu@email.com"
                   className="text-base"
                 />
-              </div>
+               </div>
+               <div className="space-y-2">
+                 <Label htmlFor="bio-mobile">Bio</Label>
+                 <Textarea
+                   id="bio-mobile"
+                   value={bio}
+                   onChange={(e) => setBio(e.target.value)}
+                   placeholder="Conte um pouco sobre você..."
+                   className="text-base resize-none"
+                   rows={3}
+                   maxLength={300}
+                 />
+                 <p className="text-xs text-muted-foreground text-right">{bio.length}/300</p>
+               </div>
               <Button 
-                onClick={handleSaveProfile} 
                 disabled={isSavingProfile}
                 className="w-full"
               >
@@ -623,6 +638,19 @@ export default function UserSettings() {
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="seu@email.com"
                       />
+                    </div>
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label htmlFor="bio">Bio</Label>
+                      <Textarea
+                        id="bio"
+                        value={bio}
+                        onChange={(e) => setBio(e.target.value)}
+                        placeholder="Conte um pouco sobre você..."
+                        className="resize-none"
+                        rows={3}
+                        maxLength={300}
+                      />
+                      <p className="text-xs text-muted-foreground text-right">{bio.length}/300</p>
                     </div>
                   </div>
                   <div className="flex justify-end">
