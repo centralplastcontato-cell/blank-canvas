@@ -140,7 +140,7 @@ function validateMenuChoice(input: string, options: { num: number; value: string
       'orçamento': ['orcamento', 'orçamento', 'quero um', 'quero orcamento', 'quero orçamento', 'receber orcamento', 'receber orçamento', 'budget', 'preço', 'preco', 'valor', 'quanto custa'],
       'trabalhe': ['trabalhe', 'trabalhar', 'emprego', 'vaga', 'curriculo', 'currículo', 'trabalho'],
       'visita': ['visita', 'agendar', 'conhecer', 'ir ai', 'ir aí', 'quero visitar', 'quero conhecer'],
-      'dúvidas': ['duvida', 'dúvida', 'duvidas', 'dúvidas', 'pergunta', 'perguntar', 'saber mais', 'tirar duvida'],
+      'dúvidas': ['duvida', 'dúvida', 'duvidas', 'dúvidas', 'divida', 'dívida', 'dividas', 'dívidas', 'pergunta', 'perguntar', 'saber mais', 'tirar duvida', 'tenho uma duvida', 'tenho uma dívida', 'tenho duvida', 'tenho dívida'],
       'analisar': ['analisar', 'pensar', 'calma', 'depois', 'mais tarde', 'vou pensar', 'vou analisar'],
     };
     
