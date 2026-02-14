@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Bot, Clock, Forward, Zap, Plus, Trash2, Phone, Shield, Beaker, Power, Loader2, MessageSquare, Save, RotateCcw, Images, Video, FileText, Send, RefreshCw, GitBranch, Map } from "lucide-react";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
+import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { BotJourneyDiagram } from "./BotJourneyDiagram";
@@ -106,8 +107,11 @@ const DEFAULT_QUESTIONS = [
   { step: 'convidados', question_text: 'E quantos convidados você pretende chamar pra essa festa mágica? 🎈\n\n👥 Ex: 50, 70, 100 pessoas...', confirmation_text: null, sort_order: 4 },
 ];
 
+const SELECTED_INSTANCE_KEY = 'selected_automation_instance_id';
+
 export function AutomationsSection() {
   const modules = useCompanyModules();
+  const { currentCompanyId } = useCompany();
   const [instances, setInstances] = useState<WapiInstance[]>([]);
   const [selectedInstance, setSelectedInstance] = useState<WapiInstance | null>(null);
   const [botSettings, setBotSettings] = useState<BotSettings | null>(null);
@@ -133,7 +137,7 @@ export function AutomationsSection() {
 
   useEffect(() => {
     fetchInstances();
-  }, []);
+  }, [currentCompanyId]);
 
   useEffect(() => {
     if (selectedInstance) {
@@ -144,10 +148,16 @@ export function AutomationsSection() {
   }, [selectedInstance]);
 
   const fetchInstances = async () => {
-    const { data, error } = await supabase
+    let query = supabase
       .from("wapi_instances")
       .select("id, instance_id, unit, status")
       .order("unit", { ascending: true });
+
+    if (currentCompanyId) {
+      query = query.eq("company_id", currentCompanyId);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error("Error fetching instances:", error);
@@ -156,7 +166,14 @@ export function AutomationsSection() {
 
     if (data && data.length > 0) {
       setInstances(data);
-      setSelectedInstance(data[0]);
+      
+      // Try to restore previously selected instance
+      const savedInstanceId = localStorage.getItem(SELECTED_INSTANCE_KEY);
+      const savedInstance = savedInstanceId ? data.find(i => i.id === savedInstanceId) : null;
+      setSelectedInstance(savedInstance || data[0]);
+    } else {
+      setInstances([]);
+      setSelectedInstance(null);
     }
     setIsLoading(false);
   };
@@ -450,7 +467,10 @@ export function AutomationsSection() {
             value={selectedInstance?.id || ""}
             onValueChange={(value) => {
               const instance = instances.find((i) => i.id === value);
-              if (instance) setSelectedInstance(instance);
+              if (instance) {
+                setSelectedInstance(instance);
+                localStorage.setItem(SELECTED_INSTANCE_KEY, instance.id);
+              }
             }}
           >
             <SelectTrigger className="w-[200px]">
