@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import CentralAtendimento from "./pages/CentralAtendimento";
 import Configuracoes from "./pages/Configuracoes";
+import UserSettings from "./pages/UserSettings";
 import Users from "./pages/Users";
 
 import RootPage from "./pages/RootPage";
@@ -43,6 +44,7 @@ const App = () => (
             <Route path="/auth/:slug" element={<Auth />} />
             <Route path="/atendimento" element={<CentralAtendimento />} />
             <Route path="/configuracoes" element={<Configuracoes />} />
+            <Route path="/perfil" element={<UserSettings />} />
             <Route path="/hub/comercial-b2b" element={<ComercialB2B />} />
             <Route path="/para-buffets" element={<ParaBuffets />} />
             <Route path="/dashboard" element={<Index />} />
