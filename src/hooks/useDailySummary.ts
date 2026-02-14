@@ -24,10 +24,19 @@ export interface TimelineEvent {
   proximoPasso: string | null;
 }
 
+export interface IncompleteLead {
+  name: string;
+  whatsapp: string;
+  botStep: string;
+  lastMessageAt: string | null;
+  isReminded: boolean;
+}
+
 export interface DailySummaryData {
   metrics: DailyMetrics;
   aiSummary: string | null;
   timeline: TimelineEvent[];
+  incompleteLeads: IncompleteLead[];
 }
 
 export function useDailySummary() {
