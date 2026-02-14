@@ -240,7 +240,8 @@ async function processNextStepReminder({
       let sentMsgId: string | null = null;
       try {
         const wapiData = await wapiResponse.json();
-        sentMsgId = wapiData?.result?.key?.id || wapiData?.key?.id || null;
+        sentMsgId = wapiData?.result?.key?.id || wapiData?.key?.id || wapiData?.messageId || wapiData?.data?.messageId || wapiData?.id || null;
+        console.log(`[follow-up-check] W-API response messageId: ${sentMsgId}`);
       } catch { /* ignore parse errors */ }
 
       // Save message
@@ -253,6 +254,7 @@ async function processNextStepReminder({
         status: "sent",
         timestamp: new Date().toISOString(),
         metadata: { source: "auto_reminder", type: "next_step_reminder" },
+        company_id: instance.company_id,
       });
 
       // Update conversation: change step to proximo_passo_reminded so we don't resend
@@ -472,7 +474,8 @@ async function processFollowUp({
       let sentMsgId: string | null = null;
       try {
         const wapiData = await wapiResponse.json();
-        sentMsgId = wapiData?.result?.key?.id || wapiData?.key?.id || null;
+        sentMsgId = wapiData?.result?.key?.id || wapiData?.key?.id || wapiData?.messageId || wapiData?.data?.messageId || wapiData?.id || null;
+        console.log(`[follow-up-check] W-API follow-up response messageId: ${sentMsgId}`);
       } catch { /* ignore parse errors */ }
 
       // Save the message to the database
@@ -485,6 +488,7 @@ async function processFollowUp({
         status: "sent",
         timestamp: new Date().toISOString(),
         metadata: { source: "auto_reminder", type: followUpNumber === 1 ? "follow_up_1" : "follow_up_2" },
+        company_id: instance.company_id,
       });
 
       // Update conversation: reactivate bot but keep step as complete_final
@@ -698,7 +702,8 @@ Podemos continuar de onde paramos?`;
       let sentMsgId: string | null = null;
       try {
         const wapiData = await wapiResponse.json();
-        sentMsgId = wapiData?.result?.key?.id || wapiData?.key?.id || null;
+        sentMsgId = wapiData?.result?.key?.id || wapiData?.key?.id || wapiData?.messageId || wapiData?.data?.messageId || wapiData?.id || null;
+        console.log(`[follow-up-check] W-API bot-inactive response messageId: ${sentMsgId}`);
       } catch { /* ignore parse errors */ }
 
       // Save message
@@ -711,6 +716,7 @@ Podemos continuar de onde paramos?`;
         status: "sent",
         timestamp: new Date().toISOString(),
         metadata: { source: "auto_reminder", type: "bot_inactive" },
+        company_id: instance.company_id,
       });
 
       // Always keep bot enabled so it can process the lead's reply
