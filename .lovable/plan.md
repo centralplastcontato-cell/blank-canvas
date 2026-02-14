@@ -1,41 +1,32 @@
 
 
-## Corrigir Metricas do Resumo Diario
+## Corrigir Metrica de Orcamento Enviado no Resumo Diario
 
-### Problema
-As metricas de "Orcamentos", "Visitas agendadas", "Vao pensar" e "Querem humano" estao erradas porque a Edge Function so conta leads **criados hoje** e verifica o status atual deles. Um lead criado ontem que recebeu orcamento hoje nao e contado.
+### Problema Atual
+O sistema so conta "orcamento enviado" quando alguem muda manualmente o status do lead no CRM. Na pratica, o bot ja envia o orcamento (fotos, PDF, video) durante o fluxo de qualificacao. Quando o lead chega ao fim do bot (`complete_final` ou `flow_complete`), ele ja recebeu o orcamento.
 
-Confirmei no banco: nenhuma mudanca de status para "Orcamento Enviado" aconteceu hoje -- as ultimas foram nos dias 9, 10 e 11/02. Portanto o "1" que aparece e apenas 1 lead criado hoje que ja esta com esse status, nao necessariamente um orcamento enviado hoje.
+Resultado: a metrica mostra numeros muito baixos porque depende de acao manual.
 
 ### Solucao
-Mudar a logica da Edge Function `daily-summary` para contar eventos do dia usando **duas fontes**:
+Mudar a logica da metrica "Orcamentos" para considerar **duas fontes**:
 
-1. **Leads criados hoje** (para a metrica "Leads novos")
-2. **Historico de mudancas de status hoje** (`lead_history`) para contar:
-   - Orcamentos enviados = transicoes para `orcamento_enviado` ou `Orcamento Enviado` hoje
-   - Visitas agendadas = transicoes para `em_contato` hoje
-   - Fechados = transicoes para `fechado` hoje
+1. **Mudanca manual de status** para `orcamento_enviado` (como ja funciona)
+2. **Leads que chegaram ao fim do bot hoje** (`bot_step` = `complete_final` ou `flow_complete`)
 
-Para "Vao pensar" e "Querem humano", manter a logica atual do `bot_data.proximo_passo` mas aplicar sobre **todos os leads com historico hoje**, nao apenas os criados hoje.
+Isso reflete melhor a realidade: se o bot completou o fluxo, o orcamento foi enviado.
 
 ### Mudancas
 
 **Arquivo: `supabase/functions/daily-summary/index.ts`**
 
-- Buscar `lead_history` do dia com `action IN ('status_change', 'Alteracao de status')`
-- Contar transicoes por `new_value` para cada metrica
-- Combinar: "Leads novos" continua sendo contagem de `campaign_leads` criados hoje
-- "Orcamentos" passa a ser contagem de transicoes para orcamento no dia
-- "Visitas" passa a ser contagem de transicoes para em_contato no dia
-- "Fechados" passa a ser contagem de transicoes para fechado no dia
-- Taxa de conversao: fechados hoje / leads novos hoje
+- Buscar conversas com `bot_step IN ('complete_final', 'flow_complete')` que tiveram atividade hoje (via `lead_history`)
+- Ou buscar no `lead_history` eventos de `bot_step_change` ou similar que indiquem conclusao do fluxo hoje
+- Somar ao total de orcamentos: transicoes manuais de status + leads que completaram o bot hoje
+- Usar `Set` para evitar duplicatas (um lead que completou o bot E teve status mudado manualmente conta apenas 1 vez)
 
 ### Detalhes Tecnicos
 
-A query de historico ja existe na funcao (para a timeline). A mudanca e usar esses mesmos eventos para calcular as metricas, em vez de depender apenas do status atual dos leads criados hoje.
+A query atual ja busca `statusChanges` do dia no `lead_history`. A mudanca adiciona uma segunda contagem: leads com `bot_step` final que tiveram qualquer evento no `lead_history` hoje, ou leads novos de hoje que ja tem `bot_step = complete_final`.
 
-Mapeamento de valores no historico (o `new_value` pode vir em formatos diferentes):
-- Orcamento: `"orcamento_enviado"` ou `"Orçamento Enviado"`
-- Visita: `"em_contato"` ou `"Em Contato"`
-- Fechado: `"fechado"` ou `"Fechado"`
+Para identificar leads que completaram o bot **hoje** (e nao em dias anteriores), usaremos os leads que aparecem no historico do dia OU foram criados hoje, e cujo `bot_step` atual e `complete_final` ou `flow_complete`.
 
