@@ -48,7 +48,18 @@ function formatAction(event: TimelineEvent): string {
   if (action === "bot_invalid_reply") return "enviou resposta inválida ao bot";
   if (action.includes("follow")) return "recebeu follow-up";
   if (action === "transfer") return `foi transferido${newValue ? ` para ${newValue}` : ""}`;
+  if (action === "next_step") return `escolheu próximo passo: ${newValue || "—"}`;
   return action.replace(/_/g, " ");
+}
+
+function getActionIcon(action: string) {
+  if (action === "status_change") return "🔄";
+  if (action === "bot_invalid_reply") return "⚠️";
+  if (action.includes("follow")) return "📩";
+  if (action === "transfer") return "↗️";
+  if (action === "next_step") return "🎯";
+  if (action.includes("return") || action.includes("retorn")) return "🔁";
+  return "📌";
 }
 
 function TimelineSection({ events }: { events: TimelineEvent[] }) {
@@ -68,19 +79,44 @@ function TimelineSection({ events }: { events: TimelineEvent[] }) {
         <CardTitle className="text-base flex items-center gap-2">
           <Clock className="h-5 w-5 text-primary" />
           Timeline do Dia
+          <span className="text-xs font-normal text-muted-foreground ml-auto">
+            {events.length} evento{events.length !== 1 ? "s" : ""}
+          </span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-0">
-        {events.map((event, i) => (
-          <div key={i} className="flex items-start gap-3 py-2 border-b last:border-b-0 border-border/50">
-            <span className="text-xs font-mono text-muted-foreground shrink-0 pt-0.5 w-12">
+        {events.map((event) => (
+          <div key={event.index} className="flex items-start gap-3 py-3 border-b last:border-b-0 border-border/50">
+            {/* Number */}
+            <span className="text-[10px] font-bold bg-primary/10 text-primary rounded-full h-5 w-5 flex items-center justify-center shrink-0 mt-0.5">
+              {event.index}
+            </span>
+            {/* Time */}
+            <span className="text-xs font-mono text-muted-foreground shrink-0 pt-0.5 w-11">
               {event.time}
             </span>
-            <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0 mt-1" />
-            <p className="text-sm">
-              <strong>{event.leadName}</strong>{" "}
-              <span className="text-muted-foreground">{formatAction(event)}</span>
-            </p>
+            {/* Icon */}
+            <span className="text-sm shrink-0 mt-0.5">{getActionIcon(event.action)}</span>
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm">
+                <strong className="text-foreground">{event.leadName}</strong>{" "}
+                <span className="text-muted-foreground">{formatAction(event)}</span>
+              </p>
+              {/* Bot step & próximo passo badges */}
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {event.botStep && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                    Etapa: {event.botStep}
+                  </span>
+                )}
+                {event.proximoPasso && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                    Escolheu: {event.proximoPasso}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         ))}
       </CardContent>

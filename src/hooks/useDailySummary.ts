@@ -13,12 +13,15 @@ export interface DailyMetrics {
 }
 
 export interface TimelineEvent {
+  index: number;
   time: string;
   leadName: string;
   action: string;
   oldValue: string | null;
   newValue: string | null;
   userName: string | null;
+  botStep: string | null;
+  proximoPasso: string | null;
 }
 
 export interface DailySummaryData {
