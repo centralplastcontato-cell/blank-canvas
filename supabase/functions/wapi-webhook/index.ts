@@ -111,10 +111,10 @@ function validateName(input: string): { valid: boolean; value?: string; error?: 
 function validateMenuChoice(input: string, options: { num: number; value: string }[], stepName: string): { valid: boolean; value?: string; error?: string } {
   const normalized = input.trim();
   
-  // Extract number from input
-  const numMatch = normalized.match(/^\d+$/);
+  // Extract number from input - accept "3", "3 sábado", "3-sábado", etc.
+  const numMatch = normalized.match(/^(\d+)/);
   if (numMatch) {
-    const num = parseInt(numMatch[0]);
+    const num = parseInt(numMatch[1]);
     const option = options.find(opt => opt.num === num);
     if (option) {
       return { valid: true, value: option.value };
