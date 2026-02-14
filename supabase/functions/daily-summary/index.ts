@@ -148,6 +148,18 @@ serve(async (req) => {
 
     const leads = todayLeads || [];
     const leadIds = leads.map((l: any) => l.id);
+
+    // Fetch intelligence data for active leads
+    let intelligenceData: any[] = [];
+    const allIntelIds = [...new Set([...allActiveIds, ...leadIds])];
+    if (allIntelIds.length > 0) {
+      const { data: intel } = await supabase
+        .from("lead_intelligence")
+        .select("lead_id, score, temperature, abandonment_type")
+        .in("lead_id", allIntelIds);
+      intelligenceData = intel || [];
+    }
+
     const intelMap = new Map(intelligenceData.map((i: any) => [i.lead_id, i]));
 
     // Fetch all history events today for timeline
