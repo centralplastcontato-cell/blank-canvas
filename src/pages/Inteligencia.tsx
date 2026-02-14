@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Brain, Loader2, ShieldAlert, HelpCircle, Flame, AlertTriangle, Snowflake, Target, Thermometer, BarChart3, TrendingUp, Search } from "lucide-react";
+import { Brain, Loader2, ShieldAlert, HelpCircle, Flame, AlertTriangle, Snowflake, Target, Thermometer, BarChart3, TrendingUp, Search, Menu } from "lucide-react";
 import { PrioridadesTab } from "@/components/inteligencia/PrioridadesTab";
 import { FunilTab } from "@/components/inteligencia/FunilTab";
 import { LeadsDoDiaTab } from "@/components/inteligencia/LeadsDoDiaTab";
@@ -20,6 +20,9 @@ import { ResumoDiarioTab } from "@/components/inteligencia/ResumoDiarioTab";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { MobileMenu } from "@/components/admin/MobileMenu";
+import { NotificationBell } from "@/components/admin/NotificationBell";
+import logoCastelo from "@/assets/logo-castelo.png";
 
 export default function Inteligencia() {
   const navigate = useNavigate();
@@ -32,9 +35,10 @@ export default function Inteligencia() {
   const [hasView, setHasView] = useState(false);
   const [hasExport, setHasExport] = useState(false);
   const [permLoading, setPermLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<{ id: string; name: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: string; name: string; email: string; avatar?: string | null } | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const { units } = useCompanyUnits(currentCompany?.id);
   const { canViewAll, allowedUnits, isLoading: isLoadingUnitPerms } = useUnitPermissions(currentUser?.id, currentCompany?.id);
@@ -46,11 +50,11 @@ export default function Inteligencia() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name")
+        .select("full_name, avatar_url")
         .eq("user_id", user.id)
         .single();
 
-      setCurrentUser({ id: user.id, name: profile?.full_name || "Usuário" });
+      setCurrentUser({ id: user.id, name: profile?.full_name || "Usuário", email: user.email || "", avatar: profile?.avatar_url });
 
       // Check admin via RPC
       const { data: adminResult } = await supabase.rpc("is_admin", { _user_id: user.id });
@@ -146,6 +150,11 @@ export default function Inteligencia() {
     ? physicalUnits.map(u => ({ value: u.name, label: u.name }))
     : physicalUnits.filter(u => allowedUnits.includes(u.name)).map(u => ({ value: u.name, label: u.name }));
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/auth");
+  };
+
   return (
     <SidebarProvider defaultOpen={false}>
       <div className="min-h-screen flex w-full bg-background">
@@ -154,18 +163,54 @@ export default function Inteligencia() {
           isAdmin={isAdmin}
           currentUserName={currentUser?.name || ""}
           onRefresh={() => window.location.reload()}
-          onLogout={async () => {
-            await supabase.auth.signOut();
-            navigate("/auth");
-          }}
+          onLogout={handleLogout}
         />
-        <PullToRefresh onRefresh={async () => { await refetch(); }} className="flex-1 p-3 md:p-6 overflow-x-hidden overflow-y-auto">
-          <div className="max-w-7xl mx-auto space-y-6">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-3">
-                <Brain className="h-7 w-7 text-primary" />
-                <div>
-                  <h1 className="text-2xl font-bold">Inteligência</h1>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Mobile Header */}
+          <header className="bg-card border-b border-border shrink-0 z-10 md:hidden">
+            <div className="px-3 py-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <MobileMenu
+                    isOpen={isMobileMenuOpen}
+                    onOpenChange={setIsMobileMenuOpen}
+                    trigger={
+                      <Button variant="ghost" size="icon" className="h-9 w-9">
+                        <Menu className="w-5 h-5" />
+                      </Button>
+                    }
+                    currentPage="inteligencia"
+                    userName={currentUser?.name || ""}
+                    userEmail={currentUser?.email || ""}
+                    userAvatar={currentUser?.avatar}
+                    canManageUsers={isAdmin}
+                    isAdmin={isAdmin}
+                    onRefresh={() => refetch()}
+                    onLogout={handleLogout}
+                  />
+                  <div className="flex items-center gap-2 min-w-0">
+                    <img src={logoCastelo} alt="Logo" className="h-8 w-auto shrink-0" />
+                    <h1 className="font-display font-bold text-foreground text-sm truncate">Inteligência</h1>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate("/admin")}>
+                    <Brain className="w-5 h-5 text-[hsl(155,75%,38%)]" style={{ filter: 'drop-shadow(0 0 4px hsl(155 75% 38% / 0.5))' }} />
+                  </Button>
+                  <NotificationBell />
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <PullToRefresh onRefresh={async () => { await refetch(); }} className="flex-1 p-3 md:p-6 overflow-x-hidden overflow-y-auto">
+            <div className="max-w-7xl mx-auto space-y-6">
+              {/* Desktop header */}
+              <div className="hidden md:flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-3">
+                  <Brain className="h-7 w-7 text-primary" />
+                  <div>
+                    <h1 className="text-2xl font-bold">Inteligência</h1>
                   <p className="text-sm text-muted-foreground">
                     Score de leads, priorização e análise de funil
                   </p>
@@ -340,6 +385,7 @@ export default function Inteligencia() {
             </Tabs>
           </div>
         </PullToRefresh>
+        </div>
       </div>
     </SidebarProvider>
   );
