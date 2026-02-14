@@ -1,32 +1,50 @@
 
+## Aba "Não Completaram" no Resumo do Dia
 
-## Corrigir Metrica de Orcamento Enviado no Resumo Diario
+Adicionar uma aba separada dentro do Resumo do Dia que lista os leads de hoje que **não completaram o fluxo do bot** (não receberam orçamento).
 
-### Problema Atual
-O sistema so conta "orcamento enviado" quando alguem muda manualmente o status do lead no CRM. Na pratica, o bot ja envia o orcamento (fotos, PDF, video) durante o fluxo de qualificacao. Quando o lead chega ao fim do bot (`complete_final` ou `flow_complete`), ele ja recebeu o orcamento.
+### O que muda para o usuário
 
-Resultado: a metrica mostra numeros muito baixos porque depende de acao manual.
+O Resumo do Dia ganha duas sub-abas internas:
+- **Visao Geral** (atual) -- metricas, insight da IA e timeline
+- **Nao Completaram** (nova) -- lista dos leads do dia que pararam no meio do fluxo, mostrando nome, telefone, etapa onde pararam e quanto tempo faz
 
-### Solucao
-Mudar a logica da metrica "Orcamentos" para considerar **duas fontes**:
+### Detalhes da lista "Nao Completaram"
 
-1. **Mudanca manual de status** para `orcamento_enviado` (como ja funciona)
-2. **Leads que chegaram ao fim do bot hoje** (`bot_step` = `complete_final` ou `flow_complete`)
+Cada card mostra:
+- Nome do lead
+- WhatsApp (clicavel)
+- Etapa do bot onde parou (ex: "Proximo passo", "Tipo de evento", "Boas-vindas")
+- Tempo desde a ultima mensagem (ex: "ha 2h")
+- Badge indicando se ja recebeu lembrete (`proximo_passo_reminded`) ou nao
 
-Isso reflete melhor a realidade: se o bot completou o fluxo, o orcamento foi enviado.
+### Implementacao tecnica
 
-### Mudancas
+**1. Edge Function `daily-summary` -- retornar dados extras**
 
-**Arquivo: `supabase/functions/daily-summary/index.ts`**
+Adicionar ao response um campo `incompleteLeads` com a lista de leads criados hoje cujo `bot_step` NAO esta em `['complete_final', 'flow_complete']` (ou seja, nao receberam orcamento). Para cada lead retornar:
+- `name`, `whatsapp`, `botStep` (label legivel), `lastMessageAt`, `isReminded` (se bot_step contem "reminded")
 
-- Buscar conversas com `bot_step IN ('complete_final', 'flow_complete')` que tiveram atividade hoje (via `lead_history`)
-- Ou buscar no `lead_history` eventos de `bot_step_change` ou similar que indiquem conclusao do fluxo hoje
-- Somar ao total de orcamentos: transicoes manuais de status + leads que completaram o bot hoje
-- Usar `Set` para evitar duplicatas (um lead que completou o bot E teve status mudado manualmente conta apenas 1 vez)
+A query ja busca `todayLeads` e `conversations` -- basta filtrar e montar a lista.
 
-### Detalhes Tecnicos
+**2. Hook `useDailySummary` -- tipar o novo campo**
 
-A query atual ja busca `statusChanges` do dia no `lead_history`. A mudanca adiciona uma segunda contagem: leads com `bot_step` final que tiveram qualquer evento no `lead_history` hoje, ou leads novos de hoje que ja tem `bot_step = complete_final`.
+Adicionar interface `IncompleteLead` e incluir `incompleteLeads: IncompleteLead[]` no `DailySummaryData`.
 
-Para identificar leads que completaram o bot **hoje** (e nao em dias anteriores), usaremos os leads que aparecem no historico do dia OU foram criados hoje, e cujo `bot_step` atual e `complete_final` ou `flow_complete`.
+**3. Componente `ResumoDiarioTab` -- sub-abas**
 
+Usar `Tabs` internamente com dois valores:
+- `visao-geral`: conteudo atual (metricas + IA + timeline)
+- `nao-completaram`: novo componente `IncompleteLeadsSection`
+
+O componente `IncompleteLeadsSection` renderiza cards simples com as infos acima, organizados por etapa do bot. Mostra um contador no trigger da aba (ex: "Nao Completaram (9)").
+
+**4. Metrica extra no grid**
+
+Adicionar um 7o card de metrica: "Nao completaram" com icone `AlertTriangle` e cor vermelha, mostrando a contagem.
+
+### Arquivos modificados
+
+- `supabase/functions/daily-summary/index.ts` -- adicionar campo `incompleteLeads` ao response
+- `src/hooks/useDailySummary.ts` -- adicionar tipo `IncompleteLead` e campo no `DailySummaryData`
+- `src/components/inteligencia/ResumoDiarioTab.tsx` -- sub-abas + componente `IncompleteLeadsSection` + metrica extra
