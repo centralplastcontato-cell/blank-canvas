@@ -33,8 +33,11 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "company_id required" }), { status: 400, headers: corsHeaders });
     }
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    // Use São Paulo timezone (UTC-3) for "today"
+    const BRT_OFFSET = -3;
+    const now = new Date();
+    const brtNow = new Date(now.getTime() + BRT_OFFSET * 60 * 60 * 1000);
+    const todayStart = new Date(Date.UTC(brtNow.getUTCFullYear(), brtNow.getUTCMonth(), brtNow.getUTCDate(), -BRT_OFFSET, 0, 0, 0));
     const todayISO = todayStart.toISOString();
 
     // Fetch leads created today (for "novos" metric only)
@@ -131,7 +134,7 @@ serve(async (req) => {
       .eq("company_id", company_id)
       .gte("created_at", todayISO)
       .order("created_at", { ascending: true })
-      .limit(50);
+      .limit(100);
 
     const leadNameMap = new Map(leads.map((l: any) => [l.id, l.name]));
     const historyLeadIds = [...new Set((historyEvents || []).map((e: any) => e.lead_id))];
@@ -147,14 +150,53 @@ serve(async (req) => {
       }
     }
 
-    const timeline = (historyEvents || []).map((e: any) => ({
-      time: new Date(e.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-      leadName: allLeadNames.get(e.lead_id) || "Lead",
-      action: e.action,
-      oldValue: e.old_value,
-      newValue: e.new_value,
-      userName: e.user_name,
-    }));
+    // Build enriched timeline with bot step info
+    const BOT_STEP_LABELS: Record<string, string> = {
+      welcome: "Boas-vindas",
+      nome: "Pergunta do nome",
+      tipo: "Tipo de evento",
+      mes: "Mês da festa",
+      dia: "Dia da festa",
+      convidados: "Quantidade de convidados",
+      unidade: "Unidade",
+      next_step: "Próximo passo",
+      complete_visit: "Agendou visita",
+      complete_questions: "Tirar dúvidas",
+      complete_analyze: "Vai pensar",
+      complete_final: "Conversa finalizada",
+      work_here: "Trabalhe conosco",
+    };
+
+    const PROXIMO_PASSO_LABELS: Record<string, string> = {
+      "1": "Agendar visita",
+      "2": "Tirar dúvidas",
+      "3": "Analisar com calma",
+    };
+
+    const timeline = (historyEvents || []).map((e: any, index: number) => {
+      const conv = convMap.get(e.lead_id);
+      const botStep = conv?.bot_step || null;
+      const botStepLabel = botStep ? (BOT_STEP_LABELS[botStep] || botStep) : null;
+      const proximoPasso = (conv?.bot_data as any)?.proximo_passo;
+      const proximoPassoLabel = proximoPasso ? (PROXIMO_PASSO_LABELS[proximoPasso] || proximoPasso) : null;
+
+      // Convert time to BRT
+      const eventDate = new Date(e.created_at);
+      const brtTime = new Date(eventDate.getTime() + BRT_OFFSET * 60 * 60 * 1000);
+      const timeStr = brtTime.toISOString().slice(11, 16); // HH:MM
+
+      return {
+        index: index + 1,
+        time: timeStr,
+        leadName: allLeadNames.get(e.lead_id) || "Lead",
+        action: e.action,
+        oldValue: e.old_value,
+        newValue: e.new_value,
+        userName: e.user_name,
+        botStep: botStepLabel,
+        proximoPasso: proximoPassoLabel,
+      };
+    });
 
     // Generate AI summary
     const openaiKey = Deno.env.get("OPENAI_API_KEY");
