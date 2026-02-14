@@ -1,31 +1,30 @@
 
 
-## Filtro de Timeline: Todos os Eventos vs Apenas Alertas
+## Renomear "alerta reminded 2h" para texto amigavel
 
-### Problema atual
+### Problema
 
-A timeline mistura eventos normais (proximo passo, status change, etc.) com alertas automaticos (alerta reminded 2h), gerando uma lista muito longa e poluida -- como mostrado no screenshot com 49 eventos, muitos sendo alertas repetitivos.
+Na timeline, o texto "alerta reminded 2h" aparece cru porque nao tem um mapeamento amigavel na funcao `formatAction`. Os usuarios nao entendem o que significa.
 
 ### Solucao
 
-Adicionar um toggle/segmented control dentro do card "Timeline do Dia" com duas opcoes:
-
-- **Tudo** -- mostra todos os eventos (comportamento atual)
-- **Alertas** -- filtra apenas eventos de alerta (ex: `alerta_reminded_2h`, `bot_invalid_reply`, e outros tipos de alerta)
-
-O usuario escolhe qual visualizacao prefere, mantendo a interface limpa.
-
-### Detalhes tecnicos
+Adicionar uma linha na funcao `formatAction` em `ResumoDiarioTab.tsx` para traduzir esse tipo de acao:
 
 **Arquivo: `src/components/inteligencia/ResumoDiarioTab.tsx`**
 
-- Adicionar estado local `timelineFilter` com valores `"all"` | `"alerts"` dentro do componente `TimelineSection`
-- Criar um pequeno `TabsList` (ou botoes segmentados) no header do card Timeline, ao lado do titulo
-- Filtrar o array `events` antes de renderizar:
-  - `"all"`: mostra tudo (sem filtro)
-  - `"alerts"`: filtra apenas eventos onde `action` contem `alerta`, `bot_invalid_reply`, `follow`, ou outros tipos de alerta
-- Atualizar o contador de eventos para refletir a quantidade filtrada
-- Manter o icone e formatacao existentes para cada tipo de evento
+Na funcao `formatAction`, adicionar antes do `if (action === "transfer")`:
 
-Nenhuma alteracao no backend ou no banco de dados e necessaria -- e apenas um filtro visual no frontend.
+```
+if (action.includes("alerta") && action.includes("reminded")) return "sem resposta há mais de 2h — requer atenção";
+```
+
+Tambem adicionar icone dedicado na funcao `getActionIcon`:
+
+```
+if (action.includes("alerta")) return "🚨";
+```
+
+### Resultado
+
+Em vez de "alerta reminded 2h", o usuario vera: **"sem resposta ha mais de 2h -- requer atencao"** com um icone de alerta.
 
