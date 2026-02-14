@@ -55,6 +55,7 @@ function formatAction(event: TimelineEvent): string {
     return `mudou de ${oldValue} para ${newValue}${userName ? ` (por ${userName})` : ""}`;
   }
   if (action === "bot_invalid_reply") return "enviou resposta inválida ao bot";
+  if (action.includes("alerta") && action.includes("reminded")) return "sem resposta há mais de 2h — requer atenção";
   if (action.includes("follow")) return "recebeu follow-up";
   if (action === "transfer") return `foi transferido${newValue ? ` para ${newValue}` : ""}`;
   if (action === "next_step") return `escolheu próximo passo: ${newValue || "—"}`;
@@ -64,6 +65,7 @@ function formatAction(event: TimelineEvent): string {
 function getActionIcon(action: string) {
   if (action === "status_change") return "🔄";
   if (action === "bot_invalid_reply") return "⚠️";
+  if (action.includes("alerta")) return "🚨";
   if (action.includes("follow")) return "📩";
   if (action === "transfer") return "↗️";
   if (action === "next_step") return "🎯";
