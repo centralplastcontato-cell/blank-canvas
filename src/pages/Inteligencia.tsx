@@ -16,6 +16,7 @@ import { Brain, Loader2, ShieldAlert, HelpCircle, Flame, AlertTriangle, Snowflak
 import { PrioridadesTab } from "@/components/inteligencia/PrioridadesTab";
 import { FunilTab } from "@/components/inteligencia/FunilTab";
 import { LeadsDoDiaTab } from "@/components/inteligencia/LeadsDoDiaTab";
+import { ResumoDiarioTab } from "@/components/inteligencia/ResumoDiarioTab";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
@@ -295,12 +296,17 @@ export default function Inteligencia() {
               />
             </div>
 
-            <Tabs defaultValue="prioridades">
+            <Tabs defaultValue="resumo">
               <TabsList>
+                <TabsTrigger value="resumo">Resumo do Dia</TabsTrigger>
                 <TabsTrigger value="prioridades">Prioridades</TabsTrigger>
                 <TabsTrigger value="funil">Funil</TabsTrigger>
                 <TabsTrigger value="leads-dia">Leads do Dia</TabsTrigger>
               </TabsList>
+
+              <TabsContent value="resumo">
+                <ResumoDiarioTab />
+              </TabsContent>
 
               <TabsContent value="prioridades">
                 {isLoading || isLoadingUnitPerms ? (
