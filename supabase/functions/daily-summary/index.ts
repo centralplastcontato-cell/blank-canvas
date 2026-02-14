@@ -58,14 +58,16 @@ serve(async (req) => {
       .in("action", ["status_change", "Alteracao de status"]);
 
     // Count transitions by new_value
-    let orcamentos = 0;
+    const orcamentoLeadIds = new Set<string>();
     let visitas = 0;
     let fechados = 0;
     const activeLeadIds = new Set<string>();
 
     for (const ev of (statusChanges || [])) {
       const nv = (ev.new_value || "").toLowerCase().replace(/\s+/g, "_");
-      if (nv === "orcamento_enviado" || nv === "orçamento_enviado") orcamentos++;
+      if (nv === "orcamento_enviado" || nv === "orçamento_enviado") {
+        orcamentoLeadIds.add(ev.lead_id);
+      }
       if (nv === "em_contato") visitas++;
       if (nv === "fechado") fechados++;
       activeLeadIds.add(ev.lead_id);
@@ -89,18 +91,39 @@ serve(async (req) => {
       conversations = convs || [];
     }
 
-    // Fetch intelligence for active leads
-    let intelligenceData: any[] = [];
-    if (allActiveIds.length > 0) {
-      const { data: intel } = await supabase
-        .from("lead_intelligence")
-        .select("lead_id, score, temperature, abandonment_type")
-        .in("lead_id", allActiveIds);
-      intelligenceData = intel || [];
+    // Also fetch conversations with complete bot_step for leads active today
+    // This catches leads who completed the bot flow = received the budget
+    const completedBotSteps = ["complete_final", "flow_complete"];
+    const convMap = new Map(conversations.map((c: any) => [c.lead_id, c]));
+
+    for (const id of allActiveIds) {
+      const conv = convMap.get(id);
+      if (conv && completedBotSteps.includes(conv.bot_step)) {
+        orcamentoLeadIds.add(id);
+      }
     }
 
-    // Count "vão pensar" and "querem humano" from bot_data
-    const convMap = new Map(conversations.map((c: any) => [c.lead_id, c]));
+    // Also check today's leads not yet in allActiveIds
+    if ((todayLeads || []).length > 0) {
+      const todayLeadIdsNotActive = (todayLeads || [])
+        .map((l: any) => l.id)
+        .filter((id: string) => !convMap.has(id));
+      if (todayLeadIdsNotActive.length > 0) {
+        const { data: extraConvs } = await supabase
+          .from("wapi_conversations")
+          .select("lead_id, bot_data, bot_step")
+          .eq("company_id", company_id)
+          .in("lead_id", todayLeadIdsNotActive)
+          .in("bot_step", completedBotSteps);
+        for (const c of (extraConvs || [])) {
+          orcamentoLeadIds.add(c.lead_id);
+          convMap.set(c.lead_id, c);
+        }
+      }
+    }
+
+    const orcamentos = orcamentoLeadIds.size;
+
     let querPensar = 0;
     let querHumano = 0;
     for (const id of allActiveIds) {
