@@ -452,6 +452,50 @@ export type Database = {
           },
         ]
       }
+      daily_summaries: {
+        Row: {
+          ai_summary: string | null
+          company_id: string
+          created_at: string
+          id: string
+          incomplete_leads: Json | null
+          metrics: Json | null
+          summary_date: string
+          timeline: Json | null
+          updated_at: string
+        }
+        Insert: {
+          ai_summary?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          incomplete_leads?: Json | null
+          metrics?: Json | null
+          summary_date: string
+          timeline?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          ai_summary?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          incomplete_leads?: Json | null
+          metrics?: Json | null
+          summary_date?: string
+          timeline?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_summaries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       flow_edges: {
         Row: {
           condition_type: string | null
