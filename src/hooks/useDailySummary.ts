@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/contexts/CompanyContext';
+import { format, isToday } from 'date-fns';
 
 export interface DailyMetrics {
   novos: number;
@@ -37,6 +38,8 @@ export interface DailySummaryData {
   aiSummary: string | null;
   timeline: TimelineEvent[];
   incompleteLeads: IncompleteLead[];
+  isHistorical?: boolean;
+  noData?: boolean;
 }
 
 export function useDailySummary() {
@@ -45,14 +48,21 @@ export function useDailySummary() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchSummary = useCallback(async () => {
+  const fetchSummary = useCallback(async (selectedDate?: Date) => {
     if (!currentCompany?.id) return;
     setIsLoading(true);
     setError(null);
 
     try {
+      const body: Record<string, string> = { company_id: currentCompany.id };
+
+      // If a date is selected and it's not today, pass it to fetch historical data
+      if (selectedDate && !isToday(selectedDate)) {
+        body.date = format(selectedDate, 'yyyy-MM-dd');
+      }
+
       const { data: result, error: fnError } = await supabase.functions.invoke('daily-summary', {
-        body: { company_id: currentCompany.id },
+        body,
       });
 
       if (fnError) throw fnError;

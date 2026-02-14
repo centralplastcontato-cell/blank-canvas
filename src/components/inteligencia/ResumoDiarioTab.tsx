@@ -1,14 +1,19 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { format, isToday } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import {
   Users, CalendarCheck, FileText, Trophy, Clock,
   MessageCircle, PauseCircle, Sparkles, Loader2, RefreshCw,
-  AlertTriangle, Phone,
+  AlertTriangle, Phone, CalendarIcon,
 } from "lucide-react";
 import { useDailySummary, type DailyMetrics, type TimelineEvent, type IncompleteLead } from "@/hooks/useDailySummary";
 
@@ -71,7 +76,7 @@ function TimelineSection({ events }: { events: TimelineEvent[] }) {
     return (
       <Card>
         <CardContent className="py-8 text-center text-muted-foreground text-sm">
-          Nenhum evento registrado hoje
+          Nenhum evento registrado neste dia
         </CardContent>
       </Card>
     );
@@ -140,7 +145,7 @@ function IncompleteLeadsSection({ leads }: { leads: IncompleteLead[] }) {
     return (
       <Card>
         <CardContent className="py-8 text-center text-muted-foreground text-sm">
-          🎉 Todos os leads de hoje completaram o fluxo!
+          🎉 Todos os leads completaram o fluxo!
         </CardContent>
       </Card>
     );
@@ -185,12 +190,14 @@ function IncompleteLeadsSection({ leads }: { leads: IncompleteLead[] }) {
 
 export function ResumoDiarioTab() {
   const { data, isLoading, error, fetchSummary } = useDailySummary();
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   useEffect(() => {
-    fetchSummary();
-  }, [fetchSummary]);
+    fetchSummary(selectedDate);
+  }, [fetchSummary, selectedDate]);
 
   const incompleteCount = data?.incompleteLeads?.length || 0;
+  const isViewingToday = isToday(selectedDate);
 
   if (isLoading && !data) {
     return (
@@ -208,6 +215,40 @@ export function ResumoDiarioTab() {
 
   return (
     <div className="space-y-6">
+      {/* Date Picker Header */}
+      <div className="flex items-center gap-3">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className={cn("gap-2 font-medium", !isViewingToday && "border-primary text-primary")}>
+              <CalendarIcon className="h-4 w-4" />
+              {isViewingToday ? "Hoje" : format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={(date) => date && setSelectedDate(date)}
+              disabled={(date) => date > new Date()}
+              initialFocus
+              className={cn("p-3 pointer-events-auto")}
+              locale={ptBR}
+            />
+          </PopoverContent>
+        </Popover>
+        {!isViewingToday && (
+          <Button variant="ghost" size="sm" onClick={() => setSelectedDate(new Date())} className="text-xs">
+            Voltar para hoje
+          </Button>
+        )}
+        {data?.noData && (
+          <Badge variant="secondary" className="text-xs">Sem dados para esta data</Badge>
+        )}
+        {data?.isHistorical && !data?.noData && (
+          <Badge variant="outline" className="text-xs">Histórico salvo</Badge>
+        )}
+      </div>
+
       {data?.metrics && <MetricsGrid metrics={data.metrics} incompleteCount={incompleteCount} />}
 
       <Tabs defaultValue="visao-geral">
@@ -227,16 +268,18 @@ export function ResumoDiarioTab() {
                   <Sparkles className="h-5 w-5 text-primary" />
                   Insight da IA
                 </CardTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={fetchSummary}
-                  disabled={isLoading}
-                  className="gap-2"
-                >
-                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                  Atualizar
-                </Button>
+                {isViewingToday && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fetchSummary(selectedDate)}
+                    disabled={isLoading}
+                    className="gap-2"
+                  >
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    Atualizar
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -252,7 +295,7 @@ export function ResumoDiarioTab() {
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-4">
-                  Clique em "Atualizar" para gerar o resumo da IA
+                  {isViewingToday ? 'Clique em "Atualizar" para gerar o resumo da IA' : "Nenhum insight salvo para esta data"}
                 </p>
               )}
             </CardContent>

@@ -22,13 +22,17 @@ serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
+    // Service role client for persisting summaries
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
     const token = authHeader.replace("Bearer ", "");
     const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
     if (claimsError || !claimsData?.claims) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
     }
 
-    const { company_id } = await req.json();
+    const { company_id, date: requestedDate } = await req.json();
     if (!company_id) {
       return new Response(JSON.stringify({ error: "company_id required" }), { status: 400, headers: corsHeaders });
     }
@@ -37,6 +41,42 @@ serve(async (req) => {
     const BRT_OFFSET = -3;
     const now = new Date();
     const brtNow = new Date(now.getTime() + BRT_OFFSET * 60 * 60 * 1000);
+    const todayStr = brtNow.toISOString().slice(0, 10); // YYYY-MM-DD
+
+    // If a past date was requested, fetch from saved history
+    if (requestedDate && requestedDate !== todayStr) {
+      const { data: saved, error: savedErr } = await supabase
+        .from("daily_summaries")
+        .select("metrics, ai_summary, timeline, incomplete_leads")
+        .eq("company_id", company_id)
+        .eq("summary_date", requestedDate)
+        .maybeSingle();
+
+      if (savedErr) {
+        return new Response(JSON.stringify({ error: savedErr.message }), { status: 500, headers: corsHeaders });
+      }
+
+      if (!saved) {
+        return new Response(JSON.stringify({
+          metrics: { novos: 0, visitas: 0, orcamentos: 0, fechados: 0, querPensar: 0, querHumano: 0, taxaConversao: 0 },
+          aiSummary: null,
+          timeline: [],
+          incompleteLeads: [],
+          isHistorical: true,
+          noData: true,
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      return new Response(JSON.stringify({
+        metrics: saved.metrics,
+        aiSummary: saved.ai_summary,
+        timeline: saved.timeline || [],
+        incompleteLeads: saved.incomplete_leads || [],
+        isHistorical: true,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // === Generate live summary for today ===
     const todayStart = new Date(Date.UTC(brtNow.getUTCFullYear(), brtNow.getUTCMonth(), brtNow.getUTCDate(), -BRT_OFFSET, 0, 0, 0));
     const todayISO = todayStart.toISOString();
 
@@ -91,8 +131,6 @@ serve(async (req) => {
       conversations = convs || [];
     }
 
-    // Also fetch conversations with complete bot_step for leads active today
-    // This catches leads who completed the bot flow = received the budget
     const completedBotSteps = ["complete_final", "flow_complete"];
     const convMap = new Map(conversations.map((c: any) => [c.lead_id, c]));
 
@@ -103,7 +141,6 @@ serve(async (req) => {
       }
     }
 
-    // Also check today's leads not yet in allActiveIds
     if ((todayLeads || []).length > 0) {
       const todayLeadIdsNotActive = (todayLeads || [])
         .map((l: any) => l.id)
@@ -136,15 +173,7 @@ serve(async (req) => {
 
     const taxaConversao = novos > 0 ? Math.round((fechados / novos) * 100) : 0;
 
-    const metrics = {
-      novos,
-      visitas,
-      orcamentos,
-      fechados,
-      querPensar,
-      querHumano,
-      taxaConversao,
-    };
+    const metrics = { novos, visitas, orcamentos, fechados, querPensar, querHumano, taxaConversao };
 
     const leads = todayLeads || [];
     const leadIds = leads.map((l: any) => l.id);
@@ -185,27 +214,16 @@ serve(async (req) => {
       }
     }
 
-    // Build enriched timeline with bot step info
     const BOT_STEP_LABELS: Record<string, string> = {
-      welcome: "Boas-vindas",
-      nome: "Pergunta do nome",
-      tipo: "Tipo de evento",
-      mes: "Mês da festa",
-      dia: "Dia da festa",
-      convidados: "Quantidade de convidados",
-      unidade: "Unidade",
-      next_step: "Próximo passo",
-      complete_visit: "Agendou visita",
-      complete_questions: "Tirar dúvidas",
-      complete_analyze: "Vai pensar",
-      complete_final: "Conversa finalizada",
-      work_here: "Trabalhe conosco",
+      welcome: "Boas-vindas", nome: "Pergunta do nome", tipo: "Tipo de evento",
+      mes: "Mês da festa", dia: "Dia da festa", convidados: "Quantidade de convidados",
+      unidade: "Unidade", next_step: "Próximo passo", complete_visit: "Agendou visita",
+      complete_questions: "Tirar dúvidas", complete_analyze: "Vai pensar",
+      complete_final: "Conversa finalizada", work_here: "Trabalhe conosco",
     };
 
     const PROXIMO_PASSO_LABELS: Record<string, string> = {
-      "1": "Agendar visita",
-      "2": "Tirar dúvidas",
-      "3": "Analisar com calma",
+      "1": "Agendar visita", "2": "Tirar dúvidas", "3": "Analisar com calma",
     };
 
     const timeline = (historyEvents || []).map((e: any, index: number) => {
@@ -215,21 +233,15 @@ serve(async (req) => {
       const proximoPasso = (conv?.bot_data as any)?.proximo_passo;
       const proximoPassoLabel = proximoPasso ? (PROXIMO_PASSO_LABELS[proximoPasso] || proximoPasso) : null;
 
-      // Convert time to BRT
       const eventDate = new Date(e.created_at);
       const brtTime = new Date(eventDate.getTime() + BRT_OFFSET * 60 * 60 * 1000);
-      const timeStr = brtTime.toISOString().slice(11, 16); // HH:MM
+      const timeStr = brtTime.toISOString().slice(11, 16);
 
       return {
-        index: index + 1,
-        time: timeStr,
+        index: index + 1, time: timeStr,
         leadName: allLeadNames.get(e.lead_id) || "Lead",
-        action: e.action,
-        oldValue: e.old_value,
-        newValue: e.new_value,
-        userName: e.user_name,
-        botStep: botStepLabel,
-        proximoPasso: proximoPassoLabel,
+        action: e.action, oldValue: e.old_value, newValue: e.new_value,
+        userName: e.user_name, botStep: botStepLabel, proximoPasso: proximoPassoLabel,
       };
     });
 
@@ -238,20 +250,13 @@ serve(async (req) => {
     let aiSummary = null;
 
     if (openaiKey) {
-      // Build context for AI
       const hotLeads = intelligenceData
         .filter((i: any) => i.temperature === "quente" || i.temperature === "pronto")
-        .map((i: any) => {
-          const name = allLeadNames.get(i.lead_id) || "Lead";
-          return `${name} (score: ${i.score}, temp: ${i.temperature})`;
-        });
+        .map((i: any) => `${allLeadNames.get(i.lead_id) || "Lead"} (score: ${i.score}, temp: ${i.temperature})`);
 
       const atRisk = intelligenceData
         .filter((i: any) => i.abandonment_type)
-        .map((i: any) => {
-          const name = allLeadNames.get(i.lead_id) || "Lead";
-          return `${name} (${i.abandonment_type})`;
-        });
+        .map((i: any) => `${allLeadNames.get(i.lead_id) || "Lead"} (${i.abandonment_type})`);
 
       const prompt = `Você é um assistente de vendas de buffet infantil. Analise os dados do dia e gere um briefing curto e actionable em português brasileiro.
 
@@ -278,16 +283,8 @@ Gere um resumo de 3-5 parágrafos curtos com:
       try {
         const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${openaiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "gpt-4o-mini",
-            messages: [{ role: "user", content: prompt }],
-            max_tokens: 600,
-            temperature: 0.7,
-          }),
+          headers: { Authorization: `Bearer ${openaiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "user", content: prompt }], max_tokens: 600, temperature: 0.7 }),
         });
         const aiData = await aiResp.json();
         aiSummary = aiData.choices?.[0]?.message?.content || null;
@@ -296,27 +293,41 @@ Gere um resumo de 3-5 parágrafos curtos com:
       }
     }
 
-    // Build incomplete leads list (today's leads that didn't complete the bot flow)
+    // Build incomplete leads list
     const completedSteps = ["complete_final", "flow_complete"];
     const incompleteLeads = (todayLeads || [])
       .map((lead: any) => {
         const conv = convMap.get(lead.id);
         const step = conv?.bot_step || null;
-        if (step && completedSteps.includes(step)) return null; // completed = skip
+        if (step && completedSteps.includes(step)) return null;
         const stepLabel = step ? (BOT_STEP_LABELS[step] || step) : "Sem interação";
-        const lastMsg = conv?.last_message_at || null;
-        const isReminded = step ? step.includes("reminded") : false;
         return {
-          name: lead.name,
-          whatsapp: lead.whatsapp,
-          botStep: stepLabel,
-          lastMessageAt: lastMsg,
-          isReminded,
+          name: lead.name, whatsapp: lead.whatsapp, botStep: stepLabel,
+          lastMessageAt: conv?.last_message_at || null,
+          isReminded: step ? step.includes("reminded") : false,
         };
       })
       .filter(Boolean);
 
-    return new Response(JSON.stringify({ metrics, aiSummary, timeline, incompleteLeads }), {
+    const result = { metrics, aiSummary, timeline, incompleteLeads };
+
+    // Persist to daily_summaries using service role (upsert)
+    try {
+      await supabaseAdmin
+        .from("daily_summaries")
+        .upsert({
+          company_id,
+          summary_date: todayStr,
+          metrics,
+          ai_summary: aiSummary,
+          timeline,
+          incomplete_leads: incompleteLeads,
+        }, { onConflict: "company_id,summary_date" });
+    } catch (e) {
+      console.error("Failed to persist daily summary:", e);
+    }
+
+    return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
