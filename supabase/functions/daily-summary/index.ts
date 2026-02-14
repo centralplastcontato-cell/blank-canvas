@@ -296,7 +296,27 @@ Gere um resumo de 3-5 parágrafos curtos com:
       }
     }
 
-    return new Response(JSON.stringify({ metrics, aiSummary, timeline }), {
+    // Build incomplete leads list (today's leads that didn't complete the bot flow)
+    const completedSteps = ["complete_final", "flow_complete"];
+    const incompleteLeads = (todayLeads || [])
+      .map((lead: any) => {
+        const conv = convMap.get(lead.id);
+        const step = conv?.bot_step || null;
+        if (step && completedSteps.includes(step)) return null; // completed = skip
+        const stepLabel = step ? (BOT_STEP_LABELS[step] || step) : "Sem interação";
+        const lastMsg = conv?.last_message_at || null;
+        const isReminded = step ? step.includes("reminded") : false;
+        return {
+          name: lead.name,
+          whatsapp: lead.whatsapp,
+          botStep: stepLabel,
+          lastMessageAt: lastMsg,
+          isReminded,
+        };
+      })
+      .filter(Boolean);
+
+    return new Response(JSON.stringify({ metrics, aiSummary, timeline, incompleteLeads }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

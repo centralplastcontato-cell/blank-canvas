@@ -2,12 +2,14 @@ import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Users, CalendarCheck, FileText, Trophy, Brain, Clock,
+  Users, CalendarCheck, FileText, Trophy, Clock,
   MessageCircle, PauseCircle, Sparkles, Loader2, RefreshCw,
-  ArrowRight,
+  AlertTriangle, Phone,
 } from "lucide-react";
-import { useDailySummary, type DailyMetrics, type TimelineEvent } from "@/hooks/useDailySummary";
+import { useDailySummary, type DailyMetrics, type TimelineEvent, type IncompleteLead } from "@/hooks/useDailySummary";
 
 function MetricCard({ icon: Icon, label, value, color }: {
   icon: React.ElementType; label: string; value: number | string; color: string;
@@ -27,15 +29,16 @@ function MetricCard({ icon: Icon, label, value, color }: {
   );
 }
 
-function MetricsGrid({ metrics }: { metrics: DailyMetrics }) {
+function MetricsGrid({ metrics, incompleteCount }: { metrics: DailyMetrics; incompleteCount: number }) {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
       <MetricCard icon={Users} label="Leads novos" value={metrics.novos} color="bg-blue-500/10 text-blue-500" />
       <MetricCard icon={CalendarCheck} label="Visitas agendadas" value={metrics.visitas} color="bg-green-500/10 text-green-500" />
       <MetricCard icon={FileText} label="Orçamentos" value={metrics.orcamentos} color="bg-purple-500/10 text-purple-500" />
       <MetricCard icon={PauseCircle} label="Vão pensar" value={metrics.querPensar} color="bg-yellow-500/10 text-yellow-500" />
       <MetricCard icon={MessageCircle} label="Querem humano" value={metrics.querHumano} color="bg-orange-500/10 text-orange-500" />
       <MetricCard icon={Trophy} label="Taxa conversão" value={`${metrics.taxaConversao}%`} color="bg-emerald-500/10 text-emerald-500" />
+      <MetricCard icon={AlertTriangle} label="Não completaram" value={incompleteCount} color="bg-destructive/10 text-destructive" />
     </div>
   );
 }
@@ -87,23 +90,18 @@ function TimelineSection({ events }: { events: TimelineEvent[] }) {
       <CardContent className="space-y-0">
         {events.map((event) => (
           <div key={event.index} className="flex items-start gap-3 py-3 border-b last:border-b-0 border-border/50">
-            {/* Number */}
             <span className="text-[10px] font-bold bg-primary/10 text-primary rounded-full h-5 w-5 flex items-center justify-center shrink-0 mt-0.5">
               {event.index}
             </span>
-            {/* Time */}
             <span className="text-xs font-mono text-muted-foreground shrink-0 pt-0.5 w-11">
               {event.time}
             </span>
-            {/* Icon */}
             <span className="text-sm shrink-0 mt-0.5">{getActionIcon(event.action)}</span>
-            {/* Content */}
             <div className="flex-1 min-w-0">
               <p className="text-sm">
                 <strong className="text-foreground">{event.leadName}</strong>{" "}
                 <span className="text-muted-foreground">{formatAction(event)}</span>
               </p>
-              {/* Bot step & próximo passo badges */}
               <div className="flex flex-wrap gap-1.5 mt-1">
                 {event.botStep && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
@@ -124,6 +122,66 @@ function TimelineSection({ events }: { events: TimelineEvent[] }) {
   );
 }
 
+function formatTimeAgo(dateStr: string | null): string {
+  if (!dateStr) return "—";
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `há ${mins}min`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `há ${hours}h`;
+  return `há ${Math.floor(hours / 24)}d`;
+}
+
+function IncompleteLeadsSection({ leads }: { leads: IncompleteLead[] }) {
+  if (leads.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center text-muted-foreground text-sm">
+          🎉 Todos os leads de hoje completaram o fluxo!
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {leads.map((lead, i) => (
+        <Card key={i}>
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className="p-2 rounded-lg bg-destructive/10 text-destructive shrink-0">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold truncate">{lead.name}</p>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                <span className="text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                  {lead.botStep}
+                </span>
+                {lead.isReminded && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
+                    Lembrete enviado
+                  </Badge>
+                )}
+                <span className="text-[11px] text-muted-foreground">
+                  {formatTimeAgo(lead.lastMessageAt)}
+                </span>
+              </div>
+            </div>
+            <a
+              href={`https://wa.me/${lead.whatsapp.replace(/\D/g, "")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 p-2 rounded-lg bg-green-500/10 text-green-600 hover:bg-green-500/20 transition-colors"
+            >
+              <Phone className="h-4 w-4" />
+            </a>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
 export function ResumoDiarioTab() {
   const { data, isLoading, error, fetchSummary } = useDailySummary();
 
@@ -131,11 +189,13 @@ export function ResumoDiarioTab() {
     fetchSummary();
   }, [fetchSummary]);
 
+  const incompleteCount = data?.incompleteLeads?.length || 0;
+
   if (isLoading && !data) {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          {Array.from({ length: 6 }).map((_, i) => (
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+          {Array.from({ length: 7 }).map((_, i) => (
             <Skeleton key={i} className="h-20 rounded-lg" />
           ))}
         </div>
@@ -147,50 +207,64 @@ export function ResumoDiarioTab() {
 
   return (
     <div className="space-y-6">
-      {/* Metrics */}
-      {data?.metrics && <MetricsGrid metrics={data.metrics} />}
+      {data?.metrics && <MetricsGrid metrics={data.metrics} incompleteCount={incompleteCount} />}
 
-      {/* AI Insight */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              Insight da IA
-            </CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchSummary}
-              disabled={isLoading}
-              className="gap-2"
-            >
-              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              Atualizar
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {error ? (
-            <p className="text-sm text-destructive">{error}</p>
-          ) : data?.aiSummary ? (
-            <div className="prose prose-sm dark:prose-invert max-w-none">
-              {data.aiSummary.split("\n").map((line, i) => (
-                <p key={i} className={line.trim() === "" ? "hidden" : "text-sm text-muted-foreground leading-relaxed"}>
-                  {line}
+      <Tabs defaultValue="visao-geral">
+        <TabsList>
+          <TabsTrigger value="visao-geral">Visão Geral</TabsTrigger>
+          <TabsTrigger value="nao-completaram">
+            Não Completaram {incompleteCount > 0 && `(${incompleteCount})`}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="visao-geral" className="space-y-6">
+          {/* AI Insight */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  Insight da IA
+                </CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchSummary}
+                  disabled={isLoading}
+                  className="gap-2"
+                >
+                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                  Atualizar
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {error ? (
+                <p className="text-sm text-destructive">{error}</p>
+              ) : data?.aiSummary ? (
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  {data.aiSummary.split("\n").map((line, i) => (
+                    <p key={i} className={line.trim() === "" ? "hidden" : "text-sm text-muted-foreground leading-relaxed"}>
+                      {line}
+                    </p>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Clique em "Atualizar" para gerar o resumo da IA
                 </p>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              Clique em "Atualizar" para gerar o resumo da IA
-            </p>
-          )}
-        </CardContent>
-      </Card>
+              )}
+            </CardContent>
+          </Card>
 
-      {/* Timeline */}
-      {data?.timeline && <TimelineSection events={data.timeline} />}
+          {/* Timeline */}
+          {data?.timeline && <TimelineSection events={data.timeline} />}
+        </TabsContent>
+
+        <TabsContent value="nao-completaram">
+          <IncompleteLeadsSection leads={data?.incompleteLeads || []} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
