@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -122,6 +122,14 @@ export function AutomationsSection() {
   const [newVipName, setNewVipName] = useState("");
   const [newVipReason, setNewVipReason] = useState("");
   const [isAddingVip, setIsAddingVip] = useState(false);
+  const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
+
+  const debouncedUpdateBotSettings = (key: string, updates: Partial<BotSettings>, delay = 1000) => {
+    if (debounceTimers.current[key]) clearTimeout(debounceTimers.current[key]);
+    debounceTimers.current[key] = setTimeout(() => {
+      updateBotSettings(updates);
+    }, delay);
+  };
 
   useEffect(() => {
     fetchInstances();
@@ -1122,11 +1130,14 @@ export function AutomationsSection() {
                     max={120}
                     value={botSettings?.next_step_reminder_delay_minutes ?? 10}
                     onChange={(e) => {
-                      const val = parseInt(e.target.value) || 10;
+                      const val = Math.max(1, Math.min(120, parseInt(e.target.value) || 10));
                       setBotSettings(prev => prev ? { ...prev, next_step_reminder_delay_minutes: val } : prev);
+                      debouncedUpdateBotSettings('next_step_delay', { next_step_reminder_delay_minutes: val });
                     }}
                     onBlur={(e) => {
-                      const val = parseInt(e.target.value) || 10;
+                      const val = Math.max(1, Math.min(120, parseInt(e.target.value) || 10));
+                      setBotSettings(prev => prev ? { ...prev, next_step_reminder_delay_minutes: val } : prev);
+                      if (debounceTimers.current['next_step_delay']) clearTimeout(debounceTimers.current['next_step_delay']);
                       updateBotSettings({ next_step_reminder_delay_minutes: val });
                     }}
                     className="w-24"
@@ -1197,11 +1208,15 @@ export function AutomationsSection() {
                     max={1440}
                     value={botSettings?.bot_inactive_followup_delay_minutes ?? 30}
                     onChange={(e) => {
-                      const val = parseInt(e.target.value) || 30;
-                      setBotSettings(prev => prev ? { ...prev, bot_inactive_followup_delay_minutes: val } : prev);
+                      const val = parseInt(e.target.value) || 5;
+                      const clamped = Math.max(5, Math.min(1440, val));
+                      setBotSettings(prev => prev ? { ...prev, bot_inactive_followup_delay_minutes: clamped } : prev);
+                      debouncedUpdateBotSettings('bot_inactive_delay', { bot_inactive_followup_delay_minutes: clamped });
                     }}
                     onBlur={(e) => {
-                      const val = Math.max(5, Math.min(1440, parseInt(e.target.value) || 30));
+                      const val = Math.max(5, Math.min(1440, parseInt(e.target.value) || 5));
+                      setBotSettings(prev => prev ? { ...prev, bot_inactive_followup_delay_minutes: val } : prev);
+                      if (debounceTimers.current['bot_inactive_delay']) clearTimeout(debounceTimers.current['bot_inactive_delay']);
                       updateBotSettings({ bot_inactive_followup_delay_minutes: val });
                     }}
                     className="w-24"
@@ -1210,7 +1225,7 @@ export function AutomationsSection() {
                   <span className="text-sm text-muted-foreground">minutos</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Recomendado: 30 minutos.
+                  Recomendado: 5-10 minutos.
                 </p>
               </div>
 
