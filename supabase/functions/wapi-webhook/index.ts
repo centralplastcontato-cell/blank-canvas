@@ -78,7 +78,7 @@ function buildMenuText(options: { num: number; value: string }[]): string {
 function validateName(input: string): { valid: boolean; value?: string; error?: string } {
   const name = input.trim();
   if (name.length < 2) {
-    return { valid: false, error: 'Hmm, não consegui entender seu nome 🤔\n\nPor favor, digite seu nome completo:' };
+    return { valid: false, error: 'Hmm, não consegui entender seu nome 🤔\n\nPor favor, digite seu nome:' };
   }
   // Accept any reasonable name (letters, spaces, accents)
   if (!/^[\p{L}\s'-]+$/u.test(name)) {
@@ -1408,6 +1408,26 @@ async function processBotQualification(
     msg = settings.welcome_message + '\n\n' + (firstQ?.question || DEFAULT_QUESTIONS.nome.question);
     nextStep = firstStep;
   } else if (questions[step] || step === 'proximo_passo' || step === 'proximo_passo_reminded') {
+    // Check if lead is responding "1" to the inactive follow-up "Responda *1* para continuar"
+    // In that case, re-send the current question instead of validating "1" as an answer
+    const wasInactiveReminded = (conv.bot_data as Record<string, unknown>)?._inactive_reminded === true;
+    if (wasInactiveReminded && content.trim() === '1' && step !== 'proximo_passo' && step !== 'proximo_passo_reminded') {
+      const currentQ = questions[step];
+      msg = currentQ?.question || (DEFAULT_QUESTIONS as Record<string, { question: string }>)[step]?.question || 'Por favor, responda a pergunta acima:';
+      nextStep = step;
+      console.log(`[Bot] Lead responded "1" to inactive follow-up, re-sending question for step: ${step}`);
+      
+      // Update conversation - clear the flag and re-send question
+      await supabase.from('wapi_conversations').update({
+        bot_step: nextStep,
+        bot_data: updated,
+        bot_enabled: true,
+      }).eq('id', conv.id);
+      
+      await sendWithDelay(instance, conv.remote_jid, msg, settings.message_delay_seconds);
+      return;
+    }
+
     // Get the current question text for dynamic option extraction
     const currentQuestionText = questions[step]?.question;
     
