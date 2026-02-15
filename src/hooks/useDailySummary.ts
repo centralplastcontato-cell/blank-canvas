@@ -44,12 +44,18 @@ export interface IncompleteLead {
   isReminded: boolean;
 }
 
+export interface FollowUpLabels {
+  fu1: string;
+  fu2: string;
+}
+
 export interface DailySummaryData {
   metrics: DailyMetrics;
   aiSummary: string | null;
   timeline: TimelineEvent[];
   incompleteLeads: IncompleteLead[];
   followUpLeads: FollowUpLead[];
+  followUpLabels?: FollowUpLabels;
   userNote?: string | null;
   isHistorical?: boolean;
   noData?: boolean;

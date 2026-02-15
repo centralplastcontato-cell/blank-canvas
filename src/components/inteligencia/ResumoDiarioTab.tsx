@@ -40,7 +40,9 @@ function MetricCard({ icon: Icon, label, value, color }: {
   );
 }
 
-function MetricsGrid({ metrics, incompleteCount }: { metrics: DailyMetrics; incompleteCount: number }) {
+function MetricsGrid({ metrics, incompleteCount, followUpLabels }: { metrics: DailyMetrics; incompleteCount: number; followUpLabels?: { fu1: string; fu2: string } }) {
+  const fu1Label = followUpLabels?.fu1 || "24h";
+  const fu2Label = followUpLabels?.fu2 || "48h";
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-9 gap-3">
       <MetricCard icon={Users} label="Leads novos" value={metrics.novos} color="bg-blue-500/10 text-blue-500" />
@@ -50,8 +52,8 @@ function MetricsGrid({ metrics, incompleteCount }: { metrics: DailyMetrics; inco
       <MetricCard icon={MessageCircle} label="Querem humano" value={metrics.querHumano} color="bg-orange-500/10 text-orange-500" />
       <MetricCard icon={Trophy} label="Taxa conversão" value={`${metrics.taxaConversao}%`} color="bg-emerald-500/10 text-emerald-500" />
       <MetricCard icon={AlertTriangle} label="Não completaram" value={incompleteCount} color="bg-destructive/10 text-destructive" />
-      <MetricCard icon={Timer} label="Follow-up 24h" value={metrics.followUp24h || 0} color="bg-sky-500/10 text-sky-500" />
-      <MetricCard icon={Timer} label="Follow-up 48h" value={metrics.followUp48h || 0} color="bg-indigo-500/10 text-indigo-500" />
+      <MetricCard icon={Timer} label={`Follow-up ${fu1Label}`} value={metrics.followUp24h || 0} color="bg-sky-500/10 text-sky-500" />
+      <MetricCard icon={Timer} label={`Follow-up ${fu2Label}`} value={metrics.followUp48h || 0} color="bg-indigo-500/10 text-indigo-500" />
     </div>
   );
 }
@@ -242,9 +244,20 @@ function IncompleteLeadsSection({ leads }: { leads: IncompleteLead[] }) {
 function FollowUpLeadsSection({ leads }: { leads: FollowUpLead[] }) {
   const navigate = useNavigate();
 
-  const leads24h = leads.filter(l => l.tipo === "24h");
-  const leads48h = leads.filter(l => l.tipo === "48h");
-  const leadsOther = leads.filter(l => l.tipo !== "24h" && l.tipo !== "48h");
+
+  // Group leads by tipo dynamically
+  const groupedByTipo = new Map<string, FollowUpLead[]>();
+  for (const lead of leads) {
+    const existing = groupedByTipo.get(lead.tipo) || [];
+    existing.push(lead);
+    groupedByTipo.set(lead.tipo, existing);
+  }
+
+  const badgeColors: Record<number, string> = {
+    0: "bg-sky-500/10 text-sky-600 border-sky-200",
+    1: "bg-indigo-500/10 text-indigo-600 border-indigo-200",
+    2: "bg-violet-500/10 text-violet-600 border-violet-200",
+  };
 
   const renderGroup = (title: string, groupLeads: FollowUpLead[], badgeColor: string) => {
     if (groupLeads.length === 0) return null;
@@ -287,15 +300,21 @@ function FollowUpLeadsSection({ leads }: { leads: FollowUpLead[] }) {
     );
   }
 
+  // Sort groups by numeric value of the tipo label
+  const sortedGroups = [...groupedByTipo.entries()].sort((a, b) => {
+    const numA = parseInt(a[0]) || 999;
+    const numB = parseInt(b[0]) || 999;
+    return numA - numB;
+  });
+
   return (
     <div className="space-y-6">
-      {renderGroup("Follow-up 24h", leads24h, "bg-sky-500/10 text-sky-600 border-sky-200")}
-      {renderGroup("Follow-up 48h", leads48h, "bg-indigo-500/10 text-indigo-600 border-indigo-200")}
-      {renderGroup("Follow-up 96h", leadsOther, "bg-violet-500/10 text-violet-600 border-violet-200")}
+      {sortedGroups.map(([tipo, groupLeads], idx) => 
+        renderGroup(`Follow-up ${tipo}`, groupLeads, badgeColors[idx] || badgeColors[2])
+      )}
     </div>
   );
 }
-
 
 function TeamNoteSection({ note, summaryDate, companyId, onSaved }: {
   note: string | null | undefined;
@@ -468,7 +487,7 @@ export function ResumoDiarioTab() {
         )}
       </div>
 
-      {data?.metrics && <MetricsGrid metrics={data.metrics} incompleteCount={incompleteCount} />}
+      {data?.metrics && <MetricsGrid metrics={data.metrics} incompleteCount={incompleteCount} followUpLabels={data?.followUpLabels} />}
 
       <Tabs defaultValue="visao-geral">
         <TabsList>

@@ -459,11 +459,39 @@ Gere um resumo de 3-5 parágrafos curtos com:
       .filter(Boolean);
 
     // === Follow-up tracking ===
-    const CASTELO_INSTANCE = "3f39419e-e7f5-4c3b-8ebd-1703e6c7a0c7";
     const FOLLOW_UP_ACTIONS = [
       "Follow-up automático enviado",
       "Follow-up #2 automático enviado",
     ];
+
+    // Fetch bot settings to get real delay values per instance
+    const { data: botSettingsRows } = await supabaseAdmin
+      .from("wapi_bot_settings")
+      .select("instance_id, follow_up_delay_hours, follow_up_2_delay_hours")
+      .eq("company_id", company_id);
+
+    const instanceDelayMap = new Map<string, { fu1: number; fu2: number }>();
+    for (const bs of (botSettingsRows || [])) {
+      instanceDelayMap.set(bs.instance_id, {
+        fu1: bs.follow_up_delay_hours ?? 24,
+        fu2: bs.follow_up_2_delay_hours ?? 48,
+      });
+    }
+
+    // Collect unique delay labels across all instances
+    const allFu1Values = new Set<number>();
+    const allFu2Values = new Set<number>();
+    for (const delays of instanceDelayMap.values()) {
+      allFu1Values.add(delays.fu1);
+      allFu2Values.add(delays.fu2);
+    }
+    // Fallback if no settings found
+    if (allFu1Values.size === 0) allFu1Values.add(24);
+    if (allFu2Values.size === 0) allFu2Values.add(48);
+
+    // Build dynamic labels: if all instances share the same value, use that; otherwise list them
+    const fu1Label = [...allFu1Values].sort((a, b) => a - b).map(v => `${v}h`).join("/");
+    const fu2Label = [...allFu2Values].sort((a, b) => a - b).map(v => `${v}h`).join("/");
 
     let followUpQuery = supabase
       .from("lead_history")
@@ -475,8 +503,8 @@ Gere um resumo de 3-5 parágrafos curtos com:
     const { data: followUpEvents } = await followUpQuery;
 
     let followUpLeads: any[] = [];
-    let followUp24h = 0;
-    let followUp48h = 0;
+    let followUpFu1Count = 0;
+    let followUpFu2Count = 0;
 
     if ((followUpEvents || []).length > 0) {
       const fuLeadIds = [...new Set((followUpEvents || []).map((e: any) => e.lead_id))];
@@ -509,19 +537,13 @@ Gere um resumo de 3-5 parágrafos curtos com:
 
       for (const ev of (followUpEvents || [])) {
         const instanceId = fuInstanceMap.get(ev.lead_id);
-        const isCastelo = instanceId === CASTELO_INSTANCE;
+        const delays = instanceDelayMap.get(instanceId) || { fu1: 24, fu2: 48 };
         const isFirstFollowUp = ev.action === "Follow-up automático enviado";
 
-        // Castelo: FU1=24h, FU2=48h | Manchester: FU1=48h, FU2=96h
-        let tipo: string;
-        if (isCastelo) {
-          tipo = isFirstFollowUp ? "24h" : "48h";
-        } else {
-          tipo = isFirstFollowUp ? "48h" : "96h";
-        }
+        const tipo = isFirstFollowUp ? `${delays.fu1}h` : `${delays.fu2}h`;
 
-        if (tipo === "24h") followUp24h++;
-        else if (tipo === "48h") followUp48h++;
+        if (isFirstFollowUp) followUpFu1Count++;
+        else followUpFu2Count++;
 
         const eventDate = new Date(ev.created_at);
         const brtTime = new Date(eventDate.getTime() + BRT_OFFSET * 60 * 60 * 1000);
@@ -537,10 +559,11 @@ Gere um resumo de 3-5 parágrafos curtos com:
       }
     }
 
-    metrics.followUp24h = followUp24h;
-    metrics.followUp48h = followUp48h;
+    metrics.followUp24h = followUpFu1Count;
+    metrics.followUp48h = followUpFu2Count;
 
-    const result = { metrics, aiSummary, timeline, incompleteLeads, followUpLeads, userNote, isHistorical: isHistoricalDate || false };
+    const followUpLabels = { fu1: fu1Label, fu2: fu2Label };
+    const result = { metrics, aiSummary, timeline, incompleteLeads, followUpLeads, followUpLabels, userNote, isHistorical: isHistoricalDate || false };
 
     // Persist to daily_summaries using service role (upsert) — never overwrite user_note
     try {
