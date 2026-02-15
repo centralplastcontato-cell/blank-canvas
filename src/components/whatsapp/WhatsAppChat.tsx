@@ -1250,17 +1250,39 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         if (matchingConv) {
           setSelectedConversation(matchingConv as Conversation);
           onPhoneHandled?.();
-        } else if (selectedInstance) {
-          // No existing conversation - create a new one for this phone number
-          await createNewConversation(selectPhone);
-          onPhoneHandled?.();
         } else {
-          toast({
-            title: "Conversa não encontrada",
-            description: "Não há histórico de conversa com este número na plataforma.",
-            variant: "destructive",
-          });
-          onPhoneHandled?.();
+          // Not found in current instance — search across ALL instances
+          const { data: crossInstanceConv } = await supabase
+            .from("wapi_conversations")
+            .select("id, instance_id, remote_jid, contact_name, contact_phone, contact_picture, last_message_at, unread_count, is_favorite, is_closed, has_scheduled_visit, is_freelancer, is_equipe, last_message_content, last_message_from_me, bot_enabled, bot_step, lead_id, is_imported, company_id")
+            .or(phoneVariants.map(p => `contact_phone.ilike.%${p}%`).join(','))
+            .order("last_message_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (crossInstanceConv) {
+            // Found in another instance — switch to it
+            const targetInstance = instances.find(i => i.id === crossInstanceConv.instance_id);
+            if (targetInstance) {
+              setSelectedInstance(targetInstance);
+              setSelectedConversation(crossInstanceConv as unknown as Conversation);
+              onPhoneHandled?.();
+              return;
+            }
+          }
+
+          // Truly no conversation anywhere — create new
+          if (selectedInstance) {
+            await createNewConversation(selectPhone);
+            onPhoneHandled?.();
+          } else {
+            toast({
+              title: "Conversa não encontrada",
+              description: "Não há histórico de conversa com este número na plataforma.",
+              variant: "destructive",
+            });
+            onPhoneHandled?.();
+          }
         }
       }
     }
