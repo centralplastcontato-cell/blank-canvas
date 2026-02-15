@@ -24,7 +24,7 @@ export interface LeadIntelligence {
   lead_created_at?: string;
 }
 
-export function useLeadIntelligence() {
+export function useLeadIntelligence(enabled: boolean = true) {
   const { currentCompany } = useCompany();
   const companyId = currentCompany?.id;
 
@@ -67,7 +67,7 @@ export function useLeadIntelligence() {
         };
       });
     },
-    enabled: !!companyId,
+    enabled: !!companyId && enabled,
     staleTime: 60_000,
   });
 }
