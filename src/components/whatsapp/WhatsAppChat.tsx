@@ -18,7 +18,7 @@ import {
   Image as ImageIcon, Mic, Paperclip, Loader2, Square, X, Pause, Play,
   Users, ArrowRightLeft, Trash2,
   CalendarCheck, Briefcase, FileCheck, ArrowDown, Video,
-  Pencil, Copy
+  Pencil, Copy, ChevronDown
 } from "lucide-react";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { LinkPreviewCard, extractFirstUrl } from "@/components/whatsapp/LinkPreviewCard";
@@ -222,6 +222,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [editingContent, setEditingContent] = useState("");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   
+  const [mobileStatusExpanded, setMobileStatusExpanded] = useState(false);
   
   // Undo send state
   
@@ -4036,116 +4037,146 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                   </div>
                 </div>
 
-                {/* Mobile Lead Classification Panel */}
-                <div className="border-b bg-card/50 p-2 shrink-0">
-                  {linkedLead ? (
-                    // Show classification buttons when lead is linked
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="text-xs font-medium text-muted-foreground">Status:</span>
-                        {[
-                          { value: 'novo', label: 'Novo', color: 'bg-blue-500' },
-                          { value: 'trabalhe_conosco', label: 'Trab.', color: 'bg-teal-500' },
-                          { value: 'em_contato', label: 'Visita', color: 'bg-yellow-500' },
-                          { value: 'orcamento_enviado', label: 'Orçamento', color: 'bg-purple-500' },
-                          { value: 'aguardando_resposta', label: 'Negoc.', color: 'bg-orange-500' },
-                          { value: 'fechado', label: 'Fechado', color: 'bg-green-500' },
-                          { value: 'perdido', label: 'Perdido', color: 'bg-red-500' },
-                          { value: 'transferido', label: 'Transf.', color: 'bg-cyan-500' },
-                          { value: 'fornecedor', label: 'Fornec.', color: 'bg-indigo-500' },
-                        ].map((statusOption) => (
-                          <Button
-                            key={statusOption.value}
-                            variant={linkedLead.status === statusOption.value ? "default" : "outline"}
-                            size="sm"
-                            className={cn(
-                              "h-6 text-[10px] gap-1 px-1.5",
-                              linkedLead.status === statusOption.value && "ring-2 ring-offset-1"
-                            )}
-                            onClick={async () => {
-                              const oldStatus = linkedLead.status;
-                              const newStatus = statusOption.value as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido" | "trabalhe_conosco" | "transferido" | "fornecedor";
-                              
-                              if (oldStatus === newStatus) return;
-                              
-                              const { error } = await supabase
-                                .from('campaign_leads')
-                                .update({ status: newStatus })
-                                .eq('id', linkedLead.id);
-                              
-                              if (error) {
-                                toast({
-                                  title: "Erro ao atualizar",
-                                  description: error.message,
-                                  variant: "destructive",
+                {/* Mobile Lead Classification Panel - collapsible */}
+                <div className="border-b bg-card/50 shrink-0">
+                  <button
+                    className="w-full flex items-center justify-between px-2 py-1.5 text-xs font-medium text-muted-foreground"
+                    onClick={() => setMobileStatusExpanded(prev => !prev)}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      Status:
+                      {linkedLead && (
+                        <span className={cn(
+                          "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium",
+                          linkedLead.status === 'novo' ? 'bg-blue-500/20 text-blue-700' :
+                          linkedLead.status === 'trabalhe_conosco' ? 'bg-teal-500/20 text-teal-700' :
+                          linkedLead.status === 'em_contato' ? 'bg-yellow-500/20 text-yellow-700' :
+                          linkedLead.status === 'orcamento_enviado' ? 'bg-purple-500/20 text-purple-700' :
+                          linkedLead.status === 'aguardando_resposta' ? 'bg-orange-500/20 text-orange-700' :
+                          linkedLead.status === 'fechado' ? 'bg-green-500/20 text-green-700' :
+                          linkedLead.status === 'perdido' ? 'bg-red-500/20 text-red-700' :
+                          linkedLead.status === 'transferido' ? 'bg-cyan-500/20 text-cyan-700' :
+                          linkedLead.status === 'fornecedor' ? 'bg-indigo-500/20 text-indigo-700' :
+                          'bg-muted text-muted-foreground'
+                        )}>
+                          {({
+                            novo: 'Novo', trabalhe_conosco: 'Trab.', em_contato: 'Visita',
+                            orcamento_enviado: 'Orçamento', aguardando_resposta: 'Negoc.',
+                            fechado: 'Fechado', perdido: 'Perdido', transferido: 'Transf.', fornecedor: 'Fornec.'
+                          } as Record<string, string>)[linkedLead.status] || linkedLead.status}
+                        </span>
+                      )}
+                      {!linkedLead && <span className="text-[10px] text-destructive">⚠ Não classificado</span>}
+                    </span>
+                    <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", mobileStatusExpanded && "rotate-180")} />
+                  </button>
+                  {mobileStatusExpanded && (
+                    <div className="px-2 pb-2">
+                      {linkedLead ? (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {[
+                            { value: 'novo', label: 'Novo', color: 'bg-blue-500' },
+                            { value: 'trabalhe_conosco', label: 'Trab.', color: 'bg-teal-500' },
+                            { value: 'em_contato', label: 'Visita', color: 'bg-yellow-500' },
+                            { value: 'orcamento_enviado', label: 'Orçamento', color: 'bg-purple-500' },
+                            { value: 'aguardando_resposta', label: 'Negoc.', color: 'bg-orange-500' },
+                            { value: 'fechado', label: 'Fechado', color: 'bg-green-500' },
+                            { value: 'perdido', label: 'Perdido', color: 'bg-red-500' },
+                            { value: 'transferido', label: 'Transf.', color: 'bg-cyan-500' },
+                            { value: 'fornecedor', label: 'Fornec.', color: 'bg-indigo-500' },
+                          ].map((statusOption) => (
+                            <Button
+                              key={statusOption.value}
+                              variant={linkedLead.status === statusOption.value ? "default" : "outline"}
+                              size="sm"
+                              className={cn(
+                                "h-6 text-[10px] gap-1 px-1.5",
+                                linkedLead.status === statusOption.value && "ring-2 ring-offset-1"
+                              )}
+                              onClick={async () => {
+                                const oldStatus = linkedLead.status;
+                                const newStatus = statusOption.value as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido" | "trabalhe_conosco" | "transferido" | "fornecedor";
+                                
+                                if (oldStatus === newStatus) return;
+                                
+                                const { error } = await supabase
+                                  .from('campaign_leads')
+                                  .update({ status: newStatus })
+                                  .eq('id', linkedLead.id);
+                                
+                                if (error) {
+                                  toast({
+                                    title: "Erro ao atualizar",
+                                    description: error.message,
+                                    variant: "destructive",
+                                  });
+                                  return;
+                                }
+                                
+                                const statusLabels: Record<string, string> = {
+                                  novo: 'Novo',
+                                  trabalhe_conosco: 'Trabalhe Conosco',
+                                  em_contato: 'Visita',
+                                  orcamento_enviado: 'Orçamento Enviado',
+                                  aguardando_resposta: 'Negociando',
+                                  fechado: 'Fechado',
+                                  perdido: 'Perdido',
+                                  transferido: 'Transferência',
+                                  fornecedor: 'Fornecedor',
+                                };
+                                
+                                await supabase.from('lead_history').insert({
+                                  lead_id: linkedLead.id,
+                                  action: 'status_change',
+                                  old_value: statusLabels[oldStatus] || oldStatus,
+                                  new_value: statusLabels[newStatus] || newStatus,
+                                  user_id: userId,
                                 });
-                                return;
-                              }
-                              
-                              const statusLabels: Record<string, string> = {
-                                novo: 'Novo',
-                                trabalhe_conosco: 'Trabalhe Conosco',
-                                em_contato: 'Visita',
-                                orcamento_enviado: 'Orçamento Enviado',
-                                aguardando_resposta: 'Negociando',
-                                fechado: 'Fechado',
-                                perdido: 'Perdido',
-                                transferido: 'Transferência',
-                                fornecedor: 'Fornecedor',
-                              };
-                              
-                              await supabase.from('lead_history').insert({
-                                lead_id: linkedLead.id,
-                                action: 'status_change',
-                                old_value: statusLabels[oldStatus] || oldStatus,
-                                new_value: statusLabels[newStatus] || newStatus,
-                                user_id: userId,
-                              });
-                              
-                              setLinkedLead({ ...linkedLead, status: statusOption.value });
-                              toast({
-                                title: "Status atualizado",
-                                description: `Lead classificado como "${statusOption.label}"`,
-                              });
-                            }}
-                          >
-                            <div className={cn("w-1.5 h-1.5 rounded-full", statusOption.color)} />
-                            {statusOption.label}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    // Show classification buttons directly - no lead linked yet
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-[10px] font-medium text-destructive shrink-0">⚠ Não classificado:</span>
-                      {[
-                          { value: 'novo', label: 'Novo', color: 'bg-blue-500' },
-                          { value: 'trabalhe_conosco', label: 'Trab.', color: 'bg-teal-500' },
-                          { value: 'em_contato', label: 'Visita', color: 'bg-yellow-500' },
-                          { value: 'orcamento_enviado', label: 'Orçam.', color: 'bg-purple-500' },
-                          { value: 'aguardando_resposta', label: 'Negoc.', color: 'bg-orange-500' },
-                          { value: 'fechado', label: 'Fechado', color: 'bg-green-500' },
-                          { value: 'perdido', label: 'Perdido', color: 'bg-red-500' },
-                          { value: 'transferido', label: 'Transf.', color: 'bg-cyan-500' },
-                          { value: 'fornecedor', label: 'Fornec.', color: 'bg-indigo-500' },
-                      ].map((statusOption) => (
-                        <Button
-                          key={statusOption.value}
-                          variant="outline"
-                          size="sm"
-                          className="h-6 text-[10px] gap-1 px-1.5"
-                          disabled={isCreatingLead}
-                          onClick={() => createAndClassifyLead(statusOption.value)}
-                        >
-                          {isCreatingLead ? (
-                            <Loader2 className="w-2.5 h-2.5 animate-spin" />
-                          ) : (
-                            <div className={cn("w-1.5 h-1.5 rounded-full", statusOption.color)} />
-                          )}
-                          {statusOption.label}
-                        </Button>
-                      ))}
+                                
+                                setLinkedLead({ ...linkedLead, status: statusOption.value });
+                                setMobileStatusExpanded(false);
+                                toast({
+                                  title: "Status atualizado",
+                                  description: `Lead classificado como "${statusOption.label}"`,
+                                });
+                              }}
+                            >
+                              <div className={cn("w-1.5 h-1.5 rounded-full", statusOption.color)} />
+                              {statusOption.label}
+                            </Button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {[
+                            { value: 'novo', label: 'Novo', color: 'bg-blue-500' },
+                            { value: 'trabalhe_conosco', label: 'Trab.', color: 'bg-teal-500' },
+                            { value: 'em_contato', label: 'Visita', color: 'bg-yellow-500' },
+                            { value: 'orcamento_enviado', label: 'Orçam.', color: 'bg-purple-500' },
+                            { value: 'aguardando_resposta', label: 'Negoc.', color: 'bg-orange-500' },
+                            { value: 'fechado', label: 'Fechado', color: 'bg-green-500' },
+                            { value: 'perdido', label: 'Perdido', color: 'bg-red-500' },
+                            { value: 'transferido', label: 'Transf.', color: 'bg-cyan-500' },
+                            { value: 'fornecedor', label: 'Fornec.', color: 'bg-indigo-500' },
+                          ].map((statusOption) => (
+                            <Button
+                              key={statusOption.value}
+                              variant="outline"
+                              size="sm"
+                              className="h-6 text-[10px] gap-1 px-1.5"
+                              disabled={isCreatingLead}
+                              onClick={() => createAndClassifyLead(statusOption.value)}
+                            >
+                              {isCreatingLead ? (
+                                <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                              ) : (
+                                <div className={cn("w-1.5 h-1.5 rounded-full", statusOption.color)} />
+                              )}
+                              {statusOption.label}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -4451,8 +4482,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         }
                       }}
                       disabled={!canSendMessages}
-                      className="text-base flex-1 min-h-[48px] max-h-[50vh] resize-y py-2"
-                      rows={2}
+                      className="text-base flex-1 min-h-[40px] max-h-[50vh] resize-y py-2"
+                      rows={1}
                       spellCheck={true}
                     />
                     {newMessage.trim() ? (
