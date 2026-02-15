@@ -1,30 +1,28 @@
 
 
-## Renomear "alerta reminded 2h" para texto amigavel
+## Melhorar header mobile e area de texto do chat
 
-### Problema
+### Problema 1: Nome do lead cortado
+O header mobile tem 7 botoes de icone (info, orcamento, calendario, freelancer, equipe, favorito, fechar) alem do avatar e botao voltar, deixando quase zero espaco para o nome do lead -- que aparece como "Th..." truncado.
 
-Na timeline, o texto "alerta reminded 2h" aparece cru porque nao tem um mapeamento amigavel na funcao `formatAction`. Os usuarios nao entendem o que significa.
+### Problema 2: Caixa de texto pequena
+O campo de mensagem usa `min-h-[40px]` com `rows={1}`, dando pouco espaco para digitar mensagens mais longas.
 
 ### Solucao
 
-Adicionar uma linha na funcao `formatAction` em `ResumoDiarioTab.tsx` para traduzir esse tipo de acao:
+**1. Reorganizar o header mobile (linhas ~3858-4034)**
+- Dividir o header em duas linhas:
+  - **Linha 1**: Botao voltar + Avatar + Nome completo do lead + Telefone + Botao info (i) + Botao fechar (X)
+  - **Linha 2**: Os demais icones de acao (OE, calendario, freelancer, equipe, favorito) agrupados horizontalmente
+- Isso libera espaco para o nome aparecer por completo, mantendo todas as acoes acessiveis
 
-**Arquivo: `src/components/inteligencia/ResumoDiarioTab.tsx`**
+**2. Aumentar a caixa de texto (linha ~4452)**
+- Mudar `min-h-[40px]` para `min-h-[48px]` e `rows={2}` para dar mais espaco vertical inicial
+- Manter `max-h-[50vh]` e `resize-y` para que o usuario possa expandir quando necessario
 
-Na funcao `formatAction`, adicionar antes do `if (action === "transfer")`:
+### Arquivos alterados
 
-```
-if (action.includes("alerta") && action.includes("reminded")) return "sem resposta há mais de 2h — requer atenção";
-```
-
-Tambem adicionar icone dedicado na funcao `getActionIcon`:
-
-```
-if (action.includes("alerta")) return "🚨";
-```
-
-### Resultado
-
-Em vez de "alerta reminded 2h", o usuario vera: **"sem resposta ha mais de 2h -- requer atencao"** com um icone de alerta.
+- `src/components/whatsapp/WhatsAppChat.tsx`
+  - Reestruturar o bloco do header mobile (linhas 3858-4034) para usar layout de 2 linhas
+  - Ajustar as classes CSS da Textarea (linha 4452)
 
