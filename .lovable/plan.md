@@ -1,32 +1,41 @@
 
 
-## Cards de Follow-up com Labels Dinamicos
+## Insight da IA em Accordion Colapsavel
 
-### Problema atual
-Os cards "Follow-up 24h" e "Follow-up 48h" e a classificacao dos follow-ups estao hardcoded com base no ID da instancia (Castelo = 24h/48h, Manchester = 48h/96h). Se voce alterar os tempos nas configuracoes de automacao, os cards continuam mostrando "24h" e "48h".
+### O que sera feito
+Transformar o bloco de texto do "Insight da IA" em secoes colapsaveis (accordion), onde cada topico (ex: "Visao Geral do Dia", "Destaques Positivos", "Alertas e Pontos de Atencao", "Sugestoes de Proximos Passos") aparece como um item que pode ser expandido individualmente. O primeiro topico vira aberto por padrao.
 
-### Solucao
-Buscar os tempos reais configurados em `wapi_bot_settings` e usa-los tanto na classificacao quanto nos labels dos cards.
+### Como funciona
+O texto da IA ja vem formatado com marcadores `**Titulo da Secao**` em linhas separadas. A logica vai:
 
-### Mudancas
+1. Parsear o texto do `aiSummary` identificando linhas que contenham `**...**` como delimitadores de secao
+2. Agrupar o conteudo entre cada titulo em secoes
+3. Renderizar cada secao como um item de Accordion (usando o componente `@radix-ui/react-accordion` que ja esta instalado)
+4. O primeiro item vem expandido por padrao, os demais colapsados
 
-**1. Edge Function `supabase/functions/daily-summary/index.ts`**
+### Mudancas tecnicas
 
-- Buscar `wapi_bot_settings` para todas as instancias da empresa, pegando `instance_id`, `follow_up_delay_hours` e `follow_up_2_delay_hours`
-- Substituir a logica hardcoded (Castelo = 24h, Manchester = 48h) por lookup dos valores reais de cada instancia
-- Classificar cada follow-up usando o delay real: ex. se Castelo tem `follow_up_delay_hours = 24`, o tipo sera "24h"; se Manchester tem `follow_up_delay_hours = 48`, sera "48h"
-- Retornar no response um novo campo `followUpLabels` com os nomes unicos dos tipos encontrados (ex: `{ fu1: "24h", fu2: "48h" }` ou os valores que estiverem configurados)
-- Agrupar as metricas por delay real em vez de categorias fixas
+**Arquivo: `src/components/inteligencia/ResumoDiarioTab.tsx`**
 
-**2. Hook `src/hooks/useDailySummary.ts`**
+- Criar uma funcao `parseAISections(text: string)` que:
+  - Divide o texto por linhas
+  - Identifica linhas com `**...**` como titulos de secao
+  - Retorna um array de `{ title: string, content: string[] }`
+  - Conteudo antes do primeiro titulo vai numa secao "Resumo"
 
-- Adicionar campo `followUpLabels` na interface de retorno para receber os labels dinamicos do backend
+- Substituir o render atual do `aiSummary` (linhas 528-533) por:
+  - Um componente `Accordion` do Radix com `type="multiple"` e `defaultValue` apontando para o primeiro item
+  - Cada `AccordionItem` com o titulo da secao como trigger e o conteudo como paragrafo colapsavel
+  - Estilizacao com bordas suaves, icone de chevron e transicao de abertura
 
-**3. Componente `src/components/inteligencia/ResumoDiarioTab.tsx`**
+- Importar `Accordion, AccordionItem, AccordionTrigger, AccordionContent` de `@/components/ui/accordion`
 
-- Usar os labels retornados pelo backend nos MetricCards em vez de "Follow-up 24h" / "Follow-up 48h" fixos
-- Na aba Follow-ups, usar os mesmos labels dinamicos para nomear as secoes e badges
-- Fallback para "24h" e "48h" caso o backend nao retorne os labels (compatibilidade)
+### Resultado visual
+Em vez de um bloco longo de texto, o usuario vera:
+- **Visao Geral do Dia** (expandido por padrao)
+- **Destaques Positivos** (colapsado, clica para expandir)
+- **Alertas e Pontos de Atencao** (colapsado)
+- **Sugestoes de Proximos Passos** (colapsado)
 
-### Resultado
-Quando voce mudar o delay de follow-up de 24h para 12h nas configuracoes, o card automaticamente mostrara "Follow-up 12h". O mesmo para o segundo follow-up.
+Cada secao expande com uma animacao suave ao clicar.
+
