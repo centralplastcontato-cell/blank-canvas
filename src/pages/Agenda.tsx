@@ -146,6 +146,7 @@ export default function Agenda() {
       total_value: data.total_value,
       notes: data.notes || null,
       created_by: currentUser.id,
+      lead_id: data.lead_id || null,
     };
 
     if (data.id) {
@@ -182,6 +183,7 @@ export default function Agenda() {
       package_name: ev.package_name || "",
       total_value: ev.total_value,
       notes: ev.notes || "",
+      lead_id: ev.lead_id || null,
     });
     setDetailOpen(false);
     setFormOpen(true);

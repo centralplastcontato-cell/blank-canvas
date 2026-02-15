@@ -2,9 +2,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { CalendarDays, Clock, Users, MapPin, Package, DollarSign, Pencil, Trash2, AlertTriangle } from "lucide-react";
+import { CalendarDays, Clock, Users, MapPin, Package, DollarSign, Pencil, Trash2, AlertTriangle, UserCheck } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface EventData {
   id: string;
@@ -19,6 +21,7 @@ interface EventData {
   package_name: string | null;
   total_value: number | null;
   notes: string | null;
+  lead_id?: string | null;
 }
 
 interface EventDetailSheetProps {
@@ -37,6 +40,14 @@ const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondar
 };
 
 export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, conflicts = [] }: EventDetailSheetProps) {
+  const [leadName, setLeadName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!event?.lead_id) { setLeadName(null); return; }
+    supabase.from("campaign_leads").select("name").eq("id", event.lead_id).single()
+      .then(({ data }) => setLeadName(data?.name || null));
+  }, [event?.lead_id]);
+
   if (!event) return null;
 
   const statusInfo = STATUS_MAP[event.status] || STATUS_MAP.pendente;
@@ -112,6 +123,19 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
               </div>
             )}
           </div>
+
+          {event.lead_id && leadName && (
+            <>
+              <Separator />
+              <div className="flex items-center gap-2 text-sm">
+                <UserCheck className="h-4 w-4 text-primary shrink-0" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Lead vinculado</p>
+                  <p className="font-medium">{leadName}</p>
+                </div>
+              </div>
+            </>
+          )}
 
           {event.notes && (
             <>
