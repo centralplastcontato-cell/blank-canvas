@@ -152,7 +152,7 @@ function TimelineSection({ events }: { events: TimelineEvent[] }) {
               <div className="flex flex-wrap gap-1.5 mt-1">
                 {event.botStep && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-                    Etapa: {event.botStep === 'proximo_passo_reminded' ? 'Lembrete enviado' : event.botStep === 'proximo_passo' ? 'Aguardando decisão' : event.botStep}
+                    Etapa: {event.botStep === 'proximo_passo_reminded' ? 'Aguardando resposta' : event.botStep === 'proximo_passo' ? 'Escolhendo próximo passo' : event.botStep}
                   </span>
                 )}
                 {event.proximoPasso && (
@@ -206,7 +206,7 @@ function IncompleteLeadsSection({ leads }: { leads: IncompleteLead[] }) {
                 <span className="text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
                   {lead.botStep}
                 </span>
-                {lead.isReminded && (
+                {lead.isReminded && !lead.botStep.toLowerCase().includes('lembrete') && !lead.botStep.toLowerCase().includes('reminded') && !lead.botStep.toLowerCase().includes('aguardando resposta') && (
                   <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
                     Lembrete enviado
                   </Badge>
