@@ -1,49 +1,55 @@
 
-
-## Corrigir mensagens automaticas invisiveis no chat
+## Corrigir: conversas nao aparecem ao abrir pelo Lead
 
 ### Problema
-Todas as mensagens automaticas (lembretes de proximo passo, follow-ups, follow-ups de inatividade) estao sendo inseridas no banco **sem `company_id`**. Isso acontece porque a query que busca os dados da instancia seleciona apenas `instance_id` e `instance_token`, mas o codigo tenta usar `instance.company_id` ao salvar a mensagem -- resultando em `NULL`.
+Quando voce clica em "WhatsApp" na lista de leads, o sistema busca a conversa **apenas na instancia selecionada no momento**. Se a Amanda tem conversa na instancia Trujillo, mas voce esta com Manchester selecionada, o sistema nao encontra a conversa e cria uma nova vazia -- por isso aparece "Nenhuma mensagem ainda".
 
-A politica de seguranca (RLS) da tabela `wapi_messages` exige que `company_id` esteja presente para o usuario ver a mensagem. Resultado: as mensagens sao enviadas ao WhatsApp com sucesso, mas ficam **invisiveis** na interface do chat.
+Pelo Chat direto funciona porque voce ja esta na aba/instancia correta.
 
 ### Solucao
-Adicionar `company_id` ao `SELECT` das queries de instancia em todos os pontos afetados da Edge Function `follow-up-check`.
+Quando o chat recebe um numero de telefone via URL (vindo da lista de leads), buscar a conversa em **todas as instancias** antes de criar uma nova. Se encontrar em outra instancia, trocar automaticamente para ela.
 
 ### O que muda para o usuario
-- Todas as mensagens automaticas (lembretes, follow-ups) passam a aparecer corretamente no chat
-- As 24 mensagens automaticas ja existentes sem `company_id` serao corrigidas retroativamente com um UPDATE
+- Clicar em "WhatsApp" na lista de leads sempre abre a conversa correta, independente de qual instancia (Manchester/Trujillo) esta selecionada
+- Nao cria mais conversas vazias duplicadas
 
 ### Detalhes tecnicos
 
-**Arquivo: `supabase/functions/follow-up-check/index.ts`**
+**Arquivo: `src/components/whatsapp/WhatsAppChat.tsx`**
 
-Tres queries precisam ser corrigidas -- todas mudam de:
+Na funcao `fetchConversations`, quando `selectPhone` e fornecido e nao encontra correspondencia na instancia atual:
+
+1. Antes de chamar `createNewConversation`, fazer uma query em `wapi_conversations` **sem filtro de instance_id**, buscando pelo telefone
+2. Se encontrar uma conversa existente em outra instancia, trocar o `selectedInstance` para a instancia correta e selecionar aquela conversa
+3. So criar conversa nova se realmente nao existir em nenhuma instancia
+
+Trecho da logica (linhas ~1245-1265):
+
 ```
-.select("instance_id, instance_token")
+// Atual: so busca na instancia selecionada
+const matchingConv = data.find(...)
+
+// Novo: se nao encontrou, buscar em todas as instancias
+if (!matchingConv) {
+  const { data: crossInstanceConv } = await supabase
+    .from("wapi_conversations")
+    .select("id, instance_id, contact_phone, contact_name, ...")
+    .or(phoneVariants.map(p => `contact_phone.ilike.%${p}%`).join(','))
+    .order("last_message_at", { ascending: false })
+    .limit(1)
+    .single();
+    
+  if (crossInstanceConv) {
+    // Trocar para a instancia correta
+    const targetInstance = instances.find(i => i.id === crossInstanceConv.instance_id);
+    if (targetInstance) {
+      setSelectedInstance(targetInstance);
+      setSelectedConversation(crossInstanceConv);
+      onPhoneHandled?.();
+      return;
+    }
+  }
+}
 ```
-Para:
-```
-.select("instance_id, instance_token, company_id")
-```
 
-Locais exatos:
-1. **Linha ~199** - `processNextStepReminder` (lembrete de proximo passo)
-2. **Linha ~428** - `processFollowUp` (follow-up 1 e 2)
-3. **Linha ~616** - `processInactiveFollowUp` (follow-up de inatividade)
-
-A linha ~852 ja inclui `company_id` corretamente.
-
-**Correcao retroativa (SQL)**:
-```sql
-UPDATE wapi_messages m
-SET company_id = c.company_id
-FROM wapi_conversations c
-WHERE m.conversation_id = c.id
-  AND m.company_id IS NULL
-  AND m.metadata IS NOT NULL
-  AND m.metadata::text != 'null';
-```
-
-**Deploy**: Redeployar a edge function `follow-up-check`.
-
+Nenhuma alteracao de banco de dados necessaria.
