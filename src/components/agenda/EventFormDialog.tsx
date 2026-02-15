@@ -5,7 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search, X, UserCheck } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
 
 export interface EventFormData {
   id?: string;
@@ -20,6 +22,8 @@ export interface EventFormData {
   package_name: string;
   total_value: number | null;
   notes: string;
+  lead_id?: string | null;
+  lead_name?: string | null;
 }
 
 const EVENT_TYPES = [
@@ -56,17 +60,50 @@ const EMPTY: EventFormData = {
   package_name: "",
   total_value: null,
   notes: "",
+  lead_id: null,
+  lead_name: null,
 };
 
 export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, units }: EventFormDialogProps) {
   const [form, setForm] = useState<EventFormData>(EMPTY);
   const [saving, setSaving] = useState(false);
+  const { currentCompany } = useCompany();
+
+  // Lead search state
+  const [leadSearch, setLeadSearch] = useState("");
+  const [leadResults, setLeadResults] = useState<Array<{ id: string; name: string; whatsapp: string }>>([]);
+  const [leadSearching, setLeadSearching] = useState(false);
+  const [showLeadDropdown, setShowLeadDropdown] = useState(false);
 
   useEffect(() => {
     if (open) {
       setForm(initialData || EMPTY);
+      setLeadSearch("");
+      setLeadResults([]);
+      setShowLeadDropdown(false);
     }
   }, [open, initialData]);
+
+  // Debounced lead search
+  useEffect(() => {
+    if (!leadSearch || leadSearch.length < 2 || !currentCompany?.id) {
+      setLeadResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setLeadSearching(true);
+      const { data } = await supabase
+        .from("campaign_leads")
+        .select("id, name, whatsapp")
+        .eq("company_id", currentCompany.id)
+        .ilike("name", `%${leadSearch}%`)
+        .limit(10);
+      setLeadResults(data || []);
+      setLeadSearching(false);
+      setShowLeadDropdown(true);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [leadSearch, currentCompany?.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,6 +129,61 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           <div>
             <Label>Nome do cliente / Título *</Label>
             <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+          </div>
+
+          {/* Lead CRM link */}
+          <div className="relative">
+            <Label>Vincular Lead do CRM</Label>
+            {form.lead_id ? (
+              <div className="flex items-center gap-2 p-2 rounded-md border border-border bg-accent/30">
+                <UserCheck className="h-4 w-4 text-primary shrink-0" />
+                <span className="text-sm flex-1 truncate">{form.lead_name || "Lead vinculado"}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => setForm({ ...form, lead_id: null, lead_name: null })}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar lead por nome..."
+                    value={leadSearch}
+                    onChange={(e) => setLeadSearch(e.target.value)}
+                    className="pl-8"
+                  />
+                  {leadSearching && <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />}
+                </div>
+                {showLeadDropdown && leadResults.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-md max-h-48 overflow-y-auto">
+                    {leadResults.map((lead) => (
+                      <button
+                        key={lead.id}
+                        type="button"
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
+                        onClick={() => {
+                          setForm({ ...form, lead_id: lead.id, lead_name: lead.name, title: form.title || lead.name });
+                          setLeadSearch("");
+                          setShowLeadDropdown(false);
+                        }}
+                      >
+                        <span className="font-medium">{lead.name}</span>
+                        <span className="text-xs text-muted-foreground ml-2">{lead.whatsapp}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {showLeadDropdown && leadResults.length === 0 && leadSearch.length >= 2 && !leadSearching && (
+                  <p className="text-xs text-muted-foreground mt-1">Nenhum lead encontrado.</p>
+                )}
+              </>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
