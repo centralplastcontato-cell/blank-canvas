@@ -155,7 +155,6 @@ serve(async (req) => {
 
     // Count transitions by new_value
     const orcamentoLeadIds = new Set<string>();
-    let visitas = 0;
     let fechados = 0;
     const activeLeadIds = new Set<string>();
 
@@ -164,7 +163,6 @@ serve(async (req) => {
       if (nv === "orcamento_enviado" || nv === "orçamento_enviado") {
         orcamentoLeadIds.add(ev.lead_id);
       }
-      if (nv === "em_contato") visitas++;
       if (nv === "fechado") fechados++;
       activeLeadIds.add(ev.lead_id);
     }
@@ -224,17 +222,43 @@ serve(async (req) => {
 
     const orcamentos = orcamentoLeadIds.size;
 
-    let querPensar = 0;
-    let querHumano = 0;
+    // Mutually exclusive decision categories using Sets to avoid double counting
+    const visitaIds = new Set<string>();
+    const pensarIds = new Set<string>();
+    const humanoIds = new Set<string>();
+
     for (const id of allActiveIds) {
       const conv = convMap.get(id);
-      if (!conv?.bot_data) continue;
-      const pp = (conv.bot_data as any)?.proximo_passo;
-      if (!pp) continue;
-      const ppNorm = String(pp).toLowerCase();
-      if (pp === "3" || ppNorm.includes("analisar") || ppNorm.includes("pensar")) querPensar++;
-      if (pp === "2" || ppNorm.includes("dúvida") || ppNorm.includes("duvida") || ppNorm.includes("humano")) querHumano++;
+      const lead = (todayLeads || []).find((l: any) => l.id === id);
+      const leadStatus = lead?.status || "";
+
+      // Check proximo_passo from bot_data first (mutually exclusive)
+      const pp = (conv?.bot_data as any)?.proximo_passo;
+      if (pp) {
+        const ppNorm = String(pp).toLowerCase();
+        if (pp === "1" || ppNorm.includes("agendar") || ppNorm.includes("visita")) {
+          visitaIds.add(id);
+          continue;
+        }
+        if (pp === "3" || ppNorm.includes("analisar") || ppNorm.includes("pensar")) {
+          pensarIds.add(id);
+          continue;
+        }
+        if (pp === "2" || ppNorm.includes("dúvida") || ppNorm.includes("duvida") || ppNorm.includes("humano")) {
+          humanoIds.add(id);
+          continue;
+        }
+      }
+
+      // Fallback: if lead status is em_contato but no proximo_passo, count as visita
+      if (leadStatus === "em_contato") {
+        visitaIds.add(id);
+      }
     }
+
+    const visitas = visitaIds.size;
+    const querPensar = pensarIds.size;
+    const querHumano = humanoIds.size;
 
     const taxaConversao = novos > 0 ? Math.round((fechados / novos) * 100) : 0;
 
