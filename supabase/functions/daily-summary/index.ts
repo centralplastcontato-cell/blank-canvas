@@ -285,7 +285,21 @@ serve(async (req) => {
       "1": "Agendar visita", "2": "Tirar dúvidas", "3": "Analisar com calma",
     };
 
-    const timeline = (historyEvents || []).map((e: any, index: number) => {
+    // Build synthetic lead_created events for today's leads
+    const syntheticEvents = (todayLeads || []).map((l: any) => ({
+      lead_id: l.id,
+      action: "lead_created",
+      old_value: null,
+      new_value: null,
+      user_name: null,
+      created_at: l.created_at,
+    }));
+
+    // Merge history events with synthetic events and sort by time
+    const allTimelineEvents = [...(historyEvents || []), ...syntheticEvents]
+      .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+    const timeline = allTimelineEvents.map((e: any, index: number) => {
       const conv = convMap.get(e.lead_id);
       const botStep = conv?.bot_step || null;
       const botStepLabel = botStep ? (BOT_STEP_LABELS[botStep] || botStep) : null;
