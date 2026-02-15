@@ -178,7 +178,7 @@ serve(async (req) => {
       conversations = convs || [];
     }
 
-    const completedBotSteps = ["complete_final", "flow_complete"];
+    const completedBotSteps = ["complete_final", "flow_complete", "proximo_passo", "proximo_passo_reminded"];
     const convMap = new Map(conversations.map((c: any) => [c.lead_id, c]));
 
     for (const id of allActiveIds) {
