@@ -758,7 +758,7 @@ export default function CentralAtendimento() {
                 </TabsTrigger>
               </TabsList>
 
-              {/* Unit selector - same row */}
+              {/* Unit selector - same row (chat tab) */}
               {chatInstances.length > 1 && activeTab === "chat" && (
                 <div className="flex items-center gap-1 bg-border rounded-lg p-0.5">
                   {chatInstances.map((inst) => (
@@ -775,6 +775,61 @@ export default function CentralAtendimento() {
                       {inst.unit}
                     </Button>
                   ))}
+                </div>
+              )}
+
+              {/* Leads toolbar - same row (leads tab) */}
+              {activeTab === "leads" && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-1 bg-border rounded-lg p-0.5">
+                    <Button
+                      variant={viewMode === "list" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setViewMode("list")}
+                      className={`h-7 px-2.5 rounded-md text-xs ${viewMode === "list" ? "shadow-sm" : ""}`}
+                    >
+                      <LayoutList className="w-3.5 h-3.5 mr-1" />
+                      Lista
+                    </Button>
+                    <Button
+                      variant={viewMode === "kanban" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setViewMode("kanban")}
+                      className={`h-7 px-2.5 rounded-md text-xs ${viewMode === "kanban" ? "shadow-sm" : ""}`}
+                    >
+                      <Columns className="w-3.5 h-3.5 mr-1" />
+                      CRM
+                    </Button>
+                  </div>
+
+                  <Button
+                    variant={showMetrics ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowMetrics(!showMetrics)}
+                    className="gap-1 h-7 text-xs px-2"
+                  >
+                    <BarChart3 className="w-3.5 h-3.5" />
+                    <Badge variant="secondary" className="h-4 px-1 text-[9px] bg-primary/10 text-primary border-0">
+                      {leadMetrics.total}
+                    </Badge>
+                    <ChevronDown className={`w-3 h-3 transition-transform ${showMetrics ? 'rotate-180' : ''}`} />
+                  </Button>
+
+                  <Button
+                    variant={showFilters ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="gap-1 h-7 text-xs px-2"
+                  >
+                    <Filter className="w-3.5 h-3.5" />
+                    Filtros
+                    {activeFiltersCount > 0 && (
+                      <Badge variant="destructive" className="h-4 px-1 text-[9px]">
+                        {activeFiltersCount}
+                      </Badge>
+                    )}
+                    <ChevronDown className={`w-3 h-3 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+                  </Button>
                 </div>
               )}
             </div>
@@ -803,62 +858,6 @@ export default function CentralAtendimento() {
                 onRefresh={handleRefresh} 
                 className="flex-1 min-h-0 px-3 py-4"
               >
-                {/* Compact toolbar: View mode + Metrics + Filters */}
-                <div className="flex items-center gap-2 mb-3 flex-wrap">
-                  {/* View mode toggle */}
-                  <div className="flex items-center gap-1 bg-border rounded-lg p-0.5">
-                    <Button
-                      variant={viewMode === "list" ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => setViewMode("list")}
-                      className={`h-7 px-2.5 rounded-md text-xs ${viewMode === "list" ? "shadow-sm" : ""}`}
-                    >
-                      <LayoutList className="w-3.5 h-3.5 mr-1" />
-                      Lista
-                    </Button>
-                    <Button
-                      variant={viewMode === "kanban" ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => setViewMode("kanban")}
-                      className={`h-7 px-2.5 rounded-md text-xs ${viewMode === "kanban" ? "shadow-sm" : ""}`}
-                    >
-                      <Columns className="w-3.5 h-3.5 mr-1" />
-                      CRM
-                    </Button>
-                  </div>
-
-                  {/* Metrics toggle */}
-                  <Button
-                    variant={showMetrics ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setShowMetrics(!showMetrics)}
-                    className="gap-1 h-7 text-xs px-2"
-                  >
-                    <BarChart3 className="w-3.5 h-3.5" />
-                    <Badge variant="secondary" className="h-4 px-1 text-[9px] bg-primary/10 text-primary border-0">
-                      {leadMetrics.total}
-                    </Badge>
-                    <ChevronDown className={`w-3 h-3 transition-transform ${showMetrics ? 'rotate-180' : ''}`} />
-                  </Button>
-
-                  {/* Filters toggle */}
-                  <Button
-                    variant={showFilters ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setShowFilters(!showFilters)}
-                    className="gap-1 h-7 text-xs px-2"
-                  >
-                    <Filter className="w-3.5 h-3.5" />
-                    Filtros
-                    {activeFiltersCount > 0 && (
-                      <Badge variant="destructive" className="h-4 px-1 text-[9px]">
-                        {activeFiltersCount}
-                      </Badge>
-                    )}
-                    <ChevronDown className={`w-3 h-3 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
-                  </Button>
-                </div>
-
                 {/* Collapsible Metrics */}
                 <Collapsible open={showMetrics}>
                   <CollapsibleContent>
