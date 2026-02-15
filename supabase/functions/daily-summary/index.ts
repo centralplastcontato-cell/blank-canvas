@@ -214,8 +214,10 @@ serve(async (req) => {
       const conv = convMap.get(id);
       if (!conv?.bot_data) continue;
       const pp = (conv.bot_data as any)?.proximo_passo;
-      if (pp === "3") querPensar++;
-      if (pp === "2") querHumano++;
+      if (!pp) continue;
+      const ppNorm = String(pp).toLowerCase();
+      if (pp === "3" || ppNorm.includes("analisar") || ppNorm.includes("pensar")) querPensar++;
+      if (pp === "2" || ppNorm.includes("dúvida") || ppNorm.includes("duvida") || ppNorm.includes("humano")) querHumano++;
     }
 
     const taxaConversao = novos > 0 ? Math.round((fechados / novos) * 100) : 0;
