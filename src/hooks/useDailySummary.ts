@@ -16,6 +16,7 @@ export interface DailyMetrics {
 export interface TimelineEvent {
   index: number;
   time: string;
+  leadId: string;
   leadName: string;
   action: string;
   oldValue: string | null;

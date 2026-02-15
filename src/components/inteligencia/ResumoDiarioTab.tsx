@@ -78,6 +78,7 @@ function isAlertEvent(action: string): boolean {
 }
 
 function TimelineSection({ events }: { events: TimelineEvent[] }) {
+  const navigate = useNavigate();
   const [filter, setFilter] = useState<"all" | "alerts">("all");
 
   if (events.length === 0) {
@@ -139,7 +140,13 @@ function TimelineSection({ events }: { events: TimelineEvent[] }) {
             <span className="text-sm shrink-0 mt-0.5">{getActionIcon(event.action)}</span>
             <div className="flex-1 min-w-0">
               <p className="text-sm">
-                <strong className="text-foreground">{event.leadName}</strong>{" "}
+                <a
+                  href={`/atendimento?leadId=${event.leadId}`}
+                  onClick={(e) => { e.preventDefault(); navigate(`/atendimento?leadId=${event.leadId}`); }}
+                  className="font-semibold text-primary hover:underline cursor-pointer"
+                >
+                  {event.leadName}
+                </a>{" "}
                 <span className="text-muted-foreground">{formatAction(event)}</span>
               </p>
               <div className="flex flex-wrap gap-1.5 mt-1">

@@ -239,6 +239,7 @@ serve(async (req) => {
 
       return {
         index: index + 1, time: timeStr,
+        leadId: e.lead_id,
         leadName: allLeadNames.get(e.lead_id) || "Lead",
         action: e.action, oldValue: e.old_value, newValue: e.new_value,
         userName: e.user_name, botStep: botStepLabel, proximoPasso: proximoPassoLabel,
