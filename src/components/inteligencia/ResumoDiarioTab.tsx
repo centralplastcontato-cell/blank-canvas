@@ -152,7 +152,7 @@ function TimelineSection({ events }: { events: TimelineEvent[] }) {
               <div className="flex flex-wrap gap-1.5 mt-1">
                 {event.botStep && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-                    Etapa: {event.botStep}
+                    Etapa: {event.botStep === 'proximo_passo_reminded' ? 'Lembrete enviado' : event.botStep === 'proximo_passo' ? 'Aguardando decisão' : event.botStep}
                   </span>
                 )}
                 {event.proximoPasso && (
