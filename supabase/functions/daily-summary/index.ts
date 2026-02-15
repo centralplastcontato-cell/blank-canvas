@@ -232,7 +232,13 @@ serve(async (req) => {
       const lead = (todayLeads || []).find((l: any) => l.id === id);
       const leadStatus = lead?.status || "";
 
-      // Check proximo_passo from bot_data first (mutually exclusive)
+      // PRIORITY: CRM status em_contato = real action (visit scheduled), overrides bot data
+      if (leadStatus === "em_contato") {
+        visitaIds.add(id);
+        continue;
+      }
+
+      // Then check proximo_passo from bot_data (mutually exclusive)
       const pp = (conv?.bot_data as any)?.proximo_passo;
       if (pp) {
         const ppNorm = String(pp).toLowerCase();
@@ -248,11 +254,6 @@ serve(async (req) => {
           humanoIds.add(id);
           continue;
         }
-      }
-
-      // Fallback: if lead status is em_contato but no proximo_passo, count as visita
-      if (leadStatus === "em_contato") {
-        visitaIds.add(id);
       }
     }
 
