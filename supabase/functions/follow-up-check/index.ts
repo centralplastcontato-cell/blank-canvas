@@ -196,7 +196,7 @@ async function processNextStepReminder({
   // Get instance credentials
   const { data: instance } = await supabase
     .from("wapi_instances")
-    .select("instance_id, instance_token")
+    .select("instance_id, instance_token, company_id")
     .eq("id", settings.instance_id)
     .single();
 
@@ -425,7 +425,7 @@ async function processFollowUp({
       // Get instance credentials
       const { data: instance } = await supabase
         .from("wapi_instances")
-        .select("instance_id, instance_token")
+        .select("instance_id, instance_token, company_id")
         .eq("id", conversation.instance_id)
         .single();
 
@@ -613,7 +613,7 @@ async function processBotInactiveFollowUp({
   // Get instance credentials
   const { data: instance } = await supabase
     .from("wapi_instances")
-    .select("instance_id, instance_token")
+    .select("instance_id, instance_token, company_id")
     .eq("id", settings.instance_id)
     .single();
 
