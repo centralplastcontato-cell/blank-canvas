@@ -11,6 +11,16 @@ export interface DailyMetrics {
   querPensar: number;
   querHumano: number;
   taxaConversao: number;
+  followUp24h: number;
+  followUp48h: number;
+}
+
+export interface FollowUpLead {
+  leadId: string;
+  name: string;
+  whatsapp: string;
+  tipo: string;
+  time: string;
 }
 
 export interface TimelineEvent {
@@ -39,6 +49,7 @@ export interface DailySummaryData {
   aiSummary: string | null;
   timeline: TimelineEvent[];
   incompleteLeads: IncompleteLead[];
+  followUpLeads: FollowUpLead[];
   userNote?: string | null;
   isHistorical?: boolean;
   noData?: boolean;

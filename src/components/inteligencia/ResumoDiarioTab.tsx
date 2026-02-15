@@ -15,8 +15,9 @@ import {
   Users, CalendarCheck, FileText, Trophy, Clock,
   MessageCircle, PauseCircle, Sparkles, Loader2, RefreshCw,
   AlertTriangle, Phone, CalendarIcon, MessageSquarePlus, Save, Pencil,
+  Timer,
 } from "lucide-react";
-import { useDailySummary, type DailyMetrics, type TimelineEvent, type IncompleteLead } from "@/hooks/useDailySummary";
+import { useDailySummary, type DailyMetrics, type TimelineEvent, type IncompleteLead, type FollowUpLead } from "@/hooks/useDailySummary";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { toast } from "sonner";
@@ -41,7 +42,7 @@ function MetricCard({ icon: Icon, label, value, color }: {
 
 function MetricsGrid({ metrics, incompleteCount }: { metrics: DailyMetrics; incompleteCount: number }) {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-9 gap-3">
       <MetricCard icon={Users} label="Leads novos" value={metrics.novos} color="bg-blue-500/10 text-blue-500" />
       <MetricCard icon={CalendarCheck} label="Visitas agendadas" value={metrics.visitas} color="bg-green-500/10 text-green-500" />
       <MetricCard icon={FileText} label="Orçamentos" value={metrics.orcamentos} color="bg-purple-500/10 text-purple-500" />
@@ -49,6 +50,8 @@ function MetricsGrid({ metrics, incompleteCount }: { metrics: DailyMetrics; inco
       <MetricCard icon={MessageCircle} label="Querem humano" value={metrics.querHumano} color="bg-orange-500/10 text-orange-500" />
       <MetricCard icon={Trophy} label="Taxa conversão" value={`${metrics.taxaConversao}%`} color="bg-emerald-500/10 text-emerald-500" />
       <MetricCard icon={AlertTriangle} label="Não completaram" value={incompleteCount} color="bg-destructive/10 text-destructive" />
+      <MetricCard icon={Timer} label="Follow-up 24h" value={metrics.followUp24h || 0} color="bg-sky-500/10 text-sky-500" />
+      <MetricCard icon={Timer} label="Follow-up 48h" value={metrics.followUp48h || 0} color="bg-indigo-500/10 text-indigo-500" />
     </div>
   );
 }
@@ -236,6 +239,64 @@ function IncompleteLeadsSection({ leads }: { leads: IncompleteLead[] }) {
   );
 }
 
+function FollowUpLeadsSection({ leads }: { leads: FollowUpLead[] }) {
+  const navigate = useNavigate();
+
+  const leads24h = leads.filter(l => l.tipo === "24h");
+  const leads48h = leads.filter(l => l.tipo === "48h");
+  const leadsOther = leads.filter(l => l.tipo !== "24h" && l.tipo !== "48h");
+
+  const renderGroup = (title: string, groupLeads: FollowUpLead[], badgeColor: string) => {
+    if (groupLeads.length === 0) return null;
+    return (
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-muted-foreground">{title} ({groupLeads.length})</h3>
+        {groupLeads.map((lead, i) => (
+          <Card key={`${lead.leadId}-${i}`}>
+            <CardContent className="flex items-center gap-4 p-4">
+              <div className="p-2 rounded-lg bg-sky-500/10 text-sky-500 shrink-0">
+                <Timer className="h-5 w-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate">{lead.name}</p>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <Badge className={badgeColor}>{lead.tipo}</Badge>
+                  <span className="text-[11px] text-muted-foreground">às {lead.time}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => navigate(`/atendimento?leadId=${lead.leadId}`)}
+                className="shrink-0 p-2 rounded-lg bg-green-500/10 text-green-600 hover:bg-green-500/20 transition-colors"
+              >
+                <Phone className="h-4 w-4" />
+              </button>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  };
+
+  if (leads.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center text-muted-foreground text-sm">
+          Nenhum follow-up enviado neste dia
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {renderGroup("Follow-up 24h", leads24h, "bg-sky-500/10 text-sky-600 border-sky-200")}
+      {renderGroup("Follow-up 48h", leads48h, "bg-indigo-500/10 text-indigo-600 border-indigo-200")}
+      {renderGroup("Follow-up 96h", leadsOther, "bg-violet-500/10 text-violet-600 border-violet-200")}
+    </div>
+  );
+}
+
+
 function TeamNoteSection({ note, summaryDate, companyId, onSaved }: {
   note: string | null | undefined;
   summaryDate: string;
@@ -360,8 +421,8 @@ export function ResumoDiarioTab() {
   if (isLoading && !data) {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-          {Array.from({ length: 7 }).map((_, i) => (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-9 gap-3">
+          {Array.from({ length: 9 }).map((_, i) => (
             <Skeleton key={i} className="h-20 rounded-lg" />
           ))}
         </div>
@@ -414,6 +475,9 @@ export function ResumoDiarioTab() {
           <TabsTrigger value="visao-geral">Visão Geral</TabsTrigger>
           <TabsTrigger value="nao-completaram">
             Não Completaram {incompleteCount > 0 && `(${incompleteCount})`}
+          </TabsTrigger>
+          <TabsTrigger value="follow-ups">
+            Follow-ups {((data?.metrics?.followUp24h || 0) + (data?.metrics?.followUp48h || 0)) > 0 && `(${(data?.metrics?.followUp24h || 0) + (data?.metrics?.followUp48h || 0)})`}
           </TabsTrigger>
         </TabsList>
 
@@ -473,6 +537,10 @@ export function ResumoDiarioTab() {
 
         <TabsContent value="nao-completaram">
           <IncompleteLeadsSection leads={data?.incompleteLeads || []} />
+        </TabsContent>
+
+        <TabsContent value="follow-ups">
+          <FollowUpLeadsSection leads={data?.followUpLeads || []} />
         </TabsContent>
       </Tabs>
     </div>
