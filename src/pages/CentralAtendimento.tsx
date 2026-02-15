@@ -97,21 +97,37 @@ export default function CentralAtendimento() {
   const [chatInstances, setChatInstances] = useState<{ id: string; unit: string | null; status: string | null }[]>([]);
   const [selectedChatUnit, setSelectedChatUnit] = useState<string | null>(null);
 
-  // Handle URL params for phone navigation
+  // Handle URL params for phone/leadId navigation
   useEffect(() => {
     const phoneParam = searchParams.get("phone");
     const draftParam = searchParams.get("draft");
+    const leadIdParam = searchParams.get("leadId");
+
     if (phoneParam) {
       setInitialPhone(phoneParam);
       setInitialDraft(draftParam ? decodeURIComponent(draftParam) : null);
       setActiveTab("chat");
+    } else if (leadIdParam) {
+      // Lookup lead's whatsapp by ID and navigate to that conversation
+      supabase
+        .from("campaign_leads")
+        .select("whatsapp")
+        .eq("id", leadIdParam)
+        .single()
+        .then(({ data }) => {
+          if (data?.whatsapp) {
+            setInitialPhone(data.whatsapp);
+            setActiveTab("chat");
+          }
+        });
     }
   }, [searchParams]);
 
   const handlePhoneHandled = () => {
-    if (searchParams.has("phone") || searchParams.has("draft")) {
+    if (searchParams.has("phone") || searchParams.has("draft") || searchParams.has("leadId")) {
       searchParams.delete("phone");
       searchParams.delete("draft");
+      searchParams.delete("leadId");
       setSearchParams(searchParams, { replace: true });
     }
     setInitialPhone(null);
