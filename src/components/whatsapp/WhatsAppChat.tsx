@@ -1842,6 +1842,17 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     return format(date, "HH:mm");
   };
 
+  const formatDateSeparator = (timestamp: string) => {
+    const date = new Date(timestamp);
+    if (isToday(date)) return "Hoje";
+    if (isYesterday(date)) return "Ontem";
+    return format(date, "EEE., d 'de' MMM.", { locale: ptBR });
+  };
+
+  const getDateKey = (timestamp: string) => {
+    return new Date(timestamp).toISOString().slice(0, 10);
+  };
+
   const formatConversationDate = (timestamp: string | null) => {
     if (!timestamp) return "";
     const date = new Date(timestamp);
@@ -3428,9 +3439,18 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                             </p>
                           </div>
                         ) : (
-                          messages.map((msg) => (
+                          messages.map((msg, idx) => {
+                            const showDateSep = idx === 0 || getDateKey(msg.timestamp) !== getDateKey(messages[idx - 1].timestamp);
+                            return (
+                            <div key={msg.id}>
+                            {showDateSep && (
+                              <div className="flex justify-center my-3">
+                                <span className="bg-muted text-muted-foreground text-xs px-3 py-1 rounded-md shadow-sm font-medium">
+                                  {formatDateSeparator(msg.timestamp)}
+                                </span>
+                              </div>
+                            )}
                             <div
-                              key={msg.id}
                               className={cn(
                                 "flex group",
                                 msg.from_me ? "justify-end" : "justify-start"
@@ -3591,7 +3611,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                 </div>
                               )}
                             </div>
-                          ))
+                            </div>
+                            );
+                          })
+
                         )}
                         <div ref={bottomRefDesktop} style={{ height: 1 }} />
                       </div>
@@ -4218,9 +4241,18 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                           </p>
                         </div>
                       ) : (
-                      messages.map((msg) => (
+                      messages.map((msg, idx) => {
+                        const showDateSep = idx === 0 || getDateKey(msg.timestamp) !== getDateKey(messages[idx - 1].timestamp);
+                        return (
+                        <div key={msg.id}>
+                        {showDateSep && (
+                          <div className="flex justify-center my-3">
+                            <span className="bg-muted text-muted-foreground text-xs px-3 py-1 rounded-md shadow-sm font-medium">
+                              {formatDateSeparator(msg.timestamp)}
+                            </span>
+                          </div>
+                        )}
                         <div
-                          key={msg.id}
                           className={cn(
                             "flex group",
                             msg.from_me ? "justify-end" : "justify-start"
@@ -4378,7 +4410,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                             </div>
                           )}
                         </div>
-                      ))
+                        </div>
+                        );
+                      })
                       )}
                       <div ref={bottomRefMobile} style={{ height: 1 }} />
                     </div>
