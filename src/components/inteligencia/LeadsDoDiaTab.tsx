@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,8 @@ import { LeadIntelligence } from "@/hooks/useLeadIntelligence";
 import { LEAD_STATUS_LABELS, LeadStatus } from "@/types/crm";
 import { format, isToday, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
 
 interface LeadsDoDiaTabProps {
   data: LeadIntelligence[];
@@ -17,11 +19,62 @@ interface LeadsDoDiaTabProps {
 
 export function LeadsDoDiaTab({ data, canExport }: LeadsDoDiaTabProps) {
   const navigate = useNavigate();
+  const { currentCompany } = useCompany();
+  const [missingLeads, setMissingLeads] = useState<LeadIntelligence[]>([]);
 
-  const todayLeads = data.filter(d => {
+  const todayFromIntelligence = data.filter(d => {
     const createdAt = d.lead_created_at || d.created_at;
     return isToday(new Date(createdAt));
   });
+
+  // Fetch leads created today that are missing from lead_intelligence
+  useEffect(() => {
+    if (!currentCompany?.id) return;
+    const intelligenceLeadIds = new Set(data.map(d => d.lead_id));
+    
+    const fetchMissing = async () => {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      
+      const { data: allTodayLeads } = await supabase
+        .from('campaign_leads')
+        .select('id, name, status, whatsapp, unit, created_at')
+        .eq('company_id', currentCompany.id)
+        .gte('created_at', todayStart.toISOString());
+      
+      if (!allTodayLeads) return;
+      
+      const missing = allTodayLeads
+        .filter(l => !intelligenceLeadIds.has(l.id))
+        .map(l => ({
+          id: `missing-${l.id}`,
+          lead_id: l.id,
+          company_id: currentCompany.id,
+          score: 0,
+          temperature: 'frio',
+          priority_flag: false,
+          abandonment_type: null,
+          intent_tags: [],
+          last_customer_message_at: null,
+          last_agent_message_at: null,
+          followup_count: 0,
+          updated_at: l.created_at,
+          created_at: l.created_at,
+          lead_name: l.name,
+          lead_status: l.status,
+          lead_whatsapp: l.whatsapp,
+          lead_unit: l.unit,
+          lead_created_at: l.created_at,
+        } as LeadIntelligence));
+      
+      setMissingLeads(missing);
+    };
+    
+    fetchMissing();
+  }, [currentCompany?.id, data]);
+
+  const todayLeads = [...todayFromIntelligence, ...missingLeads]
+    .sort((a, b) => new Date(b.lead_created_at || b.created_at).getTime() - new Date(a.lead_created_at || a.created_at).getTime());
 
   const handleExport = () => {
     const rows = todayLeads.map(d => [
