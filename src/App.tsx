@@ -25,6 +25,7 @@ import HubOnboarding from "./pages/HubOnboarding";
 import HubProspeccao from "./pages/HubProspeccao";
 import Onboarding from "./pages/Onboarding";
 import Inteligencia from "./pages/Inteligencia";
+import Agenda from "./pages/Agenda";
 
 import DynamicLandingPage from "./pages/DynamicLandingPage";
 import NotFound from "./pages/NotFound";
@@ -60,6 +61,7 @@ const App = () => (
             <Route path="/hub/onboarding" element={<HubOnboarding />} />
             <Route path="/hub/prospeccao" element={<HubProspeccao />} />
             <Route path="/inteligencia" element={<Inteligencia />} />
+            <Route path="/agenda" element={<Agenda />} />
             
             {/* Public dynamic landing page by slug */}
             <Route path="/lp/:slug" element={<DynamicLandingPage />} />
