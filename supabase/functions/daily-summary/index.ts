@@ -376,17 +376,22 @@ Gere um resumo de 3-5 parágrafos curtos com:
     }
 
     // Build incomplete leads list
-    const completedSteps = ["complete_final", "flow_complete"];
+    const completedOrPendingSteps = [
+      "complete_final", "flow_complete",
+      "complete_visit", "complete_questions", "complete_analyze",
+      "proximo_passo", "proximo_passo_reminded",
+    ];
     const incompleteLeads = (todayLeads || [])
       .map((lead: any) => {
         const conv = convMap.get(lead.id);
         const step = conv?.bot_step || null;
-        if (step && completedSteps.includes(step)) return null;
-        const stepLabel = step ? (BOT_STEP_LABELS[step] || step) : "Sem interação";
+        if (!step) return null;
+        if (completedOrPendingSteps.includes(step)) return null;
+        const stepLabel = BOT_STEP_LABELS[step] || step;
         return {
           name: lead.name, whatsapp: lead.whatsapp, botStep: stepLabel,
           lastMessageAt: conv?.last_message_at || null,
-          isReminded: step ? step.includes("reminded") : false,
+          isReminded: step.includes("reminded"),
         };
       })
       .filter(Boolean);
