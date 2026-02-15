@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -420,6 +421,64 @@ function TeamNoteSection({ note, summaryDate, companyId, onSaved }: {
   );
 }
 
+
+function parseAISections(text: string): { title: string; content: string[] }[] {
+  const lines = text.split("\n");
+  const sections: { title: string; content: string[] }[] = [];
+  let current: { title: string; content: string[] } | null = null;
+
+  for (const line of lines) {
+    const match = line.match(/^\*\*(.+?)\*\*$/);
+    if (match) {
+      if (current) sections.push(current);
+      current = { title: match[1].trim(), content: [] };
+    } else if (line.trim()) {
+      if (!current) current = { title: "Resumo", content: [] };
+      current.content.push(line);
+    }
+  }
+  if (current) sections.push(current);
+  return sections;
+}
+
+function AISummaryAccordion({ text }: { text: string }) {
+  const sections = parseAISections(text);
+
+  if (sections.length === 0) {
+    return <p className="text-sm text-muted-foreground">Sem conteúdo</p>;
+  }
+
+  // If only 1 section or parsing didn't find headers, render flat
+  if (sections.length === 1 && sections[0].title === "Resumo") {
+    return (
+      <div className="prose prose-sm dark:prose-invert max-w-none">
+        {sections[0].content.map((line, i) => (
+          <p key={i} className="text-sm text-muted-foreground leading-relaxed">{line}</p>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <Accordion type="multiple" defaultValue={["section-0"]} className="w-full">
+      {sections.map((section, i) => (
+        <AccordionItem key={i} value={`section-${i}`} className="border-border/50">
+          <AccordionTrigger className="text-sm font-semibold hover:no-underline py-3">
+            {section.title}
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="space-y-1.5">
+              {section.content.map((line, j) => (
+                <p key={j} className="text-sm text-muted-foreground leading-relaxed">{line}</p>
+              ))}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      ))}
+    </Accordion>
+  );
+}
+
 export function ResumoDiarioTab() {
   const { currentCompany } = useCompany();
   const { data, isLoading, error, fetchSummary } = useDailySummary();
@@ -525,13 +584,7 @@ export function ResumoDiarioTab() {
               {error ? (
                 <p className="text-sm text-destructive">{error}</p>
               ) : data?.aiSummary ? (
-                <div className="prose prose-sm dark:prose-invert max-w-none">
-                  {data.aiSummary.split("\n").map((line, i) => (
-                    <p key={i} className={line.trim() === "" ? "hidden" : "text-sm text-muted-foreground leading-relaxed"}>
-                      {line}
-                    </p>
-                  ))}
-                </div>
+                <AISummaryAccordion text={data.aiSummary} />
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-4">
                   {isViewingToday ? 'Clique em "Atualizar" para gerar o resumo da IA' : "Nenhum insight salvo para esta data"}
