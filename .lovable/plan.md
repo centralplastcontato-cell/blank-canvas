@@ -1,43 +1,32 @@
 
 
-## Adicionar Tracking de Follow-ups ao Resumo Diario
+## Cards de Follow-up com Labels Dinamicos
 
-### O que sera feito
-Adicionar cards de metricas e uma nova aba para visualizar os follow-ups enviados no dia, separados por tipo (24h e 48h), com acesso direto ao lead.
+### Problema atual
+Os cards "Follow-up 24h" e "Follow-up 48h" e a classificacao dos follow-ups estao hardcoded com base no ID da instancia (Castelo = 24h/48h, Manchester = 48h/96h). Se voce alterar os tempos nas configuracoes de automacao, os cards continuam mostrando "24h" e "48h".
+
+### Solucao
+Buscar os tempos reais configurados em `wapi_bot_settings` e usa-los tanto na classificacao quanto nos labels dos cards.
 
 ### Mudancas
 
 **1. Edge Function `supabase/functions/daily-summary/index.ts`**
 
-Adicionar uma nova query na geracao do resumo para buscar follow-ups enviados no dia:
-- Consultar `lead_history` com `action = 'Follow-up automatico enviado'` (1o follow-up) e `action = 'Follow-up #2 automatico enviado'` (2o follow-up) dentro da janela de data
-- Para cada follow-up, buscar a instancia via `wapi_conversations` para saber se e 24h (Castelo) ou 48h (Manchester)
-- Retornar no response um novo campo `followUps` com a lista de leads e seus tipos, alem de contadores `followUp24h` e `followUp48h` nas metricas
+- Buscar `wapi_bot_settings` para todas as instancias da empresa, pegando `instance_id`, `follow_up_delay_hours` e `follow_up_2_delay_hours`
+- Substituir a logica hardcoded (Castelo = 24h, Manchester = 48h) por lookup dos valores reais de cada instancia
+- Classificar cada follow-up usando o delay real: ex. se Castelo tem `follow_up_delay_hours = 24`, o tipo sera "24h"; se Manchester tem `follow_up_delay_hours = 48`, sera "48h"
+- Retornar no response um novo campo `followUpLabels` com os nomes unicos dos tipos encontrados (ex: `{ fu1: "24h", fu2: "48h" }` ou os valores que estiverem configurados)
+- Agrupar as metricas por delay real em vez de categorias fixas
 
 **2. Hook `src/hooks/useDailySummary.ts`**
 
-Adicionar novas interfaces:
-- `FollowUpLead`: nome, whatsapp, leadId, tipo (24h/48h), horario do envio
-- Adicionar campos `followUp24h`, `followUp48h` no `DailyMetrics`
-- Adicionar campo `followUpLeads` no `DailySummaryData`
+- Adicionar campo `followUpLabels` na interface de retorno para receber os labels dinamicos do backend
 
 **3. Componente `src/components/inteligencia/ResumoDiarioTab.tsx`**
 
-- Adicionar 2 novos MetricCards no grid: "Follow-up 24h" (icone de relogio com cor azul) e "Follow-up 48h" (icone de relogio com cor indigo)
-- Adicionar nova aba "Follow-ups" nas Tabs, ao lado de "Visao Geral" e "Nao Completaram"
-- Na aba Follow-ups, mostrar a lista de leads separada em duas secoes (24h e 48h), cada card com:
-  - Nome do lead
-  - Horario do envio
-  - Badge indicando "24h" ou "48h"
-  - Botao para acessar o lead no atendimento
+- Usar os labels retornados pelo backend nos MetricCards em vez de "Follow-up 24h" / "Follow-up 48h" fixos
+- Na aba Follow-ups, usar os mesmos labels dinamicos para nomear as secoes e badges
+- Fallback para "24h" e "48h" caso o backend nao retorne os labels (compatibilidade)
 
-### Detalhes tecnicos
-
-A separacao 24h vs 48h sera baseada na instancia do lead:
-- Instancia Castelo (`3f39...`): follow-up 1 = 24h, follow-up 2 = 48h
-- Instancia Manchester (`9b84...`): follow-up 1 = 48h, follow-up 2 = 96h
-
-A query no edge function fara o JOIN entre `lead_history`, `campaign_leads` e `wapi_conversations` para determinar a qual instancia cada lead pertence e, combinado com o `action` (1o ou 2o follow-up), classificar como 24h ou 48h.
-
-O grid de metricas passara de 7 para 9 cards (responsivo: 2 colunas mobile, 3 tablet, 9 desktop).
-
+### Resultado
+Quando voce mudar o delay de follow-up de 24h para 12h nas configuracoes, o card automaticamente mostrara "Follow-up 12h". O mesmo para o segundo follow-up.
