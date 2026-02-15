@@ -1,53 +1,43 @@
 
-## Corrigir Follow-up que nao alcanca todos os leads
 
-### Problema identificado
-O sistema tem 2 instancias WhatsApp com delays de follow-up diferentes:
-- Instancia Castelo (3f39...) = 24h delay
-- Instancia Manchester (9b84...) = 48h delay
+## Adicionar Tracking de Follow-ups ao Resumo Diario
 
-A funcao `processFollowUp` busca leads na tabela `lead_history` SEM filtrar por instancia (linha 316-322). Depois, tenta encontrar a conversa do lead na instancia que esta sendo processada (linha 413-418). Leads cuja conversa esta na outra instancia sao ignorados com "No conversation found".
+### O que sera feito
+Adicionar cards de metricas e uma nova aba para visualizar os follow-ups enviados no dia, separados por tipo (24h e 48h), com acesso direto ao lead.
 
-Exemplo real: Sandra Carvalho e Bruna escolheram "Analisar com calma" e suas conversas estao na instancia Manchester (48h). Quando a instancia Castelo (24h) processa, encontra elas na lead_history (ja passaram 24h), mas nao acha conversa nessa instancia. Quando Manchester processa, 48h ainda nao passaram, entao elas nao entram na janela. Resultado: nenhuma instancia envia o follow-up.
+### Mudancas
 
-### Correcao tecnica
+**1. Edge Function `supabase/functions/daily-summary/index.ts`**
 
-**Arquivo: `supabase/functions/follow-up-check/index.ts`**
+Adicionar uma nova query na geracao do resumo para buscar follow-ups enviados no dia:
+- Consultar `lead_history` com `action = 'Follow-up automatico enviado'` (1o follow-up) e `action = 'Follow-up #2 automatico enviado'` (2o follow-up) dentro da janela de data
+- Para cada follow-up, buscar a instancia via `wapi_conversations` para saber se e 24h (Castelo) ou 48h (Manchester)
+- Retornar no response um novo campo `followUps` com a lista de leads e seus tipos, alem de contadores `followUp24h` e `followUp48h` nas metricas
 
-Alterar a funcao `processFollowUp` para filtrar leads pela instancia correta ANTES de tentar enviar. A abordagem:
+**2. Hook `src/hooks/useDailySummary.ts`**
 
-1. Apos buscar os `leadIds` da lead_history (linha 334), buscar as conversas desses leads filtradas pela instancia atual (`settings.instance_id`)
-2. Manter apenas os leads que TEM conversa nessa instancia especifica
-3. Isso garante que cada instancia so processa leads cujas conversas pertencem a ela, usando o delay correto
+Adicionar novas interfaces:
+- `FollowUpLead`: nome, whatsapp, leadId, tipo (24h/48h), horario do envio
+- Adicionar campos `followUp24h`, `followUp48h` no `DailyMetrics`
+- Adicionar campo `followUpLeads` no `DailySummaryData`
 
-Mudanca no codigo (em torno das linhas 334-396):
+**3. Componente `src/components/inteligencia/ResumoDiarioTab.tsx`**
 
-```
-// Apos obter leadIds da lead_history...
-const leadIds = analysisChoices.map(c => c.lead_id);
+- Adicionar 2 novos MetricCards no grid: "Follow-up 24h" (icone de relogio com cor azul) e "Follow-up 48h" (icone de relogio com cor indigo)
+- Adicionar nova aba "Follow-ups" nas Tabs, ao lado de "Visao Geral" e "Nao Completaram"
+- Na aba Follow-ups, mostrar a lista de leads separada em duas secoes (24h e 48h), cada card com:
+  - Nome do lead
+  - Horario do envio
+  - Badge indicando "24h" ou "48h"
+  - Botao para acessar o lead no atendimento
 
-// NOVO: Filtrar apenas leads que tem conversa nesta instancia
-const { data: instanceConversations } = await supabase
-  .from("wapi_conversations")
-  .select("lead_id")
-  .in("lead_id", leadIds)
-  .eq("instance_id", settings.instance_id);
+### Detalhes tecnicos
 
-const leadsInThisInstance = new Set(
-  (instanceConversations || []).map(c => c.lead_id)
-);
-const filteredLeadIds = leadIds.filter(id => leadsInThisInstance.has(id));
+A separacao 24h vs 48h sera baseada na instancia do lead:
+- Instancia Castelo (`3f39...`): follow-up 1 = 24h, follow-up 2 = 48h
+- Instancia Manchester (`9b84...`): follow-up 1 = 48h, follow-up 2 = 96h
 
-// Continuar com filteredLeadIds em vez de leadIds...
-```
+A query no edge function fara o JOIN entre `lead_history`, `campaign_leads` e `wapi_conversations` para determinar a qual instancia cada lead pertence e, combinado com o `action` (1o ou 2o follow-up), classificar como 24h ou 48h.
 
-Isso resolve o problema porque:
-- Instancia Manchester (48h) so processa Sandra, Bruna e outros leads cujas conversas estao nela
-- Instancia Castelo (24h) so processa leads cujas conversas estao nela
-- Cada lead recebe o follow-up no timing correto da SUA instancia
+O grid de metricas passara de 7 para 9 cards (responsivo: 2 colunas mobile, 3 tablet, 9 desktop).
 
-### Resultado esperado
-- Sandra Carvalho: recebera follow-up apos 48h (instancia Manchester)
-- Bruna: recebera follow-up apos 48h (instancia Manchester)
-- Karin, Priscila, Thaluani: receberao follow-up apos 24h (instancia Castelo)
-- Todos os leads que escolheram "Analisar com calma" serao cobertos
