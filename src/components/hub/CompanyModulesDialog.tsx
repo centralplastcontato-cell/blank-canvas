@@ -76,7 +76,7 @@ export function CompanyModulesDialog({ open, onOpenChange, company, onSuccess }:
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-1">
           {moduleKeys.map((key) => (
             <div
               key={key}
