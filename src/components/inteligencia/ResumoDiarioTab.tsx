@@ -466,7 +466,7 @@ function AISummaryAccordion({ text }: { text: string }) {
           <AccordionTrigger className="text-sm font-semibold hover:no-underline py-3">
             {section.title}
           </AccordionTrigger>
-          <AccordionContent>
+          <AccordionContent className="overflow-visible">
             <div className="space-y-1.5">
               {section.content.map((line, j) => (
                 <p key={j} className="text-sm text-muted-foreground leading-relaxed">{line}</p>
