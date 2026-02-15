@@ -14,10 +14,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AgendaCalendar } from "@/components/agenda/AgendaCalendar";
+import { AgendaListView } from "@/components/agenda/AgendaListView";
 import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
 import { EventDetailSheet } from "@/components/agenda/EventDetailSheet";
 import { MonthSummaryCards } from "@/components/agenda/MonthSummaryCards";
-import { CalendarDays, Plus, Loader2, ShieldAlert, Menu, Clock, AlertTriangle } from "lucide-react";
+import { CalendarDays, Plus, Loader2, ShieldAlert, Menu, Clock, AlertTriangle, List } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
@@ -62,6 +64,7 @@ export default function Agenda() {
   const [editingEvent, setEditingEvent] = useState<EventFormData | null>(null);
   const [detailEvent, setDetailEvent] = useState<CompanyEvent | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
 
   // Auth check
   useEffect(() => {
@@ -260,6 +263,12 @@ export default function Agenda() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "calendar" | "list")}>
+                    <TabsList className="h-9">
+                      <TabsTrigger value="calendar" className="px-3"><CalendarDays className="h-4 w-4" /></TabsTrigger>
+                      <TabsTrigger value="list" className="px-3"><List className="h-4 w-4" /></TabsTrigger>
+                    </TabsList>
+                  </Tabs>
                   {physicalUnits.length > 1 && (
                     <Select value={selectedUnit} onValueChange={setSelectedUnit}>
                       <SelectTrigger className="w-[180px]"><SelectValue placeholder="Todas" /></SelectTrigger>
@@ -279,6 +288,7 @@ export default function Agenda() {
               <MonthSummaryCards events={filteredEvents} />
 
               {/* Calendar + Day detail */}
+              {viewMode === "calendar" ? (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <Card className="lg:col-span-2 bg-card border-border">
                   <CardContent className="p-2 md:p-4">
@@ -352,6 +362,21 @@ export default function Agenda() {
                   </CardContent>
                 </Card>
               </div>
+              ) : (
+                <Card className="bg-card border-border">
+                  <CardContent className="p-4">
+                    {loading ? (
+                      <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+                    ) : (
+                      <AgendaListView
+                        events={filteredEvents}
+                        onEventClick={(ev) => { setDetailEvent(ev as CompanyEvent); setDetailOpen(true); }}
+                        getConflicts={(ev) => getConflicts(ev as CompanyEvent)}
+                      />
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </PullToRefresh>
         </div>
