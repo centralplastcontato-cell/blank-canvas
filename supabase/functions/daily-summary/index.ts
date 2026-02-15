@@ -220,7 +220,7 @@ serve(async (req) => {
       unidade: "Unidade", next_step: "Próximo passo", complete_visit: "Agendou visita",
       complete_questions: "Tirar dúvidas", complete_analyze: "Vai pensar",
       complete_final: "Conversa finalizada", work_here: "Trabalhe conosco",
-      proximo_passo: "Aguardando decisão", proximo_passo_reminded: "Lembrete enviado",
+      proximo_passo: "Escolhendo próximo passo", proximo_passo_reminded: "Aguardando resposta",
       flow_complete: "Fluxo completo",
     };
 
