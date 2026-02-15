@@ -1,52 +1,43 @@
 
 
-## Fix: Bot nao reativa para leads que voltam pela LP
+## Fix: Follow-ups nao aparecem no Resumo do Dia
 
 ### Problema
-Quando um lead que ja completou o fluxo do bot (bot_step = `complete_final`) faz uma nova submissao pela landing page, a mensagem de boas-vindas e enviada, mas o `bot_step` da conversa **nao e atualizado** para `lp_sent`. Quando o lead responde, o webhook ve `complete_final` e bloqueia a reativacao do bot.
+Os cards "Follow-up 24h" e "Follow-up 48h" mostram **0** mesmo com 8 follow-ups enviados hoje. Isso acontece porque o registro no `lead_history` feito pela edge function `follow-up-check` **nao inclui o `company_id`**, deixando o campo como NULL no banco de dados.
 
-### Causa raiz
-A funcao `findOrCreateConversation` no `wapi-send` so cria conversas novas com `bot_step: 'lp_sent'`. Se a conversa ja existe, ela retorna o ID sem atualizar nada.
+O `daily-summary` filtra os eventos com `.eq("company_id", company_id)`, entao registros com `company_id = NULL` sao ignorados.
+
+### Evidencia
+Query no banco confirmou que todos os 8 registros de follow-up de hoje tem `company_id = NULL`.
 
 ### Solucao
-Duas mudancas:
 
-**1. `supabase/functions/wapi-send/index.ts`**
-- Adicionar um parametro opcional `lpMode` na chamada `send-text`
-- Quando `lpMode: true` e a conversa ja existe, atualizar `bot_step` para `lp_sent` e `bot_enabled` para `true`
-- Isso garante que o webhook saiba que ha uma nova interacao LP pendente
+**Arquivo: `supabase/functions/follow-up-check/index.ts`**
 
-**2. `src/components/landing/LeadChatbot.tsx`**
-- Na funcao `sendWelcomeMessage`, adicionar `lpMode: true` no body da chamada ao `wapi-send`
-- Isso sinaliza que a mensagem vem da landing page e a conversa deve ser preparada para reativacao
-
-### Detalhes tecnicos
-
-No `findOrCreateConversation`, quando a conversa ja existe e `lpMode` esta ativo:
+Na funcao `processFollowUp` (linha 525), adicionar `company_id: instance.company_id` ao insert do `lead_history`:
 
 ```
-if (existing) {
-  if (lpMode) {
-    await supabase.from('wapi_conversations').update({
-      bot_step: 'lp_sent',
-      bot_enabled: true,
-    }).eq('id', existing.id);
-  }
-  return { conversationId: existing.id, companyId: existing.company_id };
-}
+await supabase.from("lead_history").insert({
+  lead_id: lead.id,
+  company_id: instance.company_id,  // <-- ADICIONAR
+  action: historyAction,
+  new_value: `Mensagem de acompanhamento #${followUpNumber} apos ${delayHours}h`,
+});
 ```
 
-No `LeadChatbot.tsx`, na chamada ao edge function:
+A variavel `instance` ja esta disponivel no escopo (linha 440-444) e contem o `company_id` correto.
 
-```
-body: {
-  action: 'send-text',
-  phone: phoneWithCountry,
-  message,
-  unit: normalizedUnit,
-  lpMode: true,  // sinaliza que e uma mensagem da LP
-}
+### Correcao retroativa dos dados existentes
+Alem do fix no codigo, sera necessario corrigir os registros ja criados com `company_id = NULL`. Isso pode ser feito com uma query SQL que busca o `company_id` atraves do `lead_id`:
+
+```sql
+UPDATE lead_history lh
+SET company_id = cl.company_id
+FROM campaign_leads cl
+WHERE lh.lead_id = cl.id
+  AND lh.company_id IS NULL
+  AND lh.action IN ('Follow-up automatico enviado', 'Follow-up #2 automatico enviado');
 ```
 
 ### Resultado
-Quando um lead que ja passou pelo bot submete novamente pela LP, a conversa e resetada para `lp_sent`. Quando ele responde, o webhook processa normalmente: opcao 1 ativa o bot, opcao 2 transfere para atendente.
+Apos o deploy, os proximos follow-ups serao registrados com `company_id` e aparecerao corretamente nos cards do Resumo do Dia. A query retroativa corrige os dados historicos.
