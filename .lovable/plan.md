@@ -1,41 +1,52 @@
 
 
-## Insight da IA em Accordion Colapsavel
+## Fix: Bot nao reativa para leads que voltam pela LP
 
-### O que sera feito
-Transformar o bloco de texto do "Insight da IA" em secoes colapsaveis (accordion), onde cada topico (ex: "Visao Geral do Dia", "Destaques Positivos", "Alertas e Pontos de Atencao", "Sugestoes de Proximos Passos") aparece como um item que pode ser expandido individualmente. O primeiro topico vira aberto por padrao.
+### Problema
+Quando um lead que ja completou o fluxo do bot (bot_step = `complete_final`) faz uma nova submissao pela landing page, a mensagem de boas-vindas e enviada, mas o `bot_step` da conversa **nao e atualizado** para `lp_sent`. Quando o lead responde, o webhook ve `complete_final` e bloqueia a reativacao do bot.
 
-### Como funciona
-O texto da IA ja vem formatado com marcadores `**Titulo da Secao**` em linhas separadas. A logica vai:
+### Causa raiz
+A funcao `findOrCreateConversation` no `wapi-send` so cria conversas novas com `bot_step: 'lp_sent'`. Se a conversa ja existe, ela retorna o ID sem atualizar nada.
 
-1. Parsear o texto do `aiSummary` identificando linhas que contenham `**...**` como delimitadores de secao
-2. Agrupar o conteudo entre cada titulo em secoes
-3. Renderizar cada secao como um item de Accordion (usando o componente `@radix-ui/react-accordion` que ja esta instalado)
-4. O primeiro item vem expandido por padrao, os demais colapsados
+### Solucao
+Duas mudancas:
 
-### Mudancas tecnicas
+**1. `supabase/functions/wapi-send/index.ts`**
+- Adicionar um parametro opcional `lpMode` na chamada `send-text`
+- Quando `lpMode: true` e a conversa ja existe, atualizar `bot_step` para `lp_sent` e `bot_enabled` para `true`
+- Isso garante que o webhook saiba que ha uma nova interacao LP pendente
 
-**Arquivo: `src/components/inteligencia/ResumoDiarioTab.tsx`**
+**2. `src/components/landing/LeadChatbot.tsx`**
+- Na funcao `sendWelcomeMessage`, adicionar `lpMode: true` no body da chamada ao `wapi-send`
+- Isso sinaliza que a mensagem vem da landing page e a conversa deve ser preparada para reativacao
 
-- Criar uma funcao `parseAISections(text: string)` que:
-  - Divide o texto por linhas
-  - Identifica linhas com `**...**` como titulos de secao
-  - Retorna um array de `{ title: string, content: string[] }`
-  - Conteudo antes do primeiro titulo vai numa secao "Resumo"
+### Detalhes tecnicos
 
-- Substituir o render atual do `aiSummary` (linhas 528-533) por:
-  - Um componente `Accordion` do Radix com `type="multiple"` e `defaultValue` apontando para o primeiro item
-  - Cada `AccordionItem` com o titulo da secao como trigger e o conteudo como paragrafo colapsavel
-  - Estilizacao com bordas suaves, icone de chevron e transicao de abertura
+No `findOrCreateConversation`, quando a conversa ja existe e `lpMode` esta ativo:
 
-- Importar `Accordion, AccordionItem, AccordionTrigger, AccordionContent` de `@/components/ui/accordion`
+```
+if (existing) {
+  if (lpMode) {
+    await supabase.from('wapi_conversations').update({
+      bot_step: 'lp_sent',
+      bot_enabled: true,
+    }).eq('id', existing.id);
+  }
+  return { conversationId: existing.id, companyId: existing.company_id };
+}
+```
 
-### Resultado visual
-Em vez de um bloco longo de texto, o usuario vera:
-- **Visao Geral do Dia** (expandido por padrao)
-- **Destaques Positivos** (colapsado, clica para expandir)
-- **Alertas e Pontos de Atencao** (colapsado)
-- **Sugestoes de Proximos Passos** (colapsado)
+No `LeadChatbot.tsx`, na chamada ao edge function:
 
-Cada secao expande com uma animacao suave ao clicar.
+```
+body: {
+  action: 'send-text',
+  phone: phoneWithCountry,
+  message,
+  unit: normalizedUnit,
+  lpMode: true,  // sinaliza que e uma mensagem da LP
+}
+```
 
+### Resultado
+Quando um lead que ja passou pelo bot submete novamente pela LP, a conversa e resetada para `lp_sent`. Quando ele responde, o webhook processa normalmente: opcao 1 ativa o bot, opcao 2 transfere para atendente.
