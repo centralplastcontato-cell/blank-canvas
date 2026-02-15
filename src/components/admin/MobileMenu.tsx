@@ -70,13 +70,6 @@ export function MobileMenu({
       show: true,
     },
     {
-      id: "whatsapp",
-      label: "WhatsApp",
-      icon: MessageSquare,
-      path: "/whatsapp",
-      show: true,
-    },
-    {
       id: "inteligencia",
       label: "Inteligência",
       icon: Brain,
