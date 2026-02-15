@@ -179,7 +179,14 @@ serve(async (req) => {
     }
 
     const completedBotSteps = ["complete_final", "flow_complete", "proximo_passo", "proximo_passo_reminded"];
-    const convMap = new Map(conversations.map((c: any) => [c.lead_id, c]));
+    // Build convMap preferring conversations that have a bot_step (avoid null overwriting valid data)
+    const convMap = new Map<string, any>();
+    for (const c of conversations) {
+      const existing = convMap.get(c.lead_id);
+      if (!existing || (!existing.bot_step && c.bot_step) || (c.bot_step && c.last_message_at > (existing.last_message_at || ''))) {
+        convMap.set(c.lead_id, c);
+      }
+    }
 
     for (const id of allActiveIds) {
       const conv = convMap.get(id);
@@ -271,6 +278,7 @@ serve(async (req) => {
       complete_final: "Conversa finalizada", work_here: "Trabalhe conosco",
       proximo_passo: "Escolhendo próximo passo", proximo_passo_reminded: "Aguardando resposta",
       flow_complete: "Fluxo completo",
+      lp_sent: "Recebeu link da LP",
     };
 
     const PROXIMO_PASSO_LABELS: Record<string, string> = {
