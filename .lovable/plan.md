@@ -1,53 +1,65 @@
 
 
-## Controlar quando a IA gera o insight (janelas de horario + atualizacao manual)
+## Corrigir logica de "Nao Completaram" para considerar leads no proximo_passo como completos
 
-### Problema atual
-Toda vez que o usuario abre a pagina do Resumo do Dia, a edge function chama a OpenAI e gera um novo insight. Se for meia-noite (dia virou), o insight sai vazio e irrelevante porque ainda nao ha dados no dia novo.
+### Problema
+A Amanda (e outros leads) ja passou por todo o fluxo do bot, respondeu todas as perguntas, recebeu o orcamento e os materiais. Ela so nao respondeu a ultima mensagem de "proximo passo" (agendar visita / tirar duvidas / analisar). Mesmo assim, aparece como "Nao completou", o que e enganoso -- na pratica, ela ja recebeu tudo que precisava.
 
 ### Solucao
-A IA so gera o insight automaticamente em **3 janelas de horario** (12h, 17h e 22h BRT). Fora desses horarios, mostra o ultimo insight salvo. O botao "Atualizar" continua funcionando para forcar uma geracao manual a qualquer momento.
+Considerar os passos `proximo_passo` e `proximo_passo_reminded` como fluxo completo, ja que nesse ponto o lead ja recebeu o orcamento e todos os materiais.
 
-### Como funciona
-
-1. **Nova coluna `ai_generated_at`** na tabela `daily_summaries` para registrar quando o ultimo insight foi gerado
-2. **Logica de janelas na edge function**:
-   - Ao carregar a pagina, a function calcula metricas e timeline ao vivo (como ja faz)
-   - Para o insight da IA, verifica: ja existe um insight salvo para hoje?
-     - Se sim, verifica se estamos numa nova janela (12h/17h/22h) que ainda nao foi coberta pelo ultimo `ai_generated_at`
-     - Se nao estamos numa nova janela, retorna o insight salvo (sem chamar OpenAI)
-   - Se o usuario passar `force_refresh: true`, sempre regenera (botao "Atualizar")
-3. **Botao "Atualizar" no front-end** passa `force_refresh: true` para forcar a geracao
-
-### Resultado para o usuario
-- Abre a pagina as 00:16? Ve metricas zeradas mas **nenhum insight vazio da IA** (mostra "Nenhum insight gerado ainda" ou o ultimo do dia anterior)
-- Abre ao meio-dia? IA gera automaticamente o primeiro insight do dia
-- Abre as 18h? Ve o insight das 17h (gerado automaticamente quando alguem abriu a pagina naquela janela)
-- Quer forcar? Clica "Atualizar" a qualquer momento
+### O que muda para o usuario
+- Leads que ja receberam o orcamento mas nao responderam a ultima pergunta (proximo passo) **nao aparecem mais** como "Nao completaram"
+- A lista passa a mostrar apenas leads que realmente pararam no meio da qualificacao (ex: parou na pergunta do mes, do nome, dos convidados)
+- Resultado mais preciso e sem falsos alarmes
 
 ### Detalhes tecnicos
 
-**Migracao SQL:**
-```sql
-ALTER TABLE daily_summaries ADD COLUMN ai_generated_at timestamptz;
+**Arquivo: `supabase/functions/daily-summary/index.ts`**
+
+Alterar a lista de `completedSteps` para incluir os passos de proximo_passo:
+
+```typescript
+// Antes
+const completedSteps = ["complete_final", "flow_complete"];
+
+// Depois
+const completedSteps = [
+  "complete_final",
+  "flow_complete",
+  "complete_visit",
+  "complete_questions",
+  "complete_analyze",
+  "proximo_passo",
+  "proximo_passo_reminded",
+];
 ```
 
-**Edge function `daily-summary/index.ts`:**
-- Novo parametro no body: `force_refresh` (boolean, opcional)
-- Definir janelas: `[12, 17, 22]` (horas BRT)
-- Antes de chamar OpenAI, buscar `ai_generated_at` do registro existente
-- Logica:
-  - Se `force_refresh === true` -> gerar
-  - Se nao existe `ai_summary` para hoje -> verificar se hora atual >= 12 BRT, se sim gerar
-  - Se ja existe `ai_summary`, calcular qual janela mais recente ja passou (ex: se sao 18h, janela = 17h) e comparar com `ai_generated_at`. Se `ai_generated_at` < janela, regenerar
-  - Caso contrario: retornar `ai_summary` salvo sem chamar OpenAI
-- Ao persistir, salvar `ai_generated_at: new Date().toISOString()` junto
+Essa mesma lista `completedSteps` e usada em dois lugares:
+1. Na contagem de orcamentos (ja existente) -- nao precisa mudar
+2. Na filtragem de `incompleteLeads` -- e onde a correcao importa
 
-**Front-end `ResumoDiarioTab.tsx`:**
-- Botao "Atualizar" chama `fetchSummary(selectedDate, true)` passando force
-- Carga inicial chama `fetchSummary(selectedDate)` sem force (usa cache inteligente)
+Separar em duas listas para manter a logica correta:
+- `completedBotSteps` (para contagem de orcamentos): mantem `["complete_final", "flow_complete"]`
+- `completedOrPendingSteps` (para filtro de incompletos): inclui os passos de proximo_passo e complete_*
 
-**Hook `useDailySummary.ts`:**
-- `fetchSummary` recebe parametro opcional `forceRefresh?: boolean`
-- Passa `force_refresh: true` no body quando solicitado
+```typescript
+const completedOrPendingSteps = [
+  "complete_final", "flow_complete",
+  "complete_visit", "complete_questions", "complete_analyze",
+  "proximo_passo", "proximo_passo_reminded",
+];
+
+const incompleteLeads = (todayLeads || [])
+  .map((lead) => {
+    const conv = convMap.get(lead.id);
+    const step = conv?.bot_step || null;
+    if (!step) return null;
+    if (completedOrPendingSteps.includes(step)) return null;
+    // ...resto da logica
+  })
+  .filter(Boolean);
+```
+
+**Deploy**: Redeployar a edge function `daily-summary`.
 
