@@ -1,65 +1,49 @@
 
 
-## Corrigir logica de "Nao Completaram" para considerar leads no proximo_passo como completos
+## Corrigir mensagens automaticas invisiveis no chat
 
 ### Problema
-A Amanda (e outros leads) ja passou por todo o fluxo do bot, respondeu todas as perguntas, recebeu o orcamento e os materiais. Ela so nao respondeu a ultima mensagem de "proximo passo" (agendar visita / tirar duvidas / analisar). Mesmo assim, aparece como "Nao completou", o que e enganoso -- na pratica, ela ja recebeu tudo que precisava.
+Todas as mensagens automaticas (lembretes de proximo passo, follow-ups, follow-ups de inatividade) estao sendo inseridas no banco **sem `company_id`**. Isso acontece porque a query que busca os dados da instancia seleciona apenas `instance_id` e `instance_token`, mas o codigo tenta usar `instance.company_id` ao salvar a mensagem -- resultando em `NULL`.
+
+A politica de seguranca (RLS) da tabela `wapi_messages` exige que `company_id` esteja presente para o usuario ver a mensagem. Resultado: as mensagens sao enviadas ao WhatsApp com sucesso, mas ficam **invisiveis** na interface do chat.
 
 ### Solucao
-Considerar os passos `proximo_passo` e `proximo_passo_reminded` como fluxo completo, ja que nesse ponto o lead ja recebeu o orcamento e todos os materiais.
+Adicionar `company_id` ao `SELECT` das queries de instancia em todos os pontos afetados da Edge Function `follow-up-check`.
 
 ### O que muda para o usuario
-- Leads que ja receberam o orcamento mas nao responderam a ultima pergunta (proximo passo) **nao aparecem mais** como "Nao completaram"
-- A lista passa a mostrar apenas leads que realmente pararam no meio da qualificacao (ex: parou na pergunta do mes, do nome, dos convidados)
-- Resultado mais preciso e sem falsos alarmes
+- Todas as mensagens automaticas (lembretes, follow-ups) passam a aparecer corretamente no chat
+- As 24 mensagens automaticas ja existentes sem `company_id` serao corrigidas retroativamente com um UPDATE
 
 ### Detalhes tecnicos
 
-**Arquivo: `supabase/functions/daily-summary/index.ts`**
+**Arquivo: `supabase/functions/follow-up-check/index.ts`**
 
-Alterar a lista de `completedSteps` para incluir os passos de proximo_passo:
-
-```typescript
-// Antes
-const completedSteps = ["complete_final", "flow_complete"];
-
-// Depois
-const completedSteps = [
-  "complete_final",
-  "flow_complete",
-  "complete_visit",
-  "complete_questions",
-  "complete_analyze",
-  "proximo_passo",
-  "proximo_passo_reminded",
-];
+Tres queries precisam ser corrigidas -- todas mudam de:
+```
+.select("instance_id, instance_token")
+```
+Para:
+```
+.select("instance_id, instance_token, company_id")
 ```
 
-Essa mesma lista `completedSteps` e usada em dois lugares:
-1. Na contagem de orcamentos (ja existente) -- nao precisa mudar
-2. Na filtragem de `incompleteLeads` -- e onde a correcao importa
+Locais exatos:
+1. **Linha ~199** - `processNextStepReminder` (lembrete de proximo passo)
+2. **Linha ~428** - `processFollowUp` (follow-up 1 e 2)
+3. **Linha ~616** - `processInactiveFollowUp` (follow-up de inatividade)
 
-Separar em duas listas para manter a logica correta:
-- `completedBotSteps` (para contagem de orcamentos): mantem `["complete_final", "flow_complete"]`
-- `completedOrPendingSteps` (para filtro de incompletos): inclui os passos de proximo_passo e complete_*
+A linha ~852 ja inclui `company_id` corretamente.
 
-```typescript
-const completedOrPendingSteps = [
-  "complete_final", "flow_complete",
-  "complete_visit", "complete_questions", "complete_analyze",
-  "proximo_passo", "proximo_passo_reminded",
-];
-
-const incompleteLeads = (todayLeads || [])
-  .map((lead) => {
-    const conv = convMap.get(lead.id);
-    const step = conv?.bot_step || null;
-    if (!step) return null;
-    if (completedOrPendingSteps.includes(step)) return null;
-    // ...resto da logica
-  })
-  .filter(Boolean);
+**Correcao retroativa (SQL)**:
+```sql
+UPDATE wapi_messages m
+SET company_id = c.company_id
+FROM wapi_conversations c
+WHERE m.conversation_id = c.id
+  AND m.company_id IS NULL
+  AND m.metadata IS NOT NULL
+  AND m.metadata::text != 'null';
 ```
 
-**Deploy**: Redeployar a edge function `daily-summary`.
+**Deploy**: Redeployar a edge function `follow-up-check`.
 
