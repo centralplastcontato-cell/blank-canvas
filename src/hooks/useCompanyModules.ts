@@ -14,6 +14,7 @@ export interface CompanyModules {
   comercial_b2b: boolean;
   flow_builder: boolean;
   inteligencia: boolean;
+  agenda: boolean;
 }
 
 const DEFAULT_MODULES: CompanyModules = {
@@ -29,6 +30,7 @@ const DEFAULT_MODULES: CompanyModules = {
   comercial_b2b: true,
   flow_builder: false,
   inteligencia: false,
+  agenda: false,
 };
 
 export function parseModules(settings: Json | null | undefined): CompanyModules {
@@ -54,6 +56,7 @@ export function parseModules(settings: Json | null | undefined): CompanyModules 
     comercial_b2b: modules.comercial_b2b !== false,
     flow_builder: modules.flow_builder === true,
     inteligencia: modules.inteligencia === true,
+    agenda: modules.agenda === true,
   };
 }
 
@@ -75,4 +78,5 @@ export const MODULE_LABELS: Record<keyof CompanyModules, { label: string; descri
   comercial_b2b: { label: 'Comercial B2B', description: 'Gestão comercial e prospecção B2B' },
   flow_builder: { label: 'Flow Builder', description: 'Editor visual de fluxos de conversa' },
   inteligencia: { label: 'Inteligência', description: 'Score de leads, priorização e análise de funil' },
+  agenda: { label: 'Agenda', description: 'Calendário de festas e eventos' },
 };

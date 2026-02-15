@@ -1,0 +1,378 @@
+import { useEffect, useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
+import { useCompanyModules } from "@/hooks/useCompanyModules";
+import { useCompanyUnits } from "@/hooks/useCompanyUnits";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { MobileMenu } from "@/components/admin/MobileMenu";
+import { NotificationBell } from "@/components/admin/NotificationBell";
+import { PullToRefresh } from "@/components/ui/pull-to-refresh";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { AgendaCalendar } from "@/components/agenda/AgendaCalendar";
+import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
+import { EventDetailSheet } from "@/components/agenda/EventDetailSheet";
+import { MonthSummaryCards } from "@/components/agenda/MonthSummaryCards";
+import { CalendarDays, Plus, Loader2, ShieldAlert, Menu, Clock, AlertTriangle } from "lucide-react";
+import { format, startOfMonth, endOfMonth } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { toast } from "@/hooks/use-toast";
+import logoCastelo from "@/assets/logo-castelo.png";
+
+interface CompanyEvent {
+  id: string;
+  company_id: string;
+  lead_id: string | null;
+  title: string;
+  event_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  event_type: string | null;
+  guest_count: number | null;
+  unit: string | null;
+  status: string;
+  package_name: string | null;
+  total_value: number | null;
+  notes: string | null;
+  created_by: string;
+}
+
+export default function Agenda() {
+  const navigate = useNavigate();
+  const { currentCompany } = useCompany();
+  const modules = useCompanyModules();
+  const { units } = useCompanyUnits(currentCompany?.id);
+
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [permLoading, setPermLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<{ id: string; name: string; email: string; avatar?: string | null } | null>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const [events, setEvents] = useState<CompanyEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [month, setMonth] = useState(startOfMonth(new Date()));
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedUnit, setSelectedUnit] = useState("all");
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<EventFormData | null>(null);
+  const [detailEvent, setDetailEvent] = useState<CompanyEvent | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+
+  // Auth check
+  useEffect(() => {
+    async function check() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { navigate("/auth"); return; }
+      const [profileResult, adminResult] = await Promise.all([
+        supabase.from("profiles").select("full_name, avatar_url").eq("user_id", user.id).single(),
+        supabase.rpc("is_admin", { _user_id: user.id }),
+      ]);
+      setCurrentUser({ id: user.id, name: profileResult.data?.full_name || "Usuário", email: user.email || "", avatar: profileResult.data?.avatar_url });
+      setIsAdmin(adminResult.data === true);
+      setPermLoading(false);
+    }
+    check();
+  }, [navigate]);
+
+  // Fetch events for current month
+  const fetchEvents = async () => {
+    if (!currentCompany?.id) return;
+    setLoading(true);
+    const start = format(startOfMonth(month), "yyyy-MM-dd");
+    const end = format(endOfMonth(month), "yyyy-MM-dd");
+    const { data, error } = await supabase
+      .from("company_events")
+      .select("*")
+      .eq("company_id", currentCompany.id)
+      .gte("event_date", start)
+      .lte("event_date", end)
+      .order("event_date")
+      .order("start_time");
+    if (!error && data) setEvents(data as CompanyEvent[]);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchEvents(); }, [currentCompany?.id, month]);
+
+  // Filtered events
+  const filteredEvents = useMemo(() => {
+    if (selectedUnit === "all") return events;
+    return events.filter(e => e.unit === selectedUnit);
+  }, [events, selectedUnit]);
+
+  // Events for selected day
+  const dayEvents = useMemo(() => {
+    if (!selectedDate) return [];
+    const dateStr = format(selectedDate, "yyyy-MM-dd");
+    return filteredEvents.filter(e => e.event_date === dateStr);
+  }, [filteredEvents, selectedDate]);
+
+  // Detect conflicts (same unit + overlapping time)
+  const getConflicts = (event: CompanyEvent) => {
+    if (!event.start_time || !event.unit) return [];
+    return events.filter(e =>
+      e.id !== event.id &&
+      e.event_date === event.event_date &&
+      e.unit === event.unit &&
+      e.status !== "cancelado" &&
+      e.start_time &&
+      ((e.start_time < (event.end_time || "23:59")) && ((e.end_time || "23:59") > event.start_time))
+    );
+  };
+
+  const physicalUnits = units.filter(u => u.slug !== "trabalhe-conosco");
+
+  const handleSubmit = async (data: EventFormData) => {
+    if (!currentCompany?.id || !currentUser?.id) return;
+    const payload = {
+      company_id: currentCompany.id,
+      title: data.title,
+      event_date: data.event_date,
+      start_time: data.start_time || null,
+      end_time: data.end_time || null,
+      event_type: data.event_type || null,
+      guest_count: data.guest_count,
+      unit: data.unit || null,
+      status: data.status,
+      package_name: data.package_name || null,
+      total_value: data.total_value,
+      notes: data.notes || null,
+      created_by: currentUser.id,
+    };
+
+    if (data.id) {
+      const { error } = await supabase.from("company_events").update(payload).eq("id", data.id);
+      if (error) { toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" }); return; }
+      toast({ title: "Festa atualizada!" });
+    } else {
+      const { error } = await supabase.from("company_events").insert(payload);
+      if (error) { toast({ title: "Erro ao criar", description: error.message, variant: "destructive" }); return; }
+      toast({ title: "Festa criada!" });
+    }
+    fetchEvents();
+  };
+
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from("company_events").delete().eq("id", id);
+    if (error) { toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Festa excluída" });
+    setDetailOpen(false);
+    fetchEvents();
+  };
+
+  const handleEdit = (ev: CompanyEvent) => {
+    setEditingEvent({
+      id: ev.id,
+      title: ev.title,
+      event_date: ev.event_date,
+      start_time: ev.start_time || "",
+      end_time: ev.end_time || "",
+      event_type: ev.event_type || "infantil",
+      guest_count: ev.guest_count,
+      unit: ev.unit || "",
+      status: ev.status,
+      package_name: ev.package_name || "",
+      total_value: ev.total_value,
+      notes: ev.notes || "",
+    });
+    setDetailOpen(false);
+    setFormOpen(true);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/auth");
+  };
+
+  if (permLoading) {
+    return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+  }
+
+  if (!modules.agenda && !isAdmin) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center space-y-3">
+          <ShieldAlert className="h-12 w-12 text-muted-foreground mx-auto" />
+          <p className="text-muted-foreground">Módulo Agenda não está habilitado.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <SidebarProvider defaultOpen={false}>
+      <div className="min-h-screen flex w-full bg-background">
+        <AdminSidebar
+          canManageUsers={isAdmin}
+          isAdmin={isAdmin}
+          currentUserName={currentUser?.name || ""}
+          onRefresh={fetchEvents}
+          onLogout={handleLogout}
+        />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Mobile Header */}
+          <header className="bg-card border-b border-border shrink-0 z-10 md:hidden">
+            <div className="px-3 py-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <MobileMenu
+                    isOpen={isMobileMenuOpen}
+                    onOpenChange={setIsMobileMenuOpen}
+                    trigger={<Button variant="ghost" size="icon" className="h-9 w-9"><Menu className="w-5 h-5" /></Button>}
+                    currentPage="agenda"
+                    userName={currentUser?.name || ""}
+                    userEmail={currentUser?.email || ""}
+                    userAvatar={currentUser?.avatar}
+                    canManageUsers={isAdmin}
+                    isAdmin={isAdmin}
+                    onRefresh={fetchEvents}
+                    onLogout={handleLogout}
+                  />
+                  <div className="flex items-center gap-2 min-w-0">
+                    <img src={logoCastelo} alt="Logo" className="h-8 w-auto shrink-0" />
+                    <h1 className="font-display font-bold text-foreground text-sm truncate">Agenda</h1>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button variant="default" size="sm" onClick={() => { setEditingEvent(null); setFormOpen(true); }}>
+                    <Plus className="h-4 w-4 mr-1" /> Nova
+                  </Button>
+                  <NotificationBell />
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <PullToRefresh onRefresh={async () => { await fetchEvents(); }} className="flex-1 p-3 md:p-6 overflow-x-hidden overflow-y-auto">
+            <div className="max-w-7xl mx-auto space-y-4">
+              {/* Desktop header */}
+              <div className="hidden md:flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <CalendarDays className="h-7 w-7 text-primary" />
+                  <div>
+                    <h1 className="text-2xl font-bold">Agenda de Festas</h1>
+                    <p className="text-sm text-muted-foreground">Calendário mensal de eventos</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {physicalUnits.length > 1 && (
+                    <Select value={selectedUnit} onValueChange={setSelectedUnit}>
+                      <SelectTrigger className="w-[180px]"><SelectValue placeholder="Todas" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas as unidades</SelectItem>
+                        {physicalUnits.map(u => <SelectItem key={u.name} value={u.name}>{u.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  <Button onClick={() => { setEditingEvent(null); setFormOpen(true); }}>
+                    <Plus className="h-4 w-4 mr-2" /> Nova Festa
+                  </Button>
+                </div>
+              </div>
+
+              {/* Summary */}
+              <MonthSummaryCards events={filteredEvents} />
+
+              {/* Calendar + Day detail */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <Card className="lg:col-span-2 bg-card border-border">
+                  <CardContent className="p-2 md:p-4">
+                    {loading ? (
+                      <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+                    ) : (
+                      <AgendaCalendar
+                        events={filteredEvents}
+                        month={month}
+                        onMonthChange={setMonth}
+                        onDayClick={setSelectedDate}
+                        selectedDate={selectedDate}
+                      />
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-card border-border">
+                  <CardContent className="p-4">
+                    <h3 className="font-semibold text-sm mb-3">
+                      {selectedDate
+                        ? format(selectedDate, "dd 'de' MMMM", { locale: ptBR })
+                        : "Selecione um dia"}
+                    </h3>
+                    {selectedDate && dayEvents.length === 0 && (
+                      <p className="text-sm text-muted-foreground">Nenhuma festa neste dia.</p>
+                    )}
+                    <div className="space-y-2">
+                      {dayEvents.map((ev) => {
+                        const conflicts = getConflicts(ev);
+                        return (
+                          <button
+                            key={ev.id}
+                            onClick={() => { setDetailEvent(ev); setDetailOpen(true); }}
+                            className="w-full text-left p-3 rounded-lg border border-border hover:bg-accent/50 transition-colors space-y-1"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-medium text-sm truncate">{ev.title}</span>
+                              <Badge variant={ev.status === "confirmado" ? "default" : ev.status === "cancelado" ? "destructive" : "secondary"} className="text-xs shrink-0">
+                                {ev.status}
+                              </Badge>
+                            </div>
+                            {ev.start_time && (
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Clock className="h-3 w-3" />
+                                {ev.start_time.slice(0, 5)}{ev.end_time ? ` - ${ev.end_time.slice(0, 5)}` : ""}
+                              </div>
+                            )}
+                            {conflicts.length > 0 && (
+                              <div className="flex items-center gap-1 text-xs text-destructive">
+                                <AlertTriangle className="h-3 w-3" /> Conflito
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {selectedDate && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full mt-3"
+                        onClick={() => {
+                          setEditingEvent({ ...({} as EventFormData), event_date: format(selectedDate, "yyyy-MM-dd"), title: "", start_time: "", end_time: "", event_type: "infantil", guest_count: null, unit: "", status: "pendente", package_name: "", total_value: null, notes: "" });
+                          setFormOpen(true);
+                        }}
+                      >
+                        <Plus className="h-4 w-4 mr-1" /> Adicionar neste dia
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </PullToRefresh>
+        </div>
+      </div>
+
+      <EventFormDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        onSubmit={handleSubmit}
+        initialData={editingEvent}
+        units={physicalUnits}
+      />
+
+      <EventDetailSheet
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        event={detailEvent}
+        onEdit={(ev) => handleEdit(ev as CompanyEvent)}
+        onDelete={handleDelete}
+        conflicts={detailEvent ? getConflicts(detailEvent) : []}
+      />
+    </SidebarProvider>
+  );
+}

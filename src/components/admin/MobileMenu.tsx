@@ -7,7 +7,8 @@ import {
   LogOut, 
   Building2,
   MessageSquare,
-  Brain
+  Brain,
+  CalendarDays
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,7 +27,7 @@ interface MobileMenuProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   trigger: React.ReactNode;
-  currentPage: "atendimento" | "configuracoes" | "users" | "whatsapp" | "inteligencia";
+  currentPage: "atendimento" | "configuracoes" | "users" | "whatsapp" | "inteligencia" | "agenda";
   userName: string;
   userEmail: string;
   userAvatar?: string | null;
@@ -75,6 +76,13 @@ export function MobileMenu({
       icon: Brain,
       path: "/inteligencia",
       show: !!modules.inteligencia,
+    },
+    {
+      id: "agenda",
+      label: "Agenda",
+      icon: CalendarDays,
+      path: "/agenda",
+      show: !!modules.agenda,
     },
     {
       id: "configuracoes",

@@ -198,6 +198,81 @@ export type Database = {
           },
         ]
       }
+      company_events: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string
+          end_time: string | null
+          event_date: string
+          event_type: string | null
+          guest_count: number | null
+          id: string
+          lead_id: string | null
+          notes: string | null
+          package_name: string | null
+          start_time: string | null
+          status: string
+          title: string
+          total_value: number | null
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by: string
+          end_time?: string | null
+          event_date: string
+          event_type?: string | null
+          guest_count?: number | null
+          id?: string
+          lead_id?: string | null
+          notes?: string | null
+          package_name?: string | null
+          start_time?: string | null
+          status?: string
+          title: string
+          total_value?: number | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          end_time?: string | null
+          event_date?: string
+          event_type?: string | null
+          guest_count?: number | null
+          id?: string
+          lead_id?: string | null
+          notes?: string | null
+          package_name?: string | null
+          start_time?: string | null
+          status?: string
+          title?: string
+          total_value?: number | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_events_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_landing_pages: {
         Row: {
           company_id: string
