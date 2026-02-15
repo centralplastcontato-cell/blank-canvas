@@ -423,16 +423,17 @@ function TeamNoteSection({ note, summaryDate, companyId, onSaved }: {
 
 
 function parseAISections(text: string): { title: string; content: string[] }[] {
-  const lines = text.split("\n");
+  const lines = text.split(/\r?\n/);
   const sections: { title: string; content: string[] }[] = [];
   let current: { title: string; content: string[] } | null = null;
 
-  for (const line of lines) {
-    const match = line.match(/^#{1,3}\s+(.+)$/) || line.match(/^\*\*(.+?)\*\*$/);
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    const match = line.match(/^#{1,3}\s+(.+)/) || line.match(/^\*\*(.+?)\*\*\s*$/);
     if (match) {
       if (current) sections.push(current);
-      current = { title: match[1].trim(), content: [] };
-    } else if (line.trim()) {
+      current = { title: match[1].replace(/\*\*/g, '').trim(), content: [] };
+    } else if (line) {
       if (!current) current = { title: "Resumo", content: [] };
       current.content.push(line);
     }
