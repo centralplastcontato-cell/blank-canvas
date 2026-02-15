@@ -733,29 +733,51 @@ export default function CentralAtendimento() {
 
         <main className="flex-1 flex flex-col overflow-hidden min-h-0">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "chat" | "leads")} className="flex-1 flex flex-col overflow-hidden min-h-0">
-            <TabsList className="mx-3 mt-3 grid grid-cols-2">
-              <TabsTrigger value="chat" className="flex items-center gap-1.5 text-xs relative">
-                <MessageSquare className="w-4 h-4" />
-                Chat
-                {unreadCount > 0 && (
-                  <AnimatedBadge 
-                    value={unreadCount > 99 ? "99+" : unreadCount}
-                    variant="destructive" 
-                    className="absolute -top-1.5 -right-1.5 h-5 min-w-5 px-1 text-[10px] flex items-center justify-center rounded-full"
-                  />
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="leads" className="flex items-center gap-1.5 text-xs relative">
-                <LayoutList className="w-4 h-4" />
-                Leads
-                {newLeadsCount > 0 && (
-                  <AnimatedBadge 
-                    value={newLeadsCount > 99 ? "99+" : newLeadsCount}
-                    className="absolute -top-1.5 -right-1.5 h-5 min-w-5 px-1 text-[10px] flex items-center justify-center rounded-full bg-primary text-primary-foreground"
-                  />
-                )}
-              </TabsTrigger>
-            </TabsList>
+            <div className="mx-3 mt-3 flex items-center gap-2">
+              <TabsList className="flex-shrink-0">
+                <TabsTrigger value="chat" className="flex items-center gap-1.5 text-xs relative">
+                  <MessageSquare className="w-4 h-4" />
+                  Chat
+                  {unreadCount > 0 && (
+                    <AnimatedBadge 
+                      value={unreadCount > 99 ? "99+" : unreadCount}
+                      variant="destructive" 
+                      className="absolute -top-1.5 -right-1.5 h-5 min-w-5 px-1 text-[10px] flex items-center justify-center rounded-full"
+                    />
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="leads" className="flex items-center gap-1.5 text-xs relative">
+                  <LayoutList className="w-4 h-4" />
+                  Leads
+                  {newLeadsCount > 0 && (
+                    <AnimatedBadge 
+                      value={newLeadsCount > 99 ? "99+" : newLeadsCount}
+                      className="absolute -top-1.5 -right-1.5 h-5 min-w-5 px-1 text-[10px] flex items-center justify-center rounded-full bg-primary text-primary-foreground"
+                    />
+                  )}
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Unit selector - same row */}
+              {chatInstances.length > 1 && activeTab === "chat" && (
+                <div className="flex items-center gap-1 bg-border rounded-lg p-0.5">
+                  {chatInstances.map((inst) => (
+                    <Button
+                      key={inst.id}
+                      variant={selectedChatUnit === inst.unit ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setSelectedChatUnit(inst.unit)}
+                      className={`h-7 px-2.5 rounded-md transition-all text-xs ${
+                        selectedChatUnit === inst.unit ? "shadow-sm" : "hover:bg-background/80"
+                      }`}
+                    >
+                      <Building2 className="w-3.5 h-3.5 mr-1" />
+                      {inst.unit}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <TabsContent value="chat" className="flex-1 overflow-hidden min-h-0 mt-0 p-0">
               {!isLoadingUnitPerms && (
@@ -765,6 +787,13 @@ export default function CentralAtendimento() {
                   initialPhone={initialPhone}
                   initialDraft={initialDraft}
                   onPhoneHandled={handlePhoneHandled}
+                  externalSelectedUnit={selectedChatUnit}
+                  onInstancesLoaded={(instances) => {
+                    setChatInstances(instances);
+                    if (!selectedChatUnit && instances.length > 0) {
+                      setSelectedChatUnit(instances[0].unit);
+                    }
+                  }}
                 />
               )}
             </TabsContent>
