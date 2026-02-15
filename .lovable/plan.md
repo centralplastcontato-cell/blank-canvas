@@ -1,55 +1,52 @@
 
-## Corrigir: conversas nao aparecem ao abrir pelo Lead
+## Corrigir: Bot aceita frases como nome do lead
 
 ### Problema
-Quando voce clica em "WhatsApp" na lista de leads, o sistema busca a conversa **apenas na instancia selecionada no momento**. Se a Amanda tem conversa na instancia Trujillo, mas voce esta com Manchester selecionada, o sistema nao encontra a conversa e cria uma nova vazia -- por isso aparece "Nenhuma mensagem ainda".
-
-Pelo Chat direto funciona porque voce ja esta na aba/instancia correta.
+A funcao `validateName` aceita qualquer texto que contenha apenas letras e espacos. Quando a Amanda mandou "Vi que tem promoção no Instagram" antes de dizer o nome, o bot interpretou a frase inteira como nome -- porque passou na validacao (so letras e espacos).
 
 ### Solucao
-Quando o chat recebe um numero de telefone via URL (vindo da lista de leads), buscar a conversa em **todas as instancias** antes de criar uma nova. Se encontrar em outra instancia, trocar automaticamente para ela.
+Adicionar validacoes extras na funcao `validateName` para rejeitar textos que claramente nao sao nomes:
+
+1. **Limite de palavras**: Nomes reais raramente tem mais de 4-5 palavras. Rejeitar textos com mais de 5 palavras
+2. **Limite de caracteres**: Nomes completos raramente passam de 50 caracteres. Rejeitar textos muito longos
+3. **Deteccao de frases**: Verificar se o texto contem palavras comuns de frases/perguntas que nao sao nomes (ex: "que", "tem", "no", "como", "quero", "vi", "olá", "oi", "bom dia", "instagram", "promoção", etc.)
 
 ### O que muda para o usuario
-- Clicar em "WhatsApp" na lista de leads sempre abre a conversa correta, independente de qual instancia (Manchester/Trujillo) esta selecionada
-- Nao cria mais conversas vazias duplicadas
+- Quando alguem mandar uma frase em vez do nome, o bot responde pedindo apenas o nome
+- Nomes reais (inclusive compostos como "Maria Clara") continuam funcionando normalmente
 
 ### Detalhes tecnicos
 
-**Arquivo: `src/components/whatsapp/WhatsAppChat.tsx`**
+**Arquivo: `supabase/functions/wapi-webhook/index.ts`**
 
-Na funcao `fetchConversations`, quando `selectPhone` e fornecido e nao encontra correspondencia na instancia atual:
+Modificar a funcao `validateName` (linhas 78-109) para adicionar apos a validacao de regex:
 
-1. Antes de chamar `createNewConversation`, fazer uma query em `wapi_conversations` **sem filtro de instance_id**, buscando pelo telefone
-2. Se encontrar uma conversa existente em outra instancia, trocar o `selectedInstance` para a instancia correta e selecionar aquela conversa
-3. So criar conversa nova se realmente nao existir em nenhuma instancia
+```typescript
+// Reject if too many words (names rarely have more than 5 words)
+const words = name.split(/\s+/).filter(w => w.length > 0);
+if (words.length > 5) {
+  return { valid: false, error: 'Hmm, parece uma frase 🤔\n\nPor favor, digite apenas seu *nome*:' };
+}
 
-Trecho da logica (linhas ~1245-1265):
-
-```
-// Atual: so busca na instancia selecionada
-const matchingConv = data.find(...)
-
-// Novo: se nao encontrou, buscar em todas as instancias
-if (!matchingConv) {
-  const { data: crossInstanceConv } = await supabase
-    .from("wapi_conversations")
-    .select("id, instance_id, contact_phone, contact_name, ...")
-    .or(phoneVariants.map(p => `contact_phone.ilike.%${p}%`).join(','))
-    .order("last_message_at", { ascending: false })
-    .limit(1)
-    .single();
-    
-  if (crossInstanceConv) {
-    // Trocar para a instancia correta
-    const targetInstance = instances.find(i => i.id === crossInstanceConv.instance_id);
-    if (targetInstance) {
-      setSelectedInstance(targetInstance);
-      setSelectedConversation(crossInstanceConv);
-      onPhoneHandled?.();
-      return;
-    }
-  }
+// Reject if contains common non-name words (phrases/sentences)
+const nonNameWords = [
+  'que', 'tem', 'como', 'quero', 'queria', 'gostaria', 'preciso',
+  'vi', 'vou', 'estou', 'tenho', 'pode', 'posso', 'sobre',
+  'instagram', 'facebook', 'whatsapp', 'site', 'promoção', 'promocao',
+  'preço', 'preco', 'valor', 'orçamento', 'orcamento',
+  'festa', 'evento', 'buffet', 'aniversário', 'aniversario',
+  'obrigado', 'obrigada', 'por favor', 'bom dia', 'boa tarde', 'boa noite',
+  'olá', 'ola', 'oi', 'hey', 'hello',
+];
+const lowerName = name.toLowerCase();
+const hasNonNameWord = nonNameWords.some(w => {
+  // Match whole word to avoid false positives (e.g., "Valentina" containing "vi")
+  const regex = new RegExp(`\\b${w}\\b`, 'i');
+  return regex.test(lowerName);
+});
+if (hasNonNameWord) {
+  return { valid: false, error: 'Hmm, não consegui entender seu nome 🤔\n\nPor favor, digite apenas seu *nome*:' };
 }
 ```
 
-Nenhuma alteracao de banco de dados necessaria.
+Apos a alteracao, sera necessario fazer deploy da edge function `wapi-webhook`.
