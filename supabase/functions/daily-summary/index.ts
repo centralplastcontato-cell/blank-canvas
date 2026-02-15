@@ -47,7 +47,7 @@ serve(async (req) => {
     if (requestedDate && requestedDate !== todayStr) {
       const { data: saved, error: savedErr } = await supabase
         .from("daily_summaries")
-        .select("metrics, ai_summary, timeline, incomplete_leads")
+        .select("metrics, ai_summary, timeline, incomplete_leads, user_note")
         .eq("company_id", company_id)
         .eq("summary_date", requestedDate)
         .maybeSingle();
@@ -72,6 +72,7 @@ serve(async (req) => {
         aiSummary: saved.ai_summary,
         timeline: saved.timeline || [],
         incompleteLeads: saved.incomplete_leads || [],
+        userNote: saved.user_note || null,
         isHistorical: true,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -312,7 +313,19 @@ Gere um resumo de 3-5 parágrafos curtos com:
       })
       .filter(Boolean);
 
-    const result = { metrics, aiSummary, timeline, incompleteLeads };
+    // Fetch existing user_note if any
+    let userNote: string | null = null;
+    try {
+      const { data: existing } = await supabase
+        .from("daily_summaries")
+        .select("user_note")
+        .eq("company_id", company_id)
+        .eq("summary_date", todayStr)
+        .maybeSingle();
+      userNote = existing?.user_note || null;
+    } catch (_) {}
+
+    const result = { metrics, aiSummary, timeline, incompleteLeads, userNote };
 
     // Persist to daily_summaries using service role (upsert)
     try {

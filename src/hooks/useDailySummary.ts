@@ -39,6 +39,7 @@ export interface DailySummaryData {
   aiSummary: string | null;
   timeline: TimelineEvent[];
   incompleteLeads: IncompleteLead[];
+  userNote?: string | null;
   isHistorical?: boolean;
   noData?: boolean;
 }
