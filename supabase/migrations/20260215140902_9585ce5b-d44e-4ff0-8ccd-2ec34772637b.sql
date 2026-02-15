@@ -1,0 +1,1 @@
+UPDATE public.campaign_leads SET name = 'Amanda Tagawa' WHERE id = 'c2821a6f-1ac6-4446-a626-a02018d5dfce';
