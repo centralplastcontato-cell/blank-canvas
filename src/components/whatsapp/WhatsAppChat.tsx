@@ -3855,67 +3855,85 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           )}>
             {selectedConversation && (
               <>
-                <div className="p-3 border-b flex items-center gap-2 shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    onClick={() => setSelectedConversation(null)}
-                  >
-                    <ArrowLeft className="w-5 h-5" />
-                  </Button>
-                  <Avatar className="h-9 w-9 shrink-0">
-                    <AvatarImage 
-                      src={selectedConversation.contact_picture || undefined} 
-                      alt={selectedConversation.contact_name || selectedConversation.contact_phone}
-                      referrerPolicy="no-referrer"
-                    />
-                    <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                      {(selectedConversation.contact_name || selectedConversation.contact_phone)
-                        .charAt(0)
-                        .toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate text-sm">
-                      {selectedConversation.contact_name || selectedConversation.contact_phone}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {selectedConversation.contact_phone}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {/* Info Popover - show for all individual chats (mobile) */}
-                    <LeadInfoPopover
-                      linkedLead={linkedLead}
-                      selectedConversation={selectedConversation}
-                      selectedInstance={selectedInstance}
-                      canTransferLeads={canTransferLeads}
-                      canDeleteFromChat={canDeleteFromChat}
-                      isCreatingLead={isCreatingLead}
-                      userId={userId}
-                      currentUserName={currentUserName}
-                      onShowTransferDialog={() => setShowTransferDialog(true)}
-                      onShowDeleteDialog={() => setShowDeleteConfirmDialog(true)}
-                      onShowShareToGroupDialog={() => canShareToGroup && linkedLead && setShowShareToGroupDialog(true)}
-                      onCreateAndClassifyLead={createAndClassifyLead}
-                      onToggleConversationBot={toggleConversationBot}
-                      onReactivateBot={reactivateBot}
-                      onToggleFavorite={toggleFavorite}
-                      onLeadNameChange={(newName) => {
-                        setLinkedLead(prev => prev ? { ...prev, name: newName } : null);
-                        setSelectedConversation(prev => prev ? { ...prev, contact_name: newName } : null);
-                        setConversations(prevConvs => prevConvs.map(c => 
-                          c.id === selectedConversation.id ? { ...c, contact_name: newName } : c
-                        ));
-                      }}
-                      mobile
-                    />
-                    {/* O.E. (Orçamento Enviado) button - always visible, disabled without lead */}
+                <div className="border-b shrink-0">
+                  {/* Row 1: Back + Avatar + Name + Info + Close */}
+                  <div className="p-3 pb-1 flex items-center gap-2">
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-8 w-8 shrink-0"
+                      onClick={() => setSelectedConversation(null)}
+                    >
+                      <ArrowLeft className="w-5 h-5" />
+                    </Button>
+                    <Avatar className="h-9 w-9 shrink-0">
+                      <AvatarImage 
+                        src={selectedConversation.contact_picture || undefined} 
+                        alt={selectedConversation.contact_name || selectedConversation.contact_phone}
+                        referrerPolicy="no-referrer"
+                      />
+                      <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                        {(selectedConversation.contact_name || selectedConversation.contact_phone)
+                          .charAt(0)
+                          .toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm leading-tight">
+                        {selectedConversation.contact_name || selectedConversation.contact_phone}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {selectedConversation.contact_phone}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <LeadInfoPopover
+                        linkedLead={linkedLead}
+                        selectedConversation={selectedConversation}
+                        selectedInstance={selectedInstance}
+                        canTransferLeads={canTransferLeads}
+                        canDeleteFromChat={canDeleteFromChat}
+                        isCreatingLead={isCreatingLead}
+                        userId={userId}
+                        currentUserName={currentUserName}
+                        onShowTransferDialog={() => setShowTransferDialog(true)}
+                        onShowDeleteDialog={() => setShowDeleteConfirmDialog(true)}
+                        onShowShareToGroupDialog={() => canShareToGroup && linkedLead && setShowShareToGroupDialog(true)}
+                        onCreateAndClassifyLead={createAndClassifyLead}
+                        onToggleConversationBot={toggleConversationBot}
+                        onReactivateBot={reactivateBot}
+                        onToggleFavorite={toggleFavorite}
+                        onLeadNameChange={(newName) => {
+                          setLinkedLead(prev => prev ? { ...prev, name: newName } : null);
+                          setSelectedConversation(prev => prev ? { ...prev, contact_name: newName } : null);
+                          setConversations(prevConvs => prevConvs.map(c => 
+                            c.id === selectedConversation.id ? { ...c, contact_name: newName } : c
+                          ));
+                        }}
+                        mobile
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => toggleConversationClosed(selectedConversation)}
+                        title={selectedConversation.is_closed ? "Reabrir conversa" : "Encerrar conversa"}
+                      >
+                        <X className={cn(
+                          "w-4 h-4",
+                          selectedConversation.is_closed 
+                            ? "text-destructive" 
+                            : "text-muted-foreground"
+                        )} />
+                      </Button>
+                    </div>
+                  </div>
+                  {/* Row 2: Action icons */}
+                  <div className="px-3 pb-2 flex items-center gap-1 overflow-x-auto">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0"
                       disabled={!linkedLead}
                       onClick={async () => {
                         if (!linkedLead) return;
@@ -3944,7 +3962,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                           return;
                         }
                         
-                        // Add history entry
                         await supabase.from('lead_history').insert({
                           lead_id: linkedLead.id,
                           user_id: userId,
@@ -3954,7 +3971,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                           new_value: statusLabels[newStatus],
                         });
                         
-                        // Update local state
                         setLinkedLead(prev => prev ? { ...prev, status: newStatus as any } : null);
                         
                         toast({
@@ -3972,7 +3988,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-7 w-7 shrink-0"
                       onClick={() => toggleScheduledVisit(selectedConversation)}
                       title={selectedConversation.has_scheduled_visit ? "Desmarcar visita" : "Marcar visita agendada"}
                     >
@@ -3984,7 +4000,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-7 w-7 shrink-0"
                       onClick={() => toggleFreelancer(selectedConversation)}
                       title={selectedConversation.is_freelancer ? "Desmarcar como Freelancer" : "Marcar como Freelancer"}
                     >
@@ -3996,7 +4012,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-7 w-7 shrink-0"
                       onClick={() => toggleEquipe(selectedConversation)}
                       title={selectedConversation.is_equipe ? "Desmarcar como Equipe" : "Marcar como Equipe"}
                     >
@@ -4008,7 +4024,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-7 w-7 shrink-0"
                       onClick={() => toggleFavorite(selectedConversation)}
                     >
                       {selectedConversation.is_favorite ? (
@@ -4016,20 +4032,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                       ) : (
                         <Star className="w-4 h-4 text-muted-foreground" />
                       )}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => toggleConversationClosed(selectedConversation)}
-                      title={selectedConversation.is_closed ? "Reabrir conversa" : "Encerrar conversa"}
-                    >
-                      <X className={cn(
-                        "w-4 h-4",
-                        selectedConversation.is_closed 
-                          ? "text-destructive" 
-                          : "text-muted-foreground"
-                      )} />
                     </Button>
                   </div>
                 </div>
@@ -4449,8 +4451,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         }
                       }}
                       disabled={!canSendMessages}
-                      className="text-base flex-1 min-h-[40px] max-h-[50vh] resize-y py-2"
-                      rows={1}
+                      className="text-base flex-1 min-h-[48px] max-h-[50vh] resize-y py-2"
+                      rows={2}
                       spellCheck={true}
                     />
                     {newMessage.trim() ? (
