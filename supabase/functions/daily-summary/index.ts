@@ -105,10 +105,11 @@ serve(async (req) => {
 
       if (!saved) {
         return new Response(JSON.stringify({
-          metrics: { novos: 0, visitas: 0, orcamentos: 0, fechados: 0, querPensar: 0, querHumano: 0, taxaConversao: 0 },
+          metrics: { novos: 0, visitas: 0, orcamentos: 0, fechados: 0, querPensar: 0, querHumano: 0, taxaConversao: 0, followUp24h: 0, followUp48h: 0 },
           aiSummary: null,
           timeline: [],
           incompleteLeads: [],
+          followUpLeads: [],
           isHistorical: true,
           noData: true,
         }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -119,6 +120,7 @@ serve(async (req) => {
         aiSummary: saved.ai_summary,
         timeline: saved.timeline || [],
         incompleteLeads: saved.incomplete_leads || [],
+        followUpLeads: [],
         userNote: saved.user_note || null,
         isHistorical: true,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -263,7 +265,7 @@ serve(async (req) => {
 
     const taxaConversao = novos > 0 ? Math.round((fechados / novos) * 100) : 0;
 
-    const metrics = { novos, visitas, orcamentos, fechados, querPensar, querHumano, taxaConversao };
+    const metrics: Record<string, any> = { novos, visitas, orcamentos, fechados, querPensar, querHumano, taxaConversao };
 
     const leads = todayLeads || [];
     const leadIds = leads.map((l: any) => l.id);
@@ -456,7 +458,89 @@ Gere um resumo de 3-5 parágrafos curtos com:
       })
       .filter(Boolean);
 
-    const result = { metrics, aiSummary, timeline, incompleteLeads, userNote, isHistorical: isHistoricalDate || false };
+    // === Follow-up tracking ===
+    const CASTELO_INSTANCE = "3f39419e-e7f5-4c3b-8ebd-1703e6c7a0c7";
+    const FOLLOW_UP_ACTIONS = [
+      "Follow-up automático enviado",
+      "Follow-up #2 automático enviado",
+    ];
+
+    let followUpQuery = supabase
+      .from("lead_history")
+      .select("lead_id, action, created_at")
+      .eq("company_id", company_id)
+      .gte("created_at", targetStartISO)
+      .in("action", FOLLOW_UP_ACTIONS);
+    if (isHistoricalDate) followUpQuery = followUpQuery.lt("created_at", targetEndISO);
+    const { data: followUpEvents } = await followUpQuery;
+
+    let followUpLeads: any[] = [];
+    let followUp24h = 0;
+    let followUp48h = 0;
+
+    if ((followUpEvents || []).length > 0) {
+      const fuLeadIds = [...new Set((followUpEvents || []).map((e: any) => e.lead_id))];
+
+      // Get lead names
+      const fuLeadNamesMap = new Map(allLeadNames);
+      const missingFuIds = fuLeadIds.filter((id: string) => !fuLeadNamesMap.has(id));
+      if (missingFuIds.length > 0) {
+        const { data: extraFuLeads } = await supabase
+          .from("campaign_leads")
+          .select("id, name, whatsapp")
+          .in("id", missingFuIds);
+        (extraFuLeads || []).forEach((l: any) => fuLeadNamesMap.set(l.id, l.name));
+      }
+
+      // Get lead whatsapp numbers
+      const { data: fuLeadDetails } = await supabase
+        .from("campaign_leads")
+        .select("id, whatsapp")
+        .in("id", fuLeadIds);
+      const fuWhatsappMap = new Map((fuLeadDetails || []).map((l: any) => [l.id, l.whatsapp]));
+
+      // Get instance for each lead
+      const { data: fuConvs } = await supabase
+        .from("wapi_conversations")
+        .select("lead_id, instance_id")
+        .eq("company_id", company_id)
+        .in("lead_id", fuLeadIds);
+      const fuInstanceMap = new Map((fuConvs || []).map((c: any) => [c.lead_id, c.instance_id]));
+
+      for (const ev of (followUpEvents || [])) {
+        const instanceId = fuInstanceMap.get(ev.lead_id);
+        const isCastelo = instanceId === CASTELO_INSTANCE;
+        const isFirstFollowUp = ev.action === "Follow-up automático enviado";
+
+        // Castelo: FU1=24h, FU2=48h | Manchester: FU1=48h, FU2=96h
+        let tipo: string;
+        if (isCastelo) {
+          tipo = isFirstFollowUp ? "24h" : "48h";
+        } else {
+          tipo = isFirstFollowUp ? "48h" : "96h";
+        }
+
+        if (tipo === "24h") followUp24h++;
+        else if (tipo === "48h") followUp48h++;
+
+        const eventDate = new Date(ev.created_at);
+        const brtTime = new Date(eventDate.getTime() + BRT_OFFSET * 60 * 60 * 1000);
+        const timeStr = brtTime.toISOString().slice(11, 16);
+
+        followUpLeads.push({
+          leadId: ev.lead_id,
+          name: fuLeadNamesMap.get(ev.lead_id) || "Lead",
+          whatsapp: fuWhatsappMap.get(ev.lead_id) || "",
+          tipo,
+          time: timeStr,
+        });
+      }
+    }
+
+    metrics.followUp24h = followUp24h;
+    metrics.followUp48h = followUp48h;
+
+    const result = { metrics, aiSummary, timeline, incompleteLeads, followUpLeads, userNote, isHistorical: isHistoricalDate || false };
 
     // Persist to daily_summaries using service role (upsert) — never overwrite user_note
     try {
