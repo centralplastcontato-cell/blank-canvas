@@ -1,43 +1,54 @@
 
 
-## Fix: Follow-ups nao aparecem no Resumo do Dia
+## Calendario de Festas para Buffets
 
-### Problema
-Os cards "Follow-up 24h" e "Follow-up 48h" mostram **0** mesmo com 8 follow-ups enviados hoje. Isso acontece porque o registro no `lead_history` feito pela edge function `follow-up-check` **nao inclui o `company_id`**, deixando o campo como NULL no banco de dados.
+### Visao Geral
+Nova aba "Agenda" no menu lateral, onde o buffet pode cadastrar, visualizar e gerenciar suas festas em um calendario mensal interativo.
 
-O `daily-summary` filtra os eventos com `.eq("company_id", company_id)`, entao registros com `company_id = NULL` sao ignorados.
+### Funcionalidades Sugeridas
 
-### Evidencia
-Query no banco confirmou que todos os 8 registros de follow-up de hoje tem `company_id = NULL`.
+1. **Calendario Mensal Visual** - Visualizacao mes a mes com indicadores coloridos nos dias que tem festa agendada
+2. **Cadastro de Festa** - Formulario para registrar: nome do cliente, data/horario, tipo de festa, numero de convidados, pacote/unidade, valor, observacoes, e vincular ao lead existente (opcional)
+3. **Status da Festa** - Confirmada, Pendente, Cancelada (com cores diferentes no calendario)
+4. **Detalhes ao Clicar** - Ao clicar em um dia, ver lista de festas daquele dia com detalhes rapidos
+5. **Conflito de Horario** - Alerta visual quando duas festas estao no mesmo horario/unidade
+6. **Filtro por Unidade** - Para buffets com mais de uma unidade, filtrar festas por local
+7. **Resumo Mensal** - Card com total de festas no mes, receita prevista, festas confirmadas vs pendentes
 
-### Solucao
+### Detalhes Tecnicos
 
-**Arquivo: `supabase/functions/follow-up-check/index.ts`**
+**Nova tabela: `company_events`**
+- `id` (uuid, PK)
+- `company_id` (uuid, NOT NULL) - isolamento multi-tenant
+- `lead_id` (uuid, nullable) - vinculo opcional com lead existente
+- `title` (text) - nome do cliente ou titulo da festa
+- `event_date` (date, NOT NULL)
+- `start_time` (time)
+- `end_time` (time)
+- `event_type` (text) - infantil, debutante, corporativo, etc.
+- `guest_count` (integer)
+- `unit` (text, nullable) - unidade do buffet
+- `status` (text) - confirmado, pendente, cancelado
+- `package_name` (text, nullable)
+- `total_value` (numeric, nullable)
+- `notes` (text, nullable)
+- `created_by` (uuid) - usuario que cadastrou
+- `created_at`, `updated_at` (timestamps)
 
-Na funcao `processFollowUp` (linha 525), adicionar `company_id: instance.company_id` ao insert do `lead_history`:
+RLS: mesmas politicas de isolamento por empresa ja usadas no projeto (`get_user_company_ids`).
 
-```
-await supabase.from("lead_history").insert({
-  lead_id: lead.id,
-  company_id: instance.company_id,  // <-- ADICIONAR
-  action: historyAction,
-  new_value: `Mensagem de acompanhamento #${followUpNumber} apos ${delayHours}h`,
-});
-```
+**Nova rota: `/agenda`**
+- Pagina `src/pages/Agenda.tsx` com layout identico ao das outras paginas (sidebar + conteudo)
 
-A variavel `instance` ja esta disponivel no escopo (linha 440-444) e contem o `company_id` correto.
+**Novos componentes:**
+- `src/components/agenda/AgendaCalendar.tsx` - calendario mensal usando o componente Calendar existente (react-day-picker) customizado para mostrar indicadores de festas
+- `src/components/agenda/EventFormDialog.tsx` - dialog para criar/editar festa
+- `src/components/agenda/EventDetailSheet.tsx` - sheet lateral com detalhes da festa
+- `src/components/agenda/MonthSummaryCards.tsx` - cards de resumo mensal
 
-### Correcao retroativa dos dados existentes
-Alem do fix no codigo, sera necessario corrigir os registros ja criados com `company_id = NULL`. Isso pode ser feito com uma query SQL que busca o `company_id` atraves do `lead_id`:
+**Menu:**
+- Adicionar item "Agenda" no `AdminSidebar.tsx` e `MobileMenu.tsx` (icone: `CalendarDays`)
+- Controlado pelo modulo `agenda` no `useCompanyModules` (opt-in, como inteligencia)
 
-```sql
-UPDATE lead_history lh
-SET company_id = cl.company_id
-FROM campaign_leads cl
-WHERE lh.lead_id = cl.id
-  AND lh.company_id IS NULL
-  AND lh.action IN ('Follow-up automatico enviado', 'Follow-up #2 automatico enviado');
-```
-
-### Resultado
-Apos o deploy, os proximos follow-ups serao registrados com `company_id` e aparecerao corretamente nos cards do Resumo do Dia. A query retroativa corrige os dados historicos.
+**Rota no App.tsx:**
+- `<Route path="/agenda" element={<Agenda />} />`
