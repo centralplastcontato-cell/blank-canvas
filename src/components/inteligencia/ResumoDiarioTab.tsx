@@ -428,7 +428,7 @@ function parseAISections(text: string): { title: string; content: string[] }[] {
   let current: { title: string; content: string[] } | null = null;
 
   for (const line of lines) {
-    const match = line.match(/^\*\*(.+?)\*\*$/);
+    const match = line.match(/^#{1,3}\s+(.+)$/) || line.match(/^\*\*(.+?)\*\*$/);
     if (match) {
       if (current) sections.push(current);
       current = { title: match[1].trim(), content: [] };
