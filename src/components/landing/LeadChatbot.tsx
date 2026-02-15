@@ -218,7 +218,8 @@ export function LeadChatbot({ isOpen, onClose }: LeadChatbotProps) {
           action: 'send-text',
           phone: phoneWithCountry,
           message,
-          unit: normalizedUnit, // A edge function vai buscar a instância pela unidade
+          unit: normalizedUnit,
+          lpMode: true, // Sinaliza que é uma mensagem da LP para resetar bot_step
         },
       });
 

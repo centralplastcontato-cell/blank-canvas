@@ -106,6 +106,7 @@ async function findOrCreateConversation(
   supabase: ReturnType<typeof createClient>,
   phone: string,
   instanceExternalId: string,
+  lpMode?: boolean,
 ): Promise<{ conversationId: string; companyId: string } | null> {
   try {
     // Normalize phone for remote_jid format
@@ -133,7 +134,16 @@ async function findOrCreateConversation(
       .maybeSingle();
 
     if (existing) {
-      console.log('findOrCreateConversation: found existing conversation', existing.id);
+      // If lpMode, reset bot state so returning leads can re-engage
+      if (lpMode) {
+        await supabase.from('wapi_conversations').update({
+          bot_step: 'lp_sent',
+          bot_enabled: true,
+        }).eq('id', existing.id);
+        console.log('findOrCreateConversation: reset bot_step to lp_sent for existing conversation', existing.id);
+      } else {
+        console.log('findOrCreateConversation: found existing conversation', existing.id);
+      }
       return { conversationId: existing.id, companyId: existing.company_id };
     }
 
@@ -237,7 +247,7 @@ Deno.serve(async (req) => {
         
         if (!resolvedConvId && phone) {
           // Auto-find or create conversation (LP/bot outbound flow)
-          const convResult = await findOrCreateConversation(supabase, phone, instance_id);
+          const convResult = await findOrCreateConversation(supabase, phone, instance_id, body.lpMode);
           if (convResult) {
             resolvedConvId = convResult.conversationId;
             resolvedCompanyId = convResult.companyId;
