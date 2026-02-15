@@ -7,15 +7,19 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { format, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Users, CalendarCheck, FileText, Trophy, Clock,
   MessageCircle, PauseCircle, Sparkles, Loader2, RefreshCw,
-  AlertTriangle, Phone, CalendarIcon,
+  AlertTriangle, Phone, CalendarIcon, MessageSquarePlus, Save, Pencil,
 } from "lucide-react";
 import { useDailySummary, type DailyMetrics, type TimelineEvent, type IncompleteLead } from "@/hooks/useDailySummary";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
+import { toast } from "sonner";
 
 function MetricCard({ icon: Icon, label, value, color }: {
   icon: React.ElementType; label: string; value: number | string; color: string;
@@ -229,13 +233,123 @@ function IncompleteLeadsSection({ leads }: { leads: IncompleteLead[] }) {
   );
 }
 
+function TeamNoteSection({ note, summaryDate, companyId, onSaved }: {
+  note: string | null | undefined;
+  summaryDate: string;
+  companyId: string;
+  onSaved: (text: string) => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [text, setText] = useState(note || "");
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setText(note || "");
+  }, [note]);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from("daily_summaries")
+        .upsert(
+          { company_id: companyId, summary_date: summaryDate, user_note: text.trim() || null } as any,
+          { onConflict: "company_id,summary_date" }
+        );
+      if (error) throw error;
+      toast.success("Observação salva!");
+      onSaved(text.trim());
+      setIsEditing(false);
+    } catch (e) {
+      toast.error("Erro ao salvar observação");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const hasNote = !!note?.trim();
+
+  if (!isEditing && !hasNote) {
+    return (
+      <Card className="border-dashed">
+        <CardContent className="py-4 flex items-center justify-center">
+          <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" onClick={() => setIsEditing(true)}>
+            <MessageSquarePlus className="h-4 w-4" />
+            Adicionar observação do time
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!isEditing && hasNote) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
+              <MessageSquarePlus className="h-4 w-4" />
+              Observação do Time
+            </CardTitle>
+            <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => setIsEditing(true)}>
+              <Pencil className="h-3 w-3" />
+              Editar
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-foreground whitespace-pre-wrap">{note}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
+          <MessageSquarePlus className="h-4 w-4" />
+          Observação do Time
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <Textarea
+          value={text}
+          onChange={(e) => setText(e.target.value.slice(0, 500))}
+          placeholder="Ex: Hoje por ser sábado o atendimento foi até o meio dia..."
+          className="resize-none text-sm"
+          rows={3}
+        />
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] text-muted-foreground">{text.length}/500</span>
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" onClick={() => { setIsEditing(false); setText(note || ""); }}>
+              Cancelar
+            </Button>
+            <Button size="sm" onClick={handleSave} disabled={isSaving} className="gap-1">
+              {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+              Salvar
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function ResumoDiarioTab() {
+  const { currentCompany } = useCompany();
   const { data, isLoading, error, fetchSummary } = useDailySummary();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [localNote, setLocalNote] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSummary(selectedDate);
   }, [fetchSummary, selectedDate]);
+
+  useEffect(() => {
+    setLocalNote(data?.userNote || null);
+  }, [data?.userNote]);
 
   const incompleteCount = data?.incompleteLeads?.length || 0;
   const isViewingToday = isToday(selectedDate);
@@ -341,6 +455,16 @@ export function ResumoDiarioTab() {
               )}
             </CardContent>
           </Card>
+
+          {/* Team Note */}
+          {currentCompany?.id && (
+            <TeamNoteSection
+              note={localNote}
+              summaryDate={format(selectedDate, "yyyy-MM-dd")}
+              companyId={currentCompany.id}
+              onSaved={(text) => setLocalNote(text || null)}
+            />
+          )}
 
           {/* Timeline */}
           {data?.timeline && <TimelineSection events={data.timeline} />}

@@ -463,6 +463,7 @@ export type Database = {
           summary_date: string
           timeline: Json | null
           updated_at: string
+          user_note: string | null
         }
         Insert: {
           ai_summary?: string | null
@@ -474,6 +475,7 @@ export type Database = {
           summary_date: string
           timeline?: Json | null
           updated_at?: string
+          user_note?: string | null
         }
         Update: {
           ai_summary?: string | null
@@ -485,6 +487,7 @@ export type Database = {
           summary_date?: string
           timeline?: Json | null
           updated_at?: string
+          user_note?: string | null
         }
         Relationships: [
           {

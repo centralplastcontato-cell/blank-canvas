@@ -1,0 +1,1 @@
+ALTER TABLE public.daily_summaries ADD COLUMN user_note text;
