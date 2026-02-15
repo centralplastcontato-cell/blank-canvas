@@ -1,28 +1,33 @@
 
 
-## Melhorar header mobile e area de texto do chat
+## Corrigir badge duplicado "Lembrete enviado" na lista de leads incompletos
 
-### Problema 1: Nome do lead cortado
-O header mobile tem 7 botoes de icone (info, orcamento, calendario, freelancer, equipe, favorito, fechar) alem do avatar e botao voltar, deixando quase zero espaco para o nome do lead -- que aparece como "Th..." truncado.
+### Problema
+Na aba "Nao Completaram", cada lead mostra dois badges identicos "Lembrete enviado":
+1. O campo `botStep` exibe "Lembrete enviado" (traduzido de `proximo_passo_reminded`)
+2. O campo `isReminded` (que detecta "reminded" no nome do step) tambem exibe um badge "Lembrete enviado"
 
-### Problema 2: Caixa de texto pequena
-O campo de mensagem usa `min-h-[40px]` com `rows={1}`, dando pouco espaco para digitar mensagens mais longas.
+Ambos mostram a mesma informacao, causando duplicacao visual.
+
+### O que significa "Lembrete enviado"
+Quando o lead nao responde a pergunta do bot sobre o proximo passo (agendar visita, tirar duvidas, etc.) dentro do tempo configurado, o sistema envia automaticamente um lembrete. "Lembrete enviado" indica que esse lembrete ja foi disparado e o lead ainda nao respondeu.
 
 ### Solucao
+Ajustar a logica na edge function `daily-summary` para que, quando o step ja for `proximo_passo_reminded`, o label exibido seja mais descritivo (ex: "Aguardando resposta ao lembrete") e o `isReminded` seja usado apenas como informacao complementar que nao gera badge separado.
 
-**1. Reorganizar o header mobile (linhas ~3858-4034)**
-- Dividir o header em duas linhas:
-  - **Linha 1**: Botao voltar + Avatar + Nome completo do lead + Telefone + Botao info (i) + Botao fechar (X)
-  - **Linha 2**: Os demais icones de acao (OE, calendario, freelancer, equipe, favorito) agrupados horizontalmente
-- Isso libera espaco para o nome aparecer por completo, mantendo todas as acoes acessiveis
+Alternativamente (mais simples): no componente `IncompleteLeadsSection`, nao mostrar o badge "Lembrete enviado" do `isReminded` quando o `botStep` ja contem essa informacao.
 
-**2. Aumentar a caixa de texto (linha ~4452)**
-- Mudar `min-h-[40px]` para `min-h-[48px]` e `rows={2}` para dar mais espaco vertical inicial
-- Manter `max-h-[50vh]` e `resize-y` para que o usuario possa expandir quando necessario
+### Detalhes tecnicos
 
-### Arquivos alterados
+**Arquivo: `supabase/functions/daily-summary/index.ts`**
+- Linha 306-310: Mudar o label de `proximo_passo_reminded` para "Aguardando resposta" (mais claro para o usuario)
+- Mudar `proximo_passo` para "Escolhendo proximo passo"
+- Manter `isReminded` como flag interna, mas o badge no front so aparece se `botStep` nao ja indicar lembrete
 
-- `src/components/whatsapp/WhatsAppChat.tsx`
-  - Reestruturar o bloco do header mobile (linhas 3858-4034) para usar layout de 2 linhas
-  - Ajustar as classes CSS da Textarea (linha 4452)
+**Arquivo: `src/components/inteligencia/ResumoDiarioTab.tsx`**
+- Na `IncompleteLeadsSection`, esconder o badge de `isReminded` quando `botStep` ja contiver a palavra "lembrete" ou "reminded", evitando duplicacao
+- Trocar labels tecnicos restantes (ex: `nome`, `tipo`, `convidados`) para versoes amigaveis como "Informando nome", "Tipo de evento", "Numero de convidados"
+
+### Resultado
+Cada lead mostra apenas um badge claro e descritivo, sem repeticao.
 
