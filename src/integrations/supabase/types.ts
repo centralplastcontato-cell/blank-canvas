@@ -454,6 +454,7 @@ export type Database = {
       }
       daily_summaries: {
         Row: {
+          ai_generated_at: string | null
           ai_summary: string | null
           company_id: string
           created_at: string
@@ -466,6 +467,7 @@ export type Database = {
           user_note: string | null
         }
         Insert: {
+          ai_generated_at?: string | null
           ai_summary?: string | null
           company_id: string
           created_at?: string
@@ -478,6 +480,7 @@ export type Database = {
           user_note?: string | null
         }
         Update: {
+          ai_generated_at?: string | null
           ai_summary?: string | null
           company_id?: string
           created_at?: string

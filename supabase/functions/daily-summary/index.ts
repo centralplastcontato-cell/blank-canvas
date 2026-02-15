@@ -7,6 +7,52 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// AI generation windows in BRT hours
+const AI_WINDOWS = [12, 17, 22];
+
+/** Given current BRT hour, return the most recent window that has passed, or null if none yet */
+function getMostRecentWindow(brtHour: number): number | null {
+  for (let i = AI_WINDOWS.length - 1; i >= 0; i--) {
+    if (brtHour >= AI_WINDOWS[i]) return AI_WINDOWS[i];
+  }
+  return null;
+}
+
+/** Check if AI should be regenerated based on windows */
+function shouldRegenerateAI(
+  forceRefresh: boolean,
+  existingAiSummary: string | null,
+  aiGeneratedAt: string | null,
+  brtNow: Date,
+): boolean {
+  if (forceRefresh) return true;
+
+  const brtHour = brtNow.getUTCHours();
+  const currentWindow = getMostRecentWindow(brtHour);
+
+  // Before first window (before 12h BRT) — don't generate automatically
+  if (currentWindow === null) return false;
+
+  // No existing summary — generate if we're past the first window
+  if (!existingAiSummary) return true;
+
+  // Have existing summary — check if we've entered a new window since last generation
+  if (!aiGeneratedAt) return true;
+
+  const lastGenDate = new Date(aiGeneratedAt);
+  const lastGenBrt = new Date(lastGenDate.getTime() + (-3) * 60 * 60 * 1000);
+  const lastGenHour = lastGenBrt.getUTCHours();
+  const lastGenWindow = getMostRecentWindow(lastGenHour);
+
+  // Check if last gen was on a different day (BRT)
+  const lastGenDay = lastGenBrt.toISOString().slice(0, 10);
+  const currentDay = brtNow.toISOString().slice(0, 10);
+  if (lastGenDay !== currentDay) return true;
+
+  // Same day — regenerate only if we entered a newer window
+  return currentWindow !== lastGenWindow;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -32,7 +78,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
     }
 
-    const { company_id, date: requestedDate } = await req.json();
+    const { company_id, date: requestedDate, force_refresh } = await req.json();
     if (!company_id) {
       return new Response(JSON.stringify({ error: "company_id required" }), { status: 400, headers: corsHeaders });
     }
@@ -249,11 +295,35 @@ serve(async (req) => {
       };
     });
 
-    // Generate AI summary
+    // === AI Summary with window-based generation ===
     const openaiKey = Deno.env.get("OPENAI_API_KEY");
-    let aiSummary = null;
+    let aiSummary: string | null = null;
+    let aiGeneratedAt: string | null = null;
 
-    if (openaiKey) {
+    // Fetch existing saved data for today (ai_summary, ai_generated_at, user_note)
+    let existingSaved: any = null;
+    try {
+      const { data: existing } = await supabase
+        .from("daily_summaries")
+        .select("ai_summary, ai_generated_at, user_note")
+        .eq("company_id", company_id)
+        .eq("summary_date", todayStr)
+        .maybeSingle();
+      existingSaved = existing;
+    } catch (_) {}
+
+    const userNote = existingSaved?.user_note || null;
+    const existingAiSummary = existingSaved?.ai_summary || null;
+    const existingAiGeneratedAt = existingSaved?.ai_generated_at || null;
+
+    const shouldGenerate = openaiKey && shouldRegenerateAI(
+      !!force_refresh,
+      existingAiSummary,
+      existingAiGeneratedAt,
+      brtNow,
+    );
+
+    if (shouldGenerate) {
       const hotLeads = intelligenceData
         .filter((i: any) => i.temperature === "quente" || i.temperature === "pronto")
         .map((i: any) => `${allLeadNames.get(i.lead_id) || "Lead"} (score: ${i.score}, temp: ${i.temperature})`);
@@ -292,9 +362,17 @@ Gere um resumo de 3-5 parágrafos curtos com:
         });
         const aiData = await aiResp.json();
         aiSummary = aiData.choices?.[0]?.message?.content || null;
+        aiGeneratedAt = new Date().toISOString();
       } catch (e) {
         console.error("AI summary error:", e);
+        // Fall back to existing
+        aiSummary = existingAiSummary;
+        aiGeneratedAt = existingAiGeneratedAt;
       }
+    } else {
+      // Use cached summary
+      aiSummary = existingAiSummary;
+      aiGeneratedAt = existingAiGeneratedAt;
     }
 
     // Build incomplete leads list
@@ -313,32 +391,25 @@ Gere um resumo de 3-5 parágrafos curtos com:
       })
       .filter(Boolean);
 
-    // Fetch existing user_note if any
-    let userNote: string | null = null;
-    try {
-      const { data: existing } = await supabase
-        .from("daily_summaries")
-        .select("user_note")
-        .eq("company_id", company_id)
-        .eq("summary_date", todayStr)
-        .maybeSingle();
-      userNote = existing?.user_note || null;
-    } catch (_) {}
-
     const result = { metrics, aiSummary, timeline, incompleteLeads, userNote };
 
-    // Persist to daily_summaries using service role (upsert)
+    // Persist to daily_summaries using service role (upsert) — never overwrite user_note
     try {
+      const upsertData: any = {
+        company_id,
+        summary_date: todayStr,
+        metrics,
+        ai_summary: aiSummary,
+        timeline,
+        incomplete_leads: incompleteLeads,
+      };
+      if (aiGeneratedAt) {
+        upsertData.ai_generated_at = aiGeneratedAt;
+      }
+
       await supabaseAdmin
         .from("daily_summaries")
-        .upsert({
-          company_id,
-          summary_date: todayStr,
-          metrics,
-          ai_summary: aiSummary,
-          timeline,
-          incomplete_leads: incompleteLeads,
-        }, { onConflict: "company_id,summary_date" });
+        .upsert(upsertData, { onConflict: "company_id,summary_date" });
     } catch (e) {
       console.error("Failed to persist daily summary:", e);
     }
