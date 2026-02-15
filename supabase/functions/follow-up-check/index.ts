@@ -524,6 +524,7 @@ async function processFollowUp({
       // Record follow-up in history
       await supabase.from("lead_history").insert({
         lead_id: lead.id,
+        company_id: instance.company_id,
         action: historyAction,
         new_value: `Mensagem de acompanhamento #${followUpNumber} após ${delayHours}h`,
       });
