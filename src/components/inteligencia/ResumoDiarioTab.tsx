@@ -426,18 +426,16 @@ export function ResumoDiarioTab() {
                   <Sparkles className="h-5 w-5 text-primary" />
                   Insight da IA
                 </CardTitle>
-                {isViewingToday && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fetchSummary(selectedDate, true)}
-                    disabled={isLoading}
-                    className="gap-2"
-                  >
-                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                    Atualizar
-                  </Button>
-                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fetchSummary(selectedDate, true)}
+                  disabled={isLoading}
+                  className="gap-2"
+                >
+                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                  {isViewingToday ? "Atualizar" : "Regerar"}
+                </Button>
               </div>
             </CardHeader>
             <CardContent>

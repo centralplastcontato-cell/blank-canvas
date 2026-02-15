@@ -89,8 +89,9 @@ serve(async (req) => {
     const brtNow = new Date(now.getTime() + BRT_OFFSET * 60 * 60 * 1000);
     const todayStr = brtNow.toISOString().slice(0, 10); // YYYY-MM-DD
 
-    // If a past date was requested, fetch from saved history
-    if (requestedDate && requestedDate !== todayStr) {
+    // If a past date was requested WITHOUT force_refresh, fetch from saved history
+    const isHistoricalDate = requestedDate && requestedDate !== todayStr;
+    if (isHistoricalDate && !force_refresh) {
       const { data: saved, error: savedErr } = await supabase
         .from("daily_summaries")
         .select("metrics, ai_summary, timeline, incomplete_leads, user_note")
@@ -123,26 +124,34 @@ serve(async (req) => {
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // === Generate live summary for today ===
-    const todayStart = new Date(Date.UTC(brtNow.getUTCFullYear(), brtNow.getUTCMonth(), brtNow.getUTCDate(), -BRT_OFFSET, 0, 0, 0));
-    const todayISO = todayStart.toISOString();
+    // === Generate live summary (for today OR historical with force_refresh) ===
+    const targetDateStr = isHistoricalDate ? requestedDate : todayStr;
+    const targetDateParts = targetDateStr.split("-").map(Number);
+    const targetStart = new Date(Date.UTC(targetDateParts[0], targetDateParts[1] - 1, targetDateParts[2], -BRT_OFFSET, 0, 0, 0));
+    const targetEnd = new Date(targetStart.getTime() + 24 * 60 * 60 * 1000);
+    const targetStartISO = targetStart.toISOString();
+    const targetEndISO = targetEnd.toISOString();
 
-    // Fetch leads created today (for "novos" metric only)
-    const { data: todayLeads } = await supabase
+    // Fetch leads created in target date range
+    let leadsQuery = supabase
       .from("campaign_leads")
       .select("id, name, status, whatsapp, created_at")
       .eq("company_id", company_id)
-      .gte("created_at", todayISO);
+      .gte("created_at", targetStartISO);
+    if (isHistoricalDate) leadsQuery = leadsQuery.lt("created_at", targetEndISO);
+    const { data: todayLeads } = await leadsQuery;
 
     const novos = (todayLeads || []).length;
 
-    // Fetch ALL status change events today (not just for today's leads)
-    const { data: statusChanges } = await supabase
+    // Fetch ALL status change events in target date range
+    let histQuery = supabase
       .from("lead_history")
       .select("lead_id, action, new_value, created_at")
       .eq("company_id", company_id)
-      .gte("created_at", todayISO)
+      .gte("created_at", targetStartISO)
       .in("action", ["status_change", "Alteracao de status"]);
+    if (isHistoricalDate) histQuery = histQuery.lt("created_at", targetEndISO);
+    const { data: statusChanges } = await histQuery;
 
     // Count transitions by new_value
     const orcamentoLeadIds = new Set<string>();
@@ -247,14 +256,16 @@ serve(async (req) => {
 
     const intelMap = new Map(intelligenceData.map((i: any) => [i.lead_id, i]));
 
-    // Fetch all history events today for timeline
-    const { data: historyEvents } = await supabase
+    // Fetch all history events in target date range for timeline
+    let timelineQuery = supabase
       .from("lead_history")
       .select("lead_id, action, old_value, new_value, user_name, created_at")
       .eq("company_id", company_id)
-      .gte("created_at", todayISO)
+      .gte("created_at", targetStartISO)
       .order("created_at", { ascending: true })
       .limit(100);
+    if (isHistoricalDate) timelineQuery = timelineQuery.lt("created_at", targetEndISO);
+    const { data: historyEvents } = await timelineQuery;
 
     const leadNameMap = new Map(leads.map((l: any) => [l.id, l.name]));
     const historyLeadIds = [...new Set((historyEvents || []).map((e: any) => e.lead_id))];
@@ -331,7 +342,7 @@ serve(async (req) => {
         .from("daily_summaries")
         .select("ai_summary, ai_generated_at, user_note")
         .eq("company_id", company_id)
-        .eq("summary_date", todayStr)
+        .eq("summary_date", targetDateStr)
         .maybeSingle();
       existingSaved = existing;
     } catch (_) {}
@@ -420,13 +431,13 @@ Gere um resumo de 3-5 parágrafos curtos com:
       })
       .filter(Boolean);
 
-    const result = { metrics, aiSummary, timeline, incompleteLeads, userNote };
+    const result = { metrics, aiSummary, timeline, incompleteLeads, userNote, isHistorical: isHistoricalDate || false };
 
     // Persist to daily_summaries using service role (upsert) — never overwrite user_note
     try {
       const upsertData: any = {
         company_id,
-        summary_date: todayStr,
+        summary_date: targetDateStr,
         metrics,
         ai_summary: aiSummary,
         timeline,
