@@ -331,8 +331,22 @@ async function processFollowUp({
     return { successCount: 0, errors: [] };
   }
 
-  const leadIds = analysisChoices.map(c => c.lead_id);
-  console.log(`[follow-up-check] Found ${leadIds.length} potential leads for follow-up #${followUpNumber}`);
+  const allLeadIds = analysisChoices.map(c => c.lead_id);
+  console.log(`[follow-up-check] Found ${allLeadIds.length} potential leads for follow-up #${followUpNumber}`);
+
+  // Filter only leads that have a conversation in THIS instance
+  const { data: instanceConversations } = await supabase
+    .from("wapi_conversations")
+    .select("lead_id")
+    .in("lead_id", allLeadIds)
+    .eq("instance_id", settings.instance_id);
+
+  const leadsInThisInstance = new Set(
+    (instanceConversations || []).map((c: { lead_id: string }) => c.lead_id)
+  );
+  const leadIds = allLeadIds.filter((id: string) => leadsInThisInstance.has(id));
+
+  console.log(`[follow-up-check] ${leadIds.length} of ${allLeadIds.length} leads belong to instance ${settings.instance_id}`);
 
   // Check which leads already received this specific follow-up
   const { data: existingFollowUps, error: followUpError } = await supabase
