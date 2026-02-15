@@ -103,6 +103,29 @@ function validateName(input: string): { valid: boolean; value?: string; error?: 
   if (!/^[\p{L}\s'-]+$/u.test(name)) {
     return { valid: false, error: 'Por favor, digite apenas seu nome (sem números ou símbolos):' };
   }
+  // Reject if too many words (names rarely have more than 5 words)
+  const words = name.split(/\s+/).filter(w => w.length > 0);
+  if (words.length > 5) {
+    return { valid: false, error: 'Hmm, parece uma frase 🤔\n\nPor favor, digite apenas seu *nome*:' };
+  }
+  // Reject if contains common non-name words (phrases/sentences)
+  const nonNameWords = [
+    'que', 'tem', 'como', 'quero', 'queria', 'gostaria', 'preciso',
+    'vi', 'vou', 'estou', 'tenho', 'pode', 'posso', 'sobre',
+    'instagram', 'facebook', 'whatsapp', 'site', 'promoção', 'promocao',
+    'preço', 'preco', 'valor', 'orçamento', 'orcamento',
+    'festa', 'evento', 'buffet', 'aniversário', 'aniversario',
+    'obrigado', 'obrigada', 'por favor', 'bom dia', 'boa tarde', 'boa noite',
+    'olá', 'ola', 'oi', 'hey', 'hello',
+  ];
+  const lowerName = name.toLowerCase();
+  const hasNonNameWord = nonNameWords.some(w => {
+    const regex = new RegExp(`\\b${w}\\b`, 'i');
+    return regex.test(lowerName);
+  });
+  if (hasNonNameWord) {
+    return { valid: false, error: 'Hmm, não consegui entender seu nome 🤔\n\nPor favor, digite apenas seu *nome*:' };
+  }
   // Capitalize first letter of each word
   name = name.replace(/\b\w/g, (c) => c.toUpperCase());
   return { valid: true, value: name };
