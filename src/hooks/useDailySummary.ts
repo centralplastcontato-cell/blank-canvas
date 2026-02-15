@@ -50,17 +50,21 @@ export function useDailySummary() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchSummary = useCallback(async (selectedDate?: Date) => {
+  const fetchSummary = useCallback(async (selectedDate?: Date, forceRefresh?: boolean) => {
     if (!currentCompany?.id) return;
     setIsLoading(true);
     setError(null);
 
     try {
-      const body: Record<string, string> = { company_id: currentCompany.id };
+      const body: Record<string, any> = { company_id: currentCompany.id };
 
       // If a date is selected and it's not today, pass it to fetch historical data
       if (selectedDate && !isToday(selectedDate)) {
         body.date = format(selectedDate, 'yyyy-MM-dd');
+      }
+
+      if (forceRefresh) {
+        body.force_refresh = true;
       }
 
       const { data: result, error: fnError } = await supabase.functions.invoke('daily-summary', {

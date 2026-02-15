@@ -427,7 +427,7 @@ export function ResumoDiarioTab() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => fetchSummary(selectedDate)}
+                    onClick={() => fetchSummary(selectedDate, true)}
                     disabled={isLoading}
                     className="gap-2"
                   >
