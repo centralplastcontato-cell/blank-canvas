@@ -1,0 +1,1 @@
+UPDATE wapi_conversations SET lead_id = 'f0b73a5f-355a-4279-9839-6ad6f399946d' WHERE id IN ('234c2ef3-c292-4f6e-bf7f-c9fc357b41c2', '19e7ad40-2a2a-4c44-a309-aa61bfb112a2')
