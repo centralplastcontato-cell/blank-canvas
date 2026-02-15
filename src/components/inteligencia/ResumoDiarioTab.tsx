@@ -55,6 +55,7 @@ function MetricsGrid({ metrics, incompleteCount }: { metrics: DailyMetrics; inco
 
 function formatAction(event: TimelineEvent): string {
   const { action, oldValue, newValue, userName } = event;
+  if (action === "lead_created") return "novo lead recebido";
   if (action === "status_change" && oldValue && newValue) {
     return `mudou de ${oldValue} para ${newValue}${userName ? ` (por ${userName})` : ""}`;
   }
@@ -63,22 +64,24 @@ function formatAction(event: TimelineEvent): string {
   if (action.includes("follow")) return "recebeu follow-up";
   if (action === "transfer") return `foi transferido${newValue ? ` para ${newValue}` : ""}`;
   if (action === "next_step") return `escolheu próximo passo: ${newValue || "—"}`;
+  if (action === "Próximo passo escolhido" || action === "Proximo passo escolhido") return `escolheu próximo passo: ${newValue || "—"}`;
   return action.replace(/_/g, " ");
 }
 
 function getActionIcon(action: string) {
+  if (action === "lead_created") return "🆕";
   if (action === "status_change") return "🔄";
   if (action === "bot_invalid_reply") return "⚠️";
   if (action.includes("alerta")) return "🚨";
   if (action.includes("follow")) return "📩";
   if (action === "transfer") return "↗️";
-  if (action === "next_step") return "🎯";
+  if (action === "next_step" || action.toLowerCase().includes("próximo passo") || action.toLowerCase().includes("proximo passo")) return "🎯";
   if (action.includes("return") || action.includes("retorn")) return "🔁";
   return "📌";
 }
 
 function isAlertEvent(action: string): boolean {
-  return action.includes("alerta") || action === "bot_invalid_reply" || action.includes("follow");
+  return action.includes("alerta") || action === "bot_invalid_reply" || action.includes("follow") || (action.includes("reminded") && !action.includes("proximo_passo"));
 }
 
 function TimelineSection({ events }: { events: TimelineEvent[] }) {
@@ -133,10 +136,10 @@ function TimelineSection({ events }: { events: TimelineEvent[] }) {
       <CardContent className="space-y-0">
         {filteredEvents.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">Nenhum alerta neste dia</p>
-        ) : filteredEvents.map((event) => (
-          <div key={event.index} className="flex items-start gap-3 py-3 border-b last:border-b-0 border-border/50">
+        ) : filteredEvents.map((event, idx) => (
+          <div key={`${event.leadId}-${idx}`} className="flex items-start gap-3 py-3 border-b last:border-b-0 border-border/50">
             <span className="text-[10px] font-bold bg-primary/10 text-primary rounded-full h-5 w-5 flex items-center justify-center shrink-0 mt-0.5">
-              {event.index}
+              {idx + 1}
             </span>
             <span className="text-xs font-mono text-muted-foreground shrink-0 pt-0.5 w-11">
               {event.time}
