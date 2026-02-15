@@ -585,7 +585,7 @@ async function processBotInactiveFollowUp({
   const maxWindow = new Date(now.getTime() - 24 * 60 * 60 * 1000); // max 24h window
 
   // Bot steps where a lead can be "stuck" (bot sent question, lead never replied)
-  const activeBotSteps = ["nome", "tipo", "mes", "dia", "convidados", "welcome"];
+  const activeBotSteps = ["nome", "tipo", "mes", "dia", "convidados", "welcome", "lp_sent"];
 
   // Find conversations stuck at active bot steps where last message is from bot and older than delay
   const { data: stuckConversations, error: convError } = await supabase
@@ -671,6 +671,7 @@ Podemos continuar de onde paramos?`;
           dia: `Maravilha! Tem preferência de dia da semana? 🗓️\n\nResponda com o *número*:\n\n*1* - Segunda a Quinta\n*2* - Sexta\n*3* - Sábado\n*4* - Domingo`,
           convidados: `E quantos convidados você pretende chamar pra essa festa mágica? 🎈\n\n👥 Responda com o *número*:\n\n*1* - 50 pessoas\n*2* - 60 pessoas\n*3* - 70 pessoas\n*4* - 80 pessoas\n*5* - 90 pessoas\n*6* - 100 pessoas`,
           welcome: 'Para começar, me conta: qual é o seu nome? 👑',
+          lp_sent: 'Oi {nome}, ainda estou por aqui! Escolha a opção que mais te agrada:\n\n*1* - Receber agora meu orçamento\n*2* - Falar com um atendente',
         };
         const fallbackQuestion = DEFAULT_QUESTIONS_MAP[currentStep];
         if (fallbackQuestion) {
