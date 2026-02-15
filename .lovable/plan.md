@@ -1,47 +1,42 @@
 
 
-## Corrigir contagem de orcamentos no Resumo do Dia
+## Corrigir 2 bugs no Resumo do Dia
 
-### Problema
+### Bug 1: "Orcamentos" mostra 1 em vez de 2
 
-A metrica "Orcamentos" mostra 1, mas na verdade 2 leads receberam o PDF com orcamento hoje:
+O deploy anterior ja corrigiu a logica adicionando `proximo_passo_reminded` ao `completedBotSteps`. Porem, a Amanda (lead f0e1aca5) tem `bot_step: proximo_passo_reminded` mas seu `bot_data` nao contem o campo `proximo_passo`. O resumo pode estar usando dados em cache. Ao clicar em "Atualizar" na tela, o valor deve subir para 2. Se nao subir, investigaremos mais.
 
-- **Amanda Tagawa** - `bot_step: complete_final` - contada corretamente
-- **Amanda** - `bot_step: proximo_passo_reminded` - NAO contada
+### Bug 2: "Vao pensar" mostra 0 em vez de 1
 
-O fluxo do bot funciona assim:
-
-```text
-qualificacao (nome, tipo, mes, dia, convidados)
-    |
-    v
-Bot envia PDF/orcamento    <-- orcamento ja foi enviado aqui
-    |
-    v
-proximo_passo (pergunta: visita, duvidas, ou pensar)
-    |
-    v
-complete_final (lead escolheu o proximo passo)
-```
-
-O lead no passo `proximo_passo` ou `proximo_passo_reminded` ja recebeu o orcamento, mas a logica atual so conta `complete_final` e `flow_complete`.
-
-### Solucao
-
-**Arquivo: `supabase/functions/daily-summary/index.ts`**
-
-Na linha 181, expandir o array `completedBotSteps` para incluir os passos que indicam que o orcamento ja foi enviado:
+**Causa raiz**: Amanda Tagawa escolheu a opcao 3, mas no banco de dados o valor foi salvo como texto `"Analisar com calma"` em vez do numero `"3"`. A logica atual compara:
 
 ```text
-Antes:  ["complete_final", "flow_complete"]
-Depois: ["complete_final", "flow_complete", "proximo_passo", "proximo_passo_reminded"]
+if (pp === "3") querPensar++;
+if (pp === "2") querHumano++;
 ```
 
-Isso faz com que qualquer lead que ja passou pela fase de qualificacao e recebeu o PDF seja contado como "orcamento enviado", mesmo que ainda nao tenha escolhido o proximo passo.
+Isso nunca bate porque o valor real e o texto descritivo.
 
-### Impacto
+**Solucao no arquivo `supabase/functions/daily-summary/index.ts`**:
 
-- A metrica "Orcamentos" passara a refletir corretamente todos os leads que receberam o PDF
-- Nenhum outro comportamento e afetado
-- Deploy da edge function `daily-summary`
+Expandir a comparacao para aceitar tanto o numero quanto o texto:
+
+```text
+Antes:
+  if (pp === "3") querPensar++;
+  if (pp === "2") querHumano++;
+
+Depois:
+  const ppNorm = (pp || "").toLowerCase();
+  if (pp === "3" || ppNorm.includes("analisar") || ppNorm.includes("pensar")) querPensar++;
+  if (pp === "2" || ppNorm.includes("dúvida") || ppNorm.includes("duvida") || ppNorm.includes("humano")) querHumano++;
+```
+
+Isso garante que tanto o formato numerico ("3") quanto o texto ("Analisar com calma") sejam reconhecidos corretamente.
+
+### Resumo das mudancas
+
+- **1 arquivo editado**: `supabase/functions/daily-summary/index.ts` (linhas 211-218)
+- **Deploy**: edge function `daily-summary`
+- **Impacto**: a metrica "Vao pensar" passara a contar corretamente leads que escolheram a opcao 3, independente do formato salvo no banco
 
