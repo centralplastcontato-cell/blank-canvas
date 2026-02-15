@@ -6,7 +6,7 @@ import { useCompany } from '@/contexts/CompanyContext';
  * Calculates average time leads spend in each CRM stage
  * by analyzing status change history in lead_history.
  */
-export function useLeadStageDurations() {
+export function useLeadStageDurations(enabled: boolean = true) {
   const { currentCompany } = useCompany();
   const companyId = currentCompany?.id;
 
@@ -88,7 +88,7 @@ export function useLeadStageDurations() {
 
       return averages;
     },
-    enabled: !!companyId,
+    enabled: !!companyId && enabled,
     staleTime: 5 * 60_000,
   });
 }

@@ -27,8 +27,10 @@ import logoCastelo from "@/assets/logo-castelo.png";
 export default function Inteligencia() {
   const navigate = useNavigate();
   const modules = useCompanyModules();
-  const { data, isLoading, refetch } = useLeadIntelligence();
-  const { data: stageDurations, isLoading: isDurationsLoading } = useLeadStageDurations();
+  const [activeTab, setActiveTab] = useState("resumo");
+  const needsIntelligence = activeTab !== "resumo";
+  const { data, isLoading, refetch } = useLeadIntelligence(needsIntelligence);
+  const { data: stageDurations, isLoading: isDurationsLoading } = useLeadStageDurations(needsIntelligence);
   const { currentCompany } = useCompany();
 
   const [isAdmin, setIsAdmin] = useState(false);
@@ -48,17 +50,21 @@ export default function Inteligencia() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { navigate("/auth"); return; }
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name, avatar_url")
-        .eq("user_id", user.id)
-        .single();
+      // Parallel fetch: profile, admin check, permissions
+      const [profileResult, adminResult, permsResult] = await Promise.all([
+        supabase.from("profiles").select("full_name, avatar_url").eq("user_id", user.id).single(),
+        supabase.rpc("is_admin", { _user_id: user.id }),
+        supabase.from("user_permissions").select("permission, granted").eq("user_id", user.id).in("permission", ["ic.view", "ic.export"]),
+      ]);
 
-      setCurrentUser({ id: user.id, name: profile?.full_name || "Usuário", email: user.email || "", avatar: profile?.avatar_url });
+      setCurrentUser({ 
+        id: user.id, 
+        name: profileResult.data?.full_name || "Usuário", 
+        email: user.email || "", 
+        avatar: profileResult.data?.avatar_url 
+      });
 
-      // Check admin via RPC
-      const { data: adminResult } = await supabase.rpc("is_admin", { _user_id: user.id });
-      const userIsAdmin = adminResult === true;
+      const userIsAdmin = adminResult.data === true;
       setIsAdmin(userIsAdmin);
 
       if (userIsAdmin) {
@@ -68,13 +74,7 @@ export default function Inteligencia() {
         return;
       }
 
-      const { data: perms } = await supabase
-        .from("user_permissions")
-        .select("permission, granted")
-        .eq("user_id", user.id)
-        .in("permission", ["ic.view", "ic.export"]);
-
-      const permMap = new Map(perms?.map(p => [p.permission, p.granted]) || []);
+      const permMap = new Map(permsResult.data?.map(p => [p.permission, p.granted]) || []);
       setHasView(permMap.get("ic.view") === true);
       setHasExport(permMap.get("ic.export") === true);
       setPermLoading(false);
@@ -341,7 +341,7 @@ export default function Inteligencia() {
               />
             </div>
 
-            <Tabs defaultValue="resumo">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList>
                 <TabsTrigger value="resumo">Resumo do Dia</TabsTrigger>
                 <TabsTrigger value="prioridades">Prioridades</TabsTrigger>
