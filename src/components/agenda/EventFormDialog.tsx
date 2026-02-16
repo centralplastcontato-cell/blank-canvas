@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search, X, UserCheck } from "lucide-react";
+import { Loader2, Search, X, UserCheck, ListChecks } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 
@@ -25,6 +25,7 @@ export interface EventFormData {
   notes: string;
   lead_id?: string | null;
   lead_name?: string | null;
+  checklist_template_id?: string | null;
 }
 
 const EVENT_TYPES = [
@@ -77,13 +78,37 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [linkedLeadIds, setLinkedLeadIds] = useState<Set<string>>(new Set());
   const [loadingLeads, setLoadingLeads] = useState(false);
 
+  // Checklist templates
+  const [templates, setTemplates] = useState<Array<{ id: string; name: string; items: string[] }>>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+
   useEffect(() => {
     if (open) {
       setForm(initialData || EMPTY);
       setLeadSearch("");
       setShowLeadDropdown(false);
+      setSelectedTemplate("");
     }
   }, [open, initialData]);
+
+  // Load checklist templates
+  useEffect(() => {
+    if (!open || !currentCompany?.id) return;
+    supabase
+      .from("event_checklist_templates")
+      .select("id, name, items")
+      .eq("company_id", currentCompany.id)
+      .eq("is_active", true)
+      .then(({ data }) => {
+        setTemplates(
+          (data || []).map((t: any) => ({
+            id: t.id,
+            name: t.name,
+            items: Array.isArray(t.items) ? t.items : [],
+          }))
+        );
+      });
+  }, [open, currentCompany?.id]);
 
   // Load closed leads and linked lead IDs when dialog opens
   useEffect(() => {
@@ -277,6 +302,29 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             <Label>Observações</Label>
             <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} />
           </div>
+
+          {/* Checklist template selector - only for new events */}
+          {!isEdit && templates.length > 0 && (
+            <div>
+              <Label className="flex items-center gap-1.5">
+                <ListChecks className="h-4 w-4" /> Template de Checklist
+              </Label>
+              <Select value={selectedTemplate} onValueChange={(v) => {
+                setSelectedTemplate(v);
+                setForm({ ...form, checklist_template_id: v || null });
+              }}>
+                <SelectTrigger><SelectValue placeholder="Sem template" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sem template</SelectItem>
+                  {templates.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name} ({t.items.length} itens)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>

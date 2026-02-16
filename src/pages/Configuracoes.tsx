@@ -9,6 +9,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
 import { WhatsAppConfig } from "@/components/whatsapp/WhatsAppConfig";
+import { ChecklistTemplateManager } from "@/components/agenda/ChecklistTemplateManager";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Menu } from "lucide-react";
@@ -154,8 +155,9 @@ export default function Configuracoes() {
           </div>
         </header>
 
-        <main className="flex-1 p-3 overflow-auto">
+        <main className="flex-1 p-3 overflow-auto space-y-6">
           <WhatsAppConfig userId={user.id} isAdmin={isAdmin} />
+          <ChecklistTemplateManager />
         </main>
       </div>
     );
@@ -198,8 +200,9 @@ export default function Configuracoes() {
             </div>
           </header>
 
-          <main className="flex-1 p-6 overflow-auto">
+          <main className="flex-1 p-6 overflow-auto space-y-6">
             <WhatsAppConfig userId={user.id} isAdmin={isAdmin} />
+            <ChecklistTemplateManager />
           </main>
         </SidebarInset>
       </div>

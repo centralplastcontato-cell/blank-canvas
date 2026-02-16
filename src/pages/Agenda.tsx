@@ -18,7 +18,7 @@ import { AgendaListView } from "@/components/agenda/AgendaListView";
 import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
 import { EventDetailSheet } from "@/components/agenda/EventDetailSheet";
 import { MonthSummaryCards } from "@/components/agenda/MonthSummaryCards";
-import { CalendarDays, Plus, Loader2, ShieldAlert, Menu, Clock, AlertTriangle, List } from "lucide-react";
+import { CalendarDays, Plus, Loader2, ShieldAlert, Menu, Clock, AlertTriangle, List, ListChecks } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -55,6 +55,7 @@ export default function Agenda() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const [events, setEvents] = useState<CompanyEvent[]>([]);
+  const [checklistProgress, setChecklistProgress] = useState<Record<string, { total: number; completed: number }>>({});
   const [loading, setLoading] = useState(true);
   const [month, setMonth] = useState(startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -88,15 +89,32 @@ export default function Agenda() {
     setLoading(true);
     const start = format(startOfMonth(month), "yyyy-MM-dd");
     const end = format(endOfMonth(month), "yyyy-MM-dd");
-    const { data, error } = await supabase
-      .from("company_events")
-      .select("*")
-      .eq("company_id", currentCompany.id)
-      .gte("event_date", start)
-      .lte("event_date", end)
-      .order("event_date")
-      .order("start_time");
-    if (!error && data) setEvents(data as CompanyEvent[]);
+    const [eventsRes, checklistRes] = await Promise.all([
+      supabase
+        .from("company_events")
+        .select("*")
+        .eq("company_id", currentCompany.id)
+        .gte("event_date", start)
+        .lte("event_date", end)
+        .order("event_date")
+        .order("start_time"),
+      supabase
+        .from("event_checklist_items")
+        .select("event_id, is_completed")
+        .eq("company_id", currentCompany.id),
+    ]);
+
+    if (!eventsRes.error && eventsRes.data) setEvents(eventsRes.data as CompanyEvent[]);
+
+    // Build checklist progress map
+    const progressMap: Record<string, { total: number; completed: number }> = {};
+    (checklistRes.data || []).forEach((item: any) => {
+      if (!progressMap[item.event_id]) progressMap[item.event_id] = { total: 0, completed: 0 };
+      progressMap[item.event_id].total++;
+      if (item.is_completed) progressMap[item.event_id].completed++;
+    });
+    setChecklistProgress(progressMap);
+
     setLoading(false);
   };
 
@@ -154,8 +172,27 @@ export default function Agenda() {
       if (error) { toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" }); return; }
       toast({ title: "Festa atualizada!" });
     } else {
-      const { error } = await supabase.from("company_events").insert(payload);
+      const { data: newEvent, error } = await supabase.from("company_events").insert(payload).select("id").single();
       if (error) { toast({ title: "Erro ao criar", description: error.message, variant: "destructive" }); return; }
+
+      // Apply checklist template if selected
+      if (newEvent && data.checklist_template_id && data.checklist_template_id !== "none") {
+        const { data: tmpl } = await supabase
+          .from("event_checklist_templates")
+          .select("items")
+          .eq("id", data.checklist_template_id)
+          .single();
+        if (tmpl && Array.isArray(tmpl.items)) {
+          const checklistItems = (tmpl.items as string[]).map((title: string, idx: number) => ({
+            event_id: newEvent.id,
+            company_id: currentCompany.id,
+            title,
+            sort_order: idx,
+          }));
+          await supabase.from("event_checklist_items").insert(checklistItems);
+        }
+      }
+
       toast({ title: "Festa criada!" });
     }
     fetchEvents();
@@ -303,6 +340,7 @@ export default function Agenda() {
                         onMonthChange={setMonth}
                         onDayClick={setSelectedDate}
                         selectedDate={selectedDate}
+                        checklistProgress={checklistProgress}
                       />
                     )}
                   </CardContent>
@@ -342,6 +380,12 @@ export default function Agenda() {
                             {conflicts.length > 0 && (
                               <div className="flex items-center gap-1 text-xs text-destructive">
                                 <AlertTriangle className="h-3 w-3" /> Conflito
+                              </div>
+                            )}
+                            {checklistProgress[ev.id] && checklistProgress[ev.id].total > 0 && (
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <ListChecks className="h-3 w-3" />
+                                {checklistProgress[ev.id].completed}/{checklistProgress[ev.id].total} tarefas
                               </div>
                             )}
                           </button>
