@@ -334,10 +334,10 @@ export default function PreFesta() {
                 <div className="grid gap-3">
                   {templates.map((t) => (
                     <Card key={t.id} className="bg-card border-border">
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between gap-3">
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 mb-1">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
                               <h3 className="font-semibold truncate">{t.name}</h3>
                               <Badge variant={t.is_active ? "default" : "secondary"} className="text-xs shrink-0">
                                 {t.is_active ? "Ativo" : "Inativo"}
@@ -356,36 +356,36 @@ export default function PreFesta() {
                               </button>
                             </div>
                           </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <Switch checked={t.is_active} onCheckedChange={(v) => handleToggleActive(t.id, v)} />
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyLink(t.id)} title="Copiar link">
-                              <Link2 className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(`/pre-festa/${t.id}`, "_blank")} title="Visualizar">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(t)} title="Editar">
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDuplicate(t)} title="Duplicar">
-                              <Copy className="h-4 w-4" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Excluir template?</AlertDialogTitle>
-                                  <AlertDialogDescription>Essa ação não pode ser desfeita. Todas as respostas vinculadas também serão excluídas.</AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDelete(t.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
+                          <Switch checked={t.is_active} onCheckedChange={(v) => handleToggleActive(t.id, v)} className="shrink-0" />
+                        </div>
+                        <div className="flex items-center gap-1 flex-wrap border-t border-border pt-2">
+                          <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => copyLink(t.id)}>
+                            <Link2 className="h-3.5 w-3.5" /> Link
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => window.open(`/pre-festa/${t.id}`, "_blank")}>
+                            <Eye className="h-3.5 w-3.5" /> Ver
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => openEdit(t)}>
+                            <Pencil className="h-3.5 w-3.5" /> Editar
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleDuplicate(t)}>
+                            <Copy className="h-3.5 w-3.5" /> Duplicar
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive ml-auto"><Trash2 className="h-3.5 w-3.5" /> Excluir</Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Excluir template?</AlertDialogTitle>
+                                <AlertDialogDescription>Essa ação não pode ser desfeita. Todas as respostas vinculadas também serão excluídas.</AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDelete(t.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </CardContent>
                     </Card>
