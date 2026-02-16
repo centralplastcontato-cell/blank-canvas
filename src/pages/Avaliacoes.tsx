@@ -11,8 +11,12 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ClipboardCheck, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ClipboardCheck, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, Star, User, Calendar } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface EvaluationQuestion {
   id: string;
@@ -68,6 +72,13 @@ export function AvaliacoesContent() {
   const [formQuestions, setFormQuestions] = useState<EvaluationQuestion[]>(DEFAULT_QUESTIONS);
   const [saving, setSaving] = useState(false);
 
+  // Responses state
+  const [responseCounts, setResponseCounts] = useState<Record<string, number>>({});
+  const [responsesSheetOpen, setResponsesSheetOpen] = useState(false);
+  const [selectedTemplateForResponses, setSelectedTemplateForResponses] = useState<EvaluationTemplate | null>(null);
+  const [responses, setResponses] = useState<any[]>([]);
+  const [loadingResponses, setLoadingResponses] = useState(false);
+
   const fetchTemplates = async () => {
     if (!currentCompany?.id) return;
     setLoading(true);
@@ -78,6 +89,30 @@ export function AvaliacoesContent() {
       .order("created_at", { ascending: false });
     if (!error && data) setTemplates(data.map((t: any) => ({ ...t, questions: t.questions as EvaluationQuestion[] })));
     setLoading(false);
+
+    // Fetch response counts
+    const { data: countData } = await supabase
+      .from("evaluation_responses")
+      .select("template_id")
+      .eq("company_id", currentCompany.id);
+    if (countData) {
+      const counts: Record<string, number> = {};
+      countData.forEach((r: any) => { counts[r.template_id] = (counts[r.template_id] || 0) + 1; });
+      setResponseCounts(counts);
+    }
+  };
+
+  const openResponses = async (t: EvaluationTemplate) => {
+    setSelectedTemplateForResponses(t);
+    setResponsesSheetOpen(true);
+    setLoadingResponses(true);
+    const { data } = await supabase
+      .from("evaluation_responses")
+      .select("*")
+      .eq("template_id", t.id)
+      .order("created_at", { ascending: false });
+    setResponses(data || []);
+    setLoadingResponses(false);
   };
 
   useEffect(() => { fetchTemplates(); }, [currentCompany?.id]);
@@ -211,7 +246,10 @@ export function AvaliacoesContent() {
                         </Badge>
                       </div>
                       {t.description && <p className="text-sm text-muted-foreground line-clamp-1">{t.description}</p>}
-                      <p className="text-xs text-muted-foreground mt-1">{(t.questions || []).length} perguntas · {Math.max(...(t.questions || []).map(q => q.step), 1)} etapas</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {(t.questions || []).length} perguntas · {Math.max(...(t.questions || []).map(q => q.step), 1)} etapas
+                        {(responseCounts[t.id] || 0) > 0 && <span className="ml-2 text-primary font-medium">· {responseCounts[t.id]} respostas</span>}
+                      </p>
                     </div>
                     <Switch checked={t.is_active} onCheckedChange={(v) => handleToggleActive(t.id, v)} className="shrink-0" />
                   </div>
@@ -221,6 +259,9 @@ export function AvaliacoesContent() {
                     </Button>
                     <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => window.open(`/avaliacao/${t.id}`, "_blank")}>
                       <Eye className="h-3.5 w-3.5" /> Ver
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => openResponses(t)}>
+                      <MessageSquareText className="h-3.5 w-3.5" /> Respostas {(responseCounts[t.id] || 0) > 0 && `(${responseCounts[t.id]})`}
                     </Button>
                     <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => openEdit(t)}>
                       <Pencil className="h-3.5 w-3.5" /> Editar
@@ -332,6 +373,78 @@ export function AvaliacoesContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Responses Sheet */}
+      <Sheet open={responsesSheetOpen} onOpenChange={setResponsesSheetOpen}>
+        <SheetContent className="w-full sm:max-w-lg p-0">
+          <SheetHeader className="p-4 pb-2">
+            <SheetTitle className="flex items-center gap-2">
+              <MessageSquareText className="h-5 w-5 text-primary" />
+              Respostas: {selectedTemplateForResponses?.name}
+            </SheetTitle>
+          </SheetHeader>
+          <ScrollArea className="h-[calc(100vh-80px)]">
+            <div className="p-4 pt-0 space-y-3">
+              {loadingResponses ? (
+                <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+              ) : responses.length === 0 ? (
+                <div className="text-center py-12 space-y-2">
+                  <MessageSquareText className="h-10 w-10 text-muted-foreground mx-auto" />
+                  <p className="text-sm text-muted-foreground">Nenhuma resposta recebida ainda.</p>
+                </div>
+              ) : (
+                responses.map((r) => {
+                  const answersArr = Array.isArray(r.answers) ? r.answers : [];
+                  return (
+                    <Card key={r.id} className="bg-card border-border overflow-hidden">
+                      <CardContent className="p-0">
+                        <div className="flex items-center justify-between px-4 py-3 bg-muted/30">
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-primary" />
+                            <span className="font-semibold text-sm">{r.respondent_name || "Anônimo"}</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Calendar className="h-3.5 w-3.5" />
+                            {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                          </div>
+                        </div>
+                        {r.overall_score != null && (
+                          <div className="px-4 py-2 bg-primary/5 flex items-center gap-2 text-sm">
+                            <Star className="h-4 w-4 text-secondary fill-secondary" />
+                            <span className="font-medium">Nota geral: {Number(r.overall_score).toFixed(1)}</span>
+                          </div>
+                        )}
+                        <div className="divide-y divide-border">
+                          {answersArr.map((a: any, idx: number) => {
+                            const question = selectedTemplateForResponses?.questions.find(q => q.id === a.questionId);
+                            const renderValue = () => {
+                              if (a.value === true) return "👍 Sim";
+                              if (a.value === false) return "👎 Não";
+                              if (question?.type === "stars" && typeof a.value === "number") {
+                                return "⭐".repeat(a.value);
+                              }
+                              if (question?.type === "nps" && typeof a.value === "number") {
+                                return `${a.value}/10`;
+                              }
+                              return String(a.value || "—");
+                            };
+                            return (
+                              <div key={idx} className="px-4 py-2.5">
+                                <p className="text-muted-foreground text-xs mb-0.5">{question?.text || a.questionId}</p>
+                                <p className="font-medium text-sm">{renderValue()}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
     </>
   );
 }
