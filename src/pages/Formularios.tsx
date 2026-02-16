@@ -8,12 +8,13 @@ import { MobileMenu } from "@/components/admin/MobileMenu";
 import { NotificationBell } from "@/components/admin/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { FileText, Menu, Loader2, ClipboardCheck, PartyPopper, FileSignature, UtensilsCrossed } from "lucide-react";
+import { FolderOpen, Menu, Loader2, ClipboardCheck, PartyPopper, FileSignature, UtensilsCrossed, ListChecks, FileText } from "lucide-react";
 import logoCastelo from "@/assets/logo-castelo.png";
 import { AvaliacoesContent } from "./Avaliacoes";
 import { PreFestaContent } from "./PreFesta";
 import { ContratoContent } from "./Contrato";
 import { CardapioContent } from "./Cardapio";
+import { ChecklistTemplateManager } from "@/components/agenda/ChecklistTemplateManager";
 
 export default function Formularios() {
   const navigate = useNavigate();
@@ -24,6 +25,7 @@ export default function Formularios() {
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string; email: string; avatar?: string | null } | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  const activeSection = searchParams.get("section") || "formularios";
   const activeTab = searchParams.get("tab") || "avaliacoes";
 
   useEffect(() => {
@@ -43,6 +45,16 @@ export default function Formularios() {
 
   const handleLogout = async () => { await supabase.auth.signOut(); navigate("/auth"); };
   const handleRefresh = () => { window.location.reload(); };
+
+  const handleSectionChange = (section: string) => {
+    const params: Record<string, string> = { section };
+    if (section === "formularios") params.tab = activeTab;
+    setSearchParams(params);
+  };
+
+  const handleTabChange = (tab: string) => {
+    setSearchParams({ section: "formularios", tab });
+  };
 
   if (permLoading) {
     return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
@@ -73,7 +85,7 @@ export default function Formularios() {
                   />
                   <div className="flex items-center gap-2 min-w-0">
                     <img src={logoCastelo} alt="Logo" className="h-8 w-auto shrink-0" />
-                    <h1 className="font-display font-bold text-foreground text-sm truncate">Formulários</h1>
+                    <h1 className="font-display font-bold text-foreground text-sm truncate">Documentos</h1>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
@@ -87,51 +99,77 @@ export default function Formularios() {
             {/* Desktop header */}
             <div className="hidden md:flex items-center justify-between gap-3 p-6 pb-0">
               <div className="flex items-center gap-3">
-                <FileText className="h-7 w-7 text-primary" />
+                <FolderOpen className="h-7 w-7 text-primary" />
                 <div>
-                  <h1 className="text-2xl font-bold">Formulários</h1>
-                  <p className="text-sm text-muted-foreground">Gerencie avaliações, pré-festa e outros formulários</p>
+                  <h1 className="text-2xl font-bold">Documentos</h1>
+                  <p className="text-sm text-muted-foreground">Gerencie formulários e checklists da sua empresa</p>
                 </div>
               </div>
             </div>
 
+            {/* Top-level section tabs */}
             <Tabs
-              value={activeTab}
-              onValueChange={(v) => setSearchParams({ tab: v })}
+              value={activeSection}
+              onValueChange={handleSectionChange}
               className="flex-1 flex flex-col overflow-hidden"
             >
               <div className="px-3 md:px-6 pt-3 md:pt-4">
                 <TabsList className="w-full md:w-auto">
-                  <TabsTrigger value="avaliacoes" className="flex-1 md:flex-none gap-1.5">
-                    <ClipboardCheck className="h-4 w-4" />
-                    <span>Avaliações</span>
+                  <TabsTrigger value="formularios" className="flex-1 md:flex-none gap-1.5">
+                    <FileText className="h-4 w-4" />
+                    <span>Formulários</span>
                   </TabsTrigger>
-                  <TabsTrigger value="prefesta" className="flex-1 md:flex-none gap-1.5">
-                    <PartyPopper className="h-4 w-4" />
-                    <span>Pré-Festa</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="contrato" className="flex-1 md:flex-none gap-1.5">
-                    <FileSignature className="h-4 w-4" />
-                    <span>Contrato</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="cardapio" className="flex-1 md:flex-none gap-1.5">
-                    <UtensilsCrossed className="h-4 w-4" />
-                    <span>Cardápio</span>
+                  <TabsTrigger value="checklist" className="flex-1 md:flex-none gap-1.5">
+                    <ListChecks className="h-4 w-4" />
+                    <span>Checklist</span>
                   </TabsTrigger>
                 </TabsList>
               </div>
 
-              <TabsContent value="avaliacoes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
-                <AvaliacoesContent />
+              <TabsContent value="formularios" className="flex-1 overflow-hidden mt-0 flex flex-col">
+                <Tabs
+                  value={activeTab}
+                  onValueChange={handleTabChange}
+                  className="flex-1 flex flex-col overflow-hidden"
+                >
+                  <div className="px-3 md:px-6 pt-2">
+                    <TabsList className="w-full md:w-auto">
+                      <TabsTrigger value="avaliacoes" className="flex-1 md:flex-none gap-1.5">
+                        <ClipboardCheck className="h-4 w-4" />
+                        <span>Avaliações</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="prefesta" className="flex-1 md:flex-none gap-1.5">
+                        <PartyPopper className="h-4 w-4" />
+                        <span>Pré-Festa</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="contrato" className="flex-1 md:flex-none gap-1.5">
+                        <FileSignature className="h-4 w-4" />
+                        <span>Contrato</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="cardapio" className="flex-1 md:flex-none gap-1.5">
+                        <UtensilsCrossed className="h-4 w-4" />
+                        <span>Cardápio</span>
+                      </TabsTrigger>
+                    </TabsList>
+                  </div>
+
+                  <TabsContent value="avaliacoes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                    <AvaliacoesContent />
+                  </TabsContent>
+                  <TabsContent value="prefesta" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                    <PreFestaContent />
+                  </TabsContent>
+                  <TabsContent value="contrato" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                    <ContratoContent />
+                  </TabsContent>
+                  <TabsContent value="cardapio" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                    <CardapioContent />
+                  </TabsContent>
+                </Tabs>
               </TabsContent>
-              <TabsContent value="prefesta" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
-                <PreFestaContent />
-              </TabsContent>
-              <TabsContent value="contrato" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
-                <ContratoContent />
-              </TabsContent>
-              <TabsContent value="cardapio" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
-                <CardapioContent />
+
+              <TabsContent value="checklist" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                <ChecklistTemplateManager />
               </TabsContent>
             </Tabs>
           </div>

@@ -8,7 +8,7 @@ import {
   Building2,
   Brain,
   CalendarDays,
-  ClipboardCheck
+  FolderOpen
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -86,8 +86,8 @@ export function MobileMenu({
     },
     {
       id: "formularios",
-      label: "Formulários",
-      icon: ClipboardCheck,
+      label: "Documentos",
+      icon: FolderOpen,
       path: "/formularios",
       show: true,
     },
