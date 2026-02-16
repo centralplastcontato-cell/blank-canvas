@@ -86,6 +86,7 @@ export default function Admin() {
   const canDeleteLeads = isAdmin || hasPermission('leads.delete');
   const canAssignLeads = isAdmin || hasPermission('leads.assign');
   const canEditLeads = isAdmin || canEdit || hasPermission('leads.edit');
+  const canViewContact = isAdmin || hasPermission('leads.contact.view');
   
   // Sound notification for new leads
   useLeadNotifications();
@@ -424,7 +425,7 @@ export default function Admin() {
   };
 
   const handleExport = () => {
-    exportLeadsToCSV({ leads, responsaveis });
+    exportLeadsToCSV({ leads, responsaveis, canViewContact });
     toast({
       title: "Exportação concluída",
       description: `${leads.length} leads exportados para CSV.`,
@@ -551,6 +552,7 @@ export default function Admin() {
                 currentPage={currentPage}
                 pageSize={pageSize}
                 onPageChange={setCurrentPage}
+                canViewContact={canViewContact}
               />
             </TabsContent>
 
@@ -598,12 +600,13 @@ export default function Admin() {
                 onTransfer={canEditLeads ? handleTransferClick : undefined}
                 allowedUnits={allowedUnits}
                 canViewAll={canViewAll}
+                canViewContact={canViewContact}
               />
             </TabsContent>
           </Tabs>
         </main>
 
-        <LeadDetailSheet lead={selectedLead} isOpen={isDetailOpen} onClose={() => setIsDetailOpen(false)} onUpdate={handleRefresh} responsaveis={responsaveis} currentUserId={user.id} currentUserName={currentUserProfile?.full_name || user.email || ""} canEdit={canEditLeads} />
+        <LeadDetailSheet lead={selectedLead} isOpen={isDetailOpen} onClose={() => setIsDetailOpen(false)} onUpdate={handleRefresh} responsaveis={responsaveis} currentUserId={user.id} currentUserName={currentUserProfile?.full_name || user.email || ""} canEdit={canEditLeads} canViewContact={canViewContact} />
         
         <TransferLeadDialog
           lead={transferLead}
@@ -674,6 +677,7 @@ export default function Admin() {
                   currentPage={currentPage}
                   pageSize={pageSize}
                   onPageChange={setCurrentPage}
+                  canViewContact={canViewContact}
                 />
               </TabsContent>
 
@@ -721,12 +725,13 @@ export default function Admin() {
                   onTransfer={canEditLeads ? handleTransferClick : undefined}
                   allowedUnits={allowedUnits}
                   canViewAll={canViewAll}
+                  canViewContact={canViewContact}
                 />
               </TabsContent>
             </Tabs>
           </main>
 
-          <LeadDetailSheet lead={selectedLead} isOpen={isDetailOpen} onClose={() => setIsDetailOpen(false)} onUpdate={handleRefresh} responsaveis={responsaveis} currentUserId={user.id} currentUserName={currentUserProfile?.full_name || user.email || ""} canEdit={canEditLeads} />
+          <LeadDetailSheet lead={selectedLead} isOpen={isDetailOpen} onClose={() => setIsDetailOpen(false)} onUpdate={handleRefresh} responsaveis={responsaveis} currentUserId={user.id} currentUserName={currentUserProfile?.full_name || user.email || ""} canEdit={canEditLeads} canViewContact={canViewContact} />
           
           <TransferLeadDialog
             lead={transferLead}

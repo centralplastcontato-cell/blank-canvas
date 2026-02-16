@@ -21,6 +21,7 @@ interface LeadsKanbanProps {
   canEditName?: boolean;
   canEditDescription?: boolean;
   canDelete?: boolean;
+  canViewContact?: boolean;
 }
 
 export function LeadsKanban({
@@ -36,6 +37,7 @@ export function LeadsKanban({
   canEditName = false,
   canEditDescription = false,
   canDelete = false,
+  canViewContact = true,
 }: LeadsKanbanProps) {
   const columns: LeadStatus[] = [
     "novo",
@@ -198,6 +200,7 @@ export function LeadsKanban({
                       canEdit={canEdit}
                       canEditName={canEditName}
                       canEditDescription={canEditDescription}
+                      canViewContact={canViewContact}
                       onLeadClick={onLeadClick}
                       onStatusChange={onStatusChange}
                       onNameUpdate={handleNameUpdate}
@@ -260,6 +263,7 @@ export function LeadsKanban({
                           canEdit={canEdit}
                           canEditName={canEditName}
                           canEditDescription={canEditDescription}
+                          canViewContact={canViewContact}
                           onLeadClick={onLeadClick}
                           onStatusChange={onStatusChange}
                           onNameUpdate={handleNameUpdate}

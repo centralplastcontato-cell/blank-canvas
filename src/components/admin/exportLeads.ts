@@ -2,13 +2,15 @@ import { Lead } from "@/types/crm";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { UserWithRole, LEAD_STATUS_LABELS, ROLE_LABELS } from "@/types/crm";
+import { maskPhone } from "@/lib/mask-utils";
 
 interface ExportLeadsProps {
   leads: Lead[];
   responsaveis: UserWithRole[];
+  canViewContact?: boolean;
 }
 
-export function exportLeadsToCSV({ leads, responsaveis }: ExportLeadsProps) {
+export function exportLeadsToCSV({ leads, responsaveis, canViewContact = true }: ExportLeadsProps) {
   const getResponsavelName = (responsavelId: string | null) => {
     if (!responsavelId) return "";
     const r = responsaveis.find((r) => r.user_id === responsavelId);
@@ -33,7 +35,7 @@ export function exportLeadsToCSV({ leads, responsaveis }: ExportLeadsProps) {
   // CSV Rows
   const rows = leads.map((lead) => [
     lead.name,
-    lead.whatsapp,
+    canViewContact ? lead.whatsapp : maskPhone(lead.whatsapp),
     lead.unit || "",
     lead.campaign_id,
     lead.month || "",

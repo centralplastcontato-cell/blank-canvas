@@ -39,6 +39,7 @@ import {
   ChevronRight,
   RotateCcw,
 } from "lucide-react";
+import { maskPhone } from "@/lib/mask-utils";
 
 interface LeadCardProps {
   lead: Lead;
@@ -52,6 +53,7 @@ interface LeadCardProps {
   onToggleSelect: (id: string) => void;
   formatWhatsAppLink: (phone: string) => string;
   getResponsavelName: (id: string | null) => string | null;
+  canViewContact?: boolean;
 }
 
 export function LeadCard({
@@ -66,6 +68,7 @@ export function LeadCard({
   onToggleSelect,
   formatWhatsAppLink,
   getResponsavelName,
+  canViewContact = true,
 }: LeadCardProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -114,7 +117,7 @@ export function LeadCard({
             </div>
             <div className="flex items-center gap-1 text-sm text-muted-foreground mt-0.5">
               <Phone className="w-3 h-3" />
-              <span className="truncate">{lead.whatsapp}</span>
+              <span className="truncate">{canViewContact ? lead.whatsapp : maskPhone(lead.whatsapp)}</span>
             </div>
           </div>
         </div>
@@ -202,15 +205,17 @@ export function LeadCard({
 
       {/* Actions */}
       <div className="flex items-center gap-2 pt-1 border-t border-border">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="flex-1 h-9"
-          onClick={openWhatsAppChat}
-        >
-          <MessageSquare className="w-4 h-4 mr-2" />
-          WhatsApp
-        </Button>
+        {canViewContact && (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex-1 h-9"
+            onClick={openWhatsAppChat}
+          >
+            <MessageSquare className="w-4 h-4 mr-2" />
+            WhatsApp
+          </Button>
+        )}
 
         {isAdmin && (
           <AlertDialog>

@@ -61,6 +61,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { LeadCard } from "./LeadCard";
+import { maskPhone } from "@/lib/mask-utils";
 
 interface LeadsTableProps {
   leads: Lead[];
@@ -77,6 +78,7 @@ interface LeadsTableProps {
   currentPage: number;
   pageSize: number;
   onPageChange: (page: number) => void;
+  canViewContact?: boolean;
 }
 
 export function LeadsTable({
@@ -94,6 +96,7 @@ export function LeadsTable({
   currentPage,
   pageSize,
   onPageChange,
+  canViewContact = true,
 }: LeadsTableProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
@@ -312,6 +315,7 @@ export function LeadsTable({
             onToggleSelect={toggleSelect}
             formatWhatsAppLink={formatWhatsAppLink}
             getResponsavelName={getResponsavelName}
+            canViewContact={canViewContact}
           />
         ))}
         {totalCount > pageSize && (
@@ -377,7 +381,7 @@ export function LeadsTable({
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Phone className="w-4 h-4 text-muted-foreground" />
-                      {lead.whatsapp}
+                      {canViewContact ? lead.whatsapp : maskPhone(lead.whatsapp)}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -472,15 +476,17 @@ export function LeadsTable({
                       >
                         <Eye className="w-4 h-4" />
                       </Button>
-                      <Button variant="outline" size="sm" asChild>
-                        <a
-                          href={formatWhatsAppLink(lead.whatsapp)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
-                      </Button>
+                      {canViewContact && (
+                        <Button variant="outline" size="sm" asChild>
+                          <a
+                            href={formatWhatsAppLink(lead.whatsapp)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                        </Button>
+                      )}
 
                       {isAdmin && (
                         <AlertDialog>

@@ -144,6 +144,7 @@ export default function CentralAtendimento() {
   const canDeleteLeads = isAdmin || hasPermission('leads.delete');
   const canAssignLeads = isAdmin || hasPermission('leads.assign');
   const canEditLeads = isAdmin || canEdit || hasPermission('leads.edit');
+  const canViewContact = isAdmin || hasPermission('leads.contact.view');
   
   // Sound notification for new leads
   useLeadNotifications();
@@ -558,7 +559,7 @@ export default function CentralAtendimento() {
   };
 
   const handleExport = () => {
-    exportLeadsToCSV({ leads, responsaveis });
+    exportLeadsToCSV({ leads, responsaveis, canViewContact });
     toast({
       title: "Exportação concluída",
       description: `${leads.length} leads exportados para CSV.`,
@@ -894,6 +895,7 @@ export default function CentralAtendimento() {
                     currentPage={currentPage}
                     pageSize={pageSize}
                     onPageChange={setCurrentPage}
+                    canViewContact={canViewContact}
                   />
                 ) : (
                   <LeadsKanban
@@ -937,6 +939,7 @@ export default function CentralAtendimento() {
                     canEditDescription={canEditDescription}
                     canDelete={canDeleteLeads}
                     onDelete={canDeleteLeads ? handleDeleteLead : undefined}
+                    canViewContact={canViewContact}
                   />
                 )}
               </PullToRefresh>
@@ -945,7 +948,7 @@ export default function CentralAtendimento() {
           </Tabs>
         </main>
 
-        <LeadDetailSheet lead={selectedLead} isOpen={isDetailOpen} onClose={() => setIsDetailOpen(false)} onUpdate={handleRefresh} responsaveis={responsaveis} currentUserId={user.id} currentUserName={currentUserProfile?.full_name || user.email || ""} canEdit={canEditLeads} canDelete={canDeleteLeads} onDelete={canDeleteLeads ? handleDeleteLead : undefined} />
+        <LeadDetailSheet lead={selectedLead} isOpen={isDetailOpen} onClose={() => setIsDetailOpen(false)} onUpdate={handleRefresh} responsaveis={responsaveis} currentUserId={user.id} currentUserName={currentUserProfile?.full_name || user.email || ""} canEdit={canEditLeads} canDelete={canDeleteLeads} onDelete={canDeleteLeads ? handleDeleteLead : undefined} canViewContact={canViewContact} />
       </div>
     );
   }
@@ -1265,6 +1268,7 @@ export default function CentralAtendimento() {
                     currentPage={currentPage}
                     pageSize={pageSize}
                     onPageChange={setCurrentPage}
+                    canViewContact={canViewContact}
                   />
                 ) : (
                   <LeadsKanban
@@ -1308,6 +1312,7 @@ export default function CentralAtendimento() {
                     canEditDescription={canEditDescription}
                     canDelete={canDeleteLeads}
                     onDelete={canDeleteLeads ? handleDeleteLead : undefined}
+                    canViewContact={canViewContact}
                   />
                 )}
                 </div>
@@ -1316,7 +1321,7 @@ export default function CentralAtendimento() {
             </Tabs>
           </main>
 
-          <LeadDetailSheet lead={selectedLead} isOpen={isDetailOpen} onClose={() => setIsDetailOpen(false)} onUpdate={handleRefresh} responsaveis={responsaveis} currentUserId={user.id} currentUserName={currentUserProfile?.full_name || user.email || ""} canEdit={canEditLeads} canDelete={canDeleteLeads} onDelete={canDeleteLeads ? handleDeleteLead : undefined} />
+          <LeadDetailSheet lead={selectedLead} isOpen={isDetailOpen} onClose={() => setIsDetailOpen(false)} onUpdate={handleRefresh} responsaveis={responsaveis} currentUserId={user.id} currentUserName={currentUserProfile?.full_name || user.email || ""} canEdit={canEditLeads} canDelete={canDeleteLeads} onDelete={canDeleteLeads ? handleDeleteLead : undefined} canViewContact={canViewContact} />
         </SidebarInset>
       </div>
     </SidebarProvider>
