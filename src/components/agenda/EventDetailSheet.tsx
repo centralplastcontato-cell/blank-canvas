@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { EventChecklist } from "./EventChecklist";
 
 interface EventData {
   id: string;
@@ -22,6 +23,7 @@ interface EventData {
   total_value: number | null;
   notes: string | null;
   lead_id?: string | null;
+  company_id?: string;
 }
 
 interface EventDetailSheetProps {
@@ -145,6 +147,13 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
                 <p className="text-sm whitespace-pre-wrap">{event.notes}</p>
               </div>
             </>
+          )}
+
+          <Separator />
+
+          {/* Checklist */}
+          {event.company_id && (
+            <EventChecklist eventId={event.id} companyId={event.company_id} />
           )}
 
           <Separator />

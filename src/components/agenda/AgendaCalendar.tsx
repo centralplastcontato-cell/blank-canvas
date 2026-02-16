@@ -12,12 +12,17 @@ interface CalendarEvent {
   title: string;
 }
 
+interface ChecklistProgress {
+  [eventId: string]: { total: number; completed: number };
+}
+
 interface AgendaCalendarProps {
   events: CalendarEvent[];
   month: Date;
   onMonthChange: (month: Date) => void;
   onDayClick: (date: Date) => void;
   selectedDate: Date | null;
+  checklistProgress?: ChecklistProgress;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -26,7 +31,7 @@ const STATUS_COLORS: Record<string, string> = {
   cancelado: "bg-red-500",
 };
 
-export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selectedDate }: AgendaCalendarProps) {
+export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selectedDate, checklistProgress = {} }: AgendaCalendarProps) {
   // Group events by date string
   const eventsByDate = new Map<string, CalendarEvent[]>();
   events.forEach((ev) => {
@@ -73,11 +78,16 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
         DayContent: ({ date }) => {
           const dateKey = format(date, "yyyy-MM-dd");
           const dayEvents = eventsByDate.get(dateKey) || [];
+          // Check if any event on this day has pending checklist items
+          const hasPending = dayEvents.some((ev) => {
+            const p = checklistProgress[ev.id];
+            return p && p.total > 0 && p.completed < p.total;
+          });
           return (
             <div className="flex flex-col items-center gap-0.5">
               <span>{date.getDate()}</span>
               {dayEvents.length > 0 && (
-                <div className="flex gap-0.5 justify-center">
+                <div className="flex gap-0.5 justify-center items-center">
                   {dayEvents.slice(0, 3).map((ev) => (
                     <span
                       key={ev.id}
@@ -88,6 +98,9 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
                     <span className="text-[8px] text-muted-foreground leading-none">+{dayEvents.length - 3}</span>
                   )}
                 </div>
+              )}
+              {hasPending && (
+                <span className="text-[7px] text-orange-500 font-medium leading-none">📋</span>
               )}
             </div>
           );
