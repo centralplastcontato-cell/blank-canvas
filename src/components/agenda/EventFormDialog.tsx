@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { Loader2, Search, X, UserCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -71,39 +72,53 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
   // Lead search state
   const [leadSearch, setLeadSearch] = useState("");
-  const [leadResults, setLeadResults] = useState<Array<{ id: string; name: string; whatsapp: string }>>([]);
-  const [leadSearching, setLeadSearching] = useState(false);
   const [showLeadDropdown, setShowLeadDropdown] = useState(false);
+  const [closedLeads, setClosedLeads] = useState<Array<{ id: string; name: string; whatsapp: string }>>([]);
+  const [linkedLeadIds, setLinkedLeadIds] = useState<Set<string>>(new Set());
+  const [loadingLeads, setLoadingLeads] = useState(false);
 
   useEffect(() => {
     if (open) {
       setForm(initialData || EMPTY);
       setLeadSearch("");
-      setLeadResults([]);
       setShowLeadDropdown(false);
     }
   }, [open, initialData]);
 
-  // Debounced lead search
+  // Load closed leads and linked lead IDs when dialog opens
   useEffect(() => {
-    if (!leadSearch || leadSearch.length < 2 || !currentCompany?.id) {
-      setLeadResults([]);
-      return;
-    }
-    const timer = setTimeout(async () => {
-      setLeadSearching(true);
-      const { data } = await supabase
-        .from("campaign_leads")
-        .select("id, name, whatsapp")
-        .eq("company_id", currentCompany.id)
-        .ilike("name", `%${leadSearch}%`)
-        .limit(10);
-      setLeadResults(data || []);
-      setLeadSearching(false);
-      setShowLeadDropdown(true);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [leadSearch, currentCompany?.id]);
+    if (!open || !currentCompany?.id) return;
+    setLoadingLeads(true);
+
+    const fetchData = async () => {
+      const [leadsRes, eventsRes] = await Promise.all([
+        supabase
+          .from("campaign_leads")
+          .select("id, name, whatsapp")
+          .eq("company_id", currentCompany.id)
+          .eq("status", "fechado"),
+        supabase
+          .from("company_events")
+          .select("lead_id")
+          .eq("company_id", currentCompany.id)
+          .not("lead_id", "is", null),
+      ]);
+
+      setClosedLeads(leadsRes.data || []);
+      setLinkedLeadIds(new Set((eventsRes.data || []).map((e) => e.lead_id!)));
+      setLoadingLeads(false);
+    };
+    fetchData();
+  }, [open, currentCompany?.id]);
+
+  const availableLeads = useMemo(() => {
+    const filtered = closedLeads.filter(
+      (lead) => !linkedLeadIds.has(lead.id) || lead.id === initialData?.lead_id
+    );
+    if (!leadSearch) return filtered;
+    const q = leadSearch.toLowerCase();
+    return filtered.filter((l) => l.name.toLowerCase().includes(q));
+  }, [closedLeads, linkedLeadIds, leadSearch, initialData?.lead_id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -153,34 +168,38 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Buscar lead por nome..."
+                    placeholder="Buscar lead fechado..."
                     value={leadSearch}
                     onChange={(e) => setLeadSearch(e.target.value)}
+                    onFocus={() => setShowLeadDropdown(true)}
                     className="pl-8"
                   />
-                  {leadSearching && <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />}
+                  {loadingLeads && <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />}
                 </div>
-                {showLeadDropdown && leadResults.length > 0 && (
+                {showLeadDropdown && availableLeads.length > 0 && (
                   <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-md max-h-48 overflow-y-auto">
-                    {leadResults.map((lead) => (
+                    {availableLeads.map((lead) => (
                       <button
                         key={lead.id}
                         type="button"
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2"
                         onClick={() => {
                           setForm({ ...form, lead_id: lead.id, lead_name: lead.name, title: form.title || lead.name });
                           setLeadSearch("");
                           setShowLeadDropdown(false);
                         }}
                       >
-                        <span className="font-medium">{lead.name}</span>
-                        <span className="text-xs text-muted-foreground ml-2">{lead.whatsapp}</span>
+                        <span className="font-medium flex-1">{lead.name}</span>
+                        <Badge variant="secondary" className="text-[10px] bg-green-500/15 text-green-700 border-0">Fechado</Badge>
+                        <span className="text-xs text-muted-foreground">{lead.whatsapp}</span>
                       </button>
                     ))}
                   </div>
                 )}
-                {showLeadDropdown && leadResults.length === 0 && leadSearch.length >= 2 && !leadSearching && (
-                  <p className="text-xs text-muted-foreground mt-1">Nenhum lead encontrado.</p>
+                {showLeadDropdown && availableLeads.length === 0 && !loadingLeads && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {closedLeads.length === 0 ? "Nenhum lead fechado encontrado." : "Todos os leads fechados já possuem festa vinculada."}
+                  </p>
                 )}
               </>
             )}
