@@ -3,9 +3,11 @@ import { useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ChevronRight, ChevronLeft, CheckCircle2, Check } from "lucide-react";
+import { Loader2, ChevronRight, ChevronLeft, CheckCircle2, Check, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface CardapioSection {
   id: string;
@@ -28,16 +30,26 @@ interface TemplateData {
   thank_you_message: string | null;
 }
 
+interface EventOption {
+  event_id: string;
+  event_title: string;
+  event_date: string;
+  lead_name: string;
+}
+
 export default function PublicCardapio() {
   const { templateId } = useParams<{ templateId: string }>();
   const [template, setTemplate] = useState<TemplateData | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0); // 0 = name step, 1..n = sections
+  const [currentStep, setCurrentStep] = useState(0); // 0 = event selection step, 1..n = sections
   const [selections, setSelections] = useState<Record<string, string[]>>({});
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [respondentName, setRespondentName] = useState("");
+  const [events, setEvents] = useState<EventOption[]>([]);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [loadingEvents, setLoadingEvents] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -56,6 +68,13 @@ export default function PublicCardapio() {
         sections: row.sections as CardapioSection[],
         thank_you_message: row.thank_you_message,
       });
+
+      // Fetch events with linked leads for this company
+      setLoadingEvents(true);
+      const { data: eventsData } = await supabase.rpc("get_company_events_for_cardapio", { _company_id: row.company_id });
+      setEvents((eventsData as EventOption[]) || []);
+      setLoadingEvents(false);
+
       setLoading(false);
     }
     load();
@@ -110,7 +129,7 @@ export default function PublicCardapio() {
   };
 
   const canAdvance = () => {
-    if (isNameStep) return respondentName.trim().length > 0;
+    if (isNameStep) return selectedEventId !== null || respondentName.trim().length > 0;
     if (!currentSection) return false;
     const selected = selections[currentSection.id] || [];
     if (currentSection.max_selections) return selected.length === currentSection.max_selections;
@@ -140,6 +159,7 @@ export default function PublicCardapio() {
       template_id: template.id,
       company_id: template.company_id,
       respondent_name: respondentName.trim() || null,
+      event_id: selectedEventId || null,
       answers: answers as any,
     });
 
@@ -188,16 +208,60 @@ export default function PublicCardapio() {
                   <h2 className="text-xl font-bold text-foreground">{template.template_name}</h2>
                   {template.description && <p className="text-muted-foreground text-sm">{template.description}</p>}
                 </div>
-                <div className="bg-card rounded-2xl p-6 shadow-card space-y-3">
-                  <label className="text-sm font-medium text-foreground">Qual o seu nome?</label>
-                  <input
-                    type="text"
-                    value={respondentName}
-                    onChange={(e) => setRespondentName(e.target.value)}
-                    placeholder="Seu nome..."
-                    className="w-full rounded-xl border border-input bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-ring"
-                    autoFocus
-                  />
+                <div className="bg-card rounded-2xl p-5 shadow-card space-y-3">
+                  <label className="text-sm font-medium text-foreground">Selecione sua festa</label>
+                  {loadingEvents ? (
+                    <div className="flex items-center justify-center py-6">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : events.length > 0 ? (
+                    <div className="grid gap-2">
+                      {events.map((evt) => {
+                        const isSelected = selectedEventId === evt.event_id;
+                        return (
+                          <button
+                            key={evt.event_id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedEventId(evt.event_id);
+                              setRespondentName(evt.lead_name);
+                            }}
+                            className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-all flex items-center gap-3 ${
+                              isSelected
+                                ? "bg-primary text-primary-foreground shadow-md scale-[1.02]"
+                                : "bg-muted text-foreground hover:bg-muted/80"
+                            }`}
+                          >
+                            <CalendarDays className={`h-5 w-5 shrink-0 ${isSelected ? "text-primary-foreground" : "text-muted-foreground"}`} />
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate">{evt.lead_name}</p>
+                              <p className={`text-xs ${isSelected ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                                {format(parseISO(evt.event_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                              </p>
+                            </div>
+                            <span className={`h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                              isSelected ? "border-primary-foreground bg-primary-foreground/20" : "border-muted-foreground/30"
+                            }`}>
+                              {isSelected && <Check className="h-3 w-3" />}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-xs text-muted-foreground">Nenhuma festa encontrada.</p>
+                      <label className="text-sm font-medium text-foreground">Qual o seu nome?</label>
+                      <input
+                        type="text"
+                        value={respondentName}
+                        onChange={(e) => setRespondentName(e.target.value)}
+                        placeholder="Seu nome..."
+                        className="w-full rounded-xl border border-input bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-ring"
+                        autoFocus
+                      />
+                    </div>
+                  )}
                 </div>
               </motion.div>
             ) : currentSection ? (

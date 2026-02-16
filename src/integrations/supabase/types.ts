@@ -2373,6 +2373,15 @@ export type Database = {
           slug: string
         }[]
       }
+      get_company_events_for_cardapio: {
+        Args: { _company_id: string }
+        Returns: {
+          event_date: string
+          event_id: string
+          event_title: string
+          lead_name: string
+        }[]
+      }
       get_company_id_by_slug: { Args: { _slug: string }; Returns: string }
       get_contrato_template_public: {
         Args: { _template_id: string }
