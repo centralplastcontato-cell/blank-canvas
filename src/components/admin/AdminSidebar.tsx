@@ -52,7 +52,7 @@ export function AdminSidebar({
     ...(modules.config ? [{ title: "Configurações", url: "/configuracoes", icon: Settings }] : []),
     ...(modules.inteligencia ? [{ title: "Inteligência", url: "/inteligencia", icon: Brain }] : []),
     ...(modules.agenda ? [{ title: "Agenda", url: "/agenda", icon: CalendarDays }] : []),
-    { title: "Documentos", url: "/formularios", icon: FolderOpen },
+    { title: "Operações", url: "/formularios", icon: FolderOpen },
     ...(canManageUsers ? [{ title: "Gerenciar Usuários", url: "/users", icon: Users }] : []),
     ...(isAdmin ? [{ title: "Empresas", url: "/hub/empresas", icon: Building2 }] : []),
   ];

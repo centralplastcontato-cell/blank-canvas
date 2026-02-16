@@ -8,7 +8,7 @@ import { MobileMenu } from "@/components/admin/MobileMenu";
 import { NotificationBell } from "@/components/admin/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { FolderOpen, Menu, Loader2, ClipboardCheck, PartyPopper, FileSignature, UtensilsCrossed, ListChecks, FileText } from "lucide-react";
+import { FolderOpen, Menu, Loader2, ClipboardCheck, PartyPopper, FileSignature, UtensilsCrossed, ListChecks, FileText, Package } from "lucide-react";
 import logoCastelo from "@/assets/logo-castelo.png";
 import { AvaliacoesContent } from "./Avaliacoes";
 import { PreFestaContent } from "./PreFesta";
@@ -17,6 +17,7 @@ import { CardapioContent } from "./Cardapio";
 import { ChecklistTemplateManager } from "@/components/agenda/ChecklistTemplateManager";
 import { EventStaffManager } from "@/components/agenda/EventStaffManager";
 import { Separator } from "@/components/ui/separator";
+import { PackagesManager } from "@/components/admin/PackagesManager";
 
 export default function Formularios() {
   const navigate = useNavigate();
@@ -87,7 +88,7 @@ export default function Formularios() {
                   />
                   <div className="flex items-center gap-2 min-w-0">
                     <img src={logoCastelo} alt="Logo" className="h-8 w-auto shrink-0" />
-                    <h1 className="font-display font-bold text-foreground text-sm truncate">Documentos</h1>
+                    <h1 className="font-display font-bold text-foreground text-sm truncate">Operações</h1>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
@@ -103,8 +104,8 @@ export default function Formularios() {
               <div className="flex items-center gap-3">
                 <FolderOpen className="h-7 w-7 text-primary" />
                 <div>
-                  <h1 className="text-2xl font-bold">Documentos</h1>
-                  <p className="text-sm text-muted-foreground">Gerencie formulários e checklists da sua empresa</p>
+                  <h1 className="text-2xl font-bold">Operações</h1>
+                  <p className="text-sm text-muted-foreground">Gerencie formulários, checklists e pacotes da sua empresa</p>
                 </div>
               </div>
             </div>
@@ -124,6 +125,10 @@ export default function Formularios() {
                   <TabsTrigger value="checklist" className="flex-1 md:flex-none gap-1.5">
                     <ListChecks className="h-4 w-4" />
                     <span>Checklist</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="pacotes" className="flex-1 md:flex-none gap-1.5">
+                    <Package className="h-4 w-4" />
+                    <span>Pacotes</span>
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -174,6 +179,10 @@ export default function Formularios() {
                 <ChecklistTemplateManager />
                 <Separator />
                 <EventStaffManager />
+              </TabsContent>
+
+              <TabsContent value="pacotes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3 data-[state=inactive]:hidden">
+                <PackagesManager />
               </TabsContent>
             </Tabs>
           </div>

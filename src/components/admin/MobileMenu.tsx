@@ -86,7 +86,7 @@ export function MobileMenu({
     },
     {
       id: "formularios",
-      label: "Documentos",
+      label: "Operações",
       icon: FolderOpen,
       path: "/formularios",
       show: true,
