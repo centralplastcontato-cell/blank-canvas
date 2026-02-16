@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
-import { FileSignature, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, Calendar, ChevronDown } from "lucide-react";
+import { FileSignature, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, Calendar, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -56,6 +56,70 @@ const DEFAULT_QUESTIONS: ContratoQuestion[] = [
   { id: "ct15", type: "text", text: "Quantidade de convidados", step: 4, required: true },
   { id: "ct16", type: "text", text: "Forma de pagamento", step: 4, required: true },
 ];
+
+function ResponseCards({ responses, template }: { responses: any[]; template: ContratoTemplate | null }) {
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  return (
+    <div className="space-y-2">
+      {responses.map((r) => {
+        const isOpen = openId === r.id;
+        const answersArr = Array.isArray(r.answers) ? r.answers : [];
+        return (
+          <div key={r.id}>
+            <button
+              onClick={() => setOpenId(isOpen ? null : r.id)}
+              className="w-full flex items-center justify-between gap-2 px-4 py-3 rounded-xl bg-muted/40 hover:bg-muted/60 transition-colors text-left"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <User className="h-4 w-4 text-primary shrink-0" />
+                <span className="font-semibold text-sm truncate">{r.respondent_name || "Anônimo"}</span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  {format(new Date(r.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                </span>
+                <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? "rotate-90" : ""}`} />
+              </div>
+            </button>
+            {isOpen && (
+              <Card className="mt-1 bg-card border-border overflow-hidden">
+                <CardContent className="p-0">
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-muted/30">
+                    <span className="font-semibold text-sm">{r.respondent_name || "Anônimo"}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                    </span>
+                  </div>
+                  <div className="divide-y divide-border">
+                    {answersArr.map((a: any, idx: number) => {
+                      const question = template?.questions.find(q => q.id === a.questionId);
+                      let displayValue = a.value;
+                      if (a.value === true) displayValue = "👍 Sim";
+                      else if (a.value === false) displayValue = "👎 Não";
+                      else if (typeof a.value === "object" && a.value !== null && "parent1" in a.value) {
+                        displayValue = [a.value.parent1, a.value.parent2].filter(Boolean).join(" | ");
+                      } else if (typeof a.value === "string" && a.value.match(/^\d{4}-\d{2}-\d{2}/)) {
+                        try { displayValue = format(new Date(a.value), "dd/MM/yyyy", { locale: ptBR }); } catch {}
+                      }
+                      return (
+                        <div key={idx} className="px-4 py-2.5">
+                          <p className="text-muted-foreground text-xs mb-0.5">{question?.text || a.questionId}</p>
+                          <p className="font-medium text-sm">{String(displayValue || "—")}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export function ContratoContent() {
   const { currentCompany } = useCompany();
@@ -285,7 +349,7 @@ export function ContratoContent() {
                       </div>
 
                       <CollapsibleContent>
-                        <div className="border-t border-border pt-4 mt-1 space-y-3">
+                        <div className="border-t border-border pt-4 mt-1 space-y-2">
                           {loadingResponses ? (
                             <div className="flex justify-center py-6"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
                           ) : responses.length === 0 ? (
@@ -294,42 +358,7 @@ export function ContratoContent() {
                               <p className="text-sm text-muted-foreground">Nenhuma resposta recebida ainda.</p>
                             </div>
                           ) : (
-                            responses.map((r) => {
-                              const answersArr = Array.isArray(r.answers) ? r.answers : [];
-                              return (
-                                <Card key={r.id} className="bg-card border-border overflow-hidden">
-                                  <CardContent className="p-0">
-                                    <div className="flex items-center justify-between px-4 py-3 bg-muted/30">
-                                      <div className="flex items-center gap-2">
-                                        <User className="h-4 w-4 text-primary" />
-                                        <span className="font-semibold text-sm">{r.respondent_name || "Anônimo"}</span>
-                                      </div>
-                                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                        <Calendar className="h-3.5 w-3.5" />
-                                        {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                                      </div>
-                                    </div>
-                                    <div className="divide-y divide-border">
-                                      {answersArr.map((a: any, idx: number) => {
-                                        const question = selectedTemplateForResponses?.questions.find(q => q.id === a.questionId);
-                                        let displayValue = a.value;
-                                        if (a.value === true) displayValue = "👍 Sim";
-                                        else if (a.value === false) displayValue = "👎 Não";
-                                        else if (typeof a.value === "string" && a.value.match(/^\d{4}-\d{2}-\d{2}/)) {
-                                          try { displayValue = format(new Date(a.value), "dd/MM/yyyy", { locale: ptBR }); } catch {}
-                                        }
-                                        return (
-                                          <div key={idx} className="px-4 py-2.5">
-                                            <p className="text-muted-foreground text-xs mb-0.5">{question?.text || a.questionId}</p>
-                                            <p className="font-medium text-sm">{String(displayValue || "—")}</p>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </CardContent>
-                                </Card>
-                              );
-                            })
+                            <ResponseCards responses={responses} template={selectedTemplateForResponses} />
                           )}
                         </div>
                       </CollapsibleContent>
