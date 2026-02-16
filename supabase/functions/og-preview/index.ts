@@ -59,8 +59,45 @@ function canonicalize(host: string): string {
   return host.toLowerCase().replace(/:\d+$/, "").replace(/^www\./, "");
 }
 
+/** Handle evaluation template OG preview */
+async function resolveEvaluation(templateId: string, baseUrl: string): Promise<Response | null> {
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+
+  const { data } = await supabase.rpc("get_evaluation_template_public", { _template_id: templateId });
+  if (!data || (data as any[]).length === 0) return null;
+
+  const row = (data as any[])[0];
+  const companyName = row.company_name || "Avaliação";
+  const templateName = row.template_name || "Avaliação Pós-Festa";
+  const description = row.description || `${companyName} quer saber como foi a sua experiência!`;
+  const logo = row.company_logo || "https://hubcelebrei.com.br/og-para-buffets.jpg";
+  const evalUrl = `${baseUrl}/avaliacao/${templateId}`;
+
+  const meta = {
+    title: `${templateName} | ${companyName}`,
+    description,
+    image: logo,
+    url: evalUrl,
+  };
+
+  return new Response(buildHTML(meta, evalUrl), {
+    headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
+  });
+}
+
 async function resolveByDomain(domain: string, pathname: string): Promise<Response | null> {
   const canonical = canonicalize(domain);
+
+  // Check if this is an evaluation URL
+  const evalMatch = pathname.match(/^\/avaliacao\/([0-9a-f-]{36})$/i);
+  if (evalMatch) {
+    const baseUrl = domain.includes("localhost") ? `http://${domain}` : `https://${domain}`;
+    const result = await resolveEvaluation(evalMatch[1], baseUrl);
+    if (result) return result;
+  }
 
   // Check static brands first (fast path, no DB call)
   for (const [key, brand] of Object.entries(STATIC_BRANDS)) {
@@ -122,6 +159,15 @@ Deno.serve(async (req) => {
     const ua = req.headers.get("user-agent") || "";
     const isBot = BOT_UA_RE.test(ua);
 
+    // Mode 0: Direct evaluation OG preview via ?template_id=
+    const templateIdParam = url.searchParams.get("template_id");
+    if (templateIdParam) {
+      const baseUrl = url.searchParams.get("base_url") || "https://hubcelebrei.com.br";
+      const result = await resolveEvaluation(templateIdParam, baseUrl);
+      if (result) return result;
+      return new Response("Template not found", { status: 404, headers: corsHeaders });
+    }
+
     // Mode 1: explicit ?domain= parameter (legacy / Cloudflare Worker usage)
     const domainParam = url.searchParams.get("domain");
     if (domainParam) {
@@ -131,7 +177,6 @@ Deno.serve(async (req) => {
     }
 
     // Mode 2: Host-header based (proxied requests from Cloudflare Worker or direct)
-    // The CF Worker should forward the original Host header.
     const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
     const pathname = url.searchParams.get("path") || "/";
 

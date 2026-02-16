@@ -201,7 +201,11 @@ export default function Avaliacoes() {
   };
 
   const copyLink = (id: string) => {
-    const url = `${window.location.origin}/avaliacao/${id}`;
+    // Use custom domain if available, otherwise current origin
+    const domain = currentCompany?.custom_domain
+      ? `https://${currentCompany.custom_domain}`
+      : window.location.origin;
+    const url = `${domain}/avaliacao/${id}`;
     navigator.clipboard.writeText(url);
     toast({ title: "Link copiado!" });
   };
