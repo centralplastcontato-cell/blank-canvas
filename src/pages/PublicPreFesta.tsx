@@ -69,7 +69,7 @@ export default function PublicPreFesta() {
       if (template.company_slug) {
         window.location.href = `/lp/${template.company_slug}`;
       }
-    }, 10000);
+    }, 5000);
     return () => clearTimeout(timer);
   }, [submitted, template]);
 
@@ -140,7 +140,7 @@ export default function PublicPreFesta() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
         <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center space-y-6 max-w-md">
-          {template.company_logo && <img src={template.company_logo} alt={template.company_name} className="h-28 w-auto mx-auto" />}
+          {template.company_logo && <img src={template.company_logo} alt={template.company_name} className="h-40 w-auto mx-auto" />}
           <CheckCircle2 className="h-16 w-16 text-accent mx-auto" />
           <h1 className="text-2xl font-bold text-foreground">{template.thank_you_message || "Obrigado! 🎉"}</h1>
           <p className="text-muted-foreground">Suas informações foram enviadas com sucesso.</p>
