@@ -102,6 +102,9 @@ export default function PublicContrato() {
     return currentQuestions.every(q => {
       if (q.required === false) return true;
       const ans = answers[q.id];
+      if (typeof ans === "object" && ans !== null && "parent1" in ans) {
+        return ans.parent1 && ans.parent1.trim().length > 0;
+      }
       return ans !== undefined && ans !== null && ans !== "";
     });
   };
@@ -396,7 +399,38 @@ function CepInput({ value, onChange, siblingQuestions, onFillSibling }: { value:
   );
 }
 
+function isParentNameQuestion(q: ContratoQuestion): boolean {
+  const t = q.text.toLowerCase();
+  return (t.includes("nome dos pais") || t.includes("nome dos responsáveis") || t.includes("nome dos responsaveis") || t.includes("pais ou responsáveis") || t.includes("pais ou responsaveis") || t.includes("nome dos avós") || t.includes("nome dos avos") || t.includes("nome dos tios"));
+}
+
+function ParentNameInput({ value, onChange }: { value: any; onChange: (v: any) => void }) {
+  const parsed = typeof value === "object" && value !== null ? value : { parent1: value || "", parent2: "" };
+  const inputClass = "w-full rounded-xl border border-input bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-ring";
+
+  const update = (field: "parent1" | "parent2", v: string) => {
+    const next = { ...parsed, [field]: v };
+    onChange(next);
+  };
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="text-xs text-muted-foreground mb-1 block">Responsável 1</label>
+        <input type="text" value={parsed.parent1 || ""} onChange={(e) => update("parent1", e.target.value)} placeholder="Nome completo" className={inputClass} />
+      </div>
+      <div>
+        <label className="text-xs text-muted-foreground mb-1 block">Responsável 2</label>
+        <input type="text" value={parsed.parent2 || ""} onChange={(e) => update("parent2", e.target.value)} placeholder="Nome completo (opcional)" className={inputClass} />
+      </div>
+    </div>
+  );
+}
+
 function ContratoQuestionInput({ question, value, onChange, siblingQuestions, onFillSibling }: { question: ContratoQuestion; value: any; onChange: (v: any) => void; siblingQuestions: ContratoQuestion[]; onFillSibling: (id: string, v: any) => void }) {
+  if (isParentNameQuestion(question)) {
+    return <ParentNameInput value={value} onChange={onChange} />;
+  }
   if (isCepQuestion(question)) {
     return <CepInput value={value} onChange={onChange} siblingQuestions={siblingQuestions} onFillSibling={onFillSibling} />;
   }
