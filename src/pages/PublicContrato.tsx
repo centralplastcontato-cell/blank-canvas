@@ -117,9 +117,17 @@ export default function PublicContrato() {
   const currentQuestions = questionsWithInstagram.filter(q => q.step === currentStep);
   const progress = nameStep ? 0 : ((currentStep) / (totalSteps + 1)) * 100;
 
+  const isHiddenByCep = (q: ContratoQuestion) => {
+    const hasCep = currentQuestions.some(cq => isCepQuestion(cq));
+    if (!hasCep) return false;
+    const t = q.text.toLowerCase();
+    const isNumero = ["número", "numero", "nº", "n°"].some(p => t.includes(p)) && !t.includes("cep") && !t.includes("telefone") && !t.includes("whatsapp");
+    return isNumero || t.includes("complemento");
+  };
+
   const canAdvance = () => {
     if (nameStep) return respondentName.trim().length > 0;
-    return currentQuestions.every(q => {
+    return currentQuestions.filter(q => !isHiddenByCep(q)).every(q => {
       if (q.required === false) return true;
       const ans = answers[q.id];
       if (typeof ans === "object" && ans !== null && "parent1" in ans) {
@@ -216,10 +224,10 @@ export default function PublicContrato() {
               </motion.div>
             ) : (
               <motion.div key={`step-${currentStep}`} initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} className="space-y-4">
-              {currentQuestions.map((q) => (
+              {currentQuestions.filter(q => !isHiddenByCep(q)).map((q) => (
                   <div key={q.id} className="bg-card rounded-2xl p-5 shadow-card space-y-3">
                     <p className="font-medium text-foreground text-sm">{q.text}{q.required !== false && <span className="text-destructive ml-1">*</span>}</p>
-                    <ContratoQuestionInput question={q} value={answers[q.id]} onChange={(v) => setAnswer(q.id, v)} siblingQuestions={template.questions} onFillSibling={setAnswer} />
+                    <ContratoQuestionInput question={q} value={answers[q.id]} onChange={(v) => setAnswer(q.id, v)} siblingQuestions={questionsWithInstagram} onFillSibling={setAnswer} />
                   </div>
                 ))}
               </motion.div>
