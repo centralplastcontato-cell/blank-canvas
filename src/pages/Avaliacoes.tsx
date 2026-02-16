@@ -11,11 +11,10 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { ClipboardCheck, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, Star, User, Calendar, BarChart3, ThumbsUp } from "lucide-react";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import { ClipboardCheck, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, Star, User, Calendar, BarChart3, ThumbsUp, ChevronDown } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -57,10 +56,6 @@ const DEFAULT_QUESTIONS: EvaluationQuestion[] = [
   { id: "q15", type: "text", text: "Tem alguma sugestão de melhoria para nós?", step: 3 },
 ];
 
-/**
- * Content-only component for use inside the Formularios page tabs.
- * No sidebar/header shell — that's handled by the parent.
- */
 export function AvaliacoesContent() {
   const { currentCompany } = useCompany();
   const [templates, setTemplates] = useState<EvaluationTemplate[]>([]);
@@ -74,9 +69,9 @@ export function AvaliacoesContent() {
   const [formQuestions, setFormQuestions] = useState<EvaluationQuestion[]>(DEFAULT_QUESTIONS);
   const [saving, setSaving] = useState(false);
 
-  // Responses state
+  // Responses state - inline
   const [responseCounts, setResponseCounts] = useState<Record<string, number>>({});
-  const [responsesSheetOpen, setResponsesSheetOpen] = useState(false);
+  const [expandedTemplateId, setExpandedTemplateId] = useState<string | null>(null);
   const [selectedTemplateForResponses, setSelectedTemplateForResponses] = useState<EvaluationTemplate | null>(null);
   const [responses, setResponses] = useState<any[]>([]);
   const [loadingResponses, setLoadingResponses] = useState(false);
@@ -103,9 +98,13 @@ export function AvaliacoesContent() {
     }
   };
 
-  const openResponses = async (t: EvaluationTemplate) => {
+  const toggleResponses = async (t: EvaluationTemplate) => {
+    if (expandedTemplateId === t.id) {
+      setExpandedTemplateId(null);
+      return;
+    }
+    setExpandedTemplateId(t.id);
     setSelectedTemplateForResponses(t);
-    setResponsesSheetOpen(true);
     setLoadingResponses(true);
     const { data } = await supabase
       .from("evaluation_responses")
@@ -154,6 +153,7 @@ export function AvaliacoesContent() {
     const { error } = await supabase.from("evaluation_templates").delete().eq("id", id);
     if (error) { toast({ title: "Erro ao excluir", variant: "destructive" }); return; }
     toast({ title: "Template excluído" });
+    if (expandedTemplateId === id) setExpandedTemplateId(null);
     fetchTemplates();
   };
 
@@ -220,11 +220,9 @@ export function AvaliacoesContent() {
     if (!responses.length || !selectedTemplateForResponses) return null;
     const questions = selectedTemplateForResponses.questions || [];
     
-    // Overall score average
     const scores = responses.filter(r => r.overall_score != null).map(r => Number(r.overall_score));
     const avgOverall = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
 
-    // Per-question metrics
     const questionMetrics = questions
       .filter(q => q.type !== "text")
       .map(q => {
@@ -274,60 +272,191 @@ export function AvaliacoesContent() {
           </Card>
         ) : (
           <div className="grid gap-3">
-            {templates.map((t) => (
-              <Card key={t.id} className="bg-card border-border">
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <h3 className="font-semibold truncate">{t.name}</h3>
-                        <Badge variant={t.is_active ? "default" : "secondary"} className="text-xs shrink-0">
-                          {t.is_active ? "Ativo" : "Inativo"}
-                        </Badge>
+            {templates.map((t) => {
+              const isExpanded = expandedTemplateId === t.id;
+              const count = responseCounts[t.id] || 0;
+              return (
+                <Collapsible key={t.id} open={isExpanded} onOpenChange={() => toggleResponses(t)}>
+                  <Card className="bg-card border-border">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <h3 className="font-semibold truncate">{t.name}</h3>
+                            <Badge variant={t.is_active ? "default" : "secondary"} className="text-xs shrink-0">
+                              {t.is_active ? "Ativo" : "Inativo"}
+                            </Badge>
+                          </div>
+                          {t.description && <p className="text-sm text-muted-foreground line-clamp-1">{t.description}</p>}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {(t.questions || []).length} perguntas · {Math.max(...(t.questions || []).map(q => q.step), 1)} etapas
+                          </p>
+                        </div>
+                        <Switch checked={t.is_active} onCheckedChange={(v) => handleToggleActive(t.id, v)} className="shrink-0" />
                       </div>
-                      {t.description && <p className="text-sm text-muted-foreground line-clamp-1">{t.description}</p>}
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {(t.questions || []).length} perguntas · {Math.max(...(t.questions || []).map(q => q.step), 1)} etapas
-                        {(responseCounts[t.id] || 0) > 0 && <span className="ml-2 text-primary font-medium">· {responseCounts[t.id]} respostas</span>}
-                      </p>
-                    </div>
-                    <Switch checked={t.is_active} onCheckedChange={(v) => handleToggleActive(t.id, v)} className="shrink-0" />
-                  </div>
-                  <div className="flex items-center gap-1 flex-wrap border-t border-border pt-2">
-                    <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => copyLink(t.id)}>
-                      <Link2 className="h-3.5 w-3.5" /> Link
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => window.open(`/avaliacao/${t.id}`, "_blank")}>
-                      <Eye className="h-3.5 w-3.5" /> Ver
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => openResponses(t)}>
-                      <MessageSquareText className="h-3.5 w-3.5" /> Respostas {(responseCounts[t.id] || 0) > 0 && `(${responseCounts[t.id]})`}
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => openEdit(t)}>
-                      <Pencil className="h-3.5 w-3.5" /> Editar
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleDuplicate(t)}>
-                      <Copy className="h-3.5 w-3.5" /> Duplicar
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive ml-auto"><Trash2 className="h-3.5 w-3.5" /> Excluir</Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Excluir template?</AlertDialogTitle>
-                          <AlertDialogDescription>Essa ação não pode ser desfeita. Todas as respostas vinculadas também serão excluídas.</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDelete(t.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                      <div className="flex items-center gap-1 flex-wrap border-t border-border pt-2">
+                        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => copyLink(t.id)}>
+                          <Link2 className="h-3.5 w-3.5" /> Link
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => window.open(`/avaliacao/${t.id}`, "_blank")}>
+                          <Eye className="h-3.5 w-3.5" /> Ver
+                        </Button>
+                        <CollapsibleTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
+                            <MessageSquareText className="h-3.5 w-3.5" /> Respostas {count > 0 && `(${count})`}
+                            <ChevronDown className={`h-3 w-3 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                          </Button>
+                        </CollapsibleTrigger>
+                        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => openEdit(t)}>
+                          <Pencil className="h-3.5 w-3.5" /> Editar
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleDuplicate(t)}>
+                          <Copy className="h-3.5 w-3.5" /> Duplicar
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive ml-auto"><Trash2 className="h-3.5 w-3.5" /> Excluir</Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir template?</AlertDialogTitle>
+                              <AlertDialogDescription>Essa ação não pode ser desfeita. Todas as respostas vinculadas também serão excluídas.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(t.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+
+                      {/* Inline Responses */}
+                      <CollapsibleContent>
+                        <div className="border-t border-border pt-4 mt-1 space-y-4">
+                          {loadingResponses ? (
+                            <div className="flex justify-center py-6"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+                          ) : responses.length === 0 ? (
+                            <div className="text-center py-6 space-y-2">
+                              <MessageSquareText className="h-8 w-8 text-muted-foreground mx-auto" />
+                              <p className="text-sm text-muted-foreground">Nenhuma resposta recebida ainda.</p>
+                            </div>
+                          ) : (
+                            <Tabs defaultValue="metricas">
+                              <TabsList className="w-full grid grid-cols-2">
+                                <TabsTrigger value="metricas" className="gap-1.5">
+                                  <BarChart3 className="h-3.5 w-3.5" /> Métricas
+                                </TabsTrigger>
+                                <TabsTrigger value="respostas" className="gap-1.5">
+                                  <MessageSquareText className="h-3.5 w-3.5" /> Respostas ({responses.length})
+                                </TabsTrigger>
+                              </TabsList>
+
+                              <TabsContent value="metricas" className="mt-3 space-y-3">
+                                {metrics?.avgOverall != null && (
+                                  <Card className="bg-primary/5 border-primary/20">
+                                    <CardContent className="p-4 text-center space-y-1">
+                                      <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Nota Geral Média</p>
+                                      <p className="text-4xl font-bold text-primary">{metrics.avgOverall.toFixed(1)}</p>
+                                      <p className="text-xs text-muted-foreground">{metrics.total} avaliações recebidas</p>
+                                    </CardContent>
+                                  </Card>
+                                )}
+                                <div className="space-y-2">
+                                  {metrics?.questionMetrics.map((m: any, idx: number) => {
+                                    if (!m) return null;
+                                    if (m.type === "nps" || m.type === "stars") {
+                                      const pct = m.avg != null ? (m.avg / m.max) * 100 : 0;
+                                      return (
+                                        <Card key={idx} className="bg-card border-border">
+                                          <CardContent className="p-3 space-y-2">
+                                            <p className="text-xs text-muted-foreground leading-snug">{m.question.text}</p>
+                                            <div className="flex items-center gap-3">
+                                              <Progress value={pct} className="flex-1 h-2" />
+                                              <span className="text-sm font-semibold tabular-nums shrink-0">
+                                                {m.avg != null ? m.avg.toFixed(1) : "—"}/{m.max}
+                                              </span>
+                                            </div>
+                                            <p className="text-[10px] text-muted-foreground">{m.count} respostas</p>
+                                          </CardContent>
+                                        </Card>
+                                      );
+                                    }
+                                    if (m.type === "yesno") {
+                                      return (
+                                        <Card key={idx} className="bg-card border-border">
+                                          <CardContent className="p-3 space-y-2">
+                                            <p className="text-xs text-muted-foreground leading-snug">{m.question.text}</p>
+                                            <div className="flex items-center gap-3">
+                                              <Progress value={m.yesPercent} className="flex-1 h-2" />
+                                              <div className="flex items-center gap-1 shrink-0">
+                                                <ThumbsUp className="h-3.5 w-3.5 text-primary" />
+                                                <span className="text-sm font-semibold tabular-nums">{m.yesPercent.toFixed(0)}%</span>
+                                              </div>
+                                            </div>
+                                            <p className="text-[10px] text-muted-foreground">{m.yes} de {m.total} disseram sim</p>
+                                          </CardContent>
+                                        </Card>
+                                      );
+                                    }
+                                    return null;
+                                  })}
+                                </div>
+                              </TabsContent>
+
+                              <TabsContent value="respostas" className="mt-3 space-y-3">
+                                {responses.map((r) => {
+                                  const answersArr = Array.isArray(r.answers) ? r.answers : [];
+                                  return (
+                                    <Card key={r.id} className="bg-card border-border overflow-hidden">
+                                      <CardContent className="p-0">
+                                        <div className="flex items-center justify-between px-4 py-3 bg-muted/30">
+                                          <div className="flex items-center gap-2">
+                                            <User className="h-4 w-4 text-primary" />
+                                            <span className="font-semibold text-sm">{r.respondent_name || "Anônimo"}</span>
+                                          </div>
+                                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                            <Calendar className="h-3.5 w-3.5" />
+                                            {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                                          </div>
+                                        </div>
+                                        {r.overall_score != null && (
+                                          <div className="px-4 py-2 bg-primary/5 flex items-center gap-2 text-sm">
+                                            <Star className="h-4 w-4 text-secondary fill-secondary" />
+                                            <span className="font-medium">Nota geral: {Number(r.overall_score).toFixed(1)}</span>
+                                          </div>
+                                        )}
+                                        <div className="divide-y divide-border">
+                                          {answersArr.map((a: any, idx: number) => {
+                                            const question = selectedTemplateForResponses?.questions.find(q => q.id === a.questionId);
+                                            const renderValue = () => {
+                                              if (a.value === true) return "👍 Sim";
+                                              if (a.value === false) return "👎 Não";
+                                              if (question?.type === "stars" && typeof a.value === "number") return "⭐".repeat(a.value);
+                                              if (question?.type === "nps" && typeof a.value === "number") return `${a.value}/10`;
+                                              return String(a.value || "—");
+                                            };
+                                            return (
+                                              <div key={idx} className="px-4 py-2.5">
+                                                <p className="text-muted-foreground text-xs mb-0.5">{question?.text || a.questionId}</p>
+                                                <p className="font-medium text-sm">{renderValue()}</p>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </CardContent>
+                                    </Card>
+                                  );
+                                })}
+                              </TabsContent>
+                            </Tabs>
+                          )}
+                        </div>
+                      </CollapsibleContent>
+                    </CardContent>
+                  </Card>
+                </Collapsible>
+              );
+            })}
           </div>
         )}
       </div>
@@ -413,151 +542,6 @@ export function AvaliacoesContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Responses Sheet with Tabs */}
-      <Sheet open={responsesSheetOpen} onOpenChange={setResponsesSheetOpen}>
-        <SheetContent className="w-full sm:max-w-xl p-0 flex flex-col">
-          <SheetHeader className="p-4 pb-2 shrink-0">
-            <SheetTitle className="flex items-center gap-2 text-base">
-              <MessageSquareText className="h-5 w-5 text-primary" />
-              {selectedTemplateForResponses?.name}
-            </SheetTitle>
-          </SheetHeader>
-
-          {loadingResponses ? (
-            <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-          ) : responses.length === 0 ? (
-            <div className="text-center py-12 space-y-2 px-4">
-              <MessageSquareText className="h-10 w-10 text-muted-foreground mx-auto" />
-              <p className="text-sm text-muted-foreground">Nenhuma resposta recebida ainda.</p>
-            </div>
-          ) : (
-            <Tabs defaultValue="metricas" className="flex-1 flex flex-col overflow-hidden">
-              <div className="px-4 shrink-0">
-                <TabsList className="w-full grid grid-cols-2">
-                  <TabsTrigger value="metricas" className="gap-1.5">
-                    <BarChart3 className="h-3.5 w-3.5" /> Métricas
-                  </TabsTrigger>
-                  <TabsTrigger value="respostas" className="gap-1.5">
-                    <MessageSquareText className="h-3.5 w-3.5" /> Respostas ({responses.length})
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-
-              {/* Metrics Tab */}
-              <TabsContent value="metricas" className="flex-1 overflow-y-auto mt-0">
-                <ScrollArea className="h-full">
-                  <div className="p-4 space-y-4">
-                    {/* Overall Score */}
-                    {metrics?.avgOverall != null && (
-                      <Card className="bg-primary/5 border-primary/20">
-                        <CardContent className="p-4 text-center space-y-1">
-                          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Nota Geral Média</p>
-                          <p className="text-4xl font-bold text-primary">{metrics.avgOverall.toFixed(1)}</p>
-                          <p className="text-xs text-muted-foreground">{metrics.total} avaliações recebidas</p>
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    {/* Per-question metrics */}
-                    <div className="space-y-2">
-                      {metrics?.questionMetrics.map((m: any, idx: number) => {
-                        if (!m) return null;
-                        if (m.type === "nps" || m.type === "stars") {
-                          const pct = m.avg != null ? (m.avg / m.max) * 100 : 0;
-                          return (
-                            <Card key={idx} className="bg-card border-border">
-                              <CardContent className="p-3 space-y-2">
-                                <p className="text-xs text-muted-foreground leading-snug">{m.question.text}</p>
-                                <div className="flex items-center gap-3">
-                                  <Progress value={pct} className="flex-1 h-2" />
-                                  <span className="text-sm font-semibold tabular-nums shrink-0">
-                                    {m.avg != null ? m.avg.toFixed(1) : "—"}/{m.max}
-                                  </span>
-                                </div>
-                                <p className="text-[10px] text-muted-foreground">{m.count} respostas</p>
-                              </CardContent>
-                            </Card>
-                          );
-                        }
-                        if (m.type === "yesno") {
-                          return (
-                            <Card key={idx} className="bg-card border-border">
-                              <CardContent className="p-3 space-y-2">
-                                <p className="text-xs text-muted-foreground leading-snug">{m.question.text}</p>
-                                <div className="flex items-center gap-3">
-                                  <Progress value={m.yesPercent} className="flex-1 h-2" />
-                                  <div className="flex items-center gap-1 shrink-0">
-                                    <ThumbsUp className="h-3.5 w-3.5 text-primary" />
-                                    <span className="text-sm font-semibold tabular-nums">{m.yesPercent.toFixed(0)}%</span>
-                                  </div>
-                                </div>
-                                <p className="text-[10px] text-muted-foreground">{m.yes} de {m.total} disseram sim</p>
-                              </CardContent>
-                            </Card>
-                          );
-                        }
-                        return null;
-                      })}
-                    </div>
-                  </div>
-                </ScrollArea>
-              </TabsContent>
-
-              {/* Individual Responses Tab */}
-              <TabsContent value="respostas" className="flex-1 overflow-y-auto mt-0">
-                <ScrollArea className="h-full">
-                  <div className="p-4 space-y-3">
-                    {responses.map((r) => {
-                      const answersArr = Array.isArray(r.answers) ? r.answers : [];
-                      return (
-                        <Card key={r.id} className="bg-card border-border overflow-hidden">
-                          <CardContent className="p-0">
-                            <div className="flex items-center justify-between px-4 py-3 bg-muted/30">
-                              <div className="flex items-center gap-2">
-                                <User className="h-4 w-4 text-primary" />
-                                <span className="font-semibold text-sm">{r.respondent_name || "Anônimo"}</span>
-                              </div>
-                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <Calendar className="h-3.5 w-3.5" />
-                                {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                              </div>
-                            </div>
-                            {r.overall_score != null && (
-                              <div className="px-4 py-2 bg-primary/5 flex items-center gap-2 text-sm">
-                                <Star className="h-4 w-4 text-secondary fill-secondary" />
-                                <span className="font-medium">Nota geral: {Number(r.overall_score).toFixed(1)}</span>
-                              </div>
-                            )}
-                            <div className="divide-y divide-border">
-                              {answersArr.map((a: any, idx: number) => {
-                                const question = selectedTemplateForResponses?.questions.find(q => q.id === a.questionId);
-                                const renderValue = () => {
-                                  if (a.value === true) return "👍 Sim";
-                                  if (a.value === false) return "👎 Não";
-                                  if (question?.type === "stars" && typeof a.value === "number") return "⭐".repeat(a.value);
-                                  if (question?.type === "nps" && typeof a.value === "number") return `${a.value}/10`;
-                                  return String(a.value || "—");
-                                };
-                                return (
-                                  <div key={idx} className="px-4 py-2.5">
-                                    <p className="text-muted-foreground text-xs mb-0.5">{question?.text || a.questionId}</p>
-                                    <p className="font-medium text-sm">{renderValue()}</p>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                </ScrollArea>
-              </TabsContent>
-            </Tabs>
-          )}
-        </SheetContent>
-      </Sheet>
     </>
   );
 }
