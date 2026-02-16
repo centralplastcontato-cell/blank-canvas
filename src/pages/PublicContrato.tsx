@@ -266,7 +266,7 @@ function isBirthDateQuestion(q: ContratoQuestion): boolean {
   return t.includes("aniversariante") || (t.includes("nascimento") && t.includes("aniversariante"));
 }
 
-function DateSelectInput({ value, onChange, showAge }: { value: any; onChange: (v: any) => void; showAge?: boolean }) {
+function DateSelectInput({ value, onChange, showAge, yearRange }: { value: any; onChange: (v: any) => void; showAge?: boolean; yearRange?: [number, number] }) {
   const parsed = value ? new Date(value) : null;
   const [day, setDay] = useState(parsed ? parsed.getDate() : 0);
   const [month, setMonth] = useState(parsed ? parsed.getMonth() + 1 : 0);
@@ -276,8 +276,8 @@ function DateSelectInput({ value, onChange, showAge }: { value: any; onChange: (
     "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
     "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"
   ];
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: currentYear - 1930 + 6 }, (_, i) => 1930 + i);
+  const [startYear, endYear] = yearRange || [1930, new Date().getFullYear() + 5];
+  const years = Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i);
   const daysInMonth = month && year ? new Date(year, month, 0).getDate() : 31;
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
@@ -537,7 +537,10 @@ function ContratoQuestionInput({ question, value, onChange, siblingQuestions, on
     );
   }
   if (isDateQuestion(question)) {
-    return <DateSelectInput value={value} onChange={onChange} showAge={isBirthDateQuestion(question)} />;
+    const t = question.text.toLowerCase();
+    const isEventDate = t.includes("festa") || t.includes("evento");
+    const eventYearRange: [number, number] | undefined = isEventDate ? [2026, 2030] : undefined;
+    return <DateSelectInput value={value} onChange={onChange} showAge={isBirthDateQuestion(question)} yearRange={eventYearRange} />;
   }
 
   switch (question.type) {
