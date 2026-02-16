@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
+
 import { PartyPopper, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, ChevronRight, User, Calendar } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -423,26 +423,25 @@ export function PreFestaContent() {
                 responses.map((r) => {
                   const answersArr = Array.isArray(r.answers) ? r.answers : [];
                   return (
-                    <Card key={r.id} className="bg-card border-border">
-                      <CardContent className="p-4 space-y-3">
-                        <div className="flex items-center justify-between">
+                    <Card key={r.id} className="bg-card border-border overflow-hidden">
+                      <CardContent className="p-0">
+                        <div className="flex items-center justify-between px-4 py-3 bg-muted/30">
                           <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-medium text-sm">{r.respondent_name || "Anônimo"}</span>
+                            <User className="h-4 w-4 text-primary" />
+                            <span className="font-semibold text-sm">{r.respondent_name || "Anônimo"}</span>
                           </div>
                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <Calendar className="h-3.5 w-3.5" />
                             {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                           </div>
                         </div>
-                        <Separator />
-                        <div className="space-y-2">
+                        <div className="divide-y divide-border">
                           {answersArr.map((a: any, idx: number) => {
                             const question = selectedTemplateForResponses?.questions.find(q => q.id === a.questionId);
                             return (
-                              <div key={idx} className="text-sm">
-                                <p className="text-muted-foreground text-xs">{question?.text || a.questionId}</p>
-                                <p className="font-medium">
+                              <div key={idx} className="px-4 py-2.5">
+                                <p className="text-muted-foreground text-xs mb-0.5">{question?.text || a.questionId}</p>
+                                <p className="font-medium text-sm">
                                   {a.value === true ? "👍 Sim" : a.value === false ? "👎 Não" : String(a.value || "—")}
                                 </p>
                               </div>
