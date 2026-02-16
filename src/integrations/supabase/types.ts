@@ -447,6 +447,7 @@ export type Database = {
       }
       company_units: {
         Row: {
+          color: string | null
           company_id: string
           created_at: string
           id: string
@@ -457,6 +458,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          color?: string | null
           company_id: string
           created_at?: string
           id?: string
@@ -467,6 +469,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          color?: string | null
           company_id?: string
           created_at?: string
           id?: string
