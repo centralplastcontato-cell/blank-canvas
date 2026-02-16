@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Wifi, MessageSquare, Bell, Bot, Settings, Lock, HelpCircle, FolderOpen, Upload, GitBranch, ClipboardCheck } from "lucide-react";
 import { ConnectionSection } from "./settings/ConnectionSection";
 import { MessagesSection } from "./settings/MessagesSection";
@@ -118,6 +118,26 @@ export function WhatsAppConfig({ userId, isAdmin }: WhatsAppConfigProps) {
   }, [permissions, modules, isAdmin]);
 
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    checkScroll();
+    el.addEventListener("scroll", checkScroll, { passive: true });
+    const ro = new ResizeObserver(checkScroll);
+    ro.observe(el);
+    return () => { el.removeEventListener("scroll", checkScroll); ro.disconnect(); };
+  }, [checkScroll, configSections]);
 
   // Set initial active section when permissions load
   useEffect(() => {
@@ -195,24 +215,34 @@ export function WhatsAppConfig({ userId, isAdmin }: WhatsAppConfigProps) {
 
   return (
     <div className="flex flex-col h-full gap-4">
-      {/* Horizontal Tabs */}
-      <div className="overflow-x-auto shrink-0">
-        <div className="flex gap-1 bg-muted/40 rounded-xl p-1 min-w-max">
-          {configSections.map((section) => (
-            <button
-              key={section.id}
-              onClick={() => setActiveSection(section.id)}
-              className={cn(
-                "flex items-center gap-2 px-3 py-2 rounded-lg whitespace-nowrap transition-all text-sm font-medium",
-                activeSection === section.id
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-background/50"
-              )}
-            >
-              <section.icon className="w-4 h-4" />
-              <span>{section.title}</span>
-            </button>
-          ))}
+      {/* Horizontal Tabs with scroll fade indicators */}
+      <div className="relative shrink-0">
+        {/* Left fade */}
+        {canScrollLeft && (
+          <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none rounded-l-xl" />
+        )}
+        {/* Right fade */}
+        {canScrollRight && (
+          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none rounded-r-xl" />
+        )}
+        <div ref={scrollRef} className="overflow-x-auto scrollbar-hide">
+          <div className="flex gap-1 bg-muted/40 rounded-xl p-1 min-w-max">
+            {configSections.map((section) => (
+              <button
+                key={section.id}
+                onClick={() => setActiveSection(section.id)}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 rounded-lg whitespace-nowrap transition-all text-sm font-medium",
+                  activeSection === section.id
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                )}
+              >
+                <section.icon className="w-4 h-4" />
+                <span>{section.title}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
