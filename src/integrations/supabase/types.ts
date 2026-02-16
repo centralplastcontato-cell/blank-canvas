@@ -1283,6 +1283,102 @@ export type Database = {
         }
         Relationships: []
       }
+      prefesta_responses: {
+        Row: {
+          answers: Json
+          company_id: string
+          created_at: string
+          event_id: string | null
+          id: string
+          respondent_name: string | null
+          template_id: string
+        }
+        Insert: {
+          answers?: Json
+          company_id: string
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          respondent_name?: string | null
+          template_id: string
+        }
+        Update: {
+          answers?: Json
+          company_id?: string
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          respondent_name?: string | null
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prefesta_responses_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prefesta_responses_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "company_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prefesta_responses_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "prefesta_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prefesta_templates: {
+        Row: {
+          company_id: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          questions: Json
+          thank_you_message: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          questions?: Json
+          thank_you_message?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          questions?: Json
+          thank_you_message?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prefesta_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -2115,6 +2211,19 @@ export type Database = {
           testimonials: Json
           theme: Json
           video: Json
+        }[]
+      }
+      get_prefesta_template_public: {
+        Args: { _template_id: string }
+        Returns: {
+          company_id: string
+          company_logo: string
+          company_name: string
+          description: string
+          id: string
+          questions: Json
+          template_name: string
+          thank_you_message: string
         }[]
       }
       get_profiles_for_transfer: {

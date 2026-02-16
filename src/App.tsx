@@ -27,9 +27,11 @@ import Onboarding from "./pages/Onboarding";
 import Inteligencia from "./pages/Inteligencia";
 import Agenda from "./pages/Agenda";
 import Avaliacoes from "./pages/Avaliacoes";
+import PreFesta from "./pages/PreFesta";
 
 import DynamicLandingPage from "./pages/DynamicLandingPage";
 import PublicEvaluation from "./pages/PublicEvaluation";
+import PublicPreFesta from "./pages/PublicPreFesta";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -65,6 +67,7 @@ const App = () => (
             <Route path="/inteligencia" element={<Inteligencia />} />
             <Route path="/agenda" element={<Agenda />} />
             <Route path="/avaliacoes" element={<Avaliacoes />} />
+            <Route path="/pre-festa" element={<PreFesta />} />
             
             {/* Public dynamic landing page by slug */}
             <Route path="/lp/:slug" element={<DynamicLandingPage />} />
@@ -72,6 +75,8 @@ const App = () => (
             <Route path="/onboarding/:slug" element={<Onboarding />} />
             {/* Public evaluation form */}
             <Route path="/avaliacao/:templateId" element={<PublicEvaluation />} />
+            {/* Public pre-festa form */}
+            <Route path="/pre-festa/:templateId" element={<PublicPreFesta />} />
             {/* Redirects for old routes */}
             <Route path="/admin" element={<Navigate to="/atendimento" replace />} />
             <Route path="/whatsapp" element={<Navigate to="/atendimento" replace />} />
