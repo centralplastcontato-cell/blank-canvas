@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/contexts/CompanyContext';
-import { format, isToday } from 'date-fns';
+import { format, isToday, eachDayOfInterval, isSameDay } from 'date-fns';
 
 export interface DailyMetrics {
   novos: number;
@@ -61,6 +61,76 @@ export interface DailySummaryData {
   noData?: boolean;
 }
 
+function aggregateResults(results: DailySummaryData[]): DailySummaryData {
+  const valid = results.filter(r => !r.noData);
+  if (valid.length === 0) {
+    return {
+      metrics: { novos: 0, visitas: 0, orcamentos: 0, fechados: 0, querPensar: 0, querHumano: 0, taxaConversao: 0, followUp24h: 0, followUp48h: 0 },
+      aiSummary: null,
+      timeline: [],
+      incompleteLeads: [],
+      followUpLeads: [],
+      noData: true,
+    };
+  }
+
+  const metrics: DailyMetrics = {
+    novos: 0, visitas: 0, orcamentos: 0, fechados: 0,
+    querPensar: 0, querHumano: 0, taxaConversao: 0,
+    followUp24h: 0, followUp48h: 0,
+  };
+
+  for (const r of valid) {
+    if (r.metrics) {
+      metrics.novos += r.metrics.novos || 0;
+      metrics.visitas += r.metrics.visitas || 0;
+      metrics.orcamentos += r.metrics.orcamentos || 0;
+      metrics.fechados += r.metrics.fechados || 0;
+      metrics.querPensar += r.metrics.querPensar || 0;
+      metrics.querHumano += r.metrics.querHumano || 0;
+      metrics.followUp24h += r.metrics.followUp24h || 0;
+      metrics.followUp48h += r.metrics.followUp48h || 0;
+    }
+  }
+
+  // Recalculate conversion rate from aggregated data
+  const totalLeads = metrics.novos + metrics.visitas + metrics.orcamentos + metrics.fechados + metrics.querPensar;
+  metrics.taxaConversao = totalLeads > 0 ? Math.round((metrics.fechados / totalLeads) * 100) : 0;
+
+  // Merge timelines
+  const allTimeline = valid.flatMap(r => r.timeline || []);
+
+  // Merge incomplete leads (deduplicate by whatsapp)
+  const seenIncomplete = new Set<string>();
+  const incompleteLeads: IncompleteLead[] = [];
+  for (const r of valid) {
+    for (const lead of r.incompleteLeads || []) {
+      if (!seenIncomplete.has(lead.whatsapp)) {
+        seenIncomplete.add(lead.whatsapp);
+        incompleteLeads.push(lead);
+      }
+    }
+  }
+
+  // Merge follow-up leads
+  const allFollowUps = valid.flatMap(r => r.followUpLeads || []);
+
+  // Merge AI summaries
+  const aiParts = valid.filter(r => r.aiSummary).map(r => r.aiSummary!);
+  const aiSummary = aiParts.length > 0 ? aiParts.join('\n\n---\n\n') : null;
+
+  return {
+    metrics,
+    aiSummary,
+    timeline: allTimeline,
+    incompleteLeads,
+    followUpLeads: allFollowUps,
+    followUpLabels: valid[0]?.followUpLabels,
+    isHistorical: true,
+    noData: false,
+  };
+}
+
 export function useDailySummary() {
   const { currentCompany } = useCompany();
   const [data, setData] = useState<DailySummaryData | null>(null);
@@ -75,7 +145,6 @@ export function useDailySummary() {
     try {
       const body: Record<string, any> = { company_id: currentCompany.id };
 
-      // If a date is selected and it's not today, pass it to fetch historical data
       if (selectedDate && !isToday(selectedDate)) {
         body.date = format(selectedDate, 'yyyy-MM-dd');
       }
@@ -97,5 +166,35 @@ export function useDailySummary() {
     }
   }, [currentCompany?.id]);
 
-  return { data, isLoading, error, fetchSummary };
+  const fetchRange = useCallback(async (from: Date, to: Date) => {
+    if (!currentCompany?.id) return;
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const days = eachDayOfInterval({ start: from, end: to });
+      
+      // Fetch all days in parallel (max 31 days)
+      const limited = days.slice(0, 31);
+      const promises = limited.map(day => {
+        const body: Record<string, any> = { company_id: currentCompany.id };
+        if (!isToday(day)) {
+          body.date = format(day, 'yyyy-MM-dd');
+        }
+        return supabase.functions.invoke('daily-summary', { body }).then(r => {
+          if (r.error) throw r.error;
+          return r.data as DailySummaryData;
+        });
+      });
+
+      const results = await Promise.all(promises);
+      setData(aggregateResults(results));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao gerar resumo');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentCompany?.id]);
+
+  return { data, isLoading, error, fetchSummary, fetchRange };
 }
