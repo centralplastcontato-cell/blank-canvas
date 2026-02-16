@@ -399,6 +399,11 @@ function CepInput({ value, onChange, siblingQuestions, onFillSibling }: { value:
   );
 }
 
+function isInstagramQuestion(q: ContratoQuestion): boolean {
+  const t = q.text.toLowerCase();
+  return t.includes("instagram") || t.includes("insta") || t.includes("@");
+}
+
 function isParentNameQuestion(q: ContratoQuestion): boolean {
   const t = q.text.toLowerCase();
   return (t.includes("nome dos pais") || t.includes("nome dos responsáveis") || t.includes("nome dos responsaveis") || t.includes("pais ou responsáveis") || t.includes("pais ou responsaveis") || t.includes("nome dos avós") || t.includes("nome dos avos") || t.includes("nome dos tios"));
@@ -428,6 +433,16 @@ function ParentNameInput({ value, onChange }: { value: any; onChange: (v: any) =
 }
 
 function ContratoQuestionInput({ question, value, onChange, siblingQuestions, onFillSibling }: { question: ContratoQuestion; value: any; onChange: (v: any) => void; siblingQuestions: ContratoQuestion[]; onFillSibling: (id: string, v: any) => void }) {
+  if (isInstagramQuestion(question)) {
+    const handleInsta = (raw: string) => {
+      const cleaned = raw.replace(/\s/g, "");
+      onChange(cleaned.startsWith("@") ? cleaned : cleaned ? `@${cleaned}` : "");
+    };
+    return (
+      <input type="text" value={value || ""} onChange={(e) => handleInsta(e.target.value)} placeholder="@seuinstagram"
+        className="w-full rounded-xl border border-input bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-ring" />
+    );
+  }
   if (isParentNameQuestion(question)) {
     return <ParentNameInput value={value} onChange={onChange} />;
   }
