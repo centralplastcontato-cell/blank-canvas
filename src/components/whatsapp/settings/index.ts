@@ -1,3 +1,4 @@
+export { CompanyDataSection } from './CompanyDataSection';
 export { ConnectionSection } from './ConnectionSection';
 export { MessagesSection } from './MessagesSection';
 export { NotificationsSection } from './NotificationsSection';

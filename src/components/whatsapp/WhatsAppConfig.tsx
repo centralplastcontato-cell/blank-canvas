@@ -1,15 +1,17 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Wifi, Bell, Bot, Settings, Lock, HelpCircle, ClipboardCheck, FileText, Users } from "lucide-react";
+import { Wifi, Bell, Bot, Settings, Lock, HelpCircle, ClipboardCheck, FileText, Users, Building2 } from "lucide-react";
 import { ConnectionSection } from "./settings/ConnectionSection";
 import { NotificationsSection } from "./settings/NotificationsSection";
 import { AutomationsSection } from "./settings/AutomationsSection";
 import { AdvancedSection } from "./settings/AdvancedSection";
 import { VisualGuideSection } from "./settings/VisualGuideSection";
 import { ContentSection } from "./settings/ContentSection";
+import { CompanyDataSection } from "./settings/CompanyDataSection";
 import { ChecklistTemplateManager } from "@/components/agenda/ChecklistTemplateManager";
 import { useConfigPermissions } from "@/hooks/useConfigPermissions";
 import { useCompanyModules, type CompanyModules } from "@/hooks/useCompanyModules";
+import { useCompany } from "@/contexts/CompanyContext";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,6 +22,15 @@ interface WhatsAppConfigProps {
 }
 
 const allConfigSections = [
+  {
+    id: "company",
+    permissionKey: null as any,
+    moduleKey: null as keyof CompanyModules | null,
+    title: "Empresa",
+    description: "Logo, nome e dados",
+    icon: Building2,
+    requiresCompanyAdmin: true,
+  },
   {
     id: "connection",
     permissionKey: "connection" as const,
@@ -92,15 +103,18 @@ export function WhatsAppConfig({ userId, isAdmin }: WhatsAppConfigProps) {
   const navigate = useNavigate();
   const { permissions, isLoading, hasAnyPermission } = useConfigPermissions(userId, isAdmin);
   const modules = useCompanyModules();
+  const { currentRole } = useCompany();
+  const isCompanyAdminOrOwner = currentRole === 'admin' || currentRole === 'owner';
   
   // Filter sections based on permissions AND company modules
   const configSections = useMemo(() => {
     return allConfigSections.filter(section => {
+      if ((section as any).requiresCompanyAdmin && !isCompanyAdminOrOwner && !isAdmin) return false;
       const hasPermission = section.permissionKey === null || permissions[section.permissionKey];
       const moduleEnabled = isAdmin || section.moduleKey === null || modules[section.moduleKey];
       return hasPermission && moduleEnabled;
     });
-  }, [permissions, modules, isAdmin]);
+  }, [permissions, modules, isAdmin, isCompanyAdminOrOwner]);
 
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -133,6 +147,8 @@ export function WhatsAppConfig({ userId, isAdmin }: WhatsAppConfigProps) {
 
   const renderContent = () => {
     switch (activeSection) {
+      case "company":
+        return <CompanyDataSection />;
       case "connection":
         return <ConnectionSection userId={userId} isAdmin={isAdmin} />;
       case "content":
