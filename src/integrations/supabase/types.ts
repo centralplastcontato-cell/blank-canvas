@@ -2075,6 +2075,7 @@ export type Database = {
       get_evaluation_template_public: {
         Args: { _template_id: string }
         Returns: {
+          company_id: string
           company_logo: string
           company_name: string
           description: string

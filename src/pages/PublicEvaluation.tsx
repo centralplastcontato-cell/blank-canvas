@@ -18,6 +18,7 @@ interface EvaluationQuestion {
 
 interface TemplateData {
   id: string;
+  company_id: string;
   company_name: string;
   company_logo: string | null;
   template_name: string;
@@ -46,6 +47,7 @@ export default function PublicEvaluation() {
       const row = (data as any[])[0];
       setTemplate({
         id: row.id,
+        company_id: row.company_id,
         company_name: row.company_name,
         company_logo: row.company_logo,
         template_name: row.template_name,
@@ -114,13 +116,9 @@ export default function PublicEvaluation() {
       ? scorableAnswers.reduce((a, b) => a + b, 0) / scorableAnswers.length
       : null;
 
-    // Get company_id from template (we need to fetch it since public RPC doesn't return it)
-    const { data: tmpl } = await supabase.from("evaluation_templates").select("company_id").eq("id", template.id).single();
-    if (!tmpl) { setSubmitting(false); return; }
-
     const { error } = await supabase.from("evaluation_responses").insert({
       template_id: template.id,
-      company_id: tmpl.company_id,
+      company_id: template.company_id,
       respondent_name: respondentName.trim() || null,
       answers: Object.entries(answers).map(([questionId, value]) => ({ questionId, value })),
       overall_score: overallScore,
