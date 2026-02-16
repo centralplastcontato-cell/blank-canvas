@@ -2,24 +2,17 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { AdminSidebar } from "@/components/admin/AdminSidebar";
-import { MobileMenu } from "@/components/admin/MobileMenu";
-import { NotificationBell } from "@/components/admin/NotificationBell";
-import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ClipboardCheck, Plus, Loader2, Menu, Pencil, Copy, Trash2, Link2, Eye } from "lucide-react";
+import { ClipboardCheck, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import logoCastelo from "@/assets/logo-castelo.png";
 
 interface EvaluationQuestion {
   id: string;
@@ -41,18 +34,15 @@ interface EvaluationTemplate {
 }
 
 const DEFAULT_QUESTIONS: EvaluationQuestion[] = [
-  // Etapa 1 – Experiência geral & atendimento
   { id: "q1", type: "nps", text: "De 0 a 10, qual nota você dá para a experiência geral da festa?", step: 1, required: true },
   { id: "q2", type: "stars", text: "Como você avalia o atendimento da nossa equipe antes da festa (planejamento, contato, agilidade)?", step: 1, required: true },
   { id: "q3", type: "stars", text: "Como você avalia o atendimento da equipe durante a festa?", step: 1, required: true },
   { id: "q4", type: "stars", text: "Como você avalia a pontualidade e cumprimento dos horários?", step: 1, required: true },
-  // Etapa 2 – Espaço, decoração e alimentação
   { id: "q5", type: "stars", text: "Como você avalia a limpeza e organização do espaço?", step: 2, required: true },
   { id: "q6", type: "stars", text: "Como você avalia a decoração e ambientação?", step: 2, required: true },
   { id: "q7", type: "stars", text: "Como você avalia a qualidade e variedade da alimentação servida?", step: 2, required: true },
   { id: "q8", type: "stars", text: "Como você avalia as bebidas oferecidas?", step: 2, required: true },
   { id: "q9", type: "stars", text: "Como você avalia as atividades e recreação para as crianças?", step: 2, required: true },
-  // Etapa 3 – Satisfação final & feedback aberto
   { id: "q10", type: "stars", text: "O evento atendeu às suas expectativas em relação ao que foi contratado?", step: 3, required: true },
   { id: "q11", type: "yesno", text: "Você indicaria nosso buffet para amigos e familiares?", step: 3, required: true },
   { id: "q12", type: "yesno", text: "Você faria outra festa conosco?", step: 3, required: true },
@@ -61,41 +51,22 @@ const DEFAULT_QUESTIONS: EvaluationQuestion[] = [
   { id: "q15", type: "text", text: "Tem alguma sugestão de melhoria para nós?", step: 3 },
 ];
 
-
-export default function Avaliacoes() {
-  const navigate = useNavigate();
+/**
+ * Content-only component for use inside the Formularios page tabs.
+ * No sidebar/header shell — that's handled by the parent.
+ */
+export function AvaliacoesContent() {
   const { currentCompany } = useCompany();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [permLoading, setPermLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<{ id: string; name: string; email: string; avatar?: string | null } | null>(null);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
   const [templates, setTemplates] = useState<EvaluationTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<EvaluationTemplate | null>(null);
 
-  // Form state
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formThankYou, setFormThankYou] = useState("Obrigado pela sua avaliação! 🎉");
   const [formQuestions, setFormQuestions] = useState<EvaluationQuestion[]>(DEFAULT_QUESTIONS);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    async function check() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { navigate("/auth"); return; }
-      const [profileResult, adminResult] = await Promise.all([
-        supabase.from("profiles").select("full_name, avatar_url").eq("user_id", user.id).single(),
-        supabase.rpc("is_admin", { _user_id: user.id }),
-      ]);
-      setCurrentUser({ id: user.id, name: profileResult.data?.full_name || "Usuário", email: user.email || "", avatar: profileResult.data?.avatar_url });
-      setIsAdmin(adminResult.data === true);
-      setPermLoading(false);
-    }
-    check();
-  }, [navigate]);
 
   const fetchTemplates = async () => {
     if (!currentCompany?.id) return;
@@ -180,7 +151,6 @@ export default function Avaliacoes() {
     fetchTemplates();
   };
 
-  // Question management
   const addQuestion = () => {
     const maxStep = Math.max(...formQuestions.map(q => q.step), 1);
     setFormQuestions([...formQuestions, {
@@ -201,7 +171,6 @@ export default function Avaliacoes() {
   };
 
   const copyLink = (id: string) => {
-    // Use custom domain if available, otherwise current origin
     const domain = currentCompany?.custom_domain
       ? `https://${currentCompany.custom_domain}`
       : window.location.origin;
@@ -210,127 +179,76 @@ export default function Avaliacoes() {
     toast({ title: "Link copiado!" });
   };
 
-  const handleLogout = async () => { await supabase.auth.signOut(); navigate("/auth"); };
-
-  if (permLoading) {
-    return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
-  }
-
   return (
-    <SidebarProvider defaultOpen={false}>
-      <div className="min-h-screen flex w-full bg-background">
-        <AdminSidebar canManageUsers={isAdmin} isAdmin={isAdmin} currentUserName={currentUser?.name || ""} onRefresh={fetchTemplates} onLogout={handleLogout} />
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Mobile Header */}
-          <header className="bg-card border-b border-border shrink-0 z-10 md:hidden">
-            <div className="px-3 py-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <MobileMenu
-                    isOpen={isMobileMenuOpen}
-                    onOpenChange={setIsMobileMenuOpen}
-                    trigger={<Button variant="ghost" size="icon" className="h-9 w-9"><Menu className="w-5 h-5" /></Button>}
-                    currentPage="avaliacoes"
-                    userName={currentUser?.name || ""}
-                    userEmail={currentUser?.email || ""}
-                    userAvatar={currentUser?.avatar}
-                    canManageUsers={isAdmin}
-                    isAdmin={isAdmin}
-                    onRefresh={fetchTemplates}
-                    onLogout={handleLogout}
-                  />
-                  <div className="flex items-center gap-2 min-w-0">
-                    <img src={logoCastelo} alt="Logo" className="h-8 w-auto shrink-0" />
-                    <h1 className="font-display font-bold text-foreground text-sm truncate">Avaliações</h1>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <Button variant="default" size="sm" onClick={openNew}><Plus className="h-4 w-4 mr-1" /> Nova</Button>
-                  <NotificationBell />
-                </div>
-              </div>
-            </div>
-          </header>
-
-          <PullToRefresh onRefresh={async () => { await fetchTemplates(); }} className="flex-1 p-3 md:p-6 overflow-x-hidden overflow-y-auto">
-            <div className="max-w-4xl mx-auto space-y-4">
-              {/* Desktop header */}
-              <div className="hidden md:flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <ClipboardCheck className="h-7 w-7 text-primary" />
-                  <div>
-                    <h1 className="text-2xl font-bold">Avaliações Pós-Festa</h1>
-                    <p className="text-sm text-muted-foreground">Crie formulários de avaliação para enviar aos anfitriões</p>
-                  </div>
-                </div>
-                <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Novo Template</Button>
-              </div>
-
-              {loading ? (
-                <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
-              ) : templates.length === 0 ? (
-                <Card className="bg-card border-border">
-                  <CardContent className="p-8 text-center space-y-3">
-                    <ClipboardCheck className="h-12 w-12 text-muted-foreground mx-auto" />
-                    <p className="text-muted-foreground">Nenhum template de avaliação criado ainda.</p>
-                    <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Criar Primeiro Template</Button>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="grid gap-3">
-                  {templates.map((t) => (
-                    <Card key={t.id} className="bg-card border-border">
-                      <CardContent className="p-4 space-y-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 mb-1 flex-wrap">
-                              <h3 className="font-semibold truncate">{t.name}</h3>
-                              <Badge variant={t.is_active ? "default" : "secondary"} className="text-xs shrink-0">
-                                {t.is_active ? "Ativo" : "Inativo"}
-                              </Badge>
-                            </div>
-                            {t.description && <p className="text-sm text-muted-foreground line-clamp-1">{t.description}</p>}
-                            <p className="text-xs text-muted-foreground mt-1">{(t.questions || []).length} perguntas · {Math.max(...(t.questions || []).map(q => q.step), 1)} etapas</p>
-                          </div>
-                          <Switch checked={t.is_active} onCheckedChange={(v) => handleToggleActive(t.id, v)} className="shrink-0" />
-                        </div>
-                        <div className="flex items-center gap-1 flex-wrap border-t border-border pt-2">
-                          <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => copyLink(t.id)}>
-                            <Link2 className="h-3.5 w-3.5" /> Link
-                          </Button>
-                          <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => window.open(`/avaliacao/${t.id}`, "_blank")}>
-                            <Eye className="h-3.5 w-3.5" /> Ver
-                          </Button>
-                          <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => openEdit(t)}>
-                            <Pencil className="h-3.5 w-3.5" /> Editar
-                          </Button>
-                          <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleDuplicate(t)}>
-                            <Copy className="h-3.5 w-3.5" /> Duplicar
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive ml-auto"><Trash2 className="h-3.5 w-3.5" /> Excluir</Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Excluir template?</AlertDialogTitle>
-                                <AlertDialogDescription>Essa ação não pode ser desfeita. Todas as respostas vinculadas também serão excluídas.</AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDelete(t.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
-          </PullToRefresh>
+    <>
+      <div className="max-w-4xl mx-auto space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground hidden md:block">Crie formulários de avaliação para enviar aos anfitriões</p>
+          <Button onClick={openNew} size="sm"><Plus className="h-4 w-4 mr-1" /> Novo Template</Button>
         </div>
+
+        {loading ? (
+          <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+        ) : templates.length === 0 ? (
+          <Card className="bg-card border-border">
+            <CardContent className="p-8 text-center space-y-3">
+              <ClipboardCheck className="h-12 w-12 text-muted-foreground mx-auto" />
+              <p className="text-muted-foreground">Nenhum template de avaliação criado ainda.</p>
+              <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Criar Primeiro Template</Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-3">
+            {templates.map((t) => (
+              <Card key={t.id} className="bg-card border-border">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <h3 className="font-semibold truncate">{t.name}</h3>
+                        <Badge variant={t.is_active ? "default" : "secondary"} className="text-xs shrink-0">
+                          {t.is_active ? "Ativo" : "Inativo"}
+                        </Badge>
+                      </div>
+                      {t.description && <p className="text-sm text-muted-foreground line-clamp-1">{t.description}</p>}
+                      <p className="text-xs text-muted-foreground mt-1">{(t.questions || []).length} perguntas · {Math.max(...(t.questions || []).map(q => q.step), 1)} etapas</p>
+                    </div>
+                    <Switch checked={t.is_active} onCheckedChange={(v) => handleToggleActive(t.id, v)} className="shrink-0" />
+                  </div>
+                  <div className="flex items-center gap-1 flex-wrap border-t border-border pt-2">
+                    <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => copyLink(t.id)}>
+                      <Link2 className="h-3.5 w-3.5" /> Link
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => window.open(`/avaliacao/${t.id}`, "_blank")}>
+                      <Eye className="h-3.5 w-3.5" /> Ver
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => openEdit(t)}>
+                      <Pencil className="h-3.5 w-3.5" /> Editar
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleDuplicate(t)}>
+                      <Copy className="h-3.5 w-3.5" /> Duplicar
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive ml-auto"><Trash2 className="h-3.5 w-3.5" /> Excluir</Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Excluir template?</AlertDialogTitle>
+                          <AlertDialogDescription>Essa ação não pode ser desfeita. Todas as respostas vinculadas também serão excluídas.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDelete(t.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Template Editor Dialog */}
@@ -414,6 +332,15 @@ export default function Avaliacoes() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </SidebarProvider>
+    </>
   );
+}
+
+// Keep default export for backward compatibility with direct route access
+export default function Avaliacoes() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    navigate("/formularios?tab=avaliacoes", { replace: true });
+  }, [navigate]);
+  return null;
 }

@@ -8,8 +8,7 @@ import {
   Building2,
   Brain,
   CalendarDays,
-  ClipboardCheck,
-  PartyPopper
+  ClipboardCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,7 +27,7 @@ interface MobileMenuProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   trigger: React.ReactNode;
-  currentPage: "atendimento" | "configuracoes" | "users" | "whatsapp" | "inteligencia" | "agenda" | "avaliacoes" | "prefesta";
+  currentPage: "atendimento" | "configuracoes" | "users" | "whatsapp" | "inteligencia" | "agenda" | "avaliacoes" | "prefesta" | "formularios";
   userName: string;
   userEmail: string;
   userAvatar?: string | null;
@@ -86,17 +85,10 @@ export function MobileMenu({
       show: !!modules.agenda,
     },
     {
-      id: "avaliacoes",
-      label: "Avaliações",
+      id: "formularios",
+      label: "Formulários",
       icon: ClipboardCheck,
-      path: "/avaliacoes",
-      show: true,
-    },
-    {
-      id: "prefesta",
-      label: "Pré-Festa",
-      icon: PartyPopper,
-      path: "/pre-festa",
+      path: "/formularios",
       show: true,
     },
     {
