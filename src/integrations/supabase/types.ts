@@ -580,6 +580,105 @@ export type Database = {
           },
         ]
       }
+      evaluation_responses: {
+        Row: {
+          answers: Json
+          company_id: string
+          created_at: string
+          event_id: string | null
+          id: string
+          overall_score: number | null
+          respondent_name: string | null
+          template_id: string
+        }
+        Insert: {
+          answers?: Json
+          company_id: string
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          overall_score?: number | null
+          respondent_name?: string | null
+          template_id: string
+        }
+        Update: {
+          answers?: Json
+          company_id?: string
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          overall_score?: number | null
+          respondent_name?: string | null
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evaluation_responses_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evaluation_responses_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "company_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evaluation_responses_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "evaluation_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evaluation_templates: {
+        Row: {
+          company_id: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          questions: Json
+          thank_you_message: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          questions?: Json
+          thank_you_message?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          questions?: Json
+          thank_you_message?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evaluation_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_checklist_items: {
         Row: {
           company_id: string
@@ -1973,6 +2072,18 @@ export type Database = {
         }[]
       }
       get_company_id_by_slug: { Args: { _slug: string }; Returns: string }
+      get_evaluation_template_public: {
+        Args: { _template_id: string }
+        Returns: {
+          company_logo: string
+          company_name: string
+          description: string
+          id: string
+          questions: Json
+          template_name: string
+          thank_you_message: string
+        }[]
+      }
       get_landing_page_by_domain: {
         Args: { _domain: string }
         Returns: {

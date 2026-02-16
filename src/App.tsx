@@ -26,8 +26,10 @@ import HubProspeccao from "./pages/HubProspeccao";
 import Onboarding from "./pages/Onboarding";
 import Inteligencia from "./pages/Inteligencia";
 import Agenda from "./pages/Agenda";
+import Avaliacoes from "./pages/Avaliacoes";
 
 import DynamicLandingPage from "./pages/DynamicLandingPage";
+import PublicEvaluation from "./pages/PublicEvaluation";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -62,11 +64,14 @@ const App = () => (
             <Route path="/hub/prospeccao" element={<HubProspeccao />} />
             <Route path="/inteligencia" element={<Inteligencia />} />
             <Route path="/agenda" element={<Agenda />} />
+            <Route path="/avaliacoes" element={<Avaliacoes />} />
             
             {/* Public dynamic landing page by slug */}
             <Route path="/lp/:slug" element={<DynamicLandingPage />} />
             {/* Public onboarding form */}
             <Route path="/onboarding/:slug" element={<Onboarding />} />
+            {/* Public evaluation form */}
+            <Route path="/avaliacao/:templateId" element={<PublicEvaluation />} />
             {/* Redirects for old routes */}
             <Route path="/admin" element={<Navigate to="/atendimento" replace />} />
             <Route path="/whatsapp" element={<Navigate to="/atendimento" replace />} />
