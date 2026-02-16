@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { DataImportSection } from "@/components/admin/DataImportSection";
 
 interface AdvancedSectionProps {
   userId: string;
@@ -530,6 +532,10 @@ export function AdvancedSection({ userId, isAdmin }: AdvancedSectionProps) {
           </CardContent>
         </Card>
       )}
+
+      {/* Importar Dados */}
+      <Separator />
+      <DataImportSection isAdmin={isAdmin} />
 
       {/* Zona de Perigo - Apenas Admin */}
       {isAdmin && (
