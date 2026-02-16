@@ -18,6 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { DataImportSection } from "@/components/admin/DataImportSection";
+import { UnitColorManager } from "@/components/admin/UnitColorManager";
 
 interface AdvancedSectionProps {
   userId: string;
@@ -532,6 +533,9 @@ export function AdvancedSection({ userId, isAdmin }: AdvancedSectionProps) {
           </CardContent>
         </Card>
       )}
+
+      {/* Cores das Unidades */}
+      {isAdmin && <UnitColorManager />}
 
       {/* Importar Dados */}
       <Separator />
