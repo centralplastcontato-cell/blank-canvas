@@ -49,20 +49,42 @@ const DEFAULT_QUESTIONS: PreFestaQuestion[] = [
   // Etapa 1 – Dados do aniversariante
   { id: "pf1", type: "text", text: "Qual o nome do aniversariante?", step: 1, required: true },
   { id: "pf2", type: "text", text: "Qual a idade que vai completar?", step: 1, required: true },
-  { id: "pf3", type: "text", text: "Qual o tema da festa?", step: 1, required: true },
-  { id: "pf4", type: "text", text: "Personagens ou temas favoritos do aniversariante?", step: 1 },
-  // Etapa 2 – Preferências e detalhes
-  { id: "pf5", type: "text", text: "Cores preferidas para decoração?", step: 2 },
-  { id: "pf6", type: "yesno", text: "Algum convidado possui alergia alimentar?", step: 2, required: true },
-  { id: "pf7", type: "textarea", text: "Se sim, quais alergias? Descreva aqui:", step: 2 },
-  { id: "pf8", type: "text", text: "Número estimado de convidados adultos:", step: 2, required: true },
-  { id: "pf9", type: "text", text: "Número estimado de convidados crianças:", step: 2, required: true },
-  // Etapa 3 – Logística e confirmações
-  { id: "pf10", type: "text", text: "Horário previsto de chegada para organização:", step: 3 },
-  { id: "pf11", type: "yesno", text: "Vai trazer bolo próprio?", step: 3 },
-  { id: "pf12", type: "yesno", text: "Vai trazer decoração extra (ex: painel, balões)?", step: 3 },
-  { id: "pf13", type: "textarea", text: "Alguma necessidade especial ou observação importante?", step: 3 },
-  { id: "pf14", type: "textarea", text: "Alguma música ou playlist específica que deseja?", step: 3 },
+  { id: "pf3", type: "text", text: "Data de nascimento do aniversariante:", step: 1, required: true },
+  { id: "pf4", type: "text", text: "Qual o tema da festa?", step: 1, required: true },
+  { id: "pf5", type: "text", text: "Personagens ou temas favoritos do aniversariante?", step: 1 },
+  { id: "pf6", type: "text", text: "Cores preferidas para decoração?", step: 1 },
+
+  // Etapa 2 – Alimentação e restrições
+  { id: "pf7", type: "yesno", text: "Algum convidado possui alergia alimentar?", step: 2, required: true },
+  { id: "pf8", type: "textarea", text: "Se sim, quais alergias? Descreva aqui:", step: 2 },
+  { id: "pf9", type: "yesno", text: "Há convidados vegetarianos ou veganos?", step: 2 },
+  { id: "pf10", type: "textarea", text: "Alguma restrição alimentar adicional (intolerância, dieta especial)?", step: 2 },
+  { id: "pf11", type: "text", text: "Sabor do bolo preferido:", step: 2 },
+  { id: "pf12", type: "yesno", text: "Vai trazer bolo próprio?", step: 2 },
+  { id: "pf13", type: "textarea", text: "Algum doce ou alimento especial que gostaria no cardápio?", step: 2 },
+
+  // Etapa 3 – Convidados e logística
+  { id: "pf14", type: "text", text: "Número estimado de convidados adultos:", step: 3, required: true },
+  { id: "pf15", type: "text", text: "Número estimado de convidados crianças:", step: 3, required: true },
+  { id: "pf16", type: "text", text: "Faixa etária predominante das crianças:", step: 3 },
+  { id: "pf17", type: "yesno", text: "Haverá convidados com necessidades especiais (acessibilidade)?", step: 3 },
+  { id: "pf18", type: "textarea", text: "Se sim, quais necessidades?", step: 3 },
+  { id: "pf19", type: "text", text: "Horário previsto de chegada para organização:", step: 3, required: true },
+
+  // Etapa 4 – Decoração, entretenimento e extras
+  { id: "pf20", type: "yesno", text: "Vai trazer decoração extra (ex: painel, balões, faixas)?", step: 4 },
+  { id: "pf21", type: "textarea", text: "Descreva os itens de decoração que trará:", step: 4 },
+  { id: "pf22", type: "yesno", text: "Vai contratar algum serviço externo (DJ, fotógrafo, animador)?", step: 4 },
+  { id: "pf23", type: "textarea", text: "Quais serviços externos? Informe nome e contato:", step: 4 },
+  { id: "pf24", type: "textarea", text: "Alguma música ou playlist específica que deseja?", step: 4 },
+  { id: "pf25", type: "yesno", text: "Deseja algum tipo de brincadeira ou atividade especial?", step: 4 },
+  { id: "pf26", type: "textarea", text: "Quais brincadeiras ou atividades?", step: 4 },
+
+  // Etapa 5 – Observações finais
+  { id: "pf27", type: "textarea", text: "Há algo que o aniversariante NÃO gosta ou quer evitar?", step: 5 },
+  { id: "pf28", type: "yesno", text: "A festa é surpresa?", step: 5 },
+  { id: "pf29", type: "textarea", text: "Alguma necessidade especial ou observação importante?", step: 5 },
+  { id: "pf30", type: "textarea", text: "Mensagem ou recado adicional para nossa equipe:", step: 5 },
 ];
 
 
