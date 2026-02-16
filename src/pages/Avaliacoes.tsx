@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -13,7 +13,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ClipboardCheck, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, Star, User, Calendar } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
+import { ClipboardCheck, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, Star, User, Calendar, BarChart3, ThumbsUp } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -90,7 +92,6 @@ export function AvaliacoesContent() {
     if (!error && data) setTemplates(data.map((t: any) => ({ ...t, questions: t.questions as EvaluationQuestion[] })));
     setLoading(false);
 
-    // Fetch response counts
     const { data: countData } = await supabase
       .from("evaluation_responses")
       .select("template_id")
@@ -213,6 +214,45 @@ export function AvaliacoesContent() {
     navigator.clipboard.writeText(url);
     toast({ title: "Link copiado!" });
   };
+
+  // Compute metrics from responses
+  const metrics = useMemo(() => {
+    if (!responses.length || !selectedTemplateForResponses) return null;
+    const questions = selectedTemplateForResponses.questions || [];
+    
+    // Overall score average
+    const scores = responses.filter(r => r.overall_score != null).map(r => Number(r.overall_score));
+    const avgOverall = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
+
+    // Per-question metrics
+    const questionMetrics = questions
+      .filter(q => q.type !== "text")
+      .map(q => {
+        const values: any[] = [];
+        responses.forEach(r => {
+          const arr = Array.isArray(r.answers) ? r.answers : [];
+          const answer = arr.find((a: any) => a.questionId === q.id);
+          if (answer && answer.value !== undefined && answer.value !== null && answer.value !== "") {
+            values.push(answer.value);
+          }
+        });
+
+        if (q.type === "nps" || q.type === "stars") {
+          const nums = values.filter(v => typeof v === "number");
+          const avg = nums.length ? nums.reduce((a: number, b: number) => a + b, 0) / nums.length : null;
+          return { question: q, type: q.type, avg, count: nums.length, max: q.type === "nps" ? 10 : 5 };
+        }
+        if (q.type === "yesno") {
+          const total = values.length;
+          const yes = values.filter(v => v === true).length;
+          return { question: q, type: "yesno" as const, yesPercent: total ? (yes / total) * 100 : 0, yes, total };
+        }
+        return null;
+      })
+      .filter(Boolean);
+
+    return { avgOverall, total: responses.length, questionMetrics };
+  }, [responses, selectedTemplateForResponses]);
 
   return (
     <>
@@ -374,75 +414,148 @@ export function AvaliacoesContent() {
         </DialogContent>
       </Dialog>
 
-      {/* Responses Sheet */}
+      {/* Responses Sheet with Tabs */}
       <Sheet open={responsesSheetOpen} onOpenChange={setResponsesSheetOpen}>
-        <SheetContent className="w-full sm:max-w-lg p-0">
-          <SheetHeader className="p-4 pb-2">
-            <SheetTitle className="flex items-center gap-2">
+        <SheetContent className="w-full sm:max-w-xl p-0 flex flex-col">
+          <SheetHeader className="p-4 pb-2 shrink-0">
+            <SheetTitle className="flex items-center gap-2 text-base">
               <MessageSquareText className="h-5 w-5 text-primary" />
-              Respostas: {selectedTemplateForResponses?.name}
+              {selectedTemplateForResponses?.name}
             </SheetTitle>
           </SheetHeader>
-          <ScrollArea className="h-[calc(100vh-80px)]">
-            <div className="p-4 pt-0 space-y-3">
-              {loadingResponses ? (
-                <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-              ) : responses.length === 0 ? (
-                <div className="text-center py-12 space-y-2">
-                  <MessageSquareText className="h-10 w-10 text-muted-foreground mx-auto" />
-                  <p className="text-sm text-muted-foreground">Nenhuma resposta recebida ainda.</p>
-                </div>
-              ) : (
-                responses.map((r) => {
-                  const answersArr = Array.isArray(r.answers) ? r.answers : [];
-                  return (
-                    <Card key={r.id} className="bg-card border-border overflow-hidden">
-                      <CardContent className="p-0">
-                        <div className="flex items-center justify-between px-4 py-3 bg-muted/30">
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-primary" />
-                            <span className="font-semibold text-sm">{r.respondent_name || "Anônimo"}</span>
-                          </div>
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Calendar className="h-3.5 w-3.5" />
-                            {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                          </div>
-                        </div>
-                        {r.overall_score != null && (
-                          <div className="px-4 py-2 bg-primary/5 flex items-center gap-2 text-sm">
-                            <Star className="h-4 w-4 text-secondary fill-secondary" />
-                            <span className="font-medium">Nota geral: {Number(r.overall_score).toFixed(1)}</span>
-                          </div>
-                        )}
-                        <div className="divide-y divide-border">
-                          {answersArr.map((a: any, idx: number) => {
-                            const question = selectedTemplateForResponses?.questions.find(q => q.id === a.questionId);
-                            const renderValue = () => {
-                              if (a.value === true) return "👍 Sim";
-                              if (a.value === false) return "👎 Não";
-                              if (question?.type === "stars" && typeof a.value === "number") {
-                                return "⭐".repeat(a.value);
-                              }
-                              if (question?.type === "nps" && typeof a.value === "number") {
-                                return `${a.value}/10`;
-                              }
-                              return String(a.value || "—");
-                            };
-                            return (
-                              <div key={idx} className="px-4 py-2.5">
-                                <p className="text-muted-foreground text-xs mb-0.5">{question?.text || a.questionId}</p>
-                                <p className="font-medium text-sm">{renderValue()}</p>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })
-              )}
+
+          {loadingResponses ? (
+            <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          ) : responses.length === 0 ? (
+            <div className="text-center py-12 space-y-2 px-4">
+              <MessageSquareText className="h-10 w-10 text-muted-foreground mx-auto" />
+              <p className="text-sm text-muted-foreground">Nenhuma resposta recebida ainda.</p>
             </div>
-          </ScrollArea>
+          ) : (
+            <Tabs defaultValue="metricas" className="flex-1 flex flex-col overflow-hidden">
+              <div className="px-4 shrink-0">
+                <TabsList className="w-full grid grid-cols-2">
+                  <TabsTrigger value="metricas" className="gap-1.5">
+                    <BarChart3 className="h-3.5 w-3.5" /> Métricas
+                  </TabsTrigger>
+                  <TabsTrigger value="respostas" className="gap-1.5">
+                    <MessageSquareText className="h-3.5 w-3.5" /> Respostas ({responses.length})
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              {/* Metrics Tab */}
+              <TabsContent value="metricas" className="flex-1 overflow-y-auto mt-0">
+                <ScrollArea className="h-full">
+                  <div className="p-4 space-y-4">
+                    {/* Overall Score */}
+                    {metrics?.avgOverall != null && (
+                      <Card className="bg-primary/5 border-primary/20">
+                        <CardContent className="p-4 text-center space-y-1">
+                          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Nota Geral Média</p>
+                          <p className="text-4xl font-bold text-primary">{metrics.avgOverall.toFixed(1)}</p>
+                          <p className="text-xs text-muted-foreground">{metrics.total} avaliações recebidas</p>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Per-question metrics */}
+                    <div className="space-y-2">
+                      {metrics?.questionMetrics.map((m: any, idx: number) => {
+                        if (!m) return null;
+                        if (m.type === "nps" || m.type === "stars") {
+                          const pct = m.avg != null ? (m.avg / m.max) * 100 : 0;
+                          return (
+                            <Card key={idx} className="bg-card border-border">
+                              <CardContent className="p-3 space-y-2">
+                                <p className="text-xs text-muted-foreground leading-snug">{m.question.text}</p>
+                                <div className="flex items-center gap-3">
+                                  <Progress value={pct} className="flex-1 h-2" />
+                                  <span className="text-sm font-semibold tabular-nums shrink-0">
+                                    {m.avg != null ? m.avg.toFixed(1) : "—"}/{m.max}
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-muted-foreground">{m.count} respostas</p>
+                              </CardContent>
+                            </Card>
+                          );
+                        }
+                        if (m.type === "yesno") {
+                          return (
+                            <Card key={idx} className="bg-card border-border">
+                              <CardContent className="p-3 space-y-2">
+                                <p className="text-xs text-muted-foreground leading-snug">{m.question.text}</p>
+                                <div className="flex items-center gap-3">
+                                  <Progress value={m.yesPercent} className="flex-1 h-2" />
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <ThumbsUp className="h-3.5 w-3.5 text-primary" />
+                                    <span className="text-sm font-semibold tabular-nums">{m.yesPercent.toFixed(0)}%</span>
+                                  </div>
+                                </div>
+                                <p className="text-[10px] text-muted-foreground">{m.yes} de {m.total} disseram sim</p>
+                              </CardContent>
+                            </Card>
+                          );
+                        }
+                        return null;
+                      })}
+                    </div>
+                  </div>
+                </ScrollArea>
+              </TabsContent>
+
+              {/* Individual Responses Tab */}
+              <TabsContent value="respostas" className="flex-1 overflow-y-auto mt-0">
+                <ScrollArea className="h-full">
+                  <div className="p-4 space-y-3">
+                    {responses.map((r) => {
+                      const answersArr = Array.isArray(r.answers) ? r.answers : [];
+                      return (
+                        <Card key={r.id} className="bg-card border-border overflow-hidden">
+                          <CardContent className="p-0">
+                            <div className="flex items-center justify-between px-4 py-3 bg-muted/30">
+                              <div className="flex items-center gap-2">
+                                <User className="h-4 w-4 text-primary" />
+                                <span className="font-semibold text-sm">{r.respondent_name || "Anônimo"}</span>
+                              </div>
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Calendar className="h-3.5 w-3.5" />
+                                {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                              </div>
+                            </div>
+                            {r.overall_score != null && (
+                              <div className="px-4 py-2 bg-primary/5 flex items-center gap-2 text-sm">
+                                <Star className="h-4 w-4 text-secondary fill-secondary" />
+                                <span className="font-medium">Nota geral: {Number(r.overall_score).toFixed(1)}</span>
+                              </div>
+                            )}
+                            <div className="divide-y divide-border">
+                              {answersArr.map((a: any, idx: number) => {
+                                const question = selectedTemplateForResponses?.questions.find(q => q.id === a.questionId);
+                                const renderValue = () => {
+                                  if (a.value === true) return "👍 Sim";
+                                  if (a.value === false) return "👎 Não";
+                                  if (question?.type === "stars" && typeof a.value === "number") return "⭐".repeat(a.value);
+                                  if (question?.type === "nps" && typeof a.value === "number") return `${a.value}/10`;
+                                  return String(a.value || "—");
+                                };
+                                return (
+                                  <div key={idx} className="px-4 py-2.5">
+                                    <p className="text-muted-foreground text-xs mb-0.5">{question?.text || a.questionId}</p>
+                                    <p className="font-medium text-sm">{renderValue()}</p>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              </TabsContent>
+            </Tabs>
+          )}
         </SheetContent>
       </Sheet>
     </>
