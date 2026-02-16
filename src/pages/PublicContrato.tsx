@@ -1,10 +1,5 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { CalendarIcon } from "lucide-react";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Helmet } from "react-helmet-async";
 import { motion, AnimatePresence } from "framer-motion";
@@ -235,37 +230,60 @@ function isDateQuestion(q: ContratoQuestion): boolean {
   return false;
 }
 
+function DateSelectInput({ value, onChange }: { value: any; onChange: (v: any) => void }) {
+  const parsed = value ? new Date(value) : null;
+  const [day, setDay] = useState(parsed ? parsed.getDate() : 0);
+  const [month, setMonth] = useState(parsed ? parsed.getMonth() + 1 : 0);
+  const [year, setYear] = useState(parsed ? parsed.getFullYear() : 0);
+
+  const months = [
+    "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
+    "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"
+  ];
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: currentYear - 1930 + 6 }, (_, i) => 1930 + i);
+  const daysInMonth = month && year ? new Date(year, month, 0).getDate() : 31;
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
+  useEffect(() => {
+    if (day && month && year) {
+      const d = new Date(year, month - 1, Math.min(day, daysInMonth));
+      onChange(d.toISOString());
+    }
+  }, [day, month, year]);
+
+  const selectClass = "w-full rounded-xl border border-input bg-background px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-ring appearance-none";
+
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      <div>
+        <label className="text-xs text-muted-foreground mb-1 block">Dia</label>
+        <select value={day || ""} onChange={e => setDay(Number(e.target.value))} className={selectClass}>
+          <option value="">--</option>
+          {days.map(d => <option key={d} value={d}>{d}</option>)}
+        </select>
+      </div>
+      <div>
+        <label className="text-xs text-muted-foreground mb-1 block">Mês</label>
+        <select value={month || ""} onChange={e => setMonth(Number(e.target.value))} className={selectClass}>
+          <option value="">--</option>
+          {months.map((m, i) => <option key={i} value={i + 1}>{m.slice(0, 3)}</option>)}
+        </select>
+      </div>
+      <div>
+        <label className="text-xs text-muted-foreground mb-1 block">Ano</label>
+        <select value={year || ""} onChange={e => setYear(Number(e.target.value))} className={selectClass}>
+          <option value="">--</option>
+          {years.map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+      </div>
+    </div>
+  );
+}
+
 function ContratoQuestionInput({ question, value, onChange }: { question: ContratoQuestion; value: any; onChange: (v: any) => void }) {
   if (isDateQuestion(question)) {
-    const dateValue = value ? new Date(value) : undefined;
-    return (
-      <Popover>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            className={cn(
-              "w-full rounded-xl border border-input bg-background px-4 py-3 text-base text-left flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-ring",
-              !dateValue && "text-muted-foreground"
-            )}
-          >
-            <CalendarIcon className="h-4 w-4 opacity-60" />
-            {dateValue ? format(dateValue, "dd/MM/yyyy", { locale: ptBR }) : "Selecione a data..."}
-          </button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
-            mode="single"
-            selected={dateValue}
-            onSelect={(d) => onChange(d ? d.toISOString() : "")}
-            className="p-3 pointer-events-auto"
-            locale={ptBR}
-            captionLayout="dropdown-buttons"
-            fromYear={1930}
-            toYear={new Date().getFullYear() + 5}
-          />
-        </PopoverContent>
-      </Popover>
-    );
+    return <DateSelectInput value={value} onChange={onChange} />;
   }
 
   switch (question.type) {
