@@ -5,11 +5,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Bot / crawler user-agent patterns
 const BOT_UA_RE =
   /facebookexternalhit|Facebot|WhatsApp|Twitterbot|Slackbot|LinkedInBot|Discordbot|TelegramBot|Googlebot|bingbot|Pinterestbot|redditbot|Applebot|Embedly|Quora Link Preview|Showyoubot|outbrain|vkShare|W3C_Validator/i;
 
-// Static brand mappings (fallback when DB is unreachable)
 const STATIC_BRANDS: Record<string, { title: string; description: string; image: string; url: string }> = {
   hubcelebrei: {
     title: "Celebrei | A melhor plataforma para buffets infantis",
@@ -23,6 +21,22 @@ const STATIC_BRANDS: Record<string, { title: string; description: string; image:
     image: "https://www.castelodadiversao.online/og-image.jpg",
     url: "https://www.castelodadiversao.online",
   },
+};
+
+// Form type display labels
+const FORM_LABELS: Record<string, string> = {
+  avaliacao: "Avaliação Pós-Festa",
+  "pre-festa": "Pré-Festa",
+  contrato: "Contrato",
+  cardapio: "Escolha de Cardápio",
+};
+
+// Form type to DB table mapping
+const FORM_TABLE_MAP: Record<string, string> = {
+  avaliacao: "evaluation_templates",
+  "pre-festa": "prefesta_templates",
+  contrato: "contrato_templates",
+  cardapio: "cardapio_templates",
 };
 
 function buildHTML(meta: { title: string; description: string; image: string; url: string }, redirectUrl?: string): string {
@@ -54,18 +68,63 @@ function buildHTML(meta: { title: string; description: string; image: string; ur
 </html>`;
 }
 
-/** Normalize hostname: lowercase, strip www. and port */
 function canonicalize(host: string): string {
   return host.toLowerCase().replace(/:\d+$/, "").replace(/^www\./, "");
 }
 
-/** Handle evaluation template OG preview */
-async function resolveEvaluation(templateId: string, baseUrl: string): Promise<Response | null> {
-  const supabase = createClient(
+function getSupabase() {
+  return createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
+}
 
+/** Resolve form OG preview for slug-based URLs like /avaliacao/:companySlug/:templateSlug */
+async function resolveFormBySlug(formType: string, companySlug: string, templateSlug: string, baseUrl: string): Promise<Response | null> {
+  const tableName = FORM_TABLE_MAP[formType];
+  const label = FORM_LABELS[formType] || formType;
+  if (!tableName) return null;
+
+  const supabase = getSupabase();
+
+  // Get company info
+  const { data: company } = await supabase
+    .from("companies")
+    .select("id, name, logo_url, slug")
+    .eq("slug", companySlug)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (!company) return null;
+
+  // Get template info
+  const { data: template } = await supabase
+    .from(tableName)
+    .select("name, description")
+    .eq("company_id", company.id)
+    .eq("slug", templateSlug)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  const templateName = (template as any)?.name || label;
+  const description = (template as any)?.description || `${label} - ${company.name}`;
+  const formUrl = `${baseUrl}/${formType}/${companySlug}/${templateSlug}`;
+
+  const meta = {
+    title: `${templateName} | ${company.name}`,
+    description,
+    image: company.logo_url || "https://hubcelebrei.com.br/og-para-buffets.jpg",
+    url: formUrl,
+  };
+
+  return new Response(buildHTML(meta, formUrl), {
+    headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
+  });
+}
+
+/** Handle evaluation template OG preview (legacy UUID) */
+async function resolveEvaluation(templateId: string, baseUrl: string): Promise<Response | null> {
+  const supabase = getSupabase();
   const { data } = await supabase.rpc("get_evaluation_template_public", { _template_id: templateId });
   if (!data || (data as any[]).length === 0) return null;
 
@@ -76,13 +135,7 @@ async function resolveEvaluation(templateId: string, baseUrl: string): Promise<R
   const logo = row.company_logo || "https://hubcelebrei.com.br/og-para-buffets.jpg";
   const evalUrl = `${baseUrl}/avaliacao/${templateId}`;
 
-  const meta = {
-    title: `${templateName} | ${companyName}`,
-    description,
-    image: logo,
-    url: evalUrl,
-  };
-
+  const meta = { title: `${templateName} | ${companyName}`, description, image: logo, url: evalUrl };
   return new Response(buildHTML(meta, evalUrl), {
     headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
   });
@@ -90,16 +143,23 @@ async function resolveEvaluation(templateId: string, baseUrl: string): Promise<R
 
 async function resolveByDomain(domain: string, pathname: string): Promise<Response | null> {
   const canonical = canonicalize(domain);
+  const baseUrl = domain.includes("localhost") ? `http://${domain}` : `https://${domain}`;
 
-  // Check if this is an evaluation URL
+  // Check slug-based form URLs: /{formType}/{companySlug}/{templateSlug}
+  const formMatch = pathname.match(/^\/(avaliacao|pre-festa|contrato|cardapio)\/([^/]+)\/([^/]+)\/?$/i);
+  if (formMatch) {
+    const result = await resolveFormBySlug(formMatch[1], formMatch[2], formMatch[3], baseUrl);
+    if (result) return result;
+  }
+
+  // Check legacy evaluation UUID URL
   const evalMatch = pathname.match(/^\/avaliacao\/([0-9a-f-]{36})$/i);
   if (evalMatch) {
-    const baseUrl = domain.includes("localhost") ? `http://${domain}` : `https://${domain}`;
     const result = await resolveEvaluation(evalMatch[1], baseUrl);
     if (result) return result;
   }
 
-  // Check static brands first (fast path, no DB call)
+  // Static brands (fast path)
   for (const [key, brand] of Object.entries(STATIC_BRANDS)) {
     if (canonical.includes(key)) {
       const fullUrl = `${brand.url}${pathname !== "/" ? pathname : ""}`;
@@ -109,12 +169,8 @@ async function resolveByDomain(domain: string, pathname: string): Promise<Respon
     }
   }
 
-  // Dynamic: look up company by domain_canonical
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
-
+  // Dynamic: look up company by domain
+  const supabase = getSupabase();
   const { data: company } = await supabase
     .from("companies")
     .select("id, name, logo_url, custom_domain, slug, domain_canonical")
@@ -125,7 +181,6 @@ async function resolveByDomain(domain: string, pathname: string): Promise<Respon
 
   if (!company) return null;
 
-  // Get landing page data for richer OG
   const { data: lp } = await supabase
     .from("company_landing_pages")
     .select("hero, offer")
@@ -168,7 +223,7 @@ Deno.serve(async (req) => {
       return new Response("Template not found", { status: 404, headers: corsHeaders });
     }
 
-    // Mode 1: explicit ?domain= parameter (legacy / Cloudflare Worker usage)
+    // Mode 1: explicit ?domain= parameter
     const domainParam = url.searchParams.get("domain");
     if (domainParam) {
       const response = await resolveByDomain(domainParam, url.searchParams.get("path") || "/");
@@ -176,27 +231,20 @@ Deno.serve(async (req) => {
       return new Response("Domain not found", { status: 404, headers: corsHeaders });
     }
 
-    // Mode 2: Host-header based (proxied requests from Cloudflare Worker or direct)
+    // Mode 2: Host-header based
     const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
     const pathname = url.searchParams.get("path") || "/";
 
     if (host) {
       const canonical = canonicalize(host);
-
-      // Skip if this is the Supabase functions domain itself
       if (!canonical.includes("supabase") && !canonical.includes("functions")) {
         const response = await resolveByDomain(host, pathname);
         if (response) return response;
       }
     }
 
-    // If not a bot or no domain resolved, return simple JSON info
     return new Response(
-      JSON.stringify({ 
-        error: "No domain resolved", 
-        hint: "Use ?domain=example.com or proxy via Host header",
-        isBot 
-      }),
+      JSON.stringify({ error: "No domain resolved", hint: "Use ?domain=example.com or proxy via Host header", isBot }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
