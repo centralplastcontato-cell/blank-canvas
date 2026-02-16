@@ -194,77 +194,26 @@ export function WhatsAppConfig({ userId, isAdmin }: WhatsAppConfigProps) {
   }
 
   return (
-    <div className="flex flex-col md:flex-row gap-4 h-full">
-      {/* Sidebar Menu - Vertical on desktop, horizontal scroll on mobile */}
-      <div className="md:w-56 shrink-0">
-        {/* Mobile: Horizontal scrollable tabs */}
-        <div className="md:hidden overflow-x-auto">
-          <div className="flex gap-2 pb-2 min-w-max">
-            {configSections.map((section) => (
-              <button
-                key={section.id}
-                onClick={() => setActiveSection(section.id)}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2 rounded-lg whitespace-nowrap transition-colors shrink-0",
-                  activeSection === section.id
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted hover:bg-muted/80"
-                )}
-              >
-                <section.icon className="w-4 h-4" />
-                <span className="text-sm font-medium">{section.title}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Desktop: Vertical sidebar */}
-        <nav className="hidden md:flex flex-col gap-1 bg-muted/30 rounded-lg p-2">
+    <div className="flex flex-col h-full gap-4">
+      {/* Horizontal Tabs */}
+      <div className="overflow-x-auto shrink-0">
+        <div className="flex gap-1 bg-muted/40 rounded-xl p-1 min-w-max">
           {configSections.map((section) => (
             <button
               key={section.id}
               onClick={() => setActiveSection(section.id)}
               className={cn(
-                "flex items-center gap-3 px-3 py-3 rounded-lg transition-all text-left w-full",
+                "flex items-center gap-2 px-3 py-2 rounded-lg whitespace-nowrap transition-all text-sm font-medium",
                 activeSection === section.id
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "hover:bg-muted"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-background/50"
               )}
             >
-              <div className={cn(
-                "p-2 rounded-lg shrink-0",
-                activeSection === section.id
-                  ? "bg-primary-foreground/20"
-                  : "bg-primary/10"
-              )}>
-                <section.icon className={cn(
-                  "w-4 h-4",
-                  activeSection === section.id
-                    ? "text-primary-foreground"
-                    : "text-primary"
-                )} />
-              </div>
-              <div className="min-w-0">
-                <p className={cn(
-                  "font-medium text-sm truncate",
-                  activeSection === section.id
-                    ? "text-primary-foreground"
-                    : "text-foreground"
-                )}>
-                  {section.title}
-                </p>
-                <p className={cn(
-                  "text-xs truncate",
-                  activeSection === section.id
-                    ? "text-primary-foreground/70"
-                    : "text-muted-foreground"
-                )}>
-                  {section.description}
-                </p>
-              </div>
+              <section.icon className="w-4 h-4" />
+              <span>{section.title}</span>
             </button>
           ))}
-        </nav>
+        </div>
       </div>
 
       {/* Content Area */}
@@ -287,7 +236,7 @@ export function WhatsAppConfig({ userId, isAdmin }: WhatsAppConfigProps) {
         </div>
 
         {/* Section Content */}
-        <ScrollArea className="h-[calc(100vh-300px)] md:h-[calc(100vh-280px)]">
+        <ScrollArea className="h-[calc(100vh-340px)] md:h-[calc(100vh-320px)]">
           {renderContent()}
         </ScrollArea>
       </div>
