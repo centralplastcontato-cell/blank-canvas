@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Star, ChevronRight, ChevronLeft, CheckCircle2 } from "lucide-react";
@@ -148,6 +149,14 @@ export default function PublicEvaluation() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex flex-col">
+      <Helmet>
+        <title>{template.template_name} | {template.company_name}</title>
+        <meta name="description" content={template.description || `${template.company_name} quer saber como foi a sua experiência!`} />
+        <meta property="og:title" content={`${template.template_name} | ${template.company_name}`} />
+        <meta property="og:description" content={template.description || `${template.company_name} quer saber como foi a sua experiência!`} />
+        {template.company_logo && <meta property="og:image" content={template.company_logo} />}
+        <meta property="og:type" content="website" />
+      </Helmet>
       {/* Header with logo */}
       <header className="p-4 flex items-center justify-center gap-3 border-b border-border bg-card/80 backdrop-blur-sm">
         {template.company_logo && <img src={template.company_logo} alt={template.company_name} className="h-10 w-auto" />}
