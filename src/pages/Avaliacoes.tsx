@@ -41,14 +41,24 @@ interface EvaluationTemplate {
 }
 
 const DEFAULT_QUESTIONS: EvaluationQuestion[] = [
+  // Etapa 1 – Experiência geral & atendimento
   { id: "q1", type: "nps", text: "De 0 a 10, qual nota você dá para a experiência geral da festa?", step: 1, required: true },
-  { id: "q2", type: "stars", text: "Como você avalia o atendimento da nossa equipe?", step: 1, required: true },
-  { id: "q3", type: "stars", text: "Como você avalia a limpeza e organização do espaço?", step: 1, required: true },
-  { id: "q4", type: "stars", text: "Como você avalia a decoração e ambientação?", step: 2, required: true },
-  { id: "q5", type: "stars", text: "Como você avalia a alimentação servida?", step: 2, required: true },
-  { id: "q6", type: "yesno", text: "Você indicaria nosso buffet para amigos e familiares?", step: 3, required: true },
-  { id: "q7", type: "text", text: "O que mais te surpreendeu positivamente na festa?", step: 3 },
-  { id: "q8", type: "text", text: "Tem alguma sugestão de melhoria para nós?", step: 3 },
+  { id: "q2", type: "stars", text: "Como você avalia o atendimento da nossa equipe antes da festa (planejamento, contato, agilidade)?", step: 1, required: true },
+  { id: "q3", type: "stars", text: "Como você avalia o atendimento da equipe durante a festa?", step: 1, required: true },
+  { id: "q4", type: "stars", text: "Como você avalia a pontualidade e cumprimento dos horários?", step: 1, required: true },
+  // Etapa 2 – Espaço, decoração e alimentação
+  { id: "q5", type: "stars", text: "Como você avalia a limpeza e organização do espaço?", step: 2, required: true },
+  { id: "q6", type: "stars", text: "Como você avalia a decoração e ambientação?", step: 2, required: true },
+  { id: "q7", type: "stars", text: "Como você avalia a qualidade e variedade da alimentação servida?", step: 2, required: true },
+  { id: "q8", type: "stars", text: "Como você avalia as bebidas oferecidas?", step: 2, required: true },
+  { id: "q9", type: "stars", text: "Como você avalia as atividades e recreação para as crianças?", step: 2, required: true },
+  // Etapa 3 – Satisfação final & feedback aberto
+  { id: "q10", type: "stars", text: "O evento atendeu às suas expectativas em relação ao que foi contratado?", step: 3, required: true },
+  { id: "q11", type: "yesno", text: "Você indicaria nosso buffet para amigos e familiares?", step: 3, required: true },
+  { id: "q12", type: "yesno", text: "Você faria outra festa conosco?", step: 3, required: true },
+  { id: "q13", type: "text", text: "O que mais te surpreendeu positivamente na festa?", step: 3 },
+  { id: "q14", type: "text", text: "Teve algo que não atendeu suas expectativas? O quê?", step: 3 },
+  { id: "q15", type: "text", text: "Tem alguma sugestão de melhoria para nós?", step: 3 },
 ];
 
 
