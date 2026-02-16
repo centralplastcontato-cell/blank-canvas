@@ -236,8 +236,14 @@ export default function CentralAtendimento() {
       let query = supabase
         .from("campaign_leads")
         .select("*", { count: "exact" })
-        .order("created_at", { ascending: false })
-        .range(from, to);
+        .order("created_at", { ascending: false });
+
+      // Only apply pagination when NOT in Kanban view — Kanban needs all leads
+      if (viewMode !== "kanban") {
+        query = query.range(from, to);
+      } else {
+        query = query.limit(2000);
+      }
 
       // Apply unit permission filter (before user-selected filters)
       if (!canViewAll && allowedUnits.length > 0 && !allowedUnits.includes('all')) {
@@ -357,7 +363,7 @@ export default function CentralAtendimento() {
     };
 
     fetchLeads();
-  }, [filters, refreshKey, role, canViewAll, allowedUnits, isLoadingUnitPerms, currentPage]);
+  }, [filters, refreshKey, role, canViewAll, allowedUnits, isLoadingUnitPerms, currentPage, viewMode]);
 
   // Fetch server-side metrics (respects active filters including unit)
   useEffect(() => {
