@@ -1,5 +1,11 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { Helmet } from "react-helmet-async";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,7 +16,7 @@ import { Progress } from "@/components/ui/progress";
 
 interface PreFestaQuestion {
   id: string;
-  type: "text" | "yesno" | "select" | "textarea";
+  type: "text" | "yesno" | "select" | "textarea" | "date";
   text: string;
   step: number;
   required?: boolean;
@@ -223,7 +229,45 @@ export default function PublicPreFesta() {
   );
 }
 
+function isDateQuestion(q: PreFestaQuestion): boolean {
+  if (q.type === "date") return true;
+  if (q.type === "text") {
+    const t = q.text.toLowerCase();
+    return t.includes("data de nascimento") || t.includes("data da festa") || t.includes("data do evento") || (t.includes("data") && (t.includes("nascimento") || t.includes("festa") || t.includes("evento") || t.includes("aniversário")));
+  }
+  return false;
+}
+
 function PreFestaQuestionInput({ question, value, onChange }: { question: PreFestaQuestion; value: any; onChange: (v: any) => void }) {
+  if (isDateQuestion(question)) {
+    const dateValue = value ? new Date(value) : undefined;
+    return (
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className={cn(
+              "w-full rounded-xl border border-input bg-background px-4 py-3 text-base text-left flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-ring",
+              !dateValue && "text-muted-foreground"
+            )}
+          >
+            <CalendarIcon className="h-4 w-4 opacity-60" />
+            {dateValue ? format(dateValue, "dd/MM/yyyy", { locale: ptBR }) : "Selecione a data..."}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={dateValue}
+            onSelect={(d) => onChange(d ? d.toISOString() : "")}
+            className="p-3 pointer-events-auto"
+            locale={ptBR}
+          />
+        </PopoverContent>
+      </Popover>
+    );
+  }
+
   switch (question.type) {
     case "text":
       return (
