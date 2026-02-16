@@ -201,6 +201,21 @@ export function EventStaffManager() {
     });
   };
 
+  const copyPixKey = (key: string) => {
+    if (!key) return;
+    navigator.clipboard.writeText(key);
+    toast({ title: "Chave PIX copiada!" });
+  };
+
+  const calcTotal = (data: StaffRole[]) => {
+    let sum = 0;
+    data.forEach(role => role.entries.forEach(e => {
+      const num = e.value.replace(/\D/g, "");
+      if (num) sum += parseInt(num, 10) / 100;
+    }));
+    return sum;
+  };
+
   const copyToClipboard = (record: EventStaffRecord) => {
     const lines: string[] = [];
     lines.push(`📋 Equipe - ${record.event?.title || "Festa"}`);
@@ -277,6 +292,8 @@ export function EventStaffManager() {
                                 : ""}
                               {" · "}
                               {filledCount}/{totalSlots} preenchidos
+                              {" · "}
+                              {calcTotal(record.staff_data).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                             </p>
                           </div>
                         </div>
@@ -301,13 +318,20 @@ export function EventStaffManager() {
                           <p className="text-sm font-medium text-muted-foreground mb-1">{role.roleTitle}</p>
                           <div className="space-y-1">
                             {role.entries.map((entry, ei) => (
-                              <div key={ei} className="text-sm pl-3 border-l-2 border-border py-1">
-                                <span className="font-medium">{entry.name || "—"}</span>
-                                {entry.pix_type && (
-                                  <span className="text-muted-foreground"> · PIX {entry.pix_type}: {entry.pix_key}</span>
-                                )}
-                                {entry.value && (
-                                  <span className="text-muted-foreground"> · {entry.value}</span>
+                              <div key={ei} className="text-sm pl-3 border-l-2 border-border py-1 flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <span className="font-medium">{entry.name || "—"}</span>
+                                  {entry.pix_type && (
+                                    <span className="text-muted-foreground"> · PIX {entry.pix_type}: {entry.pix_key}</span>
+                                  )}
+                                  {entry.value && (
+                                    <span className="text-muted-foreground"> · {entry.value}</span>
+                                  )}
+                                </div>
+                                {entry.pix_key && (
+                                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => copyPixKey(entry.pix_key)}>
+                                    <Copy className="h-3 w-3" />
+                                  </Button>
                                 )}
                               </div>
                             ))}
@@ -354,7 +378,7 @@ export function EventStaffManager() {
             <Separator />
 
             {staffData.map((role, roleIdx) => (
-              <div key={roleIdx} className="space-y-2">
+              <div key={roleIdx} className="space-y-3">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-semibold">{role.roleTitle} ({role.entries.length})</Label>
                   <div className="flex gap-1">
@@ -367,34 +391,58 @@ export function EventStaffManager() {
                   </div>
                 </div>
                 {role.entries.map((entry, entryIdx) => (
-                  <div key={entryIdx} className="grid grid-cols-2 md:grid-cols-4 gap-2 pl-3 border-l-2 border-primary/20">
-                    <Input
-                      placeholder="Nome"
-                      value={entry.name}
-                      onChange={e => updateEntry(roleIdx, entryIdx, "name", e.target.value)}
-                    />
-                    <Select value={entry.pix_type} onValueChange={v => updateEntry(roleIdx, entryIdx, "pix_type", v)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Tipo PIX" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PIX_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      placeholder="Chave PIX"
-                      value={entry.pix_key}
-                      onChange={e => updateEntry(roleIdx, entryIdx, "pix_key", e.target.value)}
-                    />
-                    <Input
-                      placeholder="Valor (R$)"
-                      value={entry.value}
-                      onChange={e => updateEntry(roleIdx, entryIdx, "value", e.target.value)}
-                    />
-                  </div>
+                  <Card key={entryIdx} className="border-l-2 border-l-primary/30">
+                    <CardContent className="p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground font-medium">{role.roleTitle} #{entryIdx + 1}</span>
+                      </div>
+                      <Input
+                        placeholder="Nome"
+                        value={entry.name}
+                        onChange={e => updateEntry(roleIdx, entryIdx, "name", e.target.value)}
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <Select value={entry.pix_type} onValueChange={v => updateEntry(roleIdx, entryIdx, "pix_type", v)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Tipo PIX" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {PIX_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          placeholder="Valor (R$)"
+                          value={entry.value}
+                          onChange={e => updateEntry(roleIdx, entryIdx, "value", e.target.value)}
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Input
+                          className="flex-1"
+                          placeholder="Chave PIX"
+                          value={entry.pix_key}
+                          onChange={e => updateEntry(roleIdx, entryIdx, "pix_key", e.target.value)}
+                        />
+                        {entry.pix_key && (
+                          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => copyPixKey(entry.pix_key)}>
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
             ))}
+
+            <Separator />
+
+            <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
+              <span className="font-semibold text-sm">Total</span>
+              <span className="font-bold text-base">
+                {calcTotal(staffData).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+              </span>
+            </div>
 
             <div>
               <Label>Observações</Label>
