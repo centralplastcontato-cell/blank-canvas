@@ -1,54 +1,28 @@
 
 
-## Calendario de Festas para Buffets
+## Corrigir discrepância Métricas vs Kanban CRM
 
-### Visao Geral
-Nova aba "Agenda" no menu lateral, onde o buffet pode cadastrar, visualizar e gerenciar suas festas em um calendario mensal interativo.
+### Problema
+Os cards de métricas mostram **40 Fechados** (contagem real do banco), mas o Kanban CRM mostra apenas **1 lead** na coluna "Fechado". Isso acontece porque o Kanban recebe os mesmos leads paginados da tabela (50 por página, ordenados por data), e na página atual só 1 lead "fechado" aparece.
 
-### Funcionalidades Sugeridas
+### Solução
+Quando o usuário estiver na **aba CRM (Kanban)**, carregar **todos os leads sem paginação**, para que todas as colunas reflitam os números reais. A paginação continua ativa nas abas **Leads (tabela)** e **Lista**.
 
-1. **Calendario Mensal Visual** - Visualizacao mes a mes com indicadores coloridos nos dias que tem festa agendada
-2. **Cadastro de Festa** - Formulario para registrar: nome do cliente, data/horario, tipo de festa, numero de convidados, pacote/unidade, valor, observacoes, e vincular ao lead existente (opcional)
-3. **Status da Festa** - Confirmada, Pendente, Cancelada (com cores diferentes no calendario)
-4. **Detalhes ao Clicar** - Ao clicar em um dia, ver lista de festas daquele dia com detalhes rapidos
-5. **Conflito de Horario** - Alerta visual quando duas festas estao no mesmo horario/unidade
-6. **Filtro por Unidade** - Para buffets com mais de uma unidade, filtrar festas por local
-7. **Resumo Mensal** - Card com total de festas no mes, receita prevista, festas confirmadas vs pendentes
+### Alterações Técnicas
 
-### Detalhes Tecnicos
+**Arquivo: `src/pages/CentralAtendimento.tsx`**
 
-**Nova tabela: `company_events`**
-- `id` (uuid, PK)
-- `company_id` (uuid, NOT NULL) - isolamento multi-tenant
-- `lead_id` (uuid, nullable) - vinculo opcional com lead existente
-- `title` (text) - nome do cliente ou titulo da festa
-- `event_date` (date, NOT NULL)
-- `start_time` (time)
-- `end_time` (time)
-- `event_type` (text) - infantil, debutante, corporativo, etc.
-- `guest_count` (integer)
-- `unit` (text, nullable) - unidade do buffet
-- `status` (text) - confirmado, pendente, cancelado
-- `package_name` (text, nullable)
-- `total_value` (numeric, nullable)
-- `notes` (text, nullable)
-- `created_by` (uuid) - usuario que cadastrou
-- `created_at`, `updated_at` (timestamps)
+1. **Detectar aba ativa**: Quando `activeTab === "crm"`, buscar leads sem `.range()` (sem paginação), para que o Kanban receba todos os leads disponíveis.
 
-RLS: mesmas politicas de isolamento por empresa ja usadas no projeto (`get_user_company_ids`).
+2. **Ajustar a query `fetchLeads`**:
+   - Se a aba ativa for `"crm"`, remover o `.range(from, to)` da query
+   - Manter a paginação normalmente para as abas "leads" e "lista"
+   - Adicionar um limite de seguranca (ex: 2000 leads) para evitar sobrecarga
 
-**Nova rota: `/agenda`**
-- Pagina `src/pages/Agenda.tsx` com layout identico ao das outras paginas (sidebar + conteudo)
+3. **Dependência no useEffect**: Adicionar `activeTab` como dependência do useEffect de `fetchLeads`, para refazer a busca quando trocar de aba.
 
-**Novos componentes:**
-- `src/components/agenda/AgendaCalendar.tsx` - calendario mensal usando o componente Calendar existente (react-day-picker) customizado para mostrar indicadores de festas
-- `src/components/agenda/EventFormDialog.tsx` - dialog para criar/editar festa
-- `src/components/agenda/EventDetailSheet.tsx` - sheet lateral com detalhes da festa
-- `src/components/agenda/MonthSummaryCards.tsx` - cards de resumo mensal
+### Resultado esperado
+- Kanban mostrará **40 leads** na coluna "Fechado" (correspondendo aos cards de métricas)
+- Tabela de leads continua com paginação de 50 por página
+- Performance preservada com limite de segurança
 
-**Menu:**
-- Adicionar item "Agenda" no `AdminSidebar.tsx` e `MobileMenu.tsx` (icone: `CalendarDays`)
-- Controlado pelo modulo `agenda` no `useCompanyModules` (opt-in, como inteligencia)
-
-**Rota no App.tsx:**
-- `<Route path="/agenda" element={<Agenda />} />`
