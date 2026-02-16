@@ -35,11 +35,9 @@ export function VisualGuideSection() {
   const [activeTab, setActiveTab] = useState("whatsapp");
   const { units } = useCompanyUnits();
 
-  const UNIT_COLORS = ["bg-blue-500", "bg-amber-500", "bg-emerald-500", "bg-purple-500", "bg-rose-500", "bg-cyan-500", "bg-orange-500"];
-
   const dynamicUnitItems: GuideItem[] = [
-    ...units.map((unit, idx) => ({
-      icon: <div className={cn("w-3 h-3 rounded-full", UNIT_COLORS[idx % UNIT_COLORS.length])} />,
+    ...units.map((unit) => ({
+      icon: <div className="w-3 h-3 rounded-full" style={{ backgroundColor: unit.color || '#3b82f6' }} />,
       label: unit.name,
       description: `Unidade ${unit.name}.`,
     })),

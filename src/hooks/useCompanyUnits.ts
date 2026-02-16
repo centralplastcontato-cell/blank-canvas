@@ -8,6 +8,7 @@ export interface CompanyUnit {
   slug: string;
   is_active: boolean;
   sort_order: number;
+  color: string | null;
 }
 
 export function useCompanyUnits(companyId?: string) {
