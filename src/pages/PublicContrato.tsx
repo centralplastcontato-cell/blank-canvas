@@ -233,7 +233,12 @@ function isDateQuestion(q: ContratoQuestion): boolean {
   return false;
 }
 
-function DateSelectInput({ value, onChange }: { value: any; onChange: (v: any) => void }) {
+function isBirthDateQuestion(q: ContratoQuestion): boolean {
+  const t = q.text.toLowerCase();
+  return t.includes("nascimento") || t.includes("aniversário") || t.includes("aniversariante");
+}
+
+function DateSelectInput({ value, onChange, showAge }: { value: any; onChange: (v: any) => void; showAge?: boolean }) {
   const parsed = value ? new Date(value) : null;
   const [day, setDay] = useState(parsed ? parsed.getDate() : 0);
   const [month, setMonth] = useState(parsed ? parsed.getMonth() + 1 : 0);
@@ -255,31 +260,53 @@ function DateSelectInput({ value, onChange }: { value: any; onChange: (v: any) =
     }
   }, [day, month, year]);
 
+  const calcAge = () => {
+    if (!day || !month || !year) return null;
+    const birth = new Date(year, month - 1, day);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const mDiff = today.getMonth() - birth.getMonth();
+    if (mDiff < 0 || (mDiff === 0 && today.getDate() < birth.getDate())) age--;
+    // Also calculate age at next birthday this year or next
+    const nextBirthday = new Date(today.getFullYear(), month - 1, day);
+    if (nextBirthday < today) nextBirthday.setFullYear(nextBirthday.getFullYear() + 1);
+    const ageAtNext = nextBirthday.getFullYear() - year;
+    return { current: age, next: ageAtNext };
+  };
+
   const selectClass = "w-full rounded-xl border border-input bg-background px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-ring appearance-none";
+  const ageInfo = showAge ? calcAge() : null;
 
   return (
-    <div className="grid grid-cols-3 gap-2">
-      <div>
-        <label className="text-xs text-muted-foreground mb-1 block">Dia</label>
-        <select value={day || ""} onChange={e => setDay(Number(e.target.value))} className={selectClass}>
-          <option value="">--</option>
-          {days.map(d => <option key={d} value={d}>{d}</option>)}
-        </select>
+    <div className="space-y-2">
+      <div className="grid grid-cols-3 gap-2">
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">Dia</label>
+          <select value={day || ""} onChange={e => setDay(Number(e.target.value))} className={selectClass}>
+            <option value="">--</option>
+            {days.map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">Mês</label>
+          <select value={month || ""} onChange={e => setMonth(Number(e.target.value))} className={selectClass}>
+            <option value="">--</option>
+            {months.map((m, i) => <option key={i} value={i + 1}>{m.slice(0, 3)}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">Ano</label>
+          <select value={year || ""} onChange={e => setYear(Number(e.target.value))} className={selectClass}>
+            <option value="">--</option>
+            {years.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
       </div>
-      <div>
-        <label className="text-xs text-muted-foreground mb-1 block">Mês</label>
-        <select value={month || ""} onChange={e => setMonth(Number(e.target.value))} className={selectClass}>
-          <option value="">--</option>
-          {months.map((m, i) => <option key={i} value={i + 1}>{m.slice(0, 3)}</option>)}
-        </select>
-      </div>
-      <div>
-        <label className="text-xs text-muted-foreground mb-1 block">Ano</label>
-        <select value={year || ""} onChange={e => setYear(Number(e.target.value))} className={selectClass}>
-          <option value="">--</option>
-          {years.map(y => <option key={y} value={y}>{y}</option>)}
-        </select>
-      </div>
+      {ageInfo && ageInfo.current >= 0 && (
+        <p className="text-sm text-primary font-medium text-center">
+          🎂 Vai completar <span className="font-bold">{ageInfo.next} anos</span>
+        </p>
+      )}
     </div>
   );
 }
@@ -409,24 +436,35 @@ function isParentNameQuestion(q: ContratoQuestion): boolean {
   return (t.includes("nome dos pais") || t.includes("nome dos responsáveis") || t.includes("nome dos responsaveis") || t.includes("pais ou responsáveis") || t.includes("pais ou responsaveis") || t.includes("nome dos avós") || t.includes("nome dos avos") || t.includes("nome dos tios"));
 }
 
-function ParentNameInput({ value, onChange }: { value: any; onChange: (v: any) => void }) {
+function isParentPhoneQuestion(q: ContratoQuestion): boolean {
+  const t = q.text.toLowerCase();
+  return (t.includes("telefone dos pais") || t.includes("telefone dos responsáveis") || t.includes("telefone dos responsaveis") || t.includes("celular dos pais") || t.includes("celular dos responsáveis") || t.includes("celular dos responsaveis") || t.includes("whatsapp dos pais") || t.includes("whatsapp dos responsáveis") || t.includes("telefone dos avós") || t.includes("telefone dos tios"));
+}
+
+function formatPhone(v: string): string {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 2) return d;
+  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+
+function DualInput({ value, onChange, label1, label2, placeholder, inputMode, format }: { value: any; onChange: (v: any) => void; label1: string; label2: string; placeholder: string; inputMode?: "numeric" | "tel" | "text"; format?: (v: string) => string }) {
   const parsed = typeof value === "object" && value !== null ? value : { parent1: value || "", parent2: "" };
   const inputClass = "w-full rounded-xl border border-input bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-ring";
 
   const update = (field: "parent1" | "parent2", v: string) => {
-    const next = { ...parsed, [field]: v };
-    onChange(next);
+    onChange({ ...parsed, [field]: format ? format(v) : v });
   };
 
   return (
     <div className="space-y-3">
       <div>
-        <label className="text-xs text-muted-foreground mb-1 block">Responsável 1</label>
-        <input type="text" value={parsed.parent1 || ""} onChange={(e) => update("parent1", e.target.value)} placeholder="Nome completo" className={inputClass} />
+        <label className="text-xs text-muted-foreground mb-1 block">{label1}</label>
+        <input type="text" inputMode={inputMode || "text"} value={parsed.parent1 || ""} onChange={(e) => update("parent1", e.target.value)} placeholder={placeholder} className={inputClass} />
       </div>
       <div>
-        <label className="text-xs text-muted-foreground mb-1 block">Responsável 2</label>
-        <input type="text" value={parsed.parent2 || ""} onChange={(e) => update("parent2", e.target.value)} placeholder="Nome completo (opcional)" className={inputClass} />
+        <label className="text-xs text-muted-foreground mb-1 block">{label2}</label>
+        <input type="text" inputMode={inputMode || "text"} value={parsed.parent2 || ""} onChange={(e) => update("parent2", e.target.value)} placeholder={`${placeholder} (opcional)`} className={inputClass} />
       </div>
     </div>
   );
@@ -443,8 +481,11 @@ function ContratoQuestionInput({ question, value, onChange, siblingQuestions, on
         className="w-full rounded-xl border border-input bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-ring" />
     );
   }
+  if (isParentPhoneQuestion(question)) {
+    return <DualInput value={value} onChange={onChange} label1="Telefone Responsável 1" label2="Telefone Responsável 2" placeholder="(00) 00000-0000" inputMode="tel" format={formatPhone} />;
+  }
   if (isParentNameQuestion(question)) {
-    return <ParentNameInput value={value} onChange={onChange} />;
+    return <DualInput value={value} onChange={onChange} label1="Responsável 1" label2="Responsável 2" placeholder="Nome completo" />;
   }
   if (isCepQuestion(question)) {
     return <CepInput value={value} onChange={onChange} siblingQuestions={siblingQuestions} onFillSibling={onFillSibling} />;
@@ -462,7 +503,7 @@ function ContratoQuestionInput({ question, value, onChange, siblingQuestions, on
     );
   }
   if (isDateQuestion(question)) {
-    return <DateSelectInput value={value} onChange={onChange} />;
+    return <DateSelectInput value={value} onChange={onChange} showAge={isBirthDateQuestion(question)} />;
   }
 
   switch (question.type) {
