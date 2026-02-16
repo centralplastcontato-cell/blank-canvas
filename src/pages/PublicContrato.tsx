@@ -259,6 +259,9 @@ function ContratoQuestionInput({ question, value, onChange }: { question: Contra
             onSelect={(d) => onChange(d ? d.toISOString() : "")}
             className="p-3 pointer-events-auto"
             locale={ptBR}
+            captionLayout="dropdown-buttons"
+            fromYear={1930}
+            toYear={new Date().getFullYear() + 5}
           />
         </PopoverContent>
       </Popover>
