@@ -235,7 +235,9 @@ function isDateQuestion(q: ContratoQuestion): boolean {
 
 function isBirthDateQuestion(q: ContratoQuestion): boolean {
   const t = q.text.toLowerCase();
-  return t.includes("nascimento") || t.includes("aniversário") || t.includes("aniversariante");
+  const isDate = t.includes("nascimento") || t.includes("aniversário") || t.includes("aniversariante");
+  const isHost = t.includes("anfitrião") || t.includes("anfitriã") || t.includes("contratante") || t.includes("responsável") || t.includes("responsavel");
+  return isDate && !isHost;
 }
 
 function DateSelectInput({ value, onChange, showAge }: { value: any; onChange: (v: any) => void; showAge?: boolean }) {
