@@ -1,62 +1,55 @@
 
 
-## Reorganizacao das Abas de Configuracoes
+## Seção "Dados da Empresa" nas Configurações
 
-### Problema
-Existem 10 abas no topo da pagina de Configuracoes, o que causa scroll excessivo em telas menores e dificulta a navegacao. Algumas abas tratam de assuntos muito relacionados e compartilham a mesma permissao.
+Adicionar uma nova aba nas Configurações do buffet para que gestores e owners possam editar o logo, nome e dados basicos da empresa diretamente, sem depender do Hub.
 
-### Proposta: de 10 abas para 7
+---
 
-Consolidar abas com funcionalidades sobrepostas usando sub-abas internas:
+### O que sera feito
 
-| Antes (10 abas) | Depois (7 abas) |
-|---|---|
-| Conexao | **Conexao** (sem mudanca) |
-| Mensagens | **Conteudo** (sub-abas: Templates, Materiais) |
-| Materiais | _(dentro de Conteudo)_ |
-| Notificacoes | **Notificacoes** (sem mudanca) |
-| Automacoes | **Automacoes** (sub-abas: Geral/Perguntas/..., + Fluxos) |
-| Fluxos | _(dentro de Automacoes)_ |
-| Avancado | **Avancado** (inclui secao Importar Dados) |
-| Importar Dados | _(dentro de Avancado)_ |
-| Checklist | **Checklist** (mantido separado por ser de Agenda) |
-| Guia Visual | **Guia Visual** (sem mudanca) |
+1. **Nova aba "Empresa"** no componente `WhatsAppConfig.tsx` -- sera a primeira aba da lista, com icone de `Building2`. Visivel para owners e admins da empresa (usando o role do `CompanyContext`).
+
+2. **Novo componente `CompanyDataSection.tsx`** em `src/components/whatsapp/settings/` com:
+   - Logo da empresa (upload para o bucket `company-logos` ja existente + preview)
+   - Nome da empresa (editavel)
+   - Slug (somente leitura, informativo)
+   - Dominio customizado (editavel)
+   - Botao "Salvar alteracoes"
+
+3. **Correcao da RLS policy** da tabela `companies` para UPDATE -- a policy atual tem um bug (`uc.company_id = uc.id` deveria ser `uc.company_id = companies.id`), o que impede owners/admins de atualizar os dados.
+
+---
 
 ### Detalhes Tecnicos
 
-#### 1. Criar aba "Conteudo" (fusao Mensagens + Materiais)
-- **Arquivo**: `WhatsAppConfig.tsx` -- substituir as duas entradas (`messages` e `materials`) por uma unica `content`
-- **Icone**: `MessageSquare` ou `FolderOpen`
-- **Renderizacao**: novo componente `ContentSection.tsx` que renderiza sub-abas internas (usando `Tabs` do Radix):
-  - Sub-aba "Templates" -- renderiza o conteudo atual de `MessagesSection`
-  - Sub-aba "Materiais" -- renderiza o conteudo atual de `SalesMaterialsSection`
-- Permissao: `messages` (ja compartilhada)
+**Arquivo: `src/components/whatsapp/settings/CompanyDataSection.tsx`** (novo)
+- Usa `useCompany()` do `CompanyContext` para obter `currentCompany` e `refreshCompanies`
+- Carrega dados atuais da empresa
+- Upload de logo via Supabase Storage (bucket `company-logos`, ja publico)
+- Ao salvar, faz `supabase.from('companies').update(...)` e chama `refreshCompanies()`
 
-#### 2. Mover "Fluxos" para dentro de "Automacoes"
-- **Arquivo**: `AutomationsSection.tsx` -- ja possui sub-abas internas (Geral, Perguntas, Mensagens, Follow-ups, VIP, Jornada)
-- Adicionar uma nova sub-aba "Fluxos" que renderiza `FlowListManager`
-- Condicionar a visibilidade da sub-aba ao modulo `flow_builder` estar habilitado
-- Remover a entrada `flows` do array `allConfigSections` em `WhatsAppConfig.tsx`
+**Arquivo: `src/components/whatsapp/WhatsAppConfig.tsx`** (editado)
+- Adicionar nova entrada "Empresa" no array `allConfigSections` como primeiro item
+- Permissao: visivel apenas para owners/admins (nova verificacao via `CompanyContext`)
+- Adicionar case "company" no `renderContent()`
 
-#### 3. Mover "Importar Dados" para dentro de "Avancado"
-- **Arquivo**: `AdvancedSection.tsx` -- adicionar o `DataImportSection` como um Card adicional no final da secao (ou como sub-aba se preferir)
-- Remover a entrada `import` do array `allConfigSections` em `WhatsAppConfig.tsx`
+**Arquivo: `src/components/whatsapp/settings/index.ts`** (editado)
+- Exportar o novo `CompanyDataSection`
 
-#### 4. Atualizar array de secoes
-- **Arquivo**: `WhatsAppConfig.tsx`
-  - Remover entradas: `messages`, `materials`, `flows`, `import`
-  - Adicionar entrada: `content` (com permissao `messages`, modulo `messages`)
-  - Atualizar o `renderContent()` para o novo case `content`
-
-### Arquivos Afetados
-- `src/components/whatsapp/WhatsAppConfig.tsx` -- array de secoes e renderContent
-- `src/components/whatsapp/settings/AutomationsSection.tsx` -- adicionar sub-aba Fluxos
-- `src/components/whatsapp/settings/AdvancedSection.tsx` -- adicionar secao Importar Dados
-- Novo arquivo: `src/components/whatsapp/settings/ContentSection.tsx` -- wrapper com sub-abas Templates + Materiais
-
-### Resultado
-- Reducao de 10 para 7 abas no nivel superior
-- Melhor usabilidade em telas menores (menos scroll horizontal)
-- Agrupamento logico mantendo as mesmas permissoes
-- Nenhuma funcionalidade removida, apenas reorganizada
+**Migracao SQL** -- corrigir a RLS policy de UPDATE na tabela `companies`:
+```text
+DROP POLICY "Company admins can update companies" ON public.companies;
+CREATE POLICY "Company admins can update companies" ON public.companies
+  FOR UPDATE TO authenticated
+  USING (
+    is_admin(auth.uid()) OR 
+    EXISTS (
+      SELECT 1 FROM user_companies uc
+      WHERE uc.company_id = companies.id
+        AND uc.user_id = auth.uid()
+        AND uc.role IN ('owner', 'admin')
+    )
+  );
+```
 
