@@ -14,10 +14,84 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
-import { ClipboardCheck, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, Star, User, Calendar, BarChart3, ThumbsUp, ChevronDown } from "lucide-react";
+import { ClipboardCheck, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, Star, User, Calendar, BarChart3, ThumbsUp, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+function EvalResponseCards({ responses, template }: { responses: any[]; template: EvaluationTemplate | null }) {
+  const [openId, setOpenId] = useState<string | null>(null);
+  return (
+    <div className="space-y-2">
+      {responses.map((r) => {
+        const isOpen = openId === r.id;
+        const answersArr = Array.isArray(r.answers) ? r.answers : [];
+        return (
+          <div key={r.id}>
+            <button
+              onClick={() => setOpenId(isOpen ? null : r.id)}
+              className="w-full flex items-center justify-between gap-2 px-4 py-3 rounded-xl bg-muted/40 hover:bg-muted/60 transition-colors text-left"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <User className="h-4 w-4 text-primary shrink-0" />
+                <span className="font-semibold text-sm truncate">{r.respondent_name || "Anônimo"}</span>
+                {r.overall_score != null && (
+                  <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                    <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                    {Number(r.overall_score).toFixed(1)}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  {format(new Date(r.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                </span>
+                <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? "rotate-90" : ""}`} />
+              </div>
+            </button>
+            {isOpen && (
+              <Card className="mt-1 bg-card border-border overflow-hidden">
+                <CardContent className="p-0">
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-muted/30">
+                    <span className="font-semibold text-sm">{r.respondent_name || "Anônimo"}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                    </span>
+                  </div>
+                  {r.overall_score != null && (
+                    <div className="px-4 py-2 bg-primary/5 flex items-center gap-2 text-sm">
+                      <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
+                      <span className="font-medium">Nota geral: {Number(r.overall_score).toFixed(1)}</span>
+                    </div>
+                  )}
+                  <div className="divide-y divide-border">
+                    {answersArr.map((a: any, idx: number) => {
+                      const question = template?.questions.find(q => q.id === a.questionId);
+                      const renderValue = () => {
+                        if (a.value === true) return "👍 Sim";
+                        if (a.value === false) return "👎 Não";
+                        if (question?.type === "stars" && typeof a.value === "number") return "⭐".repeat(a.value);
+                        if (question?.type === "nps" && typeof a.value === "number") return `${a.value}/10`;
+                        return String(a.value || "—");
+                      };
+                      return (
+                        <div key={idx} className="px-4 py-2.5">
+                          <p className="text-muted-foreground text-xs mb-0.5">{question?.text || a.questionId}</p>
+                          <p className="font-medium text-sm">{renderValue()}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 interface EvaluationQuestion {
   id: string;
@@ -403,50 +477,8 @@ export function AvaliacoesContent() {
                                 </div>
                               </TabsContent>
 
-                              <TabsContent value="respostas" className="mt-3 space-y-3">
-                                {responses.map((r) => {
-                                  const answersArr = Array.isArray(r.answers) ? r.answers : [];
-                                  return (
-                                    <Card key={r.id} className="bg-card border-border overflow-hidden">
-                                      <CardContent className="p-0">
-                                        <div className="flex items-center justify-between px-4 py-3 bg-muted/30">
-                                          <div className="flex items-center gap-2">
-                                            <User className="h-4 w-4 text-primary" />
-                                            <span className="font-semibold text-sm">{r.respondent_name || "Anônimo"}</span>
-                                          </div>
-                                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                            <Calendar className="h-3.5 w-3.5" />
-                                            {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                                          </div>
-                                        </div>
-                                        {r.overall_score != null && (
-                                          <div className="px-4 py-2 bg-primary/5 flex items-center gap-2 text-sm">
-                                            <Star className="h-4 w-4 text-secondary fill-secondary" />
-                                            <span className="font-medium">Nota geral: {Number(r.overall_score).toFixed(1)}</span>
-                                          </div>
-                                        )}
-                                        <div className="divide-y divide-border">
-                                          {answersArr.map((a: any, idx: number) => {
-                                            const question = selectedTemplateForResponses?.questions.find(q => q.id === a.questionId);
-                                            const renderValue = () => {
-                                              if (a.value === true) return "👍 Sim";
-                                              if (a.value === false) return "👎 Não";
-                                              if (question?.type === "stars" && typeof a.value === "number") return "⭐".repeat(a.value);
-                                              if (question?.type === "nps" && typeof a.value === "number") return `${a.value}/10`;
-                                              return String(a.value || "—");
-                                            };
-                                            return (
-                                              <div key={idx} className="px-4 py-2.5">
-                                                <p className="text-muted-foreground text-xs mb-0.5">{question?.text || a.questionId}</p>
-                                                <p className="font-medium text-sm">{renderValue()}</p>
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-                                      </CardContent>
-                                    </Card>
-                                  );
-                                })}
+                              <TabsContent value="respostas" className="mt-3 space-y-2">
+                                <EvalResponseCards responses={responses} template={selectedTemplateForResponses} />
                               </TabsContent>
                             </Tabs>
                           )}

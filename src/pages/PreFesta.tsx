@@ -13,10 +13,67 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
-import { PartyPopper, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, Calendar, ChevronDown } from "lucide-react";
+import { PartyPopper, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, Calendar, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+function PreFestaResponseCards({ responses, template }: { responses: any[]; template: PreFestaTemplate | null }) {
+  const [openId, setOpenId] = useState<string | null>(null);
+  return (
+    <div className="space-y-2">
+      {responses.map((r) => {
+        const isOpen = openId === r.id;
+        const answersArr = Array.isArray(r.answers) ? r.answers : [];
+        return (
+          <div key={r.id}>
+            <button
+              onClick={() => setOpenId(isOpen ? null : r.id)}
+              className="w-full flex items-center justify-between gap-2 px-4 py-3 rounded-xl bg-muted/40 hover:bg-muted/60 transition-colors text-left"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <User className="h-4 w-4 text-primary shrink-0" />
+                <span className="font-semibold text-sm truncate">{r.respondent_name || "Anônimo"}</span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  {format(new Date(r.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                </span>
+                <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? "rotate-90" : ""}`} />
+              </div>
+            </button>
+            {isOpen && (
+              <Card className="mt-1 bg-card border-border overflow-hidden">
+                <CardContent className="p-0">
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-muted/30">
+                    <span className="font-semibold text-sm">{r.respondent_name || "Anônimo"}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                    </span>
+                  </div>
+                  <div className="divide-y divide-border">
+                    {answersArr.map((a: any, idx: number) => {
+                      const question = template?.questions.find(q => q.id === a.questionId);
+                      return (
+                        <div key={idx} className="px-4 py-2.5">
+                          <p className="text-muted-foreground text-xs mb-0.5">{question?.text || a.questionId}</p>
+                          <p className="font-medium text-sm">
+                            {a.value === true ? "👍 Sim" : a.value === false ? "👎 Não" : String(a.value || "—")}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 interface PreFestaQuestion {
   id: string;
@@ -319,38 +376,7 @@ export function PreFestaContent() {
                               <p className="text-sm text-muted-foreground">Nenhuma resposta recebida ainda.</p>
                             </div>
                           ) : (
-                            responses.map((r) => {
-                              const answersArr = Array.isArray(r.answers) ? r.answers : [];
-                              return (
-                                <Card key={r.id} className="bg-card border-border overflow-hidden">
-                                  <CardContent className="p-0">
-                                    <div className="flex items-center justify-between px-4 py-3 bg-muted/30">
-                                      <div className="flex items-center gap-2">
-                                        <User className="h-4 w-4 text-primary" />
-                                        <span className="font-semibold text-sm">{r.respondent_name || "Anônimo"}</span>
-                                      </div>
-                                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                        <Calendar className="h-3.5 w-3.5" />
-                                        {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                                      </div>
-                                    </div>
-                                    <div className="divide-y divide-border">
-                                      {answersArr.map((a: any, idx: number) => {
-                                        const question = selectedTemplateForResponses?.questions.find(q => q.id === a.questionId);
-                                        return (
-                                          <div key={idx} className="px-4 py-2.5">
-                                            <p className="text-muted-foreground text-xs mb-0.5">{question?.text || a.questionId}</p>
-                                            <p className="font-medium text-sm">
-                                              {a.value === true ? "👍 Sim" : a.value === false ? "👎 Não" : String(a.value || "—")}
-                                            </p>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </CardContent>
-                                </Card>
-                              );
-                            })
+                            <PreFestaResponseCards responses={responses} template={selectedTemplateForResponses} />
                           )}
                         </div>
                       </CollapsibleContent>
