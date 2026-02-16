@@ -11,10 +11,9 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
-import { PartyPopper, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, ChevronRight, User, Calendar } from "lucide-react";
+import { PartyPopper, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, Calendar, ChevronDown } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -40,14 +39,12 @@ interface PreFestaTemplate {
 }
 
 const DEFAULT_QUESTIONS: PreFestaQuestion[] = [
-  // Etapa 1 – Dados do aniversariante
   { id: "pf1", type: "text", text: "Qual o nome do aniversariante?", step: 1, required: true },
   { id: "pf2", type: "text", text: "Qual a idade que vai completar?", step: 1, required: true },
   { id: "pf3", type: "text", text: "Data de nascimento do aniversariante:", step: 1, required: true },
   { id: "pf4", type: "text", text: "Qual o tema da festa?", step: 1, required: true },
   { id: "pf5", type: "text", text: "Personagens ou temas favoritos do aniversariante?", step: 1 },
   { id: "pf6", type: "text", text: "Cores preferidas para decoração?", step: 1 },
-  // Etapa 2 – Alimentação e restrições
   { id: "pf7", type: "yesno", text: "Algum convidado possui alergia alimentar?", step: 2, required: true },
   { id: "pf8", type: "textarea", text: "Se sim, quais alergias? Descreva aqui:", step: 2 },
   { id: "pf9", type: "yesno", text: "Há convidados vegetarianos ou veganos?", step: 2 },
@@ -55,14 +52,12 @@ const DEFAULT_QUESTIONS: PreFestaQuestion[] = [
   { id: "pf11", type: "text", text: "Sabor do bolo preferido:", step: 2 },
   { id: "pf12", type: "yesno", text: "Vai trazer bolo próprio?", step: 2 },
   { id: "pf13", type: "textarea", text: "Algum doce ou alimento especial que gostaria no cardápio?", step: 2 },
-  // Etapa 3 – Convidados e logística
   { id: "pf14", type: "text", text: "Número estimado de convidados adultos:", step: 3, required: true },
   { id: "pf15", type: "text", text: "Número estimado de convidados crianças:", step: 3, required: true },
   { id: "pf16", type: "text", text: "Faixa etária predominante das crianças:", step: 3 },
   { id: "pf17", type: "yesno", text: "Haverá convidados com necessidades especiais (acessibilidade)?", step: 3 },
   { id: "pf18", type: "textarea", text: "Se sim, quais necessidades?", step: 3 },
   { id: "pf19", type: "text", text: "Horário previsto de chegada para organização:", step: 3, required: true },
-  // Etapa 4 – Decoração, entretenimento e extras
   { id: "pf20", type: "yesno", text: "Vai trazer decoração extra (ex: painel, balões, faixas)?", step: 4 },
   { id: "pf21", type: "textarea", text: "Descreva os itens de decoração que trará:", step: 4 },
   { id: "pf22", type: "yesno", text: "Vai contratar algum serviço externo (DJ, fotógrafo, animador)?", step: 4 },
@@ -70,16 +65,12 @@ const DEFAULT_QUESTIONS: PreFestaQuestion[] = [
   { id: "pf24", type: "textarea", text: "Alguma música ou playlist específica que deseja?", step: 4 },
   { id: "pf25", type: "yesno", text: "Deseja algum tipo de brincadeira ou atividade especial?", step: 4 },
   { id: "pf26", type: "textarea", text: "Quais brincadeiras ou atividades?", step: 4 },
-  // Etapa 5 – Observações finais
   { id: "pf27", type: "textarea", text: "Há algo que o aniversariante NÃO gosta ou quer evitar?", step: 5 },
   { id: "pf28", type: "yesno", text: "A festa é surpresa?", step: 5 },
   { id: "pf29", type: "textarea", text: "Alguma necessidade especial ou observação importante?", step: 5 },
   { id: "pf30", type: "textarea", text: "Mensagem ou recado adicional para nossa equipe:", step: 5 },
 ];
 
-/**
- * Content-only component for use inside the Formularios page tabs.
- */
 export function PreFestaContent() {
   const { currentCompany } = useCompany();
   const [templates, setTemplates] = useState<PreFestaTemplate[]>([]);
@@ -87,9 +78,9 @@ export function PreFestaContent() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<PreFestaTemplate | null>(null);
 
-  // Responses state
+  // Responses state - inline
   const [responseCounts, setResponseCounts] = useState<Record<string, number>>({});
-  const [responsesSheetOpen, setResponsesSheetOpen] = useState(false);
+  const [expandedTemplateId, setExpandedTemplateId] = useState<string | null>(null);
   const [selectedTemplateForResponses, setSelectedTemplateForResponses] = useState<PreFestaTemplate | null>(null);
   const [responses, setResponses] = useState<any[]>([]);
   const [loadingResponses, setLoadingResponses] = useState(false);
@@ -122,9 +113,13 @@ export function PreFestaContent() {
     }
   };
 
-  const openResponses = async (t: PreFestaTemplate) => {
+  const toggleResponses = async (t: PreFestaTemplate) => {
+    if (expandedTemplateId === t.id) {
+      setExpandedTemplateId(null);
+      return;
+    }
+    setExpandedTemplateId(t.id);
     setSelectedTemplateForResponses(t);
-    setResponsesSheetOpen(true);
     setLoadingResponses(true);
     const { data } = await supabase
       .from("prefesta_responses")
@@ -173,6 +168,7 @@ export function PreFestaContent() {
     const { error } = await supabase.from("prefesta_templates").delete().eq("id", id);
     if (error) { toast({ title: "Erro ao excluir", variant: "destructive" }); return; }
     toast({ title: "Template excluído" });
+    if (expandedTemplateId === id) setExpandedTemplateId(null);
     fetchTemplates();
   };
 
@@ -254,64 +250,115 @@ export function PreFestaContent() {
           </Card>
         ) : (
           <div className="grid gap-3">
-            {templates.map((t) => (
-              <Card key={t.id} className="bg-card border-border">
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <h3 className="font-semibold truncate">{t.name}</h3>
-                        <Badge variant={t.is_active ? "default" : "secondary"} className="text-xs shrink-0">
-                          {t.is_active ? "Ativo" : "Inativo"}
-                        </Badge>
+            {templates.map((t) => {
+              const isExpanded = expandedTemplateId === t.id;
+              const count = responseCounts[t.id] || 0;
+              return (
+                <Collapsible key={t.id} open={isExpanded} onOpenChange={() => toggleResponses(t)}>
+                  <Card className="bg-card border-border">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <h3 className="font-semibold truncate">{t.name}</h3>
+                            <Badge variant={t.is_active ? "default" : "secondary"} className="text-xs shrink-0">
+                              {t.is_active ? "Ativo" : "Inativo"}
+                            </Badge>
+                          </div>
+                          {t.description && <p className="text-sm text-muted-foreground line-clamp-1">{t.description}</p>}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {(t.questions || []).length} perguntas · {Math.max(...(t.questions || []).map(q => q.step), 1)} etapas
+                          </p>
+                        </div>
+                        <Switch checked={t.is_active} onCheckedChange={(v) => handleToggleActive(t.id, v)} className="shrink-0" />
                       </div>
-                      {t.description && <p className="text-sm text-muted-foreground line-clamp-1">{t.description}</p>}
-                      <div className="flex items-center gap-2 mt-1">
-                        <p className="text-xs text-muted-foreground">{(t.questions || []).length} perguntas · {Math.max(...(t.questions || []).map(q => q.step), 1)} etapas</p>
-                        <button
-                          onClick={() => openResponses(t)}
-                          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                        >
-                          <MessageSquareText className="h-3.5 w-3.5" />
-                          {responseCounts[t.id] || 0} respostas
-                          <ChevronRight className="h-3 w-3" />
-                        </button>
+                      <div className="flex items-center gap-1 flex-wrap border-t border-border pt-2">
+                        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => copyLink(t.id)}>
+                          <Link2 className="h-3.5 w-3.5" /> Link
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => window.open(`/pre-festa/${t.id}`, "_blank")}>
+                          <Eye className="h-3.5 w-3.5" /> Ver
+                        </Button>
+                        <CollapsibleTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
+                            <MessageSquareText className="h-3.5 w-3.5" /> Respostas {count > 0 && `(${count})`}
+                            <ChevronDown className={`h-3 w-3 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                          </Button>
+                        </CollapsibleTrigger>
+                        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => openEdit(t)}>
+                          <Pencil className="h-3.5 w-3.5" /> Editar
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleDuplicate(t)}>
+                          <Copy className="h-3.5 w-3.5" /> Duplicar
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive ml-auto"><Trash2 className="h-3.5 w-3.5" /> Excluir</Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir template?</AlertDialogTitle>
+                              <AlertDialogDescription>Essa ação não pode ser desfeita. Todas as respostas vinculadas também serão excluídas.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(t.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
-                    </div>
-                    <Switch checked={t.is_active} onCheckedChange={(v) => handleToggleActive(t.id, v)} className="shrink-0" />
-                  </div>
-                  <div className="flex items-center gap-1 flex-wrap border-t border-border pt-2">
-                    <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => copyLink(t.id)}>
-                      <Link2 className="h-3.5 w-3.5" /> Link
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => window.open(`/pre-festa/${t.id}`, "_blank")}>
-                      <Eye className="h-3.5 w-3.5" /> Ver
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => openEdit(t)}>
-                      <Pencil className="h-3.5 w-3.5" /> Editar
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleDuplicate(t)}>
-                      <Copy className="h-3.5 w-3.5" /> Duplicar
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive ml-auto"><Trash2 className="h-3.5 w-3.5" /> Excluir</Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Excluir template?</AlertDialogTitle>
-                          <AlertDialogDescription>Essa ação não pode ser desfeita. Todas as respostas vinculadas também serão excluídas.</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDelete(t.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+
+                      {/* Inline Responses */}
+                      <CollapsibleContent>
+                        <div className="border-t border-border pt-4 mt-1 space-y-3">
+                          {loadingResponses ? (
+                            <div className="flex justify-center py-6"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+                          ) : responses.length === 0 ? (
+                            <div className="text-center py-6 space-y-2">
+                              <MessageSquareText className="h-8 w-8 text-muted-foreground mx-auto" />
+                              <p className="text-sm text-muted-foreground">Nenhuma resposta recebida ainda.</p>
+                            </div>
+                          ) : (
+                            responses.map((r) => {
+                              const answersArr = Array.isArray(r.answers) ? r.answers : [];
+                              return (
+                                <Card key={r.id} className="bg-card border-border overflow-hidden">
+                                  <CardContent className="p-0">
+                                    <div className="flex items-center justify-between px-4 py-3 bg-muted/30">
+                                      <div className="flex items-center gap-2">
+                                        <User className="h-4 w-4 text-primary" />
+                                        <span className="font-semibold text-sm">{r.respondent_name || "Anônimo"}</span>
+                                      </div>
+                                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                        <Calendar className="h-3.5 w-3.5" />
+                                        {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                                      </div>
+                                    </div>
+                                    <div className="divide-y divide-border">
+                                      {answersArr.map((a: any, idx: number) => {
+                                        const question = selectedTemplateForResponses?.questions.find(q => q.id === a.questionId);
+                                        return (
+                                          <div key={idx} className="px-4 py-2.5">
+                                            <p className="text-muted-foreground text-xs mb-0.5">{question?.text || a.questionId}</p>
+                                            <p className="font-medium text-sm">
+                                              {a.value === true ? "👍 Sim" : a.value === false ? "👎 Não" : String(a.value || "—")}
+                                            </p>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              );
+                            })
+                          )}
+                        </div>
+                      </CollapsibleContent>
+                    </CardContent>
+                  </Card>
+                </Collapsible>
+              );
+            })}
           </div>
         )}
       </div>
@@ -400,63 +447,6 @@ export function PreFestaContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Responses Sheet */}
-      <Sheet open={responsesSheetOpen} onOpenChange={setResponsesSheetOpen}>
-        <SheetContent className="w-full sm:max-w-lg p-0">
-          <SheetHeader className="p-4 pb-2">
-            <SheetTitle className="flex items-center gap-2">
-              <MessageSquareText className="h-5 w-5 text-primary" />
-              Respostas: {selectedTemplateForResponses?.name}
-            </SheetTitle>
-          </SheetHeader>
-          <ScrollArea className="h-[calc(100vh-80px)]">
-            <div className="p-4 pt-0 space-y-3">
-              {loadingResponses ? (
-                <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-              ) : responses.length === 0 ? (
-                <div className="text-center py-12 space-y-2">
-                  <MessageSquareText className="h-10 w-10 text-muted-foreground mx-auto" />
-                  <p className="text-sm text-muted-foreground">Nenhuma resposta recebida ainda.</p>
-                </div>
-              ) : (
-                responses.map((r) => {
-                  const answersArr = Array.isArray(r.answers) ? r.answers : [];
-                  return (
-                    <Card key={r.id} className="bg-card border-border overflow-hidden">
-                      <CardContent className="p-0">
-                        <div className="flex items-center justify-between px-4 py-3 bg-muted/30">
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-primary" />
-                            <span className="font-semibold text-sm">{r.respondent_name || "Anônimo"}</span>
-                          </div>
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Calendar className="h-3.5 w-3.5" />
-                            {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                          </div>
-                        </div>
-                        <div className="divide-y divide-border">
-                          {answersArr.map((a: any, idx: number) => {
-                            const question = selectedTemplateForResponses?.questions.find(q => q.id === a.questionId);
-                            return (
-                              <div key={idx} className="px-4 py-2.5">
-                                <p className="text-muted-foreground text-xs mb-0.5">{question?.text || a.questionId}</p>
-                                <p className="font-medium text-sm">
-                                  {a.value === true ? "👍 Sim" : a.value === false ? "👎 Não" : String(a.value || "—")}
-                                </p>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })
-              )}
-            </div>
-          </ScrollArea>
-        </SheetContent>
-      </Sheet>
     </>
   );
 }
