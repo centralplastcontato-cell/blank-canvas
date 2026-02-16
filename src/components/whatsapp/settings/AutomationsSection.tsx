@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Bot, Clock, Forward, Zap, Plus, Trash2, Phone, Shield, Beaker, Power, Loader2, MessageSquare, Save, RotateCcw, Images, Video, FileText, Send, RefreshCw, GitBranch, Map } from "lucide-react";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
+import { FlowListManager } from "@/components/flowbuilder/FlowListManager";
 import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -510,6 +511,12 @@ export function AutomationsSection() {
             <Map className="w-3.5 h-3.5" />
             <span>Jornada</span>
           </TabsTrigger>
+          {modules.flow_builder && (
+            <TabsTrigger value="fluxos" className="flex items-center gap-1.5 text-xs sm:text-sm">
+              <GitBranch className="w-3.5 h-3.5" />
+              <span>Fluxos</span>
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* ============ TAB: GERAL ============ */}
@@ -1580,6 +1587,13 @@ export function AutomationsSection() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ============ TAB: FLUXOS ============ */}
+        {modules.flow_builder && (
+          <TabsContent value="fluxos" className="mt-4">
+            <FlowListManager />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

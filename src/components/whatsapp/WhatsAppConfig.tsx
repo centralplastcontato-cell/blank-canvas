@@ -1,14 +1,11 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { Wifi, MessageSquare, Bell, Bot, Settings, Lock, HelpCircle, FolderOpen, Upload, GitBranch, ClipboardCheck } from "lucide-react";
+import { Wifi, Bell, Bot, Settings, Lock, HelpCircle, ClipboardCheck, FileText } from "lucide-react";
 import { ConnectionSection } from "./settings/ConnectionSection";
-import { MessagesSection } from "./settings/MessagesSection";
 import { NotificationsSection } from "./settings/NotificationsSection";
 import { AutomationsSection } from "./settings/AutomationsSection";
 import { AdvancedSection } from "./settings/AdvancedSection";
 import { VisualGuideSection } from "./settings/VisualGuideSection";
-import { SalesMaterialsSection } from "./settings/SalesMaterialsSection";
-import { DataImportSection } from "@/components/admin/DataImportSection";
-import { FlowListManager } from "@/components/flowbuilder/FlowListManager";
+import { ContentSection } from "./settings/ContentSection";
 import { ChecklistTemplateManager } from "@/components/agenda/ChecklistTemplateManager";
 import { useConfigPermissions } from "@/hooks/useConfigPermissions";
 import { useCompanyModules, type CompanyModules } from "@/hooks/useCompanyModules";
@@ -25,26 +22,18 @@ const allConfigSections = [
   {
     id: "connection",
     permissionKey: "connection" as const,
-    moduleKey: "whatsapp" as keyof CompanyModules | null,
+    moduleKey: null as keyof CompanyModules | null,
     title: "Conexão",
     description: "Status e QR Code",
     icon: Wifi,
   },
   {
-    id: "messages",
+    id: "content",
     permissionKey: "messages" as const,
     moduleKey: "messages" as keyof CompanyModules | null,
-    title: "Mensagens",
-    description: "Templates e legendas",
-    icon: MessageSquare,
-  },
-  {
-    id: "materials",
-    permissionKey: "messages" as const,
-    moduleKey: "sales_materials" as keyof CompanyModules | null,
-    title: "Materiais",
-    description: "PDFs, fotos e vídeos",
-    icon: FolderOpen,
+    title: "Conteúdo",
+    description: "Templates e materiais",
+    icon: FileText,
   },
   {
     id: "notifications",
@@ -59,32 +48,16 @@ const allConfigSections = [
     permissionKey: "automations" as const,
     moduleKey: "automations" as keyof CompanyModules | null,
     title: "Automações",
-    description: "Chatbot e respostas",
+    description: "Chatbot, fluxos e respostas",
     icon: Bot,
-  },
-  {
-    id: "flows",
-    permissionKey: "automations" as const,
-    moduleKey: "flow_builder" as keyof CompanyModules | null,
-    title: "Fluxos",
-    description: "Editor visual de fluxos",
-    icon: GitBranch,
   },
   {
     id: "advanced",
     permissionKey: "advanced" as const,
     moduleKey: "advanced" as keyof CompanyModules | null,
     title: "Avançado",
-    description: "Sincronização e logs",
+    description: "Sync, logs e importação",
     icon: Settings,
-  },
-  {
-    id: "import",
-    permissionKey: "advanced" as const,
-    moduleKey: "data_import" as keyof CompanyModules | null,
-    title: "Importar Dados",
-    description: "Leads e conversas",
-    icon: Upload,
   },
   {
     id: "checklist",
@@ -150,20 +123,14 @@ export function WhatsAppConfig({ userId, isAdmin }: WhatsAppConfigProps) {
     switch (activeSection) {
       case "connection":
         return <ConnectionSection userId={userId} isAdmin={isAdmin} />;
-      case "messages":
-        return <MessagesSection userId={userId} isAdmin={isAdmin} />;
-      case "materials":
-        return <SalesMaterialsSection userId={userId} isAdmin={isAdmin} />;
+      case "content":
+        return <ContentSection userId={userId} isAdmin={isAdmin} />;
       case "notifications":
         return <NotificationsSection />;
       case "automations":
         return <AutomationsSection />;
       case "advanced":
         return <AdvancedSection userId={userId} isAdmin={isAdmin} />;
-      case "import":
-        return <DataImportSection isAdmin={isAdmin} />;
-      case "flows":
-        return <FlowListManager />;
       case "checklist":
         return <ChecklistTemplateManager />;
       case "guide":
