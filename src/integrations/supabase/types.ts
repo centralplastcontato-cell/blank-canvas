@@ -649,6 +649,7 @@ export type Database = {
           is_active: boolean
           name: string
           questions: Json
+          slug: string | null
           thank_you_message: string | null
           updated_at: string
         }
@@ -660,6 +661,7 @@ export type Database = {
           is_active?: boolean
           name: string
           questions?: Json
+          slug?: string | null
           thank_you_message?: string | null
           updated_at?: string
         }
@@ -671,6 +673,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           questions?: Json
+          slug?: string | null
           thank_you_message?: string | null
           updated_at?: string
         }
@@ -839,6 +842,7 @@ export type Database = {
           is_active: boolean
           name: string
           questions: Json
+          slug: string | null
           thank_you_message: string | null
           updated_at: string
         }
@@ -850,6 +854,7 @@ export type Database = {
           is_active?: boolean
           name: string
           questions?: Json
+          slug?: string | null
           thank_you_message?: string | null
           updated_at?: string
         }
@@ -861,6 +866,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           questions?: Json
+          slug?: string | null
           thank_you_message?: string | null
           updated_at?: string
         }
@@ -1539,6 +1545,7 @@ export type Database = {
           is_active: boolean
           name: string
           questions: Json
+          slug: string | null
           thank_you_message: string | null
           updated_at: string
         }
@@ -1550,6 +1557,7 @@ export type Database = {
           is_active?: boolean
           name: string
           questions?: Json
+          slug?: string | null
           thank_you_message?: string | null
           updated_at?: string
         }
@@ -1561,6 +1569,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           questions?: Json
+          slug?: string | null
           thank_you_message?: string | null
           updated_at?: string
         }
@@ -2400,8 +2409,36 @@ export type Database = {
         }[]
       }
       get_company_id_by_slug: { Args: { _slug: string }; Returns: string }
+      get_contrato_template_by_slugs: {
+        Args: { _company_slug: string; _template_slug: string }
+        Returns: {
+          company_id: string
+          company_logo: string
+          company_name: string
+          company_slug: string
+          description: string
+          id: string
+          questions: Json
+          template_name: string
+          thank_you_message: string
+        }[]
+      }
       get_contrato_template_public: {
         Args: { _template_id: string }
+        Returns: {
+          company_id: string
+          company_logo: string
+          company_name: string
+          company_slug: string
+          description: string
+          id: string
+          questions: Json
+          template_name: string
+          thank_you_message: string
+        }[]
+      }
+      get_evaluation_template_by_slugs: {
+        Args: { _company_slug: string; _template_slug: string }
         Returns: {
           company_id: string
           company_logo: string
@@ -2458,6 +2495,20 @@ export type Database = {
           testimonials: Json
           theme: Json
           video: Json
+        }[]
+      }
+      get_prefesta_template_by_slugs: {
+        Args: { _company_slug: string; _template_slug: string }
+        Returns: {
+          company_id: string
+          company_logo: string
+          company_name: string
+          company_slug: string
+          description: string
+          id: string
+          questions: Json
+          template_name: string
+          thank_you_message: string
         }[]
       }
       get_prefesta_template_public: {

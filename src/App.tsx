@@ -80,10 +80,13 @@ const App = () => (
             {/* Public onboarding form */}
             <Route path="/onboarding/:slug" element={<Onboarding />} />
             {/* Public evaluation form */}
+            <Route path="/avaliacao/:companySlug/:templateSlug" element={<PublicEvaluation />} />
             <Route path="/avaliacao/:templateId" element={<PublicEvaluation />} />
             {/* Public pre-festa form */}
+            <Route path="/pre-festa/:companySlug/:templateSlug" element={<PublicPreFesta />} />
             <Route path="/pre-festa/:templateId" element={<PublicPreFesta />} />
             {/* Public contrato form */}
+            <Route path="/contrato/:companySlug/:templateSlug" element={<PublicContrato />} />
             <Route path="/contrato/:templateId" element={<PublicContrato />} />
             <Route path="/contrato" element={<Contrato />} />
             {/* Public cardapio form */}

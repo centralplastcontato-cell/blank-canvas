@@ -29,7 +29,7 @@ interface TemplateData {
 }
 
 export default function PublicEvaluation() {
-  const { templateId } = useParams<{ templateId: string }>();
+  const { templateId, companySlug, templateSlug } = useParams<{ templateId: string; companySlug: string; templateSlug: string }>();
   const [template, setTemplate] = useState<TemplateData | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -42,8 +42,14 @@ export default function PublicEvaluation() {
 
   useEffect(() => {
     async function load() {
-      if (!templateId) { setNotFound(true); setLoading(false); return; }
-      const { data, error } = await supabase.rpc("get_evaluation_template_public", { _template_id: templateId });
+      let data: any, error: any;
+      if (companySlug && templateSlug) {
+        const res = await supabase.rpc("get_evaluation_template_by_slugs", { _company_slug: companySlug, _template_slug: templateSlug });
+        data = res.data; error = res.error;
+      } else if (templateId) {
+        const res = await supabase.rpc("get_evaluation_template_public", { _template_id: templateId });
+        data = res.data; error = res.error;
+      } else { setNotFound(true); setLoading(false); return; }
       if (error || !data || (data as any[]).length === 0) { setNotFound(true); setLoading(false); return; }
       const row = (data as any[])[0];
       setTemplate({
@@ -60,7 +66,7 @@ export default function PublicEvaluation() {
       setLoading(false);
     }
     load();
-  }, [templateId]);
+  }, [templateId, companySlug, templateSlug]);
 
   useEffect(() => {
     if (!submitted || !template) return;
