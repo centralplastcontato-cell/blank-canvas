@@ -15,6 +15,8 @@ import { PreFestaContent } from "./PreFesta";
 import { ContratoContent } from "./Contrato";
 import { CardapioContent } from "./Cardapio";
 import { ChecklistTemplateManager } from "@/components/agenda/ChecklistTemplateManager";
+import { EventStaffManager } from "@/components/agenda/EventStaffManager";
+import { Separator } from "@/components/ui/separator";
 
 export default function Formularios() {
   const navigate = useNavigate();
@@ -168,8 +170,10 @@ export default function Formularios() {
                 </Tabs>
               </TabsContent>
 
-              <TabsContent value="checklist" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+              <TabsContent value="checklist" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3 space-y-8">
                 <ChecklistTemplateManager />
+                <Separator />
+                <EventStaffManager />
               </TabsContent>
             </Tabs>
           </div>

@@ -966,6 +966,54 @@ export type Database = {
           },
         ]
       }
+      event_staff_entries: {
+        Row: {
+          company_id: string
+          created_at: string
+          event_id: string
+          filled_by: string | null
+          id: string
+          notes: string | null
+          staff_data: Json
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          event_id: string
+          filled_by?: string | null
+          id?: string
+          notes?: string | null
+          staff_data?: Json
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          event_id?: string
+          filled_by?: string | null
+          id?: string
+          notes?: string | null
+          staff_data?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_staff_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_staff_entries_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "company_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       flow_edges: {
         Row: {
           condition_type: string | null
@@ -1765,6 +1813,35 @@ export type Database = {
             foreignKeyName: "sales_materials_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_role_templates: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          roles: Json
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          roles?: Json
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          roles?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_role_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
