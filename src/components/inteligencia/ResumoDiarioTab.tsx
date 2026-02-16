@@ -16,7 +16,7 @@ import {
   Users, CalendarCheck, FileText, Trophy, Clock,
   MessageCircle, PauseCircle, Sparkles, Loader2, RefreshCw,
   AlertTriangle, Phone, CalendarIcon, MessageSquarePlus, Save, Pencil,
-  Timer,
+  Timer, CalendarRange,
 } from "lucide-react";
 import { useDailySummary, type DailyMetrics, type TimelineEvent, type IncompleteLead, type FollowUpLead } from "@/hooks/useDailySummary";
 import { supabase } from "@/integrations/supabase/client";
@@ -482,20 +482,41 @@ function AISummaryAccordion({ text }: { text: string }) {
 
 export function ResumoDiarioTab() {
   const { currentCompany } = useCompany();
-  const { data, isLoading, error, fetchSummary } = useDailySummary();
+  const { data, isLoading, error, fetchSummary, fetchRange } = useDailySummary();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [rangeMode, setRangeMode] = useState(false);
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [localNote, setLocalNote] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchSummary(selectedDate);
-  }, [fetchSummary, selectedDate]);
+    if (!rangeMode) {
+      fetchSummary(selectedDate);
+    }
+  }, [fetchSummary, selectedDate, rangeMode]);
+
+  useEffect(() => {
+    if (rangeMode && dateRange.from && dateRange.to) {
+      fetchRange(dateRange.from, dateRange.to);
+    }
+  }, [fetchRange, rangeMode, dateRange.from, dateRange.to]);
 
   useEffect(() => {
     setLocalNote(data?.userNote || null);
   }, [data?.userNote]);
 
   const incompleteCount = data?.incompleteLeads?.length || 0;
-  const isViewingToday = isToday(selectedDate);
+  const isViewingToday = !rangeMode && isToday(selectedDate);
+  const isRangeActive = rangeMode && dateRange.from && dateRange.to;
+
+  const dateLabel = rangeMode
+    ? dateRange.from && dateRange.to
+      ? `${format(dateRange.from, "dd/MM")} — ${format(dateRange.to, "dd/MM")}`
+      : dateRange.from
+        ? `${format(dateRange.from, "dd/MM")} — ...`
+        : "Selecionar período"
+    : isViewingToday
+      ? "Hoje"
+      : format(selectedDate, "dd 'de' MMMM", { locale: ptBR });
 
   if (isLoading && !data) {
     return (
@@ -514,36 +535,79 @@ export function ResumoDiarioTab() {
   return (
     <div className="space-y-6">
       {/* Date Picker Header */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 flex-wrap">
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" className={cn("gap-2 font-medium", !isViewingToday && "border-primary text-primary")}>
+            <Button variant="outline" className={cn("gap-2 font-medium", (!isViewingToday || rangeMode) && "border-primary text-primary")}>
               <CalendarIcon className="h-4 w-4" />
-              {isViewingToday ? "Hoje" : format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
+              {dateLabel}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={(date) => date && setSelectedDate(date)}
-              disabled={(date) => date > new Date()}
-              initialFocus
-              className={cn("p-3 pointer-events-auto")}
-              locale={ptBR}
-            />
+            {rangeMode ? (
+              <Calendar
+                mode="range"
+                selected={dateRange.from ? { from: dateRange.from, to: dateRange.to } : undefined}
+                onSelect={(range: any) => {
+                  setDateRange({ from: range?.from, to: range?.to });
+                }}
+                disabled={(date) => date > new Date()}
+                numberOfMonths={1}
+                initialFocus
+                className={cn("p-3 pointer-events-auto")}
+                locale={ptBR}
+              />
+            ) : (
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(date) => date && setSelectedDate(date)}
+                disabled={(date) => date > new Date()}
+                initialFocus
+                className={cn("p-3 pointer-events-auto")}
+                locale={ptBR}
+              />
+            )}
           </PopoverContent>
         </Popover>
-        {!isViewingToday && (
+
+        <Button
+          variant={rangeMode ? "default" : "outline"}
+          size="sm"
+          onClick={() => {
+            setRangeMode(!rangeMode);
+            setDateRange({});
+            if (rangeMode) {
+              // Switching back to single mode — refetch today
+              setSelectedDate(new Date());
+            }
+          }}
+          className="gap-1.5 text-xs"
+        >
+          <CalendarRange className="h-3.5 w-3.5" />
+          Período
+        </Button>
+
+        {!rangeMode && !isViewingToday && (
           <Button variant="ghost" size="sm" onClick={() => setSelectedDate(new Date())} className="text-xs">
             Voltar para hoje
+          </Button>
+        )}
+        {rangeMode && isRangeActive && (
+          <Button variant="ghost" size="sm" onClick={() => setDateRange({})} className="text-xs">
+            Limpar período
           </Button>
         )}
         {data?.noData && (
           <Badge variant="secondary" className="text-xs">Sem dados para esta data</Badge>
         )}
-        {data?.isHistorical && !data?.noData && (
+        {!rangeMode && data?.isHistorical && !data?.noData && (
           <Badge variant="outline" className="text-xs">Histórico salvo</Badge>
+        )}
+        {isRangeActive && !data?.noData && (
+          <Badge variant="outline" className="text-xs">
+            {isLoading ? "Carregando..." : "Dados agregados"}
+          </Badge>
         )}
       </div>
 
@@ -569,16 +633,18 @@ export function ResumoDiarioTab() {
                   <Sparkles className="h-5 w-5 text-primary" />
                   Insight da IA
                 </CardTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fetchSummary(selectedDate, true)}
-                  disabled={isLoading}
-                  className="gap-2"
-                >
-                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                  {isViewingToday ? "Atualizar" : "Regerar"}
-                </Button>
+                {!rangeMode && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fetchSummary(selectedDate, true)}
+                    disabled={isLoading}
+                    className="gap-2"
+                  >
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    {isViewingToday ? "Atualizar" : "Regerar"}
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -588,14 +654,16 @@ export function ResumoDiarioTab() {
                 <AISummaryAccordion text={data.aiSummary} />
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-4">
-                  {isViewingToday ? 'Clique em "Atualizar" para gerar o resumo da IA' : "Nenhum insight salvo para esta data"}
+                  {rangeMode
+                    ? isRangeActive ? "Nenhum insight disponível para o período" : "Selecione um período no calendário"
+                    : isViewingToday ? 'Clique em "Atualizar" para gerar o resumo da IA' : "Nenhum insight salvo para esta data"}
                 </p>
               )}
             </CardContent>
           </Card>
 
-          {/* Team Note */}
-          {currentCompany?.id && (
+          {/* Team Note - only in single day mode */}
+          {!rangeMode && currentCompany?.id && (
             <TeamNoteSection
               note={localNote}
               summaryDate={format(selectedDate, "yyyy-MM-dd")}
