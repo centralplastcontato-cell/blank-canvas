@@ -209,9 +209,11 @@ export function PreFestaContent() {
 
   const handleDuplicate = async (t: PreFestaTemplate) => {
     if (!currentCompany?.id) return;
+    const newName = `${t.name} (cópia)`;
     const { error } = await supabase.from("prefesta_templates").insert({
       company_id: currentCompany.id,
-      name: `${t.name} (cópia)`,
+      name: newName,
+      slug: generateSlug(newName),
       description: t.description,
       questions: t.questions as any,
       thank_you_message: t.thank_you_message,
@@ -237,12 +239,14 @@ export function PreFestaContent() {
   const handleSave = async () => {
     if (!currentCompany?.id || !formName.trim()) return;
     setSaving(true);
+    const slug = generateSlug(formName.trim());
     const payload = {
       company_id: currentCompany.id,
       name: formName.trim(),
       description: formDescription.trim() || null,
       questions: formQuestions as any,
       thank_you_message: formThankYou.trim() || null,
+      slug,
     };
 
     if (editingTemplate) {
@@ -278,11 +282,24 @@ export function PreFestaContent() {
     setFormQuestions(prev => prev.filter((_, i) => i !== idx));
   };
 
-  const copyLink = (id: string) => {
+  const generateSlug = (name: string) => {
+    return name.toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+  };
+
+  const getTemplateUrl = (t: PreFestaTemplate & { slug?: string | null }) => {
+    const companySlug = currentCompany?.slug;
+    if (companySlug && t.slug) return `/pre-festa/${companySlug}/${t.slug}`;
+    return `/pre-festa/${t.id}`;
+  };
+
+  const copyLink = (t: PreFestaTemplate & { slug?: string | null }) => {
     const domain = currentCompany?.custom_domain
       ? `https://${currentCompany.custom_domain}`
       : window.location.origin;
-    const url = `${domain}/pre-festa/${id}`;
+    const url = `${domain}${getTemplateUrl(t)}`;
     navigator.clipboard.writeText(url);
     toast({ title: "Link copiado!" });
   };
@@ -330,10 +347,10 @@ export function PreFestaContent() {
                         <Switch checked={t.is_active} onCheckedChange={(v) => handleToggleActive(t.id, v)} className="shrink-0" />
                       </div>
                       <div className="flex items-center gap-1 flex-wrap border-t border-border pt-2">
-                        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => copyLink(t.id)}>
+                        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => copyLink(t)}>
                           <Link2 className="h-3.5 w-3.5" /> Link
                         </Button>
-                        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => window.open(`/pre-festa/${t.id}`, "_blank")}>
+                        <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => window.open(getTemplateUrl(t), "_blank")}>
                           <Eye className="h-3.5 w-3.5" /> Ver
                         </Button>
                         <CollapsibleTrigger asChild>
