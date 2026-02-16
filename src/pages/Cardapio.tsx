@@ -437,44 +437,48 @@ export function CardapioContent() {
               {formSections.map((sec, sIdx) => (
                 <Card key={sec.id} className="bg-muted/50">
                   <CardContent className="p-3 space-y-3">
-                    <div className="flex items-start gap-2">
-                      <div className="flex-1 space-y-2">
-                        <div className="grid grid-cols-[60px_1fr] gap-2">
-                          <Input value={sec.emoji} onChange={(e) => updateSection(sIdx, { emoji: e.target.value })} placeholder="🍟" className="text-center text-sm" />
-                          <Input value={sec.title} onChange={(e) => updateSection(sIdx, { title: e.target.value })} placeholder="Nome da seção" className="text-sm font-semibold" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <Input value={sec.instruction} onChange={(e) => updateSection(sIdx, { instruction: e.target.value })} placeholder="Instrução" className="text-xs" />
-                          <Input
-                            type="number"
-                            value={sec.max_selections ?? ""}
-                            onChange={(e) => updateSection(sIdx, { max_selections: e.target.value ? Number(e.target.value) : null })}
-                            placeholder="Máx seleções (vazio = ilimitado)"
-                            className="text-xs"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-xs text-muted-foreground font-medium">Opções:</p>
-                          {sec.options.map((opt, oIdx) => (
-                            <div key={oIdx} className="flex items-center gap-1">
-                              <Input
-                                value={opt}
-                                onChange={(e) => updateOption(sIdx, oIdx, e.target.value)}
-                                placeholder="Nome da opção"
-                                className="text-xs h-8"
-                              />
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive shrink-0" onClick={() => removeOption(sIdx, oIdx)}>
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          ))}
-                          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => addOption(sIdx)}>
-                            <Plus className="h-3 w-3 mr-1" /> Opção
-                          </Button>
-                        </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <Input value={sec.emoji} onChange={(e) => updateSection(sIdx, { emoji: e.target.value })} placeholder="🍟" className="text-center text-sm w-14 shrink-0" />
+                        <Input value={sec.title} onChange={(e) => updateSection(sIdx, { title: e.target.value })} placeholder="Nome da seção" className="text-sm font-semibold" />
                       </div>
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive shrink-0" onClick={() => removeSection(sIdx)}>
                         <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Instrução</Label>
+                        <Input value={sec.instruction} onChange={(e) => updateSection(sIdx, { instruction: e.target.value })} placeholder="Ex: Escolha os fritos" className="text-xs" />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Máx. seleções</Label>
+                        <Input
+                          type="number"
+                          value={sec.max_selections ?? ""}
+                          onChange={(e) => updateSection(sIdx, { max_selections: e.target.value ? Number(e.target.value) : null })}
+                          placeholder="Ilimitado"
+                          className="text-xs"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <p className="text-xs text-muted-foreground font-medium">Opções:</p>
+                      {sec.options.map((opt, oIdx) => (
+                        <div key={oIdx} className="flex items-center gap-1.5">
+                          <Input
+                            value={opt}
+                            onChange={(e) => updateOption(sIdx, oIdx, e.target.value)}
+                            placeholder="Nome da opção"
+                            className="text-xs h-8"
+                          />
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive shrink-0" onClick={() => removeOption(sIdx, oIdx)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => addOption(sIdx)}>
+                        <Plus className="h-3 w-3 mr-1" /> Opção
                       </Button>
                     </div>
                   </CardContent>
