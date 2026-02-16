@@ -220,6 +220,8 @@ export function CardapioContent() {
   };
 
   const handleDelete = async (id: string) => {
+    // Delete responses first (FK constraint)
+    await supabase.from("cardapio_responses").delete().eq("template_id", id);
     const { error } = await supabase.from("cardapio_templates").delete().eq("id", id);
     if (error) { toast({ title: "Erro ao excluir", variant: "destructive" }); return; }
     toast({ title: "Template excluído" });
