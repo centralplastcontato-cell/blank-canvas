@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -32,6 +33,18 @@ interface GuideTab {
 
 export function VisualGuideSection() {
   const [activeTab, setActiveTab] = useState("whatsapp");
+  const { units } = useCompanyUnits();
+
+  const UNIT_COLORS = ["bg-blue-500", "bg-amber-500", "bg-emerald-500", "bg-purple-500", "bg-rose-500", "bg-cyan-500", "bg-orange-500"];
+
+  const dynamicUnitItems: GuideItem[] = [
+    ...units.map((unit, idx) => ({
+      icon: <div className={cn("w-3 h-3 rounded-full", UNIT_COLORS[idx % UNIT_COLORS.length])} />,
+      label: unit.name,
+      description: `Unidade ${unit.name}.`,
+    })),
+    { icon: <Badge variant="outline" className="text-[10px] h-4 px-1">Todas</Badge>, label: "Todas as Unidades", description: "Visualização consolidada de todas as unidades." },
+  ];
 
   const tabs: GuideTab[] = [
     {
@@ -200,11 +213,7 @@ export function VisualGuideSection() {
         },
         {
           title: "Unidades",
-          items: [
-            { icon: <div className="w-3 h-3 rounded-full bg-blue-500" />, label: "Manchester", description: "Unidade Manchester (cor azul)." },
-            { icon: <div className="w-3 h-3 rounded-full bg-amber-500" />, label: "Trujillo", description: "Unidade Trujillo (cor âmbar)." },
-            { icon: <Badge variant="outline" className="text-[10px] h-4 px-1">Todas</Badge>, label: "Todas as Unidades", description: "Visualização consolidada de todas as unidades." },
-          ]
+          items: dynamicUnitItems,
         },
       ]
     },
