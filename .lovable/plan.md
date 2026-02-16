@@ -1,28 +1,52 @@
 
+## Mostrar leads "fechados" sem festa vinculada no formulário de evento
 
-## Corrigir discrepância Métricas vs Kanban CRM
+### O que muda
 
-### Problema
-Os cards de métricas mostram **40 Fechados** (contagem real do banco), mas o Kanban CRM mostra apenas **1 lead** na coluna "Fechado". Isso acontece porque o Kanban recebe os mesmos leads paginados da tabela (50 por página, ordenados por data), e na página atual só 1 lead "fechado" aparece.
+No campo "Vincular Lead do CRM" do formulário de criação/edição de festa:
 
-### Solução
-Quando o usuário estiver na **aba CRM (Kanban)**, carregar **todos os leads sem paginação**, para que todas as colunas reflitam os números reais. A paginação continua ativa nas abas **Leads (tabela)** e **Lista**.
+1. **Ao abrir o formulário**, carregar automaticamente os leads com status "fechado" que ainda NAO possuem um evento vinculado na tabela `company_events`
+2. **Exibir esses leads como sugestoes** sem precisar digitar nada (lista pre-carregada)
+3. **A busca por nome continua funcionando**, mas filtrada apenas entre os leads fechados sem festa
+4. Se o lead ja tem uma festa vinculada (`lead_id` existe em `company_events`), ele nao aparece na lista
 
-### Alterações Técnicas
+### Detalhes Tecnicos
 
-**Arquivo: `src/pages/CentralAtendimento.tsx`**
+**Arquivo: `src/components/agenda/EventFormDialog.tsx`**
 
-1. **Detectar aba ativa**: Quando `activeTab === "crm"`, buscar leads sem `.range()` (sem paginação), para que o Kanban receba todos os leads disponíveis.
+1. **Ao abrir o dialog**, fazer duas queries:
+   - Buscar leads com `status = 'fechado'` da empresa atual
+   - Buscar todos os `lead_id` distintos da tabela `company_events` (que ja tem festa)
+   - Filtrar no frontend: mostrar apenas leads fechados cujo `id` NAO esta na lista de `lead_id` de eventos existentes
+   - Excecao: se estamos editando um evento que ja tem um `lead_id`, esse lead deve continuar aparecendo (para nao sumir o vinculo atual)
 
-2. **Ajustar a query `fetchLeads`**:
-   - Se a aba ativa for `"crm"`, remover o `.range(from, to)` da query
-   - Manter a paginação normalmente para as abas "leads" e "lista"
-   - Adicionar um limite de seguranca (ex: 2000 leads) para evitar sobrecarga
+2. **Exibir a lista pre-carregada** logo abaixo do campo de busca, sem necessidade de digitar
+   - Se o usuario digitar, filtrar a lista localmente por nome
+   - Mostrar um badge "Fechado" ao lado do nome do lead para contexto visual
 
-3. **Dependência no useEffect**: Adicionar `activeTab` como dependência do useEffect de `fetchLeads`, para refazer a busca quando trocar de aba.
+3. **Logica da query**:
+
+```sql
+-- Query 1: leads fechados
+SELECT id, name, whatsapp FROM campaign_leads
+WHERE company_id = :companyId AND status = 'fechado'
+
+-- Query 2: leads ja vinculados a eventos
+SELECT DISTINCT lead_id FROM company_events
+WHERE company_id = :companyId AND lead_id IS NOT NULL
+```
+
+```typescript
+// Filtro no frontend
+const availableLeads = fechadoLeads.filter(
+  lead => !linkedLeadIds.has(lead.id) || lead.id === initialData?.lead_id
+);
+```
+
+4. **UX**: O dropdown aparece automaticamente ao focar no campo, mostrando os leads disponiveis. Se nao houver leads fechados sem festa, exibe mensagem "Todos os leads fechados ja possuem festa vinculada."
 
 ### Resultado esperado
-- Kanban mostrará **40 leads** na coluna "Fechado" (correspondendo aos cards de métricas)
-- Tabela de leads continua com paginação de 50 por página
-- Performance preservada com limite de segurança
-
+- Abrir o formulario de festa ja mostra os leads fechados disponiveis
+- Leads que ja tem festa vinculada ficam ocultos
+- Busca por nome filtra dentro dessa lista
+- Se todos os leads fechados ja tem festa, mensagem informativa aparece
