@@ -8,11 +8,12 @@ import { MobileMenu } from "@/components/admin/MobileMenu";
 import { NotificationBell } from "@/components/admin/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { FileText, Menu, Loader2, ClipboardCheck, PartyPopper, FileSignature } from "lucide-react";
+import { FileText, Menu, Loader2, ClipboardCheck, PartyPopper, FileSignature, UtensilsCrossed } from "lucide-react";
 import logoCastelo from "@/assets/logo-castelo.png";
 import { AvaliacoesContent } from "./Avaliacoes";
 import { PreFestaContent } from "./PreFesta";
 import { ContratoContent } from "./Contrato";
+import { CardapioContent } from "./Cardapio";
 
 export default function Formularios() {
   const navigate = useNavigate();
@@ -113,6 +114,10 @@ export default function Formularios() {
                     <FileSignature className="h-4 w-4" />
                     <span>Contrato</span>
                   </TabsTrigger>
+                  <TabsTrigger value="cardapio" className="flex-1 md:flex-none gap-1.5">
+                    <UtensilsCrossed className="h-4 w-4" />
+                    <span>Cardápio</span>
+                  </TabsTrigger>
                 </TabsList>
               </div>
 
@@ -124,6 +129,9 @@ export default function Formularios() {
               </TabsContent>
               <TabsContent value="contrato" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
                 <ContratoContent />
+              </TabsContent>
+              <TabsContent value="cardapio" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                <CardapioContent />
               </TabsContent>
             </Tabs>
           </div>
