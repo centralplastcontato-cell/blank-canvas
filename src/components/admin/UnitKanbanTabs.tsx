@@ -19,6 +19,7 @@ interface UnitKanbanTabsProps {
   canEditName?: boolean;
   canEditDescription?: boolean;
   canDelete?: boolean;
+  canViewContact?: boolean;
   allowedUnits: string[];
   canViewAll: boolean;
 }
@@ -36,6 +37,7 @@ export function UnitKanbanTabs({
   canEditName = false,
   canEditDescription = false,
   canDelete = false,
+  canViewContact = true,
   allowedUnits,
   canViewAll,
 }: UnitKanbanTabsProps) {
@@ -104,6 +106,7 @@ export function UnitKanbanTabs({
               canEditName={canEditName}
               canEditDescription={canEditDescription}
               canDelete={canDelete}
+              canViewContact={canViewContact}
             />
           </TabsContent>
         )}
@@ -126,6 +129,7 @@ export function UnitKanbanTabs({
                 canEditName={canEditName}
                 canEditDescription={canEditDescription}
                 canDelete={canDelete}
+                canViewContact={canViewContact}
               />
             </TabsContent>
           );

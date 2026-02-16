@@ -41,6 +41,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { maskPhone } from "@/lib/mask-utils";
 
 interface LeadDetailSheetProps {
   lead: Lead | null;
@@ -53,6 +54,7 @@ interface LeadDetailSheetProps {
   canEdit: boolean;
   canDelete?: boolean;
   onDelete?: (leadId: string) => Promise<void>;
+  canViewContact?: boolean;
 }
 
 export function LeadDetailSheet({
@@ -66,6 +68,7 @@ export function LeadDetailSheet({
   canEdit,
   canDelete,
   onDelete,
+  canViewContact = true,
 }: LeadDetailSheetProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -339,10 +342,11 @@ export function LeadDetailSheet({
             <Button
               variant="outline"
               className="w-full justify-start"
-              onClick={openWhatsAppChat}
+              onClick={canViewContact ? openWhatsAppChat : undefined}
+              disabled={!canViewContact}
             >
               <MessageSquare className="w-4 h-4 mr-2" />
-              Abrir Conversa ({lead.whatsapp})
+              {canViewContact ? `Abrir Conversa (${lead.whatsapp})` : `Contato oculto (${maskPhone(lead.whatsapp)})`}
             </Button>
           </div>
 

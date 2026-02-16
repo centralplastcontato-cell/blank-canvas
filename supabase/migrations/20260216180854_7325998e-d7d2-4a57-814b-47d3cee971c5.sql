@@ -1,0 +1,2 @@
+INSERT INTO permission_definitions (code, name, description, category, sort_order)
+VALUES ('leads.contact.view', 'Ver Contato Completo', 'Permite visualizar telefone/WhatsApp completo dos leads', 'Leads', 15);

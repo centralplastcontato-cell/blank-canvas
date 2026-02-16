@@ -32,6 +32,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { maskPhone } from "@/lib/mask-utils";
 
 interface KanbanCardProps {
   lead: Lead;
@@ -46,6 +47,7 @@ interface KanbanCardProps {
   onTransfer?: (lead: Lead) => void;
   onDelete?: (leadId: string) => Promise<void>;
   canDelete?: boolean;
+  canViewContact?: boolean;
   getPreviousStatus: (status: LeadStatus) => LeadStatus | null;
   getNextStatus: (status: LeadStatus) => LeadStatus | null;
 }
@@ -63,6 +65,7 @@ export function KanbanCard({
   onTransfer,
   onDelete,
   canDelete,
+  canViewContact = true,
   getPreviousStatus,
   getNextStatus,
 }: KanbanCardProps) {
@@ -463,25 +466,29 @@ export function KanbanCard({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOpenInternalChat(lead.whatsapp);
-              }}
-            >
-              <MessageSquare className="w-4 h-4 mr-2" />
-              Abrir WhatsApp
-            </DropdownMenuItem>
+            {canViewContact && (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenInternalChat(lead.whatsapp);
+                }}
+              >
+                <MessageSquare className="w-4 h-4 mr-2" />
+                Abrir WhatsApp
+              </DropdownMenuItem>
+            )}
             
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.stopPropagation();
-                navigator.clipboard.writeText(lead.whatsapp);
-              }}
-            >
-              <Phone className="w-4 h-4 mr-2" />
-              Copiar telefone
-            </DropdownMenuItem>
+            {canViewContact && (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigator.clipboard.writeText(lead.whatsapp);
+                }}
+              >
+                <Phone className="w-4 h-4 mr-2" />
+                Copiar telefone
+              </DropdownMenuItem>
+            )}
             
             {canEditName && (
               <>
