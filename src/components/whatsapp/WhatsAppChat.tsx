@@ -166,6 +166,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true); // Assume there are more until proven otherwise
   const [isLoadingMoreMessages, setIsLoadingMoreMessages] = useState(false);
@@ -1070,6 +1071,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     if (!sessionData?.session) {
       console.error('[WhatsAppChat] No session after retries');
       setIsLoading(false);
+      setHasAttemptedLoad(true);
       return;
     }
     
@@ -1084,6 +1086,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         console.log('[WhatsAppChat] No allowed units, showing empty');
         setInstances([]);
         setIsLoading(false);
+        setHasAttemptedLoad(true);
         return;
       }
       query = query.in("unit", allowedUnits);
@@ -1120,6 +1123,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       console.warn('[WhatsAppChat] No instances returned from query');
     }
     setIsLoading(false);
+    setHasAttemptedLoad(true);
   };
 
   // Background check of real connection status via W-API
@@ -2682,7 +2686,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     );
   }
 
-  if (instances.length === 0) {
+  if (instances.length === 0 && hasAttemptedLoad) {
     return (
       <Card className="h-96">
         <CardContent className="flex flex-col items-center justify-center h-full text-center">
