@@ -22,6 +22,7 @@ interface TemplateData {
   company_id: string;
   company_name: string;
   company_logo: string | null;
+  company_slug: string | null;
   template_name: string;
   description: string | null;
   questions: PreFestaQuestion[];
@@ -51,6 +52,7 @@ export default function PublicPreFesta() {
         company_id: row.company_id,
         company_name: row.company_name,
         company_logo: row.company_logo,
+        company_slug: row.company_slug || null,
         template_name: row.template_name,
         description: row.description,
         questions: row.questions as PreFestaQuestion[],
@@ -60,6 +62,16 @@ export default function PublicPreFesta() {
     }
     load();
   }, [templateId]);
+
+  useEffect(() => {
+    if (!submitted || !template) return;
+    const timer = setTimeout(() => {
+      if (template.company_slug) {
+        window.location.href = `/lp/${template.company_slug}`;
+      }
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [submitted, template]);
 
   if (loading) {
     return (
@@ -127,8 +139,8 @@ export default function PublicPreFesta() {
   if (submitted) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
-        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center space-y-4 max-w-md">
-          {template.company_logo && <img src={template.company_logo} alt={template.company_name} className="h-16 w-auto mx-auto" />}
+        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center space-y-6 max-w-md">
+          {template.company_logo && <img src={template.company_logo} alt={template.company_name} className="h-28 w-auto mx-auto" />}
           <CheckCircle2 className="h-16 w-16 text-accent mx-auto" />
           <h1 className="text-2xl font-bold text-foreground">{template.thank_you_message || "Obrigado! 🎉"}</h1>
           <p className="text-muted-foreground">Suas informações foram enviadas com sucesso.</p>
