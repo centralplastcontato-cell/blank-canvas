@@ -1,84 +1,62 @@
 
 
-## Checklist de Tarefas por Evento na Agenda
+## Reorganizacao das Abas de Configuracoes
 
-### Onde fica o checklist?
+### Problema
+Existem 10 abas no topo da pagina de Configuracoes, o que causa scroll excessivo em telas menores e dificulta a navegacao. Algumas abas tratam de assuntos muito relacionados e compartilham a mesma permissao.
 
-1. **No detalhe do evento (EventDetailSheet)**: Ao abrir uma festa, aparece uma secao "Checklist" com as tarefas e seus status (feito/pendente). O usuario marca/desmarca direto ali.
+### Proposta: de 10 abas para 7
 
-2. **No formulario de evento (EventFormDialog)**: Ao criar ou editar uma festa, o usuario pode adicionar/remover itens do checklist. Tambem pode escolher um "template padrao" para preencher automaticamente.
+Consolidar abas com funcionalidades sobrepostas usando sub-abas internas:
 
-3. **Indicador visual no calendario**: Festas com tarefas pendentes mostram um pequeno indicador (ex: "3/7 tarefas") no card do dia.
+| Antes (10 abas) | Depois (7 abas) |
+|---|---|
+| Conexao | **Conexao** (sem mudanca) |
+| Mensagens | **Conteudo** (sub-abas: Templates, Materiais) |
+| Materiais | _(dentro de Conteudo)_ |
+| Notificacoes | **Notificacoes** (sem mudanca) |
+| Automacoes | **Automacoes** (sub-abas: Geral/Perguntas/..., + Fluxos) |
+| Fluxos | _(dentro de Automacoes)_ |
+| Avancado | **Avancado** (inclui secao Importar Dados) |
+| Importar Dados | _(dentro de Avancado)_ |
+| Checklist | **Checklist** (mantido separado por ser de Agenda) |
+| Guia Visual | **Guia Visual** (sem mudanca) |
 
-### Como funciona na pratica?
+### Detalhes Tecnicos
 
-```text
-+------------------------------------------------------+
-|  Detalhe da Festa: Aniversario Maria                  |
-|------------------------------------------------------|
-|  Status: Confirmado     Data: 15/03/2026             |
-|  Horario: 14:00 - 18:00                              |
-|  ...                                                  |
-|------------------------------------------------------|
-|  Checklist (4/6 concluidas)                           |
-|  [x] Contrato assinado                                |
-|  [x] Sinal pago                                       |
-|  [x] Decoracao confirmada                             |
-|  [x] Bolo encomendado                                 |
-|  [ ] Buffet confirmado                                |
-|  [ ] Baloes entregues                                 |
-|                                                       |
-|  + Adicionar tarefa                                   |
-+------------------------------------------------------+
-```
+#### 1. Criar aba "Conteudo" (fusao Mensagens + Materiais)
+- **Arquivo**: `WhatsAppConfig.tsx` -- substituir as duas entradas (`messages` e `materials`) por uma unica `content`
+- **Icone**: `MessageSquare` ou `FolderOpen`
+- **Renderizacao**: novo componente `ContentSection.tsx` que renderiza sub-abas internas (usando `Tabs` do Radix):
+  - Sub-aba "Templates" -- renderiza o conteudo atual de `MessagesSection`
+  - Sub-aba "Materiais" -- renderiza o conteudo atual de `SalesMaterialsSection`
+- Permissao: `messages` (ja compartilhada)
 
-### Configuracao de Templates
+#### 2. Mover "Fluxos" para dentro de "Automacoes"
+- **Arquivo**: `AutomationsSection.tsx` -- ja possui sub-abas internas (Geral, Perguntas, Mensagens, Follow-ups, VIP, Jornada)
+- Adicionar uma nova sub-aba "Fluxos" que renderiza `FlowListManager`
+- Condicionar a visibilidade da sub-aba ao modulo `flow_builder` estar habilitado
+- Remover a entrada `flows` do array `allConfigSections` em `WhatsAppConfig.tsx`
 
-Na pagina de **Configuracoes** da empresa, o admin pode criar templates de checklist padrao (ex: "Checklist Festa Infantil", "Checklist Casamento"). Ao criar uma festa, o usuario escolhe um template e os itens sao pre-preenchidos.
+#### 3. Mover "Importar Dados" para dentro de "Avancado"
+- **Arquivo**: `AdvancedSection.tsx` -- adicionar o `DataImportSection` como um Card adicional no final da secao (ou como sub-aba se preferir)
+- Remover a entrada `import` do array `allConfigSections` em `WhatsAppConfig.tsx`
 
-### Estrutura Tecnica
+#### 4. Atualizar array de secoes
+- **Arquivo**: `WhatsAppConfig.tsx`
+  - Remover entradas: `messages`, `materials`, `flows`, `import`
+  - Adicionar entrada: `content` (com permissao `messages`, modulo `messages`)
+  - Atualizar o `renderContent()` para o novo case `content`
 
-**Nova tabela: `event_checklist_items`**
+### Arquivos Afetados
+- `src/components/whatsapp/WhatsAppConfig.tsx` -- array de secoes e renderContent
+- `src/components/whatsapp/settings/AutomationsSection.tsx` -- adicionar sub-aba Fluxos
+- `src/components/whatsapp/settings/AdvancedSection.tsx` -- adicionar secao Importar Dados
+- Novo arquivo: `src/components/whatsapp/settings/ContentSection.tsx` -- wrapper com sub-abas Templates + Materiais
 
-| Coluna | Tipo | Descricao |
-|--------|------|-----------|
-| id | uuid | PK |
-| event_id | uuid | FK para company_events |
-| company_id | uuid | Isolamento multi-tenant |
-| title | text | Nome da tarefa |
-| is_completed | boolean | Feito ou pendente |
-| completed_at | timestamptz | Quando foi marcado |
-| completed_by | uuid | Quem marcou |
-| sort_order | integer | Ordem de exibicao |
-| created_at | timestamptz | Criacao |
-
-**Nova tabela: `event_checklist_templates`**
-
-| Coluna | Tipo | Descricao |
-|--------|------|-----------|
-| id | uuid | PK |
-| company_id | uuid | Isolamento multi-tenant |
-| name | text | Nome do template (ex: "Festa Infantil") |
-| items | jsonb | Array de strings com os itens padrao |
-| is_active | boolean | Ativo/inativo |
-| created_at | timestamptz | Criacao |
-
-**RLS**: Mesmas politicas das outras tabelas da empresa (usuarios veem/editam dados da propria empresa).
-
-### Alteracoes nos Componentes
-
-1. **`EventDetailSheet.tsx`**: Adicionar secao de checklist com checkboxes interativos. Marcar/desmarcar salva direto no banco. Botao "+ Adicionar tarefa" para itens avulsos.
-
-2. **`EventFormDialog.tsx`**: Adicionar seletor de template de checklist ao criar evento. Os itens do template sao inseridos automaticamente apos salvar o evento.
-
-3. **`AgendaCalendar.tsx`** e cards do dia: Mostrar indicador de progresso (ex: "4/6") quando houver checklist.
-
-4. **Configuracoes (nova secao)**: Tela para gerenciar templates de checklist (CRUD simples).
-
-### Fluxo do Usuario
-
-1. Admin configura templates em Configuracoes (opcional)
-2. Ao criar uma festa, escolhe um template ou cria do zero
-3. No dia a dia, abre o detalhe da festa e vai marcando as tarefas concluidas
-4. No calendario, ve rapidamente quais festas tem pendencias
+### Resultado
+- Reducao de 10 para 7 abas no nivel superior
+- Melhor usabilidade em telas menores (menos scroll horizontal)
+- Agrupamento logico mantendo as mesmas permissoes
+- Nenhuma funcionalidade removida, apenas reorganizada
 
