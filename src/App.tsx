@@ -33,6 +33,8 @@ import PreFesta from "./pages/PreFesta";
 import DynamicLandingPage from "./pages/DynamicLandingPage";
 import PublicEvaluation from "./pages/PublicEvaluation";
 import PublicPreFesta from "./pages/PublicPreFesta";
+import PublicContrato from "./pages/PublicContrato";
+import Contrato from "./pages/Contrato";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -79,6 +81,9 @@ const App = () => (
             <Route path="/avaliacao/:templateId" element={<PublicEvaluation />} />
             {/* Public pre-festa form */}
             <Route path="/pre-festa/:templateId" element={<PublicPreFesta />} />
+            {/* Public contrato form */}
+            <Route path="/contrato/:templateId" element={<PublicContrato />} />
+            <Route path="/contrato" element={<Contrato />} />
             {/* Redirects for old routes */}
             <Route path="/admin" element={<Navigate to="/atendimento" replace />} />
             <Route path="/whatsapp" element={<Navigate to="/atendimento" replace />} />
