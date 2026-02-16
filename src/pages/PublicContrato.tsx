@@ -369,6 +369,7 @@ function CepInput({ value, onChange, siblingQuestions, onFillSibling }: { value:
   const [filled, setFilled] = useState(false);
   const [numero, setNumero] = useState("");
   const [complemento, setComplemento] = useState("");
+  const [addressLabel, setAddressLabel] = useState("");
 
   const handleChange = async (raw: string) => {
     const digits = raw.replace(/\D/g, "").slice(0, 8);
@@ -382,6 +383,10 @@ function CepInput({ value, onChange, siblingQuestions, onFillSibling }: { value:
         const data = await res.json();
         if (!data.erro) {
           setFilled(true);
+          // Build address label
+          const parts = [data.logradouro, data.bairro, data.localidade && data.uf ? `${data.localidade}-${data.uf}` : data.localidade].filter(Boolean);
+          setAddressLabel(parts.join(", "));
+
           const map: Record<string, string[]> = {
             logradouro: ["rua", "logradouro", "endereço", "endereco"],
             bairro: ["bairro"],
@@ -394,18 +399,16 @@ function CepInput({ value, onChange, siblingQuestions, onFillSibling }: { value:
               if (match) onFillSibling(match.id, data[field]);
             }
           }
-          // Auto-fill número field if exists
           const numeroMatch = findFieldByPattern(siblingQuestions, ["número", "numero", "nº", "n°"]);
           if (numeroMatch && numero) onFillSibling(numeroMatch.id, numero);
           const compMatch = findFieldByPattern(siblingQuestions, ["complemento"]);
           if (compMatch && complemento) onFillSibling(compMatch.id, complemento);
-        } else { setFilled(false); }
-      } catch { setFilled(false); }
+        } else { setFilled(false); setAddressLabel(""); }
+      } catch { setFilled(false); setAddressLabel(""); }
       setLoading(false);
-    } else { setFilled(false); }
+    } else { setFilled(false); setAddressLabel(""); }
   };
 
-  // Sync número/complemento to sibling fields when they change
   useEffect(() => {
     if (!filled) return;
     const numeroMatch = findFieldByPattern(siblingQuestions, ["número", "numero", "nº", "n°"]);
@@ -428,6 +431,9 @@ function CepInput({ value, onChange, siblingQuestions, onFillSibling }: { value:
         {loading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />}
         {filled && !loading && <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-accent" />}
       </div>
+      {filled && addressLabel && (
+        <p className="text-sm text-muted-foreground px-1">📍 {addressLabel}</p>
+      )}
       {filled && (
         <div className="grid grid-cols-2 gap-2">
           <div>
