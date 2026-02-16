@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Wifi, MessageSquare, Bell, Bot, Settings, Lock, HelpCircle, FolderOpen, Upload, GitBranch } from "lucide-react";
+import { Wifi, MessageSquare, Bell, Bot, Settings, Lock, HelpCircle, FolderOpen, Upload, GitBranch, ClipboardCheck } from "lucide-react";
 import { ConnectionSection } from "./settings/ConnectionSection";
 import { MessagesSection } from "./settings/MessagesSection";
 import { NotificationsSection } from "./settings/NotificationsSection";
@@ -9,6 +9,7 @@ import { VisualGuideSection } from "./settings/VisualGuideSection";
 import { SalesMaterialsSection } from "./settings/SalesMaterialsSection";
 import { DataImportSection } from "@/components/admin/DataImportSection";
 import { FlowListManager } from "@/components/flowbuilder/FlowListManager";
+import { ChecklistTemplateManager } from "@/components/agenda/ChecklistTemplateManager";
 import { useConfigPermissions } from "@/hooks/useConfigPermissions";
 import { useCompanyModules, type CompanyModules } from "@/hooks/useCompanyModules";
 import { cn } from "@/lib/utils";
@@ -86,6 +87,14 @@ const allConfigSections = [
     icon: Upload,
   },
   {
+    id: "checklist",
+    permissionKey: "advanced" as const,
+    moduleKey: null,
+    title: "Checklist",
+    description: "Templates de eventos",
+    icon: ClipboardCheck,
+  },
+  {
     id: "guide",
     permissionKey: null as any,
     moduleKey: null,
@@ -135,6 +144,8 @@ export function WhatsAppConfig({ userId, isAdmin }: WhatsAppConfigProps) {
         return <DataImportSection isAdmin={isAdmin} />;
       case "flows":
         return <FlowListManager />;
+      case "checklist":
+        return <ChecklistTemplateManager />;
       case "guide":
         return <VisualGuideSection />;
       default:
