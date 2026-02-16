@@ -16,8 +16,13 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PartyPopper, Plus, Loader2, Menu, Pencil, Copy, Trash2, Link2, Eye } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { PartyPopper, Plus, Loader2, Menu, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, ChevronRight, User, Calendar } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import logoCastelo from "@/assets/logo-castelo.png";
 
 interface PreFestaQuestion {
@@ -74,6 +79,13 @@ export default function PreFesta() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<PreFestaTemplate | null>(null);
 
+  // Responses state
+  const [responseCounts, setResponseCounts] = useState<Record<string, number>>({});
+  const [responsesSheetOpen, setResponsesSheetOpen] = useState(false);
+  const [selectedTemplateForResponses, setSelectedTemplateForResponses] = useState<PreFestaTemplate | null>(null);
+  const [responses, setResponses] = useState<any[]>([]);
+  const [loadingResponses, setLoadingResponses] = useState(false);
+
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formThankYou, setFormThankYou] = useState("Obrigado por preencher! 🎉 Estamos preparando tudo para a sua festa!");
@@ -105,6 +117,30 @@ export default function PreFesta() {
       .order("created_at", { ascending: false });
     if (!error && data) setTemplates(data.map((t: any) => ({ ...t, questions: t.questions as PreFestaQuestion[] })));
     setLoading(false);
+
+    // Fetch response counts
+    const { data: countData } = await supabase
+      .from("prefesta_responses")
+      .select("template_id")
+      .eq("company_id", currentCompany.id);
+    if (countData) {
+      const counts: Record<string, number> = {};
+      countData.forEach((r: any) => { counts[r.template_id] = (counts[r.template_id] || 0) + 1; });
+      setResponseCounts(counts);
+    }
+  };
+
+  const openResponses = async (t: PreFestaTemplate) => {
+    setSelectedTemplateForResponses(t);
+    setResponsesSheetOpen(true);
+    setLoadingResponses(true);
+    const { data } = await supabase
+      .from("prefesta_responses")
+      .select("*")
+      .eq("template_id", t.id)
+      .order("created_at", { ascending: false });
+    setResponses(data || []);
+    setLoadingResponses(false);
   };
 
   useEffect(() => { fetchTemplates(); }, [currentCompany?.id]);
@@ -286,7 +322,17 @@ export default function PreFesta() {
                               </Badge>
                             </div>
                             {t.description && <p className="text-sm text-muted-foreground line-clamp-1">{t.description}</p>}
-                            <p className="text-xs text-muted-foreground mt-1">{(t.questions || []).length} perguntas · {Math.max(...(t.questions || []).map(q => q.step), 1)} etapas</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <p className="text-xs text-muted-foreground">{(t.questions || []).length} perguntas · {Math.max(...(t.questions || []).map(q => q.step), 1)} etapas</p>
+                              <button
+                                onClick={() => openResponses(t)}
+                                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                              >
+                                <MessageSquareText className="h-3.5 w-3.5" />
+                                {responseCounts[t.id] || 0} respostas
+                                <ChevronRight className="h-3 w-3" />
+                              </button>
+                            </div>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
                             <Switch checked={t.is_active} onCheckedChange={(v) => handleToggleActive(t.id, v)} />
@@ -413,6 +459,64 @@ export default function PreFesta() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Responses Sheet */}
+      <Sheet open={responsesSheetOpen} onOpenChange={setResponsesSheetOpen}>
+        <SheetContent className="w-full sm:max-w-lg p-0">
+          <SheetHeader className="p-4 pb-2">
+            <SheetTitle className="flex items-center gap-2">
+              <MessageSquareText className="h-5 w-5 text-primary" />
+              Respostas: {selectedTemplateForResponses?.name}
+            </SheetTitle>
+          </SheetHeader>
+          <ScrollArea className="h-[calc(100vh-80px)]">
+            <div className="p-4 pt-0 space-y-3">
+              {loadingResponses ? (
+                <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+              ) : responses.length === 0 ? (
+                <div className="text-center py-12 space-y-2">
+                  <MessageSquareText className="h-10 w-10 text-muted-foreground mx-auto" />
+                  <p className="text-sm text-muted-foreground">Nenhuma resposta recebida ainda.</p>
+                </div>
+              ) : (
+                responses.map((r) => {
+                  const answersArr = Array.isArray(r.answers) ? r.answers : [];
+                  return (
+                    <Card key={r.id} className="bg-card border-border">
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium text-sm">{r.respondent_name || "Anônimo"}</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Calendar className="h-3.5 w-3.5" />
+                            {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                          </div>
+                        </div>
+                        <Separator />
+                        <div className="space-y-2">
+                          {answersArr.map((a: any, idx: number) => {
+                            const question = selectedTemplateForResponses?.questions.find(q => q.id === a.questionId);
+                            return (
+                              <div key={idx} className="text-sm">
+                                <p className="text-muted-foreground text-xs">{question?.text || a.questionId}</p>
+                                <p className="font-medium">
+                                  {a.value === true ? "👍 Sim" : a.value === false ? "👎 Não" : String(a.value || "—")}
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
     </SidebarProvider>
   );
 }
