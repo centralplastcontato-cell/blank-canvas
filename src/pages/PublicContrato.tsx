@@ -281,6 +281,31 @@ function DateSelectInput({ value, onChange }: { value: any; onChange: (v: any) =
   );
 }
 
+function formatCpf(v: string): string {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
+  if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+}
+
+function formatRg(v: string): string {
+  const d = v.replace(/\D/g, "").slice(0, 9);
+  if (d.length <= 2) return d;
+  if (d.length <= 5) return `${d.slice(0, 2)}.${d.slice(2)}`;
+  if (d.length <= 8) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5)}`;
+  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}-${d.slice(8)}`;
+}
+
+function isCpfQuestion(q: ContratoQuestion): boolean {
+  return q.text.toLowerCase().includes("cpf");
+}
+
+function isRgQuestion(q: ContratoQuestion): boolean {
+  const t = q.text.toLowerCase();
+  return t === "rg" || t.includes("rg ") || t.startsWith("rg") || t.includes(" rg");
+}
+
 function isCepQuestion(q: ContratoQuestion): boolean {
   return q.text.toLowerCase().includes("cep");
 }
@@ -337,6 +362,18 @@ function CepInput({ value, onChange, siblingQuestions, onFillSibling }: { value:
 function ContratoQuestionInput({ question, value, onChange, siblingQuestions, onFillSibling }: { question: ContratoQuestion; value: any; onChange: (v: any) => void; siblingQuestions: ContratoQuestion[]; onFillSibling: (id: string, v: any) => void }) {
   if (isCepQuestion(question)) {
     return <CepInput value={value} onChange={onChange} siblingQuestions={siblingQuestions} onFillSibling={onFillSibling} />;
+  }
+  if (isCpfQuestion(question)) {
+    return (
+      <input type="text" inputMode="numeric" value={value || ""} onChange={(e) => onChange(formatCpf(e.target.value))} placeholder="000.000.000-00"
+        className="w-full rounded-xl border border-input bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-ring" />
+    );
+  }
+  if (isRgQuestion(question)) {
+    return (
+      <input type="text" inputMode="numeric" value={value || ""} onChange={(e) => onChange(formatRg(e.target.value))} placeholder="00.000.000-0"
+        className="w-full rounded-xl border border-input bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-ring" />
+    );
   }
   if (isDateQuestion(question)) {
     return <DateSelectInput value={value} onChange={onChange} />;
