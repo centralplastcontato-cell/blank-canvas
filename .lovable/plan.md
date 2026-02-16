@@ -1,55 +1,43 @@
 
 
-## Seção "Dados da Empresa" nas Configurações
+## Corrigir Respostas e Adicionar Metricas nas Avaliacoes
 
-Adicionar uma nova aba nas Configurações do buffet para que gestores e owners possam editar o logo, nome e dados basicos da empresa diretamente, sem depender do Hub.
-
----
+### Problema Identificado
+O Sheet (painel lateral) de respostas pode nao estar abrindo corretamente porque esta renderizado dentro do `TabsContent`, que pode ocultar conteudo quando inativo. O Sheet precisa ser renderizado fora da estrutura de tabs para funcionar corretamente em todos os contextos.
 
 ### O que sera feito
 
-1. **Nova aba "Empresa"** no componente `WhatsAppConfig.tsx` -- sera a primeira aba da lista, com icone de `Building2`. Visivel para owners e admins da empresa (usando o role do `CompanyContext`).
+**1. Corrigir abertura das respostas**
+- Mover o Sheet de respostas para fora do componente `TabsContent`, garantindo que o portal do Sheet sempre esteja montado no DOM.
 
-2. **Novo componente `CompanyDataSection.tsx`** em `src/components/whatsapp/settings/` com:
-   - Logo da empresa (upload para o bucket `company-logos` ja existente + preview)
-   - Nome da empresa (editavel)
-   - Slug (somente leitura, informativo)
-   - Dominio customizado (editavel)
-   - Botao "Salvar alteracoes"
+**2. Reorganizar a visualizacao de respostas com duas abas internas**
+- **Aba "Respostas"**: Mostra os cards individuais de cada resposta recebida (como ja existe, mas funcionando).
+- **Aba "Metricas"**: Exibe um resumo com as medias calculadas a partir de todas as avaliacoes:
+  - Nota NPS media (0-10)
+  - Media de estrelas por pergunta
+  - Percentual de "Sim" nas perguntas booleanas
+  - Quantidade total de respostas
 
-3. **Correcao da RLS policy** da tabela `companies` para UPDATE -- a policy atual tem um bug (`uc.company_id = uc.id` deveria ser `uc.company_id = companies.id`), o que impede owners/admins de atualizar os dados.
+**3. Cards de respostas melhorados**
+- Cada resposta aparece como um card com cabecalho (nome + data), nota geral destacada, e as respostas formatadas com separadores visuais.
 
 ---
 
 ### Detalhes Tecnicos
 
-**Arquivo: `src/components/whatsapp/settings/CompanyDataSection.tsx`** (novo)
-- Usa `useCompany()` do `CompanyContext` para obter `currentCompany` e `refreshCompanies`
-- Carrega dados atuais da empresa
-- Upload de logo via Supabase Storage (bucket `company-logos`, ja publico)
-- Ao salvar, faz `supabase.from('companies').update(...)` e chama `refreshCompanies()`
+**Arquivo: `src/pages/Avaliacoes.tsx`**
 
-**Arquivo: `src/components/whatsapp/WhatsAppConfig.tsx`** (editado)
-- Adicionar nova entrada "Empresa" no array `allConfigSections` como primeiro item
-- Permissao: visivel apenas para owners/admins (nova verificacao via `CompanyContext`)
-- Adicionar case "company" no `renderContent()`
+- Calcular metricas agregadas a partir do array `responses` ja carregado:
+  - Para perguntas tipo `nps`: media aritmetica dos valores
+  - Para perguntas tipo `stars`: media por pergunta
+  - Para perguntas tipo `yesno`: percentual de `true`
+  - Media geral (`overall_score`) de todas as respostas
+- Adicionar `Tabs` dentro do `SheetContent` com duas abas: "Respostas" e "Metricas"
+- Garantir que o componente `Sheet` esteja renderizado de forma independente (fora de qualquer condicional de tab)
 
-**Arquivo: `src/components/whatsapp/settings/index.ts`** (editado)
-- Exportar o novo `CompanyDataSection`
-
-**Migracao SQL** -- corrigir a RLS policy de UPDATE na tabela `companies`:
-```text
-DROP POLICY "Company admins can update companies" ON public.companies;
-CREATE POLICY "Company admins can update companies" ON public.companies
-  FOR UPDATE TO authenticated
-  USING (
-    is_admin(auth.uid()) OR 
-    EXISTS (
-      SELECT 1 FROM user_companies uc
-      WHERE uc.company_id = companies.id
-        AND uc.user_id = auth.uid()
-        AND uc.role IN ('owner', 'admin')
-    )
-  );
-```
+**Estrutura da aba Metricas:**
+- Card com nota media geral (overall_score)
+- Lista de cada pergunta numerica/estrela com sua media
+- Perguntas booleanas com percentual de "Sim"
+- Total de respostas recebidas
 
