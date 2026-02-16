@@ -301,8 +301,9 @@ export function AvaliacoesContent() {
     const domain = currentCompany?.custom_domain
       ? `https://${currentCompany.custom_domain}`
       : window.location.origin;
-    const url = `${domain}${getTemplateUrl(t)}`;
-    navigator.clipboard.writeText(url);
+    const path = getTemplateUrl(t);
+    const ogUrl = `https://rsezgnkfhodltrsewlhz.supabase.co/functions/v1/og-preview?domain=${encodeURIComponent(domain.replace(/^https?:\/\//, ''))}&path=${encodeURIComponent(path)}`;
+    navigator.clipboard.writeText(ogUrl);
     toast({ title: "Link copiado!" });
   };
 
