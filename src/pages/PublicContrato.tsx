@@ -94,7 +94,27 @@ export default function PublicContrato() {
   }
 
   const totalSteps = Math.max(...template.questions.map(q => q.step), 1);
-  const currentQuestions = template.questions.filter(q => q.step === currentStep);
+
+  // Inject synthetic Instagram question after the email question if not already present
+  const hasInstagramQuestion = template.questions.some(q => q.text.toLowerCase().includes("instagram"));
+  const questionsWithInstagram = (() => {
+    if (hasInstagramQuestion) return template.questions;
+    const emailIdx = template.questions.findIndex(q => q.text.toLowerCase().includes("e-mail") || q.text.toLowerCase().includes("email"));
+    if (emailIdx === -1) return template.questions;
+    const emailQ = template.questions[emailIdx];
+    const instaQ: ContratoQuestion = {
+      id: "__instagram__",
+      type: "text",
+      text: "Instagram do anfitrião",
+      step: emailQ.step,
+      required: false,
+    };
+    const copy = [...template.questions];
+    copy.splice(emailIdx + 1, 0, instaQ);
+    return copy;
+  })();
+
+  const currentQuestions = questionsWithInstagram.filter(q => q.step === currentStep);
   const progress = nameStep ? 0 : ((currentStep) / (totalSteps + 1)) * 100;
 
   const canAdvance = () => {
