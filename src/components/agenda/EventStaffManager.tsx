@@ -352,16 +352,16 @@ export function EventStaffManager() {
 
       {/* Dialog criar/editar */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[90dvh] flex flex-col p-0 gap-0">
+          <DialogHeader className="p-4 pb-2 shrink-0">
             <DialogTitle>{editingId ? "Editar Equipe" : "Nova Equipe"}</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-4 space-y-5 -webkit-overflow-scrolling-touch">
             <div>
-              <Label>Festa</Label>
+              <Label className="mb-1.5 block">Festa</Label>
               <Select value={selectedEventId} onValueChange={setSelectedEventId}>
-                <SelectTrigger>
+                <SelectTrigger className="h-12">
                   <SelectValue placeholder="Selecione a festa..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -382,28 +382,27 @@ export function EventStaffManager() {
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-semibold">{role.roleTitle} ({role.entries.length})</Label>
                   <div className="flex gap-1">
-                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeEntry(roleIdx, role.entries.length - 1)} disabled={role.entries.length <= 1}>
+                    <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={() => removeEntry(roleIdx, role.entries.length - 1)} disabled={role.entries.length <= 1}>
                       <MinusCircle className="h-4 w-4" />
                     </Button>
-                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => addEntry(roleIdx)}>
+                    <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={() => addEntry(roleIdx)}>
                       <PlusCircle className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
                 {role.entries.map((entry, entryIdx) => (
                   <Card key={entryIdx} className="border-l-2 border-l-primary/30">
-                    <CardContent className="p-3 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground font-medium">{role.roleTitle} #{entryIdx + 1}</span>
-                      </div>
+                    <CardContent className="p-3 space-y-3">
+                      <span className="text-xs text-muted-foreground font-medium block">{role.roleTitle} #{entryIdx + 1}</span>
                       <Input
+                        className="h-12 text-base"
                         placeholder="Nome"
                         value={entry.name}
                         onChange={e => updateEntry(roleIdx, entryIdx, "name", e.target.value)}
                       />
                       <div className="grid grid-cols-2 gap-2">
                         <Select value={entry.pix_type} onValueChange={v => updateEntry(roleIdx, entryIdx, "pix_type", v)}>
-                          <SelectTrigger>
+                          <SelectTrigger className="h-12">
                             <SelectValue placeholder="Tipo PIX" />
                           </SelectTrigger>
                           <SelectContent>
@@ -411,20 +410,22 @@ export function EventStaffManager() {
                           </SelectContent>
                         </Select>
                         <Input
+                          className="h-12 text-base"
                           placeholder="Valor (R$)"
+                          inputMode="numeric"
                           value={entry.value}
                           onChange={e => updateEntry(roleIdx, entryIdx, "value", e.target.value)}
                         />
                       </div>
                       <div className="flex gap-2">
                         <Input
-                          className="flex-1"
+                          className="flex-1 h-12 text-base"
                           placeholder="Chave PIX"
                           value={entry.pix_key}
                           onChange={e => updateEntry(roleIdx, entryIdx, "pix_key", e.target.value)}
                         />
                         {entry.pix_key && (
-                          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => copyPixKey(entry.pix_key)}>
+                          <Button type="button" variant="outline" size="icon" className="h-12 w-12 shrink-0" onClick={() => copyPixKey(entry.pix_key)}>
                             <Copy className="h-4 w-4" />
                           </Button>
                         )}
@@ -445,8 +446,9 @@ export function EventStaffManager() {
             </div>
 
             <div>
-              <Label>Observações</Label>
+              <Label className="mb-1.5 block">Observações</Label>
               <Input
+                className="h-12 text-base"
                 placeholder="Notas adicionais..."
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
@@ -454,7 +456,7 @@ export function EventStaffManager() {
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="p-4 pt-2 shrink-0 border-t">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
