@@ -352,12 +352,12 @@ export function EventStaffManager() {
 
       {/* Dialog criar/editar */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90dvh] flex flex-col p-0 gap-0">
+        <DialogContent className="max-w-2xl max-h-[85dvh] flex flex-col p-0 gap-0 overflow-hidden">
           <DialogHeader className="p-4 pb-2 shrink-0">
             <DialogTitle>{editingId ? "Editar Equipe" : "Nova Equipe"}</DialogTitle>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-4 space-y-5 -webkit-overflow-scrolling-touch">
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 space-y-5" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
             <div>
               <Label className="mb-1.5 block">Festa</Label>
               <Select value={selectedEventId} onValueChange={setSelectedEventId}>
