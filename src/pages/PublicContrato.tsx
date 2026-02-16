@@ -317,6 +317,8 @@ function findFieldByPattern(questions: ContratoQuestion[], patterns: string[]): 
 function CepInput({ value, onChange, siblingQuestions, onFillSibling }: { value: any; onChange: (v: any) => void; siblingQuestions: ContratoQuestion[]; onFillSibling: (id: string, v: any) => void }) {
   const [loading, setLoading] = useState(false);
   const [filled, setFilled] = useState(false);
+  const [numero, setNumero] = useState("");
+  const [complemento, setComplemento] = useState("");
 
   const handleChange = async (raw: string) => {
     const digits = raw.replace(/\D/g, "").slice(0, 8);
@@ -335,7 +337,6 @@ function CepInput({ value, onChange, siblingQuestions, onFillSibling }: { value:
             bairro: ["bairro"],
             localidade: ["cidade", "city", "município", "municipio"],
             uf: ["estado", "uf"],
-            complemento: ["complemento"],
           };
           for (const [field, patterns] of Object.entries(map)) {
             if (data[field]) {
@@ -343,18 +344,54 @@ function CepInput({ value, onChange, siblingQuestions, onFillSibling }: { value:
               if (match) onFillSibling(match.id, data[field]);
             }
           }
+          // Auto-fill número field if exists
+          const numeroMatch = findFieldByPattern(siblingQuestions, ["número", "numero", "nº", "n°"]);
+          if (numeroMatch && numero) onFillSibling(numeroMatch.id, numero);
+          const compMatch = findFieldByPattern(siblingQuestions, ["complemento"]);
+          if (compMatch && complemento) onFillSibling(compMatch.id, complemento);
         } else { setFilled(false); }
       } catch { setFilled(false); }
       setLoading(false);
     } else { setFilled(false); }
   };
 
+  // Sync número/complemento to sibling fields when they change
+  useEffect(() => {
+    if (!filled) return;
+    const numeroMatch = findFieldByPattern(siblingQuestions, ["número", "numero", "nº", "n°"]);
+    if (numeroMatch) onFillSibling(numeroMatch.id, numero);
+  }, [numero, filled]);
+
+  useEffect(() => {
+    if (!filled) return;
+    const compMatch = findFieldByPattern(siblingQuestions, ["complemento"]);
+    if (compMatch) onFillSibling(compMatch.id, complemento);
+  }, [complemento, filled]);
+
+  const inputClass = "w-full rounded-xl border border-input bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-ring";
+
   return (
-    <div className="relative">
-      <input type="text" inputMode="numeric" value={value || ""} onChange={(e) => handleChange(e.target.value)} placeholder="00000-000"
-        className="w-full rounded-xl border border-input bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-ring" />
-      {loading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />}
-      {filled && !loading && <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-accent" />}
+    <div className="space-y-3">
+      <div className="relative">
+        <input type="text" inputMode="numeric" value={value || ""} onChange={(e) => handleChange(e.target.value)} placeholder="00000-000"
+          className={inputClass} />
+        {loading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />}
+        {filled && !loading && <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-accent" />}
+      </div>
+      {filled && (
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Número</label>
+            <input type="text" inputMode="numeric" value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="Nº"
+              className={inputClass} autoFocus />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Complemento</label>
+            <input type="text" value={complemento} onChange={(e) => setComplemento(e.target.value)} placeholder="Apto, Bloco..."
+              className={inputClass} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
