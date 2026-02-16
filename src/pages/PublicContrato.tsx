@@ -543,6 +543,41 @@ function ContratoQuestionInput({ question, value, onChange, siblingQuestions, on
     return <DateSelectInput value={value} onChange={onChange} showAge={isBirthDateQuestion(question)} yearRange={eventYearRange} />;
   }
 
+  // Time picker for "horário" questions
+  const tl = question.text.toLowerCase();
+  if (tl.includes("horário") || tl.includes("horario") || tl.includes("hora da festa") || tl.includes("hora do evento")) {
+    const parsed = typeof value === "string" ? value.split(":") : [];
+    const hour = parsed[0] || "";
+    const minute = parsed[1] || "";
+    const selectClass = "w-full rounded-xl border border-input bg-background px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-ring appearance-none";
+    const updateTime = (h: string, m: string) => {
+      if (h && m) onChange(`${h}:${m}`);
+      else if (h) onChange(`${h}:`);
+      else onChange("");
+    };
+    return (
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">Hora</label>
+          <select value={hour} onChange={e => updateTime(e.target.value, minute)} className={selectClass}>
+            <option value="">--</option>
+            {Array.from({ length: 24 }, (_, i) => i).map(h => (
+              <option key={h} value={String(h).padStart(2, "0")}>{String(h).padStart(2, "0")}h</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">Minutos</label>
+          <select value={minute} onChange={e => updateTime(hour, e.target.value)} className={selectClass}>
+            <option value="">--</option>
+            <option value="00">00</option>
+            <option value="30">30</option>
+          </select>
+        </div>
+      </div>
+    );
+  }
+
   switch (question.type) {
     case "text":
       return (
