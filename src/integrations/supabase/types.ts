@@ -209,6 +209,7 @@ export type Database = {
           is_active: boolean
           name: string
           sections: Json
+          slug: string | null
           thank_you_message: string | null
           updated_at: string
         }
@@ -220,6 +221,7 @@ export type Database = {
           is_active?: boolean
           name: string
           sections?: Json
+          slug?: string | null
           thank_you_message?: string | null
           updated_at?: string
         }
@@ -231,6 +233,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           sections?: Json
+          slug?: string | null
           thank_you_message?: string | null
           updated_at?: string
         }
@@ -2341,6 +2344,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_cardapio_template_by_slugs: {
+        Args: { _company_slug: string; _template_slug: string }
+        Returns: {
+          company_id: string
+          company_logo: string
+          company_name: string
+          company_slug: string
+          description: string
+          id: string
+          sections: Json
+          template_name: string
+          thank_you_message: string
+        }[]
+      }
       get_cardapio_template_public: {
         Args: { _template_id: string }
         Returns: {
