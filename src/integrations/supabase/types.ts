@@ -2174,6 +2174,7 @@ export type Database = {
           company_id: string
           company_logo: string
           company_name: string
+          company_slug: string
           description: string
           id: string
           questions: Json
