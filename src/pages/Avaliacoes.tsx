@@ -372,7 +372,7 @@ export default function Avaliacoes() {
                           <Select value={q.type} onValueChange={(v) => updateQuestion(idx, { type: v as EvaluationQuestion["type"] })}>
                             <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue /></SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="nps">NPS (0-10)</SelectItem>
+                              <SelectItem value="nps">Nota (0-10)</SelectItem>
                               <SelectItem value="stars">Estrelas (1-5)</SelectItem>
                               <SelectItem value="text">Texto livre</SelectItem>
                               <SelectItem value="yesno">Sim / Não</SelectItem>
