@@ -1,52 +1,84 @@
 
-## Mostrar leads "fechados" sem festa vinculada no formulário de evento
 
-### O que muda
+## Checklist de Tarefas por Evento na Agenda
 
-No campo "Vincular Lead do CRM" do formulário de criação/edição de festa:
+### Onde fica o checklist?
 
-1. **Ao abrir o formulário**, carregar automaticamente os leads com status "fechado" que ainda NAO possuem um evento vinculado na tabela `company_events`
-2. **Exibir esses leads como sugestoes** sem precisar digitar nada (lista pre-carregada)
-3. **A busca por nome continua funcionando**, mas filtrada apenas entre os leads fechados sem festa
-4. Se o lead ja tem uma festa vinculada (`lead_id` existe em `company_events`), ele nao aparece na lista
+1. **No detalhe do evento (EventDetailSheet)**: Ao abrir uma festa, aparece uma secao "Checklist" com as tarefas e seus status (feito/pendente). O usuario marca/desmarca direto ali.
 
-### Detalhes Tecnicos
+2. **No formulario de evento (EventFormDialog)**: Ao criar ou editar uma festa, o usuario pode adicionar/remover itens do checklist. Tambem pode escolher um "template padrao" para preencher automaticamente.
 
-**Arquivo: `src/components/agenda/EventFormDialog.tsx`**
+3. **Indicador visual no calendario**: Festas com tarefas pendentes mostram um pequeno indicador (ex: "3/7 tarefas") no card do dia.
 
-1. **Ao abrir o dialog**, fazer duas queries:
-   - Buscar leads com `status = 'fechado'` da empresa atual
-   - Buscar todos os `lead_id` distintos da tabela `company_events` (que ja tem festa)
-   - Filtrar no frontend: mostrar apenas leads fechados cujo `id` NAO esta na lista de `lead_id` de eventos existentes
-   - Excecao: se estamos editando um evento que ja tem um `lead_id`, esse lead deve continuar aparecendo (para nao sumir o vinculo atual)
+### Como funciona na pratica?
 
-2. **Exibir a lista pre-carregada** logo abaixo do campo de busca, sem necessidade de digitar
-   - Se o usuario digitar, filtrar a lista localmente por nome
-   - Mostrar um badge "Fechado" ao lado do nome do lead para contexto visual
-
-3. **Logica da query**:
-
-```sql
--- Query 1: leads fechados
-SELECT id, name, whatsapp FROM campaign_leads
-WHERE company_id = :companyId AND status = 'fechado'
-
--- Query 2: leads ja vinculados a eventos
-SELECT DISTINCT lead_id FROM company_events
-WHERE company_id = :companyId AND lead_id IS NOT NULL
+```text
++------------------------------------------------------+
+|  Detalhe da Festa: Aniversario Maria                  |
+|------------------------------------------------------|
+|  Status: Confirmado     Data: 15/03/2026             |
+|  Horario: 14:00 - 18:00                              |
+|  ...                                                  |
+|------------------------------------------------------|
+|  Checklist (4/6 concluidas)                           |
+|  [x] Contrato assinado                                |
+|  [x] Sinal pago                                       |
+|  [x] Decoracao confirmada                             |
+|  [x] Bolo encomendado                                 |
+|  [ ] Buffet confirmado                                |
+|  [ ] Baloes entregues                                 |
+|                                                       |
+|  + Adicionar tarefa                                   |
++------------------------------------------------------+
 ```
 
-```typescript
-// Filtro no frontend
-const availableLeads = fechadoLeads.filter(
-  lead => !linkedLeadIds.has(lead.id) || lead.id === initialData?.lead_id
-);
-```
+### Configuracao de Templates
 
-4. **UX**: O dropdown aparece automaticamente ao focar no campo, mostrando os leads disponiveis. Se nao houver leads fechados sem festa, exibe mensagem "Todos os leads fechados ja possuem festa vinculada."
+Na pagina de **Configuracoes** da empresa, o admin pode criar templates de checklist padrao (ex: "Checklist Festa Infantil", "Checklist Casamento"). Ao criar uma festa, o usuario escolhe um template e os itens sao pre-preenchidos.
 
-### Resultado esperado
-- Abrir o formulario de festa ja mostra os leads fechados disponiveis
-- Leads que ja tem festa vinculada ficam ocultos
-- Busca por nome filtra dentro dessa lista
-- Se todos os leads fechados ja tem festa, mensagem informativa aparece
+### Estrutura Tecnica
+
+**Nova tabela: `event_checklist_items`**
+
+| Coluna | Tipo | Descricao |
+|--------|------|-----------|
+| id | uuid | PK |
+| event_id | uuid | FK para company_events |
+| company_id | uuid | Isolamento multi-tenant |
+| title | text | Nome da tarefa |
+| is_completed | boolean | Feito ou pendente |
+| completed_at | timestamptz | Quando foi marcado |
+| completed_by | uuid | Quem marcou |
+| sort_order | integer | Ordem de exibicao |
+| created_at | timestamptz | Criacao |
+
+**Nova tabela: `event_checklist_templates`**
+
+| Coluna | Tipo | Descricao |
+|--------|------|-----------|
+| id | uuid | PK |
+| company_id | uuid | Isolamento multi-tenant |
+| name | text | Nome do template (ex: "Festa Infantil") |
+| items | jsonb | Array de strings com os itens padrao |
+| is_active | boolean | Ativo/inativo |
+| created_at | timestamptz | Criacao |
+
+**RLS**: Mesmas politicas das outras tabelas da empresa (usuarios veem/editam dados da propria empresa).
+
+### Alteracoes nos Componentes
+
+1. **`EventDetailSheet.tsx`**: Adicionar secao de checklist com checkboxes interativos. Marcar/desmarcar salva direto no banco. Botao "+ Adicionar tarefa" para itens avulsos.
+
+2. **`EventFormDialog.tsx`**: Adicionar seletor de template de checklist ao criar evento. Os itens do template sao inseridos automaticamente apos salvar o evento.
+
+3. **`AgendaCalendar.tsx`** e cards do dia: Mostrar indicador de progresso (ex: "4/6") quando houver checklist.
+
+4. **Configuracoes (nova secao)**: Tela para gerenciar templates de checklist (CRUD simples).
+
+### Fluxo do Usuario
+
+1. Admin configura templates em Configuracoes (opcional)
+2. Ao criar uma festa, escolhe um template ou cria do zero
+3. No dia a dia, abre o detalhe da festa e vai marcando as tarefas concluidas
+4. No calendario, ve rapidamente quais festas tem pendencias
+
