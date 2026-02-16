@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { Wifi, Bell, Bot, Settings, Lock, HelpCircle, ClipboardCheck, FileText } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Wifi, Bell, Bot, Settings, Lock, HelpCircle, ClipboardCheck, FileText, Users } from "lucide-react";
 import { ConnectionSection } from "./settings/ConnectionSection";
 import { NotificationsSection } from "./settings/NotificationsSection";
 import { AutomationsSection } from "./settings/AutomationsSection";
@@ -60,6 +61,16 @@ const allConfigSections = [
     icon: Settings,
   },
   {
+    id: "team",
+    permissionKey: "advanced" as const,
+    moduleKey: null,
+    title: "Equipe",
+    description: "Gerenciar usuários",
+    icon: Users,
+    isLink: true,
+    linkTo: "/users",
+  },
+  {
     id: "checklist",
     permissionKey: "advanced" as const,
     moduleKey: null,
@@ -78,6 +89,7 @@ const allConfigSections = [
 ];
 
 export function WhatsAppConfig({ userId, isAdmin }: WhatsAppConfigProps) {
+  const navigate = useNavigate();
   const { permissions, isLoading, hasAnyPermission } = useConfigPermissions(userId, isAdmin);
   const modules = useCompanyModules();
   
@@ -197,7 +209,13 @@ export function WhatsAppConfig({ userId, isAdmin }: WhatsAppConfigProps) {
             {configSections.map((section) => (
               <button
                 key={section.id}
-                onClick={() => setActiveSection(section.id)}
+                onClick={() => {
+                  if ((section as any).isLink && (section as any).linkTo) {
+                    navigate((section as any).linkTo);
+                  } else {
+                    setActiveSection(section.id);
+                  }
+                }}
                 className={cn(
                   "flex items-center gap-2 px-3 py-2 rounded-lg whitespace-nowrap transition-all text-sm font-medium",
                   activeSection === section.id
@@ -207,6 +225,9 @@ export function WhatsAppConfig({ userId, isAdmin }: WhatsAppConfigProps) {
               >
                 <section.icon className="w-4 h-4" />
                 <span>{section.title}</span>
+                {(section as any).isLink && (
+                  <span className="text-xs opacity-50">↗</span>
+                )}
               </button>
             ))}
           </div>
