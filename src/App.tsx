@@ -26,6 +26,7 @@ import HubProspeccao from "./pages/HubProspeccao";
 import Onboarding from "./pages/Onboarding";
 import Inteligencia from "./pages/Inteligencia";
 import Agenda from "./pages/Agenda";
+import Formularios from "./pages/Formularios";
 import Avaliacoes from "./pages/Avaliacoes";
 import PreFesta from "./pages/PreFesta";
 
@@ -66,6 +67,7 @@ const App = () => (
             <Route path="/hub/prospeccao" element={<HubProspeccao />} />
             <Route path="/inteligencia" element={<Inteligencia />} />
             <Route path="/agenda" element={<Agenda />} />
+            <Route path="/formularios" element={<Formularios />} />
             <Route path="/avaliacoes" element={<Avaliacoes />} />
             <Route path="/pre-festa" element={<PreFesta />} />
             
