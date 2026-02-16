@@ -34,7 +34,9 @@ import DynamicLandingPage from "./pages/DynamicLandingPage";
 import PublicEvaluation from "./pages/PublicEvaluation";
 import PublicPreFesta from "./pages/PublicPreFesta";
 import PublicContrato from "./pages/PublicContrato";
+import PublicCardapio from "./pages/PublicCardapio";
 import Contrato from "./pages/Contrato";
+import Cardapio from "./pages/Cardapio";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -84,6 +86,9 @@ const App = () => (
             {/* Public contrato form */}
             <Route path="/contrato/:templateId" element={<PublicContrato />} />
             <Route path="/contrato" element={<Contrato />} />
+            {/* Public cardapio form */}
+            <Route path="/cardapio/:templateId" element={<PublicCardapio />} />
+            <Route path="/cardapio" element={<Cardapio />} />
             {/* Redirects for old routes */}
             <Route path="/admin" element={<Navigate to="/atendimento" replace />} />
             <Route path="/whatsapp" element={<Navigate to="/atendimento" replace />} />

@@ -148,6 +148,102 @@ export type Database = {
           },
         ]
       }
+      cardapio_responses: {
+        Row: {
+          answers: Json
+          company_id: string
+          created_at: string
+          event_id: string | null
+          id: string
+          respondent_name: string | null
+          template_id: string
+        }
+        Insert: {
+          answers?: Json
+          company_id: string
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          respondent_name?: string | null
+          template_id: string
+        }
+        Update: {
+          answers?: Json
+          company_id?: string
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          respondent_name?: string | null
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cardapio_responses_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cardapio_responses_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "company_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cardapio_responses_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "cardapio_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cardapio_templates: {
+        Row: {
+          company_id: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          sections: Json
+          thank_you_message: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          sections?: Json
+          thank_you_message?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          sections?: Json
+          thank_you_message?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cardapio_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           created_at: string
@@ -2245,6 +2341,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_cardapio_template_public: {
+        Args: { _template_id: string }
+        Returns: {
+          company_id: string
+          company_logo: string
+          company_name: string
+          company_slug: string
+          description: string
+          id: string
+          sections: Json
+          template_name: string
+          thank_you_message: string
+        }[]
+      }
       get_company_branding_by_slug: {
         Args: { _slug: string }
         Returns: {
