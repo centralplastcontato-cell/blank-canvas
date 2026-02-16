@@ -128,7 +128,7 @@ export default function Formularios() {
                 </TabsList>
               </div>
 
-              <TabsContent value="formularios" className="flex-1 overflow-hidden mt-0 flex flex-col">
+              <TabsContent value="formularios" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
                 <Tabs
                   value={activeTab}
                   onValueChange={handleTabChange}
@@ -170,7 +170,7 @@ export default function Formularios() {
                 </Tabs>
               </TabsContent>
 
-              <TabsContent value="checklist" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3 space-y-8">
+              <TabsContent value="checklist" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3 space-y-8 data-[state=inactive]:hidden">
                 <ChecklistTemplateManager />
                 <Separator />
                 <EventStaffManager />
