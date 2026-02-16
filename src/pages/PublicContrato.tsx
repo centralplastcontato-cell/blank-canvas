@@ -193,10 +193,10 @@ export default function PublicContrato() {
               </motion.div>
             ) : (
               <motion.div key={`step-${currentStep}`} initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} className="space-y-4">
-                {currentQuestions.map((q) => (
+              {currentQuestions.map((q) => (
                   <div key={q.id} className="bg-card rounded-2xl p-5 shadow-card space-y-3">
                     <p className="font-medium text-foreground text-sm">{q.text}{q.required !== false && <span className="text-destructive ml-1">*</span>}</p>
-                    <ContratoQuestionInput question={q} value={answers[q.id]} onChange={(v) => setAnswer(q.id, v)} />
+                    <ContratoQuestionInput question={q} value={answers[q.id]} onChange={(v) => setAnswer(q.id, v)} siblingQuestions={template.questions} onFillSibling={setAnswer} />
                   </div>
                 ))}
               </motion.div>
@@ -281,7 +281,63 @@ function DateSelectInput({ value, onChange }: { value: any; onChange: (v: any) =
   );
 }
 
-function ContratoQuestionInput({ question, value, onChange }: { question: ContratoQuestion; value: any; onChange: (v: any) => void }) {
+function isCepQuestion(q: ContratoQuestion): boolean {
+  return q.text.toLowerCase().includes("cep");
+}
+
+function findFieldByPattern(questions: ContratoQuestion[], patterns: string[]): ContratoQuestion | undefined {
+  return questions.find(q => patterns.some(p => q.text.toLowerCase().includes(p)));
+}
+
+function CepInput({ value, onChange, siblingQuestions, onFillSibling }: { value: any; onChange: (v: any) => void; siblingQuestions: ContratoQuestion[]; onFillSibling: (id: string, v: any) => void }) {
+  const [loading, setLoading] = useState(false);
+  const [filled, setFilled] = useState(false);
+
+  const handleChange = async (raw: string) => {
+    const digits = raw.replace(/\D/g, "").slice(0, 8);
+    const formatted = digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
+    onChange(formatted);
+
+    if (digits.length === 8) {
+      setLoading(true);
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+        const data = await res.json();
+        if (!data.erro) {
+          setFilled(true);
+          const map: Record<string, string[]> = {
+            logradouro: ["rua", "logradouro", "endereço", "endereco"],
+            bairro: ["bairro"],
+            localidade: ["cidade", "city", "município", "municipio"],
+            uf: ["estado", "uf"],
+            complemento: ["complemento"],
+          };
+          for (const [field, patterns] of Object.entries(map)) {
+            if (data[field]) {
+              const match = findFieldByPattern(siblingQuestions, patterns);
+              if (match) onFillSibling(match.id, data[field]);
+            }
+          }
+        } else { setFilled(false); }
+      } catch { setFilled(false); }
+      setLoading(false);
+    } else { setFilled(false); }
+  };
+
+  return (
+    <div className="relative">
+      <input type="text" inputMode="numeric" value={value || ""} onChange={(e) => handleChange(e.target.value)} placeholder="00000-000"
+        className="w-full rounded-xl border border-input bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-ring" />
+      {loading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />}
+      {filled && !loading && <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-accent" />}
+    </div>
+  );
+}
+
+function ContratoQuestionInput({ question, value, onChange, siblingQuestions, onFillSibling }: { question: ContratoQuestion; value: any; onChange: (v: any) => void; siblingQuestions: ContratoQuestion[]; onFillSibling: (id: string, v: any) => void }) {
+  if (isCepQuestion(question)) {
+    return <CepInput value={value} onChange={onChange} siblingQuestions={siblingQuestions} onFillSibling={onFillSibling} />;
+  }
   if (isDateQuestion(question)) {
     return <DateSelectInput value={value} onChange={onChange} />;
   }
@@ -289,37 +345,19 @@ function ContratoQuestionInput({ question, value, onChange }: { question: Contra
   switch (question.type) {
     case "text":
       return (
-        <input
-          type="text"
-          value={value || ""}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="Digite aqui..."
-          className="w-full rounded-xl border border-input bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-ring"
-        />
+        <input type="text" value={value || ""} onChange={(e) => onChange(e.target.value)} placeholder="Digite aqui..."
+          className="w-full rounded-xl border border-input bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-ring" />
       );
     case "textarea":
       return (
-        <Textarea
-          value={value || ""}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="Escreva aqui..."
-          className="rounded-xl resize-none"
-          rows={3}
-        />
+        <Textarea value={value || ""} onChange={(e) => onChange(e.target.value)} placeholder="Escreva aqui..." className="rounded-xl resize-none" rows={3} />
       );
     case "yesno":
       return (
         <div className="flex gap-3 justify-center">
           {[{ label: "👍 Sim", val: true }, { label: "👎 Não", val: false }].map(opt => (
-            <button
-              key={String(opt.val)}
-              onClick={() => onChange(opt.val)}
-              className={`px-6 py-3 rounded-xl text-sm font-semibold transition-all ${
-                value === opt.val
-                  ? "bg-primary text-primary-foreground scale-105"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              }`}
-            >
+            <button key={String(opt.val)} onClick={() => onChange(opt.val)}
+              className={`px-6 py-3 rounded-xl text-sm font-semibold transition-all ${value === opt.val ? "bg-primary text-primary-foreground scale-105" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}>
               {opt.label}
             </button>
           ))}
