@@ -40,6 +40,7 @@ import PublicMaintenance from "./pages/PublicMaintenance";
 import PublicPartyMonitoring from "./pages/PublicPartyMonitoring";
 import PublicAttendance from "./pages/PublicAttendance";
 import PublicAttendanceReview from "./pages/PublicAttendanceReview";
+import PublicEventInfo from "./pages/PublicEventInfo";
 import Contrato from "./pages/Contrato";
 import Cardapio from "./pages/Cardapio";
 import NotFound from "./pages/NotFound";
@@ -107,6 +108,8 @@ const App = () => (
             {/* Public attendance list form */}
             <Route path="/lista-presenca/:recordId/conferencia" element={<PublicAttendanceReview />} />
             <Route path="/lista-presenca/:recordId" element={<PublicAttendance />} />
+            {/* Public event info */}
+            <Route path="/informacoes/:recordId" element={<PublicEventInfo />} />
             {/* Redirects for old routes */}
             <Route path="/admin" element={<Navigate to="/atendimento" replace />} />
             <Route path="/whatsapp" element={<Navigate to="/atendimento" replace />} />
