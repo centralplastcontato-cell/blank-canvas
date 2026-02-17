@@ -15,6 +15,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { BotJourneyDiagram } from "./BotJourneyDiagram";
+import { PartyBotMessagesCard } from "./PartyBotMessagesCard";
 import {
   Dialog,
   DialogContent,
@@ -506,6 +507,10 @@ export function AutomationsSection() {
           <TabsTrigger value="vip" className="flex items-center gap-1.5 text-xs sm:text-sm">
             <Shield className="w-3.5 h-3.5" />
             <span>VIP</span>
+          </TabsTrigger>
+          <TabsTrigger value="festa" className="flex items-center gap-1.5 text-xs sm:text-sm">
+            <Send className="w-3.5 h-3.5" />
+            <span>Bot Festa</span>
           </TabsTrigger>
           <TabsTrigger value="jornada" className="flex items-center gap-1.5 text-xs sm:text-sm">
             <Map className="w-3.5 h-3.5" />
@@ -1586,6 +1591,11 @@ export function AutomationsSection() {
               <BotJourneyDiagram />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ============ TAB: BOT FESTA ============ */}
+        <TabsContent value="festa" className="mt-4">
+          <PartyBotMessagesCard />
         </TabsContent>
 
         {/* ============ TAB: FLUXOS ============ */}

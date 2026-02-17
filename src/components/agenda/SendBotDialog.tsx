@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentCompanyId } from "@/hooks/useCurrentCompanyId";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -13,27 +13,15 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, MessageCircle } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { DEFAULT_PARTY_BOT_MESSAGES } from "@/components/whatsapp/settings/PartyBotMessagesCard";
 
-const BOT_MESSAGES = [
-  "Olá, {name}! 👋\n\nQue bom que você se interessou pelos nossos pacotes durante a festa no {company}!\n\nVou te enviar algumas opções especiais. 🎉",
-  "Oi {name}! 👋\n\nVi que você curtiu nosso espaço durante a festa no {company}. Tenho novidades incríveis pra te mostrar! 🎉",
-  "E aí, {name}! 👋\n\nQue legal que você demonstrou interesse no {company}! Deixa eu te mostrar uns pacotes especiais 🎉",
-  "{name}, tudo bem? 👋\n\nSoube que você gostou do nosso espaço no {company}! Vou compartilhar umas opções com você 🎉",
-  "Olá {name}! 👋\n\nFico feliz que tenha se interessado pelo {company}! Preparei algumas opções especiais pra você 🎉",
-  "Oi {name}, aqui é do {company}! 👋\n\nVi que você quer conhecer nossos pacotes. Vou te enviar tudo! 🎉",
-  "{name}, que bom ter você por aqui! 👋\n\nVou te mostrar as opções do {company} que preparamos 🎉",
-  "Olá {name}! 👋\n\nDo {company} aqui. Soube do seu interesse e quero te apresentar nossos pacotes! 🎉",
-  "Oi {name}! 👋\n\nVocê demonstrou interesse durante a festa no {company}, né? Tenho opções incríveis! 🎉",
-  "{name}, prazer! 👋\n\nAqui é do {company}. Vi que você quer saber mais sobre nossos pacotes. Vamos lá! 🎉",
-];
-
-function getNextMessage(index: number, name: string, company: string): string {
-  return BOT_MESSAGES[index % BOT_MESSAGES.length]
+function getNextMessage(messages: string[], index: number, name: string, company: string): string {
+  return messages[index % messages.length]
     .replace(/\{name\}/g, name)
     .replace(/\{company\}/g, company);
 }
@@ -67,7 +55,7 @@ function isValidPhone(phone: string): boolean {
   return cleanPhone(phone).length >= 10;
 }
 
-export function SendBotButton({ guests, recordId, onSent }: SendBotDialogProps) {
+export function SendBotButton({ guests, onSent }: Omit<SendBotDialogProps, 'recordId'> & { recordId?: string }) {
   const companyId = useCurrentCompanyId();
   const { currentCompany } = useCompany();
   const [open, setOpen] = useState(false);
@@ -75,6 +63,22 @@ export function SendBotButton({ guests, recordId, onSent }: SendBotDialogProps) 
   const [minDelay, setMinDelay] = useState(8);
   const [maxDelay, setMaxDelay] = useState(15);
   const [progress, setProgress] = useState<{ current: number; total: number; waiting: boolean } | null>(null);
+  const [customMessages, setCustomMessages] = useState<string[]>(DEFAULT_PARTY_BOT_MESSAGES);
+
+  useEffect(() => {
+    if (!companyId || !open) return;
+    supabase
+      .from("companies")
+      .select("settings")
+      .eq("id", companyId)
+      .single()
+      .then(({ data }) => {
+        const settings = data?.settings as Record<string, any> | null;
+        if (settings?.party_bot_messages && Array.isArray(settings.party_bot_messages)) {
+          setCustomMessages(settings.party_bot_messages);
+        }
+      });
+  }, [companyId, open]);
 
   const eligibleGuests = guests.filter(
     (g) => g.wants_info && g.phone && isValidPhone(g.phone)
@@ -125,7 +129,7 @@ export function SendBotButton({ guests, recordId, onSent }: SendBotDialogProps) 
         setProgress({ current: i + 1, total: eligibleGuests.length, waiting: false });
 
         const phone = cleanPhone(guest.phone);
-        const message = getNextMessage(i, guest.name, companyName);
+        const message = getNextMessage(customMessages, i, guest.name, companyName);
 
         try {
           const { error } = await supabase.functions.invoke("wapi-send", {
