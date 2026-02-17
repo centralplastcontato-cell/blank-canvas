@@ -12,6 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { Users, Plus, Trash2, ChevronDown, ChevronRight, Pencil, Loader2, Share2 } from "lucide-react";
 import { format } from "date-fns";
 import { useCompany } from "@/contexts/CompanyContext";
+import { SendBotButton } from "./SendBotDialog";
 
 interface Guest {
   name: string;
@@ -207,6 +208,7 @@ export function AttendanceManager() {
                           </div>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
+                          <SendBotButton guests={record.guests} recordId={record.id} onSent={fetchData} />
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); const baseUrl = currentCompany?.custom_domain ? `https://${currentCompany.custom_domain}` : window.location.origin; navigator.clipboard.writeText(`${baseUrl}/lista-presenca/${record.id}`); toast({ title: "Link copiado!" }); }}>
                             <Share2 className="h-4 w-4" />
                           </Button>
