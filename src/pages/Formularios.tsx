@@ -140,21 +140,21 @@ export default function Formularios() {
                   onValueChange={handleTabChange}
                   className="flex-1 flex flex-col overflow-hidden"
                 >
-                  <div className="px-3 md:px-6 pt-2">
-                    <TabsList className="w-full md:w-auto">
-                      <TabsTrigger value="avaliacoes" className="flex-1 md:flex-none gap-1.5">
+                  <div className="px-3 md:px-6 pt-2 overflow-x-auto">
+                    <TabsList className="w-max md:w-auto">
+                      <TabsTrigger value="avaliacoes" className="shrink-0 gap-1.5">
                         <ClipboardCheck className="h-4 w-4" />
                         <span>Avaliações</span>
                       </TabsTrigger>
-                      <TabsTrigger value="prefesta" className="flex-1 md:flex-none gap-1.5">
+                      <TabsTrigger value="prefesta" className="shrink-0 gap-1.5">
                         <PartyPopper className="h-4 w-4" />
                         <span>Pré-Festa</span>
                       </TabsTrigger>
-                      <TabsTrigger value="contrato" className="flex-1 md:flex-none gap-1.5">
+                      <TabsTrigger value="contrato" className="shrink-0 gap-1.5">
                         <FileSignature className="h-4 w-4" />
                         <span>Contrato</span>
                       </TabsTrigger>
-                      <TabsTrigger value="cardapio" className="flex-1 md:flex-none gap-1.5">
+                      <TabsTrigger value="cardapio" className="shrink-0 gap-1.5">
                         <UtensilsCrossed className="h-4 w-4" />
                         <span>Cardápio</span>
                       </TabsTrigger>
@@ -178,21 +178,21 @@ export default function Formularios() {
 
               <TabsContent value="checklist" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
                 <Tabs defaultValue="equipe" className="flex-1 flex flex-col overflow-hidden">
-                  <div className="px-3 md:px-6 pt-2">
-                    <TabsList className="w-full md:w-auto">
-                      <TabsTrigger value="equipe" className="flex-1 md:flex-none gap-1.5">
+                  <div className="px-3 md:px-6 pt-2 overflow-x-auto">
+                    <TabsList className="w-max md:w-auto">
+                      <TabsTrigger value="equipe" className="shrink-0 gap-1.5">
                         <Users className="h-4 w-4" />
                         <span>Equipe</span>
                       </TabsTrigger>
-                      <TabsTrigger value="manutencao" className="flex-1 md:flex-none gap-1.5">
+                      <TabsTrigger value="manutencao" className="shrink-0 gap-1.5">
                         <Wrench className="h-4 w-4" />
                         <span>Manutenção</span>
                       </TabsTrigger>
-                      <TabsTrigger value="acompanhamento" className="flex-1 md:flex-none gap-1.5">
+                      <TabsTrigger value="acompanhamento" className="shrink-0 gap-1.5">
                         <ClipboardCheck className="h-4 w-4" />
                         <span>Acompanhamento</span>
                       </TabsTrigger>
-                      <TabsTrigger value="presenca" className="flex-1 md:flex-none gap-1.5">
+                      <TabsTrigger value="presenca" className="shrink-0 gap-1.5">
                         <Users className="h-4 w-4" />
                         <span>Presença</span>
                       </TabsTrigger>
