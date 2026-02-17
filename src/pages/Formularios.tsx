@@ -19,6 +19,7 @@ import { PackagesManager } from "@/components/admin/PackagesManager";
 import { MaintenanceManager } from "@/components/agenda/MaintenanceManager";
 import { PartyMonitoringManager } from "@/components/agenda/PartyMonitoringManager";
 import { AttendanceManager } from "@/components/agenda/AttendanceManager";
+import { EventInfoManager } from "@/components/agenda/EventInfoManager";
 
 export default function Formularios() {
   const navigate = useNavigate();
@@ -196,6 +197,10 @@ export default function Formularios() {
                         <Users className="h-4 w-4" />
                         <span>Presença</span>
                       </TabsTrigger>
+                      <TabsTrigger value="informacoes" className="shrink-0 gap-1.5">
+                        <FileText className="h-4 w-4" />
+                        <span>Informações</span>
+                      </TabsTrigger>
                     </TabsList>
                   </div>
                   <TabsContent value="equipe" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
@@ -209,6 +214,9 @@ export default function Formularios() {
                   </TabsContent>
                   <TabsContent value="presenca" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
                     <AttendanceManager />
+                  </TabsContent>
+                  <TabsContent value="informacoes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                    <EventInfoManager />
                   </TabsContent>
                 </Tabs>
               </TabsContent>
