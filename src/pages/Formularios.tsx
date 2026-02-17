@@ -18,6 +18,7 @@ import { EventStaffManager } from "@/components/agenda/EventStaffManager";
 import { PackagesManager } from "@/components/admin/PackagesManager";
 import { MaintenanceManager } from "@/components/agenda/MaintenanceManager";
 import { PartyMonitoringManager } from "@/components/agenda/PartyMonitoringManager";
+import { AttendanceManager } from "@/components/agenda/AttendanceManager";
 
 export default function Formularios() {
   const navigate = useNavigate();
@@ -191,6 +192,10 @@ export default function Formularios() {
                         <ClipboardCheck className="h-4 w-4" />
                         <span>Acompanhamento</span>
                       </TabsTrigger>
+                      <TabsTrigger value="presenca" className="flex-1 md:flex-none gap-1.5">
+                        <Users className="h-4 w-4" />
+                        <span>Presença</span>
+                      </TabsTrigger>
                     </TabsList>
                   </div>
                   <TabsContent value="equipe" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
@@ -201,6 +206,9 @@ export default function Formularios() {
                   </TabsContent>
                   <TabsContent value="acompanhamento" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
                     <PartyMonitoringManager />
+                  </TabsContent>
+                  <TabsContent value="presenca" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                    <AttendanceManager />
                   </TabsContent>
                 </Tabs>
               </TabsContent>

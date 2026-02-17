@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      attendance_entries: {
+        Row: {
+          company_id: string
+          created_at: string
+          event_id: string | null
+          filled_by: string | null
+          guests: Json
+          id: string
+          notes: string | null
+          receptionist_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          event_id?: string | null
+          filled_by?: string | null
+          guests?: Json
+          id?: string
+          notes?: string | null
+          receptionist_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          event_id?: string | null
+          filled_by?: string | null
+          guests?: Json
+          id?: string
+          notes?: string | null
+          receptionist_name?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_entries_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "company_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       b2b_leads: {
         Row: {
           city: string | null
