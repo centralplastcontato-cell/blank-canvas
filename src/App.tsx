@@ -37,6 +37,7 @@ import PublicContrato from "./pages/PublicContrato";
 import PublicCardapio from "./pages/PublicCardapio";
 import PublicStaff from "./pages/PublicStaff";
 import PublicMaintenance from "./pages/PublicMaintenance";
+import PublicPartyMonitoring from "./pages/PublicPartyMonitoring";
 import Contrato from "./pages/Contrato";
 import Cardapio from "./pages/Cardapio";
 import NotFound from "./pages/NotFound";
@@ -99,6 +100,8 @@ const App = () => (
             <Route path="/equipe/:recordId" element={<PublicStaff />} />
             {/* Public maintenance form */}
             <Route path="/manutencao/:recordId" element={<PublicMaintenance />} />
+            {/* Public party monitoring form */}
+            <Route path="/acompanhamento/:recordId" element={<PublicPartyMonitoring />} />
             {/* Redirects for old routes */}
             <Route path="/admin" element={<Navigate to="/atendimento" replace />} />
             <Route path="/whatsapp" element={<Navigate to="/atendimento" replace />} />
