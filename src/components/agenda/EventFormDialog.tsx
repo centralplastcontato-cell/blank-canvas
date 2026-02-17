@@ -172,11 +172,11 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-5">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Editar Festa" : "Nova Festa"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-5 [&_input]:rounded-md [&_input]:border-input [&_button[role=combobox]]:rounded-md [&_textarea]:rounded-md" style={{ '--radius': '0.5rem' } as React.CSSProperties}>
           <div className="space-y-2">
             <Label>Nome do cliente / Título *</Label>
             <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
@@ -241,7 +241,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Data *</Label>
               <Input type="date" value={form.event_date} onChange={(e) => setForm({ ...form, event_date: e.target.value })} required />
@@ -257,7 +257,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Horário início</Label>
               <Input type="time" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} />
@@ -268,7 +268,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Tipo de festa</Label>
               <Select value={form.event_type} onValueChange={(v) => setForm({ ...form, event_type: v })}>
@@ -284,7 +284,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Unidade</Label>
               {units.length > 0 ? (
