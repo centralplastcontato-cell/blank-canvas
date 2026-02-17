@@ -474,7 +474,8 @@ export function FreelancerManagerContent() {
                             <p className="text-xs text-muted-foreground">Opções (uma por linha):</p>
                             <Textarea
                               value={(q.options || []).join("\n")}
-                              onChange={(e) => updateQuestion(idx, { options: e.target.value.split("\n").filter(o => o.trim()) })}
+                              onChange={(e) => updateQuestion(idx, { options: e.target.value.split("\n") })}
+                              onBlur={() => updateQuestion(idx, { options: (q.options || []).filter(o => o.trim()) })}
                               placeholder={"Opção 1\nOpção 2\nOpção 3"}
                               className="text-xs min-h-[60px]"
                               rows={3}
