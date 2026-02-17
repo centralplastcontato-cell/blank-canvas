@@ -1,22 +1,35 @@
 
+## Correção definitiva dos campos de Horário
 
-# Corrigir espaçamento do formulário EventFormDialog
+### Diagnóstico
+O problema persiste porque inputs nativos `type="time"` e `type="date"` no iOS Safari renderizam com controles nativos do sistema operacional que possuem largura intrínseca fixa. CSS como `w-full`, `min-w-0`, `box-border` ajudam em desktop mas **não resolvem no iOS** porque o WebKit aplica dimensionamento interno nos controles nativos.
 
-## Problema
-Os campos do formulário estão muito próximos uns dos outros no mobile -- os labels ficam encostados nos inputs do grupo anterior, prejudicando a legibilidade.
+### Solução proposta
+Substituir os inputs nativos de `type="time"` por **Selects customizados** (usando o componente Select do Radix que já está no projeto). Isso garante aparência consistente com os demais campos (Status, Tipo de festa, Pacote) e largura 100% em qualquer dispositivo.
 
-## Solução
+### Detalhes técnicos
 
-Duas mudanças simples no `EventFormDialog.tsx`:
+**Arquivo**: `src/components/agenda/EventFormDialog.tsx`
 
-1. **Aumentar o espaçamento entre grupos de campos**: trocar `space-y-4` (16px) para `space-y-5` (20px) no form
-2. **Adicionar gap interno entre Label e Input**: adicionar `space-y-1.5` (6px) em cada div que contém Label + Input, para que o label não fique colado no campo
+1. **Criar array de horários** (de 00:00 a 23:30 em intervalos de 30 minutos) para popular os Selects
+2. **Substituir os dois inputs `type="time"`** por componentes `Select` com as opções de horário
+3. **Empilhar os campos verticalmente** (um embaixo do outro, como os demais) para ocupar 100% da largura
+4. Manter a lógica de estado (`start_time`, `end_time`) inalterada
 
-### Arquivo editado
+**Estrutura resultante:**
+```
+<div class="space-y-2">
+  <Label>Horario inicio</Label>
+  <Select> ... opcoes de horario ... </Select>
+</div>
+<div class="space-y-2">
+  <Label>Horario fim</Label>
+  <Select> ... opcoes de horario ... </Select>
+</div>
+```
 
-- `src/components/agenda/EventFormDialog.tsx`
-  - Linha 179: `space-y-4` para `space-y-5`
-  - Cada `<div>` dentro dos grids e campos individuais: adicionar `className="space-y-1.5"` para dar respiro entre label e input
-  - Nos grids de 2 colunas (`grid grid-cols-2 gap-3`): manter o gap horizontal, mas cada coluna interna ganha `space-y-1.5`
-
-Resultado: formulário com respiro visual adequado entre cada seção e entre labels e seus campos.
+### Resultado esperado
+- Campos de horario com aparencia identica aos campos Status, Tipo de festa e Pacote
+- Largura 100% consistente em iOS, Android e desktop
+- Intervalos de 30 minutos para facilitar a selecao
+- Sem regressao nos demais campos
