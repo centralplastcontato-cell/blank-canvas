@@ -10,6 +10,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 
+interface FreelancerQuestion {
+  id: string;
+  type: "text" | "textarea" | "yesno" | "select" | "multiselect" | "photo";
+  text: string;
+  step: number;
+  required?: boolean;
+  options?: string[];
+}
+
 interface TemplateData {
   id: string;
   company_id: string;
@@ -19,15 +28,8 @@ interface TemplateData {
   template_name: string;
   description: string | null;
   thank_you_message: string | null;
+  questions: FreelancerQuestion[];
 }
-
-const ROLES = [
-  { value: "gerente", label: "Gerente" },
-  { value: "seguranca", label: "Segurança" },
-  { value: "garcom", label: "Garçom" },
-  { value: "monitor", label: "Monitor" },
-  { value: "cozinha", label: "Cozinha" },
-];
 
 export default function PublicFreelancer() {
   const { templateId, companySlug, templateSlug } = useParams<{ templateId: string; companySlug: string; templateSlug: string }>();
@@ -38,19 +40,11 @@ export default function PublicFreelancer() {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Form fields
-  const [nome, setNome] = useState("");
-  const [telefone, setTelefone] = useState("");
-  const [endereco, setEndereco] = useState("");
+  const [answers, setAnswers] = useState<Record<string, any>>({});
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [jaTrabalha, setJaTrabalha] = useState<boolean | null>(null);
-  const [tempoTrabalho, setTempoTrabalho] = useState("");
-  const [funcoes, setFuncoes] = useState<string[]>([]);
-  const [sobre, setSobre] = useState("");
+  const [photoQuestionId, setPhotoQuestionId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const totalSteps = 3;
 
   useEffect(() => {
     async function load() {
@@ -64,6 +58,7 @@ export default function PublicFreelancer() {
       } else { setNotFound(true); setLoading(false); return; }
       if (error || !data || (data as any[]).length === 0) { setNotFound(true); setLoading(false); return; }
       const row = (data as any[])[0];
+      const questions = Array.isArray(row.questions) ? (row.questions as FreelancerQuestion[]) : [];
       setTemplate({
         id: row.id,
         company_id: row.company_id,
@@ -73,6 +68,7 @@ export default function PublicFreelancer() {
         template_name: row.template_name,
         description: row.description,
         thank_you_message: row.thank_you_message,
+        questions,
       });
       setLoading(false);
     }
@@ -105,9 +101,24 @@ export default function PublicFreelancer() {
     setPhotoPreview(URL.createObjectURL(file));
   };
 
+  const setAnswer = (questionId: string, value: any) => {
+    setAnswers(prev => ({ ...prev, [questionId]: value }));
+  };
+
+  const totalSteps = template ? Math.max(...template.questions.map(q => q.step), 1) : 1;
+  const questionsForStep = (step: number) => template?.questions.filter(q => q.step === step) || [];
+
   const canAdvance = () => {
-    if (currentStep === 1) return nome.trim().length > 0 && telefone.replace(/\D/g, "").length >= 10 && endereco.trim().length > 0;
-    if (currentStep === 2) return jaTrabalha !== null && funcoes.length > 0 && (jaTrabalha === false || tempoTrabalho.trim().length > 0);
+    const stepQuestions = questionsForStep(currentStep);
+    for (const q of stepQuestions) {
+      if (!q.required) continue;
+      const val = answers[q.id];
+      if (q.type === "photo") continue; // photo is never blocking
+      if (q.type === "yesno" && val === undefined) return false;
+      if (q.type === "multiselect" && (!Array.isArray(val) || val.length === 0)) return false;
+      if (q.type === "select" && !val) return false;
+      if ((q.type === "text" || q.type === "textarea") && (!val || String(val).trim().length === 0)) return false;
+    }
     return true;
   };
 
@@ -125,7 +136,7 @@ export default function PublicFreelancer() {
     setSubmitting(true);
 
     let photoUrl: string | null = null;
-    if (photoFile) {
+    if (photoFile && template.company_id) {
       const ext = photoFile.name.split(".").pop();
       const path = `freelancer/${template.company_id}/${Date.now()}.${ext}`;
       const { error: upErr } = await supabase.storage.from("onboarding-uploads").upload(path, photoFile);
@@ -135,21 +146,20 @@ export default function PublicFreelancer() {
       }
     }
 
-    const answers = [
-      { questionId: "nome", value: nome.trim() },
-      { questionId: "telefone", value: telefone.trim() },
-      { questionId: "endereco", value: endereco.trim() },
-      { questionId: "ja_trabalha", value: jaTrabalha },
-      ...(jaTrabalha ? [{ questionId: "tempo_trabalho", value: tempoTrabalho.trim() }] : []),
-      { questionId: "funcao", value: funcoes },
-      { questionId: "sobre", value: sobre.trim() },
-    ];
+    const answersArray = template.questions.map(q => ({
+      questionId: q.id,
+      value: q.type === "photo" ? (photoUrl || null) : (answers[q.id] ?? null),
+    }));
+
+    // Try to find name from first text field
+    const nameQuestion = template.questions.find(q => q.type === "text");
+    const respondentName = nameQuestion ? String(answers[nameQuestion.id] || "").trim() || null : null;
 
     const { error } = await supabase.from("freelancer_responses").insert({
       template_id: template.id,
       company_id: template.company_id,
-      respondent_name: nome.trim() || null,
-      answers,
+      respondent_name: respondentName,
+      answers: answersArray,
       photo_url: photoUrl,
     });
 
@@ -192,6 +202,150 @@ export default function PublicFreelancer() {
     );
   }
 
+  const renderQuestion = (q: FreelancerQuestion) => {
+    const val = answers[q.id];
+
+    if (q.type === "text") {
+      const isPhone = q.text.toLowerCase().includes("telefone") || q.text.toLowerCase().includes("whatsapp");
+      return (
+        <div key={q.id} className="bg-card rounded-2xl p-5 shadow-card space-y-3">
+          <label className="text-sm font-medium text-foreground">
+            {q.text} {q.required && <span className="text-destructive">*</span>}
+          </label>
+          <Input
+            value={val || ""}
+            onChange={(e) => setAnswer(q.id, isPhone ? formatPhone(e.target.value) : e.target.value)}
+            placeholder={isPhone ? "(00) 00000-0000" : ""}
+            className="rounded-xl"
+            inputMode={isPhone ? "tel" : "text"}
+          />
+        </div>
+      );
+    }
+
+    if (q.type === "textarea") {
+      return (
+        <div key={q.id} className="bg-card rounded-2xl p-5 shadow-card space-y-3">
+          <label className="text-sm font-medium text-foreground">
+            {q.text} {q.required && <span className="text-destructive">*</span>}
+          </label>
+          <Textarea
+            value={val || ""}
+            onChange={(e) => setAnswer(q.id, e.target.value)}
+            className="rounded-xl resize-none"
+            rows={4}
+          />
+        </div>
+      );
+    }
+
+    if (q.type === "yesno") {
+      return (
+        <div key={q.id} className="bg-card rounded-2xl p-5 shadow-card space-y-3">
+          <label className="text-sm font-medium text-foreground">
+            {q.text} {q.required && <span className="text-destructive">*</span>}
+          </label>
+          <div className="flex gap-3">
+            {[{ label: "👍 Sim", v: true }, { label: "👎 Não", v: false }].map(opt => (
+              <button
+                key={String(opt.v)}
+                onClick={() => setAnswer(q.id, opt.v)}
+                className={`flex-1 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                  val === opt.v
+                    ? "bg-primary text-primary-foreground scale-105"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (q.type === "select") {
+      const options = q.options || [];
+      return (
+        <div key={q.id} className="bg-card rounded-2xl p-5 shadow-card space-y-3">
+          <label className="text-sm font-medium text-foreground">
+            {q.text} {q.required && <span className="text-destructive">*</span>}
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {options.map(opt => (
+              <button
+                key={opt}
+                onClick={() => setAnswer(q.id, opt)}
+                className={`px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                  val === opt
+                    ? "bg-primary text-primary-foreground scale-105"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                }`}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (q.type === "multiselect") {
+      const options = q.options || [];
+      const selected: string[] = Array.isArray(val) ? val : [];
+      return (
+        <div key={q.id} className="bg-card rounded-2xl p-5 shadow-card space-y-3">
+          <label className="text-sm font-medium text-foreground">
+            {q.text} <span className="text-muted-foreground text-xs font-normal">(pode selecionar mais de uma)</span>
+            {q.required && <span className="text-destructive"> *</span>}
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {options.map(opt => (
+              <button
+                key={opt}
+                onClick={() => setAnswer(q.id, selected.includes(opt) ? selected.filter(s => s !== opt) : [...selected, opt])}
+                className={`px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                  selected.includes(opt)
+                    ? "bg-primary text-primary-foreground scale-105"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                }`}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (q.type === "photo") {
+      return (
+        <div key={q.id} className="bg-card rounded-2xl p-5 shadow-card space-y-3">
+          <label className="text-sm font-medium text-foreground">
+            {q.text} {q.required && <span className="text-destructive">*</span>}
+          </label>
+          <input type="file" ref={fileInputRef} accept="image/*" onChange={handlePhotoChange} className="hidden" />
+          {photoPreview ? (
+            <div className="flex items-center gap-3">
+              <img src={photoPreview} alt="" className="h-20 w-20 rounded-full object-cover" />
+              <Button variant="ghost" size="sm" onClick={() => { setPhotoFile(null); setPhotoPreview(null); setPhotoQuestionId(null); }}>
+                <X className="h-4 w-4 mr-1" /> Remover
+              </Button>
+            </div>
+          ) : (
+            <Button variant="outline" className="rounded-xl w-full gap-2" onClick={() => { setPhotoQuestionId(q.id); fileInputRef.current?.click(); }}>
+              <Camera className="h-4 w-4" /> Tirar ou enviar foto
+            </Button>
+          )}
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  const stepQuestions = questionsForStep(currentStep);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex flex-col">
       <Helmet>
@@ -212,110 +366,15 @@ export default function PublicFreelancer() {
       <div className="flex-1 flex items-start justify-center p-4 pt-6">
         <div className="w-full max-w-lg">
           <AnimatePresence mode="wait">
-            {currentStep === 1 && (
-              <motion.div key="step1" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} className="space-y-4">
+            <motion.div key={`step${currentStep}`} initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} className="space-y-4">
+              {currentStep === 1 && (
                 <div className="text-center space-y-2">
                   <h2 className="text-xl font-bold text-foreground">{template.template_name}</h2>
                   {template.description && <p className="text-muted-foreground text-sm">{template.description}</p>}
                 </div>
-
-                <div className="bg-card rounded-2xl p-5 shadow-card space-y-3">
-                  <label className="text-sm font-medium text-foreground">Como você se chama? <span className="text-destructive">*</span></label>
-                  <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Seu nome completo" className="rounded-xl" />
-                </div>
-
-                <div className="bg-card rounded-2xl p-5 shadow-card space-y-3">
-                  <label className="text-sm font-medium text-foreground">Foto (opcional)</label>
-                  <input type="file" ref={fileInputRef} accept="image/*" onChange={handlePhotoChange} className="hidden" />
-                  {photoPreview ? (
-                    <div className="flex items-center gap-3">
-                      <img src={photoPreview} alt="" className="h-20 w-20 rounded-full object-cover" />
-                      <Button variant="ghost" size="sm" onClick={() => { setPhotoFile(null); setPhotoPreview(null); }}>
-                        <X className="h-4 w-4 mr-1" /> Remover
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button variant="outline" className="rounded-xl w-full gap-2" onClick={() => fileInputRef.current?.click()}>
-                      <Camera className="h-4 w-4" /> Tirar ou enviar foto
-                    </Button>
-                  )}
-                </div>
-
-                <div className="bg-card rounded-2xl p-5 shadow-card space-y-3">
-                  <label className="text-sm font-medium text-foreground">Telefone <span className="text-destructive">*</span></label>
-                  <Input value={telefone} onChange={(e) => setTelefone(formatPhone(e.target.value))} placeholder="(00) 00000-0000" className="rounded-xl" inputMode="tel" />
-                </div>
-
-                <div className="bg-card rounded-2xl p-5 shadow-card space-y-3">
-                  <label className="text-sm font-medium text-foreground">Endereço <span className="text-destructive">*</span></label>
-                  <Input value={endereco} onChange={(e) => setEndereco(e.target.value)} placeholder="Rua, número, bairro, cidade" className="rounded-xl" />
-                </div>
-              </motion.div>
-            )}
-
-            {currentStep === 2 && (
-              <motion.div key="step2" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} className="space-y-4">
-                <div className="bg-card rounded-2xl p-5 shadow-card space-y-3">
-                  <label className="text-sm font-medium text-foreground">Já trabalha no buffet? <span className="text-destructive">*</span></label>
-                  <div className="flex gap-3">
-                    {[{ label: "👍 Sim", val: true }, { label: "👎 Não", val: false }].map(opt => (
-                      <button
-                        key={String(opt.val)}
-                        onClick={() => { setJaTrabalha(opt.val); if (!opt.val) setTempoTrabalho(""); }}
-                        className={`flex-1 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                          jaTrabalha === opt.val
-                            ? "bg-primary text-primary-foreground scale-105"
-                            : "bg-muted text-muted-foreground hover:bg-muted/80"
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {jaTrabalha === true && (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-2xl p-5 shadow-card space-y-3">
-                    <label className="text-sm font-medium text-foreground">Há quanto tempo? <span className="text-destructive">*</span></label>
-                    <Input value={tempoTrabalho} onChange={(e) => setTempoTrabalho(e.target.value)} placeholder="Ex: 2 anos" className="rounded-xl" />
-                  </motion.div>
-                )}
-
-                <div className="bg-card rounded-2xl p-5 shadow-card space-y-3">
-                  <label className="text-sm font-medium text-foreground">Qual é a sua função? <span className="text-muted-foreground text-xs font-normal">(pode selecionar mais de uma)</span> <span className="text-destructive">*</span></label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {ROLES.map(role => (
-                      <button
-                        key={role.value}
-                        onClick={() => setFuncoes(prev => prev.includes(role.value) ? prev.filter(f => f !== role.value) : [...prev, role.value])}
-                        className={`px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                          funcoes.includes(role.value)
-                            ? "bg-primary text-primary-foreground scale-105"
-                            : "bg-muted text-muted-foreground hover:bg-muted/80"
-                        }`}
-                      >
-                        {role.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {currentStep === 3 && (
-              <motion.div key="step3" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} className="space-y-4">
-                <div className="bg-card rounded-2xl p-5 shadow-card space-y-3">
-                  <label className="text-sm font-medium text-foreground">Fale um pouco sobre você</label>
-                  <Textarea
-                    value={sobre}
-                    onChange={(e) => setSobre(e.target.value)}
-                    placeholder="Conte sua experiência, habilidades, disponibilidade..."
-                    className="rounded-xl resize-none"
-                    rows={5}
-                  />
-                </div>
-              </motion.div>
-            )}
+              )}
+              {stepQuestions.map(renderQuestion)}
+            </motion.div>
           </AnimatePresence>
         </div>
       </div>
