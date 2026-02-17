@@ -46,7 +46,7 @@ export default function PublicFreelancer() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [jaTrabalha, setJaTrabalha] = useState<boolean | null>(null);
   const [tempoTrabalho, setTempoTrabalho] = useState("");
-  const [funcao, setFuncao] = useState("");
+  const [funcoes, setFuncoes] = useState<string[]>([]);
   const [sobre, setSobre] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -107,7 +107,7 @@ export default function PublicFreelancer() {
 
   const canAdvance = () => {
     if (currentStep === 1) return nome.trim().length > 0 && telefone.replace(/\D/g, "").length >= 10 && endereco.trim().length > 0;
-    if (currentStep === 2) return jaTrabalha !== null && funcao.length > 0 && (jaTrabalha === false || tempoTrabalho.trim().length > 0);
+    if (currentStep === 2) return jaTrabalha !== null && funcoes.length > 0 && (jaTrabalha === false || tempoTrabalho.trim().length > 0);
     return true;
   };
 
@@ -141,7 +141,7 @@ export default function PublicFreelancer() {
       { questionId: "endereco", value: endereco.trim() },
       { questionId: "ja_trabalha", value: jaTrabalha },
       ...(jaTrabalha ? [{ questionId: "tempo_trabalho", value: tempoTrabalho.trim() }] : []),
-      { questionId: "funcao", value: funcao },
+      { questionId: "funcao", value: funcoes },
       { questionId: "sobre", value: sobre.trim() },
     ];
 
@@ -282,14 +282,14 @@ export default function PublicFreelancer() {
                 )}
 
                 <div className="bg-card rounded-2xl p-5 shadow-card space-y-3">
-                  <label className="text-sm font-medium text-foreground">Qual é a sua função? <span className="text-destructive">*</span></label>
+                  <label className="text-sm font-medium text-foreground">Qual é a sua função? <span className="text-muted-foreground text-xs font-normal">(pode selecionar mais de uma)</span> <span className="text-destructive">*</span></label>
                   <div className="grid grid-cols-2 gap-2">
                     {ROLES.map(role => (
                       <button
                         key={role.value}
-                        onClick={() => setFuncao(role.value)}
+                        onClick={() => setFuncoes(prev => prev.includes(role.value) ? prev.filter(f => f !== role.value) : [...prev, role.value])}
                         className={`px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                          funcao === role.value
+                          funcoes.includes(role.value)
                             ? "bg-primary text-primary-foreground scale-105"
                             : "bg-muted text-muted-foreground hover:bg-muted/80"
                         }`}
