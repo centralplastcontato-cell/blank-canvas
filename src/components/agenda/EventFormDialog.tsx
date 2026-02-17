@@ -80,6 +80,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
   // Checklist templates
   const [templates, setTemplates] = useState<Array<{ id: string; name: string; items: string[] }>>([]);
+  // Company packages
+  const [packages, setPackages] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
 
   useEffect(() => {
@@ -91,7 +93,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     }
   }, [open, initialData]);
 
-  // Load checklist templates
+  // Load checklist templates and packages
   useEffect(() => {
     if (!open || !currentCompany?.id) return;
     supabase
@@ -107,6 +109,15 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             items: Array.isArray(t.items) ? t.items : [],
           }))
         );
+      });
+    supabase
+      .from("company_packages")
+      .select("id, name")
+      .eq("company_id", currentCompany.id)
+      .eq("is_active", true)
+      .order("sort_order")
+      .then(({ data }) => {
+        setPackages((data || []).map((p: any) => ({ id: p.id, name: p.name })));
       });
   }, [open, currentCompany?.id]);
 
@@ -289,7 +300,17 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             </div>
             <div>
               <Label>Pacote</Label>
-              <Input value={form.package_name} onChange={(e) => setForm({ ...form, package_name: e.target.value })} />
+              {packages.length > 0 ? (
+                <Select value={form.package_name} onValueChange={(v) => setForm({ ...form, package_name: v === "none" ? "" : v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sem pacote</SelectItem>
+                    {packages.map((p) => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input value={form.package_name} onChange={(e) => setForm({ ...form, package_name: e.target.value })} placeholder="Nenhum pacote cadastrado" />
+              )}
             </div>
           </div>
 
