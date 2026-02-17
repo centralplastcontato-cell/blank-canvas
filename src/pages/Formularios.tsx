@@ -8,7 +8,7 @@ import { MobileMenu } from "@/components/admin/MobileMenu";
 import { NotificationBell } from "@/components/admin/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { FolderOpen, Menu, Loader2, ClipboardCheck, PartyPopper, FileSignature, UtensilsCrossed, ListChecks, FileText, Package } from "lucide-react";
+import { FolderOpen, Menu, Loader2, ClipboardCheck, PartyPopper, FileSignature, UtensilsCrossed, ListChecks, FileText, Package, Users, Wrench } from "lucide-react";
 import logoCastelo from "@/assets/logo-castelo.png";
 import { AvaliacoesContent } from "./Avaliacoes";
 import { PreFestaContent } from "./PreFesta";
@@ -16,6 +16,7 @@ import { ContratoContent } from "./Contrato";
 import { CardapioContent } from "./Cardapio";
 import { EventStaffManager } from "@/components/agenda/EventStaffManager";
 import { PackagesManager } from "@/components/admin/PackagesManager";
+import { MaintenanceManager } from "@/components/agenda/MaintenanceManager";
 
 export default function Formularios() {
   const navigate = useNavigate();
@@ -173,8 +174,27 @@ export default function Formularios() {
                 </Tabs>
               </TabsContent>
 
-              <TabsContent value="checklist" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3 data-[state=inactive]:hidden">
-                <EventStaffManager />
+              <TabsContent value="checklist" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
+                <Tabs defaultValue="equipe" className="flex-1 flex flex-col overflow-hidden">
+                  <div className="px-3 md:px-6 pt-2">
+                    <TabsList className="w-full md:w-auto">
+                      <TabsTrigger value="equipe" className="flex-1 md:flex-none gap-1.5">
+                        <Users className="h-4 w-4" />
+                        <span>Equipe</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="manutencao" className="flex-1 md:flex-none gap-1.5">
+                        <Wrench className="h-4 w-4" />
+                        <span>Manutenção</span>
+                      </TabsTrigger>
+                    </TabsList>
+                  </div>
+                  <TabsContent value="equipe" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                    <EventStaffManager />
+                  </TabsContent>
+                  <TabsContent value="manutencao" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                    <MaintenanceManager />
+                  </TabsContent>
+                </Tabs>
               </TabsContent>
 
               <TabsContent value="pacotes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3 data-[state=inactive]:hidden">
