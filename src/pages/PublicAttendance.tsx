@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, UserPlus, Users, Trash2 } from "lucide-react";
+import { Loader2, UserPlus, Users, Trash2, Pencil, Check, X } from "lucide-react";
 import { format } from "date-fns";
 
 interface Guest {
@@ -59,6 +59,10 @@ export default function PublicAttendance() {
   const [guardianName, setGuardianName] = useState("");
   const [guardianPhone, setGuardianPhone] = useState("");
   const [wantsInfo, setWantsInfo] = useState(false);
+
+  // Editing guest inline
+  const [editingGuestIdx, setEditingGuestIdx] = useState<number | null>(null);
+  const [editGuest, setEditGuest] = useState<Guest | null>(null);
 
   // Company branding
   const [companyName, setCompanyName] = useState("");
@@ -183,6 +187,32 @@ export default function PublicAttendance() {
     }
   };
 
+  const startEditGuest = (idx: number) => {
+    if (!entry) return;
+    setEditingGuestIdx(idx);
+    setEditGuest({ ...entry.guests[idx] });
+  };
+
+  const cancelEditGuest = () => {
+    setEditingGuestIdx(null);
+    setEditGuest(null);
+  };
+
+  const saveEditGuest = async () => {
+    if (!entry || editingGuestIdx === null || !editGuest) return;
+    if (!editGuest.name.trim()) {
+      toast({ title: "Nome é obrigatório", variant: "destructive" });
+      return;
+    }
+    const updatedGuests = entry.guests.map((g, i) => i === editingGuestIdx ? { ...editGuest, name: editGuest.name.trim() } : g);
+    const ok = await saveEntry(updatedGuests);
+    if (ok) {
+      setEntry({ ...entry, guests: updatedGuests });
+      setEditingGuestIdx(null);
+      setEditGuest(null);
+      toast({ title: "Convidado atualizado!" });
+    }
+  };
   const handleReceptionistBlur = async () => {
     if (!entry) return;
     await saveEntry(entry.guests);
@@ -276,31 +306,62 @@ export default function PublicAttendance() {
             {entry.guests.map((guest, i) => (
               <Card key={i} className="bg-muted/50">
                 <CardContent className="py-2 px-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium">
-                        <span className="text-muted-foreground">#{i + 1}</span> {guest.name}
-                        {guest.age && <span className="text-muted-foreground"> · {guest.age}</span>}
-                      </p>
-                      {guest.phone && <p className="text-xs text-muted-foreground">{guest.phone}</p>}
-                      {guest.is_child_only && (
-                        <p className="text-xs text-muted-foreground">👶 Resp: {guest.guardian_name} {guest.guardian_phone}</p>
+                  {editingGuestIdx === i && editGuest ? (
+                    <div className="space-y-2">
+                      <Input placeholder="Nome *" value={editGuest.name} onChange={e => setEditGuest({ ...editGuest, name: e.target.value })} className="h-10" />
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input placeholder="Idade" value={editGuest.age} onChange={e => setEditGuest({ ...editGuest, age: e.target.value })} className="h-10" />
+                        <Input placeholder="Telefone" value={editGuest.phone} onChange={e => setEditGuest({ ...editGuest, phone: e.target.value })} className="h-10" />
+                      </div>
+                      <div className="flex items-center justify-between rounded-lg border border-border p-2">
+                        <span className="text-xs">Criança desacompanhada</span>
+                        <Switch checked={editGuest.is_child_only} onCheckedChange={v => setEditGuest({ ...editGuest, is_child_only: v })} />
+                      </div>
+                      {editGuest.is_child_only && (
+                        <div className="grid grid-cols-2 gap-2 pl-2 border-l-2 border-primary/30">
+                          <Input placeholder="Responsável" value={editGuest.guardian_name} onChange={e => setEditGuest({ ...editGuest, guardian_name: e.target.value })} className="h-10" />
+                          <Input placeholder="Tel. resp." value={editGuest.guardian_phone} onChange={e => setEditGuest({ ...editGuest, guardian_phone: e.target.value })} className="h-10" />
+                        </div>
                       )}
-                      <div className="flex gap-2 mt-0.5">
-                        {guest.wants_info && <span className="text-xs text-primary">✅ Quer info</span>}
-                        {guest.is_child_only && <span className="text-xs text-muted-foreground">👶 Desacompanhada</span>}
+                      <div className="flex items-center justify-between rounded-lg border border-border p-2">
+                        <span className="text-xs">Quer receber info</span>
+                        <Switch checked={editGuest.wants_info} onCheckedChange={v => setEditGuest({ ...editGuest, wants_info: v })} />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={saveEditGuest} disabled={saving} className="flex-1 gap-1">
+                          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />} Salvar
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={cancelEditGuest} className="gap-1">
+                          <X className="h-3.5 w-3.5" /> Cancelar
+                        </Button>
                       </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                      onClick={() => handleRemoveGuest(i)}
-                      disabled={saving}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
+                  ) : (
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium">
+                          <span className="text-muted-foreground">#{i + 1}</span> {guest.name}
+                          {guest.age && <span className="text-muted-foreground"> · {guest.age}</span>}
+                        </p>
+                        {guest.phone && <p className="text-xs text-muted-foreground">{guest.phone}</p>}
+                        {guest.is_child_only && (
+                          <p className="text-xs text-muted-foreground">👶 Resp: {guest.guardian_name} {guest.guardian_phone}</p>
+                        )}
+                        <div className="flex gap-2 mt-0.5">
+                          {guest.wants_info && <span className="text-xs text-primary">✅ Quer info</span>}
+                          {guest.is_child_only && <span className="text-xs text-muted-foreground">👶 Desacompanhada</span>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-0.5 shrink-0">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={() => startEditGuest(i)} disabled={saving}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleRemoveGuest(i)} disabled={saving}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}
