@@ -1373,6 +1373,98 @@ export type Database = {
           },
         ]
       }
+      freelancer_responses: {
+        Row: {
+          answers: Json
+          company_id: string
+          created_at: string
+          id: string
+          photo_url: string | null
+          respondent_name: string | null
+          template_id: string
+        }
+        Insert: {
+          answers?: Json
+          company_id: string
+          created_at?: string
+          id?: string
+          photo_url?: string | null
+          respondent_name?: string | null
+          template_id: string
+        }
+        Update: {
+          answers?: Json
+          company_id?: string
+          created_at?: string
+          id?: string
+          photo_url?: string | null
+          respondent_name?: string | null
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "freelancer_responses_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "freelancer_responses_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "freelancer_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      freelancer_templates: {
+        Row: {
+          company_id: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          questions: Json
+          slug: string | null
+          thank_you_message: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          questions?: Json
+          slug?: string | null
+          thank_you_message?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          questions?: Json
+          slug?: string | null
+          thank_you_message?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "freelancer_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_history: {
         Row: {
           action: string
@@ -2768,6 +2860,34 @@ export type Database = {
         }[]
       }
       get_evaluation_template_public: {
+        Args: { _template_id: string }
+        Returns: {
+          company_id: string
+          company_logo: string
+          company_name: string
+          company_slug: string
+          description: string
+          id: string
+          questions: Json
+          template_name: string
+          thank_you_message: string
+        }[]
+      }
+      get_freelancer_template_by_slugs: {
+        Args: { _company_slug: string; _template_slug: string }
+        Returns: {
+          company_id: string
+          company_logo: string
+          company_name: string
+          company_slug: string
+          description: string
+          id: string
+          questions: Json
+          template_name: string
+          thank_you_message: string
+        }[]
+      }
+      get_freelancer_template_public: {
         Args: { _template_id: string }
         Returns: {
           company_id: string
