@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, UserPlus, Users, Trash2, Pencil, Check, X, CheckCircle2 } from "lucide-react";
+import { Loader2, UserPlus, Users, Trash2, Pencil, Check, X, CheckCircle2, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
 
 interface Guest {
@@ -230,6 +230,22 @@ export default function PublicAttendance() {
       .eq("id", entry.id);
   };
 
+  const handleReopen = async () => {
+    if (!entry) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from("attendance_entries")
+      .update({ finalized_at: null })
+      .eq("id", entry.id);
+    setSaving(false);
+    if (error) {
+      toast({ title: "Erro ao reabrir", description: error.message, variant: "destructive" });
+      return;
+    }
+    setEntry({ ...entry, finalized_at: null });
+    toast({ title: "🔓 Lista reaberta!" });
+  };
+
   const handleFinalize = async () => {
     if (!entry) return;
     if (!receptionistName.trim()) {
@@ -254,6 +270,21 @@ export default function PublicAttendance() {
     setEntry({ ...entry, finalized_at: now });
     toast({ title: "✅ Lista finalizada com sucesso!" });
   };
+
+  const ageStats = useMemo(() => {
+    if (!entry) return null;
+    const stats = { total: entry.guests.length, "0-4": 0, "5-10": 0, "11-16": 0, "17-18": 0, "18+": 0, na: 0 };
+    for (const g of entry.guests) {
+      const n = parseInt(g.age);
+      if (isNaN(n) || !g.age?.trim()) { stats.na++; continue; }
+      if (n <= 4) stats["0-4"]++;
+      else if (n <= 10) stats["5-10"]++;
+      else if (n <= 16) stats["11-16"]++;
+      else if (n <= 18) stats["17-18"]++;
+      else stats["18+"]++;
+    }
+    return stats;
+  }, [entry?.guests]);
 
   if (loading) {
     return (
@@ -294,15 +325,26 @@ export default function PublicAttendance() {
       <div className="max-w-lg mx-auto px-4 py-4 space-y-4 pb-24">
         {/* Finalized banner */}
         {entry.finalized_at && (
-          <div className="flex items-center gap-3 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-4">
-            <CheckCircle2 className="h-6 w-6 text-green-600 shrink-0" />
-            <div>
-              <p className="font-semibold text-green-800 dark:text-green-300">Lista Finalizada</p>
-              <p className="text-xs text-green-600 dark:text-green-400">
-                Finalizada em {format(new Date(entry.finalized_at), "dd/MM/yyyy 'às' HH:mm")}
-                {receptionistName && ` por ${receptionistName}`}
-              </p>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-4">
+              <CheckCircle2 className="h-6 w-6 text-green-600 shrink-0" />
+              <div>
+                <p className="font-semibold text-green-800 dark:text-green-300">Lista Finalizada</p>
+                <p className="text-xs text-green-600 dark:text-green-400">
+                  Finalizada em {format(new Date(entry.finalized_at), "dd/MM/yyyy 'às' HH:mm")}
+                  {receptionistName && ` por ${receptionistName}`}
+                </p>
+              </div>
             </div>
+            <Button
+              variant="outline"
+              onClick={handleReopen}
+              disabled={saving}
+              className="w-full gap-2"
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+              Reabrir Lista
+            </Button>
           </div>
         )}
 
@@ -340,6 +382,31 @@ export default function PublicAttendance() {
         )}
 
         <Separator />
+
+        {/* Age stats */}
+        {ageStats && ageStats.total > 0 && (
+          <Card className="bg-muted/30">
+            <CardContent className="py-3 px-3">
+              <p className="text-xs font-semibold text-muted-foreground mb-2">Estatísticas por Faixa Etária</p>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                {[
+                  { label: "Total", value: ageStats.total },
+                  { label: "0-4 anos", value: ageStats["0-4"] },
+                  { label: "5-10 anos", value: ageStats["5-10"] },
+                  { label: "11-16 anos", value: ageStats["11-16"] },
+                  { label: "17-18 anos", value: ageStats["17-18"] },
+                  { label: "18+ anos", value: ageStats["18+"] },
+                  ...(ageStats.na > 0 ? [{ label: "Sem idade", value: ageStats.na }] : []),
+                ].map((item) => (
+                  <div key={item.label} className="rounded-lg bg-background border border-border p-2">
+                    <p className="text-lg font-bold text-foreground">{item.value}</p>
+                    <p className="text-[10px] text-muted-foreground leading-tight">{item.label}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Guest list */}
         {entry.guests.length > 0 && (
