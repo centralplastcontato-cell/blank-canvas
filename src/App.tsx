@@ -35,6 +35,7 @@ import PublicEvaluation from "./pages/PublicEvaluation";
 import PublicPreFesta from "./pages/PublicPreFesta";
 import PublicContrato from "./pages/PublicContrato";
 import PublicCardapio from "./pages/PublicCardapio";
+import PublicStaff from "./pages/PublicStaff";
 import Contrato from "./pages/Contrato";
 import Cardapio from "./pages/Cardapio";
 import NotFound from "./pages/NotFound";
@@ -93,6 +94,8 @@ const App = () => (
             <Route path="/cardapio/:companySlug/:templateSlug" element={<PublicCardapio />} />
             <Route path="/cardapio/:templateId" element={<PublicCardapio />} />
             <Route path="/cardapio" element={<Cardapio />} />
+            {/* Public staff form */}
+            <Route path="/equipe/:recordId" element={<PublicStaff />} />
             {/* Redirects for old routes */}
             <Route path="/admin" element={<Navigate to="/atendimento" replace />} />
             <Route path="/whatsapp" element={<Navigate to="/atendimento" replace />} />

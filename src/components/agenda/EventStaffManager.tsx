@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "@/hooks/use-toast";
-import { Users, Plus, Trash2, ChevronDown, ChevronRight, Copy, Pencil, Loader2, MinusCircle, PlusCircle } from "lucide-react";
+import { Users, Plus, Trash2, ChevronDown, ChevronRight, Copy, Pencil, Loader2, MinusCircle, PlusCircle, Share2 } from "lucide-react";
 import { format } from "date-fns";
 
 
@@ -298,6 +298,9 @@ export function EventStaffManager() {
                           </div>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(`${window.location.origin}/equipe/${record.id}`); toast({ title: "Link copiado!" }); }}>
+                            <Share2 className="h-4 w-4" />
+                          </Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); copyToClipboard(record); }}>
                             <Copy className="h-4 w-4" />
                           </Button>
