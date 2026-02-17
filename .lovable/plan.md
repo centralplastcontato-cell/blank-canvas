@@ -1,66 +1,98 @@
 
 
-# Enviar Bot do WhatsApp para Convidados da Lista de Presenca
+# Protecao Anti-Bloqueio no SendBotDialog
 
-## Conceito
+## O que sera feito
 
-Adicionar um botao "Enviar Bot" nos cards da lista de presenca (AttendanceManager) que dispara o chatbot do WhatsApp para todos os convidados que marcaram "Quer info" e possuem telefone cadastrado. O bot inicia o fluxo de qualificacao automaticamente (lp_sent), enviando fotos, PDFs e videos dos pacotes.
+Atualizar o componente `SendBotDialog.tsx` para incluir 3 camadas de protecao contra bloqueio do WhatsApp:
 
-## Fluxo do Usuario
+1. **10 mensagens rotativas** que ciclam automaticamente
+2. **Delay editavel** entre envios (min/max em segundos)
+3. **Progresso em tempo real** durante o envio
 
-1. Recepcionista registra convidados na lista publica, marcando quem "quer info"
-2. Admin abre a lista de presenca no painel e ve o badge "X quer info"
-3. Admin clica no botao "Enviar Bot" no card
-4. Sistema confirma: "Enviar bot para X convidados?"
-5. Sistema envia uma mensagem inicial personalizada para cada telefone via WhatsApp
-6. O bot assume automaticamente a conversa (fluxo lp_sent)
+---
 
-## Detalhes Tecnicos
+## Mudancas no arquivo `src/components/agenda/SendBotDialog.tsx`
 
-### 1. Arquivo: `src/components/agenda/AttendanceManager.tsx`
+### Pool de 10 mensagens
 
-**Adicionar botao "Enviar Bot"** no header de cada card, visivel apenas quando ha convidados com `wants_info === true` e `phone` preenchido.
+Array constante `BOT_MESSAGES` com 10 variacoes usando placeholders `{name}` e `{company}`:
 
-- Novo icone: `MessageCircle` do lucide-react (ou `Bot`)
-- Botao fica ao lado dos botoes Share, Edit, Delete
-- Badge com contagem de convidados elegiveis
-- Ao clicar, abre um AlertDialog de confirmacao listando os nomes
-
-**Nova funcao `handleSendBot`:**
-1. Filtra convidados elegiveis (wants_info + phone)
-2. Busca a instancia WhatsApp da empresa (`wapi_instances` com `company_id` e `status = connected`)
-3. Para cada convidado, chama `supabase.functions.invoke('wapi-send')` com:
-   - `action: 'send-text'`
-   - `phone: guest.phone` (limpo de formatacao)
-   - `message`: mensagem personalizada (ex: "Ola [nome]! Voce demonstrou interesse em nossos pacotes na festa. Vou te enviar algumas opcoes!")
-   - `instanceId` e `instanceToken` da instancia
-   - `lpMode: true` (para criar conversa com bot_step lp_sent)
-4. Mostra toast de sucesso/erro com contagem
-
-### 2. Estado e UX
-
-- Estado `sendingBot` para loading no botao
-- AlertDialog com lista dos nomes que vao receber
-- Apos envio, marca no badge quais ja receberam (opcional: campo `bot_sent_at` no guest JSON)
-- Tratamento de erro individual (se um falhar, continua para os outros)
-
-### 3. Mensagem Inicial Configuravel
-
-A mensagem enviada usa o nome do convidado e o nome do buffet:
-```
-Ola, {nome}! 👋
-
-Que bom que voce se interessou pelos nossos pacotes durante a festa no {nome_buffet}!
-
-Vou te enviar algumas opcoes especiais. 🎉
+```text
+1. "Ola, {name}! Que bom que voce se interessou pelos nossos pacotes na festa no {company}! Vou te enviar opcoes especiais. "
+2. "Oi {name}! Vi que voce curtiu nosso espaco durante a festa no {company}. Tenho novidades incriveis pra te mostrar! "
+3. "E ai, {name}! Que legal que voce demonstrou interesse no {company}! Deixa eu te mostrar uns pacotes especiais "
+4. "{name}, tudo bem? Soube que voce gostou do nosso espaco no {company}! Vou compartilhar umas opcoes com voce "
+5. "Ola {name}! Fico feliz que tenha se interessado pelo {company}! Preparei algumas opcoes especiais pra voce "
+6. "Oi {name}, aqui e do {company}! Vi que voce quer conhecer nossos pacotes. Vou te enviar tudo! "
+7. "{name}, que bom ter voce por aqui! Vou te mostrar as opcoes do {company} que preparamos "
+8. "Ola {name}! Do {company} aqui. Soube do seu interesse e quero te apresentar nossos pacotes! "
+9. "Oi {name}! Voce demonstrou interesse durante a festa no {company}, ne? Tenho opcoes incriveis! "
+10. "{name}, prazer! Aqui e do {company}. Vi que voce quer saber mais sobre nossos pacotes. Vamos la! "
 ```
 
-O bot (wapi-webhook) assume a partir dai no fluxo `lp_sent`, enviando materiais de venda automaticamente.
+Funcao `getNextMessage(index, name, company)` usa `index % 10` para ciclar.
 
-### 4. Validacoes
+### Delay editavel
 
-- So mostra o botao se a empresa tem instancia WhatsApp conectada
-- So envia para convidados com telefone valido (minimo 10 digitos)
-- Desabilita o botao apos envio para evitar duplicatas
-- Nao envia se a lista ainda nao foi finalizada (opcional)
+- Dois campos numericos no dialog: **Min (s)** e **Max (s)**
+- Padrao: min = 8, max = 15
+- Validacao: min >= 5, max >= min, max <= 30
+- Funcao `randomDelay(min, max)` gera espera aleatoria entre os valores
+
+### Progresso em tempo real
+
+- Novo estado `progress: { current: number, total: number } | null`
+- Durante envio, o dialog mostra:
+  - "Enviando 2 de 5..." com barra de progresso visual (componente Progress)
+  - "Aguardando intervalo de seguranca..." entre envios
+- A lista de convidados e substituida pelo progresso durante o envio
+- Botao cancelar fica desabilitado durante o envio
+
+### Novos imports
+
+- `Input` de `@/components/ui/input`
+- `Label` de `@/components/ui/label`
+- `Progress` de `@/components/ui/progress`
+
+### Layout do dialog atualizado
+
+```text
+Antes do envio:
+  ┌─────────────────────────────────────┐
+  │ Enviar Bot do WhatsApp              │
+  │                                     │
+  │ O bot sera enviado para 5 convid... │
+  │ - Maria -- (11) 99999-9999          │
+  │ - Joao -- (11) 88888-8888           │
+  │ ...                                 │
+  │                                     │
+  │ Intervalo de seguranca (segundos)   │
+  │ [Min: 8 ]  [Max: 15]               │
+  │ Protege seu numero contra bloqueio  │
+  │                                     │
+  │ [Cancelar]  [Enviar para 5]         │
+  └─────────────────────────────────────┘
+
+Durante o envio:
+  ┌─────────────────────────────────────┐
+  │ Enviando mensagens...               │
+  │                                     │
+  │ Enviando 2 de 5...                  │
+  │ [=========>                    ] 40%│
+  │ Aguardando ~12s para o proximo...   │
+  │                                     │
+  │ [Cancelar desabilitado]             │
+  └─────────────────────────────────────┘
+```
+
+## Resumo tecnico
+
+| Item | Detalhe |
+|---|---|
+| Arquivo editado | `src/components/agenda/SendBotDialog.tsx` |
+| Novos estados | `minDelay`, `maxDelay`, `progress` |
+| Novas funcoes | `getNextMessage()`, `randomDelay()` |
+| Nova constante | `BOT_MESSAGES` (10 templates) |
+| Componentes adicionais | `Input`, `Label`, `Progress` |
 
