@@ -66,6 +66,10 @@ const DEFAULT_ITEMS: MonitoringItem[] = [
   { label: "Testar telão (quando houver)", checked: false, category: "Preparação" },
   { label: "Verificar mesas organizadas, alinhadas e com guardanapeiras", checked: false, category: "Preparação" },
   { label: "Reunir colaboradores, orientar postura e avaliar festa anterior", checked: false, category: "Preparação" },
+  { label: "Verificar decoração montada conforme contratado", checked: false, category: "Preparação" },
+  { label: "Conferir mesa do bolo e doces posicionada", checked: false, category: "Preparação" },
+  { label: "Verificar funcionamento de câmeras de segurança", checked: false, category: "Preparação" },
+  { label: "Testar microfone para parabéns", checked: false, category: "Preparação" },
   // Durante a festa
   { label: "Recepcionar anfitriões, se colocar à disposição e oferecer algo", checked: false, category: "Durante a festa" },
   { label: "Garantir cumprimento do cronograma da festa", checked: false, category: "Durante a festa" },
@@ -73,6 +77,12 @@ const DEFAULT_ITEMS: MonitoringItem[] = [
   { label: "Anunciar atividades programadas (piquenique, animação, etc)", checked: false, category: "Durante a festa" },
   { label: "Passar nas mesas e perguntar se está tudo bem", checked: false, category: "Durante a festa" },
   { label: "Manter pelo menos 1 monitor no salão de brinquedos durante parabéns", checked: false, category: "Durante a festa" },
+  { label: "Monitorar quantidade de convidados vs contratado", checked: false, category: "Durante a festa" },
+  { label: "Verificar reposição de comida e bebida", checked: false, category: "Durante a festa" },
+  { label: "Acompanhar horário do bolo/parabéns", checked: false, category: "Durante a festa" },
+  { label: "Verificar limpeza dos banheiros durante a festa", checked: false, category: "Durante a festa" },
+  { label: "Monitorar segurança dos brinquedos", checked: false, category: "Durante a festa" },
+  { label: "Registrar ocorrências ou reclamações", checked: false, category: "Durante a festa" },
   // Encerramento
   { label: "Apresentar lista de presença final (pagantes vs cortesias)", checked: false, category: "Encerramento" },
   { label: "Fazer acerto de excedentes e opcionais em aberto", checked: false, category: "Encerramento" },
@@ -82,6 +92,9 @@ const DEFAULT_ITEMS: MonitoringItem[] = [
   { label: "Desligar aparelhos eletrônicos (brinquedos, som, TVs)", checked: false, category: "Encerramento" },
   { label: "Desligar todos os ar-condicionados", checked: false, category: "Encerramento" },
   { label: "Fechamento do buffet: desligar luzes e trancar portas", checked: false, category: "Encerramento" },
+  { label: "Coletar feedback do cliente (como foi a festa)", checked: false, category: "Encerramento" },
+  { label: "Registrar itens esquecidos pelos convidados", checked: false, category: "Encerramento" },
+  { label: "Conferir se não ficou nenhum convidado no espaço", checked: false, category: "Encerramento" },
 ];
 
 export function PartyMonitoringManager() {
@@ -97,6 +110,7 @@ export function PartyMonitoringManager() {
   const [items, setItems] = useState<MonitoringItem[]>([]);
   const [notes, setNotes] = useState("");
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [newItemTexts, setNewItemTexts] = useState<Record<string, string>>({});
 
   const fetchData = useCallback(async () => {
     if (!companyId) return;
@@ -196,6 +210,25 @@ export function PartyMonitoringManager() {
 
   const updateItemDetail = (idx: number, detail: string) => {
     setItems(prev => prev.map((item, i) => i === idx ? { ...item, detail } : item));
+  };
+
+  const removeItem = (idx: number) => {
+    setItems(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const addItem = (label: string, category: string) => {
+    if (!label.trim()) return;
+    const newItem: MonitoringItem = { label: label.trim(), checked: false, category };
+    setItems(prev => {
+      const lastIdx = prev.map((it, i) => ({ it, i })).filter(({ it }) => it.category === category).pop()?.i;
+      if (lastIdx !== undefined) {
+        const next = [...prev];
+        next.splice(lastIdx + 1, 0, newItem);
+        return next;
+      }
+      return [...prev, newItem];
+    });
+    setNewItemTexts(prev => ({ ...prev, [category]: "" }));
   };
 
   const toggleCard = (id: string) => {
@@ -359,7 +392,7 @@ export function PartyMonitoringManager() {
             </div>
 
             {groupedItems.map(group => (
-              <div key={group.category} className="space-y-3">
+              <div key={group.category} className="space-y-2">
                 <Label className="text-sm font-semibold block border-b pb-1">{group.category}</Label>
                 {group.items.map(({ item, idx }) => (
                   <div key={idx} className="space-y-1.5">
@@ -369,7 +402,10 @@ export function PartyMonitoringManager() {
                         onCheckedChange={(checked) => toggleItem(idx, !!checked)}
                         className="mt-0.5"
                       />
-                      <span className="text-sm leading-snug">{item.label}</span>
+                      <span className="text-sm leading-snug flex-1">{item.label}</span>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeItem(idx)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
                     {item.checked && (
                       <Input
@@ -381,6 +417,18 @@ export function PartyMonitoringManager() {
                     )}
                   </div>
                 ))}
+                <div className="flex items-center gap-2 pt-1">
+                  <Input
+                    className="h-9 text-sm flex-1"
+                    placeholder="Adicionar item..."
+                    value={newItemTexts[group.category] || ""}
+                    onChange={e => setNewItemTexts(prev => ({ ...prev, [group.category]: e.target.value }))}
+                    onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addItem(newItemTexts[group.category] || "", group.category); } }}
+                  />
+                  <Button variant="outline" size="sm" className="h-9 shrink-0 gap-1" onClick={() => addItem(newItemTexts[group.category] || "", group.category)}>
+                    <Plus className="h-3.5 w-3.5" /> Adicionar
+                  </Button>
+                </div>
               </div>
             ))}
 
