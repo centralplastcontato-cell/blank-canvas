@@ -1,72 +1,77 @@
 
 
-# Pagina de Conferencia da Lista de Presenca
+# Novo Checklist: Informacoes da Festa
 
-## Objetivo
+## O que e
 
-Criar uma pagina publica somente leitura que exiba a lista de convidados de forma visual e apresentavel, para o anfitriao conferir. O botao "Copiar Lista" sera mantido, mas sera adicionado um botao **"Compartilhar Lista"** que abre essa nova pagina em outra aba. O link dessa pagina pode ser enviado via WhatsApp para o anfitriao.
+Um novo modulo de checklist chamado **"Informacoes"** onde o setor Administrativo pode escrever orientacoes e particularidades sobre uma festa para o gerente que vai trabalhar nela. Diferente dos outros checklists que usam itens de marcacao, este usa **blocos de texto** (titulo + conteudo), permitindo adicionar quantos assuntos forem necessarios.
 
-## Nova rota
+## Como funciona
 
-`/lista-presenca/:recordId/conferencia`
+### Lado Administrativo (aba Checklist > Informacoes)
+- Botao "+ Novo Informativo"
+- Dialog com:
+  - Seletor de festa (opcional, como nos outros)
+  - Blocos de informacao: cada bloco tem um **titulo** (ex: "Observacoes sobre o bolo") e um **texto** (ex: "A mae pediu bolo sem gluten, fornecedor X vai entregar as 14h")
+  - Botao para adicionar mais blocos
+  - Possibilidade de remover blocos
+- Card na listagem com: nome da festa, data, quantidade de blocos, acoes (Abrir, Compartilhar, Editar, Excluir)
 
-## Layout da pagina de conferencia
-
-```text
-+-----------------------------------+
-|  [Logo]  Nome do Buffet           |
-|  Festa: Aniversario do Joao       |
-|  Data: 15/02/2026                 |
-|  Total: 25 convidados             |
-+-----------------------------------+
-|  Estatisticas por faixa etaria    |
-|  [0-4: 3] [5-10: 8] [11-16: 5]   |
-|  [17-18: 2] [18+: 5] [S/I: 2]    |
-+-----------------------------------+
-|                                   |
-|  #1  Victor  ·  8 anos            |
-|      Tel: (15) 98112-1710         |
-|      [x] Quer info                |
-|  -------------------------------- |
-|  #2  Ana  ·  32 anos              |
-|      Tel: (15) 98100-7979         |
-|      [x] Quer info                |
-|  -------------------------------- |
-|  #3  Lucas  ·  3 anos             |
-|      Crianca desacompanhada       |
-|      Resp: Maria (15) 99999-0000  |
-|  -------------------------------- |
-|  ...                              |
-+-----------------------------------+
-```
+### Lado Publico (/informacoes/:recordId)
+- Pagina somente leitura com informacoes da festa (titulo, data, aniversariante, pais, telefone)
+- Lista de blocos de informacao formatados de forma clara
+- Design mobile-first, clean
 
 ## Detalhes tecnicos
 
-### 1. Novo arquivo: `src/pages/PublicAttendanceReview.tsx`
+### 1. Nova tabela: `event_info_entries`
 
-- Pagina somente leitura (sem formularios, sem botoes de editar/remover)
-- Busca os dados da `attendance_entries` + company + event (mesmo fetch do PublicAttendance)
-- Exibe logo, nome da empresa, titulo do evento, data
-- Card de estatisticas por faixa etaria (mesmo calculo do useMemo existente)
-- Lista de convidados em cards limpos e legíveis, numerados
-- Botao "Copiar Lista" no topo (reutiliza a mesma logica de texto)
-- Design mobile-first, clean, fundo claro
+Seguindo o padrao das outras tabelas de checklist:
 
-### 2. Rota no `src/App.tsx`
+```text
+id          uuid (PK, default gen_random_uuid())
+company_id  uuid (FK companies, NOT NULL)
+event_id    uuid (FK company_events, nullable)
+items       jsonb (array de {title: string, content: string})
+notes       text (nullable)
+filled_by   uuid (nullable)
+created_at  timestamptz (default now())
+updated_at  timestamptz (default now())
+```
 
-- Adicionar `<Route path="/lista-presenca/:recordId/conferencia" element={<PublicAttendanceReview />} />`
+RLS habilitado, mesmas policies das outras tabelas de checklist.
 
-### 3. Botao na pagina original `PublicAttendance.tsx`
+### 2. Novo componente: `src/components/agenda/EventInfoManager.tsx`
 
-- Trocar ou complementar o botao "Copiar Lista" com um botao **"Ver Lista"** (icone `ExternalLink`)
-- Ao clicar, abre `window.open(/lista-presenca/${recordId}/conferencia)` em nova aba
-- Manter o botao "Copiar Lista" ao lado para quem preferir o texto
+Seguindo o padrao do `MaintenanceManager.tsx`:
+- CRUD completo na tabela `event_info_entries`
+- Dialog com seletor de festa + blocos dinamicos (titulo + textarea)
+- Cards collapsiveis na listagem com acoes: Abrir, Compartilhar, Editar, Excluir
+
+### 3. Nova pagina publica: `src/pages/PublicEventInfo.tsx`
+
+Seguindo o padrao do `PublicMaintenance.tsx`:
+- Busca o registro pelo `recordId`
+- Exibe info da festa/evento (titulo, data) no header
+- Busca dados do evento vinculado para exibir: nome do aniversariante, pais, telefone (campos do lead associado ao evento)
+- Exibe cada bloco de informacao como card com titulo em destaque e texto abaixo
+- Somente leitura
+
+### 4. Rota: `src/App.tsx`
+
+Nova rota: `/informacoes/:recordId` apontando para `PublicEventInfo`
+
+### 5. Aba na pagina Formularios: `src/pages/Formularios.tsx`
+
+Adicionar sub-aba **"Informacoes"** dentro da aba Checklist, ao lado de Manutencao, Acompanhamento, Presenca. Icone: `FileText`.
 
 ### Resumo dos arquivos
 
 | Arquivo | Acao |
 |---|---|
-| `src/pages/PublicAttendanceReview.tsx` | Criar (pagina de conferencia read-only) |
-| `src/App.tsx` | Adicionar rota |
-| `src/pages/PublicAttendance.tsx` | Adicionar botao "Ver Lista" |
-
+| Migration SQL | Criar tabela `event_info_entries` + RLS |
+| `src/components/agenda/EventInfoManager.tsx` | Criar (gerenciador admin) |
+| `src/pages/PublicEventInfo.tsx` | Criar (pagina publica read-only) |
+| `src/App.tsx` | Adicionar rota `/informacoes/:recordId` |
+| `src/pages/Formularios.tsx` | Adicionar aba "Informacoes" no Checklist |
+| `src/integrations/supabase/types.ts` | Atualizar tipos da nova tabela |
