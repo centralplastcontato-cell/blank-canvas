@@ -1,46 +1,40 @@
 
 
-## Customizar itens do Acompanhamento de Festa
+## Customizar itens do checklist de Manutencao
 
-### O que muda
+Aplicar no `MaintenanceManager.tsx` o mesmo padrao de customizacao que ja existe no `PartyMonitoringManager.tsx`: adicionar/remover itens no dialog + mais itens padrao.
 
-Quando o usuario clicar em "Novo Acompanhamento", o dialog vai carregar os itens padrao **com a opcao de remover** (botao X ao lado de cada item) e **adicionar novos itens** (campo de texto + botao por categoria). Assim o admin personaliza o checklist antes de criar.
+### Novos itens padrao (alem dos 10 existentes)
 
-### Novos itens sugeridos para adicionar ao padrao
-
-**Preparacao:**
-- Verificar decoracao montada conforme contratado
-- Conferir mesa do bolo e doces posicionada
-- Verificar funcionamento de cameras de seguranca
-- Testar microfone para parabens
-
-**Durante a festa:**
-- Monitorar quantidade de convidados vs contratado
-- Verificar reposicao de comida e bebida
-- Acompanhar horario do bolo/parabens
-- Verificar limpeza dos banheiros durante a festa
-- Monitorar seguranca dos brinquedos
-- Registrar ocorrencias ou reclamacoes
-
-**Encerramento:**
-- Coletar feedback do cliente (como foi a festa)
-- Registrar itens esquecidos pelos convidados
-- Conferir se nao ficou nenhum convidado no espaco
+- Janela/vidro quebrado
+- Goteira no telhado
+- Interruptor com defeito
+- Cadeira/mesa danificada
+- Extintor vencido ou ausente
+- Descarga com defeito
+- Luminaria solta ou torta
+- Portao/grade com problema
+- Pintura descascando
+- Cheiro de gas/vazamento
+- Bebedouro com defeito
+- Pia entupida
 
 ### Mudancas tecnicas
 
-**Arquivo: `src/components/agenda/PartyMonitoringManager.tsx`**
+**Arquivo: `src/components/agenda/MaintenanceManager.tsx`**
 
-1. **Ampliar DEFAULT_ITEMS** com os ~13 novos itens listados acima
+1. **Ampliar `DEFAULT_ITEMS`** de 10 para ~22 itens, todos sem categoria (lista plana, como ja e hoje)
 
-2. **Adicionar funcao `removeItem(idx)`** que remove o item do array `items` por indice
+2. **Adicionar estado `newItemText`** (string) para o campo de adicionar item customizado
 
-3. **Adicionar funcao `addItem(label, category)`** que insere um novo item no final da categoria correspondente
+3. **Adicionar funcao `removeItem(idx)`** que remove o item do array `items` por indice
 
-4. **No dialog de criacao/edicao**, para cada categoria:
-   - Mostrar botao X (Trash2) ao lado de cada item para remover
-   - No final de cada grupo de categoria, mostrar um campo Input + botao "Adicionar" para o usuario digitar um novo item customizado
-   - O campo fica inline: `[__________________] [+ Adicionar]`
+4. **Adicionar funcao `addItem(label)`** que insere um novo `MaintenanceItem` no final da lista com `checked: false`
 
-5. **Visual**: Os itens removidos somem do checklist. Itens adicionados aparecem no final da categoria. Tudo isso acontece antes de salvar, entao o usuario tem controle total do que vai no checklist final.
+5. **Modificar o dialog de criacao/edicao**:
+   - Ao lado de cada item, mostrar botao X (Trash2) para remover (mesmo estilo do PartyMonitoringManager)
+   - No final da lista de itens, mostrar campo Input + botao "Adicionar" inline
+   - Suportar Enter para adicionar rapidamente
+
+6. **Nao alterar a estrutura de dados** - os itens continuam sem categoria (lista plana), diferente do Acompanhamento que usa categorias
 
