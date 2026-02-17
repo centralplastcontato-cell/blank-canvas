@@ -1,36 +1,72 @@
 
 
-# Botao "Copiar Lista" na pagina publica de presenca
+# Pagina de Conferencia da Lista de Presenca
 
-## O que sera feito
+## Objetivo
 
-Adicionar um botao "Copiar Lista" na pagina `PublicAttendance.tsx` que copia a lista de convidados formatada como texto para a area de transferencia. O anfitriao (ou recepcionista) pode entao colar em qualquer lugar - WhatsApp, notas, etc.
+Criar uma pagina publica somente leitura que exiba a lista de convidados de forma visual e apresentavel, para o anfitriao conferir. O botao "Copiar Lista" sera mantido, mas sera adicionado um botao **"Compartilhar Lista"** que abre essa nova pagina em outra aba. O link dessa pagina pode ser enviado via WhatsApp para o anfitriao.
 
-## Onde aparece
+## Nova rota
 
-O botao ficara visivel quando houver convidados registrados, posicionado acima da lista de convidados (abaixo das estatisticas). Estilo outline com icone de copiar.
+`/lista-presenca/:recordId/conferencia`
 
-## Formato do texto copiado
+## Layout da pagina de conferencia
 
+```text
++-----------------------------------+
+|  [Logo]  Nome do Buffet           |
+|  Festa: Aniversario do Joao       |
+|  Data: 15/02/2026                 |
+|  Total: 25 convidados             |
++-----------------------------------+
+|  Estatisticas por faixa etaria    |
+|  [0-4: 3] [5-10: 8] [11-16: 5]   |
+|  [17-18: 2] [18+: 5] [S/I: 2]    |
++-----------------------------------+
+|                                   |
+|  #1  Victor  ·  8 anos            |
+|      Tel: (15) 98112-1710         |
+|      [x] Quer info                |
+|  -------------------------------- |
+|  #2  Ana  ·  32 anos              |
+|      Tel: (15) 98100-7979         |
+|      [x] Quer info                |
+|  -------------------------------- |
+|  #3  Lucas  ·  3 anos             |
+|      Crianca desacompanhada       |
+|      Resp: Maria (15) 99999-0000  |
+|  -------------------------------- |
+|  ...                              |
++-----------------------------------+
 ```
-Lista de Presenca - Castelo da Diversao
-Festa: Aniversario do Joao
-2 convidados
-
-#1 Victor - 15981121710 - Quer info
-#2 Ana - 15981007979 - Quer info
-```
-
-Incluira: numero, nome, idade (se informada), telefone (se informado), flag "Quer info" e dados de crianca desacompanhada quando aplicavel.
 
 ## Detalhes tecnicos
 
-### Arquivo: `src/pages/PublicAttendance.tsx`
+### 1. Novo arquivo: `src/pages/PublicAttendanceReview.tsx`
 
-- Importar icone `Copy` do lucide-react
-- Criar funcao `handleCopyList()` que monta o texto formatado a partir de `entry.guests`, `companyName` e `eventTitle`
-- Usar `navigator.clipboard.writeText()` para copiar
-- Exibir toast de confirmacao "Lista copiada!"
-- Botao com variante `outline`, icone `Copy` e texto "Copiar Lista"
-- Posicionado logo acima do label "Convidados registrados"
+- Pagina somente leitura (sem formularios, sem botoes de editar/remover)
+- Busca os dados da `attendance_entries` + company + event (mesmo fetch do PublicAttendance)
+- Exibe logo, nome da empresa, titulo do evento, data
+- Card de estatisticas por faixa etaria (mesmo calculo do useMemo existente)
+- Lista de convidados em cards limpos e legíveis, numerados
+- Botao "Copiar Lista" no topo (reutiliza a mesma logica de texto)
+- Design mobile-first, clean, fundo claro
+
+### 2. Rota no `src/App.tsx`
+
+- Adicionar `<Route path="/lista-presenca/:recordId/conferencia" element={<PublicAttendanceReview />} />`
+
+### 3. Botao na pagina original `PublicAttendance.tsx`
+
+- Trocar ou complementar o botao "Copiar Lista" com um botao **"Ver Lista"** (icone `ExternalLink`)
+- Ao clicar, abre `window.open(/lista-presenca/${recordId}/conferencia)` em nova aba
+- Manter o botao "Copiar Lista" ao lado para quem preferir o texto
+
+### Resumo dos arquivos
+
+| Arquivo | Acao |
+|---|---|
+| `src/pages/PublicAttendanceReview.tsx` | Criar (pagina de conferencia read-only) |
+| `src/App.tsx` | Adicionar rota |
+| `src/pages/PublicAttendance.tsx` | Adicionar botao "Ver Lista" |
 
