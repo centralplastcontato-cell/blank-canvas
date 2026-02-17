@@ -1380,6 +1380,8 @@ export type Database = {
           created_at: string
           id: string
           photo_url: string | null
+          pix_key: string | null
+          pix_type: string | null
           respondent_name: string | null
           template_id: string
         }
@@ -1389,6 +1391,8 @@ export type Database = {
           created_at?: string
           id?: string
           photo_url?: string | null
+          pix_key?: string | null
+          pix_type?: string | null
           respondent_name?: string | null
           template_id: string
         }
@@ -1398,6 +1402,8 @@ export type Database = {
           created_at?: string
           id?: string
           photo_url?: string | null
+          pix_key?: string | null
+          pix_type?: string | null
           respondent_name?: string | null
           template_id?: string
         }

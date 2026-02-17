@@ -12,6 +12,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { toast } from "@/hooks/use-toast";
 import { Users, Plus, Trash2, ChevronDown, ChevronRight, Pencil, Loader2, MinusCircle, PlusCircle, Share2, Copy, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
+import { FreelancerAutocomplete } from "./FreelancerAutocomplete";
 
 
 interface StaffEntry {
@@ -380,11 +381,21 @@ export function EventStaffManager() {
                   <Card key={entryIdx} className="border-l-2 border-l-primary/30">
                     <CardContent className="p-3 space-y-3">
                       <span className="text-xs text-muted-foreground font-medium block">{role.roleTitle} #{entryIdx + 1}</span>
-                      <Input
+                      <FreelancerAutocomplete
+                        companyId={companyId}
+                        value={entry.name}
+                        onChange={(val) => updateEntry(roleIdx, entryIdx, "name", val)}
+                        onSelect={(f) => {
+                          setStaffData(prev => {
+                            const copy = prev.map(r => ({ ...r, entries: r.entries.map(e => ({ ...e })) }));
+                            copy[roleIdx].entries[entryIdx].name = f.name;
+                            copy[roleIdx].entries[entryIdx].pix_type = f.pix_type;
+                            copy[roleIdx].entries[entryIdx].pix_key = f.pix_key;
+                            return copy;
+                          });
+                        }}
                         className="h-12 text-base"
                         placeholder="Nome"
-                        value={entry.name}
-                        onChange={e => updateEntry(roleIdx, entryIdx, "name", e.target.value)}
                       />
                       <div className="grid grid-cols-2 gap-2">
                         <Select value={entry.pix_type} onValueChange={v => updateEntry(roleIdx, entryIdx, "pix_type", v)}>

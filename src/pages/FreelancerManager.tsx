@@ -45,6 +45,8 @@ const DEFAULT_QUESTIONS: FreelancerQuestion[] = [
   { id: "endereco", type: "text", text: "Endereço", step: 1, required: true },
   { id: "ja_trabalha", type: "yesno", text: "Já trabalha no buffet?", step: 2, required: true },
   { id: "tempo_trabalho", type: "text", text: "Há quanto tempo?", step: 2 },
+  { id: "pix_tipo", type: "select", text: "Tipo de chave PIX", step: 1, options: ["CPF", "CNPJ", "E-mail", "Telefone", "Chave aleatória"] },
+  { id: "pix_chave", type: "text", text: "Chave PIX", step: 1 },
   { id: "funcao", type: "multiselect", text: "Qual é a sua função?", step: 2, required: true, options: ["Gerente", "Segurança", "Garçom", "Monitor", "Cozinha"] },
   { id: "sobre", type: "textarea", text: "Fale um pouco sobre você", step: 3 },
 ];
