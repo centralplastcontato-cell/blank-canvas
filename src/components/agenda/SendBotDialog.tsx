@@ -140,6 +140,7 @@ export function SendBotButton({ guests, onSent }: Omit<SendBotDialogProps, 'reco
               instanceId: instance.instance_id,
               instanceToken: instance.instance_token,
               lpMode: true,
+              contactName: guest.name,
             },
           });
 

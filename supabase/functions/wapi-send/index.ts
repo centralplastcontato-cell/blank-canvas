@@ -107,6 +107,7 @@ async function findOrCreateConversation(
   phone: string,
   instanceExternalId: string,
   lpMode?: boolean,
+  contactName?: string,
 ): Promise<{ conversationId: string; companyId: string } | null> {
   try {
     // Normalize phone for remote_jid format
@@ -128,7 +129,7 @@ async function findOrCreateConversation(
     // Check if conversation already exists
     const { data: existing } = await supabase
       .from('wapi_conversations')
-      .select('id, company_id')
+      .select('id, company_id, contact_name, bot_data')
       .eq('instance_id', instanceRecord.id)
       .eq('remote_jid', remoteJid)
       .maybeSingle();
@@ -136,10 +137,20 @@ async function findOrCreateConversation(
     if (existing) {
       // If lpMode, reset bot state so returning leads can re-engage
       if (lpMode) {
-        await supabase.from('wapi_conversations').update({
+        const updateData: Record<string, unknown> = {
           bot_step: 'lp_sent',
           bot_enabled: true,
-        }).eq('id', existing.id);
+        };
+        // Update contact_name if we have a real name and current one looks like a phone number
+        if (contactName && /^\d+$/.test(existing.contact_name || '')) {
+          updateData.contact_name = contactName;
+        }
+        // Ensure bot_data.nome is set
+        if (contactName) {
+          const existingBotData = (existing as any).bot_data || {};
+          updateData.bot_data = { ...existingBotData, nome: contactName };
+        }
+        await supabase.from('wapi_conversations').update(updateData).eq('id', existing.id);
         console.log('findOrCreateConversation: reset bot_step to lp_sent for existing conversation', existing.id);
       } else {
         console.log('findOrCreateConversation: found existing conversation', existing.id);
@@ -155,10 +166,11 @@ async function findOrCreateConversation(
         company_id: instanceRecord.company_id,
         remote_jid: remoteJid,
         contact_phone: cleanPhone,
-        contact_name: cleanPhone, // Will be updated when webhook receives reply
+        contact_name: contactName || cleanPhone,
         bot_enabled: true,
         bot_step: 'lp_sent',
         last_message_from_me: true,
+        ...(contactName ? { bot_data: { nome: contactName } } : {}),
       })
       .select('id, company_id')
       .single();
@@ -247,7 +259,7 @@ Deno.serve(async (req) => {
         
         if (!resolvedConvId && phone) {
           // Auto-find or create conversation (LP/bot outbound flow)
-          const convResult = await findOrCreateConversation(supabase, phone, instance_id, body.lpMode);
+          const convResult = await findOrCreateConversation(supabase, phone, instance_id, body.lpMode, body.contactName);
           if (convResult) {
             resolvedConvId = convResult.conversationId;
             resolvedCompanyId = convResult.companyId;
