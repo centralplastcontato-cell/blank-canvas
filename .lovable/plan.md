@@ -1,77 +1,127 @@
 
 
-# Novo Checklist: Informacoes da Festa
+# Nova Aba "Freelancer" na pagina Operacoes
 
-## O que e
+## O que sera feito
 
-Um novo modulo de checklist chamado **"Informacoes"** onde o setor Administrativo pode escrever orientacoes e particularidades sobre uma festa para o gerente que vai trabalhar nela. Diferente dos outros checklists que usam itens de marcacao, este usa **blocos de texto** (titulo + conteudo), permitindo adicionar quantos assuntos forem necessarios.
+Criar um novo modulo completo de formulario para cadastro de freelancers, seguindo exatamente o mesmo padrao dos formularios existentes (Avaliacoes, Pre-Festa, etc.). Tera uma aba principal "Freelancer" ao lado de Formularios, Checklist e Pacotes, com gerenciamento de templates no admin e uma pagina publica com fluxo passo-a-passo com logo do buffet.
 
-## Como funciona
+## Pagina publica (como o freelancer vera)
 
-### Lado Administrativo (aba Checklist > Informacoes)
-- Botao "+ Novo Informativo"
-- Dialog com:
-  - Seletor de festa (opcional, como nos outros)
-  - Blocos de informacao: cada bloco tem um **titulo** (ex: "Observacoes sobre o bolo") e um **texto** (ex: "A mae pediu bolo sem gluten, fornecedor X vai entregar as 14h")
-  - Botao para adicionar mais blocos
-  - Possibilidade de remover blocos
-- Card na listagem com: nome da festa, data, quantidade de blocos, acoes (Abrir, Compartilhar, Editar, Excluir)
+O formulario publico seguira o mesmo layout step-by-step dos outros formularios:
 
-### Lado Publico (/informacoes/:recordId)
-- Pagina somente leitura com informacoes da festa (titulo, data, aniversariante, pais, telefone)
-- Lista de blocos de informacao formatados de forma clara
-- Design mobile-first, clean
+```text
++-----------------------------------+
+|  [Logo]  Nome do Buffet           |  <- header com branding
++-----------------------------------+
+|  ========= Barra progresso ===    |
+|  Etapa 1 de 3                     |
++-----------------------------------+
+|                                   |
+|  Cadastro de Freelancer           |
+|  Preencha seus dados para se      |
+|  cadastrar na nossa equipe!       |
+|                                   |
+|  [Card] Como voce se chama?       |
+|  [________________]               |
+|                                   |
+|  [Card] Telefone                  |
+|  [________________]               |
+|                                   |
+|  [Card] Endereco                  |
+|  [________________]               |
+|                                   |
++-----------------------------------+
+|  [Voltar]            [Proximo ->] |
++-----------------------------------+
+```
+
+### Campos do formulario (distribuidos em etapas)
+
+**Etapa 1 - Dados pessoais:**
+- Nome completo (texto, obrigatorio)
+- Foto (upload de imagem, opcional)
+- Telefone (texto com mascara, obrigatorio)
+- Endereco (texto, obrigatorio)
+
+**Etapa 2 - Experiencia:**
+- Ja trabalha no buffet? (sim/nao)
+- Se sim, ha quanto tempo? (texto, condicional)
+- Qual funcao? (selecao: Gerente, Seguranca, Garcom, Monitor, Cozinha)
+
+**Etapa 3 - Sobre voce:**
+- Fale um pouco sobre voce (textarea)
+
+**Tela final:**
+- Mensagem de agradecimento com logo
+
+## Lado administrativo
+
+Na pagina Operacoes (/formularios), uma nova aba principal "Freelancer" com icone `HardHat`. Dentro dela, o gerenciador de templates seguindo o padrao dos outros:
+
+- Botao "+ Novo Template"
+- Dialog para criar/editar template (nome, descricao, mensagem de agradecimento, campos personalizaveis)
+- Cards com acoes: Link, Ver, Respostas, Editar, Duplicar, Excluir
+- Visualizacao inline das respostas recebidas (dados de cada freelancer cadastrado)
 
 ## Detalhes tecnicos
 
-### 1. Nova tabela: `event_info_entries`
+### 1. Novas tabelas no banco de dados
 
-Seguindo o padrao das outras tabelas de checklist:
+**`freelancer_templates`** - armazena os templates de formulario
 
-```text
-id          uuid (PK, default gen_random_uuid())
-company_id  uuid (FK companies, NOT NULL)
-event_id    uuid (FK company_events, nullable)
-items       jsonb (array de {title: string, content: string})
-notes       text (nullable)
-filled_by   uuid (nullable)
-created_at  timestamptz (default now())
-updated_at  timestamptz (default now())
-```
+| Coluna | Tipo | Descricao |
+|---|---|---|
+| id | uuid PK | ID unico |
+| company_id | uuid FK | Empresa |
+| name | text | Nome do template |
+| slug | text | Slug para URL amigavel |
+| description | text | Descricao exibida no formulario |
+| questions | jsonb | Campos configurados |
+| thank_you_message | text | Mensagem de agradecimento |
+| is_active | boolean | Ativo/inativo |
+| created_at | timestamptz | Data criacao |
+| updated_at | timestamptz | Data atualizacao |
 
-RLS habilitado, mesmas policies das outras tabelas de checklist.
+**`freelancer_responses`** - armazena as respostas dos freelancers
 
-### 2. Novo componente: `src/components/agenda/EventInfoManager.tsx`
+| Coluna | Tipo | Descricao |
+|---|---|---|
+| id | uuid PK | ID unico |
+| template_id | uuid FK | Template usado |
+| company_id | uuid FK | Empresa |
+| respondent_name | text | Nome do freelancer |
+| answers | jsonb | Respostas (nome, telefone, endereco, funcao, etc.) |
+| photo_url | text | URL da foto enviada |
+| created_at | timestamptz | Data envio |
 
-Seguindo o padrao do `MaintenanceManager.tsx`:
-- CRUD completo na tabela `event_info_entries`
-- Dialog com seletor de festa + blocos dinamicos (titulo + textarea)
-- Cards collapsiveis na listagem com acoes: Abrir, Compartilhar, Editar, Excluir
+RLS: acesso anonimo para insert/select por ID (pagina publica), acesso autenticado com filtro por company para admin.
 
-### 3. Nova pagina publica: `src/pages/PublicEventInfo.tsx`
+RPC: `get_freelancer_template_public` e `get_freelancer_template_by_slugs` seguindo o padrao das outras RPCs.
 
-Seguindo o padrao do `PublicMaintenance.tsx`:
-- Busca o registro pelo `recordId`
-- Exibe info da festa/evento (titulo, data) no header
-- Busca dados do evento vinculado para exibir: nome do aniversariante, pais, telefone (campos do lead associado ao evento)
-- Exibe cada bloco de informacao como card com titulo em destaque e texto abaixo
-- Somente leitura
+### 2. Novos arquivos
 
-### 4. Rota: `src/App.tsx`
-
-Nova rota: `/informacoes/:recordId` apontando para `PublicEventInfo`
-
-### 5. Aba na pagina Formularios: `src/pages/Formularios.tsx`
-
-Adicionar sub-aba **"Informacoes"** dentro da aba Checklist, ao lado de Manutencao, Acompanhamento, Presenca. Icone: `FileText`.
-
-### Resumo dos arquivos
-
-| Arquivo | Acao |
+| Arquivo | Descricao |
 |---|---|
-| Migration SQL | Criar tabela `event_info_entries` + RLS |
-| `src/components/agenda/EventInfoManager.tsx` | Criar (gerenciador admin) |
-| `src/pages/PublicEventInfo.tsx` | Criar (pagina publica read-only) |
-| `src/App.tsx` | Adicionar rota `/informacoes/:recordId` |
-| `src/pages/Formularios.tsx` | Adicionar aba "Informacoes" no Checklist |
-| `src/integrations/supabase/types.ts` | Atualizar tipos da nova tabela |
+| `src/pages/FreelancerManager.tsx` | Gerenciador admin (CRUD templates + visualizacao respostas) |
+| `src/pages/PublicFreelancer.tsx` | Pagina publica step-by-step |
+| Migration SQL | Tabelas + RLS + RPCs |
+
+### 3. Arquivos editados
+
+| Arquivo | Alteracao |
+|---|---|
+| `src/pages/Formularios.tsx` | Adicionar aba "Freelancer" no nivel principal |
+| `src/App.tsx` | Adicionar rotas `/freelancer/:companySlug/:templateSlug` e `/freelancer/:templateId` |
+
+### 4. Upload de foto
+
+O freelancer podera enviar uma foto de perfil. Sera utilizado o bucket `onboarding-uploads` (ja existente e publico) para armazenar as imagens. A foto sera opcional e exibida junto aos dados na visualizacao de respostas pelo admin.
+
+### 5. Rotas publicas
+
+- `/freelancer/:companySlug/:templateSlug` - URL amigavel
+- `/freelancer/:templateId` - URL por ID
+
+Ambas resolvidas via RPCs dedicadas, seguindo o padrao existente.
+
