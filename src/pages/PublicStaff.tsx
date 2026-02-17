@@ -1,0 +1,259 @@
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Users, CheckCircle, Copy } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import { Toaster } from "@/components/ui/toaster";
+import { format } from "date-fns";
+
+interface StaffEntry {
+  name: string;
+  pix_type: string;
+  pix_key: string;
+  value: string;
+}
+
+interface StaffRole {
+  roleTitle: string;
+  entries: StaffEntry[];
+}
+
+const PIX_TYPES = ["CPF", "CNPJ", "E-mail", "Telefone", "Chave aleatória"];
+
+function formatCurrency(val: string) {
+  const num = val.replace(/\D/g, "");
+  if (!num) return "";
+  return (parseInt(num, 10) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function calcTotal(data: StaffRole[]) {
+  let sum = 0;
+  data.forEach(role => role.entries.forEach(e => {
+    const num = e.value.replace(/\D/g, "");
+    if (num) sum += parseInt(num, 10) / 100;
+  }));
+  return sum;
+}
+
+export default function PublicStaff() {
+  const { recordId } = useParams<{ recordId: string }>();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [notFound, setNotFound] = useState(false);
+  const [staffData, setStaffData] = useState<StaffRole[]>([]);
+  const [notes, setNotes] = useState("");
+  const [eventTitle, setEventTitle] = useState("");
+  const [eventDate, setEventDate] = useState("");
+
+  useEffect(() => {
+    if (!recordId) return;
+    (async () => {
+      const { data, error } = await supabase
+        .from("event_staff_entries")
+        .select("*")
+        .eq("id", recordId)
+        .single();
+
+      if (error || !data) {
+        setNotFound(true);
+        setLoading(false);
+        return;
+      }
+
+      setStaffData(data.staff_data as unknown as StaffRole[]);
+      setNotes(data.notes || "");
+
+      // Fetch event info
+      const { data: ev } = await supabase
+        .from("company_events")
+        .select("title, event_date")
+        .eq("id", data.event_id)
+        .single();
+
+      if (ev) {
+        setEventTitle(ev.title);
+        setEventDate(ev.event_date);
+      }
+
+      setLoading(false);
+    })();
+  }, [recordId]);
+
+  const updateEntry = (roleIdx: number, entryIdx: number, field: keyof StaffEntry, value: string) => {
+    setStaffData(prev => {
+      const copy = prev.map(r => ({ ...r, entries: r.entries.map(e => ({ ...e })) }));
+      if (field === "value") {
+        copy[roleIdx].entries[entryIdx][field] = formatCurrency(value);
+      } else {
+        copy[roleIdx].entries[entryIdx][field] = value;
+      }
+      return copy;
+    });
+  };
+
+  const copyPixKey = (key: string) => {
+    if (!key) return;
+    navigator.clipboard.writeText(key);
+    toast({ title: "Chave PIX copiada!" });
+  };
+
+  const handleSubmit = async () => {
+    if (!recordId) return;
+    setSaving(true);
+
+    const { error } = await supabase
+      .from("event_staff_entries")
+      .update({ staff_data: staffData as any, notes: notes || null })
+      .eq("id", recordId);
+
+    setSaving(false);
+    if (error) {
+      toast({ title: "Erro ao enviar", description: error.message, variant: "destructive" });
+    } else {
+      setSubmitted(true);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (notFound) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="max-w-md w-full">
+          <CardContent className="py-12 text-center">
+            <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <h1 className="text-xl font-semibold mb-2">Registro não encontrado</h1>
+            <p className="text-muted-foreground text-sm">Este link pode estar incorreto ou o registro foi removido.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (submitted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Toaster />
+        <Card className="max-w-md w-full">
+          <CardContent className="py-12 text-center">
+            <CheckCircle className="h-14 w-14 mx-auto mb-4 text-primary" />
+            <h1 className="text-xl font-semibold mb-2">Dados enviados! ✅</h1>
+            <p className="text-muted-foreground text-sm">Os dados da equipe foram salvos com sucesso.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Toaster />
+      <div className="max-w-lg mx-auto px-4 py-6 space-y-5">
+        {/* Header */}
+        <div className="text-center space-y-1">
+          <div className="flex items-center justify-center gap-2">
+            <Users className="h-6 w-6 text-primary" />
+            <h1 className="text-xl font-bold">Equipe / Financeiro</h1>
+          </div>
+          {eventTitle && (
+            <p className="text-sm text-muted-foreground">
+              {eventTitle}
+              {eventDate && ` — ${format(new Date(eventDate + "T12:00:00"), "dd/MM/yyyy")}`}
+            </p>
+          )}
+        </div>
+
+        {/* Staff Roles */}
+        {staffData.map((role, roleIdx) => (
+          <div key={roleIdx} className="space-y-3">
+            <Label className="text-sm font-semibold block">
+              {role.roleTitle} ({role.entries.length})
+            </Label>
+            {role.entries.map((entry, entryIdx) => (
+              <Card key={entryIdx} className="border-l-2 border-l-primary/30">
+                <CardContent className="p-3 space-y-3">
+                  <span className="text-xs text-muted-foreground font-medium block">
+                    {role.roleTitle} #{entryIdx + 1}
+                  </span>
+                  <Input
+                    className="h-12 text-base"
+                    placeholder="Nome"
+                    value={entry.name}
+                    onChange={e => updateEntry(roleIdx, entryIdx, "name", e.target.value)}
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Select value={entry.pix_type} onValueChange={v => updateEntry(roleIdx, entryIdx, "pix_type", v)}>
+                      <SelectTrigger className="h-12">
+                        <SelectValue placeholder="Tipo PIX" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PIX_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      className="h-12 text-base"
+                      placeholder="Valor (R$)"
+                      inputMode="numeric"
+                      value={entry.value}
+                      onChange={e => updateEntry(roleIdx, entryIdx, "value", e.target.value)}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      className="flex-1 h-12 text-base"
+                      placeholder="Chave PIX"
+                      value={entry.pix_key}
+                      onChange={e => updateEntry(roleIdx, entryIdx, "pix_key", e.target.value)}
+                    />
+                    {entry.pix_key && (
+                      <Button type="button" variant="outline" size="icon" className="h-12 w-12 shrink-0" onClick={() => copyPixKey(entry.pix_key)}>
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ))}
+
+        {/* Total */}
+        <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
+          <span className="font-semibold text-sm">Total</span>
+          <span className="font-bold text-base">
+            {calcTotal(staffData).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+          </span>
+        </div>
+
+        {/* Notes */}
+        <div>
+          <Label className="mb-1.5 block">Observações</Label>
+          <Input
+            className="h-12 text-base"
+            placeholder="Notas adicionais..."
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+          />
+        </div>
+
+        {/* Submit */}
+        <Button onClick={handleSubmit} disabled={saving} className="w-full h-12 text-base">
+          {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+          Enviar
+        </Button>
+      </div>
+    </div>
+  );
+}
