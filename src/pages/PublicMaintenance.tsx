@@ -213,7 +213,7 @@ export default function PublicMaintenance() {
                 </div>
                 {item.checked && (
                   <Input
-                    className="h-10 text-sm ml-8"
+                    className="h-10 text-sm"
                     placeholder="Detalhes (ex: qual lâmpada, onde...)"
                     value={item.detail || ""}
                     onChange={e => updateItemDetail(idx, e.target.value)}
