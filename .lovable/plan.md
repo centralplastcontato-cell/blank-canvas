@@ -1,36 +1,22 @@
 
 
-# Renomear para "Operacoes" e adicionar aba "Pacotes"
+# Corrigir espaçamento do formulário EventFormDialog
 
-## O que muda
+## Problema
+Os campos do formulário estão muito próximos uns dos outros no mobile -- os labels ficam encostados nos inputs do grupo anterior, prejudicando a legibilidade.
 
-- O menu lateral e mobile passam a mostrar **"Operacoes"** em vez de "Documentos"
-- A pagina ganha uma terceira aba: **Formularios | Checklist | Pacotes**
-- Na aba Pacotes, um CRUD simples para cadastrar pacotes com **nome** e **descricao**
-- Pode criar, editar e excluir pacotes
+## Solução
 
-## Banco de Dados
+Duas mudanças simples no `EventFormDialog.tsx`:
 
-Nova tabela `company_packages`:
+1. **Aumentar o espaçamento entre grupos de campos**: trocar `space-y-4` (16px) para `space-y-5` (20px) no form
+2. **Adicionar gap interno entre Label e Input**: adicionar `space-y-1.5` (6px) em cada div que contém Label + Input, para que o label não fique colado no campo
 
-```text
-id              uuid PK
-company_id      uuid NOT NULL (FK -> companies)
-name            text NOT NULL
-description     text
-is_active       boolean DEFAULT true
-sort_order      integer DEFAULT 0
-created_at      timestamptz
-updated_at      timestamptz
-```
+### Arquivo editado
 
-RLS seguindo o padrao existente: SELECT para membros da empresa, ALL para admins/owners.
+- `src/components/agenda/EventFormDialog.tsx`
+  - Linha 179: `space-y-4` para `space-y-5`
+  - Cada `<div>` dentro dos grids e campos individuais: adicionar `className="space-y-1.5"` para dar respiro entre label e input
+  - Nos grids de 2 colunas (`grid grid-cols-2 gap-3`): manter o gap horizontal, mas cada coluna interna ganha `space-y-1.5`
 
-## Arquivos
-
-1. **Criar:** Migracao SQL para `company_packages` com RLS
-2. **Criar:** `src/components/admin/PackagesManager.tsx` -- CRUD de pacotes (cards + dialog), mesmo padrao visual do ChecklistTemplateManager
-3. **Editar:** `src/pages/Formularios.tsx` -- renomear titulos para "Operacoes", adicionar aba "Pacotes" com icone Package
-4. **Editar:** `src/components/admin/AdminSidebar.tsx` -- trocar label "Documentos" para "Operacoes"
-5. **Editar:** `src/components/admin/MobileMenu.tsx` -- trocar label "Documentos" para "Operacoes"
-
+Resultado: formulário com respiro visual adequado entre cada seção e entre labels e seus campos.
