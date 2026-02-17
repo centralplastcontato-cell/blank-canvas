@@ -1,35 +1,43 @@
 
-## Correção definitiva dos campos de Horário
+
+## Correção do campo Data - mesma abordagem dos horários
 
 ### Diagnóstico
-O problema persiste porque inputs nativos `type="time"` e `type="date"` no iOS Safari renderizam com controles nativos do sistema operacional que possuem largura intrínseca fixa. CSS como `w-full`, `min-w-0`, `box-border` ajudam em desktop mas **não resolvem no iOS** porque o WebKit aplica dimensionamento interno nos controles nativos.
+O campo "Data" usa `<input type="date">` nativo, que no iOS Safari renderiza com controles do sistema operacional com largura intrínseca fixa - exatamente o mesmo problema que os campos de horário tinham antes da correção.
 
 ### Solução proposta
-Substituir os inputs nativos de `type="time"` por **Selects customizados** (usando o componente Select do Radix que já está no projeto). Isso garante aparência consistente com os demais campos (Status, Tipo de festa, Pacote) e largura 100% em qualquer dispositivo.
+Substituir o `<input type="date">` por **3 Selects lado a lado** (Dia / Mês / Ano), usando os mesmos componentes Select do Radix. Isso garante aparência idêntica aos campos de Horário, Status e Tipo de festa.
 
 ### Detalhes técnicos
 
 **Arquivo**: `src/components/agenda/EventFormDialog.tsx`
 
-1. **Criar array de horários** (de 00:00 a 23:30 em intervalos de 30 minutos) para popular os Selects
-2. **Substituir os dois inputs `type="time"`** por componentes `Select` com as opções de horário
-3. **Empilhar os campos verticalmente** (um embaixo do outro, como os demais) para ocupar 100% da largura
-4. Manter a lógica de estado (`start_time`, `end_time`) inalterada
+1. **Criar constantes** para as opções:
+   - Dias: 01 a 31
+   - Meses: Janeiro a Dezembro (valor numérico 01-12, label em português)
+   - Anos: 2024 a 2030
 
-**Estrutura resultante:**
-```
+2. **Adicionar estado local** para dia, mês e ano separados, sincronizando com `form.event_date` (formato `YYYY-MM-DD`)
+
+3. **Substituir o input nativo** por 3 Selects dentro de um container `flex gap-2`:
+```text
 <div class="space-y-2">
-  <Label>Horario inicio</Label>
-  <Select> ... opcoes de horario ... </Select>
-</div>
-<div class="space-y-2">
-  <Label>Horario fim</Label>
-  <Select> ... opcoes de horario ... </Select>
+  <Label>Data *</Label>
+  <div class="flex gap-2">
+    <Select placeholder="Dia" />    (flex-1)
+    <Select placeholder="Mês" />    (flex-[2] - um pouco maior para caber o nome)
+    <Select placeholder="Ano" />    (flex-1)
+  </div>
 </div>
 ```
+
+4. **Sincronizar valores**: quando os 3 campos estiverem preenchidos, montar a string `YYYY-MM-DD` e atualizar `form.event_date`. Na edição, fazer o parse inverso para popular os selects.
+
+5. **Validação**: o formulário continua exigindo data preenchida (os 3 selects precisam ter valor).
 
 ### Resultado esperado
-- Campos de horario com aparencia identica aos campos Status, Tipo de festa e Pacote
-- Largura 100% consistente em iOS, Android e desktop
-- Intervalos de 30 minutos para facilitar a selecao
-- Sem regressao nos demais campos
+- Campo de data com aparência consistente com todos os outros selects do formulário
+- Largura 100% garantida em iOS, Android e desktop
+- Seleção intuitiva de dia, mês e ano
+- Sem regressão nos demais campos
+
