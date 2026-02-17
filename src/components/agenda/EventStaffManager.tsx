@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "@/hooks/use-toast";
-import { Users, Plus, Trash2, ChevronDown, ChevronRight, Copy, Pencil, Loader2, MinusCircle, PlusCircle, Share2 } from "lucide-react";
+import { Users, Plus, Trash2, ChevronDown, ChevronRight, Pencil, Loader2, MinusCircle, PlusCircle, Share2, Copy } from "lucide-react";
 import { format } from "date-fns";
 
 
@@ -219,26 +219,6 @@ export function EventStaffManager() {
     return sum;
   };
 
-  const copyToClipboard = (record: EventStaffRecord) => {
-    const lines: string[] = [];
-    lines.push(`📋 Equipe - ${record.event?.title || "Festa"}`);
-    if (record.event?.event_date) lines.push(`📅 ${format(new Date(record.event.event_date + "T12:00:00"), "dd/MM/yyyy")}`);
-    lines.push("");
-    record.staff_data.forEach(role => {
-      lines.push(`👥 ${role.roleTitle}`);
-      role.entries.forEach((e, i) => {
-        if (e.name) {
-          lines.push(`  ${i + 1}. ${e.name}`);
-          if (e.pix_type) lines.push(`     PIX (${e.pix_type}): ${e.pix_key}`);
-          if (e.value) lines.push(`     Valor: ${e.value}`);
-        }
-      });
-      lines.push("");
-    });
-    if (record.notes) lines.push(`📝 Obs: ${record.notes}`);
-    navigator.clipboard.writeText(lines.join("\n"));
-    toast({ title: "Copiado para a área de transferência!" });
-  };
 
   const toggleCard = (id: string) => {
     setExpandedCards(prev => {
@@ -303,9 +283,6 @@ export function EventStaffManager() {
                         <div className="flex items-center gap-1 shrink-0">
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(`${window.location.origin}/equipe/${record.id}`); toast({ title: "Link copiado!" }); }}>
                             <Share2 className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); copyToClipboard(record); }}>
-                            <Copy className="h-4 w-4" />
                           </Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); openEdit(record); }}>
                             <Pencil className="h-4 w-4" />
