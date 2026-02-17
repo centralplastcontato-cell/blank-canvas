@@ -119,8 +119,8 @@ export default function Formularios() {
               onValueChange={handleSectionChange}
               className="flex-1 flex flex-col overflow-hidden"
             >
-              <div className="px-3 md:px-6 pt-3 md:pt-4">
-                <TabsList className="w-full md:w-auto">
+              <div className="px-3 md:px-6 pt-3 md:pt-4 overflow-x-auto">
+                <TabsList className="w-max md:w-auto">
                   <TabsTrigger value="formularios" className="flex-1 md:flex-none gap-1.5">
                     <FileText className="h-4 w-4" />
                     <span>Formulários</span>
