@@ -244,6 +244,12 @@ async function resolveByDomain(domain: string, pathname: string): Promise<Respon
   });
 }
 
+/** For non-bot requests, build a redirect URL from domain+path and 302 redirect */
+function buildRedirectUrl(domain: string, path: string): string {
+  const base = domain.includes("localhost") ? `http://${domain}` : `https://${domain}`;
+  return `${base}${path !== "/" ? path : ""}`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -258,6 +264,9 @@ Deno.serve(async (req) => {
     const templateIdParam = url.searchParams.get("template_id");
     if (templateIdParam) {
       const baseUrl = url.searchParams.get("base_url") || "https://hubcelebrei.com.br";
+      if (!isBot) {
+        return new Response(null, { status: 302, headers: { ...corsHeaders, Location: `${baseUrl}/avaliacao/${templateIdParam}` } });
+      }
       const result = await resolveEvaluation(templateIdParam, baseUrl);
       if (result) return result;
       return new Response("Template not found", { status: 404, headers: corsHeaders });
@@ -265,8 +274,13 @@ Deno.serve(async (req) => {
 
     // Mode 1: explicit ?domain= parameter
     const domainParam = url.searchParams.get("domain");
+    const pathParam = url.searchParams.get("path") || "/";
     if (domainParam) {
-      const response = await resolveByDomain(domainParam, url.searchParams.get("path") || "/");
+      // Non-bot: 302 redirect directly to the real page
+      if (!isBot) {
+        return new Response(null, { status: 302, headers: { ...corsHeaders, Location: buildRedirectUrl(domainParam, pathParam) } });
+      }
+      const response = await resolveByDomain(domainParam, pathParam);
       if (response) return response;
       return new Response("Domain not found", { status: 404, headers: corsHeaders });
     }
@@ -278,6 +292,9 @@ Deno.serve(async (req) => {
     if (host) {
       const canonical = canonicalize(host);
       if (!canonical.includes("supabase") && !canonical.includes("functions")) {
+        if (!isBot) {
+          return new Response(null, { status: 302, headers: { ...corsHeaders, Location: buildRedirectUrl(host, pathname) } });
+        }
         const response = await resolveByDomain(host, pathname);
         if (response) return response;
       }
