@@ -1011,7 +1011,7 @@ export type Database = {
         Row: {
           company_id: string
           created_at: string
-          event_id: string
+          event_id: string | null
           filled_by: string | null
           id: string
           notes: string | null
@@ -1021,7 +1021,7 @@ export type Database = {
         Insert: {
           company_id: string
           created_at?: string
-          event_id: string
+          event_id?: string | null
           filled_by?: string | null
           id?: string
           notes?: string | null
@@ -1031,7 +1031,7 @@ export type Database = {
         Update: {
           company_id?: string
           created_at?: string
-          event_id?: string
+          event_id?: string | null
           filled_by?: string | null
           id?: string
           notes?: string | null
