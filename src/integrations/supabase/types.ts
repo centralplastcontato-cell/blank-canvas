@@ -20,6 +20,7 @@ export type Database = {
           created_at: string
           event_id: string | null
           filled_by: string | null
+          finalized_at: string | null
           guests: Json
           id: string
           notes: string | null
@@ -31,6 +32,7 @@ export type Database = {
           created_at?: string
           event_id?: string | null
           filled_by?: string | null
+          finalized_at?: string | null
           guests?: Json
           id?: string
           notes?: string | null
@@ -42,6 +44,7 @@ export type Database = {
           created_at?: string
           event_id?: string | null
           filled_by?: string | null
+          finalized_at?: string | null
           guests?: Json
           id?: string
           notes?: string | null
