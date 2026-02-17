@@ -258,12 +258,12 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
           <div className="space-y-2">
             <Label>Horário início</Label>
-            <Input type="time" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} />
+            <Input type="time" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} style={{ width: '408px', maxWidth: '100%' }} />
           </div>
 
           <div className="space-y-2">
             <Label>Horário fim</Label>
-            <Input type="time" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} />
+            <Input type="time" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} style={{ width: '408px', maxWidth: '100%' }} />
           </div>
 
           <div className="space-y-2">
