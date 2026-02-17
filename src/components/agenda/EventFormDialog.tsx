@@ -36,6 +36,12 @@ const EVENT_TYPES = [
   { value: "outro", label: "Outro" },
 ];
 
+const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
+  const h = String(Math.floor(i / 2)).padStart(2, "0");
+  const m = i % 2 === 0 ? "00" : "30";
+  return `${h}:${m}`;
+});
+
 const STATUS_OPTIONS = [
   { value: "pendente", label: "Pendente" },
   { value: "confirmado", label: "Confirmado" },
@@ -256,15 +262,26 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             </Select>
           </div>
 
-          <div className="flex gap-4 w-full">
-            <div className="flex-1 flex flex-col space-y-2">
-              <Label>Horário início</Label>
-              <Input type="time" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} className="w-full" />
-            </div>
-            <div className="flex-1 flex flex-col space-y-2">
-              <Label>Horário fim</Label>
-              <Input type="time" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} className="w-full" />
-            </div>
+          <div className="space-y-2">
+            <Label>Horário início</Label>
+            <Select value={form.start_time} onValueChange={(v) => setForm({ ...form, start_time: v === "none" ? "" : v })}>
+              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sem horário</SelectItem>
+                {TIME_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Horário fim</Label>
+            <Select value={form.end_time} onValueChange={(v) => setForm({ ...form, end_time: v === "none" ? "" : v })}>
+              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sem horário</SelectItem>
+                {TIME_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
