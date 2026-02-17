@@ -172,7 +172,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto p-5">
+      <DialogContent className="max-w-[350px] max-h-[90vh] overflow-y-auto p-5">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Editar Festa" : "Nova Festa"}</DialogTitle>
         </DialogHeader>
@@ -258,12 +258,12 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
           <div className="space-y-2">
             <Label>Horário início</Label>
-            <Input type="time" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} style={{ width: '408px', maxWidth: '100%' }} />
+            <Input type="time" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} />
           </div>
 
           <div className="space-y-2">
             <Label>Horário fim</Label>
-            <Input type="time" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} style={{ width: '408px', maxWidth: '100%' }} />
+            <Input type="time" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} />
           </div>
 
           <div className="space-y-2">
