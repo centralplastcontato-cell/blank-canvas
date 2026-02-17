@@ -1,4 +1,4 @@
-import { CalendarDays, DollarSign, CheckCircle2, Clock, XCircle } from "lucide-react";
+import { CalendarDays, CheckCircle2, Clock, XCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface MonthSummaryCardsProps {
@@ -19,16 +19,10 @@ export function MonthSummaryCards({ events }: MonthSummaryCardsProps) {
     { label: "Confirmadas", value: confirmados, icon: CheckCircle2, color: "text-green-500" },
     { label: "Pendentes", value: pendentes, icon: Clock, color: "text-yellow-500" },
     { label: "Canceladas", value: cancelados, icon: XCircle, color: "text-red-500" },
-    {
-      label: "Receita Prevista",
-      value: receita.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
-      icon: DollarSign,
-      color: "text-emerald-500",
-    },
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
       {cards.map((c) => (
         <Card key={c.label} className="bg-card border-border">
           <CardContent className="p-3 flex items-center gap-3">
