@@ -1,48 +1,69 @@
 
 
-## Corrigir link de Manutencao no WhatsApp
+## Novo Checklist: Acompanhamento de Festa
 
-### Problema atual
-1. A URL compartilhada mostra o dominio feio do Supabase (`rsezgnkfhodltrsewlhz.supabase.co/functions/v1/og-preview?domain=...`)
-2. A Edge Function `og-preview` nunca foi deployada com sucesso (0 logs, retorna 404)
-3. O WhatsApp resolve o OG do dominio `castelodadiversao.online` via SCD, que esta configurado com metadados genericos da "Celebrei"
+Criar um checklist completo para o gerente acompanhar a festa, seguindo exatamente o mesmo padrao do checklist de Manutencao (tabela, componente admin, pagina publica, rota).
 
-### Solucao: Link limpo + deploy da og-preview
+### Estrutura
 
-**Abordagem em duas partes:**
+O novo checklist tera ~37 itens organizados em categorias logicas, baseados no exemplo enviado (clickfest.com.br). Cada item tera checkbox + campo de observacao quando marcado, igual ao de manutencao.
 
-#### Parte 1 - URL limpa (imediato)
-Mudar o botao de compartilhar para gerar a URL direta do buffet:
-```
-https://www.castelodadiversao.online/manutencao/{id}
-```
-em vez de:
-```
-https://rsezgnkfhodltrsewlhz.supabase.co/functions/v1/og-preview?domain=...
-```
+### Itens do Checklist (melhorados)
 
-Isso resolve o problema da URL feia. Para gerar a URL correta de cada empresa, o sistema ja tem acesso ao `custom_domain` da empresa no contexto. Se o buffet tem dominio customizado, usa ele; se nao, usa o dominio do app.
+**Preparacao (antes da festa)**
+1. Ler a ficha tecnica da festa
+2. Identificar o tipo de cardapio e consultar a cozinha sobre falta de itens
+3. Identificar o tipo de bebidas e consultar o bar sobre falta de itens
+4. Verificar se foram contratados opcionais
+5. Verificar energia do buffet, acender lampadas e testar brinquedos eletronicos
+6. Verificar agua e coloracao, abrir torneiras e dar descargas
+7. Verificar limpeza geral do buffet e providenciar se necessario
+8. Verificar reposicao de descartaveis e produtos de higiene nos banheiros
+9. Verificar cestos de lixo e lixeiras posicionados com sacos
+10. Verificar presenca dos colaboradores freelancers e orientar horarios
+11. Confirmar se todos os freelancers escalados estao presentes (substituir se houver faltas)
+12. Conferir servicos terceirizados e se estao sendo executados
+13. Solicitar que terceirizados assinem o termo de responsabilidade
+14. Confirmar uniformes para todos os colaboradores
+15. Definir horario de lanche dos colaboradores (prontos 15min antes)
+16. Definir postos de trabalho para cada colaborador
+17. Fazer ensaio dos monitores do parabens e recepcao
+18. Ligar som ambiente e definir playlist conforme idade/solicitacao
+19. Ligar ar-condicionado 30 min antes (em dias quentes)
+20. Testar retrospectiva (quando houver)
+21. Testar telao (quando houver)
+22. Verificar mesas organizadas, alinhadas e com guardanapeiras
+23. Reunir colaboradores, orientar postura e avaliar festa anterior
 
-**Arquivo: `src/components/agenda/MaintenanceManager.tsx`**
-- Alterar a logica do botao Share2 para construir a URL usando `custom_domain` da empresa (disponivel via CompanyContext) ou fallback para `window.location.origin`
+**Durante a festa**
+24. Recepcionar anfitrioes, se colocar a disposicao e oferecer algo
+25. Garantir cumprimento do cronograma da festa
+26. Separar vela(s) do bolo com isqueiro/fosforo
+27. Anunciar atividades programadas (piquenique, animacao, etc)
+28. Passar nas mesas e perguntar se esta tudo bem
+29. Manter pelo menos 1 monitor no salao de brinquedos durante parabens
 
-#### Parte 2 - Deploy da og-preview (meta tags corretas)
-Deployar efetivamente a funcao `og-preview`. O codigo ja suporta `/manutencao/:id` e retorna "Checklist de Manutencao | Castelo da Diversao" com o logo correto.
-
-Porem, para que o WhatsApp exiba as meta tags dinamicas, o link precisa passar pela og-preview. Como estamos mudando para URL limpa na Parte 1, o preview do WhatsApp dependerá de como o SCD esta configurado para o dominio.
-
-#### Parte 3 - Fallback pragmatico
-Como o SCD do dominio `castelodadiversao.online` ja tem metadados configurados (mesmo que genericos), a URL limpa pelo menos mostrara:
-- Dominio bonito: `castelodadiversao.online`
-- Preview do SCD (que pode ser atualizado para "Castelo da Diversao" via API do SCD)
-
-### Resultado esperado
-- URL limpa e profissional no WhatsApp
-- Preview mostrando o branding do buffet (nao "Celebrei")
-- O link redireciona corretamente para o formulario de manutencao
+**Encerramento**
+30. Apresentar lista de presenca final (pagantes vs cortesias)
+31. Fazer acerto de excedentes e opcionais em aberto
+32. Supervisionar arrumacao dos setores (cozinha, bar, lanchonete, brinquedos)
+33. Verificar armazenamento correto de sobras de alimentos (etiquetar)
+34. Verificar devolucao de uniformes em bom estado
+35. Desligar aparelhos eletronicos (brinquedos, som, TVs)
+36. Desligar todos os ar-condicionados
+37. Fechamento do buffet: desligar luzes e trancar portas
 
 ### Mudancas tecnicas
-1. `src/components/agenda/MaintenanceManager.tsx` - Mudar URL de compartilhamento para usar `custom_domain`
-2. Deploy da Edge Function `og-preview`
-3. Verificar/atualizar metadados SCD do dominio `castelodadiversao.online`
+
+1. **Nova tabela `party_monitoring_entries`** - Mesma estrutura de `maintenance_entries` (id, company_id, event_id, items jsonb, notes text, filled_by uuid, created_at, updated_at)
+
+2. **Novo componente `src/components/agenda/PartyMonitoringManager.tsx`** - Componente admin para gerenciar registros, copiar link, compartilhar. Segue o padrao exato do `MaintenanceManager.tsx` com os 37 itens default
+
+3. **Nova pagina publica `src/pages/PublicPartyMonitoring.tsx`** - Formulario publico acessivel via link, mesmo padrao do `PublicMaintenance.tsx`. Icone de ClipboardCheck ao inves de Wrench. Titulo "Acompanhamento de Festa"
+
+4. **Nova rota em `src/App.tsx`** - `/acompanhamento/:recordId` apontando para PublicPartyMonitoring
+
+5. **Nova aba em `src/pages/Formularios.tsx`** - Adicionar aba "Acompanhamento" dentro da secao Checklist, ao lado de Equipe e Manutencao, com icone ClipboardCheck
+
+6. **RLS** - Habilitar RLS na nova tabela com politicas identicas as de `maintenance_entries` (acesso publico para select/update por ID, insert/delete por empresa)
 
