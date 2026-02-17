@@ -172,7 +172,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-5">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto p-5">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Editar Festa" : "Nova Festa"}</DialogTitle>
         </DialogHeader>
