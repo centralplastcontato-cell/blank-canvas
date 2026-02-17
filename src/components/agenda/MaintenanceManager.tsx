@@ -242,7 +242,7 @@ export function MaintenanceManager() {
                           </div>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(`${window.location.origin}/manutencao/${record.id}`); toast({ title: "Link copiado!" }); }}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); const supabaseUrl = `https://rsezgnkfhodltrsewlhz.supabase.co`; navigator.clipboard.writeText(`${supabaseUrl}/functions/v1/og-preview?domain=${window.location.host}&path=/manutencao/${record.id}`); toast({ title: "Link copiado!" }); }}>
                             <Share2 className="h-4 w-4" />
                           </Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); copyToClipboard(record); }}>
