@@ -17,6 +17,7 @@ import { CardapioContent } from "./Cardapio";
 import { EventStaffManager } from "@/components/agenda/EventStaffManager";
 import { PackagesManager } from "@/components/admin/PackagesManager";
 import { MaintenanceManager } from "@/components/agenda/MaintenanceManager";
+import { PartyMonitoringManager } from "@/components/agenda/PartyMonitoringManager";
 
 export default function Formularios() {
   const navigate = useNavigate();
@@ -186,6 +187,10 @@ export default function Formularios() {
                         <Wrench className="h-4 w-4" />
                         <span>Manutenção</span>
                       </TabsTrigger>
+                      <TabsTrigger value="acompanhamento" className="flex-1 md:flex-none gap-1.5">
+                        <ClipboardCheck className="h-4 w-4" />
+                        <span>Acompanhamento</span>
+                      </TabsTrigger>
                     </TabsList>
                   </div>
                   <TabsContent value="equipe" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
@@ -193,6 +198,9 @@ export default function Formularios() {
                   </TabsContent>
                   <TabsContent value="manutencao" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
                     <MaintenanceManager />
+                  </TabsContent>
+                  <TabsContent value="acompanhamento" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                    <PartyMonitoringManager />
                   </TabsContent>
                 </Tabs>
               </TabsContent>
