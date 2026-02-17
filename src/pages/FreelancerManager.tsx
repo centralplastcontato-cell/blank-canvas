@@ -265,11 +265,15 @@ export function FreelancerManagerContent() {
   };
 
   const copyLink = (t: FreelancerTemplate) => {
-    const domain = currentCompany?.custom_domain
-      ? `https://${currentCompany.custom_domain}`
-      : window.location.origin;
+    let domain: string;
+    if (currentCompany?.custom_domain) {
+      // Remove https:// so link starts with www. (WhatsApp still recognizes it)
+      domain = currentCompany.custom_domain;
+    } else {
+      domain = window.location.origin;
+    }
     const path = getTemplateUrl(t);
-    const fullUrl = `${domain}${path}`;
+    const fullUrl = currentCompany?.custom_domain ? `${domain}${path}` : `${domain}${path}`;
     navigator.clipboard.writeText(fullUrl);
     toast({ title: "Link copiado!" });
   };
