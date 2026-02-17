@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.daily-summary]
 verify_jwt = false
+
+[functions.scd-discover]
+verify_jwt = false
