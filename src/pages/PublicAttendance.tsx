@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, UserPlus, Users, Trash2, Pencil, Check, X, CheckCircle2, RotateCcw, Copy } from "lucide-react";
+import { Loader2, UserPlus, Users, Trash2, Pencil, Check, X, CheckCircle2, RotateCcw, Copy, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 
 interface Guest {
@@ -413,30 +413,40 @@ export default function PublicAttendance() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium">Convidados registrados ({entry.guests.length})</Label>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 text-xs"
-                onClick={() => {
-                  const lines: string[] = [];
-                  if (companyName) lines.push(`Lista de Presença - ${companyName}`);
-                  if (eventTitle) lines.push(`Festa: ${eventTitle}`);
-                  lines.push(`${entry.guests.length} convidado${entry.guests.length !== 1 ? "s" : ""}`);
-                  lines.push("");
-                  entry.guests.forEach((g, i) => {
-                    let line = `#${i + 1} ${g.name}`;
-                    if (g.age?.trim()) line += ` - ${g.age} anos`;
-                    if (g.phone?.trim()) line += ` - ${g.phone}`;
-                    if (g.is_child_only) line += ` - 👶 Resp: ${g.guardian_name} ${g.guardian_phone}`;
-                    if (g.wants_info) line += ` - Quer info`;
-                    lines.push(line);
-                  });
-                  navigator.clipboard.writeText(lines.join("\n"));
-                  toast({ title: "📋 Lista copiada!" });
-                }}
-              >
-                <Copy className="h-3.5 w-3.5" /> Copiar Lista
-              </Button>
+              <div className="flex gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs"
+                  onClick={() => window.open(`/lista-presenca/${recordId}/conferencia`, "_blank")}
+                >
+                  <ExternalLink className="h-3.5 w-3.5" /> Ver Lista
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs"
+                  onClick={() => {
+                    const lines: string[] = [];
+                    if (companyName) lines.push(`Lista de Presença - ${companyName}`);
+                    if (eventTitle) lines.push(`Festa: ${eventTitle}`);
+                    lines.push(`${entry.guests.length} convidado${entry.guests.length !== 1 ? "s" : ""}`);
+                    lines.push("");
+                    entry.guests.forEach((g, i) => {
+                      let line = `#${i + 1} ${g.name}`;
+                      if (g.age?.trim()) line += ` - ${g.age} anos`;
+                      if (g.phone?.trim()) line += ` - ${g.phone}`;
+                      if (g.is_child_only) line += ` - 👶 Resp: ${g.guardian_name} ${g.guardian_phone}`;
+                      if (g.wants_info) line += ` - Quer info`;
+                      lines.push(line);
+                    });
+                    navigator.clipboard.writeText(lines.join("\n"));
+                    toast({ title: "📋 Lista copiada!" });
+                  }}
+                >
+                  <Copy className="h-3.5 w-3.5" /> Copiar
+                </Button>
+              </div>
             </div>
             {entry.guests.map((guest, i) => (
               <Card key={i} className="bg-muted/50">
