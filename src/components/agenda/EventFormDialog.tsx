@@ -241,7 +241,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             )}
           </div>
 
-          <div className="space-y-2">
+          <div className="w-full flex flex-col space-y-2">
             <Label>Data *</Label>
             <Input type="date" value={form.event_date} onChange={(e) => setForm({ ...form, event_date: e.target.value })} required className="w-full" />
           </div>
@@ -256,14 +256,15 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label>Horário início</Label>
-            <Input type="time" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} className="w-full" />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Horário fim</Label>
-            <Input type="time" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} className="w-full" />
+          <div className="flex gap-4 w-full">
+            <div className="flex-1 flex flex-col space-y-2">
+              <Label>Horário início</Label>
+              <Input type="time" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} className="w-full" />
+            </div>
+            <div className="flex-1 flex flex-col space-y-2">
+              <Label>Horário fim</Label>
+              <Input type="time" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} className="w-full" />
+            </div>
           </div>
 
           <div className="space-y-2">
