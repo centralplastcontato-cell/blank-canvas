@@ -1,43 +1,28 @@
 
 
-## Correção do campo Data - mesma abordagem dos horários
+## Adicionar novas seções ao DEFAULT_SECTIONS do Cardápio
 
-### Diagnóstico
-O campo "Data" usa `<input type="date">` nativo, que no iOS Safari renderiza com controles do sistema operacional com largura intrínseca fixa - exatamente o mesmo problema que os campos de horário tinham antes da correção.
+### O que será feito
+Incluir 7 novas seções ao array `DEFAULT_SECTIONS` em `src/pages/Cardapio.tsx`, mantendo as 4 seções existentes (Fritos, Assados, Doces, Bolo) e adicionando:
 
-### Solução proposta
-Substituir o `<input type="date">` por **3 Selects lado a lado** (Dia / Mês / Ano), usando os mesmos componentes Select do Radix. Isso garante aparência idêntica aos campos de Horário, Status e Tipo de festa.
+### Novas seções
+
+| Seção | Emoji | Instrução | Max. Seleções | Opções |
+|-------|-------|-----------|---------------|--------|
+| **Bebidas** | 🥤 | Escolha as bebidas desejadas | null (livre) | Refrigerante Lata, Refrigerante 2L, Suco Natural de Laranja, Suco Natural de Maracujá, Suco Natural de Limão, Água Mineral, Água com Gás, Chá Gelado |
+| **Pratos Quentes** | 🍕 | Escolha os pratos quentes desejados | null (livre) | Mini Pizza, Mini Hambúrguer, Cachorro-Quente, Batata Frita, Nuggets, Pipoca Gourmet, Crepe Salgado, Pastel |
+| **Saladas / Frios** | 🥗 | Escolha as saladas e frios | null (livre) | Tábua de Frios, Salada Verde, Salada de Frutas, Salpicão, Mini Sanduíches, Finger Foods |
+| **Sobremesas Especiais** | 🍫 | Escolha até 3 sobremesas especiais | 3 | Cascata de Chocolate, Algodão Doce, Crepe Suíço, Açaí, Sorvete, Churros, Paleta Mexicana, Fondue de Frutas |
+| **Estações / Live Stations** | 🎪 | Escolha até 2 estações | 2 | Estação de Crepe, Estação de Churros, Estação de Pipoca Gourmet, Estação de Algodão Doce, Estação de Açaí, Estação de Sorvete |
+| **Mesa do Bolo** | 🎀 | Escolha os itens para a mesa do bolo | null (livre) | Personalização de Tema, Topo de Bolo (Topper), Cupcakes Decorados, Cake Pops, Mini Tortas, Pirulitos Decorados |
+| **Kit Lanche** | 🎁 | Escolha 1 opção de kit lanche | 1 | Kit Mini Sanduíche + Suco + Doce, Kit Salgado + Suco + Bala, Kit Pipoca + Suco + Pirulito, Sem Kit Lanche |
 
 ### Detalhes técnicos
 
-**Arquivo**: `src/components/agenda/EventFormDialog.tsx`
+**Arquivo**: `src/pages/Cardapio.tsx`
 
-1. **Criar constantes** para as opções:
-   - Dias: 01 a 31
-   - Meses: Janeiro a Dezembro (valor numérico 01-12, label em português)
-   - Anos: 2024 a 2030
-
-2. **Adicionar estado local** para dia, mês e ano separados, sincronizando com `form.event_date` (formato `YYYY-MM-DD`)
-
-3. **Substituir o input nativo** por 3 Selects dentro de um container `flex gap-2`:
-```text
-<div class="space-y-2">
-  <Label>Data *</Label>
-  <div class="flex gap-2">
-    <Select placeholder="Dia" />    (flex-1)
-    <Select placeholder="Mês" />    (flex-[2] - um pouco maior para caber o nome)
-    <Select placeholder="Ano" />    (flex-1)
-  </div>
-</div>
-```
-
-4. **Sincronizar valores**: quando os 3 campos estiverem preenchidos, montar a string `YYYY-MM-DD` e atualizar `form.event_date`. Na edição, fazer o parse inverso para popular os selects.
-
-5. **Validação**: o formulário continua exigindo data preenchida (os 3 selects precisam ter valor).
-
-### Resultado esperado
-- Campo de data com aparência consistente com todos os outros selects do formulário
-- Largura 100% garantida em iOS, Android e desktop
-- Seleção intuitiva de dia, mês e ano
-- Sem regressão nos demais campos
+- Adicionar as 7 novas seções após a seção "bolo" (linha 72), dentro do array `DEFAULT_SECTIONS`
+- Cada seção segue a mesma interface `CardapioSection` existente
+- IDs: `bebidas`, `pratos_quentes`, `saladas_frios`, `sobremesas_especiais`, `estacoes`, `mesa_bolo`, `kit_lanche`
+- Nenhum outro arquivo precisa ser alterado - o formulário público (`PublicCardapio.tsx`) já renderiza dinamicamente qualquer quantidade de seções
 
