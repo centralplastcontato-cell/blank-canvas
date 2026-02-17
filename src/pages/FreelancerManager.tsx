@@ -5,15 +5,26 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
-import { HardHat, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, Calendar, ChevronDown, ChevronRight, Phone, MapPin, Briefcase, Camera } from "lucide-react";
+import { HardHat, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, Calendar, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+interface FreelancerQuestion {
+  id: string;
+  type: "text" | "textarea" | "yesno" | "select" | "multiselect" | "photo";
+  text: string;
+  step: number;
+  required?: boolean;
+  options?: string[];
+}
 
 interface FreelancerTemplate {
   id: string;
@@ -21,28 +32,35 @@ interface FreelancerTemplate {
   name: string;
   slug: string | null;
   description: string | null;
-  questions: any[];
+  questions: FreelancerQuestion[];
   thank_you_message: string | null;
   is_active: boolean;
   created_at: string;
 }
 
+const DEFAULT_QUESTIONS: FreelancerQuestion[] = [
+  { id: "nome", type: "text", text: "Como você se chama?", step: 1, required: true },
+  { id: "foto", type: "photo", text: "Foto (opcional)", step: 1 },
+  { id: "telefone", type: "text", text: "Telefone", step: 1, required: true },
+  { id: "endereco", type: "text", text: "Endereço", step: 1, required: true },
+  { id: "ja_trabalha", type: "yesno", text: "Já trabalha no buffet?", step: 2, required: true },
+  { id: "tempo_trabalho", type: "text", text: "Há quanto tempo?", step: 2 },
+  { id: "funcao", type: "multiselect", text: "Qual é a sua função?", step: 2, required: true, options: ["Gerente", "Segurança", "Garçom", "Monitor", "Cozinha"] },
+  { id: "sobre", type: "textarea", text: "Fale um pouco sobre você", step: 3 },
+];
+
 const generateSlug = (name: string) =>
   name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-function FreelancerResponseCards({ responses }: { responses: any[] }) {
+function FreelancerResponseCards({ responses, template }: { responses: any[]; template: FreelancerTemplate | null }) {
   const [openId, setOpenId] = useState<string | null>(null);
-
-  const ROLE_LABELS: Record<string, string> = {
-    gerente: "Gerente", seguranca: "Segurança", garcom: "Garçom", monitor: "Monitor", cozinha: "Cozinha",
-  };
 
   return (
     <div className="space-y-2">
       {responses.map((r) => {
         const isOpen = openId === r.id;
-        const answers = Array.isArray(r.answers) ? r.answers : [];
-        const getAnswer = (key: string) => answers.find((a: any) => a.questionId === key)?.value;
+        const answersArr = Array.isArray(r.answers) ? r.answers : [];
+        const getAnswer = (key: string) => answersArr.find((a: any) => a.questionId === key)?.value;
         return (
           <div key={r.id}>
             <button
@@ -60,17 +78,11 @@ function FreelancerResponseCards({ responses }: { responses: any[] }) {
                 <div className="min-w-0">
                   <span className="font-semibold text-sm truncate block">{r.respondent_name || "Sem nome"}</span>
                   <span className="text-xs text-muted-foreground">
-                    {ROLE_LABELS[getAnswer("funcao")] || getAnswer("funcao") || "—"}
+                    {format(new Date(r.created_at), "dd/MM/yyyy", { locale: ptBR })}
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  {format(new Date(r.created_at), "dd/MM/yyyy", { locale: ptBR })}
-                </span>
-                <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? "rotate-90" : ""}`} />
-              </div>
+              <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform shrink-0 ${isOpen ? "rotate-90" : ""}`} />
             </button>
             {isOpen && (
               <Card className="mt-1 bg-card border-border overflow-hidden">
@@ -87,22 +99,23 @@ function FreelancerResponseCards({ responses }: { responses: any[] }) {
                     </div>
                   )}
                   <div className="divide-y divide-border">
-                    {[
-                      { icon: Phone, label: "Telefone", value: getAnswer("telefone") },
-                      { icon: MapPin, label: "Endereço", value: getAnswer("endereco") },
-                      { icon: Briefcase, label: "Função", value: ROLE_LABELS[getAnswer("funcao")] || getAnswer("funcao") },
-                      { icon: HardHat, label: "Já trabalha no buffet?", value: getAnswer("ja_trabalha") === true ? "Sim" : getAnswer("ja_trabalha") === false ? "Não" : "—" },
-                      ...(getAnswer("ja_trabalha") === true ? [{ icon: Calendar, label: "Há quanto tempo?", value: getAnswer("tempo_trabalho") }] : []),
-                      { icon: User, label: "Sobre", value: getAnswer("sobre") },
-                    ].map((item, idx) => (
-                      <div key={idx} className="px-4 py-2.5 flex items-start gap-2">
-                        <item.icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-                        <div>
-                          <p className="text-muted-foreground text-xs">{item.label}</p>
-                          <p className="font-medium text-sm">{item.value || "—"}</p>
+                    {answersArr.map((a: any, idx: number) => {
+                      const question = template?.questions.find(q => q.id === a.questionId);
+                      if (a.value === null || a.value === undefined) return null;
+                      // Skip photo type (shown above)
+                      if (question?.type === "photo") return null;
+                      let displayValue: string;
+                      if (a.value === true) displayValue = "👍 Sim";
+                      else if (a.value === false) displayValue = "👎 Não";
+                      else if (Array.isArray(a.value)) displayValue = a.value.join(", ");
+                      else displayValue = String(a.value || "—");
+                      return (
+                        <div key={idx} className="px-4 py-2.5">
+                          <p className="text-muted-foreground text-xs mb-0.5">{question?.text || a.questionId}</p>
+                          <p className="font-medium text-sm">{displayValue}</p>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
@@ -123,10 +136,12 @@ export function FreelancerManagerContent() {
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formThankYou, setFormThankYou] = useState("Obrigado pelo seu cadastro! 🎉");
+  const [formQuestions, setFormQuestions] = useState<FreelancerQuestion[]>(DEFAULT_QUESTIONS);
   const [saving, setSaving] = useState(false);
 
   const [responseCounts, setResponseCounts] = useState<Record<string, number>>({});
   const [expandedTemplateId, setExpandedTemplateId] = useState<string | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<FreelancerTemplate | null>(null);
   const [responses, setResponses] = useState<any[]>([]);
   const [loadingResponses, setLoadingResponses] = useState(false);
 
@@ -138,7 +153,7 @@ export function FreelancerManagerContent() {
       .select("*")
       .eq("company_id", currentCompany.id)
       .order("created_at", { ascending: false });
-    if (data) setTemplates(data as any);
+    if (data) setTemplates(data.map((t: any) => ({ ...t, questions: Array.isArray(t.questions) ? t.questions : [] })));
     setLoading(false);
 
     const { data: countData } = await supabase
@@ -155,6 +170,7 @@ export function FreelancerManagerContent() {
   const toggleResponses = async (t: FreelancerTemplate) => {
     if (expandedTemplateId === t.id) { setExpandedTemplateId(null); return; }
     setExpandedTemplateId(t.id);
+    setSelectedTemplate(t);
     setLoadingResponses(true);
     const { data } = await supabase
       .from("freelancer_responses")
@@ -172,6 +188,7 @@ export function FreelancerManagerContent() {
     setFormName("Cadastro de Freelancer");
     setFormDescription("Preencha seus dados para se cadastrar na nossa equipe!");
     setFormThankYou("Obrigado pelo seu cadastro! 🎉");
+    setFormQuestions([...DEFAULT_QUESTIONS]);
     setDialogOpen(true);
   };
 
@@ -180,6 +197,7 @@ export function FreelancerManagerContent() {
     setFormName(t.name);
     setFormDescription(t.description || "");
     setFormThankYou(t.thank_you_message || "");
+    setFormQuestions([...(t.questions.length > 0 ? t.questions : DEFAULT_QUESTIONS)]);
     setDialogOpen(true);
   };
 
@@ -193,7 +211,7 @@ export function FreelancerManagerContent() {
       description: formDescription.trim() || null,
       thank_you_message: formThankYou.trim() || null,
       slug,
-      questions: [] as any,
+      questions: formQuestions as any,
     };
     if (editingTemplate) {
       const { error } = await supabase.from("freelancer_templates").update(payload).eq("id", editingTemplate.id);
@@ -254,6 +272,35 @@ export function FreelancerManagerContent() {
     toast({ title: "Link copiado!" });
   };
 
+  // Question editor helpers
+  const addQuestion = () => {
+    const maxStep = Math.max(...formQuestions.map(q => q.step), 1);
+    setFormQuestions([...formQuestions, {
+      id: `fl${Date.now()}`,
+      type: "text",
+      text: "",
+      step: maxStep,
+      required: false,
+    }]);
+  };
+
+  const updateQuestion = (idx: number, updates: Partial<FreelancerQuestion>) => {
+    setFormQuestions(prev => prev.map((q, i) => i === idx ? { ...q, ...updates } : q));
+  };
+
+  const removeQuestion = (idx: number) => {
+    setFormQuestions(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const TYPE_LABELS: Record<string, string> = {
+    text: "Texto curto",
+    textarea: "Texto longo",
+    yesno: "Sim / Não",
+    select: "Seleção única",
+    multiselect: "Seleção múltipla",
+    photo: "Foto",
+  };
+
   return (
     <>
       <div className="max-w-4xl mx-auto space-y-4">
@@ -290,6 +337,9 @@ export function FreelancerManagerContent() {
                             </Badge>
                           </div>
                           {t.description && <p className="text-sm text-muted-foreground line-clamp-1">{t.description}</p>}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {t.questions.length} perguntas · {Math.max(...t.questions.map(q => q.step), 1)} etapas
+                          </p>
                         </div>
                         <Switch checked={t.is_active} onCheckedChange={(v) => handleToggleActive(t.id, v)} className="shrink-0" />
                       </div>
@@ -341,7 +391,7 @@ export function FreelancerManagerContent() {
                               <p className="text-sm text-muted-foreground">Nenhum cadastro recebido ainda.</p>
                             </div>
                           ) : (
-                            <FreelancerResponseCards responses={responses} />
+                            <FreelancerResponseCards responses={responses} template={selectedTemplate} />
                           )}
                         </div>
                       </CollapsibleContent>
@@ -354,47 +404,106 @@ export function FreelancerManagerContent() {
         )}
       </div>
 
-      {/* Create/Edit Dialog */}
+      {/* Template Editor Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingTemplate ? "Editar Template" : "Novo Template de Freelancer"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <label className="text-sm font-medium">Nome do formulário *</label>
-              <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Ex: Cadastro de Freelancer" />
+          <div className="space-y-4">
+            <div className="grid gap-3">
+              <div>
+                <Label>Nome do formulário *</Label>
+                <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Ex: Cadastro de Freelancer" />
+              </div>
+              <div>
+                <Label>Descrição (aparece no topo do formulário)</Label>
+                <Textarea value={formDescription} onChange={(e) => setFormDescription(e.target.value)} placeholder="Texto exibido no topo do formulário" rows={2} />
+              </div>
+              <div>
+                <Label>Mensagem de agradecimento (final)</Label>
+                <Input value={formThankYou} onChange={(e) => setFormThankYou(e.target.value)} placeholder="Obrigado pelo seu cadastro! 🎉" />
+              </div>
             </div>
-            <div>
-              <label className="text-sm font-medium">Descrição</label>
-              <Textarea value={formDescription} onChange={(e) => setFormDescription(e.target.value)} placeholder="Texto exibido no topo do formulário" rows={2} />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Mensagem de agradecimento</label>
-              <Input value={formThankYou} onChange={(e) => setFormThankYou(e.target.value)} placeholder="Obrigado pelo seu cadastro! 🎉" />
-            </div>
-            <div className="bg-muted/40 rounded-lg p-3 space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Campos fixos do formulário:</p>
-              <ul className="text-xs text-muted-foreground space-y-0.5 list-disc list-inside">
-                <li>Nome completo</li>
-                <li>Foto (opcional)</li>
-                <li>Telefone</li>
-                <li>Endereço</li>
-                <li>Já trabalha no buffet? + Há quanto tempo?</li>
-                <li>Função (Gerente, Segurança, Garçom, Monitor, Cozinha)</li>
-                <li>Fale um pouco sobre você</li>
-              </ul>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-base font-semibold">Perguntas</Label>
+                <Button variant="outline" size="sm" onClick={addQuestion}><Plus className="h-3.5 w-3.5 mr-1" /> Adicionar</Button>
+              </div>
+
+              {formQuestions.map((q, idx) => (
+                <Card key={q.id} className="bg-muted/50">
+                  <CardContent className="p-3 space-y-2">
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1 space-y-2">
+                        <Input
+                          value={q.text}
+                          onChange={(e) => updateQuestion(idx, { text: e.target.value })}
+                          placeholder="Texto da pergunta..."
+                          className="text-sm"
+                        />
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Select value={q.type} onValueChange={(v) => updateQuestion(idx, { type: v as any, ...(["select", "multiselect"].includes(v) && !q.options?.length ? { options: ["Opção 1"] } : {}) })}>
+                            <SelectTrigger className="w-36 h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(TYPE_LABELS).map(([val, label]) => (
+                                <SelectItem key={val} value={val}>{label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Select value={String(q.step)} onValueChange={(v) => updateQuestion(idx, { step: parseInt(v) })}>
+                            <SelectTrigger className="w-28 h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[1, 2, 3, 4, 5].map(s => (
+                                <SelectItem key={s} value={String(s)}>Etapa {s}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <label className="flex items-center gap-1.5 text-xs">
+                            <input type="checkbox" checked={q.required !== false} onChange={(e) => updateQuestion(idx, { required: e.target.checked })} className="rounded" />
+                            Obrigatória
+                          </label>
+                        </div>
+                        {(q.type === "select" || q.type === "multiselect") && (
+                          <div className="space-y-1.5 pl-1">
+                            <p className="text-xs text-muted-foreground">Opções (uma por linha):</p>
+                            <Textarea
+                              value={(q.options || []).join("\n")}
+                              onChange={(e) => updateQuestion(idx, { options: e.target.value.split("\n").filter(o => o.trim()) })}
+                              placeholder={"Opção 1\nOpção 2\nOpção 3"}
+                              className="text-xs min-h-[60px]"
+                              rows={3}
+                            />
+                          </div>
+                        )}
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive shrink-0" onClick={() => removeQuestion(idx)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving || !formName.trim()}>
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {editingTemplate ? "Salvar" : "Criar"}
+              {editingTemplate ? "Salvar" : "Criar Template"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
   );
+}
+
+export default function FreelancerManager() {
+  return null;
 }
