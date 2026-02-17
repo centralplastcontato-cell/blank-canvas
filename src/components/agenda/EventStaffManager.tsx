@@ -28,7 +28,7 @@ interface StaffRole {
 
 interface EventStaffRecord {
   id: string;
-  event_id: string;
+  event_id: string | null;
   company_id: string;
   filled_by: string | null;
   staff_data: StaffRole[];
@@ -97,13 +97,16 @@ export function EventStaffManager() {
 
     if (entriesRes.data) {
       // enrich with event info
-      const eventIds = [...new Set(entriesRes.data.map((e: any) => e.event_id))];
-      const { data: eventDetails } = await supabase
-        .from("company_events")
-        .select("id, title, event_date")
-        .in("id", eventIds);
+      const eventIds = [...new Set(entriesRes.data.map((e: any) => e.event_id).filter(Boolean))];
+      let eventMap = new Map();
+      if (eventIds.length > 0) {
+        const { data: eventDetails } = await supabase
+          .from("company_events")
+          .select("id, title, event_date")
+          .in("id", eventIds);
+        eventMap = new Map((eventDetails || []).map((e: any) => [e.id, e]));
+      }
 
-      const eventMap = new Map((eventDetails || []).map((e: any) => [e.id, e]));
       setRecords(
         entriesRes.data.map((r: any) => ({
           ...r,
@@ -128,22 +131,22 @@ export function EventStaffManager() {
 
   const openEdit = (record: EventStaffRecord) => {
     setEditingId(record.id);
-    setSelectedEventId(record.event_id);
+    setSelectedEventId(record.event_id || "");
     setStaffData(record.staff_data);
     setNotes(record.notes || "");
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
-    if (!companyId || !selectedEventId) {
-      toast({ title: "Selecione uma festa", variant: "destructive" });
+    if (!companyId) {
+      toast({ title: "Selecione uma empresa", variant: "destructive" });
       return;
     }
     setSaving(true);
     const { data: { user } } = await supabase.auth.getUser();
 
     const payload = {
-      event_id: selectedEventId,
+      event_id: selectedEventId || null,
       company_id: companyId,
       filled_by: user?.id || null,
       staff_data: staffData as any,
@@ -284,12 +287,12 @@ export function EventStaffManager() {
                           {isOpen ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
                           <div className="min-w-0">
                             <CardTitle className="text-sm font-medium truncate">
-                              {record.event?.title || "Festa"}
+                              {record.event?.title || (record.event_id ? "Festa" : "Sem festa vinculada")}
                             </CardTitle>
                             <p className="text-xs text-muted-foreground">
                               {record.event?.event_date
                                 ? format(new Date(record.event.event_date + "T12:00:00"), "dd/MM/yyyy")
-                                : ""}
+                                : !record.event_id ? "Aguardando gerente vincular" : ""}
                               {" · "}
                               {filledCount}/{totalSlots} preenchidos
                               {" · "}
@@ -362,10 +365,10 @@ export function EventStaffManager() {
 
           <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 space-y-5" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
             <div>
-              <Label className="mb-1.5 block">Festa</Label>
+              <Label className="mb-1.5 block">Festa <span className="text-muted-foreground font-normal">(opcional)</span></Label>
               <Select value={selectedEventId} onValueChange={setSelectedEventId}>
                 <SelectTrigger className="h-12">
-                  <SelectValue placeholder="Selecione a festa..." />
+                  <SelectValue placeholder="O gerente pode vincular depois..." />
                 </SelectTrigger>
                 <SelectContent>
                   {events.map(ev => (

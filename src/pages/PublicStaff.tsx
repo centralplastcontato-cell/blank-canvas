@@ -23,6 +23,12 @@ interface StaffRole {
   entries: StaffEntry[];
 }
 
+interface CompanyEvent {
+  id: string;
+  title: string;
+  event_date: string;
+}
+
 const PIX_TYPES = ["CPF", "CNPJ", "E-mail", "Telefone", "Chave aleatória"];
 
 function formatCurrency(val: string) {
@@ -50,6 +56,10 @@ export default function PublicStaff() {
   const [notes, setNotes] = useState("");
   const [eventTitle, setEventTitle] = useState("");
   const [eventDate, setEventDate] = useState("");
+  const [companyId, setCompanyId] = useState<string | null>(null);
+  const [hasEventId, setHasEventId] = useState(true);
+  const [selectedEventId, setSelectedEventId] = useState("");
+  const [companyEvents, setCompanyEvents] = useState<CompanyEvent[]>([]);
 
   useEffect(() => {
     if (!recordId) return;
@@ -68,17 +78,32 @@ export default function PublicStaff() {
 
       setStaffData(data.staff_data as unknown as StaffRole[]);
       setNotes(data.notes || "");
+      setCompanyId(data.company_id);
 
-      // Fetch event info
-      const { data: ev } = await supabase
-        .from("company_events")
-        .select("title, event_date")
-        .eq("id", data.event_id)
-        .single();
+      if (data.event_id) {
+        setHasEventId(true);
+        // Fetch event info
+        const { data: ev } = await supabase
+          .from("company_events")
+          .select("title, event_date")
+          .eq("id", data.event_id)
+          .single();
 
-      if (ev) {
-        setEventTitle(ev.title);
-        setEventDate(ev.event_date);
+        if (ev) {
+          setEventTitle(ev.title);
+          setEventDate(ev.event_date);
+        }
+      } else {
+        setHasEventId(false);
+        // Fetch company events for the picker
+        const { data: events } = await supabase
+          .from("company_events")
+          .select("id, title, event_date")
+          .eq("company_id", data.company_id)
+          .neq("status", "cancelado")
+          .order("event_date", { ascending: true });
+
+        setCompanyEvents(events || []);
       }
 
       setLoading(false);
@@ -105,11 +130,28 @@ export default function PublicStaff() {
 
   const handleSubmit = async () => {
     if (!recordId) return;
+
+    // If no event was pre-set and user hasn't selected one, require it
+    if (!hasEventId && !selectedEventId) {
+      toast({ title: "Selecione a festa", variant: "destructive" });
+      return;
+    }
+
     setSaving(true);
+
+    const updatePayload: any = {
+      staff_data: staffData,
+      notes: notes || null,
+    };
+
+    // If manager is selecting the event
+    if (!hasEventId && selectedEventId) {
+      updatePayload.event_id = selectedEventId;
+    }
 
     const { error } = await supabase
       .from("event_staff_entries")
-      .update({ staff_data: staffData as any, notes: notes || null })
+      .update(updatePayload)
       .eq("id", recordId);
 
     setSaving(false);
@@ -167,13 +209,32 @@ export default function PublicStaff() {
             <Users className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-bold">Equipe / Financeiro</h1>
           </div>
-          {eventTitle && (
+          {hasEventId && eventTitle && (
             <p className="text-sm text-muted-foreground">
               {eventTitle}
               {eventDate && ` — ${format(new Date(eventDate + "T12:00:00"), "dd/MM/yyyy")}`}
             </p>
           )}
         </div>
+
+        {/* Event selector when no event is pre-set */}
+        {!hasEventId && (
+          <div>
+            <Label className="mb-1.5 block font-semibold">Selecione a festa</Label>
+            <Select value={selectedEventId} onValueChange={setSelectedEventId}>
+              <SelectTrigger className="h-12">
+                <SelectValue placeholder="Escolha a festa..." />
+              </SelectTrigger>
+              <SelectContent>
+                {companyEvents.map(ev => (
+                  <SelectItem key={ev.id} value={ev.id}>
+                    {ev.title} — {format(new Date(ev.event_date + "T12:00:00"), "dd/MM/yyyy")}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {/* Staff Roles */}
         {staffData.map((role, roleIdx) => (
