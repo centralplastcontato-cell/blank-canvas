@@ -176,8 +176,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         <DialogHeader>
           <DialogTitle>{isEdit ? "Editar Festa" : "Nova Festa"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="space-y-1.5">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
             <Label>Nome do cliente / Título *</Label>
             <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
           </div>
@@ -241,12 +241,12 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label>Data *</Label>
               <Input type="date" value={form.event_date} onChange={(e) => setForm({ ...form, event_date: e.target.value })} required />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label>Status</Label>
               <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -257,19 +257,19 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label>Horário início</Label>
               <Input type="time" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label>Horário fim</Label>
               <Input type="time" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label>Tipo de festa</Label>
               <Select value={form.event_type} onValueChange={(v) => setForm({ ...form, event_type: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -278,14 +278,14 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label>Convidados</Label>
               <Input type="number" value={form.guest_count ?? ""} onChange={(e) => setForm({ ...form, guest_count: e.target.value ? Number(e.target.value) : null })} />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label>Unidade</Label>
               {units.length > 0 ? (
                 <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v })}>
@@ -298,7 +298,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 <Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
               )}
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label>Pacote</Label>
               {packages.length > 0 ? (
                 <Select value={form.package_name} onValueChange={(v) => setForm({ ...form, package_name: v === "none" ? "" : v })}>
@@ -314,19 +314,19 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             </div>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label>Valor total (R$)</Label>
             <Input type="number" step="0.01" value={form.total_value ?? ""} onChange={(e) => setForm({ ...form, total_value: e.target.value ? Number(e.target.value) : null })} />
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label>Observações</Label>
             <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} />
           </div>
 
           {/* Checklist template selector - only for new events */}
           {!isEdit && templates.length > 0 && (
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label className="flex items-center gap-1.5">
                 <ListChecks className="h-4 w-4" /> Template de Checklist
               </Label>
