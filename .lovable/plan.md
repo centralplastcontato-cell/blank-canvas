@@ -1,40 +1,57 @@
 
+## Nova Lista de Presenca
 
-## Customizar itens do checklist de Manutencao
+Criar um modulo de "Lista de Presenca" digital seguindo o mesmo padrao dos checklists existentes (Manutencao, Acompanhamento de Festa). A recepcionista registra os convidados que chegam na festa via link publico compartilhado.
 
-Aplicar no `MaintenanceManager.tsx` o mesmo padrao de customizacao que ja existe no `PartyMonitoringManager.tsx`: adicionar/remover itens no dialog + mais itens padrao.
+### Estrutura de dados
 
-### Novos itens padrao (alem dos 10 existentes)
+Cada registro armazena uma lista de convidados (guests) como JSONB, com os seguintes campos por convidado:
 
-- Janela/vidro quebrado
-- Goteira no telhado
-- Interruptor com defeito
-- Cadeira/mesa danificada
-- Extintor vencido ou ausente
-- Descarga com defeito
-- Luminaria solta ou torta
-- Portao/grade com problema
-- Pintura descascando
-- Cheiro de gas/vazamento
-- Bebedouro com defeito
-- Pia entupida
+```text
+Guest {
+  name: string           -- Nome do convidado (crianca ou adulto)
+  age: string            -- Idade (opcional)
+  phone: string          -- Telefone
+  is_child_only: boolean -- Se os pais deixaram a crianca (sem acompanhante)
+  guardian_name: string   -- Nome do responsavel (quando is_child_only = true)
+  guardian_phone: string  -- Telefone do responsavel (quando is_child_only = true)
+  wants_info: boolean    -- Deseja receber informacoes do buffet
+}
+```
 
 ### Mudancas tecnicas
 
-**Arquivo: `src/components/agenda/MaintenanceManager.tsx`**
+1. **Nova tabela `attendance_entries`**
+   - id (uuid PK)
+   - company_id (uuid FK companies)
+   - event_id (uuid FK company_events, nullable)
+   - guests (jsonb, default '[]')
+   - receptionist_name (text, nullable) -- nome da recepcionista
+   - notes (text, nullable)
+   - filled_by (uuid, nullable)
+   - created_at, updated_at (timestamps)
+   - RLS identico ao `maintenance_entries` (anon select/update, company insert/delete)
 
-1. **Ampliar `DEFAULT_ITEMS`** de 10 para ~22 itens, todos sem categoria (lista plana, como ja e hoje)
+2. **Novo componente `src/components/agenda/AttendanceManager.tsx`**
+   - Componente admin para criar/editar/excluir registros
+   - Ao criar, o admin vincula (opcionalmente) a festa
+   - Cards colapsaveis mostrando contagem de convidados
+   - Botoes de compartilhar link, copiar resumo, editar, excluir
+   - Link publico: `/lista-presenca/:recordId`
 
-2. **Adicionar estado `newItemText`** (string) para o campo de adicionar item customizado
+3. **Nova pagina publica `src/pages/PublicAttendance.tsx`**
+   - Formulario para a recepcionista preencher no celular
+   - Campo "Nome da recepcionista" no topo
+   - Seletor de festa (quando nao pre-vinculada)
+   - Lista de convidados ja adicionados com numeracao (#1, #2...)
+   - Formulario para adicionar convidado: nome, idade, telefone
+   - Toggle "Crianca desacompanhada" que exibe campos de responsavel
+   - Toggle "Deseja receber informacoes do buffet"
+   - Botao "Adicionar" que salva automaticamente no banco
+   - Contagem total no rodape
 
-3. **Adicionar funcao `removeItem(idx)`** que remove o item do array `items` por indice
+4. **Nova rota em `src/App.tsx`**
+   - `/lista-presenca/:recordId` apontando para PublicAttendance
 
-4. **Adicionar funcao `addItem(label)`** que insere um novo `MaintenanceItem` no final da lista com `checked: false`
-
-5. **Modificar o dialog de criacao/edicao**:
-   - Ao lado de cada item, mostrar botao X (Trash2) para remover (mesmo estilo do PartyMonitoringManager)
-   - No final da lista de itens, mostrar campo Input + botao "Adicionar" inline
-   - Suportar Enter para adicionar rapidamente
-
-6. **Nao alterar a estrutura de dados** - os itens continuam sem categoria (lista plana), diferente do Acompanhamento que usa categorias
-
+5. **Nova aba em `src/pages/Formularios.tsx`**
+   - Adicionar aba "Presenca" com icone Users dentro da secao Checklist, ao lado de Equipe, Manutencao e Acompanhamento
