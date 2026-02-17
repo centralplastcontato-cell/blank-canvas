@@ -122,6 +122,39 @@ async function resolveFormBySlug(formType: string, companySlug: string, template
   });
 }
 
+/** Handle maintenance entry OG preview */
+async function resolveMaintenance(recordId: string, baseUrl: string): Promise<Response | null> {
+  const supabase = getSupabase();
+  const { data } = await supabase
+    .from("maintenance_entries")
+    .select("id, company_id")
+    .eq("id", recordId)
+    .maybeSingle();
+
+  if (!data) return null;
+
+  const { data: company } = await supabase
+    .from("companies")
+    .select("name, logo_url")
+    .eq("id", data.company_id)
+    .single();
+
+  const companyName = company?.name || "Manutenção";
+  const logo = company?.logo_url || "https://hubcelebrei.com.br/og-para-buffets.jpg";
+  const maintUrl = `${baseUrl}/manutencao/${recordId}`;
+
+  const meta = {
+    title: `Checklist de Manutenção | ${companyName}`,
+    description: `Preencha o checklist de manutenção — ${companyName}`,
+    image: logo,
+    url: maintUrl,
+  };
+
+  return new Response(buildHTML(meta, maintUrl), {
+    headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
+  });
+}
+
 /** Handle evaluation template OG preview (legacy UUID) */
 async function resolveEvaluation(templateId: string, baseUrl: string): Promise<Response | null> {
   const supabase = getSupabase();
@@ -144,6 +177,13 @@ async function resolveEvaluation(templateId: string, baseUrl: string): Promise<R
 async function resolveByDomain(domain: string, pathname: string): Promise<Response | null> {
   const canonical = canonicalize(domain);
   const baseUrl = domain.includes("localhost") ? `http://${domain}` : `https://${domain}`;
+
+  // Check maintenance UUID URL: /manutencao/:recordId
+  const maintMatch = pathname.match(/^\/manutencao\/([0-9a-f-]{36})$/i);
+  if (maintMatch) {
+    const result = await resolveMaintenance(maintMatch[1], baseUrl);
+    if (result) return result;
+  }
 
   // Check slug-based form URLs: /{formType}/{companySlug}/{templateSlug}
   const formMatch = pathname.match(/^\/(avaliacao|pre-festa|contrato|cardapio)\/([^/]+)\/([^/]+)\/?$/i);
