@@ -15,6 +15,33 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { Loader2, MessageCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+
+const BOT_MESSAGES = [
+  "Olá, {name}! 👋\n\nQue bom que você se interessou pelos nossos pacotes durante a festa no {company}!\n\nVou te enviar algumas opções especiais. 🎉",
+  "Oi {name}! 👋\n\nVi que você curtiu nosso espaço durante a festa no {company}. Tenho novidades incríveis pra te mostrar! 🎉",
+  "E aí, {name}! 👋\n\nQue legal que você demonstrou interesse no {company}! Deixa eu te mostrar uns pacotes especiais 🎉",
+  "{name}, tudo bem? 👋\n\nSoube que você gostou do nosso espaço no {company}! Vou compartilhar umas opções com você 🎉",
+  "Olá {name}! 👋\n\nFico feliz que tenha se interessado pelo {company}! Preparei algumas opções especiais pra você 🎉",
+  "Oi {name}, aqui é do {company}! 👋\n\nVi que você quer conhecer nossos pacotes. Vou te enviar tudo! 🎉",
+  "{name}, que bom ter você por aqui! 👋\n\nVou te mostrar as opções do {company} que preparamos 🎉",
+  "Olá {name}! 👋\n\nDo {company} aqui. Soube do seu interesse e quero te apresentar nossos pacotes! 🎉",
+  "Oi {name}! 👋\n\nVocê demonstrou interesse durante a festa no {company}, né? Tenho opções incríveis! 🎉",
+  "{name}, prazer! 👋\n\nAqui é do {company}. Vi que você quer saber mais sobre nossos pacotes. Vamos lá! 🎉",
+];
+
+function getNextMessage(index: number, name: string, company: string): string {
+  return BOT_MESSAGES[index % BOT_MESSAGES.length]
+    .replace(/\{name\}/g, name)
+    .replace(/\{company\}/g, company);
+}
+
+function randomDelay(minMs: number, maxMs: number): Promise<void> {
+  const ms = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 interface Guest {
   name: string;
@@ -45,6 +72,9 @@ export function SendBotButton({ guests, recordId, onSent }: SendBotDialogProps) 
   const { currentCompany } = useCompany();
   const [open, setOpen] = useState(false);
   const [sending, setSending] = useState(false);
+  const [minDelay, setMinDelay] = useState(8);
+  const [maxDelay, setMaxDelay] = useState(15);
+  const [progress, setProgress] = useState<{ current: number; total: number; waiting: boolean } | null>(null);
 
   const eligibleGuests = guests.filter(
     (g) => g.wants_info && g.phone && isValidPhone(g.phone)
@@ -52,12 +82,15 @@ export function SendBotButton({ guests, recordId, onSent }: SendBotDialogProps) 
 
   if (eligibleGuests.length === 0) return null;
 
+  const validMin = Math.max(5, minDelay);
+  const validMax = Math.min(30, Math.max(validMin, maxDelay));
+
   const handleSend = async () => {
     if (!companyId) return;
     setSending(true);
+    setProgress({ current: 0, total: eligibleGuests.length, waiting: false });
 
     try {
-      // Fetch WhatsApp instance
       const { data: instance } = await supabase
         .from("wapi_instances")
         .select("instance_id, instance_token")
@@ -73,6 +106,7 @@ export function SendBotButton({ guests, recordId, onSent }: SendBotDialogProps) 
           variant: "destructive",
         });
         setSending(false);
+        setProgress(null);
         return;
       }
 
@@ -80,9 +114,18 @@ export function SendBotButton({ guests, recordId, onSent }: SendBotDialogProps) 
       let successCount = 0;
       let errorCount = 0;
 
-      for (const guest of eligibleGuests) {
+      for (let i = 0; i < eligibleGuests.length; i++) {
+        const guest = eligibleGuests[i];
+
+        if (i > 0) {
+          setProgress({ current: i, total: eligibleGuests.length, waiting: true });
+          await randomDelay(validMin * 1000, validMax * 1000);
+        }
+
+        setProgress({ current: i + 1, total: eligibleGuests.length, waiting: false });
+
         const phone = cleanPhone(guest.phone);
-        const message = `Olá, ${guest.name}! 👋\n\nQue bom que você se interessou pelos nossos pacotes durante a festa no ${companyName}!\n\nVou te enviar algumas opções especiais. 🎉`;
+        const message = getNextMessage(i, guest.name, companyName);
 
         try {
           const { error } = await supabase.functions.invoke("wapi-send", {
@@ -128,8 +171,11 @@ export function SendBotButton({ guests, recordId, onSent }: SendBotDialogProps) 
       toast({ title: "Erro inesperado", variant: "destructive" });
     } finally {
       setSending(false);
+      setProgress(null);
     }
   };
+
+  const progressPercent = progress ? Math.round((progress.current / progress.total) * 100) : 0;
 
   return (
     <>
@@ -152,36 +198,85 @@ export function SendBotButton({ guests, recordId, onSent }: SendBotDialogProps) 
         </Badge>
       </Button>
 
-      <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialog open={open} onOpenChange={sending ? undefined : setOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Enviar Bot do WhatsApp</AlertDialogTitle>
+            <AlertDialogTitle>
+              {sending ? "Enviando mensagens..." : "Enviar Bot do WhatsApp"}
+            </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div>
-                <p className="mb-3">
-                  O bot será enviado para {eligibleGuests.length} convidado
-                  {eligibleGuests.length > 1 ? "s" : ""} que demonstraram interesse:
-                </p>
-                <ul className="space-y-1 text-sm">
-                  {eligibleGuests.map((g, i) => (
-                    <li key={i} className="flex items-center gap-2">
-                      <span className="font-medium">{g.name}</span>
-                      <span className="text-muted-foreground">— {g.phone}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-3 text-xs text-muted-foreground">
-                  Cada convidado receberá uma mensagem personalizada e o bot iniciará o fluxo de qualificação automaticamente.
-                </p>
+                {!sending ? (
+                  <>
+                    <p className="mb-3">
+                      O bot será enviado para {eligibleGuests.length} convidado
+                      {eligibleGuests.length > 1 ? "s" : ""} que demonstraram interesse:
+                    </p>
+                    <ul className="space-y-1 text-sm mb-4">
+                      {eligibleGuests.map((g, i) => (
+                        <li key={i} className="flex items-center gap-2">
+                          <span className="font-medium">{g.name}</span>
+                          <span className="text-muted-foreground">— {g.phone}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    <div className="space-y-2 rounded-md border p-3">
+                      <Label className="text-xs font-medium">Intervalo de segurança (segundos)</Label>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 space-y-1">
+                          <Label htmlFor="minDelay" className="text-xs text-muted-foreground">Mín</Label>
+                          <Input
+                            id="minDelay"
+                            type="number"
+                            min={5}
+                            max={30}
+                            value={minDelay}
+                            onChange={(e) => setMinDelay(Number(e.target.value))}
+                            className="h-8"
+                          />
+                        </div>
+                        <div className="flex-1 space-y-1">
+                          <Label htmlFor="maxDelay" className="text-xs text-muted-foreground">Máx</Label>
+                          <Input
+                            id="maxDelay"
+                            type="number"
+                            min={5}
+                            max={30}
+                            value={maxDelay}
+                            onChange={(e) => setMaxDelay(Number(e.target.value))}
+                            className="h-8"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Protege seu número contra bloqueio do WhatsApp
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-4 py-2">
+                    <p className="text-sm font-medium">
+                      Enviando {progress?.current || 0} de {progress?.total || 0}...
+                    </p>
+                    <Progress value={progressPercent} className="h-2" />
+                    {progress?.waiting && (
+                      <p className="text-xs text-muted-foreground animate-pulse">
+                        Aguardando intervalo de segurança...
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={sending}>Cancelar</AlertDialogCancel>
-            <Button onClick={handleSend} disabled={sending}>
-              {sending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Enviar para {eligibleGuests.length}
-            </Button>
+            {!sending && (
+              <Button onClick={handleSend}>
+                Enviar para {eligibleGuests.length}
+              </Button>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
