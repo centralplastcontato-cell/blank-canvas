@@ -50,7 +50,18 @@ const DEFAULT_ITEMS: MaintenanceItem[] = [
   { label: "Piso danificado", checked: false },
   { label: "Infiltração/umidade", checked: false },
   { label: "Equipamento de som com defeito", checked: false },
-  { label: "Outro (campo livre)", checked: false },
+  { label: "Janela/vidro quebrado", checked: false },
+  { label: "Goteira no telhado", checked: false },
+  { label: "Interruptor com defeito", checked: false },
+  { label: "Cadeira/mesa danificada", checked: false },
+  { label: "Extintor vencido ou ausente", checked: false },
+  { label: "Descarga com defeito", checked: false },
+  { label: "Luminária solta ou torta", checked: false },
+  { label: "Portão/grade com problema", checked: false },
+  { label: "Pintura descascando", checked: false },
+  { label: "Cheiro de gás/vazamento", checked: false },
+  { label: "Bebedouro com defeito", checked: false },
+  { label: "Pia entupida", checked: false },
 ];
 
 export function MaintenanceManager() {
@@ -66,6 +77,7 @@ export function MaintenanceManager() {
   const [items, setItems] = useState<MaintenanceItem[]>([]);
   const [notes, setNotes] = useState("");
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [newItemText, setNewItemText] = useState("");
 
   const fetchData = useCallback(async () => {
     if (!companyId) return;
@@ -165,6 +177,16 @@ export function MaintenanceManager() {
 
   const updateItemDetail = (idx: number, detail: string) => {
     setItems(prev => prev.map((item, i) => i === idx ? { ...item, detail } : item));
+  };
+
+  const removeItem = (idx: number) => {
+    setItems(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const addItem = (label: string) => {
+    if (!label.trim()) return;
+    setItems(prev => [...prev, { label: label.trim(), checked: false }]);
+    setNewItemText("");
   };
 
   const toggleCard = (id: string) => {
@@ -318,7 +340,10 @@ export function MaintenanceManager() {
                       checked={item.checked}
                       onCheckedChange={(checked) => toggleItem(idx, !!checked)}
                     />
-                    <span className="text-sm">{item.label}</span>
+                    <span className="text-sm flex-1">{item.label}</span>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeItem(idx)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                   {item.checked && (
                     <Input
@@ -330,6 +355,18 @@ export function MaintenanceManager() {
                   )}
                 </div>
               ))}
+              <div className="flex items-center gap-2 pt-1">
+                <Input
+                  className="h-10 text-sm flex-1"
+                  placeholder="Novo item de manutenção..."
+                  value={newItemText}
+                  onChange={e => setNewItemText(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addItem(newItemText); } }}
+                />
+                <Button type="button" size="sm" variant="outline" className="shrink-0 gap-1" onClick={() => addItem(newItemText)} disabled={!newItemText.trim()}>
+                  <Plus className="h-3.5 w-3.5" /> Adicionar
+                </Button>
+              </div>
             </div>
 
             <div>
