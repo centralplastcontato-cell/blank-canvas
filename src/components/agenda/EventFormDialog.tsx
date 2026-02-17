@@ -176,7 +176,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         <DialogHeader>
           <DialogTitle>{isEdit ? "Editar Festa" : "Nova Festa"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-5 [&_input]:rounded-md [&_input]:border-input [&_button[role=combobox]]:rounded-md [&_textarea]:rounded-md" style={{ '--radius': '0.5rem' } as React.CSSProperties}>
+        <form onSubmit={handleSubmit} className="space-y-5 w-full [&_input]:rounded-md [&_input]:border-input [&_input]:min-w-0 [&_input]:box-border [&_button[role=combobox]]:rounded-md [&_textarea]:rounded-md" style={{ '--radius': '0.5rem' } as React.CSSProperties}>
           <div className="space-y-2">
             <Label>Nome do cliente *</Label>
             <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
