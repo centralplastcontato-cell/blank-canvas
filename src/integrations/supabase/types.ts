@@ -1427,6 +1427,54 @@ export type Database = {
         }
         Relationships: []
       }
+      maintenance_entries: {
+        Row: {
+          company_id: string
+          created_at: string
+          event_id: string | null
+          filled_by: string | null
+          id: string
+          items: Json
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          event_id?: string | null
+          filled_by?: string | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          event_id?: string | null
+          filled_by?: string | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_entries_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "company_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       message_templates: {
         Row: {
           company_id: string | null
