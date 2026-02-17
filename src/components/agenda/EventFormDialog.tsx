@@ -42,6 +42,23 @@ const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
   return `${h}:${m}`;
 });
 
+const DAY_OPTIONS = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, "0"));
+const MONTH_OPTIONS = [
+  { value: "01", label: "Janeiro" },
+  { value: "02", label: "Fevereiro" },
+  { value: "03", label: "Março" },
+  { value: "04", label: "Abril" },
+  { value: "05", label: "Maio" },
+  { value: "06", label: "Junho" },
+  { value: "07", label: "Julho" },
+  { value: "08", label: "Agosto" },
+  { value: "09", label: "Setembro" },
+  { value: "10", label: "Outubro" },
+  { value: "11", label: "Novembro" },
+  { value: "12", label: "Dezembro" },
+];
+const YEAR_OPTIONS = ["2024", "2025", "2026", "2027", "2028", "2029", "2030"];
+
 const STATUS_OPTIONS = [
   { value: "pendente", label: "Pendente" },
   { value: "confirmado", label: "Confirmado" },
@@ -77,6 +94,11 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [saving, setSaving] = useState(false);
   const { currentCompany } = useCompany();
 
+  // Date select state
+  const [dateDay, setDateDay] = useState("");
+  const [dateMonth, setDateMonth] = useState("");
+  const [dateYear, setDateYear] = useState("");
+
   // Lead search state
   const [leadSearch, setLeadSearch] = useState("");
   const [showLeadDropdown, setShowLeadDropdown] = useState(false);
@@ -92,12 +114,31 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
   useEffect(() => {
     if (open) {
-      setForm(initialData || EMPTY);
+      const data = initialData || EMPTY;
+      setForm(data);
+      // Parse existing date into day/month/year
+      if (data.event_date) {
+        const [y, m, d] = data.event_date.split("-");
+        setDateYear(y || "");
+        setDateMonth(m || "");
+        setDateDay(d || "");
+      } else {
+        setDateDay("");
+        setDateMonth("");
+        setDateYear("");
+      }
       setLeadSearch("");
       setShowLeadDropdown(false);
       setSelectedTemplate("");
     }
   }, [open, initialData]);
+
+  // Sync date selects → form.event_date
+  useEffect(() => {
+    if (dateDay && dateMonth && dateYear) {
+      setForm((prev) => ({ ...prev, event_date: `${dateYear}-${dateMonth}-${dateDay}` }));
+    }
+  }, [dateDay, dateMonth, dateYear]);
 
   // Load checklist templates and packages
   useEffect(() => {
@@ -247,9 +288,34 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             )}
           </div>
 
-          <div className="w-full flex flex-col space-y-2">
+          <div className="space-y-2">
             <Label>Data *</Label>
-            <Input type="date" value={form.event_date} onChange={(e) => setForm({ ...form, event_date: e.target.value })} required className="w-full" />
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Select value={dateDay} onValueChange={setDateDay}>
+                  <SelectTrigger><SelectValue placeholder="Dia" /></SelectTrigger>
+                  <SelectContent>
+                    {DAY_OPTIONS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex-[2]">
+                <Select value={dateMonth} onValueChange={setDateMonth}>
+                  <SelectTrigger><SelectValue placeholder="Mês" /></SelectTrigger>
+                  <SelectContent>
+                    {MONTH_OPTIONS.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex-1">
+                <Select value={dateYear} onValueChange={setDateYear}>
+                  <SelectTrigger><SelectValue placeholder="Ano" /></SelectTrigger>
+                  <SelectContent>
+                    {YEAR_OPTIONS.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-2">
