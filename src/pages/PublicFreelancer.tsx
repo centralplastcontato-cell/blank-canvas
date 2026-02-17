@@ -155,13 +155,19 @@ export default function PublicFreelancer() {
     const nameQuestion = template.questions.find(q => q.type === "text");
     const respondentName = nameQuestion ? String(answers[nameQuestion.id] || "").trim() || null : null;
 
+    // Extract PIX data from answers
+    const pixTipoAnswer = answersArray.find((a: any) => a.questionId === "pix_tipo");
+    const pixChaveAnswer = answersArray.find((a: any) => a.questionId === "pix_chave");
+
     const { error } = await supabase.from("freelancer_responses").insert({
       template_id: template.id,
       company_id: template.company_id,
       respondent_name: respondentName,
       answers: answersArray,
       photo_url: photoUrl,
-    });
+      pix_type: pixTipoAnswer?.value || null,
+      pix_key: pixChaveAnswer?.value || null,
+    } as any);
 
     setSubmitting(false);
     if (!error) setSubmitted(true);
