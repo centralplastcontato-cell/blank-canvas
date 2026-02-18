@@ -15,6 +15,7 @@ export interface CompanyModules {
   flow_builder: boolean;
   inteligencia: boolean;
   agenda: boolean;
+  operacoes: boolean;
 }
 
 const DEFAULT_MODULES: CompanyModules = {
@@ -31,6 +32,7 @@ const DEFAULT_MODULES: CompanyModules = {
   flow_builder: false,
   inteligencia: false,
   agenda: false,
+  operacoes: true,
 };
 
 export function parseModules(settings: Json | null | undefined): CompanyModules {
@@ -57,6 +59,7 @@ export function parseModules(settings: Json | null | undefined): CompanyModules 
     flow_builder: modules.flow_builder === true,
     inteligencia: modules.inteligencia === true,
     agenda: modules.agenda === true,
+    operacoes: modules.operacoes !== false,
   };
 }
 
@@ -79,4 +82,5 @@ export const MODULE_LABELS: Record<keyof CompanyModules, { label: string; descri
   flow_builder: { label: 'Flow Builder', description: 'Editor visual de fluxos de conversa' },
   inteligencia: { label: 'Inteligência', description: 'Score de leads, priorização e análise de funil' },
   agenda: { label: 'Agenda', description: 'Calendário de festas e eventos' },
+  operacoes: { label: 'Operações', description: 'Formulários, checklists, pacotes e freelancers' },
 };

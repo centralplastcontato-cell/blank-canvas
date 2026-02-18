@@ -43,6 +43,7 @@ const categoryIcons: Record<string, React.ElementType> = {
   Configurações: Settings,
   Dashboard: BarChart3,
   B2B: Briefcase,
+  'Operações': ClipboardList,
 };
 
 const iconOptions: Record<string, React.ElementType> = {

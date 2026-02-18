@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -8,7 +8,7 @@ import { MobileMenu } from "@/components/admin/MobileMenu";
 import { NotificationBell } from "@/components/admin/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { FolderOpen, Menu, Loader2, ClipboardCheck, PartyPopper, FileSignature, UtensilsCrossed, ListChecks, FileText, Package, Users, Wrench, HardHat } from "lucide-react";
+import { FolderOpen, Menu, Loader2, ClipboardCheck, PartyPopper, FileSignature, UtensilsCrossed, ListChecks, FileText, Package, Users, Wrench, HardHat, ShieldAlert } from "lucide-react";
 import logoCastelo from "@/assets/logo-castelo.png";
 import { AvaliacoesContent } from "./Avaliacoes";
 import { PreFestaContent } from "./PreFesta";
@@ -28,9 +28,11 @@ export default function Formularios() {
   const [searchParams, setSearchParams] = useSearchParams();
   
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isOwnerOrAdmin, setIsOwnerOrAdmin] = useState(false);
   const [permLoading, setPermLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string; email: string; avatar?: string | null } | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [userPermissions, setUserPermissions] = useState<Record<string, boolean>>({});
 
   const activeSection = searchParams.get("section") || "formularios";
   const activeTab = searchParams.get("tab") || "avaliacoes";
@@ -39,16 +41,48 @@ export default function Formularios() {
     async function check() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { navigate("/auth"); return; }
-      const [profileResult, adminResult] = await Promise.all([
+      const [profileResult, adminResult, permsResult, roleResult] = await Promise.all([
         supabase.from("profiles").select("full_name, avatar_url").eq("user_id", user.id).single(),
         supabase.rpc("is_admin", { _user_id: user.id }),
+        supabase.from("user_permissions").select("permission, granted").eq("user_id", user.id),
+        supabase.from("user_companies").select("role").eq("user_id", user.id).limit(1).single(),
       ]);
       setCurrentUser({ id: user.id, name: profileResult.data?.full_name || "Usuário", email: user.email || "", avatar: profileResult.data?.avatar_url });
-      setIsAdmin(adminResult.data === true);
+      const isSuperAdmin = adminResult.data === true;
+      setIsAdmin(isSuperAdmin);
+      const role = roleResult.data?.role;
+      setIsOwnerOrAdmin(isSuperAdmin || role === 'owner' || role === 'admin');
+
+      const permsMap: Record<string, boolean> = {};
+      permsResult.data?.forEach((p) => { permsMap[p.permission] = p.granted; });
+      setUserPermissions(permsMap);
       setPermLoading(false);
     }
     check();
   }, [navigate]);
+
+  // Permission check - owners/admins bypass
+  const canView = isOwnerOrAdmin || userPermissions['operacoes.view'];
+  const canFormularios = isOwnerOrAdmin || userPermissions['operacoes.formularios'];
+  const canChecklist = isOwnerOrAdmin || userPermissions['operacoes.checklist'];
+  const canPacotes = isOwnerOrAdmin || userPermissions['operacoes.pacotes'];
+  const canFreelancer = isOwnerOrAdmin || userPermissions['operacoes.freelancer'];
+  const canAvaliacoes = isOwnerOrAdmin || userPermissions['operacoes.avaliacoes'];
+
+  const visibleSections = useMemo(() => {
+    const sections: { value: string; label: string; icon: React.ElementType }[] = [];
+    if (canFormularios) sections.push({ value: "formularios", label: "Formulários", icon: FileText });
+    if (canChecklist) sections.push({ value: "checklist", label: "Checklist", icon: ListChecks });
+    if (canPacotes) sections.push({ value: "pacotes", label: "Pacotes", icon: Package });
+    if (canFreelancer || canAvaliacoes) sections.push({ value: "freelancer", label: "Freelancer", icon: HardHat });
+    return sections;
+  }, [canFormularios, canChecklist, canPacotes, canFreelancer, canAvaliacoes]);
+
+  // Auto-select the first visible section if current is not visible
+  const effectiveSection = useMemo(() => {
+    if (visibleSections.find(s => s.value === activeSection)) return activeSection;
+    return visibleSections[0]?.value || "formularios";
+  }, [activeSection, visibleSections]);
 
   const handleLogout = async () => { await supabase.auth.signOut(); navigate("/auth"); };
   const handleRefresh = () => { window.location.reload(); };
@@ -65,6 +99,44 @@ export default function Formularios() {
 
   if (permLoading) {
     return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+  }
+
+  if (!canView) {
+    return (
+      <SidebarProvider defaultOpen={false}>
+        <div className="min-h-screen flex w-full bg-background">
+          <AdminSidebar canManageUsers={isAdmin} isAdmin={isAdmin} currentUserName={currentUser?.name || ""} onRefresh={handleRefresh} onLogout={handleLogout} />
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center space-y-4 p-8">
+              <ShieldAlert className="h-16 w-16 text-muted-foreground mx-auto" />
+              <h2 className="text-xl font-semibold">Acesso Restrito</h2>
+              <p className="text-muted-foreground max-w-md">
+                Você não tem permissão para acessar a seção de Operações. Solicite ao administrador.
+              </p>
+            </div>
+          </div>
+        </div>
+      </SidebarProvider>
+    );
+  }
+
+  if (visibleSections.length === 0) {
+    return (
+      <SidebarProvider defaultOpen={false}>
+        <div className="min-h-screen flex w-full bg-background">
+          <AdminSidebar canManageUsers={isAdmin} isAdmin={isAdmin} currentUserName={currentUser?.name || ""} onRefresh={handleRefresh} onLogout={handleLogout} />
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center space-y-4 p-8">
+              <ShieldAlert className="h-16 w-16 text-muted-foreground mx-auto" />
+              <h2 className="text-xl font-semibold">Sem permissões</h2>
+              <p className="text-muted-foreground max-w-md">
+                Nenhuma seção está disponível para você. Solicite permissões ao administrador.
+              </p>
+            </div>
+          </div>
+        </div>
+      </SidebarProvider>
+    );
   }
 
   return (
@@ -116,143 +188,149 @@ export default function Formularios() {
 
             {/* Top-level section tabs */}
             <Tabs
-              value={activeSection}
+              value={effectiveSection}
               onValueChange={handleSectionChange}
               className="flex-1 flex flex-col overflow-hidden"
             >
               <div className="px-3 md:px-6 pt-3 md:pt-4 overflow-x-auto">
                 <TabsList className="w-max md:w-auto">
-                  <TabsTrigger value="formularios" className="flex-1 md:flex-none gap-1.5">
-                    <FileText className="h-4 w-4" />
-                    <span>Formulários</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="checklist" className="flex-1 md:flex-none gap-1.5">
-                    <ListChecks className="h-4 w-4" />
-                    <span>Checklist</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="pacotes" className="flex-1 md:flex-none gap-1.5">
-                    <Package className="h-4 w-4" />
-                    <span>Pacotes</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="freelancer" className="flex-1 md:flex-none gap-1.5">
-                    <HardHat className="h-4 w-4" />
-                    <span>Freelancer</span>
-                  </TabsTrigger>
+                  {visibleSections.map(s => (
+                    <TabsTrigger key={s.value} value={s.value} className="flex-1 md:flex-none gap-1.5">
+                      <s.icon className="h-4 w-4" />
+                      <span>{s.label}</span>
+                    </TabsTrigger>
+                  ))}
                 </TabsList>
               </div>
 
-              <TabsContent value="formularios" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
-                <Tabs
-                  value={activeTab}
-                  onValueChange={handleTabChange}
-                  className="flex-1 flex flex-col overflow-hidden"
-                >
-                  <div className="px-3 md:px-6 pt-2 overflow-x-auto">
-                    <TabsList className="w-max md:w-auto">
-                      <TabsTrigger value="avaliacoes" className="shrink-0 gap-1.5">
-                        <ClipboardCheck className="h-4 w-4" />
-                        <span>Avaliações</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="prefesta" className="shrink-0 gap-1.5">
-                        <PartyPopper className="h-4 w-4" />
-                        <span>Pré-Festa</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="contrato" className="shrink-0 gap-1.5">
-                        <FileSignature className="h-4 w-4" />
-                        <span>Contrato</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="cardapio" className="shrink-0 gap-1.5">
-                        <UtensilsCrossed className="h-4 w-4" />
-                        <span>Cardápio</span>
-                      </TabsTrigger>
-                    </TabsList>
-                  </div>
+              {canFormularios && (
+                <TabsContent value="formularios" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
+                  <Tabs
+                    value={activeTab}
+                    onValueChange={handleTabChange}
+                    className="flex-1 flex flex-col overflow-hidden"
+                  >
+                    <div className="px-3 md:px-6 pt-2 overflow-x-auto">
+                      <TabsList className="w-max md:w-auto">
+                        <TabsTrigger value="avaliacoes" className="shrink-0 gap-1.5">
+                          <ClipboardCheck className="h-4 w-4" />
+                          <span>Avaliações</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="prefesta" className="shrink-0 gap-1.5">
+                          <PartyPopper className="h-4 w-4" />
+                          <span>Pré-Festa</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="contrato" className="shrink-0 gap-1.5">
+                          <FileSignature className="h-4 w-4" />
+                          <span>Contrato</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="cardapio" className="shrink-0 gap-1.5">
+                          <UtensilsCrossed className="h-4 w-4" />
+                          <span>Cardápio</span>
+                        </TabsTrigger>
+                      </TabsList>
+                    </div>
 
-                  <TabsContent value="avaliacoes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
-                    <AvaliacoesContent />
-                  </TabsContent>
-                  <TabsContent value="prefesta" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
-                    <PreFestaContent />
-                  </TabsContent>
-                  <TabsContent value="contrato" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
-                    <ContratoContent />
-                  </TabsContent>
-                  <TabsContent value="cardapio" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
-                    <CardapioContent />
-                  </TabsContent>
-                </Tabs>
-              </TabsContent>
+                    <TabsContent value="avaliacoes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                      <AvaliacoesContent />
+                    </TabsContent>
+                    <TabsContent value="prefesta" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                      <PreFestaContent />
+                    </TabsContent>
+                    <TabsContent value="contrato" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                      <ContratoContent />
+                    </TabsContent>
+                    <TabsContent value="cardapio" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                      <CardapioContent />
+                    </TabsContent>
+                  </Tabs>
+                </TabsContent>
+              )}
 
-              <TabsContent value="checklist" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
-                <Tabs defaultValue="equipe" className="flex-1 flex flex-col overflow-hidden">
-                  <div className="px-3 md:px-6 pt-2 overflow-x-auto">
-                    <TabsList className="w-max md:w-auto">
-                      <TabsTrigger value="equipe" className="shrink-0 gap-1.5">
-                        <Users className="h-4 w-4" />
-                        <span>Equipe</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="manutencao" className="shrink-0 gap-1.5">
-                        <Wrench className="h-4 w-4" />
-                        <span>Manutenção</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="acompanhamento" className="shrink-0 gap-1.5">
-                        <ClipboardCheck className="h-4 w-4" />
-                        <span>Acompanhamento</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="presenca" className="shrink-0 gap-1.5">
-                        <Users className="h-4 w-4" />
-                        <span>Presença</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="informacoes" className="shrink-0 gap-1.5">
-                        <FileText className="h-4 w-4" />
-                        <span>Informações</span>
-                      </TabsTrigger>
-                    </TabsList>
-                  </div>
-                  <TabsContent value="equipe" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
-                    <EventStaffManager />
-                  </TabsContent>
-                  <TabsContent value="manutencao" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
-                    <MaintenanceManager />
-                  </TabsContent>
-                  <TabsContent value="acompanhamento" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
-                    <PartyMonitoringManager />
-                  </TabsContent>
-                  <TabsContent value="presenca" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
-                    <AttendanceManager />
-                  </TabsContent>
-                  <TabsContent value="informacoes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
-                    <EventInfoManager />
-                  </TabsContent>
-                </Tabs>
-              </TabsContent>
+              {canChecklist && (
+                <TabsContent value="checklist" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
+                  <Tabs defaultValue="equipe" className="flex-1 flex flex-col overflow-hidden">
+                    <div className="px-3 md:px-6 pt-2 overflow-x-auto">
+                      <TabsList className="w-max md:w-auto">
+                        <TabsTrigger value="equipe" className="shrink-0 gap-1.5">
+                          <Users className="h-4 w-4" />
+                          <span>Equipe</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="manutencao" className="shrink-0 gap-1.5">
+                          <Wrench className="h-4 w-4" />
+                          <span>Manutenção</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="acompanhamento" className="shrink-0 gap-1.5">
+                          <ClipboardCheck className="h-4 w-4" />
+                          <span>Acompanhamento</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="presenca" className="shrink-0 gap-1.5">
+                          <Users className="h-4 w-4" />
+                          <span>Presença</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="informacoes" className="shrink-0 gap-1.5">
+                          <FileText className="h-4 w-4" />
+                          <span>Informações</span>
+                        </TabsTrigger>
+                      </TabsList>
+                    </div>
+                    <TabsContent value="equipe" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                      <EventStaffManager />
+                    </TabsContent>
+                    <TabsContent value="manutencao" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                      <MaintenanceManager />
+                    </TabsContent>
+                    <TabsContent value="acompanhamento" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                      <PartyMonitoringManager />
+                    </TabsContent>
+                    <TabsContent value="presenca" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                      <AttendanceManager />
+                    </TabsContent>
+                    <TabsContent value="informacoes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                      <EventInfoManager />
+                    </TabsContent>
+                  </Tabs>
+                </TabsContent>
+              )}
 
-              <TabsContent value="pacotes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3 data-[state=inactive]:hidden">
-                <PackagesManager />
-              </TabsContent>
+              {canPacotes && (
+                <TabsContent value="pacotes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3 data-[state=inactive]:hidden">
+                  <PackagesManager />
+                </TabsContent>
+              )}
 
-              <TabsContent value="freelancer" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
-                <Tabs defaultValue="cadastro" className="flex-1 flex flex-col overflow-hidden">
-                  <div className="px-3 md:px-6 pt-2 overflow-x-auto">
-                    <TabsList className="w-max md:w-auto">
-                      <TabsTrigger value="cadastro" className="shrink-0 gap-1.5">
-                        <HardHat className="h-4 w-4" />
-                        <span>Cadastro</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="avaliacoes-fl" className="shrink-0 gap-1.5">
-                        <ClipboardCheck className="h-4 w-4" />
-                        <span>Avaliações</span>
-                      </TabsTrigger>
-                    </TabsList>
-                  </div>
-                  <TabsContent value="cadastro" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
-                    <FreelancerManagerContent />
-                  </TabsContent>
-                  <TabsContent value="avaliacoes-fl" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
-                    <FreelancerEvaluationsTab />
-                  </TabsContent>
-                </Tabs>
-              </TabsContent>
+              {(canFreelancer || canAvaliacoes) && (
+                <TabsContent value="freelancer" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
+                  <Tabs defaultValue={canFreelancer ? "cadastro" : "avaliacoes-fl"} className="flex-1 flex flex-col overflow-hidden">
+                    <div className="px-3 md:px-6 pt-2 overflow-x-auto">
+                      <TabsList className="w-max md:w-auto">
+                        {canFreelancer && (
+                          <TabsTrigger value="cadastro" className="shrink-0 gap-1.5">
+                            <HardHat className="h-4 w-4" />
+                            <span>Cadastro</span>
+                          </TabsTrigger>
+                        )}
+                        {canAvaliacoes && (
+                          <TabsTrigger value="avaliacoes-fl" className="shrink-0 gap-1.5">
+                            <ClipboardCheck className="h-4 w-4" />
+                            <span>Avaliações</span>
+                          </TabsTrigger>
+                        )}
+                      </TabsList>
+                    </div>
+                    {canFreelancer && (
+                      <TabsContent value="cadastro" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                        <FreelancerManagerContent />
+                      </TabsContent>
+                    )}
+                    {canAvaliacoes && (
+                      <TabsContent value="avaliacoes-fl" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                        <FreelancerEvaluationsTab />
+                      </TabsContent>
+                    )}
+                  </Tabs>
+                </TabsContent>
+              )}
             </Tabs>
           </div>
         </div>
