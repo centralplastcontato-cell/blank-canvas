@@ -8,7 +8,7 @@ import { MobileMenu } from "@/components/admin/MobileMenu";
 import { NotificationBell } from "@/components/admin/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { FolderOpen, Menu, Loader2, ClipboardCheck, PartyPopper, FileSignature, UtensilsCrossed, ListChecks, FileText, Package, Users, Wrench, HardHat, ShieldAlert } from "lucide-react";
+import { FolderOpen, Menu, Loader2, ClipboardCheck, PartyPopper, FileSignature, UtensilsCrossed, ListChecks, FileText, Package, Users, Wrench, HardHat, ShieldAlert, CalendarClock } from "lucide-react";
 import logoCastelo from "@/assets/logo-castelo.png";
 import { AvaliacoesContent } from "./Avaliacoes";
 import { PreFestaContent } from "./PreFesta";
@@ -22,6 +22,7 @@ import { AttendanceManager } from "@/components/agenda/AttendanceManager";
 import { EventInfoManager } from "@/components/agenda/EventInfoManager";
 import { FreelancerManagerContent } from "./FreelancerManager";
 import { FreelancerEvaluationsTab } from "@/components/freelancer/FreelancerEvaluationsTab";
+import { FreelancerSchedulesTab } from "@/components/freelancer/FreelancerSchedulesTab";
 
 export default function Formularios() {
   const navigate = useNavigate();
@@ -310,10 +311,16 @@ export default function Formularios() {
                             <span>Cadastro</span>
                           </TabsTrigger>
                         )}
-                        {canAvaliacoes && (
+                         {canAvaliacoes && (
                           <TabsTrigger value="avaliacoes-fl" className="shrink-0 gap-1.5">
                             <ClipboardCheck className="h-4 w-4" />
                             <span>Avaliações</span>
+                          </TabsTrigger>
+                        )}
+                        {canFreelancer && (
+                          <TabsTrigger value="escalas" className="shrink-0 gap-1.5">
+                            <CalendarClock className="h-4 w-4" />
+                            <span>Escalas</span>
                           </TabsTrigger>
                         )}
                       </TabsList>
@@ -326,6 +333,11 @@ export default function Formularios() {
                     {canAvaliacoes && (
                       <TabsContent value="avaliacoes-fl" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
                         <FreelancerEvaluationsTab />
+                      </TabsContent>
+                    )}
+                    {canFreelancer && (
+                      <TabsContent value="escalas" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                        <FreelancerSchedulesTab />
                       </TabsContent>
                     )}
                   </Tabs>

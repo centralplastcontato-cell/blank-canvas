@@ -1373,6 +1373,103 @@ export type Database = {
           },
         ]
       }
+      freelancer_assignments: {
+        Row: {
+          company_id: string
+          created_at: string
+          event_id: string
+          freelancer_name: string
+          id: string
+          role: string
+          schedule_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          event_id: string
+          freelancer_name: string
+          id?: string
+          role?: string
+          schedule_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          event_id?: string
+          freelancer_name?: string
+          id?: string
+          role?: string
+          schedule_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "freelancer_assignments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "freelancer_assignments_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "company_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "freelancer_assignments_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "freelancer_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      freelancer_availability: {
+        Row: {
+          available_event_ids: string[]
+          company_id: string
+          created_at: string
+          freelancer_name: string
+          freelancer_phone: string
+          id: string
+          schedule_id: string
+        }
+        Insert: {
+          available_event_ids?: string[]
+          company_id: string
+          created_at?: string
+          freelancer_name: string
+          freelancer_phone: string
+          id?: string
+          schedule_id: string
+        }
+        Update: {
+          available_event_ids?: string[]
+          company_id?: string
+          created_at?: string
+          freelancer_name?: string
+          freelancer_phone?: string
+          id?: string
+          schedule_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "freelancer_availability_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "freelancer_availability_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "freelancer_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       freelancer_evaluations: {
         Row: {
           company_id: string
@@ -1488,6 +1585,53 @@ export type Database = {
             columns: ["template_id"]
             isOneToOne: false
             referencedRelation: "freelancer_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      freelancer_schedules: {
+        Row: {
+          company_id: string
+          created_at: string
+          end_date: string
+          event_ids: string[]
+          id: string
+          is_active: boolean
+          slug: string | null
+          start_date: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          end_date: string
+          event_ids?: string[]
+          id?: string
+          is_active?: boolean
+          slug?: string | null
+          start_date: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          end_date?: string
+          event_ids?: string[]
+          id?: string
+          is_active?: boolean
+          slug?: string | null
+          start_date?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "freelancer_schedules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
