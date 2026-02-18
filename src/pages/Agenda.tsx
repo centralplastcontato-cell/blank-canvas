@@ -199,6 +199,13 @@ export default function Agenda() {
   };
 
   const handleDelete = async (id: string) => {
+    // Delete dependent records first to avoid foreign key violations
+    await (supabase as any).from("freelancer_evaluations").delete().eq("event_id", id);
+    await (supabase as any).from("event_checklist_items").delete().eq("event_id", id);
+    await (supabase as any).from("event_staff_entries").delete().eq("event_id", id);
+    await (supabase as any).from("event_info_entries").delete().eq("event_id", id);
+    await (supabase as any).from("attendance_entries").delete().eq("event_id", id);
+
     const { error } = await supabase.from("company_events").delete().eq("id", id);
     if (error) { toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Festa excluída" });
