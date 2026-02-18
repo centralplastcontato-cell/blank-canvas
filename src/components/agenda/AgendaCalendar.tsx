@@ -64,10 +64,10 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
         head_cell: "text-muted-foreground rounded-md flex-1 font-normal text-[0.8rem] lg:text-base text-center",
         row: "flex w-full mt-1 lg:mt-0",
         cell: "flex-1 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
-        day: cn(buttonVariants({ variant: "ghost" }), "h-12 lg:h-[4.5rem] w-full p-0 font-normal aria-selected:opacity-100 relative rounded-lg"),
+        day: cn(buttonVariants({ variant: "ghost" }), "h-12 lg:h-[4.5rem] w-full p-0 font-normal aria-selected:opacity-100 relative rounded-lg hover:bg-muted/50 transition-colors"),
         day_range_end: "day-range-end",
         day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-        day_today: "bg-accent text-accent-foreground",
+        day_today: "bg-primary text-primary-foreground font-bold ring-2 ring-primary/30 ring-offset-1 ring-offset-background",
         day_outside: "day-outside text-muted-foreground opacity-50",
         day_disabled: "text-muted-foreground opacity-50",
         day_hidden: "invisible",
@@ -91,7 +91,7 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
                   {dayEvents.slice(0, 3).map((ev) => (
                     <span
                       key={ev.id}
-                      className={cn("h-1.5 w-1.5 lg:h-2.5 lg:w-2.5 rounded-full", STATUS_COLORS[ev.status] || "bg-muted-foreground")}
+                      className={cn("h-1.5 w-1.5 lg:h-3 lg:w-3 rounded-full", STATUS_COLORS[ev.status] || "bg-muted-foreground")}
                     />
                   ))}
                   {dayEvents.length > 3 && (

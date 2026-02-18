@@ -27,13 +27,13 @@ function MetricCard({ icon: Icon, label, value, color }: {
   icon: React.ElementType; label: string; value: number | string; color: string;
 }) {
   return (
-    <Card>
-      <CardContent className="flex items-center gap-3 p-4">
-        <div className={`p-2 rounded-lg ${color}`}>
-          <Icon className="h-5 w-5" />
+    <Card className="hover:-translate-y-0.5 transition-all duration-200">
+      <CardContent className="flex items-center gap-3 p-5">
+        <div className={`p-3 rounded-xl ${color}`}>
+          <Icon className="h-6 w-6" />
         </div>
         <div>
-          <p className="text-2xl font-bold">{value}</p>
+          <p className="text-3xl font-bold">{value}</p>
           <p className="text-xs text-muted-foreground">{label}</p>
         </div>
       </CardContent>
