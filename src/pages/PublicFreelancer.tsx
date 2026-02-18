@@ -90,6 +90,47 @@ export default function PublicFreelancer() {
     return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
   };
 
+  const formatCep = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 8);
+    if (digits.length <= 5) return digits;
+    return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+  };
+
+  const [cepData, setCepData] = useState<Record<string, { street: string; neighborhood: string; city: string; state: string; loading: boolean }>>({});
+
+  const fetchCep = async (questionId: string, cep: string) => {
+    const digits = cep.replace(/\D/g, "");
+    if (digits.length !== 8) return;
+    setCepData(prev => ({ ...prev, [questionId]: { ...prev[questionId], loading: true, street: "", neighborhood: "", city: "", state: "" } }));
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      const data = await res.json();
+      if (data.erro) {
+        toast({ title: "CEP não encontrado", variant: "destructive" });
+        setCepData(prev => ({ ...prev, [questionId]: { street: "", neighborhood: "", city: "", state: "", loading: false } }));
+        return;
+      }
+      setCepData(prev => ({ ...prev, [questionId]: { street: data.logradouro || "", neighborhood: data.bairro || "", city: data.localidade || "", state: data.uf || "", loading: false } }));
+      // Build address without number yet
+      const addr = [data.logradouro, data.bairro, data.localidade, data.uf].filter(Boolean).join(", ");
+      setAnswer(questionId, addr);
+    } catch {
+      toast({ title: "Erro ao buscar CEP", variant: "destructive" });
+      setCepData(prev => ({ ...prev, [questionId]: { street: "", neighborhood: "", city: "", state: "", loading: false } }));
+    }
+  };
+
+  const [addressNumbers, setAddressNumbers] = useState<Record<string, string>>({});
+
+  const updateAddressWithNumber = (questionId: string, number: string) => {
+    setAddressNumbers(prev => ({ ...prev, [questionId]: number }));
+    const cd = cepData[questionId];
+    if (cd?.street) {
+      const parts = [cd.street, number ? number : null, cd.neighborhood, cd.city, cd.state].filter(Boolean).join(", ");
+      setAnswer(questionId, parts);
+    }
+  };
+
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -213,6 +254,63 @@ export default function PublicFreelancer() {
 
     if (q.type === "text") {
       const isPhone = q.text.toLowerCase().includes("telefone") || q.text.toLowerCase().includes("whatsapp");
+      const isAddress = q.text.toLowerCase().includes("endereço") || q.text.toLowerCase().includes("endereco");
+
+      if (isAddress) {
+        const cd = cepData[q.id];
+        const cepVal = answers[`${q.id}_cep`] || "";
+        return (
+          <div key={q.id} className="bg-card rounded-2xl p-5 shadow-card space-y-3">
+            <label className="text-sm font-medium text-foreground">
+              {q.text} {q.required && <span className="text-destructive">*</span>}
+            </label>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">CEP</label>
+                <div className="flex gap-2">
+                  <Input
+                    value={cepVal}
+                    onChange={(e) => {
+                      const formatted = formatCep(e.target.value);
+                      setAnswers(prev => ({ ...prev, [`${q.id}_cep`]: formatted }));
+                      if (formatted.replace(/\D/g, "").length === 8) fetchCep(q.id, formatted);
+                    }}
+                    placeholder="00000-000"
+                    className="rounded-xl"
+                    inputMode="numeric"
+                    maxLength={9}
+                  />
+                  {cd?.loading && <Loader2 className="h-5 w-5 animate-spin text-primary shrink-0 self-center" />}
+                </div>
+              </div>
+              {cd?.street && (
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Rua</label>
+                  <Input value={cd.street} disabled className="rounded-xl bg-muted" />
+                </div>
+              )}
+              {cd?.street && (
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Número</label>
+                  <Input
+                    value={addressNumbers[q.id] || ""}
+                    onChange={(e) => updateAddressWithNumber(q.id, e.target.value)}
+                    placeholder="Nº"
+                    className="rounded-xl"
+                  />
+                </div>
+              )}
+              {cd?.neighborhood && (
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Bairro — Cidade/UF</label>
+                  <Input value={`${cd.neighborhood} — ${cd.city}/${cd.state}`} disabled className="rounded-xl bg-muted" />
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div key={q.id} className="bg-card rounded-2xl p-5 shadow-card space-y-3">
           <label className="text-sm font-medium text-foreground">
