@@ -193,19 +193,19 @@ export default function Formularios() {
               onValueChange={handleSectionChange}
               className="flex-1 flex flex-col overflow-hidden"
             >
-              <div className="px-3 md:px-6 pt-3 md:pt-4 overflow-x-auto flex justify-center">
-                <div className="inline-flex gap-1.5 p-1 rounded-xl bg-muted/60 border border-border/50">
+              <div className="px-3 md:px-6 pt-4 md:pt-6 overflow-x-auto flex justify-center">
+                <div className="inline-flex gap-2 p-1.5 rounded-2xl bg-muted/50 border border-border/40 shadow-sm">
                   {visibleSections.map(s => (
                     <button
                       key={s.value}
                       onClick={() => handleSectionChange(s.value)}
-                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      className={`inline-flex items-center gap-2.5 px-6 py-3 rounded-xl text-base font-semibold transition-all duration-200 ${
                         effectiveSection === s.value
-                          ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-background/80'
+                          ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30 scale-[1.02]'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-accent/60'
                       }`}
                     >
-                      <s.icon className="h-4 w-4" />
+                      <s.icon className="h-5 w-5" />
                       <span>{s.label}</span>
                     </button>
                   ))}
@@ -219,8 +219,8 @@ export default function Formularios() {
                     onValueChange={handleTabChange}
                     className="flex-1 flex flex-col overflow-hidden"
                   >
-                    <div className="px-3 md:px-6 pt-2 overflow-x-auto border-b border-border/40 flex justify-center">
-                      <div className="inline-flex gap-0">
+                    <div className="px-3 md:px-6 pt-3 overflow-x-auto flex justify-center">
+                      <div className="inline-flex gap-1 p-1 rounded-xl bg-muted/40 border border-border/30">
                         {[
                           { value: "avaliacoes", icon: ClipboardCheck, label: "Avaliações" },
                           { value: "prefesta", icon: PartyPopper, label: "Pré-Festa" },
@@ -230,13 +230,13 @@ export default function Formularios() {
                           <button
                             key={t.value}
                             onClick={() => handleTabChange(t.value)}
-                            className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-all duration-200 ${
+                            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
                               activeTab === t.value
-                                ? 'border-primary text-primary'
-                                : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                                ? 'bg-primary/15 text-primary border border-primary/25 shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
                             }`}
                           >
-                            <t.icon className="h-4 w-4" />
+                            <t.icon className={`h-4 w-4 ${activeTab === t.value ? 'text-primary' : ''}`} />
                             <span>{t.label}</span>
                           </button>
                         ))}
@@ -262,8 +262,8 @@ export default function Formularios() {
               {canChecklist && (
                 <TabsContent value="checklist" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
                   <Tabs defaultValue="equipe" className="flex-1 flex flex-col overflow-hidden">
-                    <div className="px-3 md:px-6 pt-2 overflow-x-auto border-b border-border/40 flex justify-center">
-                      <TabsList className="bg-transparent h-auto p-0 gap-0">
+                    <div className="px-3 md:px-6 pt-3 overflow-x-auto flex justify-center">
+                      <div className="inline-flex gap-1 p-1 rounded-xl bg-muted/40 border border-border/30">
                         {[
                           { value: "equipe", icon: Users, label: "Equipe" },
                           { value: "manutencao", icon: Wrench, label: "Manutenção" },
@@ -271,12 +271,12 @@ export default function Formularios() {
                           { value: "presenca", icon: Users, label: "Presença" },
                           { value: "informacoes", icon: FileText, label: "Informações" },
                         ].map(t => (
-                          <TabsTrigger key={t.value} value={t.value} className="shrink-0 gap-1.5 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5">
+                          <TabsTrigger key={t.value} value={t.value} className={`gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/25 data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-accent/50`}>
                             <t.icon className="h-4 w-4" />
                             <span>{t.label}</span>
                           </TabsTrigger>
                         ))}
-                      </TabsList>
+                      </div>
                     </div>
                     <TabsContent value="equipe" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
                       <EventStaffManager />
@@ -306,27 +306,27 @@ export default function Formularios() {
               {(canFreelancer || canAvaliacoes) && (
                 <TabsContent value="freelancer" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
                   <Tabs defaultValue={canFreelancer ? "cadastro" : "avaliacoes-fl"} className="flex-1 flex flex-col overflow-hidden">
-                    <div className="px-3 md:px-6 pt-2 overflow-x-auto border-b border-border/40 flex justify-center">
-                      <TabsList className="bg-transparent h-auto p-0 gap-0">
+                    <div className="px-3 md:px-6 pt-3 overflow-x-auto flex justify-center">
+                      <div className="inline-flex gap-1 p-1 rounded-xl bg-muted/40 border border-border/30">
                         {canFreelancer && (
-                          <TabsTrigger value="cadastro" className="shrink-0 gap-1.5 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5">
+                          <TabsTrigger value="cadastro" className="gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/25 data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-accent/50">
                             <HardHat className="h-4 w-4" />
                             <span>Cadastro</span>
                           </TabsTrigger>
                         )}
                         {canAvaliacoes && (
-                          <TabsTrigger value="avaliacoes-fl" className="shrink-0 gap-1.5 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5">
+                          <TabsTrigger value="avaliacoes-fl" className="gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/25 data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-accent/50">
                             <ClipboardCheck className="h-4 w-4" />
                             <span>Avaliações</span>
                           </TabsTrigger>
                         )}
                         {canFreelancer && (
-                          <TabsTrigger value="escalas" className="shrink-0 gap-1.5 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5">
+                          <TabsTrigger value="escalas" className="gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/25 data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-accent/50">
                             <CalendarClock className="h-4 w-4" />
                             <span>Escalas</span>
                           </TabsTrigger>
                         )}
-                      </TabsList>
+                      </div>
                     </div>
                     {canFreelancer && (
                       <TabsContent value="cadastro" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
