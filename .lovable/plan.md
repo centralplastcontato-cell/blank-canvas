@@ -1,24 +1,26 @@
 
-## Melhorar layout do calendario no desktop
+## Filtrar festas por unidade do usuario na Agenda
 
 ### Problema
-O calendario da Agenda no desktop esta com celulas, fontes e espacamentos muito pequenos, nao aproveitando bem o espaco disponivel da tela.
+A pagina da Agenda busca **todos** os eventos da empresa sem considerar as permissoes de unidade do usuario. Um usuario que so tem acesso a unidade "Manchester" ve tambem as festas da unidade "Trujillo".
 
-### Mudancas
+### Solucao
+Integrar o hook `useUnitPermissions` na pagina `Agenda.tsx` para:
 
-**Arquivo: `src/components/agenda/AgendaCalendar.tsx`**
+1. Carregar as permissoes de unidade do usuario logado
+2. Definir o filtro de unidade padrao automaticamente (se o usuario so tem acesso a uma unidade, pre-selecionar essa unidade)
+3. Filtrar os eventos pelo `allowedUnits` do usuario (nao apenas pelo filtro manual)
+4. Ajustar o dropdown de unidades para mostrar apenas as unidades que o usuario tem permissao
 
-1. Aumentar a altura das celulas dos dias de `h-10` para `h-14 lg:h-20` no desktop
-2. Aumentar o tamanho da fonte do numero do dia
-3. Aumentar o tamanho dos dots de status de `h-1.5 w-1.5` para `lg:h-2 lg:w-2`
-4. Aumentar o espacamento entre linhas (`mt-1` para `lg:mt-2`)
-5. Aumentar a fonte do cabecalho (dias da semana) e do titulo do mes
-6. Aumentar o padding geral do componente no desktop
+### Detalhes tecnicos
 
 **Arquivo: `src/pages/Agenda.tsx`**
 
-1. Alterar o grid de `lg:grid-cols-3` para `lg:grid-cols-[2fr_1fr]` para dar mais espaco ao calendario em relacao ao painel lateral
-2. Aumentar o padding do card do calendario no desktop
-
-### Resultado esperado
-O calendario ocupara mais espaco horizontal e vertical, com celulas maiores e mais legíveis, mantendo a aparencia compacta no mobile.
+1. Importar `useUnitPermissions` de `@/hooks/useUnitPermissions`
+2. Chamar `useUnitPermissions(currentUser?.id, currentCompany?.id)` para obter `canViewAll`, `allowedUnits`, `unitAccess`
+3. Usar `useEffect` para definir `selectedUnit` automaticamente:
+   - Se `canViewAll` = true, manter "all"
+   - Se o usuario tem acesso a apenas 1 unidade, pre-selecionar essa unidade
+   - Se tem acesso a mais de 1 (mas nao todas), manter "all" mas filtrar pela lista permitida
+4. Alterar o `filteredEvents` para considerar `unitAccess`: mesmo quando `selectedUnit === "all"`, filtrar apenas pelas unidades permitidas
+5. Ajustar o dropdown de unidades (`Select`) para listar apenas unidades com permissao, e esconder o dropdown se o usuario tem acesso a apenas uma unidade
