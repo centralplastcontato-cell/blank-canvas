@@ -305,7 +305,7 @@ export function PreFestaContent() {
 
   return (
     <>
-      <div className="max-w-4xl mx-auto space-y-4">
+      <div className="max-w-6xl mx-auto space-y-4">
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground hidden md:block">Crie formulários para o anfitrião preencher antes da festa</p>
           <Button onClick={openNew} size="sm"><Plus className="h-4 w-4 mr-1" /> Novo Template</Button>
