@@ -49,22 +49,22 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
       onMonthChange={onMonthChange}
       locale={ptBR}
       showOutsideDays
-      className="p-3"
+      className="p-3 lg:p-5"
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
         month: "space-y-4 w-full",
         caption: "flex justify-center pt-1 relative items-center",
-        caption_label: "text-sm font-medium capitalize",
+        caption_label: "text-sm lg:text-base font-medium capitalize",
         nav: "space-x-1 flex items-center",
-        nav_button: cn(buttonVariants({ variant: "outline" }), "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"),
+        nav_button: cn(buttonVariants({ variant: "outline" }), "h-7 w-7 lg:h-9 lg:w-9 bg-transparent p-0 opacity-50 hover:opacity-100"),
         nav_button_previous: "absolute left-1",
         nav_button_next: "absolute right-1",
         table: "w-full border-collapse",
         head_row: "flex",
-        head_cell: "text-muted-foreground rounded-md flex-1 font-normal text-[0.8rem] text-center",
-        row: "flex w-full mt-1",
+        head_cell: "text-muted-foreground rounded-md flex-1 font-normal text-[0.8rem] lg:text-sm text-center",
+        row: "flex w-full mt-1 lg:mt-2",
         cell: "flex-1 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
-        day: cn(buttonVariants({ variant: "ghost" }), "h-10 w-full p-0 font-normal aria-selected:opacity-100 relative"),
+        day: cn(buttonVariants({ variant: "ghost" }), "h-10 lg:h-20 w-full p-0 font-normal aria-selected:opacity-100 relative"),
         day_range_end: "day-range-end",
         day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
         day_today: "bg-accent text-accent-foreground",
@@ -85,13 +85,13 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
           });
           return (
             <div className="flex flex-col items-center gap-0.5">
-              <span>{date.getDate()}</span>
+              <span className="lg:text-base">{date.getDate()}</span>
               {dayEvents.length > 0 && (
-                <div className="flex gap-0.5 justify-center items-center">
+                <div className="flex gap-0.5 lg:gap-1 justify-center items-center">
                   {dayEvents.slice(0, 3).map((ev) => (
                     <span
                       key={ev.id}
-                      className={cn("h-1.5 w-1.5 rounded-full", STATUS_COLORS[ev.status] || "bg-muted-foreground")}
+                      className={cn("h-1.5 w-1.5 lg:h-2 lg:w-2 rounded-full", STATUS_COLORS[ev.status] || "bg-muted-foreground")}
                     />
                   ))}
                   {dayEvents.length > 3 && (

@@ -335,9 +335,9 @@ export default function Agenda() {
 
               {/* Calendar + Day detail */}
               {viewMode === "calendar" ? (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <Card className="lg:col-span-2 bg-card border-border">
-                  <CardContent className="p-2 md:p-4">
+              <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4">
+                <Card className="bg-card border-border">
+                  <CardContent className="p-2 md:p-4 lg:p-6">
                     {loading ? (
                       <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
                     ) : (
