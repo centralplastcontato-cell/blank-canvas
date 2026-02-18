@@ -1,33 +1,37 @@
 
 
-## Redirect apos envio do formulario de Escala
+## Tornar foto obrigatoria no cadastro de freelancer
 
-### O que sera feito
+### Problema atual
+No arquivo `src/pages/PublicFreelancer.tsx`, linha 139, a validacao de avanco ignora completamente campos do tipo "photo":
+```
+if (q.type === "photo") continue; // photo is never blocking
+```
 
-Apos o freelancer enviar a disponibilidade na pagina publica de escalas (`/escala/...`), a tela de confirmacao vai mostrar um botao "Conhecer o espaco" e redirecionar automaticamente apos 5 segundos para a Landing Page da empresa (`/lp/{slug}`), seguindo o mesmo padrao que ja existe no formulario de cadastro de freelancer.
+Isso permite que o freelancer avance sem enviar foto, mesmo que o campo esteja marcado como `required`.
 
 ### Mudancas
 
-**Arquivo: `src/pages/PublicFreelancerSchedule.tsx`**
+**Arquivo: `src/pages/PublicFreelancer.tsx`**
 
-1. Buscar o `slug` da empresa junto com `name` e `logo_url` na query de carregamento
-2. Adicionar o campo `company_slug` ao estado `ScheduleData`
-3. Adicionar um `useEffect` que, apos `submitted === true`, redireciona automaticamente para `/lp/{company_slug}` em 5 segundos (mesmo comportamento do `PublicFreelancer.tsx`)
-4. Adicionar um botao "Conhecer o espaco" na tela de confirmacao para redirecionamento imediato
+1. Remover o `continue` que pula a validacao de foto na funcao `canAdvance` (linha 139)
+2. Adicionar validacao: se o campo foto e obrigatorio e nao ha `photoFile` selecionado, bloquear o avanco
+3. Alterar o comentario para refletir o novo comportamento
+
+**Arquivo: `src/pages/FreelancerManager.tsx`**
+
+1. No array `DEFAULT_QUESTIONS`, garantir que a pergunta de foto tenha `required: true` por padrao para novos templates
 
 ### Detalhes tecnicos
 
-- Na query `supabase.from("companies").select(...)`, incluir o campo `slug` alem de `name` e `logo_url`
-- Adicionar `company_slug: string | null` na interface `ScheduleData`
-- O `useEffect` de redirect sera identico ao existente em `PublicFreelancer.tsx`:
-  ```
-  useEffect(() => {
-    if (!submitted || !schedule) return;
-    const timer = setTimeout(() => {
-      if (schedule.company_slug) window.location.href = `/lp/${schedule.company_slug}`;
-    }, 5000);
-    return () => clearTimeout(timer);
-  }, [submitted, schedule]);
-  ```
-- Na tela de sucesso, adicionar texto "Redirecionando..." e um botao para ir imediatamente
+Na funcao `canAdvance()`, a linha:
+```typescript
+if (q.type === "photo") continue;
+```
+Sera substituida por:
+```typescript
+if (q.type === "photo" && q.required && !photoFile) return false;
+```
+
+Isso faz com que, se a pergunta de foto estiver marcada como obrigatoria no template, o usuario nao consiga avancar sem selecionar uma foto. Templates existentes que ja tem `required: true` na pergunta de foto passarao a exigir o envio.
 
