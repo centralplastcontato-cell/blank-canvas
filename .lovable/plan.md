@@ -1,38 +1,54 @@
 
+## Permissoes de Operacoes
 
-## Aba "Avaliacoes" dedicada dentro da secao Freelancer
+Criar as definicoes de permissao para a secao Operacoes e aplicar os controles na pagina `Formularios.tsx`, seguindo o padrao existente.
 
-Atualmente, as avaliacoes dos freelancers aparecem embutidas dentro do card de cada resposta (na aba Freelancer > Respostas). A proposta e criar uma aba dedicada "Avaliacoes" dentro da secao Freelancer, separando claramente o cadastro das avaliacoes.
+### Nivel 1 - Hub: Modulo "Operacoes"
 
-### Estrutura das abas
+Adicionar `operacoes` ao sistema de `company_modules` para que o Hub possa habilitar/desabilitar o acesso a secao Operacoes por empresa.
 
-A secao **Freelancer** (no topo da pagina Operacoes) passara a ter duas sub-abas:
-- **Cadastro** - conteudo atual (templates, respostas, formularios)
-- **Avaliacoes** - nova aba com visao consolidada de todas as avaliacoes por freelancer
+- Arquivo: `src/hooks/useCompanyModules.ts`
+  - Adicionar `operacoes: boolean` na interface `CompanyModules`
+  - Default: `true` (habilitado por padrao, como crm/dashboard)
+  - Adicionar label em `MODULE_LABELS`
 
-### Aba "Avaliacoes" - O que vai mostrar
+- Arquivo: `src/components/admin/AdminSidebar.tsx`
+  - Condicionar o item "Operacoes" a `modules.operacoes`
 
-Uma lista de todos os freelancers que possuem avaliacoes registradas na empresa, cada um com:
-- Nome do freelancer + badge de media geral
-- Ao expandir: historico completo de avaliacoes (data do evento, notas por criterio, observacoes, quem avaliou)
-- Medias por criterio calculadas a partir de todas as avaliacoes
-- Possibilidade de ver avaliacoes de gerentes diferentes ao longo do tempo
+### Nivel 2 - Buffet: Permission Definitions
 
-### Remover "Gerente" da avaliacao
+Inserir novas definicoes na tabela `permission_definitions` via migration:
 
-O role "Gerente de Festa" sera excluido da lista de freelancers avaliados. Na logica de extracao de nomes do `staff_data`, os entries pertencentes ao role com titulo "Gerente" (ou "Gerente de Festa") serao filtrados, tanto na pagina publica (`PublicStaffEvaluation`) quanto no dialog interno (`FreelancerEvaluationDialog`).
+| code | name | category | sort_order |
+|------|------|----------|------------|
+| operacoes.view | Acessar Operacoes | Operacoes | 1 |
+| operacoes.formularios | Formularios | Operacoes | 2 |
+| operacoes.checklist | Checklist | Operacoes | 3 |
+| operacoes.pacotes | Pacotes | Operacoes | 4 |
+| operacoes.freelancer | Freelancer | Operacoes | 5 |
+| operacoes.avaliacoes | Avaliacoes Freelancer | Operacoes | 6 |
+
+Dentro de "Formularios" (sub-abas), o acesso granular sera controlado pelas permissoes existentes nos codigos acima. Se o usuario tem `operacoes.formularios`, ve todas as 4 sub-abas (Avaliacoes, Pre-Festa, Contrato, Cardapio). Os demais tabs (Checklist, Pacotes, Freelancer) sao controlados individualmente.
+
+### Nivel 3 - Aplicar na pagina
+
+- Arquivo: `src/pages/Formularios.tsx`
+  - Buscar permissoes do usuario logado usando `usePermissions`
+  - Admins e owners veem tudo (bypass)
+  - Usuarios sem `operacoes.view` sao redirecionados ou veem mensagem de acesso negado
+  - Tabs de primeiro nivel (Formularios, Checklist, Pacotes, Freelancer) sao renderizadas condicionalmente com base nas permissoes
+  - Se o usuario so tem acesso a uma tab, ela e selecionada automaticamente
+
+### Nivel 4 - Painel de Permissoes
+
+- Arquivo: `src/components/admin/PermissionsPanel.tsx`
+  - Adicionar icone `FolderOpen` no mapa `categoryIcons` para a categoria "Operacoes"
+  - As novas permissoes aparecerao automaticamente no painel pois ja sao carregadas de `permission_definitions`
 
 ### Detalhes tecnicos
 
-1. **Formularios.tsx** - Alterar a `TabsContent` de "freelancer" para conter sub-tabs ("cadastro" e "avaliacoes"), seguindo o mesmo padrao usado em "formularios" e "checklist"
-
-2. **Novo componente `FreelancerEvaluationsTab.tsx`** - Componente que:
-   - Busca todos os registros de `freelancer_evaluations` da empresa
-   - Agrupa por `freelancer_name`
-   - Mostra lista expansivel com media geral + historico detalhado
-   - Reutiliza `FreelancerEvaluationHistory` para exibir as avaliacoes individuais
-
-3. **Filtro de "Gerente"** - Em `PublicStaffEvaluation.tsx` e `FreelancerEvaluationDialog.tsx`, adicionar filtro para excluir entries cujo `roleTitle` contenha "Gerente" ao extrair a lista de freelancers para avaliacao
-
-4. **FreelancerManagerContent** - Remover ou simplificar a exibicao de avaliacoes inline nos cards de resposta (ja que terao aba propria), mantendo apenas o badge de media
-
+1. **Migration SQL**: INSERT das 6 novas linhas em `permission_definitions`
+2. **useCompanyModules.ts**: Adicionar campo `operacoes` na interface e no parser
+3. **AdminSidebar.tsx**: Condicionar menu a `modules.operacoes`
+4. **Formularios.tsx**: Criar hook local ou usar `usePermissions` para verificar acesso, filtrar tabs visiveis, redirecionar se sem acesso
+5. **PermissionsPanel.tsx**: Adicionar icone da categoria
