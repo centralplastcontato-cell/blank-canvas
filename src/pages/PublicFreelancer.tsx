@@ -158,7 +158,7 @@ export default function PublicFreelancer() {
     for (const q of stepQuestions) {
       if (!q.required) continue;
       const val = answers[q.id];
-      if (q.type === "photo") continue; // photo is never blocking
+      if (q.type === "photo" && q.required && !photoFile) return false;
       if (q.type === "yesno" && val === undefined) return false;
       if (q.type === "multiselect" && (!Array.isArray(val) || val.length === 0)) return false;
       if (q.type === "select" && !val) return false;
