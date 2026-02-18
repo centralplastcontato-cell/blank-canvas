@@ -356,6 +356,7 @@ export function FreelancerManagerContent() {
                           {t.description && <p className="text-sm text-muted-foreground line-clamp-1">{t.description}</p>}
                           <p className="text-xs text-muted-foreground mt-1">
                             {t.questions.length} perguntas · {Math.max(...t.questions.map(q => q.step), 1)} etapas
+                            {(t as any).view_count > 0 && <> · <Eye className="h-3 w-3 inline-block mb-0.5" /> {(t as any).view_count} visualizações</>}
                           </p>
                         </div>
                         <Switch checked={t.is_active} onCheckedChange={(v) => handleToggleActive(t.id, v)} className="shrink-0" />

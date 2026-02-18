@@ -1504,6 +1504,7 @@ export type Database = {
           slug: string | null
           thank_you_message: string | null
           updated_at: string
+          view_count: number
         }
         Insert: {
           company_id: string
@@ -1516,6 +1517,7 @@ export type Database = {
           slug?: string | null
           thank_you_message?: string | null
           updated_at?: string
+          view_count?: number
         }
         Update: {
           company_id?: string
@@ -1528,6 +1530,7 @@ export type Database = {
           slug?: string | null
           thank_you_message?: string | null
           updated_at?: string
+          view_count?: number
         }
         Relationships: [
           {
@@ -3048,6 +3051,10 @@ export type Database = {
       }
       get_user_company_ids: { Args: { _user_id: string }; Returns: string[] }
       get_user_default_company: { Args: { _user_id: string }; Returns: string }
+      increment_freelancer_template_views: {
+        Args: { _template_id: string }
+        Returns: undefined
+      }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       recalculate_lead_score: { Args: { _lead_id: string }; Returns: undefined }
       user_has_company_access: {

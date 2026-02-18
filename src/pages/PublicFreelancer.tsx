@@ -71,6 +71,10 @@ export default function PublicFreelancer() {
         questions,
       });
       setLoading(false);
+      // Increment view count
+      if (row.id) {
+        supabase.rpc("increment_freelancer_template_views", { _template_id: row.id }).then(() => {});
+      }
     }
     load();
   }, [templateId, companySlug, templateSlug]);
