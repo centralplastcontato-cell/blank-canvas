@@ -20,7 +20,7 @@ import { FreelancerEvaluationHistory, FreelancerAvgBadge } from "@/components/fr
 
 interface FreelancerQuestion {
   id: string;
-  type: "text" | "textarea" | "yesno" | "select" | "multiselect" | "photo";
+  type: "text" | "textarea" | "yesno" | "select" | "multiselect" | "photo" | "date";
   text: string;
   step: number;
   required?: boolean;
@@ -42,6 +42,7 @@ interface FreelancerTemplate {
 const DEFAULT_QUESTIONS: FreelancerQuestion[] = [
   { id: "nome", type: "text", text: "Como você se chama?", step: 1, required: true },
   { id: "foto", type: "photo", text: "Foto", step: 1, required: true },
+  { id: "data_nascimento", type: "date", text: "Data de nascimento", step: 1, required: true },
   { id: "telefone", type: "text", text: "Telefone", step: 1, required: true },
   { id: "endereco", type: "text", text: "Endereço", step: 1, required: true },
   { id: "ja_trabalha", type: "yesno", text: "Já trabalha no buffet?", step: 2, required: true },
@@ -316,6 +317,7 @@ export function FreelancerManagerContent() {
     select: "Seleção única",
     multiselect: "Seleção múltipla",
     photo: "Foto",
+    date: "Data",
   };
 
   return (
