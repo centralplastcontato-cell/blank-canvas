@@ -202,7 +202,7 @@ export default function Formularios() {
                       className={`inline-flex items-center gap-2.5 px-6 py-3 rounded-xl text-base font-semibold transition-all duration-200 ${
                         effectiveSection === s.value
                           ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30 scale-[1.02]'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-accent/60'
+                          : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
                       }`}
                     >
                       <s.icon className="h-5 w-5" />
@@ -233,7 +233,7 @@ export default function Formularios() {
                             className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
                               activeTab === t.value
                                 ? 'bg-primary/15 text-primary border border-primary/25 shadow-sm'
-                                : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+                                : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground'
                             }`}
                           >
                             <t.icon className={`h-4 w-4 ${activeTab === t.value ? 'text-primary' : ''}`} />
@@ -271,7 +271,7 @@ export default function Formularios() {
                           { value: "presenca", icon: Users, label: "Presença" },
                           { value: "informacoes", icon: FileText, label: "Informações" },
                         ].map(t => (
-                          <TabsTrigger key={t.value} value={t.value} className={`gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/25 data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-accent/50`}>
+                          <TabsTrigger key={t.value} value={t.value} className={`gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/25 data-[state=active]:shadow-sm data-[state=inactive]:bg-muted/60 data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted data-[state=inactive]:hover:text-foreground`}>
                             <t.icon className="h-4 w-4" />
                             <span>{t.label}</span>
                           </TabsTrigger>
@@ -309,19 +309,19 @@ export default function Formularios() {
                     <div className="px-3 md:px-6 pt-3 overflow-x-auto flex justify-center">
                       <TabsList className="inline-flex gap-1 p-1 rounded-xl bg-muted/40 border border-border/30 h-auto">
                         {canFreelancer && (
-                          <TabsTrigger value="cadastro" className="gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/25 data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-accent/50">
+                          <TabsTrigger value="cadastro" className="gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/25 data-[state=active]:shadow-sm data-[state=inactive]:bg-muted/60 data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted data-[state=inactive]:hover:text-foreground">
                             <HardHat className="h-4 w-4" />
                             <span>Cadastro</span>
                           </TabsTrigger>
                         )}
                         {canAvaliacoes && (
-                          <TabsTrigger value="avaliacoes-fl" className="gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/25 data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-accent/50">
+                          <TabsTrigger value="avaliacoes-fl" className="gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/25 data-[state=active]:shadow-sm data-[state=inactive]:bg-muted/60 data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted data-[state=inactive]:hover:text-foreground">
                             <ClipboardCheck className="h-4 w-4" />
                             <span>Avaliações</span>
                           </TabsTrigger>
                         )}
                         {canFreelancer && (
-                          <TabsTrigger value="escalas" className="gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/25 data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-accent/50">
+                          <TabsTrigger value="escalas" className="gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/25 data-[state=active]:shadow-sm data-[state=inactive]:bg-muted/60 data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted data-[state=inactive]:hover:text-foreground">
                             <CalendarClock className="h-4 w-4" />
                             <span>Escalas</span>
                           </TabsTrigger>
