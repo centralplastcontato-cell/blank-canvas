@@ -251,7 +251,7 @@ export function MaintenanceManager() {
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); const baseUrl = currentCompany?.custom_domain ? `https://${currentCompany.custom_domain}` : window.location.origin; window.open(`${baseUrl}/manutencao/${record.id}`, '_blank'); }}>
                             <ExternalLink className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); const baseUrl = currentCompany?.custom_domain ? `https://${currentCompany.custom_domain}` : window.location.origin; navigator.clipboard.writeText(`${baseUrl}/manutencao/${record.id}`); toast({ title: "Link copiado!" }); }}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); const domain = currentCompany?.custom_domain || ''; const link = domain ? `${domain}/manutencao/${record.id}` : `${window.location.origin}/manutencao/${record.id}`; navigator.clipboard.writeText(link); toast({ title: "Link copiado!" }); }}>
                             <Share2 className="h-4 w-4" />
                           </Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); openEdit(record); }}>
