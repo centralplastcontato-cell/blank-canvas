@@ -56,9 +56,27 @@ const DEFAULT_QUESTIONS: FreelancerQuestion[] = [
 const generateSlug = (name: string) =>
   name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-function FreelancerResponseCards({ responses, template, companyId }: { responses: any[]; template: FreelancerTemplate | null; companyId: string }) {
+function FreelancerResponseCards({ responses, template, companyId, onDeleted }: { responses: any[]; template: FreelancerTemplate | null; companyId: string; onDeleted?: () => void }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [sendingPhotoRequest, setSendingPhotoRequest] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDeleteResponse = async (id: string) => {
+    setDeletingId(id);
+    try {
+      // Delete linked evaluations first
+      await (supabase as any).from("freelancer_evaluations").delete().eq("freelancer_response_id", id);
+      const { error } = await supabase.from("freelancer_responses").delete().eq("id", id);
+      if (error) throw error;
+      toast({ title: "Cadastro excluído com sucesso" });
+      setOpenId(null);
+      onDeleted?.();
+    } catch (e: any) {
+      toast({ title: "Erro ao excluir", description: e.message, variant: "destructive" });
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const handleRequestPhoto = async (r: any) => {
     const answersArr = Array.isArray(r.answers) ? r.answers : [];
@@ -137,9 +155,37 @@ function FreelancerResponseCards({ responses, template, companyId }: { responses
                 <CardContent className="p-0">
                   <div className="flex items-center justify-between px-4 py-2.5 bg-muted/30">
                     <span className="font-semibold text-sm">{r.respondent_name || "Sem nome"}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                      </span>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir cadastro?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Tem certeza que deseja excluir o cadastro de "{r.respondent_name}"? Esta ação não pode ser desfeita.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeleteResponse(r.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              disabled={deletingId === r.id}
+                            >
+                              {deletingId === r.id && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                              Excluir
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </div>
                   {r.photo_url ? (
                     <div className="px-4 py-3 flex justify-center bg-muted/10">
@@ -472,7 +518,7 @@ export function FreelancerManagerContent() {
                               <p className="text-sm text-muted-foreground">Nenhum cadastro recebido ainda.</p>
                             </div>
                           ) : (
-                            <FreelancerResponseCards responses={responses} template={selectedTemplate} companyId={currentCompany?.id || ""} />
+                            <FreelancerResponseCards responses={responses} template={selectedTemplate} companyId={currentCompany?.id || ""} onDeleted={() => selectedTemplate && toggleResponses(selectedTemplate)} />
                           )}
                         </div>
                       </CollapsibleContent>
