@@ -221,7 +221,7 @@ export function WhatsAppConfig({ userId, isAdmin }: WhatsAppConfigProps) {
           <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none rounded-r-xl" />
         )}
         <div ref={scrollRef} className="overflow-x-auto scrollbar-hide flex justify-center">
-          <div className="flex gap-1 bg-muted/40 rounded-xl p-1 min-w-max">
+          <div className="inline-flex gap-2 p-1.5 rounded-2xl bg-muted/50 border border-border/40 shadow-sm min-w-max">
             {configSections.map((section) => (
               <button
                 key={section.id}
@@ -233,13 +233,13 @@ export function WhatsAppConfig({ userId, isAdmin }: WhatsAppConfigProps) {
                   }
                 }}
                 className={cn(
-                  "flex items-center gap-2 px-3 py-2 rounded-lg whitespace-nowrap transition-all text-sm font-medium",
+                  "inline-flex items-center gap-2.5 px-6 py-3 rounded-xl whitespace-nowrap transition-all duration-200 text-base font-semibold",
                   activeSection === section.id
-                    ? "bg-background text-foreground shadow-sm"
-                    : "bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted"
+                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30 scale-[1.02]"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
                 )}
               >
-                <section.icon className="w-4 h-4" />
+                <section.icon className="w-5 h-5" />
                 <span>{section.title}</span>
                 {(section as any).isLink && (
                   <span className="text-xs opacity-50">↗</span>

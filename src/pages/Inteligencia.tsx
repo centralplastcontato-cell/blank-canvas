@@ -7,7 +7,7 @@ import { useLeadStageDurations } from "@/hooks/useLeadStageDurations";
 import { useUnitPermissions } from "@/hooks/useUnitPermissions";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { useCompany } from "@/contexts/CompanyContext";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -342,12 +342,28 @@ export default function Inteligencia() {
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList>
-                <TabsTrigger value="resumo">Resumo do Dia</TabsTrigger>
-                <TabsTrigger value="prioridades">Prioridades</TabsTrigger>
-                <TabsTrigger value="funil">Funil</TabsTrigger>
-                <TabsTrigger value="leads-dia">Leads do Dia</TabsTrigger>
-              </TabsList>
+              <div className="overflow-x-auto flex justify-center pb-2">
+                <div className="inline-flex gap-2 p-1.5 rounded-2xl bg-muted/50 border border-border/40 shadow-sm">
+                  {[
+                    { value: "resumo", label: "Resumo do Dia" },
+                    { value: "prioridades", label: "Prioridades" },
+                    { value: "funil", label: "Funil" },
+                    { value: "leads-dia", label: "Leads do Dia" },
+                  ].map(t => (
+                    <button
+                      key={t.value}
+                      onClick={() => setActiveTab(t.value)}
+                      className={`inline-flex items-center gap-2.5 px-6 py-3 rounded-xl text-base font-semibold transition-all duration-200 ${
+                        activeTab === t.value
+                          ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30 scale-[1.02]'
+                          : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+                      }`}
+                    >
+                      <span>{t.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               <TabsContent value="resumo">
                 <ResumoDiarioTab />
