@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentCompanyId } from "@/hooks/useCurrentCompanyId";
+import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -55,6 +56,7 @@ const ROLES = ["Garçom", "Monitor", "Cozinheiro", "Decorador", "DJ", "Fotógraf
 
 export function FreelancerSchedulesTab() {
   const companyId = useCurrentCompanyId();
+  const { currentCompany } = useCompany();
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -119,8 +121,18 @@ export function FreelancerSchedulesTab() {
   };
 
   const copyLink = (schedule: Schedule) => {
-    const url = `${window.location.origin}/escala/${schedule.id}`;
-    navigator.clipboard.writeText(url);
+    let domain: string;
+    if (currentCompany?.custom_domain) {
+      domain = currentCompany.custom_domain;
+    } else {
+      domain = window.location.origin;
+    }
+    const slug = schedule.slug || schedule.id;
+    const path = currentCompany?.slug
+      ? `/escala/${currentCompany.slug}/${slug}`
+      : `/escala/${schedule.id}`;
+    const fullUrl = `${domain}${path}`;
+    navigator.clipboard.writeText(fullUrl);
     toast({ title: "Link copiado!" });
   };
 
