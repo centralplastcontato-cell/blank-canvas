@@ -30,6 +30,7 @@ interface ScheduleData {
   company_id: string;
   company_name: string;
   company_logo: string | null;
+  company_slug: string | null;
 }
 
 export default function PublicFreelancerSchedule() {
@@ -81,7 +82,7 @@ export default function PublicFreelancerSchedule() {
       // Get company info
       const { data: compData } = await supabase
         .from("companies")
-        .select("name, logo_url")
+        .select("name, logo_url, slug")
         .eq("id", (schedData as any).company_id)
         .single();
 
@@ -95,6 +96,7 @@ export default function PublicFreelancerSchedule() {
         company_id: sd.company_id,
         company_name: compData?.name || "",
         company_logo: compData?.logo_url || null,
+        company_slug: compData?.slug || null,
       });
 
       // Fetch events
@@ -139,6 +141,14 @@ export default function PublicFreelancerSchedule() {
     }
   };
 
+  useEffect(() => {
+    if (!submitted || !schedule?.company_slug) return;
+    const timer = setTimeout(() => {
+      window.location.href = `/lp/${schedule.company_slug}`;
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [submitted, schedule]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5">
@@ -159,14 +169,23 @@ export default function PublicFreelancerSchedule() {
   }
 
   if (submitted) {
+    const lpUrl = schedule.company_slug ? `/lp/${schedule.company_slug}` : null;
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
         <Helmet><title>Disponibilidade Enviada</title></Helmet>
         <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center space-y-6 max-w-md">
-          {schedule.company_logo && <img src={schedule.company_logo} alt={schedule.company_name} className="h-32 w-auto mx-auto" />}
+          {schedule!.company_logo && <img src={schedule!.company_logo} alt={schedule!.company_name} className="h-32 w-auto mx-auto" />}
           <CheckCircle2 className="h-16 w-16 text-accent mx-auto" />
           <h1 className="text-2xl font-bold text-foreground">Disponibilidade enviada! 🎉</h1>
           <p className="text-muted-foreground">Obrigado, {name}! O buffet receberá sua disponibilidade e entrará em contato.</p>
+          {lpUrl && (
+            <>
+              <Button onClick={() => window.location.href = lpUrl} className="w-full rounded-xl h-12 text-base font-semibold">
+                Conhecer o espaço
+              </Button>
+              <p className="text-xs text-muted-foreground">Redirecionando automaticamente em 5 segundos...</p>
+            </>
+          )}
         </motion.div>
       </div>
     );
