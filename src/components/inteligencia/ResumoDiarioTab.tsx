@@ -45,7 +45,7 @@ function MetricsGrid({ metrics, incompleteCount, followUpLabels }: { metrics: Da
   const fu1Label = followUpLabels?.fu1 || "24h";
   const fu2Label = followUpLabels?.fu2 || "48h";
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-9 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-3">
       <MetricCard icon={Users} label="Leads novos" value={metrics.novos} color="bg-blue-500/10 text-blue-500" />
       <MetricCard icon={CalendarCheck} label="Visitas agendadas" value={metrics.visitas} color="bg-green-500/10 text-green-500" />
       <MetricCard icon={FileText} label="Orçamentos" value={metrics.orcamentos} color="bg-purple-500/10 text-purple-500" />
