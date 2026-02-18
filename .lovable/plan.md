@@ -1,26 +1,40 @@
 
-## Filtrar festas por unidade do usuario na Agenda
+## Padronizar Layout dos Cards em Todas as Seções
 
 ### Problema
-A pagina da Agenda busca **todos** os eventos da empresa sem considerar as permissoes de unidade do usuario. Um usuario que so tem acesso a unidade "Manchester" ve tambem as festas da unidade "Trujillo".
+As seções de **Checklist** (Equipe, Manutencao, Acompanhamento, Presenca, Informacoes), **Pacotes** e **Escalas (Freelancer)** exibem seus cards ocupando toda a largura da tela. Ja as seções de **Formularios** (Avaliacoes, Pre-Festa, Contrato, Cardapio) e **Cadastro/Avaliacoes de Freelancer** usam `max-w-6xl mx-auto` para centralizar o conteudo com largura controlada.
 
 ### Solucao
-Integrar o hook `useUnitPermissions` na pagina `Agenda.tsx` para:
+Adicionar `max-w-6xl mx-auto` ao container raiz de cada componente que esta sem centralizacao, igualando ao padrao dos Formularios.
 
-1. Carregar as permissoes de unidade do usuario logado
-2. Definir o filtro de unidade padrao automaticamente (se o usuario so tem acesso a uma unidade, pre-selecionar essa unidade)
-3. Filtrar os eventos pelo `allowedUnits` do usuario (nao apenas pelo filtro manual)
-4. Ajustar o dropdown de unidades para mostrar apenas as unidades que o usuario tem permissao
+### Arquivos a Modificar
 
-### Detalhes tecnicos
+1. **`src/components/agenda/EventStaffManager.tsx`** (linha ~238)
+   - De: `<div className="space-y-4">`
+   - Para: `<div className="max-w-6xl mx-auto space-y-4">`
 
-**Arquivo: `src/pages/Agenda.tsx`**
+2. **`src/components/agenda/MaintenanceManager.tsx`** (linha ~204)
+   - De: `<div className="space-y-4">`
+   - Para: `<div className="max-w-6xl mx-auto space-y-4">`
 
-1. Importar `useUnitPermissions` de `@/hooks/useUnitPermissions`
-2. Chamar `useUnitPermissions(currentUser?.id, currentCompany?.id)` para obter `canViewAll`, `allowedUnits`, `unitAccess`
-3. Usar `useEffect` para definir `selectedUnit` automaticamente:
-   - Se `canViewAll` = true, manter "all"
-   - Se o usuario tem acesso a apenas 1 unidade, pre-selecionar essa unidade
-   - Se tem acesso a mais de 1 (mas nao todas), manter "all" mas filtrar pela lista permitida
-4. Alterar o `filteredEvents` para considerar `unitAccess`: mesmo quando `selectedUnit === "all"`, filtrar apenas pelas unidades permitidas
-5. Ajustar o dropdown de unidades (`Select`) para listar apenas unidades com permissao, e esconder o dropdown se o usuario tem acesso a apenas uma unidade
+3. **`src/components/agenda/PartyMonitoringManager.tsx`** (linha ~258)
+   - De: `<div className="space-y-4">`
+   - Para: `<div className="max-w-6xl mx-auto space-y-4">`
+
+4. **`src/components/agenda/AttendanceManager.tsx`** (linha ~162)
+   - De: `<div className="space-y-4">`
+   - Para: `<div className="max-w-6xl mx-auto space-y-4">`
+
+5. **`src/components/agenda/EventInfoManager.tsx`** (linha ~178)
+   - De: `<div className="space-y-4">`
+   - Para: `<div className="max-w-6xl mx-auto space-y-4">`
+
+6. **`src/components/admin/PackagesManager.tsx`** (linha ~102)
+   - De: `<div className="space-y-4">`
+   - Para: `<div className="max-w-6xl mx-auto space-y-4">`
+
+7. **`src/components/freelancer/FreelancerSchedulesTab.tsx`** (linha ~195)
+   - De: `<div className="space-y-4">`
+   - Para: `<div className="max-w-6xl mx-auto space-y-4">`
+
+Sao 7 alteracoes simples e identicas, todas adicionando as mesmas classes de centralizacao usadas nos Formularios.
