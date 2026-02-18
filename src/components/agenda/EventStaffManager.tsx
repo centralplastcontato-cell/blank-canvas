@@ -13,7 +13,7 @@ import { toast } from "@/hooks/use-toast";
 import { Users, Plus, Trash2, ChevronDown, ChevronRight, Pencil, Loader2, MinusCircle, PlusCircle, Share2, Copy, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { FreelancerAutocomplete } from "./FreelancerAutocomplete";
-
+import { useCompany } from "@/contexts/CompanyContext";
 
 interface StaffEntry {
   name: string;
@@ -73,6 +73,7 @@ function formatCurrency(val: string) {
 
 export function EventStaffManager() {
   const companyId = useCurrentCompanyId();
+  const { currentCompany } = useCompany();
   const [records, setRecords] = useState<EventStaffRecord[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -282,10 +283,10 @@ export function EventStaffManager() {
                           </div>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); window.open(`${window.location.origin}/equipe/${record.id}`, '_blank'); }}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); const baseUrl = currentCompany?.custom_domain ? `https://${currentCompany.custom_domain}` : window.location.origin; window.open(`${baseUrl}/equipe/${record.id}`, '_blank'); }}>
                             <ExternalLink className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(`${window.location.origin}/equipe/${record.id}`); toast({ title: "Link copiado!" }); }}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); const domain = currentCompany?.custom_domain || ''; const link = domain ? `${domain}/equipe/${record.id}` : `${window.location.origin}/equipe/${record.id}`; navigator.clipboard.writeText(link); toast({ title: "Link copiado!" }); }}>
                             <Share2 className="h-4 w-4" />
                           </Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); openEdit(record); }}>
