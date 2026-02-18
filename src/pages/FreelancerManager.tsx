@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
-import { HardHat, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, Calendar, ChevronDown, ChevronRight } from "lucide-react";
+import { HardHat, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, Calendar, ChevronDown, ChevronRight, MessageCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -58,6 +58,47 @@ const generateSlug = (name: string) =>
 
 function FreelancerResponseCards({ responses, template, companyId }: { responses: any[]; template: FreelancerTemplate | null; companyId: string }) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const [sendingPhotoRequest, setSendingPhotoRequest] = useState<string | null>(null);
+
+  const handleRequestPhoto = async (r: any) => {
+    const answersArr = Array.isArray(r.answers) ? r.answers : [];
+    const phoneRaw = answersArr.find((a: any) => a.questionId === "telefone")?.value;
+    if (!phoneRaw) {
+      toast({ title: "Sem telefone", description: "Este freelancer não tem telefone cadastrado.", variant: "destructive" });
+      return;
+    }
+    const phone = String(phoneRaw).replace(/\D/g, "");
+    if (phone.length < 10) {
+      toast({ title: "Telefone inválido", variant: "destructive" });
+      return;
+    }
+    setSendingPhotoRequest(r.id);
+    try {
+      const { data: instance } = await supabase
+        .from("wapi_instances")
+        .select("instance_id, instance_token")
+        .eq("company_id", companyId)
+        .eq("status", "connected")
+        .limit(1)
+        .maybeSingle();
+      if (!instance) {
+        toast({ title: "WhatsApp não conectado", description: "Conecte uma instância antes de enviar.", variant: "destructive" });
+        return;
+      }
+      const name = r.respondent_name || "freelancer";
+      const message = `Olá ${name}! 📸\n\nPrecisamos da sua foto para completar seu cadastro na equipe. Pode nos enviar uma foto sua por aqui?\n\nObrigado!`;
+      const { error } = await supabase.functions.invoke("wapi-send", {
+        body: { action: "send-text", phone, message, instanceId: instance.instance_id, instanceToken: instance.instance_token },
+      });
+      if (error) throw error;
+      toast({ title: "Solicitação enviada!", description: `Mensagem enviada para ${name}.` });
+    } catch (err: any) {
+      console.error("Error requesting photo:", err);
+      toast({ title: "Erro ao enviar", description: err.message || "Tente novamente.", variant: "destructive" });
+    } finally {
+      setSendingPhotoRequest(null);
+    }
+  };
 
   return (
     <div className="space-y-2">
@@ -100,9 +141,29 @@ function FreelancerResponseCards({ responses, template, companyId }: { responses
                       {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                     </span>
                   </div>
-                  {r.photo_url && (
+                  {r.photo_url ? (
                     <div className="px-4 py-3 flex justify-center bg-muted/10">
                       <img src={r.photo_url} alt="" className="h-24 w-24 rounded-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="px-4 py-3 flex flex-col items-center gap-2 bg-muted/10">
+                      <div className="h-24 w-24 rounded-full bg-muted flex items-center justify-center">
+                        <User className="h-10 w-10 text-muted-foreground" />
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-xs"
+                        disabled={sendingPhotoRequest === r.id}
+                        onClick={() => handleRequestPhoto(r)}
+                      >
+                        {sendingPhotoRequest === r.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <MessageCircle className="h-3.5 w-3.5" />
+                        )}
+                        Solicitar foto via WhatsApp
+                      </Button>
                     </div>
                   )}
                   <div className="divide-y divide-border">
