@@ -175,7 +175,7 @@ export function EventInfoManager() {
   if (loading) return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
 
   return (
-    <div className="space-y-4">
+    <div className="max-w-6xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <FileText className="h-5 w-5 text-primary" />
