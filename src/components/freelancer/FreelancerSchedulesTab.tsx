@@ -192,7 +192,7 @@ export function FreelancerSchedulesTab() {
   if (loading) return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
 
   return (
-    <div className="space-y-4">
+    <div className="max-w-6xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Escalas de Freelancer</h2>
         <Button onClick={() => setShowCreate(true)} size="sm">
