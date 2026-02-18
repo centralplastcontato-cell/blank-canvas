@@ -1,33 +1,31 @@
 
 
-## Adicionar campo de Data de Nascimento no cadastro de freelancer
+## Botao "Solicitar Foto via WhatsApp" no painel de freelancers
 
 ### O que sera feito
 
-Adicionar um novo tipo de campo "date" (data) ao sistema de formularios de freelancer, e incluir por padrao uma pergunta "Data de nascimento" no template. O freelancer vera um seletor de data no formulario publico, e o admin vera a data formatada nas respostas.
+Adicionar um botao no card de cada freelancer que nao tem foto, permitindo que o admin envie uma mensagem automatica via WhatsApp pedindo que o freelancer envie sua foto. O botao aparecera apenas para freelancers sem `photo_url` e que tenham telefone cadastrado.
 
 ### Mudancas
 
-**Arquivo: `src/pages/PublicFreelancer.tsx`**
-
-1. Adicionar `"date"` ao union type da interface `FreelancerQuestion` (`type: "text" | "textarea" | "yesno" | "select" | "multiselect" | "photo" | "date"`)
-2. Adicionar um novo bloco no `renderQuestion` para o tipo `"date"` -- renderiza um campo `<Input type="date">` com estilo consistente
-3. Adicionar validacao no `canAdvance` para campos `date` obrigatorios (igual ao `text`: se vazio, bloqueia)
-
 **Arquivo: `src/pages/FreelancerManager.tsx`**
 
-1. Adicionar `"date"` ao union type da interface `FreelancerQuestion`
-2. Adicionar `date: "Data"` no objeto `TYPE_LABELS` (linha 318)
-3. Adicionar a pergunta padrao no `DEFAULT_QUESTIONS`:
-   ```
-   { id: "data_nascimento", type: "date", text: "Data de nascimento", step: 1, required: true }
-   ```
-   (apos o campo "nome" e "foto")
+1. Importar `MessageCircle` do lucide-react (icone do WhatsApp)
+2. No componente `FreelancerResponseCards`, adicionar:
+   - Estado `sendingPhotoRequest` para controlar loading por resposta
+   - Funcao `handleRequestPhoto(response)` que:
+     - Extrai o telefone do array de `answers` (questionId === "telefone")
+     - Busca a instancia WhatsApp conectada da empresa (`wapi_instances` com status "connected")
+     - Envia mensagem via `supabase.functions.invoke("wapi-send")` com texto personalizado pedindo a foto
+   - Botao com icone `MessageCircle` ao lado do avatar placeholder (quando `photo_url` e null), com tooltip "Solicitar foto via WhatsApp"
+3. A mensagem enviada sera algo como: "Ola {nome}! Precisamos da sua foto para completar seu cadastro na equipe. Pode nos enviar uma foto sua por aqui? Obrigado!"
 
 ### Detalhes tecnicos
 
-- O campo `date` usa um `<Input type="date" />` nativo do HTML, que funciona bem em mobile e desktop
-- O valor e armazenado como string ISO (`"2000-05-15"`) no array de `answers`
-- Na visualizacao de respostas (`FreelancerResponseCards`), a data ja sera exibida corretamente pelo bloco generico `String(a.value)`, mas sera formatada para `dd/MM/yyyy` para melhor leitura
-- Templates existentes nao serao afetados -- o novo campo so aparece em novos templates ou se o admin editar e adicionar manualmente
+- O telefone e extraido do array `answers` com `questionId === "telefone"`, limpo com `.replace(/\D/g, "")` para envio
+- A instancia WhatsApp e buscada de `wapi_instances` filtrando por `company_id` e `status === "connected"`
+- A chamada usa `supabase.functions.invoke("wapi-send", { body: { action: "send-text", phone, message, instanceId, instanceToken } })`
+- O botao ficara dentro do card expandido, na area onde aparece o placeholder de foto (quando nao ha foto)
+- Apos envio com sucesso, um toast confirma; em caso de erro, mostra toast de erro
+- Se nao houver instancia conectada, mostra toast avisando que o WhatsApp nao esta conectado
 
