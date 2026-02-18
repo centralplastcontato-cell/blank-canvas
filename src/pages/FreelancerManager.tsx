@@ -16,6 +16,7 @@ import { HardHat, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquare
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { FreelancerEvaluationHistory, FreelancerAvgBadge } from "@/components/freelancer/FreelancerEvaluationHistory";
 
 interface FreelancerQuestion {
   id: string;
@@ -54,7 +55,7 @@ const DEFAULT_QUESTIONS: FreelancerQuestion[] = [
 const generateSlug = (name: string) =>
   name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-function FreelancerResponseCards({ responses, template }: { responses: any[]; template: FreelancerTemplate | null }) {
+function FreelancerResponseCards({ responses, template, companyId }: { responses: any[]; template: FreelancerTemplate | null; companyId: string }) {
   const [openId, setOpenId] = useState<string | null>(null);
 
   return (
@@ -78,7 +79,10 @@ function FreelancerResponseCards({ responses, template }: { responses: any[]; te
                   </div>
                 )}
                 <div className="min-w-0">
-                  <span className="font-semibold text-sm truncate block">{r.respondent_name || "Sem nome"}</span>
+                  <span className="font-semibold text-sm truncate block">
+                    {r.respondent_name || "Sem nome"}
+                    <FreelancerAvgBadge freelancerName={r.respondent_name || ""} companyId={companyId} />
+                  </span>
                   <span className="text-xs text-muted-foreground">
                     {format(new Date(r.created_at), "dd/MM/yyyy", { locale: ptBR })}
                   </span>
@@ -119,6 +123,13 @@ function FreelancerResponseCards({ responses, template }: { responses: any[]; te
                       );
                     })}
                   </div>
+                  {/* Evaluation History */}
+                  {r.respondent_name && (
+                    <div className="px-4 py-3 border-t border-border">
+                      <p className="text-xs font-semibold text-muted-foreground mb-2">⭐ Avaliações</p>
+                      <FreelancerEvaluationHistory freelancerName={r.respondent_name} companyId={companyId} />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -397,7 +408,7 @@ export function FreelancerManagerContent() {
                               <p className="text-sm text-muted-foreground">Nenhum cadastro recebido ainda.</p>
                             </div>
                           ) : (
-                            <FreelancerResponseCards responses={responses} template={selectedTemplate} />
+                            <FreelancerResponseCards responses={responses} template={selectedTemplate} companyId={currentCompany?.id || ""} />
                           )}
                         </div>
                       </CollapsibleContent>

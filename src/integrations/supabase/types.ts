@@ -1373,6 +1373,74 @@ export type Database = {
           },
         ]
       }
+      freelancer_evaluations: {
+        Row: {
+          company_id: string
+          created_at: string
+          evaluated_by: string | null
+          event_id: string | null
+          event_staff_entry_id: string | null
+          freelancer_name: string
+          freelancer_response_id: string | null
+          id: string
+          observations: string | null
+          scores: Json
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          evaluated_by?: string | null
+          event_id?: string | null
+          event_staff_entry_id?: string | null
+          freelancer_name: string
+          freelancer_response_id?: string | null
+          id?: string
+          observations?: string | null
+          scores?: Json
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          evaluated_by?: string | null
+          event_id?: string | null
+          event_staff_entry_id?: string | null
+          freelancer_name?: string
+          freelancer_response_id?: string | null
+          id?: string
+          observations?: string | null
+          scores?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "freelancer_evaluations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "freelancer_evaluations_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "company_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "freelancer_evaluations_event_staff_entry_id_fkey"
+            columns: ["event_staff_entry_id"]
+            isOneToOne: false
+            referencedRelation: "event_staff_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "freelancer_evaluations_freelancer_response_id_fkey"
+            columns: ["freelancer_response_id"]
+            isOneToOne: false
+            referencedRelation: "freelancer_responses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       freelancer_responses: {
         Row: {
           answers: Json
