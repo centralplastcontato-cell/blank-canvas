@@ -116,6 +116,7 @@ const App = () => (
             <Route path="/freelancer/:companySlug/:templateSlug" element={<PublicFreelancer />} />
             <Route path="/freelancer/:templateId" element={<PublicFreelancer />} />
             {/* Public freelancer schedule */}
+            <Route path="/escala/:companySlug/:scheduleSlug" element={<PublicFreelancerSchedule />} />
             <Route path="/escala/:scheduleId" element={<PublicFreelancerSchedule />} />
             {/* Redirects for old routes */}
             <Route path="/admin" element={<Navigate to="/atendimento" replace />} />

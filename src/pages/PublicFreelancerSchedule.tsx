@@ -33,7 +33,7 @@ interface ScheduleData {
 }
 
 export default function PublicFreelancerSchedule() {
-  const { scheduleId } = useParams<{ scheduleId: string }>();
+  const { scheduleId, companySlug, scheduleSlug } = useParams<{ scheduleId?: string; companySlug?: string; scheduleSlug?: string }>();
   const [schedule, setSchedule] = useState<ScheduleData | null>(null);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,14 +54,27 @@ export default function PublicFreelancerSchedule() {
 
   useEffect(() => {
     async function load() {
-      if (!scheduleId) { setNotFound(true); setLoading(false); return; }
+      if (!scheduleId && !scheduleSlug) { setNotFound(true); setLoading(false); return; }
 
-      const { data: schedData, error: schedError } = await supabase
+      let query = supabase
         .from("freelancer_schedules")
         .select("id, title, start_date, end_date, event_ids, company_id, is_active")
-        .eq("id", scheduleId)
-        .eq("is_active", true)
-        .single();
+        .eq("is_active", true);
+
+      if (scheduleId) {
+        query = query.eq("id", scheduleId);
+      } else if (companySlug && scheduleSlug) {
+        // Resolve company by slug first
+        const { data: companyData } = await supabase
+          .from("companies")
+          .select("id")
+          .eq("slug", companySlug)
+          .single();
+        if (!companyData) { setNotFound(true); setLoading(false); return; }
+        query = query.eq("company_id", companyData.id).eq("slug", scheduleSlug);
+      }
+
+      const { data: schedData, error: schedError } = await query.single();
 
       if (schedError || !schedData) { setNotFound(true); setLoading(false); return; }
 
@@ -97,7 +110,7 @@ export default function PublicFreelancerSchedule() {
       setLoading(false);
     }
     load();
-  }, [scheduleId]);
+  }, [scheduleId, companySlug, scheduleSlug]);
 
   const toggleEvent = (eventId: string) => {
     setSelectedEvents(prev => prev.includes(eventId) ? prev.filter(x => x !== eventId) : [...prev, eventId]);
