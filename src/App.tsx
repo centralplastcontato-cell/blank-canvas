@@ -42,6 +42,7 @@ import PublicAttendance from "./pages/PublicAttendance";
 import PublicAttendanceReview from "./pages/PublicAttendanceReview";
 import PublicEventInfo from "./pages/PublicEventInfo";
 import PublicFreelancer from "./pages/PublicFreelancer";
+import PublicFreelancerSchedule from "./pages/PublicFreelancerSchedule";
 import Contrato from "./pages/Contrato";
 import Cardapio from "./pages/Cardapio";
 import NotFound from "./pages/NotFound";
@@ -114,6 +115,8 @@ const App = () => (
             {/* Public freelancer form */}
             <Route path="/freelancer/:companySlug/:templateSlug" element={<PublicFreelancer />} />
             <Route path="/freelancer/:templateId" element={<PublicFreelancer />} />
+            {/* Public freelancer schedule */}
+            <Route path="/escala/:scheduleId" element={<PublicFreelancerSchedule />} />
             {/* Redirects for old routes */}
             <Route path="/admin" element={<Navigate to="/atendimento" replace />} />
             <Route path="/whatsapp" element={<Navigate to="/atendimento" replace />} />
