@@ -74,7 +74,7 @@ export function FreelancerEvaluationsTab() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-2">
+    <div className="max-w-6xl mx-auto space-y-2">
       <p className="text-sm text-muted-foreground mb-3">
         {grouped.length} freelancer{grouped.length !== 1 ? "s" : ""} avaliado{grouped.length !== 1 ? "s" : ""}
       </p>
