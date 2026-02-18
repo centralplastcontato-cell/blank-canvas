@@ -236,7 +236,7 @@ export function WhatsAppConfig({ userId, isAdmin }: WhatsAppConfigProps) {
                   "flex items-center gap-2 px-3 py-2 rounded-lg whitespace-nowrap transition-all text-sm font-medium",
                   activeSection === section.id
                     ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                    : "bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted"
                 )}
               >
                 <section.icon className="w-4 h-4" />
