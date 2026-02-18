@@ -19,9 +19,9 @@ export const campaignConfig = {
       "Válida para pacotes Castelo, Super e Premium",
       "Festas realizadas em Fevereiro e Março de 2026",
     ],
-    validUntil: "14 de Fevereiro de 2026",
+    validUntil: "28 de Fevereiro de 2026",
     conditions: [
-      "Válida para os 10 primeiros contratos fechados ou até 14/02",
+      "Válida para os 10 primeiros contratos fechados ou até 28/02",
       "Pacotes elegíveis: Castelo, Super e Premium",
       "Festas realizadas em Fevereiro e Março de 2026",
       "Promoção não cumulativa com outras ofertas",
@@ -32,8 +32,8 @@ export const campaignConfig = {
   urgency: {
     message: "⏰ Vagas limitadas! Corra antes que acabe!",
     spotsLeft: 4,
-    deadline: "Válida para os 10 primeiros contratos ou até 14/02",
-    endDate: "2026-02-14T23:59:59", // Data final da promoção para contagem regressiva
+    deadline: "Válida para os 10 primeiros contratos ou até 28/02",
+    endDate: "2026-02-28T23:59:59", // Data final da promoção para contagem regressiva
   },
 
   // CHATBOT - Opções configuráveis
