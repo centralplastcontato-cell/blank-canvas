@@ -359,7 +359,7 @@ export function LeadsTable({
               {leads.map((lead) => (
                 <TableRow
                   key={lead.id}
-                  className={selectedIds.has(lead.id) ? "bg-muted/50" : ""}
+                  className={`${selectedIds.has(lead.id) ? "bg-muted/50" : ""} hover:bg-muted/40 transition-colors`}
                 >
                   {isAdmin && (
                     <TableCell>

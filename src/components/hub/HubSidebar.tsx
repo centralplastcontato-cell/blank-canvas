@@ -146,10 +146,10 @@ export function HubSidebar({ currentUserName, onLogout }: HubSidebarProps) {
                         <SidebarMenuButton
                           asChild
                           isActive={location.pathname === item.url}
-                          className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent data-[active=true]:bg-sidebar-primary/15 data-[active=true]:text-sidebar-primary data-[active=true]:font-medium"
+                          className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent hover:translate-x-0.5 transition-all duration-200 data-[active=true]:bg-sidebar-accent/80 data-[active=true]:text-sidebar-primary data-[active=true]:font-semibold data-[active=true]:border-l-4 data-[active=true]:border-sidebar-primary"
                         >
                           <NavLink to={item.url} end className="flex items-center gap-3">
-                            <item.icon className="h-5 w-5 shrink-0" />
+                            <item.icon className="h-[22px] w-[22px] shrink-0" />
                             {!collapsed && <span>{item.title}</span>}
                           </NavLink>
                         </SidebarMenuButton>

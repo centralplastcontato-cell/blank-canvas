@@ -53,10 +53,10 @@ export function InlineAISummary({ leadId, leadWhatsapp }: InlineAISummaryProps) 
   }
 
   return (
-    <div className="mt-2 rounded-lg border bg-muted/30 p-3 space-y-2" onClick={(e) => e.stopPropagation()}>
+    <div className="mt-2 rounded-xl border border-blue-200/50 bg-blue-50/60 p-5 space-y-3 shadow-sm" onClick={(e) => e.stopPropagation()}>
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium flex items-center gap-1.5 text-primary">
-          <Brain className="h-3.5 w-3.5" />
+        <span className="text-sm font-semibold flex items-center gap-2 text-primary">
+          <Brain className="h-5 w-5" />
           Resumo IA
         </span>
         <div className="flex items-center gap-1">
@@ -134,8 +134,8 @@ export function InlineAISummary({ leadId, leadWhatsapp }: InlineAISummaryProps) 
         </div>
       ) : (
         <div className="text-center py-2">
-          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={fetchSummary} disabled={isLoading}>
-            {isLoading ? <RefreshCw className="h-3 w-3 animate-spin mr-1" /> : <Brain className="h-3 w-3 mr-1" />}
+          <Button size="sm" variant="default" className="h-8 text-xs gap-1.5" onClick={fetchSummary} disabled={isLoading}>
+            {isLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Brain className="h-3.5 w-3.5" />}
             Gerar Resumo
           </Button>
         </div>
