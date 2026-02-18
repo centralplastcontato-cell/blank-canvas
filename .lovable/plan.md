@@ -1,37 +1,33 @@
 
 
-## Tornar foto obrigatoria no cadastro de freelancer
+## Adicionar campo de Data de Nascimento no cadastro de freelancer
 
-### Problema atual
-No arquivo `src/pages/PublicFreelancer.tsx`, linha 139, a validacao de avanco ignora completamente campos do tipo "photo":
-```
-if (q.type === "photo") continue; // photo is never blocking
-```
+### O que sera feito
 
-Isso permite que o freelancer avance sem enviar foto, mesmo que o campo esteja marcado como `required`.
+Adicionar um novo tipo de campo "date" (data) ao sistema de formularios de freelancer, e incluir por padrao uma pergunta "Data de nascimento" no template. O freelancer vera um seletor de data no formulario publico, e o admin vera a data formatada nas respostas.
 
 ### Mudancas
 
 **Arquivo: `src/pages/PublicFreelancer.tsx`**
 
-1. Remover o `continue` que pula a validacao de foto na funcao `canAdvance` (linha 139)
-2. Adicionar validacao: se o campo foto e obrigatorio e nao ha `photoFile` selecionado, bloquear o avanco
-3. Alterar o comentario para refletir o novo comportamento
+1. Adicionar `"date"` ao union type da interface `FreelancerQuestion` (`type: "text" | "textarea" | "yesno" | "select" | "multiselect" | "photo" | "date"`)
+2. Adicionar um novo bloco no `renderQuestion` para o tipo `"date"` -- renderiza um campo `<Input type="date">` com estilo consistente
+3. Adicionar validacao no `canAdvance` para campos `date` obrigatorios (igual ao `text`: se vazio, bloqueia)
 
 **Arquivo: `src/pages/FreelancerManager.tsx`**
 
-1. No array `DEFAULT_QUESTIONS`, garantir que a pergunta de foto tenha `required: true` por padrao para novos templates
+1. Adicionar `"date"` ao union type da interface `FreelancerQuestion`
+2. Adicionar `date: "Data"` no objeto `TYPE_LABELS` (linha 318)
+3. Adicionar a pergunta padrao no `DEFAULT_QUESTIONS`:
+   ```
+   { id: "data_nascimento", type: "date", text: "Data de nascimento", step: 1, required: true }
+   ```
+   (apos o campo "nome" e "foto")
 
 ### Detalhes tecnicos
 
-Na funcao `canAdvance()`, a linha:
-```typescript
-if (q.type === "photo") continue;
-```
-Sera substituida por:
-```typescript
-if (q.type === "photo" && q.required && !photoFile) return false;
-```
-
-Isso faz com que, se a pergunta de foto estiver marcada como obrigatoria no template, o usuario nao consiga avancar sem selecionar uma foto. Templates existentes que ja tem `required: true` na pergunta de foto passarao a exigir o envio.
+- O campo `date` usa um `<Input type="date" />` nativo do HTML, que funciona bem em mobile e desktop
+- O valor e armazenado como string ISO (`"2000-05-15"`) no array de `answers`
+- Na visualizacao de respostas (`FreelancerResponseCards`), a data ja sera exibida corretamente pelo bloco generico `String(a.value)`, mas sera formatada para `dd/MM/yyyy` para melhor leitura
+- Templates existentes nao serao afetados -- o novo campo so aparece em novos templates ou se o admin editar e adicionar manualmente
 
