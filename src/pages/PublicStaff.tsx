@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Users, CheckCircle, Copy } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { FreelancerAutocomplete } from "@/components/agenda/FreelancerAutocomplete";
 import { Toaster } from "@/components/ui/toaster";
 import { format } from "date-fns";
 
@@ -248,11 +249,21 @@ export default function PublicStaff() {
                   <span className="text-xs text-muted-foreground font-medium block">
                     {role.roleTitle} #{entryIdx + 1}
                   </span>
-                  <Input
+                  <FreelancerAutocomplete
+                    companyId={companyId}
+                    value={entry.name}
+                    onChange={val => updateEntry(roleIdx, entryIdx, "name", val)}
+                    onSelect={f => {
+                      setStaffData(prev => {
+                        const copy = prev.map(r => ({ ...r, entries: r.entries.map(e => ({ ...e })) }));
+                        copy[roleIdx].entries[entryIdx].name = f.name;
+                        copy[roleIdx].entries[entryIdx].pix_type = f.pix_type;
+                        copy[roleIdx].entries[entryIdx].pix_key = f.pix_key;
+                        return copy;
+                      });
+                    }}
                     className="h-12 text-base"
                     placeholder="Nome"
-                    value={entry.name}
-                    onChange={e => updateEntry(roleIdx, entryIdx, "name", e.target.value)}
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <Select value={entry.pix_type} onValueChange={v => updateEntry(roleIdx, entryIdx, "pix_type", v)}>
