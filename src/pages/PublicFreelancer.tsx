@@ -12,7 +12,7 @@ import { toast } from "@/hooks/use-toast";
 
 interface FreelancerQuestion {
   id: string;
-  type: "text" | "textarea" | "yesno" | "select" | "multiselect" | "photo";
+  type: "text" | "textarea" | "yesno" | "select" | "multiselect" | "photo" | "date";
   text: string;
   step: number;
   required?: boolean;
@@ -162,7 +162,7 @@ export default function PublicFreelancer() {
       if (q.type === "yesno" && val === undefined) return false;
       if (q.type === "multiselect" && (!Array.isArray(val) || val.length === 0)) return false;
       if (q.type === "select" && !val) return false;
-      if ((q.type === "text" || q.type === "textarea") && (!val || String(val).trim().length === 0)) return false;
+      if ((q.type === "text" || q.type === "textarea" || q.type === "date") && (!val || String(val).trim().length === 0)) return false;
     }
     return true;
   };
@@ -422,6 +422,23 @@ export default function PublicFreelancer() {
               </button>
             ))}
           </div>
+        </div>
+      );
+    }
+
+    if (q.type === "date") {
+      return (
+        <div key={q.id} className="bg-card rounded-2xl p-5 shadow-card space-y-3">
+          <label className="text-sm font-medium text-foreground">
+            {q.text} {q.required && <span className="text-destructive">*</span>}
+          </label>
+          <Input
+            type="date"
+            value={val || ""}
+            onChange={(e) => setAnswer(q.id, e.target.value)}
+            className="rounded-xl"
+            max={new Date().toISOString().split("T")[0]}
+          />
         </div>
       );
     }
