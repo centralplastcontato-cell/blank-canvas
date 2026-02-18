@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
+import { useUnitPermissions } from "@/hooks/useUnitPermissions";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
@@ -60,6 +61,8 @@ export default function Agenda() {
   const [month, setMonth] = useState(startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedUnit, setSelectedUnit] = useState("all");
+
+  const { canViewAll, allowedUnits, unitAccess, isLoading: permUnitLoading } = useUnitPermissions(currentUser?.id, currentCompany?.id);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<EventFormData | null>(null);
@@ -120,11 +123,31 @@ export default function Agenda() {
 
   useEffect(() => { fetchEvents(); }, [currentCompany?.id, month]);
 
-  // Filtered events
+  // Auto-select unit based on permissions
+  useEffect(() => {
+    if (permUnitLoading) return;
+    if (!canViewAll) {
+      const permitted = allowedUnits.filter(u => u !== "As duas");
+      if (permitted.length === 1) {
+        setSelectedUnit(permitted[0]);
+      }
+    }
+  }, [canViewAll, allowedUnits, permUnitLoading]);
+
+  // Filtered events (respects unit permissions)
   const filteredEvents = useMemo(() => {
-    if (selectedUnit === "all") return events;
-    return events.filter(e => e.unit === selectedUnit);
-  }, [events, selectedUnit]);
+    let filtered = events;
+    // Apply permission filter first
+    if (!canViewAll) {
+      const permitted = allowedUnits.filter(u => u !== "As duas");
+      filtered = filtered.filter(e => e.unit && permitted.includes(e.unit));
+    }
+    // Then apply manual unit filter
+    if (selectedUnit !== "all") {
+      filtered = filtered.filter(e => e.unit === selectedUnit);
+    }
+    return filtered;
+  }, [events, selectedUnit, canViewAll, allowedUnits]);
 
   // Events for selected day
   const dayEvents = useMemo(() => {
@@ -315,15 +338,19 @@ export default function Agenda() {
                       <TabsTrigger value="list" className="px-3"><List className="h-4 w-4" /></TabsTrigger>
                     </TabsList>
                   </Tabs>
-                  {physicalUnits.length > 1 && (
-                    <Select value={selectedUnit} onValueChange={setSelectedUnit}>
-                      <SelectTrigger className="w-[180px]"><SelectValue placeholder="Todas" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todas as unidades</SelectItem>
-                        {physicalUnits.map(u => <SelectItem key={u.name} value={u.name}>{u.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  )}
+                  {(() => {
+                    const visibleUnits = canViewAll ? physicalUnits : physicalUnits.filter(u => unitAccess[u.name]);
+                    if (visibleUnits.length <= 1) return null;
+                    return (
+                      <Select value={selectedUnit} onValueChange={setSelectedUnit}>
+                        <SelectTrigger className="w-[180px]"><SelectValue placeholder="Todas" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todas as unidades</SelectItem>
+                          {visibleUnits.map(u => <SelectItem key={u.name} value={u.name}>{u.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    );
+                  })()}
                   <Button onClick={() => { setEditingEvent(null); setFormOpen(true); }}>
                     <Plus className="h-4 w-4 mr-2" /> Nova Festa
                   </Button>
