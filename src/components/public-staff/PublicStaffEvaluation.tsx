@@ -60,6 +60,7 @@ export function PublicStaffEvaluation({ recordId, companyId, eventId, staffData 
   const [submitted, setSubmitted] = useState(false);
 
   const freelancerNames = staffData
+    .filter(role => !role.roleTitle.toLowerCase().includes("gerente"))
     .flatMap(role => role.entries)
     .map(e => e.name.trim())
     .filter(Boolean)

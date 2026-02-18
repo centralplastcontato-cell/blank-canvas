@@ -75,6 +75,7 @@ export function FreelancerEvaluationDialog({ open, onOpenChange, record }: Props
 
   // Extract freelancer names from staff_data
   const freelancerNames = record.staff_data
+    .filter(role => !role.roleTitle.toLowerCase().includes("gerente"))
     .flatMap(role => role.entries)
     .map(e => e.name.trim())
     .filter(Boolean)

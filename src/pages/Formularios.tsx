@@ -21,6 +21,7 @@ import { PartyMonitoringManager } from "@/components/agenda/PartyMonitoringManag
 import { AttendanceManager } from "@/components/agenda/AttendanceManager";
 import { EventInfoManager } from "@/components/agenda/EventInfoManager";
 import { FreelancerManagerContent } from "./FreelancerManager";
+import { FreelancerEvaluationsTab } from "@/components/freelancer/FreelancerEvaluationsTab";
 
 export default function Formularios() {
   const navigate = useNavigate();
@@ -230,8 +231,27 @@ export default function Formularios() {
                 <PackagesManager />
               </TabsContent>
 
-              <TabsContent value="freelancer" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3 data-[state=inactive]:hidden">
-                <FreelancerManagerContent />
+              <TabsContent value="freelancer" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
+                <Tabs defaultValue="cadastro" className="flex-1 flex flex-col overflow-hidden">
+                  <div className="px-3 md:px-6 pt-2 overflow-x-auto">
+                    <TabsList className="w-max md:w-auto">
+                      <TabsTrigger value="cadastro" className="shrink-0 gap-1.5">
+                        <HardHat className="h-4 w-4" />
+                        <span>Cadastro</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="avaliacoes-fl" className="shrink-0 gap-1.5">
+                        <ClipboardCheck className="h-4 w-4" />
+                        <span>Avaliações</span>
+                      </TabsTrigger>
+                    </TabsList>
+                  </div>
+                  <TabsContent value="cadastro" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                    <FreelancerManagerContent />
+                  </TabsContent>
+                  <TabsContent value="avaliacoes-fl" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                    <FreelancerEvaluationsTab />
+                  </TabsContent>
+                </Tabs>
               </TabsContent>
             </Tabs>
           </div>
