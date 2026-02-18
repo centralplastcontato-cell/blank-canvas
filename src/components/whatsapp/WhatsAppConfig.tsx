@@ -220,7 +220,7 @@ export function WhatsAppConfig({ userId, isAdmin }: WhatsAppConfigProps) {
         {canScrollRight && (
           <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none rounded-r-xl" />
         )}
-        <div ref={scrollRef} className="overflow-x-auto scrollbar-hide">
+        <div ref={scrollRef} className="overflow-x-auto scrollbar-hide flex justify-center">
           <div className="flex gap-1 bg-muted/40 rounded-xl p-1 min-w-max">
             {configSections.map((section) => (
               <button
