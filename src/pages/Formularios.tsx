@@ -194,14 +194,22 @@ export default function Formularios() {
               className="flex-1 flex flex-col overflow-hidden"
             >
               <div className="px-3 md:px-6 pt-3 md:pt-4 overflow-x-auto">
-                <TabsList className="w-max md:w-auto">
+                <div className="inline-flex gap-1.5 p-1 rounded-xl bg-muted/60 border border-border/50">
                   {visibleSections.map(s => (
-                    <TabsTrigger key={s.value} value={s.value} className="flex-1 md:flex-none gap-1.5">
+                    <button
+                      key={s.value}
+                      onClick={() => handleSectionChange(s.value)}
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        effectiveSection === s.value
+                          ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-background/80'
+                      }`}
+                    >
                       <s.icon className="h-4 w-4" />
                       <span>{s.label}</span>
-                    </TabsTrigger>
+                    </button>
                   ))}
-                </TabsList>
+                </div>
               </div>
 
               {canFormularios && (
@@ -211,25 +219,28 @@ export default function Formularios() {
                     onValueChange={handleTabChange}
                     className="flex-1 flex flex-col overflow-hidden"
                   >
-                    <div className="px-3 md:px-6 pt-2 overflow-x-auto">
-                      <TabsList className="w-max md:w-auto">
-                        <TabsTrigger value="avaliacoes" className="shrink-0 gap-1.5">
-                          <ClipboardCheck className="h-4 w-4" />
-                          <span>Avaliações</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="prefesta" className="shrink-0 gap-1.5">
-                          <PartyPopper className="h-4 w-4" />
-                          <span>Pré-Festa</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="contrato" className="shrink-0 gap-1.5">
-                          <FileSignature className="h-4 w-4" />
-                          <span>Contrato</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="cardapio" className="shrink-0 gap-1.5">
-                          <UtensilsCrossed className="h-4 w-4" />
-                          <span>Cardápio</span>
-                        </TabsTrigger>
-                      </TabsList>
+                    <div className="px-3 md:px-6 pt-2 overflow-x-auto border-b border-border/40">
+                      <div className="inline-flex gap-0">
+                        {[
+                          { value: "avaliacoes", icon: ClipboardCheck, label: "Avaliações" },
+                          { value: "prefesta", icon: PartyPopper, label: "Pré-Festa" },
+                          { value: "contrato", icon: FileSignature, label: "Contrato" },
+                          { value: "cardapio", icon: UtensilsCrossed, label: "Cardápio" },
+                        ].map(t => (
+                          <button
+                            key={t.value}
+                            onClick={() => handleTabChange(t.value)}
+                            className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-all duration-200 ${
+                              activeTab === t.value
+                                ? 'border-primary text-primary'
+                                : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                            }`}
+                          >
+                            <t.icon className="h-4 w-4" />
+                            <span>{t.label}</span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
 
                     <TabsContent value="avaliacoes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
@@ -251,28 +262,20 @@ export default function Formularios() {
               {canChecklist && (
                 <TabsContent value="checklist" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
                   <Tabs defaultValue="equipe" className="flex-1 flex flex-col overflow-hidden">
-                    <div className="px-3 md:px-6 pt-2 overflow-x-auto">
-                      <TabsList className="w-max md:w-auto">
-                        <TabsTrigger value="equipe" className="shrink-0 gap-1.5">
-                          <Users className="h-4 w-4" />
-                          <span>Equipe</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="manutencao" className="shrink-0 gap-1.5">
-                          <Wrench className="h-4 w-4" />
-                          <span>Manutenção</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="acompanhamento" className="shrink-0 gap-1.5">
-                          <ClipboardCheck className="h-4 w-4" />
-                          <span>Acompanhamento</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="presenca" className="shrink-0 gap-1.5">
-                          <Users className="h-4 w-4" />
-                          <span>Presença</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="informacoes" className="shrink-0 gap-1.5">
-                          <FileText className="h-4 w-4" />
-                          <span>Informações</span>
-                        </TabsTrigger>
+                    <div className="px-3 md:px-6 pt-2 overflow-x-auto border-b border-border/40">
+                      <TabsList className="bg-transparent h-auto p-0 gap-0">
+                        {[
+                          { value: "equipe", icon: Users, label: "Equipe" },
+                          { value: "manutencao", icon: Wrench, label: "Manutenção" },
+                          { value: "acompanhamento", icon: ClipboardCheck, label: "Acompanhamento" },
+                          { value: "presenca", icon: Users, label: "Presença" },
+                          { value: "informacoes", icon: FileText, label: "Informações" },
+                        ].map(t => (
+                          <TabsTrigger key={t.value} value={t.value} className="shrink-0 gap-1.5 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5">
+                            <t.icon className="h-4 w-4" />
+                            <span>{t.label}</span>
+                          </TabsTrigger>
+                        ))}
                       </TabsList>
                     </div>
                     <TabsContent value="equipe" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
@@ -303,22 +306,22 @@ export default function Formularios() {
               {(canFreelancer || canAvaliacoes) && (
                 <TabsContent value="freelancer" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
                   <Tabs defaultValue={canFreelancer ? "cadastro" : "avaliacoes-fl"} className="flex-1 flex flex-col overflow-hidden">
-                    <div className="px-3 md:px-6 pt-2 overflow-x-auto">
-                      <TabsList className="w-max md:w-auto">
+                    <div className="px-3 md:px-6 pt-2 overflow-x-auto border-b border-border/40">
+                      <TabsList className="bg-transparent h-auto p-0 gap-0">
                         {canFreelancer && (
-                          <TabsTrigger value="cadastro" className="shrink-0 gap-1.5">
+                          <TabsTrigger value="cadastro" className="shrink-0 gap-1.5 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5">
                             <HardHat className="h-4 w-4" />
                             <span>Cadastro</span>
                           </TabsTrigger>
                         )}
-                         {canAvaliacoes && (
-                          <TabsTrigger value="avaliacoes-fl" className="shrink-0 gap-1.5">
+                        {canAvaliacoes && (
+                          <TabsTrigger value="avaliacoes-fl" className="shrink-0 gap-1.5 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5">
                             <ClipboardCheck className="h-4 w-4" />
                             <span>Avaliações</span>
                           </TabsTrigger>
                         )}
                         {canFreelancer && (
-                          <TabsTrigger value="escalas" className="shrink-0 gap-1.5">
+                          <TabsTrigger value="escalas" className="shrink-0 gap-1.5 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5">
                             <CalendarClock className="h-4 w-4" />
                             <span>Escalas</span>
                           </TabsTrigger>
