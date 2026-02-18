@@ -113,12 +113,12 @@ export function FreelancerAutocomplete({
         onFocus={() => { if (suggestions.length > 0) setShowDropdown(true); }}
       />
       {showDropdown && suggestions.length > 0 && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border border-border rounded-md shadow-md max-h-48 overflow-y-auto">
+        <div className="absolute z-[9999] top-full left-0 right-0 mt-1 bg-popover border border-border rounded-md shadow-lg max-h-48 overflow-y-auto" style={{ position: 'fixed', width: wrapperRef.current?.getBoundingClientRect().width, left: wrapperRef.current?.getBoundingClientRect().left, top: (wrapperRef.current?.getBoundingClientRect().bottom ?? 0) + 4 }}>
           {suggestions.map((f) => (
             <button
               key={f.id}
               type="button"
-              className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
+              className="w-full text-left px-3 py-2.5 text-sm hover:bg-accent transition-colors border-b border-border last:border-0"
               onClick={() => handleSelect(f)}
             >
               <span className="font-medium">{f.respondent_name}</span>
