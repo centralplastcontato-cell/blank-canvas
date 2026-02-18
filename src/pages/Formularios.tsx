@@ -263,7 +263,7 @@ export default function Formularios() {
                 <TabsContent value="checklist" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
                   <Tabs defaultValue="equipe" className="flex-1 flex flex-col overflow-hidden">
                     <div className="px-3 md:px-6 pt-3 overflow-x-auto flex justify-center">
-                      <div className="inline-flex gap-1 p-1 rounded-xl bg-muted/40 border border-border/30">
+                     <TabsList className="inline-flex gap-1 p-1 rounded-xl bg-muted/40 border border-border/30 h-auto">
                         {[
                           { value: "equipe", icon: Users, label: "Equipe" },
                           { value: "manutencao", icon: Wrench, label: "Manutenção" },
@@ -276,7 +276,7 @@ export default function Formularios() {
                             <span>{t.label}</span>
                           </TabsTrigger>
                         ))}
-                      </div>
+                      </TabsList>
                     </div>
                     <TabsContent value="equipe" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
                       <EventStaffManager />
@@ -307,7 +307,7 @@ export default function Formularios() {
                 <TabsContent value="freelancer" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
                   <Tabs defaultValue={canFreelancer ? "cadastro" : "avaliacoes-fl"} className="flex-1 flex flex-col overflow-hidden">
                     <div className="px-3 md:px-6 pt-3 overflow-x-auto flex justify-center">
-                      <div className="inline-flex gap-1 p-1 rounded-xl bg-muted/40 border border-border/30">
+                      <TabsList className="inline-flex gap-1 p-1 rounded-xl bg-muted/40 border border-border/30 h-auto">
                         {canFreelancer && (
                           <TabsTrigger value="cadastro" className="gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/25 data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-accent/50">
                             <HardHat className="h-4 w-4" />
@@ -326,7 +326,7 @@ export default function Formularios() {
                             <span>Escalas</span>
                           </TabsTrigger>
                         )}
-                      </div>
+                      </TabsList>
                     </div>
                     {canFreelancer && (
                       <TabsContent value="cadastro" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
