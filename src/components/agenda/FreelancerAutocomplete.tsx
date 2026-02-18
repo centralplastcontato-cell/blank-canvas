@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
+import { Star } from "lucide-react";
 
 interface FreelancerSuggestion {
   id: string;
   respondent_name: string;
   pix_type: string | null;
   pix_key: string | null;
+  avgScore?: number;
 }
 
 interface FreelancerAutocompleteProps {
@@ -42,7 +44,36 @@ export function FreelancerAutocomplete({
       .eq("company_id", companyId)
       .ilike("respondent_name", `%${term.trim()}%`)
       .limit(8);
-    setSuggestions((data as FreelancerSuggestion[]) || []);
+    const results = (data as FreelancerSuggestion[]) || [];
+
+    // Fetch avg scores for matched names
+    if (results.length > 0) {
+      const names = results.map(r => r.respondent_name).filter(Boolean);
+      const { data: evalData } = await (supabase as any)
+        .from("freelancer_evaluations")
+        .select("freelancer_name, scores")
+        .eq("company_id", companyId)
+        .in("freelancer_name", names);
+      if (evalData && evalData.length > 0) {
+        const scoreMap = new Map<string, number[]>();
+        evalData.forEach((e: any) => {
+          const geral = e.scores?.geral;
+          if (typeof geral === "number" && geral > 0) {
+            const arr = scoreMap.get(e.freelancer_name) || [];
+            arr.push(geral);
+            scoreMap.set(e.freelancer_name, arr);
+          }
+        });
+        results.forEach(r => {
+          const scores = scoreMap.get(r.respondent_name || "");
+          if (scores && scores.length > 0) {
+            r.avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+          }
+        });
+      }
+    }
+
+    setSuggestions(results);
   }, [companyId]);
 
   const handleChange = (val: string) => {
@@ -91,6 +122,12 @@ export function FreelancerAutocomplete({
               onClick={() => handleSelect(f)}
             >
               <span className="font-medium">{f.respondent_name}</span>
+              {f.avgScore && (
+                <span className="inline-flex items-center gap-0.5 ml-1.5 text-xs font-semibold">
+                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                  {f.avgScore.toFixed(1)}
+                </span>
+              )}
               {f.pix_key && (
                 <span className="text-muted-foreground text-xs ml-2">
                   PIX: {f.pix_type} · {f.pix_key}

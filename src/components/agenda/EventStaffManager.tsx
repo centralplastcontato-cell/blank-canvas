@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "@/hooks/use-toast";
-import { Users, Plus, Trash2, ChevronDown, ChevronRight, Pencil, Loader2, MinusCircle, PlusCircle, Share2, Copy, ExternalLink } from "lucide-react";
+import { Users, Plus, Trash2, ChevronDown, ChevronRight, Pencil, Loader2, MinusCircle, PlusCircle, Share2, Copy, ExternalLink, Star } from "lucide-react";
+import { FreelancerEvaluationDialog } from "./FreelancerEvaluationDialog";
 import { format } from "date-fns";
 import { FreelancerAutocomplete } from "./FreelancerAutocomplete";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -84,6 +85,7 @@ export function EventStaffManager() {
   const [staffData, setStaffData] = useState<StaffRole[]>([]);
   const [notes, setNotes] = useState("");
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [evalDialogRecord, setEvalDialogRecord] = useState<EventStaffRecord | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!companyId) return;
@@ -283,6 +285,9 @@ export function EventStaffManager() {
                           </div>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Avaliar Equipe" onClick={e => { e.stopPropagation(); setEvalDialogRecord(record); }}>
+                            <Star className="h-4 w-4 text-yellow-500" />
+                          </Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); const baseUrl = currentCompany?.custom_domain ? `https://${currentCompany.custom_domain}` : window.location.origin; window.open(`${baseUrl}/equipe/${record.id}`, '_blank'); }}>
                             <ExternalLink className="h-4 w-4" />
                           </Button>
@@ -463,6 +468,14 @@ export function EventStaffManager() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {evalDialogRecord && (
+        <FreelancerEvaluationDialog
+          open={!!evalDialogRecord}
+          onOpenChange={(open) => { if (!open) setEvalDialogRecord(null); }}
+          record={evalDialogRecord}
+        />
+      )}
     </div>
   );
 }
