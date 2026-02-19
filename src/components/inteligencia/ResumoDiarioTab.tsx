@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -16,7 +17,7 @@ import {
   Users, CalendarCheck, FileText, Trophy, Clock,
   MessageCircle, PauseCircle, Sparkles, Loader2, RefreshCw,
   AlertTriangle, Phone, CalendarIcon, MessageSquarePlus, Save, Pencil,
-  Timer, CalendarRange,
+  Timer, CalendarRange, ChevronDown, BarChart3,
 } from "lucide-react";
 import { useDailySummary, type DailyMetrics, type TimelineEvent, type IncompleteLead, type FollowUpLead } from "@/hooks/useDailySummary";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,35 +28,49 @@ function MetricCard({ icon: Icon, label, value, color }: {
   icon: React.ElementType; label: string; value: number | string; color: string;
 }) {
   return (
-    <Card className="hover:-translate-y-0.5 transition-all duration-300 ease-out border-border/60 shadow-sm hover:shadow-md rounded-xl">
-      <CardContent className="p-2.5 md:p-3.5">
-        <div className="flex items-center gap-1.5 md:gap-2 mb-1.5 md:mb-2.5">
-          <div className={`p-1.5 rounded-full shrink-0 ${color}`}>
-            <Icon className="h-3.5 w-3.5" />
-          </div>
-          <p className="text-[10px] md:text-[11px] font-medium text-muted-foreground leading-snug whitespace-nowrap">{label}</p>
-        </div>
-        <p className="text-lg md:text-2xl font-bold tracking-tight text-foreground leading-none">{value}</p>
-      </CardContent>
-    </Card>
+    <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-card p-2 md:p-2.5 shadow-sm">
+      <div className={`p-1.5 rounded-lg shrink-0 ${color}`}>
+        <Icon className="h-3.5 w-3.5" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-sm md:text-base font-bold tracking-tight text-foreground leading-none">{value}</p>
+        <p className="text-[9px] md:text-[10px] font-medium text-muted-foreground leading-snug whitespace-nowrap mt-0.5">{label}</p>
+      </div>
+    </div>
   );
 }
 
 function MetricsGrid({ metrics, incompleteCount, followUpLabels }: { metrics: DailyMetrics; incompleteCount: number; followUpLabels?: { fu1: string; fu2: string } }) {
+  const [isOpen, setIsOpen] = useState(false);
   const fu1Label = followUpLabels?.fu1 || "24h";
   const fu2Label = followUpLabels?.fu2 || "48h";
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 md:gap-3">
-      <MetricCard icon={Users} label="Leads novos" value={metrics.novos} color="bg-blue-500/10 text-blue-500" />
-      <MetricCard icon={CalendarCheck} label="Visitas agendadas" value={metrics.visitas} color="bg-green-500/10 text-green-500" />
-      <MetricCard icon={FileText} label="Orçamentos" value={metrics.orcamentos} color="bg-purple-500/10 text-purple-500" />
-      <MetricCard icon={PauseCircle} label="Vão pensar" value={metrics.querPensar} color="bg-yellow-500/10 text-yellow-500" />
-      <MetricCard icon={MessageCircle} label="Querem humano" value={metrics.querHumano} color="bg-orange-500/10 text-orange-500" />
-      <MetricCard icon={Trophy} label="Taxa conversão" value={`${metrics.taxaConversao}%`} color="bg-emerald-500/10 text-emerald-500" />
-      <MetricCard icon={AlertTriangle} label="Não completaram" value={incompleteCount} color="bg-destructive/10 text-destructive" />
-      <MetricCard icon={Timer} label={`Follow-up ${fu1Label}`} value={metrics.followUp24h || 0} color="bg-sky-500/10 text-sky-500" />
-      <MetricCard icon={Timer} label={`Follow-up ${fu2Label}`} value={metrics.followUp48h || 0} color="bg-indigo-500/10 text-indigo-500" />
-    </div>
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <CollapsibleTrigger asChild>
+        <button className="w-full flex items-center justify-between rounded-xl border border-border/50 bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-accent/50 transition-colors">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-primary" />
+            <span>Métricas do Dia</span>
+            <Badge variant="secondary" className="text-[10px] px-1.5 h-5">{metrics.novos} novos · {metrics.fechados} fechados</Badge>
+          </div>
+          <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform duration-200", isOpen && "rotate-180")} />
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="mt-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-2.5">
+          <MetricCard icon={Users} label="Leads novos" value={metrics.novos} color="bg-blue-500/10 text-blue-500" />
+          <MetricCard icon={CalendarCheck} label="Visitas agendadas" value={metrics.visitas} color="bg-green-500/10 text-green-500" />
+          <MetricCard icon={FileText} label="Orçamentos" value={metrics.orcamentos} color="bg-purple-500/10 text-purple-500" />
+          <MetricCard icon={PauseCircle} label="Vão pensar" value={metrics.querPensar} color="bg-yellow-500/10 text-yellow-500" />
+          <MetricCard icon={MessageCircle} label="Querem humano" value={metrics.querHumano} color="bg-orange-500/10 text-orange-500" />
+          <MetricCard icon={Trophy} label="Taxa conversão" value={`${metrics.taxaConversao}%`} color="bg-emerald-500/10 text-emerald-500" />
+          <MetricCard icon={AlertTriangle} label="Não completaram" value={incompleteCount} color="bg-destructive/10 text-destructive" />
+          <MetricCard icon={Timer} label={`Follow-up ${fu1Label}`} value={metrics.followUp24h || 0} color="bg-sky-500/10 text-sky-500" />
+          <MetricCard icon={Timer} label={`Follow-up ${fu2Label}`} value={metrics.followUp48h || 0} color="bg-indigo-500/10 text-indigo-500" />
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
