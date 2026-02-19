@@ -30,6 +30,7 @@ export default function Formularios() {
   
   const [isAdmin, setIsAdmin] = useState(false);
   const [isOwnerOrAdmin, setIsOwnerOrAdmin] = useState(false);
+  const [canManageUsers, setCanManageUsers] = useState(false);
   const [permLoading, setPermLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string; email: string; avatar?: string | null } | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -53,6 +54,7 @@ export default function Formularios() {
       setIsAdmin(isSuperAdmin);
       const role = roleResult.data?.role;
       setIsOwnerOrAdmin(isSuperAdmin || role === 'owner' || role === 'admin');
+      setCanManageUsers(isSuperAdmin || role === 'admin' || role === 'gestor' || role === 'owner');
 
       const permsMap: Record<string, boolean> = {};
       permsResult.data?.forEach((p) => { permsMap[p.permission] = p.granted; });
@@ -106,7 +108,7 @@ export default function Formularios() {
     return (
       <SidebarProvider defaultOpen={false}>
         <div className="min-h-screen flex w-full bg-background">
-          <AdminSidebar canManageUsers={isAdmin} isAdmin={isAdmin} currentUserName={currentUser?.name || ""} onRefresh={handleRefresh} onLogout={handleLogout} />
+          <AdminSidebar canManageUsers={canManageUsers} isAdmin={isAdmin} currentUserName={currentUser?.name || ""} onRefresh={handleRefresh} onLogout={handleLogout} />
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center space-y-4 p-8">
               <ShieldAlert className="h-16 w-16 text-muted-foreground mx-auto" />
@@ -143,7 +145,7 @@ export default function Formularios() {
   return (
     <SidebarProvider defaultOpen={false}>
       <div className="min-h-screen flex w-full bg-background">
-        <AdminSidebar canManageUsers={isAdmin} isAdmin={isAdmin} currentUserName={currentUser?.name || ""} onRefresh={handleRefresh} onLogout={handleLogout} />
+          <AdminSidebar canManageUsers={canManageUsers} isAdmin={isAdmin} currentUserName={currentUser?.name || ""} onRefresh={handleRefresh} onLogout={handleLogout} />
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Mobile Header */}
           <header className="bg-card border-b border-border shrink-0 z-10 md:hidden">
@@ -158,7 +160,7 @@ export default function Formularios() {
                     userName={currentUser?.name || ""}
                     userEmail={currentUser?.email || ""}
                     userAvatar={currentUser?.avatar}
-                    canManageUsers={isAdmin}
+                    canManageUsers={canManageUsers}
                     isAdmin={isAdmin}
                     onRefresh={handleRefresh}
                     onLogout={handleLogout}

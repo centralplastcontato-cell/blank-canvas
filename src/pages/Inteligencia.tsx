@@ -35,6 +35,7 @@ export default function Inteligencia() {
   const { currentCompany } = useCompany();
 
   const [isAdmin, setIsAdmin] = useState(false);
+  const [canManageUsers, setCanManageUsers] = useState(false);
   const [hasView, setHasView] = useState(false);
   const [hasExport, setHasExport] = useState(false);
   const [permLoading, setPermLoading] = useState(true);
@@ -51,11 +52,12 @@ export default function Inteligencia() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { navigate("/auth"); return; }
 
-      // Parallel fetch: profile, admin check, permissions
-      const [profileResult, adminResult, permsResult] = await Promise.all([
+      // Parallel fetch: profile, admin check, permissions, role
+      const [profileResult, adminResult, permsResult, roleResult] = await Promise.all([
         supabase.from("profiles").select("full_name, avatar_url").eq("user_id", user.id).single(),
         supabase.rpc("is_admin", { _user_id: user.id }),
         supabase.from("user_permissions").select("permission, granted").eq("user_id", user.id).in("permission", ["ic.view", "ic.export"]),
+        supabase.from("user_companies").select("role").eq("user_id", user.id).limit(1).single(),
       ]);
 
       setCurrentUser({ 
@@ -66,7 +68,9 @@ export default function Inteligencia() {
       });
 
       const userIsAdmin = adminResult.data === true;
+      const userRole = roleResult.data?.role;
       setIsAdmin(userIsAdmin);
+      setCanManageUsers(userIsAdmin || userRole === 'admin' || userRole === 'gestor' || userRole === 'owner');
 
       if (userIsAdmin) {
         setHasView(true);
@@ -158,7 +162,7 @@ export default function Inteligencia() {
     <SidebarProvider defaultOpen={false}>
       <div className="min-h-screen flex w-full bg-background">
         <AdminSidebar
-          canManageUsers={isAdmin}
+          canManageUsers={canManageUsers}
           isAdmin={isAdmin}
           currentUserName={currentUser?.name || ""}
           onRefresh={() => window.location.reload()}
@@ -182,7 +186,7 @@ export default function Inteligencia() {
                     userName={currentUser?.name || ""}
                     userEmail={currentUser?.email || ""}
                     userAvatar={currentUser?.avatar}
-                    canManageUsers={isAdmin}
+                    canManageUsers={canManageUsers}
                     isAdmin={isAdmin}
                     onRefresh={() => refetch()}
                     onLogout={handleLogout}
