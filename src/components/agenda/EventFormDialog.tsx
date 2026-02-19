@@ -265,8 +265,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           {/* Section 2 – Data e Horário */}
           <div className="rounded-xl border border-border/30 bg-muted/10 p-5">
             <SectionHeader icon={CalendarDays} label="Data e Horário" />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-7 gap-y-5">
-              <div className="space-y-2.5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5">
+              <div className="space-y-2.5 md:pr-6">
                 <Label className="text-sm font-medium text-foreground/70">Data *</Label>
                 <div className="flex gap-2">
                   <div className="flex-1">
@@ -290,7 +290,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 </div>
               </div>
 
-              <div className="space-y-2.5">
+              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/30">
                 <Label className="text-sm font-medium text-foreground/70">Status</Label>
                 <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -298,7 +298,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 </Select>
               </div>
 
-              <div className="space-y-2.5">
+              <div className="space-y-2.5 md:pr-6">
                 <Label className="text-sm font-medium text-foreground/70">Horário início</Label>
                 <Select value={form.start_time} onValueChange={(v) => setForm({ ...form, start_time: v === "none" ? "" : v })}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -309,7 +309,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 </Select>
               </div>
 
-              <div className="space-y-2.5">
+              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/30">
                 <Label className="text-sm font-medium text-foreground/70">Horário fim</Label>
                 <Select value={form.end_time} onValueChange={(v) => setForm({ ...form, end_time: v === "none" ? "" : v })}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -325,8 +325,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           {/* Section 3 – Informações da Festa */}
           <div className="rounded-xl border border-border/30 bg-muted/10 p-5">
             <SectionHeader icon={PartyPopper} label="Informações da Festa" />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-7 gap-y-5">
-              <div className="space-y-2.5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5">
+              <div className="space-y-2.5 md:pr-6">
                 <Label className="text-sm font-medium text-foreground/70">Tipo de festa</Label>
                 <Select value={form.event_type} onValueChange={(v) => setForm({ ...form, event_type: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -334,12 +334,12 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 </Select>
               </div>
 
-              <div className="space-y-2.5">
+              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/30">
                 <Label className="text-sm font-medium text-foreground/70">Convidados</Label>
                 <Input type="number" value={form.guest_count ?? ""} onChange={(e) => setForm({ ...form, guest_count: e.target.value ? Number(e.target.value) : null })} />
               </div>
 
-              <div className="space-y-2.5">
+              <div className="space-y-2.5 md:pr-6">
                 <Label className="text-sm font-medium text-foreground/70">Unidade</Label>
                 {units.length > 0 ? (
                   <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v })}>
@@ -351,7 +351,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 )}
               </div>
 
-              <div className="space-y-2.5">
+              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/30">
                 <Label className="text-sm font-medium text-foreground/70">Pacote</Label>
                 {packages.length > 0 ? (
                   <Select value={form.package_name} onValueChange={(v) => setForm({ ...form, package_name: v === "none" ? "" : v })}>
@@ -366,14 +366,14 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 )}
               </div>
 
-              <div className="space-y-2.5">
+              <div className="space-y-2.5 md:pr-6">
                 <Label className="text-sm font-medium text-foreground/70">Valor total (R$)</Label>
                 <Input type="number" step="0.01" value={form.total_value ?? ""} onChange={(e) => setForm({ ...form, total_value: e.target.value ? Number(e.target.value) : null })} />
               </div>
 
               {/* Checklist template - only for new events */}
               {!isEdit && templates.length > 0 && (
-                <div className="space-y-2.5">
+                <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/30">
                   <Label className="text-sm font-medium text-foreground/70 flex items-center gap-1.5">
                     <ListChecks className="h-4 w-4" /> Template de Checklist
                   </Label>
@@ -387,8 +387,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 </div>
               )}
 
-              <div className="space-y-2 md:col-span-2">
-                <Label className="text-sm font-medium text-foreground/80">Observações</Label>
+              <div className="space-y-2.5 md:col-span-2">
+                <Label className="text-sm font-medium text-foreground/70">Observações</Label>
                 <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} />
               </div>
             </div>
