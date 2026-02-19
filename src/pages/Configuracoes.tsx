@@ -198,7 +198,7 @@ export default function Configuracoes() {
             </div>
           </header>
 
-          <main className="flex-1 p-6 overflow-auto space-y-6">
+          <main className="flex-1 p-5 overflow-auto space-y-4">
             <WhatsAppConfig userId={user.id} isAdmin={isAdmin} />
           </main>
         </SidebarInset>

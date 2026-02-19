@@ -177,7 +177,7 @@ export default function Formularios() {
 
           <div className="flex-1 flex flex-col overflow-hidden">
             {/* Desktop header */}
-            <div className="hidden md:flex items-center justify-between gap-3 p-6 pb-0">
+            <div className="hidden md:flex items-center justify-between gap-3 p-5 pb-0">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-xl bg-primary/10">
                   <FolderOpen className="h-6 w-6 text-primary" />
@@ -195,7 +195,7 @@ export default function Formularios() {
               onValueChange={handleSectionChange}
               className="flex-1 flex flex-col overflow-hidden"
             >
-              <div className="px-3 md:px-6 pt-4 md:pt-6 overflow-x-auto flex justify-center">
+              <div className="px-3 md:px-5 pt-3 md:pt-4 overflow-x-auto flex justify-center">
                 <div className="inline-flex gap-2 p-1.5 rounded-2xl bg-muted/50 border border-border/40 shadow-sm">
                   {visibleSections.map(s => (
                     <button
@@ -221,7 +221,7 @@ export default function Formularios() {
                     onValueChange={handleTabChange}
                     className="flex-1 flex flex-col overflow-hidden"
                   >
-                    <div className="px-3 md:px-6 pt-3 overflow-x-auto flex justify-center">
+                    <div className="px-3 md:px-5 pt-3 overflow-x-auto flex justify-center">
                       <div className="inline-flex gap-1 p-1 rounded-xl bg-muted/40 border border-border/30">
                         {[
                           { value: "avaliacoes", icon: ClipboardCheck, label: "Avaliações" },
@@ -245,16 +245,16 @@ export default function Formularios() {
                       </div>
                     </div>
 
-                    <TabsContent value="avaliacoes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                    <TabsContent value="avaliacoes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
                       <AvaliacoesContent />
                     </TabsContent>
-                    <TabsContent value="prefesta" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                    <TabsContent value="prefesta" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
                       <PreFestaContent />
                     </TabsContent>
-                    <TabsContent value="contrato" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                    <TabsContent value="contrato" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
                       <ContratoContent />
                     </TabsContent>
-                    <TabsContent value="cardapio" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                    <TabsContent value="cardapio" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
                       <CardapioContent />
                     </TabsContent>
                   </Tabs>
@@ -264,7 +264,7 @@ export default function Formularios() {
               {canChecklist && (
                 <TabsContent value="checklist" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
                   <Tabs defaultValue="equipe" className="flex-1 flex flex-col overflow-hidden">
-                    <div className="px-3 md:px-6 pt-3 overflow-x-auto flex justify-center">
+                    <div className="px-3 md:px-5 pt-3 overflow-x-auto flex justify-center">
                      <TabsList className="inline-flex gap-1 p-1 rounded-xl bg-muted/40 border border-border/30 h-auto">
                         {[
                           { value: "equipe", icon: Users, label: "Equipe" },
@@ -280,19 +280,19 @@ export default function Formularios() {
                         ))}
                       </TabsList>
                     </div>
-                    <TabsContent value="equipe" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                    <TabsContent value="equipe" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
                       <EventStaffManager />
                     </TabsContent>
-                    <TabsContent value="manutencao" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                    <TabsContent value="manutencao" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
                       <MaintenanceManager />
                     </TabsContent>
-                    <TabsContent value="acompanhamento" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                    <TabsContent value="acompanhamento" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
                       <PartyMonitoringManager />
                     </TabsContent>
-                    <TabsContent value="presenca" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                    <TabsContent value="presenca" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
                       <AttendanceManager />
                     </TabsContent>
-                    <TabsContent value="informacoes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                    <TabsContent value="informacoes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
                       <EventInfoManager />
                     </TabsContent>
                   </Tabs>
@@ -300,7 +300,7 @@ export default function Formularios() {
               )}
 
               {canPacotes && (
-                <TabsContent value="pacotes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3 data-[state=inactive]:hidden">
+                <TabsContent value="pacotes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3 data-[state=inactive]:hidden">
                   <PackagesManager />
                 </TabsContent>
               )}
@@ -308,7 +308,7 @@ export default function Formularios() {
               {(canFreelancer || canAvaliacoes) && (
                 <TabsContent value="freelancer" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
                   <Tabs defaultValue={canFreelancer ? "cadastro" : "avaliacoes-fl"} className="flex-1 flex flex-col overflow-hidden">
-                    <div className="px-3 md:px-6 pt-3 overflow-x-auto flex justify-center">
+                    <div className="px-3 md:px-5 pt-3 overflow-x-auto flex justify-center">
                       <TabsList className="inline-flex gap-1 p-1 rounded-xl bg-muted/40 border border-border/30 h-auto">
                         {canFreelancer && (
                           <TabsTrigger value="cadastro" className="gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/25 data-[state=active]:shadow-sm data-[state=inactive]:bg-muted/60 data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted data-[state=inactive]:hover:text-foreground">
@@ -331,17 +331,17 @@ export default function Formularios() {
                       </TabsList>
                     </div>
                     {canFreelancer && (
-                      <TabsContent value="cadastro" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                      <TabsContent value="cadastro" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
                         <FreelancerManagerContent />
                       </TabsContent>
                     )}
                     {canAvaliacoes && (
-                      <TabsContent value="avaliacoes-fl" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                      <TabsContent value="avaliacoes-fl" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
                         <FreelancerEvaluationsTab />
                       </TabsContent>
                     )}
                     {canFreelancer && (
-                      <TabsContent value="escalas" className="flex-1 overflow-y-auto mt-0 p-3 md:p-6 pt-3">
+                      <TabsContent value="escalas" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
                         <FreelancerSchedulesTab />
                       </TabsContent>
                     )}

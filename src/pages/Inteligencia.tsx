@@ -203,8 +203,8 @@ export default function Inteligencia() {
             </div>
           </header>
 
-          <PullToRefresh onRefresh={async () => { await refetch(); }} className="flex-1 p-3 md:p-6 overflow-x-hidden overflow-y-auto">
-            <div className="max-w-7xl mx-auto space-y-6">
+          <PullToRefresh onRefresh={async () => { await refetch(); }} className="flex-1 p-3 md:p-5 overflow-x-hidden overflow-y-auto">
+            <div className="max-w-7xl mx-auto space-y-4">
               {/* Desktop header */}
               <div className="hidden md:flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex items-center gap-3">
