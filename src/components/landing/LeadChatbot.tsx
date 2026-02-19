@@ -25,9 +25,10 @@ interface LeadData {
 interface LeadChatbotProps {
   isOpen: boolean;
   onClose: () => void;
+  companyId?: string;
 }
 
-export function LeadChatbot({ isOpen, onClose }: LeadChatbotProps) {
+export function LeadChatbot({ isOpen, onClose, companyId }: LeadChatbotProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
   const [leadData, setLeadData] = useState<LeadData>({});
@@ -257,6 +258,7 @@ export function LeadChatbot({ isOpen, onClose }: LeadChatbotProps) {
         const finalLeadData = { ...leadData, name: leadData.name, whatsapp: whatsappValue };
         
         // Função para criar lead via edge function (com rate limiting e validação)
+        const effectiveCompanyId = companyId || campaignConfig.companyId;
         const submitLead = async (unit: string) => {
           const { error } = await supabase.functions.invoke('submit-lead', {
             body: {
@@ -268,7 +270,7 @@ export function LeadChatbot({ isOpen, onClose }: LeadChatbotProps) {
               guests: leadData.guests,
               campaign_id: campaignConfig.campaignId,
               campaign_name: campaignConfig.campaignName,
-              company_id: campaignConfig.companyId,
+              company_id: effectiveCompanyId,
             },
           });
           if (error) throw error;

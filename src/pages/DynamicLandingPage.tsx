@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { isHubDomain, isPreviewDomain } from "@/hooks/useDomainDetection";
+
 import { DLPHero } from "@/components/dynamic-lp/DLPHero";
 import { DLPBenefits } from "@/components/dynamic-lp/DLPBenefits";
 import { DLPTestimonials } from "@/components/dynamic-lp/DLPTestimonials";
@@ -141,7 +141,7 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
       <DLPFooter footer={data.footer} theme={data.theme} companyName={data.company_name} companyLogo={data.company_logo} />
 
       <DLPFloatingCTA theme={data.theme} onClick={openChat} />
-      <LeadChatbot isOpen={isChatOpen} onClose={closeChat} />
+      <LeadChatbot isOpen={isChatOpen} onClose={closeChat} companyId={data.company_id} />
     </div>
   );
 }
