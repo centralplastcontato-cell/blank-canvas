@@ -10,10 +10,10 @@ import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
 import { WhatsAppConfig } from "@/components/whatsapp/WhatsAppConfig";
 import { PartyControlConfig } from "@/components/admin/PartyControlConfig";
-import { PartyPopper } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { Menu, Settings } from "lucide-react";
+import { Menu, Settings, MessageSquare, PartyPopper } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logoCastelo from "@/assets/logo-castelo.png";
 import { toast } from "@/hooks/use-toast";
@@ -152,22 +152,25 @@ export default function Configuracoes() {
           </div>
         </header>
 
-        <main className="flex-1 p-3 overflow-auto space-y-6">
-          <WhatsAppConfig userId={user.id} isAdmin={isAdmin} />
-
-          {/* Controle da Festa */}
-          <div className="rounded-2xl border border-border bg-card/50 p-4 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-primary/10">
-                <PartyPopper className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h2 className="font-semibold text-base">Controle da Festa</h2>
-                <p className="text-xs text-muted-foreground">Escolha quais módulos aparecem no painel operacional do dia da festa</p>
-              </div>
-            </div>
-            <PartyControlConfig />
-          </div>
+        <main className="flex-1 p-3 overflow-auto space-y-4">
+          <Tabs defaultValue="whatsapp">
+            <TabsList className="w-full">
+              <TabsTrigger value="whatsapp" className="flex-1 gap-2">
+                <MessageSquare className="h-4 w-4" />
+                WhatsApp
+              </TabsTrigger>
+              <TabsTrigger value="festa" className="flex-1 gap-2">
+                <PartyPopper className="h-4 w-4" />
+                Controle da Festa
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="whatsapp" className="mt-4">
+              <WhatsAppConfig userId={user.id} isAdmin={isAdmin} />
+            </TabsContent>
+            <TabsContent value="festa" className="mt-4">
+              <PartyControlConfig />
+            </TabsContent>
+          </Tabs>
         </main>
       </div>
     );
@@ -202,21 +205,24 @@ export default function Configuracoes() {
                 </div>
               </div>
 
-              <WhatsAppConfig userId={user.id} isAdmin={isAdmin} />
-
-              {/* Controle da Festa */}
-              <div className="rounded-2xl border border-border bg-card/50 p-5 space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-primary/10">
-                    <PartyPopper className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <h2 className="font-semibold text-base">Controle da Festa</h2>
-                    <p className="text-xs text-muted-foreground">Escolha quais módulos aparecem no painel operacional do dia da festa</p>
-                  </div>
-                </div>
-                <PartyControlConfig />
-              </div>
+              <Tabs defaultValue="whatsapp">
+                <TabsList>
+                  <TabsTrigger value="whatsapp" className="gap-2">
+                    <MessageSquare className="h-4 w-4" />
+                    WhatsApp
+                  </TabsTrigger>
+                  <TabsTrigger value="festa" className="gap-2">
+                    <PartyPopper className="h-4 w-4" />
+                    Controle da Festa
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="whatsapp" className="mt-4">
+                  <WhatsAppConfig userId={user.id} isAdmin={isAdmin} />
+                </TabsContent>
+                <TabsContent value="festa" className="mt-4">
+                  <PartyControlConfig />
+                </TabsContent>
+              </Tabs>
             </div>
           </main>
         </div>
