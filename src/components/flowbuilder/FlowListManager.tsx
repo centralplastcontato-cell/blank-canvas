@@ -426,24 +426,29 @@ export function FlowListManager() {
     }
   };
 
-  // If a flow is selected, show the builder
+  // If a flow is selected, show the builder in fullscreen overlay
   if (selectedFlowId) {
     return (
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
+      <div className="fixed inset-0 z-50 bg-background flex flex-col">
+        {/* Fullscreen header */}
+        <div className="flex items-center gap-3 px-4 py-2 border-b bg-background shrink-0">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setSelectedFlowId(null)}
+            className="gap-1"
           >
             ← Voltar
           </Button>
           <span className="text-muted-foreground">|</span>
-          <span className="font-medium">
+          <span className="font-semibold truncate">
             {flows?.find(f => f.id === selectedFlowId)?.name}
           </span>
         </div>
-        <FlowBuilder flowId={selectedFlowId} />
+        {/* Builder takes all remaining height */}
+        <div className="flex-1 overflow-hidden">
+          <FlowBuilder flowId={selectedFlowId} />
+        </div>
       </div>
     );
   }
