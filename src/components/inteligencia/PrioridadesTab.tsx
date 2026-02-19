@@ -74,10 +74,12 @@ export function PrioridadesTab({ data }: PrioridadesTabProps) {
   return (
     <div className="grid gap-6 md:grid-cols-3">
       {/* Atender Agora */}
-      <Card className="border-green-500/30">
+      <Card className="border-green-500/20 shadow-card">
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <Flame className="h-5 w-5 text-green-400" />
+            <div className="p-1.5 rounded-lg bg-green-500/10">
+              <Flame className="h-4 w-4 text-green-500" />
+            </div>
             Atender Agora
             <span className="ml-auto text-sm font-normal text-muted-foreground">
               {atenderAgora.length}
@@ -86,7 +88,7 @@ export function PrioridadesTab({ data }: PrioridadesTabProps) {
         </CardHeader>
         <CardContent className="space-y-2 max-h-[calc(100vh-220px)] overflow-y-auto">
           {atenderAgora.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
+            <p className="text-sm text-muted-foreground text-center py-6">
               Nenhum lead prioritário
             </p>
           ) : (
@@ -96,10 +98,12 @@ export function PrioridadesTab({ data }: PrioridadesTabProps) {
       </Card>
 
       {/* Em Risco */}
-      <Card className="border-orange-500/30">
+      <Card className="border-orange-500/20 shadow-card">
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-orange-400" />
+            <div className="p-1.5 rounded-lg bg-orange-500/10">
+              <AlertTriangle className="h-4 w-4 text-orange-500" />
+            </div>
             Em Risco
             <span className="ml-auto text-sm font-normal text-muted-foreground">
               {emRisco.length}
@@ -108,7 +112,7 @@ export function PrioridadesTab({ data }: PrioridadesTabProps) {
         </CardHeader>
         <CardContent className="space-y-2 max-h-[calc(100vh-220px)] overflow-y-auto">
           {emRisco.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
+            <p className="text-sm text-muted-foreground text-center py-6">
               Nenhum lead em risco
             </p>
           ) : (
@@ -116,7 +120,7 @@ export function PrioridadesTab({ data }: PrioridadesTabProps) {
               <div key={item.id}>
                 <LeadRow item={item} />
                 {item.abandonment_type && (
-                  <p className="text-xs text-orange-400 ml-3 mt-1">
+                  <p className="text-xs text-orange-500 ml-3 mt-1">
                     Abandono: {item.abandonment_type.replace('_', ' ')}
                   </p>
                 )}
@@ -127,10 +131,12 @@ export function PrioridadesTab({ data }: PrioridadesTabProps) {
       </Card>
 
       {/* Frios */}
-      <Card className="border-blue-500/30">
+      <Card className="border-blue-500/20 shadow-card">
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <Snowflake className="h-5 w-5 text-blue-400" />
+            <div className="p-1.5 rounded-lg bg-blue-500/10">
+              <Snowflake className="h-4 w-4 text-blue-500" />
+            </div>
             Frios
             <span className="ml-auto text-sm font-normal text-muted-foreground">
               {frios.length}
@@ -139,7 +145,7 @@ export function PrioridadesTab({ data }: PrioridadesTabProps) {
         </CardHeader>
         <CardContent className="space-y-2 max-h-[calc(100vh-220px)] overflow-y-auto">
           {frios.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
+            <p className="text-sm text-muted-foreground text-center py-6">
               Nenhum lead frio
             </p>
           ) : (

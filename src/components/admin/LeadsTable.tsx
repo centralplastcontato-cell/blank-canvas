@@ -231,7 +231,7 @@ export function LeadsTable({
 
   if (isLoading) {
     return (
-      <div className="bg-card rounded-xl border border-border p-8 flex items-center justify-center">
+      <div className="bg-card rounded-2xl border border-border p-12 flex items-center justify-center shadow-card">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
@@ -239,12 +239,14 @@ export function LeadsTable({
 
   if (leads.length === 0) {
     return (
-      <div className="bg-card rounded-xl border border-border p-8 text-center">
-        <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-        <h3 className="font-display font-bold text-lg text-foreground mb-2">
+      <div className="bg-card rounded-2xl border border-border p-12 text-center shadow-card">
+        <div className="p-4 rounded-2xl bg-muted/50 w-fit mx-auto mb-4">
+          <Users className="w-10 h-10 text-muted-foreground" />
+        </div>
+        <h3 className="font-display font-bold text-lg text-foreground mb-1">
           Nenhum lead encontrado
         </h3>
-        <p className="text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Tente ajustar os filtros para ver mais resultados.
         </p>
       </div>
@@ -252,9 +254,9 @@ export function LeadsTable({
   }
 
   return (
-  <div className="bg-card rounded-xl border border-border overflow-hidden flex flex-col h-full">
+  <div className="bg-card rounded-2xl border border-border overflow-hidden flex flex-col h-full">
       {/* Header */}
-     <div className="p-3 sm:p-4 border-b border-border flex items-center justify-between gap-2 shrink-0">
+     <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-2 shrink-0">
         <div className="flex items-center gap-2">
           <Users className="w-5 h-5 text-primary" />
           <span className="font-medium text-foreground text-sm sm:text-base">

@@ -219,13 +219,11 @@ export function KanbanCard({
       onDragStart={handleDragStart}
       onClick={() => !isEditing && onLeadClick(lead)}
       className={`
-        bg-gradient-to-br from-card via-card to-muted/10 rounded-xl border border-border/40 p-3.5 
-        cursor-pointer transition-all duration-300 ease-out
-        hover:border-primary/50 hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-1
-        ${canEdit && !isEditing ? "cursor-grab active:cursor-grabbing active:shadow-2xl active:scale-[1.02]" : ""}
-        shadow-md relative overflow-hidden backdrop-blur-sm
-        before:absolute before:inset-0 before:bg-gradient-to-br before:from-primary/[0.03] before:via-transparent before:to-secondary/[0.02] before:pointer-events-none
-        after:absolute after:inset-0 after:rounded-xl after:ring-1 after:ring-inset after:ring-white/5 after:pointer-events-none
+        bg-card rounded-xl border border-border/60 p-3.5 
+        cursor-pointer transition-all duration-200 ease-out
+        hover:border-primary/40 hover:shadow-card-hover hover:-translate-y-0.5
+        ${canEdit && !isEditing ? "cursor-grab active:cursor-grabbing" : ""}
+        shadow-card relative group
       `}
     >
       <div className="flex items-start justify-between gap-2">

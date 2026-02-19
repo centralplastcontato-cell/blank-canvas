@@ -88,8 +88,8 @@ export function LeadCard({
   };
   return (
     <div
-      className={`bg-card rounded-xl border border-border p-4 space-y-3 transition-colors ${
-        isSelected ? "bg-muted/50 border-primary/50" : ""
+      className={`bg-card rounded-2xl border border-border p-5 space-y-3 transition-all duration-200 hover:shadow-card-hover ${
+        isSelected ? "bg-muted/50 border-primary/50 shadow-card-hover" : "shadow-card"
       }`}
     >
       {/* Header: Name + Select + Actions */}
