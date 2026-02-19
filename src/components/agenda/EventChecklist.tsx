@@ -93,31 +93,31 @@ export function EventChecklist({ eventId, companyId }: EventChecklistProps) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-muted-foreground">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           Checklist {total > 0 ? `(${completed}/${total})` : ""}
         </p>
         {total > 0 && (
-          <span className="text-xs text-muted-foreground">{pct}%</span>
+          <span className="text-xs font-semibold text-primary">{pct}%</span>
         )}
       </div>
 
       {total > 0 && (
-        <Progress value={pct} className="h-1.5" />
+        <Progress value={pct} className="h-2 rounded-full" />
       )}
 
       <div className="space-y-1">
         {items.map((item) => (
           <div
             key={item.id}
-            className="flex items-center gap-2 group py-1 px-1 rounded hover:bg-accent/30 transition-colors"
+            className="flex items-center gap-2.5 group py-1.5 px-2 rounded-lg hover:bg-muted/50 transition-colors"
           >
             <Checkbox
               checked={item.is_completed}
               onCheckedChange={() => toggleItem(item)}
             />
             <span
-              className={`text-sm flex-1 ${
-                item.is_completed ? "line-through text-muted-foreground" : ""
+              className={`text-sm flex-1 transition-colors ${
+                item.is_completed ? "line-through text-muted-foreground" : "text-foreground"
               }`}
             >
               {item.title}
@@ -125,7 +125,7 @@ export function EventChecklist({ eventId, companyId }: EventChecklistProps) {
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="h-6 w-6 rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10"
               onClick={() => deleteItem(item.id)}
             >
               <Trash2 className="h-3 w-3 text-destructive" />
@@ -140,12 +140,12 @@ export function EventChecklist({ eventId, companyId }: EventChecklistProps) {
           value={newTask}
           onChange={(e) => setNewTask(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && addItem()}
-          className="h-8 text-sm"
+          className="h-8 text-sm rounded-lg"
         />
         <Button
           variant="outline"
           size="sm"
-          className="h-8 shrink-0"
+          className="h-8 shrink-0 rounded-lg"
           onClick={addItem}
           disabled={adding || !newTask.trim()}
         >
