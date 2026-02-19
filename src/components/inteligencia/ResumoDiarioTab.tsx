@@ -26,17 +26,16 @@ import { toast } from "sonner";
 function MetricCard({ icon: Icon, label, value, color }: {
   icon: React.ElementType; label: string; value: number | string; color: string;
 }) {
-  const borderColor = color.includes('blue') ? 'border-l-blue-500' : color.includes('green') ? 'border-l-green-500' : color.includes('purple') ? 'border-l-purple-500' : color.includes('yellow') ? 'border-l-yellow-500' : color.includes('orange') ? 'border-l-orange-500' : color.includes('emerald') ? 'border-l-emerald-500' : color.includes('destructive') ? 'border-l-destructive' : color.includes('sky') ? 'border-l-sky-500' : color.includes('indigo') ? 'border-l-indigo-500' : 'border-l-primary';
   return (
-    <Card className={`hover:-translate-y-0.5 transition-all duration-300 ease-out border-border/60 shadow-premium hover:shadow-card-hover border-l-[3px] ${borderColor} overflow-hidden`}>
-      <CardContent className="p-4 sm:p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <div className={`p-2 rounded-xl shrink-0 ${color}`}>
-            <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+    <Card className="hover:-translate-y-0.5 transition-all duration-300 ease-out border-border/60 shadow-sm hover:shadow-md rounded-2xl">
+      <CardContent className="p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className={`p-2.5 rounded-full shrink-0 ${color}`}>
+            <Icon className="h-4 w-4" />
           </div>
-          <p className="text-[10px] sm:text-[11px] font-medium text-muted-foreground uppercase tracking-wider leading-tight break-words hyphens-auto min-w-0">{label}</p>
+          <p className="text-xs font-medium text-muted-foreground leading-snug whitespace-nowrap">{label}</p>
         </div>
-        <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">{value}</p>
+        <p className="text-[32px] font-bold tracking-tight text-foreground leading-none">{value}</p>
       </CardContent>
     </Card>
   );
@@ -46,7 +45,7 @@ function MetricsGrid({ metrics, incompleteCount, followUpLabels }: { metrics: Da
   const fu1Label = followUpLabels?.fu1 || "24h";
   const fu2Label = followUpLabels?.fu2 || "48h";
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
       <MetricCard icon={Users} label="Leads novos" value={metrics.novos} color="bg-blue-500/10 text-blue-500" />
       <MetricCard icon={CalendarCheck} label="Visitas agendadas" value={metrics.visitas} color="bg-green-500/10 text-green-500" />
       <MetricCard icon={FileText} label="Orçamentos" value={metrics.orcamentos} color="bg-purple-500/10 text-purple-500" />
