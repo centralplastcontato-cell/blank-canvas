@@ -1,58 +1,93 @@
 
+# Plano: DLP Institucional - Cópia da LP de Campanha
 
-## Atualizar Hero da LP Dinamica com Fachadas das Duas Unidades
+## Objetivo
+Transformar a Landing Page Dinâmica (DLP) em uma copia fiel da LP de campanha do Castelo da Diversao, porem sem a promocao -- uma LP institucional. Todas as secoes devem ter o mesmo visual, estrutura e animacoes.
 
-### O que muda
-A landing page dinamica em `/lp/castelo-da-diversao` (componente `DLPHero`) atualmente mostra uma unica foto antiga do interior. Vamos substituir pela mesma composicao de fachadas das duas unidades que ja foi aplicada na LP de campanha.
+## O que muda
 
-### Abordagem
+### 1. Modelo de dados (tipos)
+O tipo `LPVideo` atualmente suporta apenas 1 video. O tipo `LPGallery` tem fotos sem separacao por unidade. Precisamos expandir ambos:
 
-Como o `DLPHero` e um componente generico usado por qualquer empresa, vamos adicionar suporte opcional a multiplas imagens de fundo, mantendo retrocompatibilidade.
+- **LPVideo**: adicionar campo opcional `videos` (array de objetos com `name`, `video_url`, `video_type`, `poster_url`, `location`) para suportar multiplos videos por unidade
+- **LPGallery**: adicionar campo opcional `units` (array de objetos com `name`, `photos[]`) para fotos agrupadas por unidade
 
-### Alteracoes
+Os campos antigos (`video_url`, `photos[]`) continuam funcionando como fallback para LPs que nao usam unidades.
 
-**1. Atualizar tipo `LPHero` em `src/types/landing-page.ts`**
-- Adicionar campo opcional `background_images?: string[]` ao tipo `LPHero`
-- O campo `background_image_url` existente continua funcionando como fallback
+### 2. Secao Hero (DLPHero)
+- Adicionar confetti animado flutuando (como na LP de campanha)
+- Adicionar scroll indicator animado no rodape
+- Manter o split de imagens e crossfade mobile que ja existe
 
-**2. Atualizar componente `src/components/dynamic-lp/DLPHero.tsx`**
-- Adicionar estado e efeito para crossfade mobile (mesmo padrao do `HeroSection`)
-- Quando `hero.background_images` existir e tiver 2+ imagens:
-  - Desktop: layout split lado a lado (50/50) com `object-cover`
-  - Mobile: crossfade automatico entre as imagens a cada 4 segundos
-- Quando nao existir, manter comportamento atual (imagem unica via `background_image_url`)
-- Manter o overlay gradiente em ambos os casos
+### 3. Secao de Video (DLPVideo) -- Redesign Total
+Copiar a estrutura da `VideoGallerySection`:
+- Grid de 2 colunas no desktop (1 coluna mobile)
+- Cada video em card com borda, sombra, info bar com nome da unidade e localizacao
+- Aspect ratio 9:16 no mobile, 16:9 no desktop
+- Suportar tanto o formato antigo (1 video) quanto o novo (array de videos)
 
-**3. Copiar imagens para `public/` e atualizar banco de dados**
-- Copiar `fachada-unidade-1.jpg` e `fachada-unidade-2.jpg` para `public/images/`
-- Atualizar o JSON `hero` no registro da `company_landing_pages` do Castelo da Diversao para incluir o campo `background_images` com as URLs publicas das duas fotos
+### 4. Secao de Galeria (DLPGallery) -- Redesign Total
+Copiar a estrutura da `InstagramSection`:
+- Abas por unidade (botoes pill com icone MapPin)
+- Grid de fotos 2x5 no desktop com animacao de troca (AnimatePresence)
+- Hover com overlay gradiente
+- Manter trust badges na parte inferior
+- Suportar tanto formato antigo (lista plana) quanto novo (por unidade)
 
-### Detalhes tecnicos
+### 5. Nova Secao: DLPBenefits
+Copiar a `BenefitsSection` da LP de campanha:
+- Grid 2x3 de cards com icones coloridos
+- Hover com efeito de escala e glow
+- Dados vindo do banco (campo `benefits` no JSONB) ou fallback com beneficios padrao
+- Trust badges pill no rodape (4.9 Google, +500 festas, 98% satisfacao) -- remover da galeria para evitar duplicacao
 
-```text
-Tipo atualizado:
-  interface LPHero {
-    title: string;
-    subtitle: string;
-    cta_text: string;
-    background_image_url: string | null;
-    background_images?: string[];   // NOVO - opcional
-  }
+### 6. Secao de Depoimentos (DLPTestimonials)
+- Adicionar trust badges numericos abaixo dos cards ("+500 Festas", "4.9 Avaliacao", "98% Satisfacao") -- no estilo numerico grande da LP de campanha
+- Manter o layout de cards que ja esta bom
 
-DLPHero - logica de renderizacao:
-  Se hero.background_images?.length >= 2:
-    Desktop: flex split 50/50
-    Mobile: crossfade com useState + setInterval
-  Senao:
-    Comportamento atual (imagem unica)
+### 7. Secao de Oferta (DLPOffer) -- Ajuste Institucional
+- Converter para tom institucional: em vez de "OFERTA ESPECIAL", usar "Por que nos escolher?" ou similar quando nao houver promocao
+- Manter glassmorphism e layout 2 colunas
+- Beneficios vem do campo `offer.description` ou lista padrao
 
-Atualizacao no banco (SQL):
-  UPDATE company_landing_pages
-  SET hero = jsonb_set(hero, '{background_images}',
-    '["URL_FACHADA_1", "URL_FACHADA_2"]')
-  WHERE id = 'fbc21bee-3993-4ace-9cd9-72c8ae8dd1f4';
+### 8. Ordem das Secoes na Pagina
+Alinhar com a LP de campanha:
+```
+Hero -> Benefits (nova) -> Testimonials -> Videos -> Gallery (com abas) -> Offer/CTA -> Footer
 ```
 
-### Resultado
-A LP dinamica do Castelo da Diversao passara a mostrar as duas fachadas das unidades, com visual moderno e consistente com a LP de campanha. Outras empresas que usam a LP dinamica nao serao afetadas (campo opcional).
+## Detalhes Tecnicos
 
+### Arquivo: `src/types/landing-page.ts`
+- Adicionar `LPVideoUnit` interface com campos `name`, `video_url`, `video_type`, `poster_url?`, `location?`
+- Estender `LPVideo` com campo opcional `videos?: LPVideoUnit[]`
+- Adicionar `LPGalleryUnit` interface com campos `name`, `photos: string[]`
+- Estender `LPGallery` com campo opcional `units?: LPGalleryUnit[]`
+
+### Arquivo: `src/components/dynamic-lp/DLPBenefits.tsx` (novo)
+- Componente novo com grid de 6 beneficios
+- Icones mapeados por nome (Castle, Gamepad2, UtensilsCrossed, Users, Camera, Award)
+- Cores dos gradientes usando `theme.primary_color` e `theme.secondary_color`
+- Trust badges pill na parte inferior
+
+### Arquivo: `src/components/dynamic-lp/DLPVideo.tsx` (reescrita)
+- Verificar se `video.videos[]` existe (novo formato) ou usar `video.video_url` (formato antigo)
+- Grid `md:grid-cols-2` para multiplos videos
+- Card com borda, sombra, info bar por unidade
+
+### Arquivo: `src/components/dynamic-lp/DLPGallery.tsx` (reescrita)
+- Verificar se `gallery.units[]` existe (novo formato) ou usar `gallery.photos[]` (formato antigo)
+- Abas de unidade com `useState` e `AnimatePresence`
+- Grid `grid-cols-2 sm:grid-cols-3 md:grid-cols-5`
+- Remover trust badges (movidos para DLPBenefits)
+
+### Arquivo: `src/components/dynamic-lp/DLPHero.tsx` (ajuste)
+- Adicionar confetti particles animados
+- Adicionar scroll indicator
+
+### Arquivo: `src/pages/DynamicLandingPage.tsx`
+- Importar e adicionar `DLPBenefits`
+- Reordenar secoes: Hero, Benefits, Testimonials, Video, Gallery, Offer, Footer
+
+### Sem mudancas no banco de dados
+Os campos JSONB ja suportam qualquer estrutura. Basta o admin salvar os dados no novo formato. O codigo faz fallback para o formato antigo.
