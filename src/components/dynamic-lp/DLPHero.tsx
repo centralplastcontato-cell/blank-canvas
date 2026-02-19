@@ -29,13 +29,8 @@ export function DLPHero({ hero, theme, companyName, companyLogo, onCtaClick }: D
       ? "rounded-none"
       : "rounded-xl";
 
-  const confettiColors = [
-    theme.primary_color,
-    theme.secondary_color,
-    '#facc15',
-    '#22c55e',
-    '#ef4444',
-  ];
+
+
 
   const renderBackground = () => {
     if (hasMultipleImages) {
@@ -118,31 +113,8 @@ export function DLPHero({ hero, theme, companyName, companyLogo, onCtaClick }: D
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {renderBackground()}
 
-      {/* Floating Confetti */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(20)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute w-3 h-3 rounded-full"
-            style={{
-              background: confettiColors[i % confettiColors.length],
-              left: `${Math.random() * 100}%`,
-              top: `-5%`,
-            }}
-            animate={{
-              y: ['0vh', '110vh'],
-              rotate: [0, 720],
-              opacity: [1, 0],
-            }}
-            transition={{
-              duration: 4 + Math.random() * 4,
-              repeat: Infinity,
-              delay: Math.random() * 5,
-              ease: "linear",
-            }}
-          />
-        ))}
-      </div>
+
+
 
       <div className="relative z-10 max-w-4xl mx-auto px-4 text-center py-20">
         <motion.div
@@ -205,25 +177,8 @@ export function DLPHero({ hero, theme, companyName, companyLogo, onCtaClick }: D
         </motion.div>
       </div>
 
-      {/* Scroll Indicator */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.5 }}
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10"
-      >
-        <motion.div
-          animate={{ y: [0, 10, 0] }}
-          transition={{ duration: 1.5, repeat: Infinity }}
-          className="w-8 h-12 rounded-full border-2 flex items-start justify-center p-2"
-          style={{ borderColor: theme.text_color + "80" }}
-        >
-          <div
-            className="w-2 h-3 rounded-full"
-            style={{ backgroundColor: theme.text_color + "80" }}
-          />
-        </motion.div>
-      </motion.div>
+
+
     </section>
   );
 }
