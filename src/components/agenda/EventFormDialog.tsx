@@ -91,8 +91,10 @@ const EMPTY: EventFormData = {
 
 function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
   return (
-    <div className="flex items-center gap-2.5 text-xs uppercase tracking-[0.15em] font-semibold text-foreground/60 mb-5">
-      <Icon className="h-4 w-4" />
+    <div className="flex items-center gap-2.5 text-xs uppercase tracking-[0.15em] font-semibold text-foreground/70 mb-5 pb-3 border-b border-border/50">
+      <div className="p-1.5 rounded-lg bg-primary/10">
+        <Icon className="h-3.5 w-3.5 text-primary" />
+      </div>
       {label}
     </div>
   );
@@ -214,7 +216,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         {/* Scrollable body */}
         <form id="event-form" onSubmit={handleSubmit} className="overflow-y-auto px-8 py-7 space-y-8" style={{ maxHeight: "calc(90vh - 190px)" }}>
           {/* Section 1 – Dados do Cliente */}
-          <div className="rounded-xl border border-border/30 bg-muted/10 p-5">
+          <div className="rounded-xl border border-border/50 bg-muted/20 p-6">
             <SectionHeader icon={User} label="Dados do Cliente" />
             <div className="space-y-5">
               <div className="space-y-2.5">
@@ -263,7 +265,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           </div>
 
           {/* Section 2 – Data e Horário */}
-          <div className="rounded-xl border border-border/30 bg-muted/10 p-5">
+          <div className="rounded-xl border border-border/50 bg-muted/20 p-6">
             <SectionHeader icon={CalendarDays} label="Data e Horário" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5">
               <div className="space-y-2.5 md:pr-6">
@@ -290,7 +292,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 </div>
               </div>
 
-              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/30">
+              <div className="space-y-2.5 md:pl-6 md:border-l-2 md:border-border/40">
                 <Label className="text-sm font-medium text-foreground/70">Status</Label>
                 <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -309,7 +311,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 </Select>
               </div>
 
-              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/30">
+              <div className="space-y-2.5 md:pl-6 md:border-l-2 md:border-border/40">
                 <Label className="text-sm font-medium text-foreground/70">Horário fim</Label>
                 <Select value={form.end_time} onValueChange={(v) => setForm({ ...form, end_time: v === "none" ? "" : v })}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -323,7 +325,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           </div>
 
           {/* Section 3 – Informações da Festa */}
-          <div className="rounded-xl border border-border/30 bg-muted/10 p-5">
+          <div className="rounded-xl border border-border/50 bg-muted/20 p-6">
             <SectionHeader icon={PartyPopper} label="Informações da Festa" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5">
               <div className="space-y-2.5 md:pr-6">
@@ -334,7 +336,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 </Select>
               </div>
 
-              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/30">
+              <div className="space-y-2.5 md:pl-6 md:border-l-2 md:border-border/40">
                 <Label className="text-sm font-medium text-foreground/70">Convidados</Label>
                 <Input type="number" value={form.guest_count ?? ""} onChange={(e) => setForm({ ...form, guest_count: e.target.value ? Number(e.target.value) : null })} />
               </div>
@@ -351,7 +353,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 )}
               </div>
 
-              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/30">
+              <div className="space-y-2.5 md:pl-6 md:border-l-2 md:border-border/40">
                 <Label className="text-sm font-medium text-foreground/70">Pacote</Label>
                 {packages.length > 0 ? (
                   <Select value={form.package_name} onValueChange={(v) => setForm({ ...form, package_name: v === "none" ? "" : v })}>
@@ -373,7 +375,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
               {/* Checklist template - only for new events */}
               {!isEdit && templates.length > 0 && (
-                <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/30">
+                <div className="space-y-2.5 md:pl-6 md:border-l-2 md:border-border/40">
                   <Label className="text-sm font-medium text-foreground/70 flex items-center gap-1.5">
                     <ListChecks className="h-4 w-4" /> Template de Checklist
                   </Label>
