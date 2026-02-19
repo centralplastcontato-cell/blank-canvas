@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Loader2, Search, X, UserCheck, ListChecks, User, CalendarDays, PartyPopper } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -92,8 +91,8 @@ const EMPTY: EventFormData = {
 
 function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
   return (
-    <div className="flex items-center gap-2 text-[11px] uppercase tracking-widest font-semibold text-muted-foreground mb-3">
-      <Icon className="h-3.5 w-3.5" />
+    <div className="flex items-center gap-2.5 text-xs uppercase tracking-[0.15em] font-semibold text-foreground/60 mb-5">
+      <Icon className="h-4 w-4" />
       {label}
     </div>
   );
@@ -205,27 +204,27 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[720px] max-h-[90vh] p-0 gap-0 overflow-hidden [&>button]:top-5 [&>button]:right-5">
+      <DialogContent className="max-w-[740px] max-h-[90vh] p-0 gap-0 overflow-hidden [&>button]:top-6 [&>button]:right-6">
         {/* Header */}
-        <DialogHeader className="px-7 pt-7 pb-4">
-          <DialogTitle className="text-xl font-bold">{isEdit ? "Editar Festa" : "Nova Festa"}</DialogTitle>
-          <p className="text-sm text-muted-foreground mt-1">Preencha os dados do evento</p>
+        <DialogHeader className="px-8 pt-8 pb-5 border-b border-border/30">
+          <DialogTitle className="text-xl font-bold tracking-tight">{isEdit ? "Editar Festa" : "Nova Festa"}</DialogTitle>
+          <p className="text-sm text-muted-foreground mt-1.5">Preencha os dados do evento</p>
         </DialogHeader>
 
         {/* Scrollable body */}
-        <form id="event-form" onSubmit={handleSubmit} className="overflow-y-auto px-7 py-5 space-y-6" style={{ maxHeight: "calc(90vh - 180px)" }}>
+        <form id="event-form" onSubmit={handleSubmit} className="overflow-y-auto px-8 py-7 space-y-8" style={{ maxHeight: "calc(90vh - 190px)" }}>
           {/* Section 1 – Dados do Cliente */}
-          <div>
+          <div className="rounded-xl border border-border/30 bg-muted/10 p-5">
             <SectionHeader icon={User} label="Dados do Cliente" />
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-foreground/80">Nome do cliente *</Label>
+            <div className="space-y-5">
+              <div className="space-y-2.5">
+                <Label className="text-sm font-medium text-foreground/70">Nome do cliente *</Label>
                 <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
               </div>
 
               {/* Lead CRM link */}
-              <div className="relative space-y-2">
-                <Label className="text-sm font-medium text-foreground/80">Vincular Lead do CRM</Label>
+              <div className="relative space-y-2.5">
+                <Label className="text-sm font-medium text-foreground/70">Vincular Lead do CRM</Label>
                 {form.lead_id ? (
                   <div className="flex items-center gap-2 p-2 rounded-md border border-border bg-accent/30">
                     <UserCheck className="h-4 w-4 text-primary shrink-0" />
@@ -263,14 +262,12 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             </div>
           </div>
 
-          <Separator className="bg-border/40" />
-
           {/* Section 2 – Data e Horário */}
-          <div>
+          <div className="rounded-xl border border-border/30 bg-muted/10 p-5">
             <SectionHeader icon={CalendarDays} label="Data e Horário" />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-foreground/80">Data *</Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-7 gap-y-5">
+              <div className="space-y-2.5">
+                <Label className="text-sm font-medium text-foreground/70">Data *</Label>
                 <div className="flex gap-2">
                   <div className="flex-1">
                     <Select value={dateDay} onValueChange={setDateDay}>
@@ -293,16 +290,16 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-foreground/80">Status</Label>
+              <div className="space-y-2.5">
+                <Label className="text-sm font-medium text-foreground/70">Status</Label>
                 <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{STATUS_OPTIONS.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-foreground/80">Horário início</Label>
+              <div className="space-y-2.5">
+                <Label className="text-sm font-medium text-foreground/70">Horário início</Label>
                 <Select value={form.start_time} onValueChange={(v) => setForm({ ...form, start_time: v === "none" ? "" : v })}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
@@ -312,8 +309,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-foreground/80">Horário fim</Label>
+              <div className="space-y-2.5">
+                <Label className="text-sm font-medium text-foreground/70">Horário fim</Label>
                 <Select value={form.end_time} onValueChange={(v) => setForm({ ...form, end_time: v === "none" ? "" : v })}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
@@ -325,27 +322,25 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             </div>
           </div>
 
-          <Separator className="bg-border/40" />
-
           {/* Section 3 – Informações da Festa */}
-          <div>
+          <div className="rounded-xl border border-border/30 bg-muted/10 p-5">
             <SectionHeader icon={PartyPopper} label="Informações da Festa" />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-foreground/80">Tipo de festa</Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-7 gap-y-5">
+              <div className="space-y-2.5">
+                <Label className="text-sm font-medium text-foreground/70">Tipo de festa</Label>
                 <Select value={form.event_type} onValueChange={(v) => setForm({ ...form, event_type: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{EVENT_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-foreground/80">Convidados</Label>
+              <div className="space-y-2.5">
+                <Label className="text-sm font-medium text-foreground/70">Convidados</Label>
                 <Input type="number" value={form.guest_count ?? ""} onChange={(e) => setForm({ ...form, guest_count: e.target.value ? Number(e.target.value) : null })} />
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-foreground/80">Unidade</Label>
+              <div className="space-y-2.5">
+                <Label className="text-sm font-medium text-foreground/70">Unidade</Label>
                 {units.length > 0 ? (
                   <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v })}>
                     <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -356,8 +351,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-foreground/80">Pacote</Label>
+              <div className="space-y-2.5">
+                <Label className="text-sm font-medium text-foreground/70">Pacote</Label>
                 {packages.length > 0 ? (
                   <Select value={form.package_name} onValueChange={(v) => setForm({ ...form, package_name: v === "none" ? "" : v })}>
                     <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -371,15 +366,15 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-foreground/80">Valor total (R$)</Label>
+              <div className="space-y-2.5">
+                <Label className="text-sm font-medium text-foreground/70">Valor total (R$)</Label>
                 <Input type="number" step="0.01" value={form.total_value ?? ""} onChange={(e) => setForm({ ...form, total_value: e.target.value ? Number(e.target.value) : null })} />
               </div>
 
               {/* Checklist template - only for new events */}
               {!isEdit && templates.length > 0 && (
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-foreground/80 flex items-center gap-1.5">
+                <div className="space-y-2.5">
+                  <Label className="text-sm font-medium text-foreground/70 flex items-center gap-1.5">
                     <ListChecks className="h-4 w-4" /> Template de Checklist
                   </Label>
                   <Select value={selectedTemplate} onValueChange={(v) => { setSelectedTemplate(v); setForm({ ...form, checklist_template_id: v || null }); }}>
@@ -401,7 +396,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         </form>
 
         {/* Fixed footer */}
-        <div className="flex justify-end gap-3 px-7 py-4 border-t border-border/40 bg-muted/20">
+        <div className="flex justify-end gap-3 px-8 py-5 border-t border-border/30 bg-muted/15">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
           <Button type="submit" form="event-form" disabled={saving} className="px-8">
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
