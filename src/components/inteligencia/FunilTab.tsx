@@ -116,7 +116,7 @@ export function FunilTab({ data, stageDurations }: FunilTabProps) {
           {trendLoading ? (
             <div className="h-48 flex items-center justify-center text-sm text-muted-foreground">Carregando...</div>
           ) : (
-            <div className="h-48">
+            <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={scoreTrend}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
@@ -158,7 +158,7 @@ export function FunilTab({ data, stageDurations }: FunilTabProps) {
             <CardTitle className="text-base">Distribuição de Score</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-44">
+            <div className="h-52">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={scoreDistribution}>
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
@@ -184,7 +184,7 @@ export function FunilTab({ data, stageDurations }: FunilTabProps) {
             <CardTitle className="text-base">Temperatura dos Leads</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-44">
+            <div className="h-52">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -269,7 +269,7 @@ export function FunilTab({ data, stageDurations }: FunilTabProps) {
                     </div>
                   </div>
                   <div className="w-20 text-right shrink-0">
-                    <span className="text-sm font-semibold">{count}</span>
+                    <span className="text-base font-bold">{count}</span>
                     <span className="text-xs text-muted-foreground ml-1">({pct}%)</span>
                   </div>
                 </div>

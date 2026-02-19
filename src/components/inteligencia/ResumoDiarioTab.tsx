@@ -26,12 +26,13 @@ import { toast } from "sonner";
 function MetricCard({ icon: Icon, label, value, color }: {
   icon: React.ElementType; label: string; value: number | string; color: string;
 }) {
+  const borderColor = color.includes('blue') ? 'border-l-blue-500' : color.includes('green') ? 'border-l-green-500' : color.includes('purple') ? 'border-l-purple-500' : color.includes('yellow') ? 'border-l-yellow-500' : color.includes('orange') ? 'border-l-orange-500' : color.includes('emerald') ? 'border-l-emerald-500' : color.includes('destructive') ? 'border-l-destructive' : color.includes('sky') ? 'border-l-sky-500' : color.includes('indigo') ? 'border-l-indigo-500' : 'border-l-primary';
   return (
-    <Card className="hover:-translate-y-0.5 transition-all duration-200 border-border/60 shadow-card hover:shadow-card-hover">
+    <Card className={`hover:-translate-y-0.5 transition-all duration-300 ease-out border-border/60 shadow-premium hover:shadow-card-hover border-l-[3px] ${borderColor}`}>
       <CardContent className="p-5 sm:p-6">
-        <div className="flex items-center gap-2 mb-3">
-          <div className={`p-2 rounded-lg ${color}`}>
-            <Icon className="h-4 w-4" />
+        <div className="flex items-center gap-2.5 mb-3">
+          <div className={`p-2.5 rounded-xl ${color}`}>
+            <Icon className="h-5 w-5" />
           </div>
           <p className="text-[11px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider leading-tight">{label}</p>
         </div>

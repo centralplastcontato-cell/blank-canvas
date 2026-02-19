@@ -56,7 +56,7 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
         caption: "flex justify-center pt-1 lg:pt-3 relative items-center",
         caption_label: "text-sm lg:text-lg font-semibold capitalize",
         nav: "space-x-1 flex items-center",
-        nav_button: cn(buttonVariants({ variant: "outline" }), "h-7 w-7 lg:h-10 lg:w-10 bg-transparent p-0 opacity-50 hover:opacity-100"),
+        nav_button: cn(buttonVariants({ variant: "outline" }), "h-7 w-7 lg:h-10 lg:w-10 bg-transparent p-0 opacity-50 hover:opacity-100 hover:bg-primary/10"),
         nav_button_previous: "absolute left-1",
         nav_button_next: "absolute right-1",
         table: "w-full border-collapse",
@@ -66,7 +66,7 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
         cell: "flex-1 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
         day: cn(buttonVariants({ variant: "ghost" }), "h-12 lg:h-[4.5rem] w-full p-0 font-normal aria-selected:opacity-100 relative rounded-lg hover:bg-muted/50 transition-colors"),
         day_range_end: "day-range-end",
-        day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+        day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground ring-2 ring-primary/30 ring-offset-2 ring-offset-background",
         day_today: "bg-primary text-primary-foreground font-bold ring-2 ring-primary/30 ring-offset-1 ring-offset-background",
         day_outside: "day-outside text-muted-foreground opacity-50",
         day_disabled: "text-muted-foreground opacity-50",
@@ -91,7 +91,7 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
                   {dayEvents.slice(0, 3).map((ev) => (
                     <span
                       key={ev.id}
-                      className={cn("h-1.5 w-1.5 lg:h-3 lg:w-3 rounded-full", STATUS_COLORS[ev.status] || "bg-muted-foreground")}
+                      className={cn("h-2 w-2 lg:h-3 lg:w-3 rounded-full", STATUS_COLORS[ev.status] || "bg-muted-foreground")}
                     />
                   ))}
                   {dayEvents.length > 3 && (
