@@ -253,15 +253,15 @@ export function WhatsAppConfig({ userId, isAdmin }: WhatsAppConfigProps) {
       {/* Content Area */}
       <div className="flex-1 min-w-0">
         {/* Section Header */}
-        <div className="mb-4 pb-3 border-b">
+        <div className="mb-5 pb-3 border-b border-border">
           <div className="flex items-center gap-3">
             {activeConfig && (
               <>
-                <div className="p-2 rounded-lg bg-primary/10 shrink-0">
+                <div className="p-2.5 rounded-xl bg-primary/10 shrink-0">
                   <activeConfig.icon className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <h2 className="font-semibold text-lg">{activeConfig.title}</h2>
+                  <h2 className="font-display font-bold text-lg tracking-tight">{activeConfig.title}</h2>
                   <p className="text-sm text-muted-foreground">{activeConfig.description}</p>
                 </div>
               </>

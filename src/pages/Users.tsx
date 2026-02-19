@@ -914,15 +914,17 @@ export default function UsersPage() {
         
         <SidebarInset className="flex-1 flex flex-col">
           {/* Desktop Header */}
-          <header className="bg-card border-b border-border sticky top-0 z-10">
-            <div className="px-4 py-3 flex items-center gap-4">
+          <header className="bg-card/80 backdrop-blur-sm border-b border-border sticky top-0 z-10 shrink-0">
+            <div className="px-6 py-3 flex items-center gap-4">
               <SidebarTrigger />
-              <div>
-                <h1 className="font-display font-bold text-foreground text-lg flex items-center gap-2">
-                  <Shield className="w-5 h-5" />
-                  Gestão de Usuários
-                </h1>
-                <p className="text-sm text-muted-foreground">{currentUserProfile?.full_name || user.email}</p>
+              <div className="flex items-center gap-3 flex-1">
+                <div className="p-2.5 rounded-xl bg-primary/10">
+                  <Shield className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h1 className="font-display font-bold text-foreground text-lg tracking-tight">Gestão de Usuários</h1>
+                  <p className="text-sm text-muted-foreground">{currentUserProfile?.full_name || user.email}</p>
+                </div>
               </div>
             </div>
           </header>

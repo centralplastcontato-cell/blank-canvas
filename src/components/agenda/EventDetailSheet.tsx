@@ -59,10 +59,10 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-md overflow-y-auto">
         <SheetHeader>
-          <SheetTitle className="text-left">{event.title}</SheetTitle>
+          <SheetTitle className="text-left text-lg">{event.title}</SheetTitle>
         </SheetHeader>
 
-        <div className="mt-4 space-y-4">
+        <div className="mt-5 space-y-5">
           <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
 
           {conflicts.length > 0 && (
@@ -75,15 +75,15 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
             </div>
           )}
 
-          <div className="space-y-3 text-sm">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <CalendarDays className="h-4 w-4 shrink-0" />
+          <div className="space-y-3 text-sm bg-muted/30 rounded-xl p-4">
+            <div className="flex items-center gap-3 text-foreground">
+              <div className="p-1.5 rounded-lg bg-primary/10"><CalendarDays className="h-4 w-4 text-primary" /></div>
               <span className="capitalize">{dateFormatted}</span>
             </div>
 
             {(event.start_time || event.end_time) && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Clock className="h-4 w-4 shrink-0" />
+              <div className="flex items-center gap-3 text-foreground">
+                <div className="p-1.5 rounded-lg bg-primary/10"><Clock className="h-4 w-4 text-primary" /></div>
                 <span>
                   {event.start_time?.slice(0, 5) || "–"} até {event.end_time?.slice(0, 5) || "–"}
                 </span>
@@ -91,36 +91,36 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
             )}
 
             {event.event_type && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Package className="h-4 w-4 shrink-0" />
+              <div className="flex items-center gap-3 text-foreground">
+                <div className="p-1.5 rounded-lg bg-secondary/20"><Package className="h-4 w-4 text-secondary-foreground" /></div>
                 <span className="capitalize">{event.event_type}</span>
               </div>
             )}
 
             {event.guest_count && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Users className="h-4 w-4 shrink-0" />
+              <div className="flex items-center gap-3 text-foreground">
+                <div className="p-1.5 rounded-lg bg-accent/10"><Users className="h-4 w-4 text-accent" /></div>
                 <span>{event.guest_count} convidados</span>
               </div>
             )}
 
             {event.unit && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <MapPin className="h-4 w-4 shrink-0" />
+              <div className="flex items-center gap-3 text-foreground">
+                <div className="p-1.5 rounded-lg bg-accent/10"><MapPin className="h-4 w-4 text-accent" /></div>
                 <span>{event.unit}</span>
               </div>
             )}
 
             {event.total_value != null && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <DollarSign className="h-4 w-4 shrink-0" />
+              <div className="flex items-center gap-3 text-foreground">
+                <div className="p-1.5 rounded-lg bg-accent/10"><DollarSign className="h-4 w-4 text-accent" /></div>
                 <span>{event.total_value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
               </div>
             )}
 
             {event.package_name && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Package className="h-4 w-4 shrink-0" />
+              <div className="flex items-center gap-3 text-foreground">
+                <div className="p-1.5 rounded-lg bg-secondary/20"><Package className="h-4 w-4 text-secondary-foreground" /></div>
                 <span>{event.package_name}</span>
               </div>
             )}
@@ -158,11 +158,11 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
 
           <Separator />
 
-          <div className="flex gap-2">
-            <Button variant="outline" className="flex-1" onClick={() => onEdit(event)}>
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => onEdit(event)}>
               <Pencil className="h-4 w-4 mr-2" /> Editar
             </Button>
-            <Button variant="destructive" size="icon" onClick={() => onDelete(event.id)}>
+            <Button variant="destructive" size="icon" className="rounded-xl" onClick={() => onDelete(event.id)}>
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
