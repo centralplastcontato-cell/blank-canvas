@@ -10,13 +10,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "@/hooks/use-toast";
-import { FileText, Plus, Trash2, ChevronDown, ChevronRight, Pencil, Loader2, Share2, ExternalLink } from "lucide-react";
+import { FileText, Plus, Trash2, ChevronDown, ChevronRight, Pencil, Loader2, Share2, ExternalLink, Camera, Video, X, Image as ImageIcon } from "lucide-react";
 import { format } from "date-fns";
 import { useCompany } from "@/contexts/CompanyContext";
+
+interface InfoAttachment {
+  url: string;
+  type: "image" | "video";
+  name: string;
+}
 
 interface InfoBlock {
   title: string;
   content: string;
+  attachments?: InfoAttachment[];
 }
 
 interface InfoRecord {
@@ -48,9 +55,10 @@ export function EventInfoManager() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedEventId, setSelectedEventId] = useState("");
-  const [items, setItems] = useState<InfoBlock[]>([{ title: "", content: "" }]);
+  const [items, setItems] = useState<InfoBlock[]>([{ title: "", content: "", attachments: [] }]);
   const [notes, setNotes] = useState("");
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [uploading, setUploading] = useState<Record<number, boolean>>({});
 
   const fetchData = useCallback(async () => {
     if (!companyId) return;
@@ -92,7 +100,7 @@ export function EventInfoManager() {
   const openNew = () => {
     setEditingId(null);
     setSelectedEventId("");
-    setItems([{ title: "", content: "" }]);
+    setItems([{ title: "", content: "", attachments: [] }]);
     setNotes("");
     setDialogOpen(true);
   };
@@ -100,7 +108,7 @@ export function EventInfoManager() {
   const openEdit = (record: InfoRecord) => {
     setEditingId(record.id);
     setSelectedEventId(record.event_id || "");
-    setItems(record.items.map(i => ({ ...i })));
+    setItems(record.items.map(i => ({ ...i, attachments: i.attachments || [] })));
     setNotes(record.notes || "");
     setDialogOpen(true);
   };
@@ -156,12 +164,52 @@ export function EventInfoManager() {
   };
 
   const addBlock = () => {
-    setItems(prev => [...prev, { title: "", content: "" }]);
+    setItems(prev => [...prev, { title: "", content: "", attachments: [] }]);
   };
 
   const removeBlock = (idx: number) => {
     if (items.length <= 1) return;
     setItems(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleFileUpload = async (idx: number, file: File) => {
+    if (!companyId) return;
+    const isVideo = file.type.startsWith("video/");
+    const isImage = file.type.startsWith("image/");
+    if (!isVideo && !isImage) {
+      toast({ title: "Formato não suportado", description: "Envie uma foto ou vídeo.", variant: "destructive" });
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      toast({ title: "Arquivo muito grande", description: "Máximo 50MB.", variant: "destructive" });
+      return;
+    }
+
+    setUploading(prev => ({ ...prev, [idx]: true }));
+    const ext = file.name.split(".").pop() || (isVideo ? "mp4" : "jpg");
+    const path = `${companyId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+
+    const { error } = await supabase.storage.from("event-info-attachments").upload(path, file);
+    if (error) {
+      toast({ title: "Erro no upload", description: error.message, variant: "destructive" });
+      setUploading(prev => ({ ...prev, [idx]: false }));
+      return;
+    }
+
+    const { data: urlData } = supabase.storage.from("event-info-attachments").getPublicUrl(path);
+    const attachment: InfoAttachment = {
+      url: urlData.publicUrl,
+      type: isVideo ? "video" : "image",
+      name: file.name,
+    };
+
+    setItems(prev => prev.map((item, i) => i === idx ? { ...item, attachments: [...(item.attachments || []), attachment] } : item));
+    setUploading(prev => ({ ...prev, [idx]: false }));
+    toast({ title: isVideo ? "Vídeo anexado!" : "Foto anexada!" });
+  };
+
+  const removeAttachment = (blockIdx: number, attIdx: number) => {
+    setItems(prev => prev.map((item, i) => i === blockIdx ? { ...item, attachments: (item.attachments || []).filter((_, j) => j !== attIdx) } : item));
   };
 
   const toggleCard = (id: string) => {
@@ -239,9 +287,24 @@ export function EventInfoManager() {
                   <CollapsibleContent>
                     <CardContent className="pt-0 pb-4 px-4 space-y-3">
                       {record.items.map((block, i) => (
-                        <div key={i} className="border-l-2 border-primary/30 pl-3 py-1">
+                        <div key={i} className="border-l-2 border-primary/30 pl-3 py-1 space-y-1">
                           <p className="text-sm font-medium">{block.title || "Sem título"}</p>
                           <p className="text-sm text-muted-foreground whitespace-pre-wrap">{block.content}</p>
+                          {block.attachments && block.attachments.length > 0 && (
+                            <div className="flex flex-wrap gap-2 pt-1">
+                              {block.attachments.map((att, j) => (
+                                att.type === "image" ? (
+                                  <a key={j} href={att.url} target="_blank" rel="noopener noreferrer">
+                                    <img src={att.url} alt={att.name} className="h-16 w-16 object-cover rounded-md border" />
+                                  </a>
+                                ) : (
+                                  <a key={j} href={att.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-primary underline">
+                                    <Video className="h-3.5 w-3.5" /> {att.name}
+                                  </a>
+                                )
+                              ))}
+                            </div>
+                          )}
                         </div>
                       ))}
                       {record.notes && (
@@ -306,6 +369,95 @@ export function EventInfoManager() {
                       onChange={e => updateBlock(idx, "content", e.target.value)}
                       rows={3}
                     />
+                    {/* Attachments preview */}
+                    {block.attachments && block.attachments.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {block.attachments.map((att, j) => (
+                          <div key={j} className="relative group">
+                            {att.type === "image" ? (
+                              <img src={att.url} alt={att.name} className="h-16 w-16 object-cover rounded-md border" />
+                            ) : (
+                              <div className="h-16 w-16 rounded-md border bg-muted flex items-center justify-center">
+                                <Video className="h-5 w-5 text-muted-foreground" />
+                              </div>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => removeAttachment(idx, j)}
+                              className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full h-5 w-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {/* Upload buttons */}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-xs"
+                        disabled={uploading[idx]}
+                        onClick={() => {
+                          const input = document.createElement("input");
+                          input.type = "file";
+                          input.accept = "image/*";
+                          input.capture = "environment";
+                          input.onchange = (e) => {
+                            const file = (e.target as HTMLInputElement).files?.[0];
+                            if (file) handleFileUpload(idx, file);
+                          };
+                          input.click();
+                        }}
+                      >
+                        {uploading[idx] ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
+                        Foto
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-xs"
+                        disabled={uploading[idx]}
+                        onClick={() => {
+                          const input = document.createElement("input");
+                          input.type = "file";
+                          input.accept = "video/*";
+                          input.capture = "environment";
+                          input.onchange = (e) => {
+                            const file = (e.target as HTMLInputElement).files?.[0];
+                            if (file) handleFileUpload(idx, file);
+                          };
+                          input.click();
+                        }}
+                      >
+                        {uploading[idx] ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Video className="h-3.5 w-3.5" />}
+                        Vídeo
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-xs"
+                        disabled={uploading[idx]}
+                        onClick={() => {
+                          const input = document.createElement("input");
+                          input.type = "file";
+                          input.accept = "image/*,video/*";
+                          input.multiple = true;
+                          input.onchange = (e) => {
+                            const files = (e.target as HTMLInputElement).files;
+                            if (files) Array.from(files).forEach(f => handleFileUpload(idx, f));
+                          };
+                          input.click();
+                        }}
+                      >
+                        <ImageIcon className="h-3.5 w-3.5" />
+                        Galeria
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
