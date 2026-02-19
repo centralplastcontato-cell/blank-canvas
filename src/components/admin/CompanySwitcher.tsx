@@ -44,7 +44,7 @@ export function CompanySwitcher({ collapsed = false, onDropdownOpenChange }: Com
               className="flex items-center gap-2 cursor-pointer"
             >
               {uc.company.logo_url ? (
-                <img src={uc.company.logo_url} alt="" className="h-5 w-5 rounded object-contain" />
+                <img src={uc.company.logo_url} alt="" className="h-5 w-5 rounded-lg object-contain" />
               ) : (
                 <Building2 className="h-4 w-4 text-muted-foreground" />
               )}
@@ -69,7 +69,7 @@ export function CompanySwitcher({ collapsed = false, onDropdownOpenChange }: Com
         >
           <div className="flex items-center gap-2 min-w-0">
             {currentCompany?.logo_url ? (
-              <img src={currentCompany.logo_url} alt="" className="h-6 w-6 rounded object-contain shrink-0" />
+              <img src={currentCompany.logo_url} alt="" className="h-6 w-6 rounded-lg object-contain shrink-0" />
             ) : (
               <Building2 className="h-5 w-5 shrink-0 text-sidebar-foreground/70" />
             )}
@@ -97,7 +97,7 @@ export function CompanySwitcher({ collapsed = false, onDropdownOpenChange }: Com
             className="flex items-center gap-2 cursor-pointer"
           >
             {uc.company.logo_url ? (
-              <img src={uc.company.logo_url} alt="" className="h-5 w-5 rounded object-contain" />
+              <img src={uc.company.logo_url} alt="" className="h-5 w-5 rounded-lg object-contain" />
             ) : (
               <Building2 className="h-4 w-4 text-muted-foreground" />
             )}

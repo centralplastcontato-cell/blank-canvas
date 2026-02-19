@@ -226,12 +226,12 @@ export function LeadsKanban({
           return (
             <div
               key={status}
-              className="flex-shrink-0 w-72 bg-gradient-to-b from-muted/50 to-muted/20 rounded-xl border border-border/60 flex flex-col max-h-[calc(100vh-220px)] shadow-sm hover:shadow-md transition-shadow duration-200"
+              className="flex-shrink-0 w-72 bg-gradient-to-b from-muted/50 to-muted/20 rounded-2xl border border-border/60 flex flex-col max-h-[calc(100vh-220px)] shadow-card hover:shadow-card-hover transition-shadow duration-200"
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, status)}
             >
               {/* Column Header */}
-              <div className="p-3 border-b border-border/60 flex-shrink-0 bg-card/50 backdrop-blur-sm rounded-t-xl">
+              <div className="p-3 border-b border-border/60 flex-shrink-0 bg-card/50 backdrop-blur-sm rounded-t-2xl">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div
