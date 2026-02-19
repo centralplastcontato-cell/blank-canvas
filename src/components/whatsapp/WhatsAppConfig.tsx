@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Wifi, Bell, Bot, Settings, Lock, HelpCircle, ClipboardCheck, FileText, Users, Building2 } from "lucide-react";
 import { ConnectionSection } from "./settings/ConnectionSection";
@@ -117,26 +117,6 @@ export function WhatsAppConfig({ userId, isAdmin }: WhatsAppConfigProps) {
   }, [permissions, modules, isAdmin, isCompanyAdminOrOwner]);
 
   const [activeSection, setActiveSection] = useState<string | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
-
-  const checkScroll = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 4);
-    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
-  }, []);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    checkScroll();
-    el.addEventListener("scroll", checkScroll, { passive: true });
-    const ro = new ResizeObserver(checkScroll);
-    ro.observe(el);
-    return () => { el.removeEventListener("scroll", checkScroll); ro.disconnect(); };
-  }, [checkScroll, configSections]);
 
   // Set initial active section when permissions load
   useEffect(() => {
@@ -210,43 +190,33 @@ export function WhatsAppConfig({ userId, isAdmin }: WhatsAppConfigProps) {
 
   return (
     <div className="flex flex-col h-full gap-4">
-      {/* Horizontal Tabs with scroll fade indicators */}
-      <div className="relative shrink-0">
-        {/* Left fade */}
-        {canScrollLeft && (
-          <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none rounded-l-xl" />
-        )}
-        {/* Right fade */}
-        {canScrollRight && (
-          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none rounded-r-xl" />
-        )}
-        <div ref={scrollRef} className="overflow-x-auto scrollbar-hide flex justify-center">
-          <div className="inline-flex gap-2 p-1.5 rounded-2xl bg-muted/50 border border-border/40 shadow-sm min-w-max">
-            {configSections.map((section) => (
-              <button
-                key={section.id}
-                onClick={() => {
-                  if ((section as any).isLink && (section as any).linkTo) {
-                    navigate((section as any).linkTo);
-                  } else {
-                    setActiveSection(section.id);
-                  }
-                }}
-                className={cn(
-                  "inline-flex items-center gap-2.5 px-6 py-3 rounded-xl whitespace-nowrap transition-all duration-200 text-base font-semibold",
-                  activeSection === section.id
-                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30 scale-[1.02]"
-                    : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-                )}
-              >
-                <section.icon className="w-5 h-5" />
-                <span>{section.title}</span>
-                {(section as any).isLink && (
-                  <span className="text-xs opacity-50">↗</span>
-                )}
-              </button>
-            ))}
-          </div>
+      {/* Horizontal Tabs with wrap */}
+      <div className="shrink-0">
+        <div className="flex flex-wrap justify-center gap-2 p-1.5 rounded-2xl bg-muted/50 border border-border/40 shadow-sm">
+          {configSections.map((section) => (
+            <button
+              key={section.id}
+              onClick={() => {
+                if ((section as any).isLink && (section as any).linkTo) {
+                  navigate((section as any).linkTo);
+                } else {
+                  setActiveSection(section.id);
+                }
+              }}
+              className={cn(
+                "inline-flex items-center gap-2 px-4 py-2.5 rounded-xl whitespace-nowrap transition-all duration-200 text-sm font-semibold",
+                activeSection === section.id
+                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30 scale-[1.02]"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+              )}
+            >
+              <section.icon className="w-4 h-4" />
+              <span>{section.title}</span>
+              {(section as any).isLink && (
+                <span className="text-xs opacity-50">↗</span>
+              )}
+            </button>
+          ))}
         </div>
       </div>
 
