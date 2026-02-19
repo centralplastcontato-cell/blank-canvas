@@ -485,6 +485,8 @@ export default function Agenda() {
                         events={filteredEvents}
                         onEventClick={(ev) => { setDetailEvent(ev as CompanyEvent); setDetailOpen(true); }}
                         getConflicts={(ev) => getConflicts(ev as CompanyEvent)}
+                        month={month}
+                        onMonthChange={setMonth}
                       />
                     )}
                   </CardContent>
