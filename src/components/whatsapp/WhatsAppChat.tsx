@@ -2916,15 +2916,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
               maxSize={50}
               className="flex flex-col min-h-0"
             >
-              <div className="flex flex-col h-full border-r border-border/60 bg-gradient-to-b from-card to-muted/10">
-                <div className="p-3 border-b border-border/60 space-y-2 bg-card/80 backdrop-blur-sm">
+              <div className="flex flex-col h-full bg-card rounded-2xl shadow-card m-1.5 mr-0 overflow-hidden">
+                <div className="p-4 border-b border-border/40 space-y-3">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                       placeholder="Buscar conversa..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9 bg-background/80 border-border/60 focus:border-primary/50 focus:ring-primary/20"
+                      className="pl-9 bg-muted/50 border-border/40 rounded-xl focus:border-primary/50 focus:ring-primary/20"
                     />
                   </div>
                   <ConversationFilters
@@ -2953,11 +2953,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                       <button
                         key={conv.id}
                         onClick={() => setSelectedConversation(conv)}
-                        className={cn(
-                          "w-full p-2.5 flex items-center gap-2.5 hover:bg-primary/5 transition-all text-left border-b border-border/40 group",
-                          selectedConversation?.id === conv.id && "bg-primary/10 border-l-2 border-l-primary shadow-sm",
-                          conv.unread_count > 0 && "bg-gradient-to-r from-primary/10 to-transparent"
-                        )}
+                    className={cn(
+                      "w-full px-4 py-3 flex items-center gap-3 hover:bg-muted/60 transition-all duration-200 text-left border-b border-border/30 group",
+                      selectedConversation?.id === conv.id && "bg-primary/8 border-l-[3px] border-l-primary",
+                      conv.unread_count > 0 && "bg-primary/5"
+                    )}
                       >
                         <div className="relative shrink-0">
                         <Avatar className="h-10 w-10 ring-2 ring-border/50 shadow-sm">
@@ -3106,14 +3106,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             </ResizablePanel>
 
             {/* Resize Handle */}
-            <ResizableHandle withHandle className="bg-border/60 hover:bg-primary/30 transition-colors" />
+            <ResizableHandle withHandle className="mx-1 bg-transparent hover:bg-primary/10 transition-colors data-[state=dragging]:bg-primary/20" />
 
             {/* Messages Panel */}
-            <ResizablePanel defaultSize={65} minSize={40} className="flex flex-col min-h-0 min-w-0 bg-gradient-to-b from-muted/20 to-background">
+            <ResizablePanel defaultSize={65} minSize={40} className="flex flex-col min-h-0 min-w-0">
+              <div className="flex flex-col h-full bg-card rounded-2xl shadow-card m-1.5 ml-0 overflow-hidden">
               {selectedConversation ? (
                 <>
                   {/* Chat Header - Premium Glassmorphism */}
-                  <div className="p-3 border-b border-border/60 flex items-center gap-2 sm:gap-3 shrink-0 bg-card/90 backdrop-blur-sm shadow-sm">
+                  <div className="px-4 py-3 border-b border-border/40 flex items-center gap-3 shrink-0 bg-card">
                     <Avatar className="h-9 w-9 shrink-0 ring-2 ring-primary/20 shadow-md">
                       <AvatarImage 
                         src={selectedConversation.contact_picture || undefined} 
@@ -3317,80 +3318,89 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                   </div>
 
                   {/* Lead Classification Panel - Always visible */}
-                  <div className="border-b bg-card/50 p-2 sm:p-3 shrink-0">
+                  <div className="border-b border-border/40 bg-muted/30 px-4 py-3 shrink-0">
                     {linkedLead ? (
-                      // Show classification buttons when lead is linked
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs font-medium text-muted-foreground">Status:</span>
+                      // Show classification stepper when lead is linked
+                      <div className="flex items-center gap-1 overflow-x-auto scrollbar-thin pb-1">
                         {[
-                          { value: 'novo', label: 'Novo', color: 'bg-blue-500' },
-                          { value: 'trabalhe_conosco', label: 'Trab. Conosco', color: 'bg-teal-500' },
-                          { value: 'em_contato', label: 'Visita', color: 'bg-yellow-500' },
-                          { value: 'orcamento_enviado', label: 'Orçamento', color: 'bg-purple-500' },
-                          { value: 'aguardando_resposta', label: 'Negociando', color: 'bg-orange-500' },
-                          { value: 'fechado', label: 'Fechado', color: 'bg-green-500' },
-                          { value: 'perdido', label: 'Perdido', color: 'bg-red-500' },
-                          { value: 'transferido', label: 'Transferência', color: 'bg-cyan-500' },
-                          { value: 'fornecedor', label: 'Fornecedor', color: 'bg-indigo-500' },
-                        ].map((statusOption) => (
-                          <Button
-                            key={statusOption.value}
-                            variant={linkedLead.status === statusOption.value ? "default" : "outline"}
-                            size="sm"
-                            className={cn(
-                              "h-7 text-xs gap-1.5",
-                              linkedLead.status === statusOption.value && "ring-2 ring-offset-1"
-                            )}
-                            onClick={async () => {
-                              const oldStatus = linkedLead.status;
-                              const newStatus = statusOption.value as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido" | "trabalhe_conosco" | "transferido" | "fornecedor";
-                              
-                              if (oldStatus === newStatus) return;
-                              
-                              const { error } = await supabase
-                                .from('campaign_leads')
-                                .update({ status: newStatus })
-                                .eq('id', linkedLead.id);
-                              
-                              if (error) {
-                                toast({
-                                  title: "Erro ao atualizar",
-                                  description: error.message,
-                                  variant: "destructive",
-                                });
-                                return;
-                              }
-                              
-                              const statusLabels: Record<string, string> = {
-                                novo: 'Novo',
-                                em_contato: 'Visita',
-                                orcamento_enviado: 'Orçamento Enviado',
-                                aguardando_resposta: 'Negociando',
-                                fechado: 'Fechado',
-                                perdido: 'Perdido',
-                                transferido: 'Transferência',
-                                fornecedor: 'Fornecedor',
-                              };
-                              
-                              await supabase.from('lead_history').insert({
-                                lead_id: linkedLead.id,
-                                action: 'status_change',
-                                old_value: statusLabels[oldStatus] || oldStatus,
-                                new_value: statusLabels[newStatus] || newStatus,
-                                user_id: userId,
-                              });
-                              
-                              setLinkedLead({ ...linkedLead, status: statusOption.value });
-                              toast({
-                                title: "Status atualizado",
-                                description: `Lead classificado como "${statusOption.label}"`,
-                              });
-                            }}
-                          >
-                            <div className={cn("w-2 h-2 rounded-full", statusOption.color)} />
-                            {statusOption.label}
-                          </Button>
-                        ))}
+                          { value: 'novo', label: 'Novo', color: 'bg-blue-500', textColor: 'text-blue-700', bgActive: 'bg-blue-500/15' },
+                          { value: 'trabalhe_conosco', label: 'Trab. Conosco', color: 'bg-teal-500', textColor: 'text-teal-700', bgActive: 'bg-teal-500/15' },
+                          { value: 'em_contato', label: 'Visita', color: 'bg-yellow-500', textColor: 'text-yellow-700', bgActive: 'bg-yellow-500/15' },
+                          { value: 'orcamento_enviado', label: 'Orçamento', color: 'bg-purple-500', textColor: 'text-purple-700', bgActive: 'bg-purple-500/15' },
+                          { value: 'aguardando_resposta', label: 'Negociando', color: 'bg-orange-500', textColor: 'text-orange-700', bgActive: 'bg-orange-500/15' },
+                          { value: 'fechado', label: 'Fechado', color: 'bg-green-500', textColor: 'text-green-700', bgActive: 'bg-green-500/15' },
+                          { value: 'perdido', label: 'Perdido', color: 'bg-red-500', textColor: 'text-red-700', bgActive: 'bg-red-500/15' },
+                          { value: 'transferido', label: 'Transf.', color: 'bg-cyan-500', textColor: 'text-cyan-700', bgActive: 'bg-cyan-500/15' },
+                          { value: 'fornecedor', label: 'Fornec.', color: 'bg-indigo-500', textColor: 'text-indigo-700', bgActive: 'bg-indigo-500/15' },
+                        ].map((statusOption, index, arr) => {
+                          const isActive = linkedLead.status === statusOption.value;
+                          return (
+                            <div key={statusOption.value} className="flex items-center shrink-0">
+                              <button
+                                className={cn(
+                                  "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200",
+                                  isActive
+                                    ? cn(statusOption.bgActive, statusOption.textColor, "ring-1 ring-current/30 shadow-sm")
+                                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                                )}
+                                onClick={async () => {
+                                  const oldStatus = linkedLead.status;
+                                  const newStatus = statusOption.value as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido" | "trabalhe_conosco" | "transferido" | "fornecedor";
+                                  
+                                  if (oldStatus === newStatus) return;
+                                  
+                                  const { error } = await supabase
+                                    .from('campaign_leads')
+                                    .update({ status: newStatus })
+                                    .eq('id', linkedLead.id);
+                                  
+                                  if (error) {
+                                    toast({
+                                      title: "Erro ao atualizar",
+                                      description: error.message,
+                                      variant: "destructive",
+                                    });
+                                    return;
+                                  }
+                                  
+                                  const statusLabels: Record<string, string> = {
+                                    novo: 'Novo',
+                                    em_contato: 'Visita',
+                                    orcamento_enviado: 'Orçamento Enviado',
+                                    aguardando_resposta: 'Negociando',
+                                    fechado: 'Fechado',
+                                    perdido: 'Perdido',
+                                    transferido: 'Transferência',
+                                    fornecedor: 'Fornecedor',
+                                  };
+                                  
+                                  await supabase.from('lead_history').insert({
+                                    lead_id: linkedLead.id,
+                                    action: 'status_change',
+                                    old_value: statusLabels[oldStatus] || oldStatus,
+                                    new_value: statusLabels[newStatus] || newStatus,
+                                    user_id: userId,
+                                  });
+                                  
+                                  setLinkedLead({ ...linkedLead, status: statusOption.value });
+                                  toast({
+                                    title: "Status atualizado",
+                                    description: `Lead classificado como "${statusOption.label}"`,
+                                  });
+                                }}
+                              >
+                                <div className={cn(
+                                  "w-2 h-2 rounded-full transition-all",
+                                  isActive ? statusOption.color : "bg-muted-foreground/30"
+                                )} />
+                                {statusOption.label}
+                              </button>
+                              {index < arr.length - 1 && (
+                                <div className="w-3 h-px bg-border mx-0.5" />
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     ) : (
                       // Show classification buttons directly - no lead linked yet
@@ -3485,13 +3495,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                               <div className={cn("relative w-full", msg.from_me ? "flex flex-row-reverse items-start gap-1" : "flex items-start gap-1")}>
                                 <div
                                   className={cn(
-                                    "max-w-[85%] sm:max-w-[75%] rounded-lg text-sm shadow-sm",
+                                    "max-w-[85%] sm:max-w-[75%] rounded-2xl text-sm",
                                     msg.from_me
-                                      ? "bg-primary text-primary-foreground"
-                                      : "bg-card border",
+                                      ? "bg-primary text-primary-foreground shadow-sm"
+                                      : "bg-card border border-border/50 shadow-subtle",
                                     (msg.message_type === 'image' || msg.message_type === 'video')
                                       ? "p-0 overflow-hidden"
-                                      : "px-3 py-2"
+                                      : "px-3.5 py-2.5"
                                   )}
                                 >
 {(msg.message_type === 'image' || msg.message_type === 'video' || msg.message_type === 'audio' || msg.message_type === 'document') && (
@@ -3665,7 +3675,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                   </div>
 
                   {/* Message Input */}
-                  <div className="p-3 border-t shrink-0">
+                  <div className="px-4 py-3 border-t border-border/40 shrink-0 bg-card">
                     {isRecording || audioBlob ? (
                       <div className="flex items-center gap-2">
                         <div className="flex-1 flex items-center gap-3 bg-muted rounded-lg px-4 py-2">
@@ -3855,7 +3865,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                             }
                           }}
                           disabled={!canSendMessages}
-                          className="text-base sm:text-sm flex-1 min-h-[40px] max-h-32 resize-y py-2"
+                          className="text-base sm:text-sm flex-1 min-h-[40px] max-h-32 resize-y py-2.5 rounded-xl border-border/50 bg-muted/30 focus:bg-background"
                           rows={1}
                           spellCheck={true}
                         />
@@ -3895,6 +3905,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                   </p>
                 </div>
               )}
+              </div>
             </ResizablePanel>
           </ResizablePanelGroup>
 
