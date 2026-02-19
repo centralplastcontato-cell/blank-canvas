@@ -335,9 +335,9 @@ export default function PublicPartyControl() {
       label: "Checklist",
       emoji: "✅",
       color: "#10b981",
-      glow: "rgba(16,185,129,0.25)",
-      border: "rgba(16,185,129,0.35)",
-      bg: "linear-gradient(145deg, rgba(16,185,129,0.18) 0%, rgba(5,150,105,0.08) 100%)",
+      glow: "rgba(16,185,129,0.30)",
+      border: "rgba(16,185,129,0.50)",
+      bg: "linear-gradient(160deg, rgba(16,185,129,0.26) 0%, rgba(5,150,105,0.10) 50%, rgba(2,40,28,0.06) 100%)",
       enabled: modules?.checklist ?? true,
       statusText: status.checklist.total === 0
         ? "Sem itens"
@@ -352,9 +352,9 @@ export default function PublicPartyControl() {
       label: "Equipe",
       emoji: "👥",
       color: "#3b82f6",
-      glow: "rgba(59,130,246,0.25)",
-      border: "rgba(59,130,246,0.35)",
-      bg: "linear-gradient(145deg, rgba(59,130,246,0.18) 0%, rgba(37,99,235,0.08) 100%)",
+      glow: "rgba(59,130,246,0.30)",
+      border: "rgba(59,130,246,0.50)",
+      bg: "linear-gradient(160deg, rgba(59,130,246,0.26) 0%, rgba(37,99,235,0.10) 50%, rgba(10,30,80,0.06) 100%)",
       enabled: modules?.staff ?? true,
       statusText: status.staff.id ? "Registrado" : "Não criado",
       isOk: !!status.staff.id,
@@ -367,9 +367,9 @@ export default function PublicPartyControl() {
       label: "Manutenção",
       emoji: "🔧",
       color: "#8b5cf6",
-      glow: "rgba(139,92,246,0.25)",
-      border: "rgba(139,92,246,0.35)",
-      bg: "linear-gradient(145deg, rgba(139,92,246,0.18) 0%, rgba(109,40,217,0.08) 100%)",
+      glow: "rgba(139,92,246,0.30)",
+      border: "rgba(139,92,246,0.50)",
+      bg: "linear-gradient(160deg, rgba(139,92,246,0.26) 0%, rgba(109,40,217,0.10) 50%, rgba(40,10,80,0.06) 100%)",
       enabled: modules?.maintenance ?? true,
       statusText: status.maintenance.id ? "Registrado" : "Não criado",
       isOk: !!status.maintenance.id,
@@ -382,9 +382,9 @@ export default function PublicPartyControl() {
       label: "Acompanhamento",
       emoji: "📋",
       color: "#f59e0b",
-      glow: "rgba(245,158,11,0.25)",
-      border: "rgba(245,158,11,0.35)",
-      bg: "linear-gradient(145deg, rgba(245,158,11,0.18) 0%, rgba(180,83,9,0.08) 100%)",
+      glow: "rgba(245,158,11,0.30)",
+      border: "rgba(245,158,11,0.50)",
+      bg: "linear-gradient(160deg, rgba(245,158,11,0.26) 0%, rgba(180,83,9,0.10) 50%, rgba(80,35,0,0.06) 100%)",
       enabled: modules?.monitoring ?? true,
       statusText: status.monitoring.id ? "Registrado" : "Não criado",
       isOk: !!status.monitoring.id,
@@ -397,9 +397,9 @@ export default function PublicPartyControl() {
       label: "Presença",
       emoji: "🎟️",
       color: "#f97316",
-      glow: "rgba(249,115,22,0.25)",
-      border: "rgba(249,115,22,0.35)",
-      bg: "linear-gradient(145deg, rgba(249,115,22,0.18) 0%, rgba(194,65,12,0.08) 100%)",
+      glow: "rgba(249,115,22,0.30)",
+      border: "rgba(249,115,22,0.50)",
+      bg: "linear-gradient(160deg, rgba(249,115,22,0.26) 0%, rgba(194,65,12,0.10) 50%, rgba(80,25,0,0.06) 100%)",
       enabled: modules?.attendance ?? true,
       statusText: status.attendance.id
         ? `${status.attendance.guestCount} convidados`
@@ -414,9 +414,9 @@ export default function PublicPartyControl() {
       label: "Informações",
       emoji: "📌",
       color: "#06b6d4",
-      glow: "rgba(6,182,212,0.25)",
-      border: "rgba(6,182,212,0.35)",
-      bg: "linear-gradient(145deg, rgba(6,182,212,0.18) 0%, rgba(8,145,178,0.08) 100%)",
+      glow: "rgba(6,182,212,0.30)",
+      border: "rgba(6,182,212,0.50)",
+      bg: "linear-gradient(160deg, rgba(6,182,212,0.26) 0%, rgba(8,145,178,0.10) 50%, rgba(0,50,70,0.06) 100%)",
       enabled: modules?.info ?? true,
       statusText: status.info.id ? `${status.info.blockCount} blocos` : "Não criado",
       isOk: !!status.info.id,
@@ -429,9 +429,9 @@ export default function PublicPartyControl() {
       label: "Pré-Festa",
       emoji: "🎀",
       color: "#ec4899",
-      glow: "rgba(236,72,153,0.25)",
-      border: "rgba(236,72,153,0.35)",
-      bg: "linear-gradient(145deg, rgba(236,72,153,0.18) 0%, rgba(190,24,93,0.08) 100%)",
+      glow: "rgba(236,72,153,0.30)",
+      border: "rgba(236,72,153,0.50)",
+      bg: "linear-gradient(160deg, rgba(236,72,153,0.26) 0%, rgba(190,24,93,0.10) 50%, rgba(80,0,40,0.06) 100%)",
       enabled: modules?.prefesta ?? false,
       statusText: getModuleUrl("prefesta") ? "Disponível" : "Sem template",
       isOk: !!getModuleUrl("prefesta"),
@@ -444,9 +444,9 @@ export default function PublicPartyControl() {
       label: "Cardápio",
       emoji: "🍽️",
       color: "#eab308",
-      glow: "rgba(234,179,8,0.25)",
-      border: "rgba(234,179,8,0.35)",
-      bg: "linear-gradient(145deg, rgba(234,179,8,0.18) 0%, rgba(161,98,7,0.08) 100%)",
+      glow: "rgba(234,179,8,0.30)",
+      border: "rgba(234,179,8,0.50)",
+      bg: "linear-gradient(160deg, rgba(234,179,8,0.26) 0%, rgba(161,98,7,0.10) 50%, rgba(70,40,0,0.06) 100%)",
       enabled: modules?.cardapio ?? false,
       statusText: getModuleUrl("cardapio") ? "Disponível" : "Sem template",
       isOk: !!getModuleUrl("cardapio"),
@@ -459,9 +459,9 @@ export default function PublicPartyControl() {
       label: "Avaliação",
       emoji: "⭐",
       color: "#14b8a6",
-      glow: "rgba(20,184,166,0.25)",
-      border: "rgba(20,184,166,0.35)",
-      bg: "linear-gradient(145deg, rgba(20,184,166,0.18) 0%, rgba(15,118,110,0.08) 100%)",
+      glow: "rgba(20,184,166,0.30)",
+      border: "rgba(20,184,166,0.50)",
+      bg: "linear-gradient(160deg, rgba(20,184,166,0.26) 0%, rgba(15,118,110,0.10) 50%, rgba(0,50,45,0.06) 100%)",
       enabled: modules?.avaliacao ?? false,
       statusText: getModuleUrl("avaliacao") ? "Disponível" : "Sem template",
       isOk: !!getModuleUrl("avaliacao"),
@@ -479,7 +479,7 @@ export default function PublicPartyControl() {
     <div
       className="flex flex-col overflow-hidden relative"
       style={{
-        background: "radial-gradient(ellipse 80% 60% at 50% 30%, #1a1f3e 0%, #0d1117 60%, #060810 100%)",
+        background: "radial-gradient(ellipse 90% 70% at 50% 25%, #1e2444 0%, #0d1020 55%, #040608 100%)",
         height: "100dvh",
       }}
     >
@@ -487,8 +487,16 @@ export default function PublicPartyControl() {
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E")`,
-          opacity: 0.35,
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E")`,
+          opacity: 0.5,
+          zIndex: 0,
+        }}
+      />
+      {/* Vignette — escurece bordas para foco central */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: "radial-gradient(ellipse 100% 100% at 50% 50%, transparent 40%, rgba(0,0,0,0.65) 100%)",
           zIndex: 0,
         }}
       />
@@ -497,22 +505,22 @@ export default function PublicPartyControl() {
       <div
         className="shrink-0 px-3 pt-2 pb-2 relative z-10"
         style={{
-          background: "linear-gradient(180deg, rgba(30,35,65,0.97) 0%, rgba(15,20,40,0.93) 100%)",
-          borderBottom: "1px solid rgba(139,92,246,0.35)",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06), 0 1px 8px rgba(139,92,246,0.3)",
+          background: "linear-gradient(180deg, rgba(36,42,80,0.98) 0%, rgba(14,18,38,0.96) 100%)",
+          borderBottom: "1px solid rgba(139,92,246,0.45)",
+          boxShadow: "0 12px 40px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.10), 0 1px 16px rgba(139,92,246,0.35)",
         }}
       >
         {/* Top bar: company */}
         <div className="flex items-center justify-between mb-1.5">
           <div className="flex items-center gap-1.5">
             {company.logo_url ? (
-              <img src={company.logo_url} alt={company.name} className="h-5 w-5 rounded-md object-cover" style={{ border: "1px solid rgba(139,92,246,0.3)" }} />
+              <img src={company.logo_url} alt={company.name} className="h-5 w-5 rounded-md object-cover" style={{ border: "1px solid rgba(139,92,246,0.4)", boxShadow: "0 0 6px rgba(139,92,246,0.25)" }} />
             ) : (
-              <div className="h-5 w-5 rounded-md flex items-center justify-center" style={{ background: "rgba(139,92,246,0.25)", border: "1px solid rgba(139,92,246,0.4)" }}>
+              <div className="h-5 w-5 rounded-md flex items-center justify-center" style={{ background: "rgba(139,92,246,0.3)", border: "1px solid rgba(139,92,246,0.5)", boxShadow: "0 0 6px rgba(139,92,246,0.3)" }}>
                 <PartyPopper className="h-2.5 w-2.5" style={{ color: "#a78bfa" }} />
               </div>
             )}
-            <span className="text-[9px] font-bold tracking-widest uppercase" style={{ color: "#7c6fa0" }}>{company.name}</span>
+            <span className="text-[9px] font-bold tracking-widest uppercase" style={{ color: "#9d8ec8" }}>{company.name}</span>
           </div>
           <div className="flex items-center gap-1">
             {refreshing ? (
@@ -585,17 +593,19 @@ export default function PublicPartyControl() {
         <div className="grid grid-cols-3 gap-1.5 mb-1.5">
           {/* OK Card */}
           <div
-            className="rounded-xl p-2 text-center"
+            className="rounded-xl p-2 text-center relative overflow-hidden"
             style={{
-              background: "linear-gradient(145deg, rgba(16,185,129,0.25) 0%, rgba(5,150,105,0.05) 100%)",
-              border: "1px solid rgba(16,185,129,0.5)",
-              boxShadow: "0 8px 24px rgba(16,185,129,0.15), 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)",
+              background: "linear-gradient(160deg, rgba(16,185,129,0.32) 0%, rgba(5,150,105,0.08) 60%, rgba(2,60,42,0.04) 100%)",
+              border: "1px solid rgba(16,185,129,0.55)",
+              boxShadow: "0 12px 32px rgba(16,185,129,0.22), 0 4px 12px rgba(0,0,0,0.6), inset 0 2px 0 rgba(255,255,255,0.13), inset 0 -1px 0 rgba(0,0,0,0.3)",
             }}
           >
-            <div className="text-base leading-none mb-0.5">✅</div>
+            {/* top highlight line */}
+            <div className="absolute top-0 left-2 right-2 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(52,211,153,0.7), transparent)" }} />
+            <div className="text-[22px] leading-none mb-0.5">✅</div>
             <div
-              className="text-xl font-black leading-none"
-              style={{ color: "#34d399", textShadow: "0 0 10px rgba(52,211,153,0.7)" }}
+              className="text-2xl font-black leading-none"
+              style={{ color: "#34d399", textShadow: "0 0 14px rgba(52,211,153,0.85), 0 2px 4px rgba(0,0,0,0.4)" }}
             >
               {status.checklist.completed}
             </div>
@@ -604,17 +614,18 @@ export default function PublicPartyControl() {
 
           {/* Pendentes Card */}
           <div
-            className="rounded-xl p-2 text-center"
+            className="rounded-xl p-2 text-center relative overflow-hidden"
             style={{
-              background: "linear-gradient(145deg, rgba(251,191,36,0.22) 0%, rgba(180,83,9,0.05) 100%)",
-              border: "1px solid rgba(251,191,36,0.5)",
-              boxShadow: "0 8px 24px rgba(251,191,36,0.15), 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)",
+              background: "linear-gradient(160deg, rgba(251,191,36,0.30) 0%, rgba(180,83,9,0.08) 60%, rgba(80,40,0,0.04) 100%)",
+              border: "1px solid rgba(251,191,36,0.55)",
+              boxShadow: "0 12px 32px rgba(251,191,36,0.22), 0 4px 12px rgba(0,0,0,0.6), inset 0 2px 0 rgba(255,255,255,0.13), inset 0 -1px 0 rgba(0,0,0,0.3)",
             }}
           >
-            <div className="text-base leading-none mb-0.5">⏳</div>
+            <div className="absolute top-0 left-2 right-2 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(251,191,36,0.7), transparent)" }} />
+            <div className="text-[22px] leading-none mb-0.5">⏳</div>
             <div
-              className="text-xl font-black leading-none"
-              style={{ color: "#fbbf24", textShadow: "0 0 10px rgba(251,191,36,0.7)" }}
+              className="text-2xl font-black leading-none"
+              style={{ color: "#fbbf24", textShadow: "0 0 14px rgba(251,191,36,0.85), 0 2px 4px rgba(0,0,0,0.4)" }}
             >
               {pendingCount}
             </div>
@@ -623,23 +634,24 @@ export default function PublicPartyControl() {
 
           {/* Alertas Card */}
           <div
-            className="rounded-xl p-2 text-center"
+            className="rounded-xl p-2 text-center relative overflow-hidden"
             style={{
               background: modulesMissing > 0
-                ? "linear-gradient(145deg, rgba(239,68,68,0.25) 0%, rgba(185,28,28,0.05) 100%)"
-                : "linear-gradient(145deg, rgba(16,185,129,0.15) 0%, rgba(5,150,105,0.03) 100%)",
-              border: modulesMissing > 0 ? "1px solid rgba(239,68,68,0.5)" : "1px solid rgba(16,185,129,0.35)",
+                ? "linear-gradient(160deg, rgba(239,68,68,0.32) 0%, rgba(185,28,28,0.08) 60%, rgba(80,10,10,0.04) 100%)"
+                : "linear-gradient(160deg, rgba(16,185,129,0.22) 0%, rgba(5,150,105,0.05) 60%, rgba(2,60,42,0.02) 100%)",
+              border: modulesMissing > 0 ? "1px solid rgba(239,68,68,0.55)" : "1px solid rgba(16,185,129,0.45)",
               boxShadow: modulesMissing > 0
-                ? "0 8px 24px rgba(239,68,68,0.2), 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)"
-                : "0 8px 24px rgba(16,185,129,0.1), 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)",
+                ? "0 12px 32px rgba(239,68,68,0.28), 0 4px 12px rgba(0,0,0,0.6), inset 0 2px 0 rgba(255,255,255,0.13), inset 0 -1px 0 rgba(0,0,0,0.3)"
+                : "0 12px 32px rgba(16,185,129,0.15), 0 4px 12px rgba(0,0,0,0.6), inset 0 2px 0 rgba(255,255,255,0.13), inset 0 -1px 0 rgba(0,0,0,0.3)",
             }}
           >
-            <div className="text-base leading-none mb-0.5">{modulesMissing > 0 ? "🚨" : "🟢"}</div>
+            <div className="absolute top-0 left-2 right-2 h-px" style={{ background: modulesMissing > 0 ? "linear-gradient(90deg, transparent, rgba(239,68,68,0.7), transparent)" : "linear-gradient(90deg, transparent, rgba(52,211,153,0.6), transparent)" }} />
+            <div className="text-[22px] leading-none mb-0.5">{modulesMissing > 0 ? "🚨" : "🟢"}</div>
             <div
-              className="text-xl font-black leading-none"
+              className="text-2xl font-black leading-none"
               style={{
                 color: modulesMissing > 0 ? "#f87171" : "#34d399",
-                textShadow: modulesMissing > 0 ? "0 0 10px rgba(239,68,68,0.7)" : "0 0 10px rgba(52,211,153,0.6)",
+                textShadow: modulesMissing > 0 ? "0 0 14px rgba(239,68,68,0.85), 0 2px 4px rgba(0,0,0,0.4)" : "0 0 14px rgba(52,211,153,0.8), 0 2px 4px rgba(0,0,0,0.4)",
               }}
             >
               {modulesMissing}
@@ -698,13 +710,16 @@ export default function PublicPartyControl() {
         )}
       </div>
 
+      {/* Separator between header and content — luminous line */}
+      <div className="shrink-0 relative z-10 h-px" style={{ background: "linear-gradient(90deg, transparent 0%, rgba(139,92,246,0.5) 30%, rgba(139,92,246,0.8) 50%, rgba(139,92,246,0.5) 70%, transparent 100%)", boxShadow: "0 0 12px rgba(139,92,246,0.4)" }} />
+
       {/* ---- CONTENT AREA ---- */}
-      <div className="flex-1 overflow-y-auto py-2 relative z-10">
+      <div className="flex-1 overflow-y-auto py-3 relative z-10">
 
         {/* HOME TAB */}
         {activeTab === "home" && (
           <div className="px-3">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2.5">
               {moduleDefinitions.map(mod => {
                 const isClickable = mod.key === "checklist" || !!(mod as any).url;
 
@@ -719,40 +734,59 @@ export default function PublicPartyControl() {
                       }
                     }}
                     disabled={!isClickable}
-                    className="relative rounded-2xl p-2.5 text-left transition-all duration-200 hover:scale-[1.03] active:scale-[0.97] disabled:opacity-30"
+                    className="relative rounded-2xl p-3 text-left transition-all duration-200 hover:scale-[1.04] active:scale-[0.96] disabled:opacity-25 overflow-hidden"
                     style={{
-                      background: mod.bg,
-                      border: `1px solid ${mod.border}`,
+                      background: isClickable
+                        ? mod.bg.replace("0.18", "0.28").replace("0.08", "0.06")
+                        : mod.bg,
+                      border: `1px solid ${mod.border.replace("0.35", isClickable ? "0.5" : "0.25")}`,
                       boxShadow: isClickable
-                        ? `0 8px 20px ${mod.glow}, 0 2px 6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.10)`
-                        : "0 2px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)",
+                        ? `0 14px 30px ${mod.glow.replace("0.25", "0.35")}, 0 4px 10px rgba(0,0,0,0.65), inset 0 2px 0 rgba(255,255,255,0.14), inset 0 -2px 0 rgba(0,0,0,0.35)`
+                        : "0 4px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
                     }}
                   >
+                    {/* Top highlight shimmer */}
+                    <div
+                      className="absolute top-0 left-3 right-3 h-px"
+                      style={{ background: `linear-gradient(90deg, transparent, ${mod.border.replace("0.35","0.8")}, transparent)` }}
+                    />
+
                     {/* Status dot top-right */}
-                    <div className="absolute top-2 right-2">
+                    <div className="absolute top-2.5 right-2.5">
                       <div
-                        className={mod.isOk || mod.isWarning ? "animate-pulse" : ""}
+                        className={!mod.isEmpty ? "animate-pulse" : ""}
                         style={{
-                          width: "7px",
-                          height: "7px",
+                          width: "8px",
+                          height: "8px",
                           borderRadius: "50%",
-                          background: mod.isOk ? "#34d399" : mod.isEmpty ? "#475569" : "#fbbf24",
+                          background: mod.isOk ? "#34d399" : mod.isEmpty ? "#334155" : "#fbbf24",
                           boxShadow: mod.isOk
-                            ? "0 0 6px rgba(52,211,153,0.9)"
+                            ? "0 0 8px rgba(52,211,153,1), 0 0 16px rgba(52,211,153,0.5)"
                             : mod.isEmpty
                             ? "none"
-                            : "0 0 8px rgba(251,191,36,0.9)",
+                            : "0 0 10px rgba(251,191,36,1), 0 0 18px rgba(251,191,36,0.5)",
                         }}
                       />
                     </div>
 
-                    {/* Emoji icon */}
-                    <div className="text-2xl mb-1 leading-none">{mod.emoji}</div>
+                    {/* Emoji icon — 44px equivalent */}
+                    <div
+                      className="leading-none mb-1.5"
+                      style={{
+                        fontSize: "32px",
+                        filter: isClickable ? "drop-shadow(0 2px 6px rgba(0,0,0,0.5))" : "grayscale(0.5) opacity(0.6)",
+                      }}
+                    >
+                      {mod.emoji}
+                    </div>
 
                     {/* Label */}
                     <div
                       className="font-bold text-xs leading-tight mb-0.5"
-                      style={{ color: "#f1f5f9", textShadow: "0 1px 3px rgba(0,0,0,0.5)" }}
+                      style={{
+                        color: isClickable ? "#f1f5f9" : "#64748b",
+                        textShadow: "0 1px 4px rgba(0,0,0,0.7)",
+                      }}
                     >
                       {mod.label}
                     </div>
@@ -760,7 +794,7 @@ export default function PublicPartyControl() {
                     {/* Status text */}
                     <div
                       className="text-[9px] font-semibold"
-                      style={{ color: mod.isOk ? "#6ee7b7" : mod.isEmpty ? "#64748b" : "#fde68a" }}
+                      style={{ color: mod.isOk ? "#6ee7b7" : mod.isEmpty ? "#475569" : "#fde68a" }}
                     >
                       {mod.statusText}
                     </div>
@@ -768,10 +802,14 @@ export default function PublicPartyControl() {
                     {/* Arrow if clickable */}
                     {isClickable && (
                       <div
-                        className="absolute bottom-2 right-2 h-4 w-4 rounded flex items-center justify-center"
-                        style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.12)" }}
+                        className="absolute bottom-2 right-2 h-4 w-4 rounded-md flex items-center justify-center"
+                        style={{
+                          background: "rgba(255,255,255,0.12)",
+                          border: "1px solid rgba(255,255,255,0.18)",
+                          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.15)",
+                        }}
                       >
-                        <ChevronRight className="h-2.5 w-2.5" style={{ color: "rgba(255,255,255,0.6)" }} />
+                        <ChevronRight className="h-2.5 w-2.5" style={{ color: "rgba(255,255,255,0.7)" }} />
                       </div>
                     )}
                   </button>
