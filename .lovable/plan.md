@@ -1,49 +1,58 @@
 
 
-## Atualizar Hero da LP com Fachadas das Duas Unidades
+## Atualizar Hero da LP Dinamica com Fachadas das Duas Unidades
 
-### Objetivo
-Substituir a imagem de fundo atual (`hero-bg.jpg`) do Hero da Landing Page do Castelo da Diversao por uma composicao com as duas fotos de fachada enviadas, uma de cada unidade.
+### O que muda
+A landing page dinamica em `/lp/castelo-da-diversao` (componente `DLPHero`) atualmente mostra uma unica foto antiga do interior. Vamos substituir pela mesma composicao de fachadas das duas unidades que ja foi aplicada na LP de campanha.
 
 ### Abordagem
-Criar um background com as duas imagens lado a lado (split), onde cada metade mostra uma unidade. No mobile, as imagens ficarao empilhadas ou sera exibida apenas uma com transicao automatica (crossfade).
+
+Como o `DLPHero` e um componente generico usado por qualquer empresa, vamos adicionar suporte opcional a multiplas imagens de fundo, mantendo retrocompatibilidade.
 
 ### Alteracoes
 
-**1. Copiar as imagens para o projeto**
-- `user-uploads://fachada_unidade_1.jpg` -> `src/assets/fachada-unidade-1.jpg`
-- `user-uploads://fachada_unidade_2.jpg` -> `src/assets/fachada-unidade-2.jpg`
+**1. Atualizar tipo `LPHero` em `src/types/landing-page.ts`**
+- Adicionar campo opcional `background_images?: string[]` ao tipo `LPHero`
+- O campo `background_image_url` existente continua funcionando como fallback
 
-**2. Atualizar `src/components/landing/HeroSection.tsx`**
-- Remover import do `hero-bg.jpg`
-- Importar as duas novas imagens de fachada
-- Substituir o background unico por um layout split:
-  - Desktop: duas imagens lado a lado (50/50), cada uma com `object-cover`
-  - Mobile: crossfade automatico entre as duas imagens (alternando a cada 4 segundos usando estado local)
-- Manter o overlay gradiente por cima para legibilidade do texto
-- Manter todo o restante do conteudo (logo, tagline, titulo, oferta, CTA) sem alteracao
+**2. Atualizar componente `src/components/dynamic-lp/DLPHero.tsx`**
+- Adicionar estado e efeito para crossfade mobile (mesmo padrao do `HeroSection`)
+- Quando `hero.background_images` existir e tiver 2+ imagens:
+  - Desktop: layout split lado a lado (50/50) com `object-cover`
+  - Mobile: crossfade automatico entre as imagens a cada 4 segundos
+- Quando nao existir, manter comportamento atual (imagem unica via `background_image_url`)
+- Manter o overlay gradiente em ambos os casos
+
+**3. Copiar imagens para `public/` e atualizar banco de dados**
+- Copiar `fachada-unidade-1.jpg` e `fachada-unidade-2.jpg` para `public/images/`
+- Atualizar o JSON `hero` no registro da `company_landing_pages` do Castelo da Diversao para incluir o campo `background_images` com as URLs publicas das duas fotos
 
 ### Detalhes tecnicos
 
 ```text
-Background atual:
-  <img src={heroBg} class="w-full h-full object-cover" />
+Tipo atualizado:
+  interface LPHero {
+    title: string;
+    subtitle: string;
+    cta_text: string;
+    background_image_url: string | null;
+    background_images?: string[];   // NOVO - opcional
+  }
 
-Background novo (desktop):
-  <div class="absolute inset-0 flex">
-    <div class="w-1/2 h-full">
-      <img src={fachada1} class="w-full h-full object-cover" />
-    </div>
-    <div class="w-1/2 h-full">
-      <img src={fachada2} class="w-full h-full object-cover" />
-    </div>
-  </div>
+DLPHero - logica de renderizacao:
+  Se hero.background_images?.length >= 2:
+    Desktop: flex split 50/50
+    Mobile: crossfade com useState + setInterval
+  Senao:
+    Comportamento atual (imagem unica)
 
-Background novo (mobile):
-  Ambas imagens empilhadas com position absolute,
-  alternando opacidade via estado + framer-motion
-  para criar efeito crossfade suave.
+Atualizacao no banco (SQL):
+  UPDATE company_landing_pages
+  SET hero = jsonb_set(hero, '{background_images}',
+    '["URL_FACHADA_1", "URL_FACHADA_2"]')
+  WHERE id = 'fbc21bee-3993-4ace-9cd9-72c8ae8dd1f4';
 ```
 
-O overlay gradiente existente (`bg-gradient-to-b from-primary/60 via-castle/40 to-background/90`) sera mantido por cima das imagens para garantir contraste do texto.
+### Resultado
+A LP dinamica do Castelo da Diversao passara a mostrar as duas fachadas das unidades, com visual moderno e consistente com a LP de campanha. Outras empresas que usam a LP dinamica nao serao afetadas (campo opcional).
 
