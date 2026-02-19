@@ -748,8 +748,7 @@ export default function CentralAtendimento() {
                   {unreadCount > 0 && (
                     <AnimatedBadge 
                       value={unreadCount > 99 ? "99+" : unreadCount}
-                      variant="destructive" 
-                      className="absolute -top-1.5 -right-1.5 h-5 min-w-5 px-1 text-[10px] flex items-center justify-center rounded-full"
+                      className="absolute -top-1.5 -right-1.5 h-5 min-w-5 px-1 text-[10px] flex items-center justify-center rounded-full bg-primary text-primary-foreground"
                     />
                   )}
                 </TabsTrigger>
@@ -991,8 +990,7 @@ export default function CentralAtendimento() {
                     Chat
                     {unreadCount > 0 && (
                       <AnimatedBadge 
-                        variant="destructive" 
-                        className="ml-1.5 h-5 min-w-5 px-1.5 text-[10px]"
+                        className="ml-1.5 h-5 min-w-5 px-1.5 text-[10px] bg-primary text-primary-foreground"
                         value={unreadCount > 99 ? "99+" : unreadCount}
                       />
                     )}
