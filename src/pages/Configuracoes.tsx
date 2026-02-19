@@ -10,6 +10,7 @@ import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
 import { WhatsAppConfig } from "@/components/whatsapp/WhatsAppConfig";
 import { PartyControlConfig } from "@/components/admin/PartyControlConfig";
+import { ChecklistTemplateManager } from "@/components/agenda/ChecklistTemplateManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -167,8 +168,11 @@ export default function Configuracoes() {
             <TabsContent value="whatsapp" className="mt-4">
               <WhatsAppConfig userId={user.id} isAdmin={isAdmin} />
             </TabsContent>
-            <TabsContent value="festa" className="mt-4">
+            <TabsContent value="festa" className="mt-4 space-y-6">
               <PartyControlConfig />
+              <div className="pt-2">
+                <ChecklistTemplateManager />
+              </div>
             </TabsContent>
           </Tabs>
         </main>
@@ -219,8 +223,11 @@ export default function Configuracoes() {
                 <TabsContent value="whatsapp" className="mt-4">
                   <WhatsAppConfig userId={user.id} isAdmin={isAdmin} />
                 </TabsContent>
-                <TabsContent value="festa" className="mt-4">
+                <TabsContent value="festa" className="mt-4 space-y-6">
                   <PartyControlConfig />
+                  <div className="pt-2">
+                    <ChecklistTemplateManager />
+                  </div>
                 </TabsContent>
               </Tabs>
             </div>
