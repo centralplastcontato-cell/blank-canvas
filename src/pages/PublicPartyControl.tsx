@@ -91,6 +91,8 @@ interface ChecklistItem {
   sort_order: number;
 }
 
+const POLL_INTERVAL = 30_000; // 30 seconds
+
 export default function PublicPartyControl() {
   const { eventId } = useParams<{ eventId: string }>();
   const [loading, setLoading] = useState(true);
@@ -113,10 +115,55 @@ export default function PublicPartyControl() {
   const [evalTemplates, setEvalTemplates] = useState<{ id: string; name: string; slug: string | null }[]>([]);
   const [prefestTemplates, setPrefestTemplates] = useState<{ id: string; name: string; slug: string | null }[]>([]);
   const [cardapioTemplates, setCardapioTemplates] = useState<{ id: string; name: string; slug: string | null }[]>([]);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [countdown, setCountdown] = useState(POLL_INTERVAL / 1000);
+
+  const fetchModuleStatus = async (_companyId: string) => {
+    const [
+      checklistRes,
+      staffRes,
+      maintenanceRes,
+      monitoringRes,
+      attendanceRes,
+      infoRes,
+    ] = await Promise.all([
+      supabase.from("event_checklist_items").select("id, title, is_completed, sort_order").eq("event_id", eventId!).order("sort_order"),
+      (supabase as any).from("event_staff_entries").select("id").eq("event_id", eventId!).limit(1),
+      (supabase as any).from("maintenance_entries").select("id").eq("event_id", eventId!).limit(1),
+      (supabase as any).from("party_monitoring_entries").select("id").eq("event_id", eventId!).limit(1),
+      supabase.from("attendance_entries").select("id, guests").eq("event_id", eventId!).limit(1),
+      supabase.from("event_info_entries").select("id, items").eq("event_id", eventId!).limit(1),
+    ]);
+
+    const items = (checklistRes.data || []) as ChecklistItem[];
+    setChecklistItems(items);
+
+    const guestData = attendanceRes.data?.[0]?.guests;
+    const guestCount = Array.isArray(guestData) ? guestData.length : 0;
+    const infoItems = infoRes.data?.[0]?.items;
+    const blockCount = Array.isArray(infoItems) ? infoItems.length : 0;
+
+    setStatus({
+      checklist: {
+        total: items.length,
+        completed: items.filter(i => i.is_completed).length,
+      },
+      staff: { id: staffRes.data?.[0]?.id || null },
+      maintenance: { id: maintenanceRes.data?.[0]?.id || null },
+      monitoring: { id: monitoringRes.data?.[0]?.id || null },
+      attendance: { id: attendanceRes.data?.[0]?.id || null, guestCount },
+      info: { id: infoRes.data?.[0]?.id || null, blockCount },
+    });
+
+    setLastUpdated(new Date());
+  };
 
   useEffect(() => {
     if (!eventId) return;
-    (async () => {
+    let companyIdRef: string | null = null;
+
+    const initialLoad = async () => {
       const { data: evData, error: evErr } = await supabase
         .from("company_events")
         .select("*")
@@ -125,31 +172,18 @@ export default function PublicPartyControl() {
 
       if (evErr || !evData) { setNotFound(true); setLoading(false); return; }
       setEvent(evData as PartyEvent);
-
-      const companyId = evData.company_id;
+      companyIdRef = evData.company_id;
 
       const [
         companyRes,
-        checklistRes,
-        staffRes,
-        maintenanceRes,
-        monitoringRes,
-        attendanceRes,
-        infoRes,
         evalTmplRes,
         prefestTmplRes,
         cardapioTmplRes,
       ] = await Promise.all([
-        supabase.from("companies").select("name, logo_url, slug, settings").eq("id", companyId).single(),
-        supabase.from("event_checklist_items").select("id, title, is_completed, sort_order").eq("event_id", eventId).order("sort_order"),
-        (supabase as any).from("event_staff_entries").select("id").eq("event_id", eventId).limit(1),
-        (supabase as any).from("maintenance_entries").select("id").eq("event_id", eventId).limit(1),
-        (supabase as any).from("party_monitoring_entries").select("id").eq("event_id", eventId).limit(1),
-        supabase.from("attendance_entries").select("id, guests").eq("event_id", eventId).limit(1),
-        supabase.from("event_info_entries").select("id, items").eq("event_id", eventId).limit(1),
-        supabase.from("evaluation_templates").select("id, name, slug").eq("company_id", companyId).eq("is_active", true),
-        (supabase as any).from("pre_festa_templates").select("id, name, slug").eq("company_id", companyId).eq("is_active", true),
-        supabase.from("cardapio_templates").select("id, name, slug").eq("company_id", companyId).eq("is_active", true),
+        supabase.from("companies").select("name, logo_url, slug, settings").eq("id", companyIdRef).single(),
+        supabase.from("evaluation_templates").select("id, name, slug").eq("company_id", companyIdRef).eq("is_active", true),
+        (supabase as any).from("pre_festa_templates").select("id, name, slug").eq("company_id", companyIdRef).eq("is_active", true),
+        supabase.from("cardapio_templates").select("id, name, slug").eq("company_id", companyIdRef).eq("is_active", true),
       ]);
 
       if (companyRes.data) {
@@ -169,32 +203,35 @@ export default function PublicPartyControl() {
         ));
       }
 
-      const items = (checklistRes.data || []) as ChecklistItem[];
-      setChecklistItems(items);
-
-      const guestData = attendanceRes.data?.[0]?.guests;
-      const guestCount = Array.isArray(guestData) ? guestData.length : 0;
-      const infoItems = infoRes.data?.[0]?.items;
-      const blockCount = Array.isArray(infoItems) ? infoItems.length : 0;
-
-      setStatus({
-        checklist: {
-          total: items.length,
-          completed: items.filter(i => i.is_completed).length,
-        },
-        staff: { id: staffRes.data?.[0]?.id || null },
-        maintenance: { id: maintenanceRes.data?.[0]?.id || null },
-        monitoring: { id: monitoringRes.data?.[0]?.id || null },
-        attendance: { id: attendanceRes.data?.[0]?.id || null, guestCount },
-        info: { id: infoRes.data?.[0]?.id || null, blockCount },
-      });
-
       setEvalTemplates(evalTmplRes.data || []);
       setPrefestTemplates(prefestTmplRes.data || []);
       setCardapioTemplates(cardapioTmplRes.data || []);
 
+      await fetchModuleStatus(companyIdRef);
       setLoading(false);
-    })();
+    };
+
+    initialLoad();
+
+    // Polling every 30s
+    const pollTimer = setInterval(async () => {
+      if (!companyIdRef) return;
+      setRefreshing(true);
+      setCountdown(POLL_INTERVAL / 1000);
+      await fetchModuleStatus(companyIdRef);
+      setRefreshing(false);
+    }, POLL_INTERVAL);
+
+    // Countdown ticker (updates every second)
+    const countdownTimer = setInterval(() => {
+      setCountdown(prev => (prev <= 1 ? POLL_INTERVAL / 1000 : prev - 1));
+    }, 1000);
+
+    return () => {
+      clearInterval(pollTimer);
+      clearInterval(countdownTimer);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
 
   const handleCopyLink = () => {
@@ -525,6 +562,25 @@ export default function PublicPartyControl() {
           </p>
         </div>
       )}
+
+      {/* ---- POLLING INDICATOR ---- */}
+      <div className="flex items-center justify-end gap-1.5 px-4 pb-1">
+        {refreshing ? (
+          <Loader2 className="h-3 w-3 animate-spin" style={{ color: "#64748b" }} />
+        ) : (
+          <span
+            className="inline-block h-2 w-2 rounded-full animate-pulse"
+            style={{ background: "#22c55e" }}
+          />
+        )}
+        <span style={{ color: "#475569", fontSize: "10px" }}>
+          {refreshing
+            ? "Atualizando..."
+            : lastUpdated
+              ? `Atualizado às ${lastUpdated.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })} • próx. em ${countdown}s`
+              : "Ao vivo"}
+        </span>
+      </div>
 
       {/* ---- CONTENT AREA ---- */}
       <div className="flex-1 overflow-y-auto pb-24">
