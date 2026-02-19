@@ -2,10 +2,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Loader2, CheckSquare, Users, Wrench, ClipboardCheck,
-  UserCheck, Info, Star, UtensilsCrossed, FileText,
-  Copy, Check, Home, AlertTriangle, ListChecks, PartyPopper,
-  ChevronRight, Shield
+  Loader2, Copy, Check, AlertTriangle, PartyPopper,
+  ChevronRight, Shield, Zap, ArrowRight
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -91,7 +89,7 @@ interface ChecklistItem {
   sort_order: number;
 }
 
-const POLL_INTERVAL = 30_000; // 30 seconds
+const POLL_INTERVAL = 30_000;
 
 export default function PublicPartyControl() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -213,7 +211,6 @@ export default function PublicPartyControl() {
 
     initialLoad();
 
-    // Polling every 30s
     const pollTimer = setInterval(async () => {
       if (!companyIdRef) return;
       setRefreshing(true);
@@ -222,7 +219,6 @@ export default function PublicPartyControl() {
       setRefreshing(false);
     }, POLL_INTERVAL);
 
-    // Countdown ticker (updates every second)
     const countdownTimer = setInterval(() => {
       setCountdown(prev => (prev <= 1 ? POLL_INTERVAL / 1000 : prev - 1));
     }, 1000);
@@ -288,7 +284,6 @@ export default function PublicPartyControl() {
   const pendingChecklistItems = checklistItems.filter(i => !i.is_completed);
   const pendingCount = pendingChecklistItems.length;
 
-  // KPI calculation
   const modulesMissing = (() => {
     if (!modules) return 0;
     let count = 0;
@@ -302,10 +297,15 @@ export default function PublicPartyControl() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(180deg, #0f172a 0%, #1e293b 100%)" }}>
-        <div className="text-center space-y-3">
-          <Loader2 className="h-10 w-10 animate-spin text-blue-400 mx-auto" />
-          <p className="text-slate-400 text-sm">Carregando painel...</p>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(180deg, #0a0f1e 0%, #0f172a 50%, #1a0a2e 100%)" }}>
+        <div className="text-center space-y-4">
+          <div className="relative mx-auto w-16 h-16">
+            <div className="absolute inset-0 rounded-full" style={{ background: "rgba(139,92,246,0.2)", animation: "ping 1.5s ease-in-out infinite" }} />
+            <div className="relative flex items-center justify-center w-16 h-16 rounded-full" style={{ background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.3)" }}>
+              <Loader2 className="h-7 w-7 animate-spin" style={{ color: "#a78bfa" }} />
+            </div>
+          </div>
+          <p className="text-slate-400 text-sm font-medium">Carregando central...</p>
         </div>
       </div>
     );
@@ -313,7 +313,7 @@ export default function PublicPartyControl() {
 
   if (notFound || !event || !company) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "linear-gradient(180deg, #0f172a 0%, #1e293b 100%)" }}>
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "linear-gradient(180deg, #0a0f1e 0%, #0f172a 100%)" }}>
         <div className="text-center space-y-4">
           <Shield className="h-16 w-16 text-slate-600 mx-auto" />
           <h1 className="text-xl font-bold text-white">Evento não encontrado</h1>
@@ -328,155 +328,188 @@ export default function PublicPartyControl() {
     ? `${event.start_time.slice(0, 5)}${event.end_time ? `–${event.end_time.slice(0, 5)}` : ""}`
     : null;
 
-  // Module definitions
+  // Module definitions with emojis
   const moduleDefinitions = [
     {
       key: "checklist",
       label: "Checklist",
-      icon: CheckSquare,
-      gradient: "linear-gradient(135deg, #059669 0%, #047857 100%)",
-      glowColor: "rgba(5, 150, 105, 0.3)",
+      emoji: "✅",
+      color: "#10b981",
+      glow: "rgba(16,185,129,0.25)",
+      border: "rgba(16,185,129,0.35)",
+      bg: "linear-gradient(145deg, rgba(16,185,129,0.18) 0%, rgba(5,150,105,0.08) 100%)",
       enabled: modules?.checklist ?? true,
       statusText: status.checklist.total === 0
-        ? "Vazio"
+        ? "Sem itens"
         : `${status.checklist.completed}/${status.checklist.total} itens`,
       isOk: status.checklist.total > 0 && status.checklist.completed === status.checklist.total,
       isWarning: status.checklist.total > 0 && status.checklist.completed < status.checklist.total,
+      isEmpty: status.checklist.total === 0,
       onClick: () => setActiveTab("checklist"),
     },
     {
       key: "staff",
       label: "Equipe",
-      icon: Users,
-      gradient: "linear-gradient(135deg, #2563eb 0%, #1e40af 100%)",
-      glowColor: "rgba(37, 99, 235, 0.3)",
+      emoji: "👥",
+      color: "#3b82f6",
+      glow: "rgba(59,130,246,0.25)",
+      border: "rgba(59,130,246,0.35)",
+      bg: "linear-gradient(145deg, rgba(59,130,246,0.18) 0%, rgba(37,99,235,0.08) 100%)",
       enabled: modules?.staff ?? true,
       statusText: status.staff.id ? "Registrado" : "Não criado",
       isOk: !!status.staff.id,
       isWarning: !status.staff.id,
+      isEmpty: false,
       url: getModuleUrl("staff"),
     },
     {
       key: "maintenance",
       label: "Manutenção",
-      icon: Wrench,
-      gradient: "linear-gradient(135deg, #475569 0%, #334155 100%)",
-      glowColor: "rgba(71, 85, 105, 0.3)",
+      emoji: "🔧",
+      color: "#8b5cf6",
+      glow: "rgba(139,92,246,0.25)",
+      border: "rgba(139,92,246,0.35)",
+      bg: "linear-gradient(145deg, rgba(139,92,246,0.18) 0%, rgba(109,40,217,0.08) 100%)",
       enabled: modules?.maintenance ?? true,
       statusText: status.maintenance.id ? "Registrado" : "Não criado",
       isOk: !!status.maintenance.id,
       isWarning: !status.maintenance.id,
+      isEmpty: false,
       url: getModuleUrl("maintenance"),
     },
     {
       key: "monitoring",
       label: "Acompanhamento",
-      icon: ClipboardCheck,
-      gradient: "linear-gradient(135deg, #d97706 0%, #b45309 100%)",
-      glowColor: "rgba(217, 119, 6, 0.3)",
+      emoji: "📋",
+      color: "#f59e0b",
+      glow: "rgba(245,158,11,0.25)",
+      border: "rgba(245,158,11,0.35)",
+      bg: "linear-gradient(145deg, rgba(245,158,11,0.18) 0%, rgba(180,83,9,0.08) 100%)",
       enabled: modules?.monitoring ?? true,
       statusText: status.monitoring.id ? "Registrado" : "Não criado",
       isOk: !!status.monitoring.id,
       isWarning: !status.monitoring.id,
+      isEmpty: false,
       url: getModuleUrl("monitoring"),
     },
     {
       key: "attendance",
       label: "Presença",
-      icon: UserCheck,
-      gradient: "linear-gradient(135deg, #ea580c 0%, #c2410c 100%)",
-      glowColor: "rgba(234, 88, 12, 0.3)",
+      emoji: "🎟️",
+      color: "#f97316",
+      glow: "rgba(249,115,22,0.25)",
+      border: "rgba(249,115,22,0.35)",
+      bg: "linear-gradient(145deg, rgba(249,115,22,0.18) 0%, rgba(194,65,12,0.08) 100%)",
       enabled: modules?.attendance ?? true,
       statusText: status.attendance.id
         ? `${status.attendance.guestCount} convidados`
         : "Não criado",
       isOk: !!status.attendance.id,
       isWarning: !status.attendance.id,
+      isEmpty: false,
       url: getModuleUrl("attendance"),
     },
     {
       key: "info",
       label: "Informações",
-      icon: Info,
-      gradient: "linear-gradient(135deg, #0284c7 0%, #075985 100%)",
-      glowColor: "rgba(2, 132, 199, 0.3)",
+      emoji: "📌",
+      color: "#06b6d4",
+      glow: "rgba(6,182,212,0.25)",
+      border: "rgba(6,182,212,0.35)",
+      bg: "linear-gradient(145deg, rgba(6,182,212,0.18) 0%, rgba(8,145,178,0.08) 100%)",
       enabled: modules?.info ?? true,
       statusText: status.info.id ? `${status.info.blockCount} blocos` : "Não criado",
       isOk: !!status.info.id,
       isWarning: !status.info.id,
+      isEmpty: false,
       url: getModuleUrl("info"),
     },
     {
       key: "prefesta",
       label: "Pré-Festa",
-      icon: FileText,
-      gradient: "linear-gradient(135deg, #db2777 0%, #be185d 100%)",
-      glowColor: "rgba(219, 39, 119, 0.3)",
+      emoji: "🎀",
+      color: "#ec4899",
+      glow: "rgba(236,72,153,0.25)",
+      border: "rgba(236,72,153,0.35)",
+      bg: "linear-gradient(145deg, rgba(236,72,153,0.18) 0%, rgba(190,24,93,0.08) 100%)",
       enabled: modules?.prefesta ?? false,
       statusText: getModuleUrl("prefesta") ? "Disponível" : "Sem template",
       isOk: !!getModuleUrl("prefesta"),
       isWarning: !getModuleUrl("prefesta"),
+      isEmpty: false,
       url: getModuleUrl("prefesta"),
     },
     {
       key: "cardapio",
       label: "Cardápio",
-      icon: UtensilsCrossed,
-      gradient: "linear-gradient(135deg, #ca8a04 0%, #a16207 100%)",
-      glowColor: "rgba(202, 138, 4, 0.3)",
+      emoji: "🍽️",
+      color: "#eab308",
+      glow: "rgba(234,179,8,0.25)",
+      border: "rgba(234,179,8,0.35)",
+      bg: "linear-gradient(145deg, rgba(234,179,8,0.18) 0%, rgba(161,98,7,0.08) 100%)",
       enabled: modules?.cardapio ?? false,
       statusText: getModuleUrl("cardapio") ? "Disponível" : "Sem template",
       isOk: !!getModuleUrl("cardapio"),
       isWarning: !getModuleUrl("cardapio"),
+      isEmpty: false,
       url: getModuleUrl("cardapio"),
     },
     {
       key: "avaliacao",
       label: "Avaliação",
-      icon: Star,
-      gradient: "linear-gradient(135deg, #0d9488 0%, #0f766e 100%)",
-      glowColor: "rgba(13, 148, 136, 0.3)",
+      emoji: "⭐",
+      color: "#14b8a6",
+      glow: "rgba(20,184,166,0.25)",
+      border: "rgba(20,184,166,0.35)",
+      bg: "linear-gradient(145deg, rgba(20,184,166,0.18) 0%, rgba(15,118,110,0.08) 100%)",
       enabled: modules?.avaliacao ?? false,
       statusText: getModuleUrl("avaliacao") ? "Disponível" : "Sem template",
       isOk: !!getModuleUrl("avaliacao"),
       isWarning: !getModuleUrl("avaliacao"),
+      isEmpty: false,
       url: getModuleUrl("avaliacao"),
     },
   ].filter(m => m.enabled);
 
+  const checklistProgress = status.checklist.total > 0
+    ? Math.round((status.checklist.completed / status.checklist.total) * 100)
+    : 0;
+
   return (
     <div
       className="min-h-screen flex flex-col"
-      style={{ background: "linear-gradient(180deg, #0f172a 0%, #1e293b 100%)" }}
+      style={{ background: "linear-gradient(180deg, #0a0f1e 0%, #0f172a 40%, #0f1629 100%)" }}
     >
       {/* ---- HEADER ---- */}
-      <div className="shrink-0 px-4 pt-5 pb-3">
-        {/* Company logo + name */}
-        <div className="flex items-center gap-2 mb-4">
-          {company.logo_url && (
-            <img src={company.logo_url} alt={company.name} className="h-8 w-8 rounded-lg object-cover" />
-          )}
-          <span className="text-slate-400 text-xs font-medium tracking-wide uppercase">{company.name}</span>
+      <div className="shrink-0 px-4 pt-6 pb-4">
+        {/* Top bar: company + share buttons */}
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            {company.logo_url ? (
+              <img src={company.logo_url} alt={company.name} className="h-7 w-7 rounded-lg object-cover" style={{ border: "1px solid rgba(255,255,255,0.1)" }} />
+            ) : (
+              <div className="h-7 w-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(139,92,246,0.2)", border: "1px solid rgba(139,92,246,0.3)" }}>
+                <PartyPopper className="h-3.5 w-3.5" style={{ color: "#a78bfa" }} />
+              </div>
+            )}
+            <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "#64748b" }}>{company.name}</span>
+          </div>
 
-          <div className="ml-auto flex items-center gap-2">
-            {/* WhatsApp share button */}
+          <div className="flex items-center gap-1.5">
             <button
               onClick={handleShareWhatsApp}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95"
-              style={{ background: "rgba(37,211,102,0.15)", color: "#25d366", border: "1px solid rgba(37,211,102,0.25)" }}
-              title="Compartilhar no WhatsApp"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95"
+              style={{ background: "rgba(37,211,102,0.12)", color: "#4ade80", border: "1px solid rgba(37,211,102,0.2)" }}
             >
               <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
               </svg>
-              Compartilhar
+              Enviar
             </button>
-
-            {/* Copy link button */}
             <button
               onClick={handleCopyLink}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-              style={{ background: "rgba(255,255,255,0.07)", color: "#94a3b8" }}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95"
+              style={{ background: "rgba(255,255,255,0.06)", color: "#94a3b8", border: "1px solid rgba(255,255,255,0.1)" }}
             >
               {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
               {copied ? "Copiado!" : "Link"}
@@ -484,176 +517,242 @@ export default function PublicPartyControl() {
           </div>
         </div>
 
-        {/* Event title */}
-        <div className="flex items-start gap-2 mb-1">
-          <PartyPopper className="h-5 w-5 text-yellow-400 shrink-0 mt-0.5" />
-          <h1 className="text-white font-bold text-xl leading-tight">{event.title}</h1>
-        </div>
-
-        {/* Event meta */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 ml-7 text-slate-400 text-sm">
-          <span className="capitalize">{dateFormatted}</span>
-          {timeStr && <span>• {timeStr}</span>}
-          {event.unit && <span>• {event.unit}</span>}
-          {event.guest_count && <span>• {event.guest_count} conv.</span>}
-        </div>
-
-        {/* Status badge */}
-        <div className="mt-3 ml-7">
-          <span
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold"
-            style={
-              event.status === "confirmado"
-                ? { background: "rgba(5,150,105,0.2)", color: "#34d399" }
-                : event.status === "cancelado"
-                ? { background: "rgba(239,68,68,0.2)", color: "#f87171" }
-                : { background: "rgba(251,191,36,0.2)", color: "#fbbf24" }
-            }
-          >
-            <span
-              className="h-1.5 w-1.5 rounded-full"
-              style={{
-                background: event.status === "confirmado" ? "#34d399"
-                  : event.status === "cancelado" ? "#f87171" : "#fbbf24"
-              }}
-            />
-            {event.status === "confirmado" ? "Confirmado" : event.status === "cancelado" ? "Cancelado" : "Pendente"}
-          </span>
-        </div>
-      </div>
-
-      {/* ---- KPI CARDS ---- */}
-      <div className="px-4 pb-3 grid grid-cols-3 gap-2.5">
-        {/* Feitos */}
-        <div
-          className="rounded-2xl p-3 text-center"
-          style={{ background: "rgba(5,150,105,0.12)", border: "1px solid rgba(5,150,105,0.25)" }}
-        >
-          <div className="text-2xl font-black text-emerald-400">{status.checklist.completed}</div>
-          <div className="text-xs text-slate-400 mt-0.5">Feitos</div>
-        </div>
-        {/* Pendentes */}
-        <div
-          className="rounded-2xl p-3 text-center"
-          style={{ background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.25)" }}
-        >
-          <div className="text-2xl font-black text-yellow-400">{pendingCount}</div>
-          <div className="text-xs text-slate-400 mt-0.5">Pendentes</div>
-        </div>
-        {/* Alertas */}
-        <div
-          className="rounded-2xl p-3 text-center"
-          style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)" }}
-        >
-          <div className="text-2xl font-black text-red-400">{modulesMissing}</div>
-          <div className="text-xs text-slate-400 mt-0.5">Alertas</div>
-        </div>
-      </div>
-
-      {/* ---- ALERT BANNER ---- */}
-      {modulesMissing > 0 && (
-        <div
-          className="mx-4 mb-3 rounded-xl px-3 py-2.5 flex items-center gap-2"
-          style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)" }}
-        >
-          <AlertTriangle className="h-4 w-4 text-red-400 shrink-0" />
-          <p className="text-red-300 text-xs">
-            {modulesMissing} módulo{modulesMissing > 1 ? "s" : ""} ainda não {modulesMissing > 1 ? "foram criados" : "foi criado"}
+        {/* Central title area */}
+        <div className="text-center mb-5">
+          <div className="inline-flex items-center gap-2 mb-2 px-3 py-1 rounded-full" style={{ background: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.2)" }}>
+            <Zap className="h-3.5 w-3.5" style={{ color: "#a78bfa" }} />
+            <span className="text-xs font-bold tracking-wider uppercase" style={{ color: "#a78bfa" }}>Central de Controle</span>
+          </div>
+          <h1 className="text-white font-black text-2xl leading-tight mb-1">{event.title}</h1>
+          <p className="text-sm font-medium" style={{ color: "#64748b" }}>
+            <span className="capitalize">{dateFormatted}</span>
+            {timeStr && <span> • {timeStr}</span>}
+            {event.unit && <span> • {event.unit}</span>}
+            {event.guest_count && <span> • {event.guest_count} convidados</span>}
           </p>
+
+          {/* Status pill */}
+          <div className="mt-2 flex justify-center">
+            <span
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold"
+              style={
+                event.status === "confirmado"
+                  ? { background: "rgba(16,185,129,0.15)", color: "#34d399", border: "1px solid rgba(16,185,129,0.25)" }
+                  : event.status === "cancelado"
+                  ? { background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)" }
+                  : { background: "rgba(251,191,36,0.15)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.25)" }
+              }
+            >
+              <span
+                className="h-1.5 w-1.5 rounded-full animate-pulse"
+                style={{
+                  background: event.status === "confirmado" ? "#34d399"
+                    : event.status === "cancelado" ? "#f87171" : "#fbbf24"
+                }}
+              />
+              {event.status === "confirmado" ? "🎉 Confirmado" : event.status === "cancelado" ? "Cancelado" : "Pendente"}
+            </span>
+          </div>
         </div>
-      )}
+
+        {/* ---- KPI CARDS ---- */}
+        <div className="grid grid-cols-3 gap-2.5 mb-4">
+          {/* OK */}
+          <div
+            className="rounded-2xl p-3 text-center relative overflow-hidden"
+            style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)" }}
+          >
+            <div className="text-2xl mb-0.5">✅</div>
+            <div className="text-2xl font-black" style={{ color: "#34d399" }}>{status.checklist.completed}</div>
+            <div className="text-[10px] font-semibold uppercase tracking-wide mt-0.5" style={{ color: "#6ee7b7" }}>OK</div>
+          </div>
+          {/* Pendentes */}
+          <div
+            className="rounded-2xl p-3 text-center relative overflow-hidden"
+            style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)" }}
+          >
+            <div className="text-2xl mb-0.5">⏳</div>
+            <div className="text-2xl font-black" style={{ color: "#fbbf24" }}>{pendingCount}</div>
+            <div className="text-[10px] font-semibold uppercase tracking-wide mt-0.5" style={{ color: "#fde68a" }}>Pendentes</div>
+          </div>
+          {/* Alertas */}
+          <div
+            className="rounded-2xl p-3 text-center relative overflow-hidden"
+            style={{
+              background: modulesMissing > 0 ? "rgba(239,68,68,0.1)" : "rgba(16,185,129,0.06)",
+              border: modulesMissing > 0 ? "1px solid rgba(239,68,68,0.25)" : "1px solid rgba(16,185,129,0.15)",
+            }}
+          >
+            <div className="text-2xl mb-0.5">{modulesMissing > 0 ? "🚨" : "🟢"}</div>
+            <div className="text-2xl font-black" style={{ color: modulesMissing > 0 ? "#f87171" : "#34d399" }}>{modulesMissing}</div>
+            <div className="text-[10px] font-semibold uppercase tracking-wide mt-0.5" style={{ color: modulesMissing > 0 ? "#fca5a5" : "#6ee7b7" }}>Alertas</div>
+          </div>
+        </div>
+
+        {/* Progress bar for checklist */}
+        {status.checklist.total > 0 && (
+          <div className="mb-4">
+            <div className="flex justify-between items-center mb-1.5">
+              <span className="text-xs font-semibold" style={{ color: "#64748b" }}>Progresso do Checklist</span>
+              <span className="text-xs font-bold" style={{ color: checklistProgress === 100 ? "#34d399" : "#94a3b8" }}>{checklistProgress}%</span>
+            </div>
+            <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.07)" }}>
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{
+                  width: `${checklistProgress}%`,
+                  background: checklistProgress === 100
+                    ? "linear-gradient(90deg, #10b981, #34d399)"
+                    : "linear-gradient(90deg, #f59e0b, #fbbf24)",
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ---- ALERT BANNER ---- */}
+        {modulesMissing > 0 && (
+          <div
+            className="rounded-2xl px-4 py-3 flex items-center gap-3 mb-1"
+            style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}
+          >
+            <div className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(239,68,68,0.15)" }}>
+              <AlertTriangle className="h-4 w-4 text-red-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-red-300">Atenção necessária</p>
+              <p className="text-xs" style={{ color: "#f87171" }}>
+                {modulesMissing} módulo{modulesMissing > 1 ? "s" : ""} ainda não {modulesMissing > 1 ? "foram criados" : "foi criado"}
+              </p>
+            </div>
+            <button
+              onClick={() => setActiveTab("home")}
+              className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg shrink-0"
+              style={{ background: "rgba(239,68,68,0.2)", color: "#fca5a5", border: "1px solid rgba(239,68,68,0.3)" }}
+            >
+              Ver <ArrowRight className="h-3 w-3" />
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* ---- POLLING INDICATOR ---- */}
-      <div className="flex items-center justify-end gap-1.5 px-4 pb-1">
+      <div className="flex items-center justify-end gap-1.5 px-4 pb-2">
         {refreshing ? (
           <Loader2 className="h-3 w-3 animate-spin" style={{ color: "#64748b" }} />
         ) : (
-          <span
-            className="inline-block h-2 w-2 rounded-full animate-pulse"
-            style={{ background: "#22c55e" }}
-          />
+          <span className="inline-block h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "#22c55e" }} />
         )}
         <span style={{ color: "#475569", fontSize: "10px" }}>
           {refreshing
             ? "Atualizando..."
             : lastUpdated
-              ? `Atualizado às ${lastUpdated.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })} • próx. em ${countdown}s`
+              ? `Atualizado ${lastUpdated.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} • próx. em ${countdown}s`
               : "Ao vivo"}
         </span>
       </div>
 
       {/* ---- CONTENT AREA ---- */}
-      <div className="flex-1 overflow-y-auto pb-24">
+      <div className="flex-1 overflow-y-auto pb-28">
 
         {/* HOME TAB */}
         {activeTab === "home" && (
-          <div className="px-4 grid grid-cols-2 gap-3">
-            {moduleDefinitions.map(mod => {
-              const Icon = mod.icon;
-              const isClickable = mod.key === "checklist" || !!mod.url;
+          <div className="px-4">
+            <div className="grid grid-cols-2 gap-3">
+              {moduleDefinitions.map(mod => {
+                const isClickable = mod.key === "checklist" || !!(mod as any).url;
 
-              return (
-                <button
-                  key={mod.key}
-                  onClick={() => {
-                    if (mod.key === "checklist") {
-                      setActiveTab("checklist");
-                    } else if (mod.url) {
-                      openModule(mod.url);
-                    }
-                  }}
-                  disabled={!isClickable}
-                  className="relative rounded-2xl p-4 text-left transition-transform active:scale-95 disabled:opacity-50"
-                  style={{
-                    background: mod.gradient,
-                    boxShadow: isClickable ? `0 4px 20px ${mod.glowColor}` : "none",
-                  }}
-                >
-                  <Icon className="h-7 w-7 text-white mb-2.5" strokeWidth={2} />
-                  <div className="text-white font-bold text-sm leading-tight">{mod.label}</div>
-                  <div
-                    className="mt-1.5 flex items-center gap-1 text-xs font-medium"
-                    style={{ color: "rgba(255,255,255,0.75)" }}
+                return (
+                  <button
+                    key={mod.key}
+                    onClick={() => {
+                      if (mod.key === "checklist") {
+                        setActiveTab("checklist");
+                      } else if ((mod as any).url) {
+                        openModule((mod as any).url);
+                      }
+                    }}
+                    disabled={!isClickable}
+                    className="relative rounded-2xl p-4 text-left transition-all active:scale-95 disabled:opacity-40"
+                    style={{
+                      background: mod.bg,
+                      border: `1px solid ${mod.border}`,
+                      boxShadow: isClickable ? `0 8px 24px ${mod.glow}, inset 0 1px 0 rgba(255,255,255,0.05)` : "none",
+                    }}
                   >
-                    <span
-                      className="h-1.5 w-1.5 rounded-full"
-                      style={{ background: mod.isOk ? "#34d399" : "#fbbf24" }}
-                    />
-                    {mod.statusText}
-                  </div>
-                  {isClickable && (
-                    <ChevronRight
-                      className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4"
-                      style={{ color: "rgba(255,255,255,0.5)" }}
-                    />
-                  )}
-                </button>
-              );
-            })}
+                    {/* Status dot top-right */}
+                    <div className="absolute top-3 right-3">
+                      <div
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{
+                          background: mod.isOk ? "#34d399" : mod.isEmpty ? "#64748b" : "#fbbf24",
+                          boxShadow: mod.isOk ? "0 0 6px rgba(52,211,153,0.6)" : mod.isEmpty ? "none" : "0 0 6px rgba(251,191,36,0.6)",
+                        }}
+                      />
+                    </div>
+
+                    {/* Emoji icon */}
+                    <div className="text-3xl mb-3 leading-none">{mod.emoji}</div>
+
+                    {/* Label */}
+                    <div className="font-bold text-sm leading-tight mb-1.5" style={{ color: "#f1f5f9" }}>{mod.label}</div>
+
+                    {/* Status text */}
+                    <div
+                      className="text-xs font-semibold"
+                      style={{ color: mod.isOk ? "#6ee7b7" : mod.isEmpty ? "#64748b" : "#fde68a" }}
+                    >
+                      {mod.statusText}
+                    </div>
+
+                    {/* Arrow if clickable */}
+                    {isClickable && (
+                      <div
+                        className="absolute bottom-3 right-3 h-6 w-6 rounded-lg flex items-center justify-center"
+                        style={{ background: `rgba(255,255,255,0.08)` }}
+                      >
+                        <ChevronRight className="h-3.5 w-3.5" style={{ color: "rgba(255,255,255,0.5)" }} />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
         {/* PENDING TAB */}
         {activeTab === "pending" && (
           <div className="px-4 space-y-2">
-            <h2 className="text-white font-bold text-sm mb-3">Itens pendentes do checklist</h2>
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-lg">⏳</span>
+              <h2 className="text-white font-bold text-base">Itens pendentes</h2>
+              {pendingCount > 0 && (
+                <span className="ml-auto px-2 py-0.5 rounded-full text-xs font-bold" style={{ background: "rgba(251,191,36,0.15)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.25)" }}>
+                  {pendingCount}
+                </span>
+              )}
+            </div>
             {pendingChecklistItems.length === 0 ? (
-              <div className="text-center py-12">
-                <CheckSquare className="h-12 w-12 text-emerald-400 mx-auto mb-3 opacity-60" />
-                <p className="text-slate-400 text-sm">Nenhum item pendente! 🎉</p>
+              <div className="text-center py-16">
+                <div className="text-5xl mb-4">🎉</div>
+                <p className="text-white font-bold text-lg">Tudo em dia!</p>
+                <p className="text-slate-400 text-sm mt-1">Nenhum item pendente no checklist</p>
               </div>
             ) : (
-              pendingChecklistItems.map(item => (
+              pendingChecklistItems.map((item, idx) => (
                 <div
                   key={item.id}
                   className="rounded-xl px-4 py-3 flex items-center gap-3"
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                  style={{ background: "rgba(251,191,36,0.05)", border: "1px solid rgba(251,191,36,0.15)" }}
                 >
                   <div
-                    className="h-4 w-4 rounded shrink-0"
-                    style={{ border: "2px solid rgba(255,255,255,0.3)" }}
-                  />
-                  <span className="text-slate-200 text-sm">{item.title}</span>
+                    className="h-6 w-6 rounded-lg flex items-center justify-center shrink-0 font-bold text-xs"
+                    style={{ background: "rgba(251,191,36,0.15)", color: "#fbbf24" }}
+                  >
+                    {idx + 1}
+                  </div>
+                  <span className="text-slate-200 text-sm font-medium">{item.title}</span>
                 </div>
               ))
             )}
@@ -663,32 +762,34 @@ export default function PublicPartyControl() {
         {/* CHECKLIST TAB */}
         {activeTab === "checklist" && (
           <div className="px-4 space-y-2">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-white font-bold text-sm">Checklist da Festa</h2>
-              <span className="text-slate-400 text-xs">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-lg">✅</span>
+              <h2 className="text-white font-bold text-base">Checklist da Festa</h2>
+              <span className="ml-auto text-sm font-bold" style={{ color: "#64748b" }}>
                 {status.checklist.completed}/{status.checklist.total}
               </span>
             </div>
 
             {/* Progress bar */}
             {status.checklist.total > 0 && (
-              <div
-                className="h-1.5 rounded-full mb-4 overflow-hidden"
-                style={{ background: "rgba(255,255,255,0.1)" }}
-              >
-                <div
-                  className="h-full rounded-full transition-all"
-                  style={{
-                    width: `${Math.round((status.checklist.completed / status.checklist.total) * 100)}%`,
-                    background: "linear-gradient(90deg, #059669, #34d399)",
-                  }}
-                />
+              <div className="mb-4">
+                <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.07)" }}>
+                  <div
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{
+                      width: `${checklistProgress}%`,
+                      background: checklistProgress === 100
+                        ? "linear-gradient(90deg, #10b981, #34d399)"
+                        : "linear-gradient(90deg, #f59e0b, #fbbf24)",
+                    }}
+                  />
+                </div>
               </div>
             )}
 
             {checklistItems.length === 0 ? (
-              <div className="text-center py-12">
-                <ListChecks className="h-12 w-12 text-slate-600 mx-auto mb-3" />
+              <div className="text-center py-16">
+                <div className="text-5xl mb-4">📋</div>
                 <p className="text-slate-400 text-sm">Nenhum item no checklist</p>
               </div>
             ) : (
@@ -697,23 +798,23 @@ export default function PublicPartyControl() {
                   key={item.id}
                   className="rounded-xl px-4 py-3 flex items-center gap-3"
                   style={{
-                    background: item.is_completed ? "rgba(5,150,105,0.12)" : "rgba(255,255,255,0.05)",
-                    border: item.is_completed ? "1px solid rgba(5,150,105,0.25)" : "1px solid rgba(255,255,255,0.08)",
+                    background: item.is_completed ? "rgba(16,185,129,0.08)" : "rgba(255,255,255,0.04)",
+                    border: item.is_completed ? "1px solid rgba(16,185,129,0.2)" : "1px solid rgba(255,255,255,0.07)",
                   }}
                 >
                   <div
                     className="h-5 w-5 rounded-md shrink-0 flex items-center justify-center"
                     style={{
-                      background: item.is_completed ? "#059669" : "transparent",
-                      border: item.is_completed ? "none" : "2px solid rgba(255,255,255,0.25)",
+                      background: item.is_completed ? "#10b981" : "transparent",
+                      border: item.is_completed ? "none" : "2px solid rgba(255,255,255,0.2)",
                     }}
                   >
                     {item.is_completed && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
                   </div>
                   <span
-                    className="text-sm"
+                    className="text-sm font-medium"
                     style={{
-                      color: item.is_completed ? "#86efac" : "#cbd5e1",
+                      color: item.is_completed ? "#6ee7b7" : "#cbd5e1",
                       textDecoration: item.is_completed ? "line-through" : "none",
                     }}
                   >
@@ -728,38 +829,49 @@ export default function PublicPartyControl() {
 
       {/* ---- BOTTOM NAV ---- */}
       <div
-        className="fixed bottom-0 left-0 right-0 flex items-stretch"
+        className="fixed bottom-0 left-0 right-0"
         style={{
-          background: "rgba(15,23,42,0.95)",
-          backdropFilter: "blur(12px)",
-          borderTop: "1px solid rgba(255,255,255,0.08)",
+          background: "rgba(10,15,30,0.97)",
+          backdropFilter: "blur(20px)",
+          borderTop: "1px solid rgba(255,255,255,0.07)",
         }}
       >
-        {[
-          { id: "home" as TabType, label: "Início", icon: Home },
-          { id: "pending" as TabType, label: `Pendentes${pendingCount > 0 ? ` (${pendingCount})` : ""}`, icon: AlertTriangle },
-          { id: "checklist" as TabType, label: "Checklist", icon: ListChecks },
-        ].map(tab => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className="flex-1 flex flex-col items-center gap-1 py-3 px-2 transition-colors"
-              style={{ color: isActive ? "#60a5fa" : "#64748b" }}
-            >
-              <Icon className="h-5 w-5" />
-              <span className="text-[10px] font-medium leading-none">{tab.label}</span>
-              {isActive && (
-                <div
-                  className="absolute bottom-0 h-0.5 w-10 rounded-full"
-                  style={{ background: "#60a5fa" }}
-                />
-              )}
-            </button>
-          );
-        })}
+        <div className="flex items-stretch">
+          {[
+            { id: "home" as TabType, label: "Início", emoji: "🏠", badge: null },
+            { id: "pending" as TabType, label: "Pendentes", emoji: "⏳", badge: pendingCount > 0 ? pendingCount : null },
+            { id: "checklist" as TabType, label: "Checklist", emoji: "✅", badge: null },
+          ].map(tab => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className="flex-1 flex flex-col items-center gap-1 py-3 px-2 relative transition-all"
+                style={{ color: isActive ? "#a78bfa" : "#475569" }}
+              >
+                <div className="relative">
+                  <span className="text-xl">{tab.emoji}</span>
+                  {tab.badge !== null && (
+                    <span
+                      className="absolute -top-1.5 -right-2 h-4 min-w-4 px-1 rounded-full text-[10px] font-black flex items-center justify-center"
+                      style={{ background: "#ef4444", color: "#fff" }}
+                    >
+                      {tab.badge}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[10px] font-semibold leading-none">{tab.label}</span>
+                {isActive && (
+                  <div
+                    className="absolute bottom-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full"
+                    style={{ background: "#7c3aed" }}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
