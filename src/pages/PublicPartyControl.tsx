@@ -477,8 +477,8 @@ export default function PublicPartyControl() {
 
   return (
     <div
-      className="h-screen flex flex-col overflow-hidden"
-      style={{ background: "linear-gradient(180deg, #0a0f1e 0%, #0f172a 40%, #0f1629 100%)" }}
+      className="flex flex-col overflow-hidden"
+      style={{ background: "linear-gradient(180deg, #0a0f1e 0%, #0f172a 40%, #0f1629 100%)", height: "100dvh" }}
     >
       {/* ---- HEADER ---- */}
       <div className="shrink-0 px-4 pt-6 pb-4">
