@@ -3318,7 +3318,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                   </div>
 
                   {/* Lead Classification Panel - Always visible */}
-                  <div className="border-b border-border/40 bg-muted/30 px-3 py-3.5 shrink-0">
+                  <div className="border-b border-border/40 bg-muted/30 px-3 pt-4 pb-3 shrink-0">
                     {linkedLead ? (
                       // Show classification stepper when lead is linked
                       <div className="flex items-center gap-1 overflow-x-auto scrollbar-thin">
