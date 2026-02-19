@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Wifi, Bell, Bot, Settings, Lock, HelpCircle, ClipboardCheck, FileText, Users, Building2 } from "lucide-react";
+import { Wifi, Bell, Bot, Settings, Lock, HelpCircle, FileText, Building2 } from "lucide-react";
 import { ConnectionSection } from "./settings/ConnectionSection";
 import { NotificationsSection } from "./settings/NotificationsSection";
 import { AutomationsSection } from "./settings/AutomationsSection";
@@ -8,7 +8,6 @@ import { AdvancedSection } from "./settings/AdvancedSection";
 import { VisualGuideSection } from "./settings/VisualGuideSection";
 import { ContentSection } from "./settings/ContentSection";
 import { CompanyDataSection } from "./settings/CompanyDataSection";
-import { ChecklistTemplateManager } from "@/components/agenda/ChecklistTemplateManager";
 import { useConfigPermissions } from "@/hooks/useConfigPermissions";
 import { useCompanyModules, type CompanyModules } from "@/hooks/useCompanyModules";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -72,24 +71,6 @@ const allConfigSections = [
     icon: Settings,
   },
   {
-    id: "team",
-    permissionKey: "advanced" as const,
-    moduleKey: null,
-    title: "Equipe",
-    description: "Gerenciar usuários",
-    icon: Users,
-    isLink: true,
-    linkTo: "/users",
-  },
-  {
-    id: "checklist",
-    permissionKey: "advanced" as const,
-    moduleKey: null,
-    title: "Checklist",
-    description: "Templates de eventos",
-    icon: ClipboardCheck,
-  },
-  {
     id: "guide",
     permissionKey: null as any,
     moduleKey: null,
@@ -139,8 +120,6 @@ export function WhatsAppConfig({ userId, isAdmin }: WhatsAppConfigProps) {
         return <AutomationsSection />;
       case "advanced":
         return <AdvancedSection userId={userId} isAdmin={isAdmin} />;
-      case "checklist":
-        return <ChecklistTemplateManager />;
       case "guide":
         return <VisualGuideSection />;
       default:
