@@ -3318,10 +3318,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                   </div>
 
                   {/* Lead Classification Panel - Always visible */}
-                  <div className="border-b border-border/40 bg-muted/30 px-4 py-3 shrink-0">
+                  <div className="border-b border-border/40 bg-muted/30 px-3 py-3.5 shrink-0">
                     {linkedLead ? (
                       // Show classification stepper when lead is linked
-                      <div className="flex items-center gap-1 overflow-x-auto scrollbar-thin pb-1">
+                      <div className="flex items-center gap-1 overflow-x-auto scrollbar-thin">
                         {[
                           { value: 'novo', label: 'Novo', color: 'bg-blue-500', textColor: 'text-blue-700', bgActive: 'bg-blue-500/15' },
                           { value: 'trabalhe_conosco', label: 'Trab. Conosco', color: 'bg-teal-500', textColor: 'text-teal-700', bgActive: 'bg-teal-500/15' },
@@ -3338,7 +3338,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                             <div key={statusOption.value} className="flex items-center shrink-0">
                               <button
                                 className={cn(
-                                  "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200",
+                                  "flex items-center gap-1 px-2 py-1.5 rounded-full text-[11px] font-medium transition-all duration-200",
                                   isActive
                                     ? cn(statusOption.bgActive, statusOption.textColor, "ring-1 ring-current/30 shadow-sm")
                                     : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
@@ -3396,7 +3396,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                 {statusOption.label}
                               </button>
                               {index < arr.length - 1 && (
-                                <div className="w-3 h-px bg-border mx-0.5" />
+                                <div className="w-2 h-px bg-border mx-0.5" />
                               )}
                             </div>
                           );
