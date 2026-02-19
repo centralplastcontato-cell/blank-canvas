@@ -8,11 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
-import { HardHat, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, Calendar, ChevronDown, ChevronRight, MessageCircle } from "lucide-react";
+import { HardHat, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, ChevronDown, ChevronRight, MessageCircle, ShieldAlert } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -56,15 +56,97 @@ const DEFAULT_QUESTIONS: FreelancerQuestion[] = [
 const generateSlug = (name: string) =>
   name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-function FreelancerResponseCards({ responses, template, companyId, onDeleted }: { responses: any[]; template: FreelancerTemplate | null; companyId: string; onDeleted?: () => void }) {
+// Reusable password confirmation dialog
+function PasswordConfirmDialog({
+  open,
+  onOpenChange,
+  onConfirmed,
+  title = "Confirmar exclusão",
+  description = "Esta ação é irreversível. Digite sua senha para confirmar.",
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onConfirmed: () => void;
+  title?: string;
+  description?: string;
+}) {
+  const [password, setPassword] = useState("");
+  const [checking, setChecking] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleConfirm = async () => {
+    if (!password.trim()) { setError("Digite sua senha"); return; }
+    setChecking(true);
+    setError("");
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const email = userData.user?.email;
+      if (!email) throw new Error("Usuário não identificado");
+      const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+      if (authError) { setError("Senha incorreta. Tente novamente."); setChecking(false); return; }
+      onOpenChange(false);
+      setPassword("");
+      onConfirmed();
+    } catch (e: any) {
+      setError(e.message || "Erro ao verificar senha");
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) { setPassword(""); setError(""); } }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ShieldAlert className="h-5 w-5 text-destructive" />
+            {title}
+          </DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="confirm-password">Sua senha de acesso</Label>
+            <Input
+              id="confirm-password"
+              type="password"
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); setError(""); }}
+              placeholder="Digite sua senha..."
+              onKeyDown={(e) => e.key === "Enter" && handleConfirm()}
+              autoFocus
+            />
+            {error && <p className="text-xs text-destructive">{error}</p>}
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button variant="destructive" onClick={handleConfirm} disabled={checking || !password.trim()}>
+            {checking && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Confirmar Exclusão
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function FreelancerResponseCards({ responses, template, companyId, onDeleted, isAdmin }: {
+  responses: any[];
+  template: FreelancerTemplate | null;
+  companyId: string;
+  onDeleted?: () => void;
+  isAdmin: boolean;
+}) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [sendingPhotoRequest, setSendingPhotoRequest] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const handleDeleteResponse = async (id: string) => {
     setDeletingId(id);
     try {
-      // Delete linked evaluations first
       await (supabase as any).from("freelancer_evaluations").delete().eq("freelancer_response_id", id);
       const { error } = await supabase.from("freelancer_responses").delete().eq("id", id);
       if (error) throw error;
@@ -76,6 +158,11 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted }: 
     } finally {
       setDeletingId(null);
     }
+  };
+
+  const requestDelete = (id: string) => {
+    setPendingDeleteId(id);
+    setPasswordDialogOpen(true);
   };
 
   const handleRequestPhoto = async (r: any) => {
@@ -120,10 +207,16 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted }: 
 
   return (
     <div className="space-y-2">
+      <PasswordConfirmDialog
+        open={passwordDialogOpen}
+        onOpenChange={setPasswordDialogOpen}
+        title="Excluir cadastro de freelancer"
+        description="Esta ação é irreversível e excluirá o cadastro permanentemente. Digite sua senha de acesso para confirmar."
+        onConfirmed={() => { if (pendingDeleteId) handleDeleteResponse(pendingDeleteId); }}
+      />
       {responses.map((r) => {
         const isOpen = openId === r.id;
         const answersArr = Array.isArray(r.answers) ? r.answers : [];
-        const getAnswer = (key: string) => answersArr.find((a: any) => a.questionId === key)?.value;
         return (
           <div key={r.id}>
             <button
@@ -159,32 +252,17 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted }: 
                       <span className="text-xs text-muted-foreground">
                         {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                       </span>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Excluir cadastro?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Tem certeza que deseja excluir o cadastro de "{r.respondent_name}"? Esta ação não pode ser desfeita.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDeleteResponse(r.id)}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              disabled={deletingId === r.id}
-                            >
-                              {deletingId === r.id && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                              Excluir
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      {isAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive hover:text-destructive"
+                          onClick={() => requestDelete(r.id)}
+                          disabled={deletingId === r.id}
+                        >
+                          {deletingId === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                        </Button>
+                      )}
                     </div>
                   </div>
                   {r.photo_url ? (
@@ -216,7 +294,6 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted }: 
                     {answersArr.map((a: any, idx: number) => {
                       const question = template?.questions.find(q => q.id === a.questionId);
                       if (a.value === null || a.value === undefined) return null;
-                      // Skip photo type (shown above)
                       if (question?.type === "photo") return null;
                       let displayValue: string;
                       if (a.value === true) displayValue = "👍 Sim";
@@ -231,7 +308,6 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted }: 
                       );
                     })}
                   </div>
-                  {/* Evaluation History */}
                   {r.respondent_name && (
                     <div className="px-4 py-3 border-t border-border">
                       <p className="text-xs font-semibold text-muted-foreground mb-2">⭐ Avaliações</p>
@@ -249,7 +325,8 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted }: 
 }
 
 export function FreelancerManagerContent() {
-  const { currentCompany } = useCompany();
+  const { currentCompany, isCompanyAdmin } = useCompany();
+  const isAdmin = isCompanyAdmin();
   const [templates, setTemplates] = useState<FreelancerTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -265,6 +342,8 @@ export function FreelancerManagerContent() {
   const [selectedTemplate, setSelectedTemplate] = useState<FreelancerTemplate | null>(null);
   const [responses, setResponses] = useState<any[]>([]);
   const [loadingResponses, setLoadingResponses] = useState(false);
+  const [templatePasswordDialogOpen, setTemplatePasswordDialogOpen] = useState(false);
+  const [pendingDeleteTemplateId, setPendingDeleteTemplateId] = useState<string | null>(null);
 
   const fetchTemplates = async () => {
     if (!currentCompany?.id) return;
@@ -372,6 +451,11 @@ export function FreelancerManagerContent() {
     fetchTemplates();
   };
 
+  const requestDeleteTemplate = (id: string) => {
+    setPendingDeleteTemplateId(id);
+    setTemplatePasswordDialogOpen(true);
+  };
+
   const handleToggleActive = async (id: string, active: boolean) => {
     await supabase.from("freelancer_templates").update({ is_active: active }).eq("id", id);
     fetchTemplates();
@@ -386,18 +470,16 @@ export function FreelancerManagerContent() {
   const copyLink = (t: FreelancerTemplate) => {
     let domain: string;
     if (currentCompany?.custom_domain) {
-      // Remove https:// so link starts with www. (WhatsApp still recognizes it)
       domain = currentCompany.custom_domain;
     } else {
       domain = window.location.origin;
     }
     const path = getTemplateUrl(t);
-    const fullUrl = currentCompany?.custom_domain ? `${domain}${path}` : `${domain}${path}`;
+    const fullUrl = `${domain}${path}`;
     navigator.clipboard.writeText(fullUrl);
     toast({ title: "Link copiado!" });
   };
 
-  // Question editor helpers
   const addQuestion = () => {
     const maxStep = Math.max(...formQuestions.map(q => q.step), 1);
     setFormQuestions([...formQuestions, {
@@ -429,10 +511,20 @@ export function FreelancerManagerContent() {
 
   return (
     <>
+      <PasswordConfirmDialog
+        open={templatePasswordDialogOpen}
+        onOpenChange={setTemplatePasswordDialogOpen}
+        title="Excluir template de freelancer"
+        description="Esta ação é irreversível e excluirá o template e todas as respostas vinculadas. Digite sua senha de acesso para confirmar."
+        onConfirmed={() => { if (pendingDeleteTemplateId) handleDelete(pendingDeleteTemplateId); }}
+      />
+
       <div className="max-w-6xl mx-auto space-y-4">
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground hidden md:block">Crie formulários de cadastro para freelancers</p>
-          <Button onClick={openNew} size="sm"><Plus className="h-4 w-4 mr-1" /> Novo Template</Button>
+          {isAdmin && (
+            <Button onClick={openNew} size="sm"><Plus className="h-4 w-4 mr-1" /> Novo Template</Button>
+          )}
         </div>
 
         {loading ? (
@@ -442,7 +534,7 @@ export function FreelancerManagerContent() {
             <CardContent className="p-8 text-center space-y-3">
               <HardHat className="h-12 w-12 text-muted-foreground mx-auto" />
               <p className="text-muted-foreground">Nenhum template de freelancer criado ainda.</p>
-              <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Criar Primeiro Template</Button>
+              {isAdmin && <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Criar Primeiro Template</Button>}
             </CardContent>
           </Card>
         ) : (
@@ -468,7 +560,9 @@ export function FreelancerManagerContent() {
                             {(t as any).view_count > 0 && <> · <Eye className="h-3 w-3 inline-block mb-0.5" /> {(t as any).view_count} visualizações</>}
                           </p>
                         </div>
-                        <Switch checked={t.is_active} onCheckedChange={(v) => handleToggleActive(t.id, v)} className="shrink-0" />
+                        {isAdmin && (
+                          <Switch checked={t.is_active} onCheckedChange={(v) => handleToggleActive(t.id, v)} className="shrink-0" />
+                        )}
                       </div>
                       <div className="flex items-center gap-2 flex-wrap border-t border-border/50 pt-3">
                         <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs rounded-full px-3.5 bg-muted/30 border-border/60 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all" onClick={() => copyLink(t)}>
@@ -483,29 +577,24 @@ export function FreelancerManagerContent() {
                             <ChevronDown className={`h-3 w-3 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                           </Button>
                         </CollapsibleTrigger>
-                        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs rounded-full px-3.5 bg-muted/30 border-border/60 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all" onClick={() => openEdit(t)}>
-                          <Pencil className="h-3.5 w-3.5" /> Editar
-                        </Button>
-                        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs rounded-full px-3.5 bg-muted/30 border-border/60 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all" onClick={() => handleDuplicate(t)}>
-                          <Copy className="h-3.5 w-3.5" /> Duplicar
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs rounded-full px-3.5 ml-auto border-destructive/30 text-destructive hover:bg-destructive/10 hover:border-destructive/50 transition-all">
+                        {isAdmin && (
+                          <>
+                            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs rounded-full px-3.5 bg-muted/30 border-border/60 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all" onClick={() => openEdit(t)}>
+                              <Pencil className="h-3.5 w-3.5" /> Editar
+                            </Button>
+                            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs rounded-full px-3.5 bg-muted/30 border-border/60 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all" onClick={() => handleDuplicate(t)}>
+                              <Copy className="h-3.5 w-3.5" /> Duplicar
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 gap-1.5 text-xs rounded-full px-3.5 ml-auto border-destructive/30 text-destructive hover:bg-destructive/10 hover:border-destructive/50 transition-all"
+                              onClick={() => requestDeleteTemplate(t.id)}
+                            >
                               <Trash2 className="h-3.5 w-3.5" /> Excluir
                             </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Excluir template?</AlertDialogTitle>
-                              <AlertDialogDescription>Essa ação não pode ser desfeita. Todas as respostas vinculadas também serão excluídas.</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDelete(t.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                          </>
+                        )}
                       </div>
 
                       <CollapsibleContent>
@@ -518,7 +607,13 @@ export function FreelancerManagerContent() {
                               <p className="text-sm text-muted-foreground">Nenhum cadastro recebido ainda.</p>
                             </div>
                           ) : (
-                            <FreelancerResponseCards responses={responses} template={selectedTemplate} companyId={currentCompany?.id || ""} onDeleted={() => selectedTemplate && toggleResponses(selectedTemplate)} />
+                            <FreelancerResponseCards
+                              responses={responses}
+                              template={selectedTemplate}
+                              companyId={currentCompany?.id || ""}
+                              onDeleted={() => selectedTemplate && toggleResponses(selectedTemplate)}
+                              isAdmin={isAdmin}
+                            />
                           )}
                         </div>
                       </CollapsibleContent>
