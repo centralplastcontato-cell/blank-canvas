@@ -477,7 +477,7 @@ export default function PublicPartyControl() {
 
   return (
     <div
-      className="min-h-screen flex flex-col"
+      className="h-screen flex flex-col overflow-hidden"
       style={{ background: "linear-gradient(180deg, #0a0f1e 0%, #0f172a 40%, #0f1629 100%)" }}
     >
       {/* ---- HEADER ---- */}
@@ -632,7 +632,7 @@ export default function PublicPartyControl() {
       </div>
 
       {/* ---- CONTENT AREA ---- */}
-      <div className="flex-1 overflow-y-auto pb-28">
+      <div className="flex-1 overflow-y-auto pb-24" style={{ paddingBottom: "calc(4rem + env(safe-area-inset-bottom))" }}>
 
         {/* HOME TAB */}
         {activeTab === "home" && (
@@ -813,6 +813,7 @@ export default function PublicPartyControl() {
           background: "rgba(10,15,30,0.97)",
           backdropFilter: "blur(20px)",
           borderTop: "1px solid rgba(255,255,255,0.07)",
+          paddingBottom: "env(safe-area-inset-bottom)",
         }}
       >
         <div className="flex items-stretch">
