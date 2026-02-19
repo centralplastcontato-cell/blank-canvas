@@ -2,7 +2,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { CalendarDays, Clock, Users, MapPin, Package, DollarSign, Pencil, Trash2, AlertTriangle, UserCheck, Gamepad2, Copy, Check } from "lucide-react";
+import { CalendarDays, Clock, Users, MapPin, Package, DollarSign, Pencil, Trash2, AlertTriangle, UserCheck, Gamepad2, Copy, Check, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useEffect, useState } from "react";
@@ -190,6 +190,15 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
               <p className="text-xs" style={{ color: "#64748b" }}>Copiar ou compartilhar link do painel</p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              {/* Open link */}
+              <button
+                onClick={() => window.open(getControlUrl(), "_blank")}
+                className="h-8 w-8 rounded-lg flex items-center justify-center transition-colors"
+                style={{ background: "rgba(168,85,247,0.15)" }}
+                title="Abrir painel"
+              >
+                <ExternalLink className="h-4 w-4" style={{ color: "#c084fc" }} />
+              </button>
               {/* WhatsApp share */}
               <button
                 onClick={handleShareWhatsApp}
