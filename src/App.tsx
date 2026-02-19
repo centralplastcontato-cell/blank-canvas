@@ -46,6 +46,7 @@ import PublicFreelancerSchedule from "./pages/PublicFreelancerSchedule";
 import Contrato from "./pages/Contrato";
 import Cardapio from "./pages/Cardapio";
 import NotFound from "./pages/NotFound";
+import PublicPartyControl from "./pages/PublicPartyControl";
 
 const queryClient = new QueryClient();
 
@@ -83,6 +84,8 @@ const App = () => (
             <Route path="/avaliacoes" element={<Avaliacoes />} />
             <Route path="/pre-festa" element={<PreFesta />} />
             
+            {/* Party control hub */}
+            <Route path="/festa/:eventId" element={<PublicPartyControl />} />
             {/* Public dynamic landing page by slug */}
             <Route path="/lp/:slug" element={<DynamicLandingPage />} />
             {/* Public onboarding form */}

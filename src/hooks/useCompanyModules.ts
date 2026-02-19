@@ -18,6 +18,65 @@ export interface CompanyModules {
   operacoes: boolean;
 }
 
+export interface PartyControlModules {
+  checklist: boolean;
+  staff: boolean;
+  maintenance: boolean;
+  monitoring: boolean;
+  attendance: boolean;
+  info: boolean;
+  prefesta: boolean;
+  cardapio: boolean;
+  avaliacao: boolean;
+}
+
+export const DEFAULT_PARTY_CONTROL_MODULES: PartyControlModules = {
+  checklist: true,
+  staff: true,
+  maintenance: true,
+  monitoring: true,
+  attendance: true,
+  info: true,
+  prefesta: false,
+  cardapio: false,
+  avaliacao: false,
+};
+
+export function parsePartyControlModules(settings: Json | null | undefined): PartyControlModules {
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) {
+    return { ...DEFAULT_PARTY_CONTROL_MODULES };
+  }
+  const s = settings as Record<string, Json | undefined>;
+  const pcm = s.party_control_modules;
+  if (!pcm || typeof pcm !== 'object' || Array.isArray(pcm)) {
+    return { ...DEFAULT_PARTY_CONTROL_MODULES };
+  }
+  const m = pcm as Record<string, Json | undefined>;
+  return {
+    checklist: m.checklist !== false,
+    staff: m.staff !== false,
+    maintenance: m.maintenance !== false,
+    monitoring: m.monitoring !== false,
+    attendance: m.attendance !== false,
+    info: m.info !== false,
+    prefesta: m.prefesta === true,
+    cardapio: m.cardapio === true,
+    avaliacao: m.avaliacao === true,
+  };
+}
+
+export const PARTY_CONTROL_MODULE_LABELS: Record<keyof PartyControlModules, { label: string; description: string }> = {
+  checklist: { label: 'Checklist', description: 'Lista de verificação da festa' },
+  staff: { label: 'Equipe / Financeiro', description: 'Gestão da equipe e pagamentos' },
+  maintenance: { label: 'Manutenção', description: 'Checklist de manutenção pós-festa' },
+  monitoring: { label: 'Acompanhamento', description: 'Monitoramento durante a festa' },
+  attendance: { label: 'Lista de Presença', description: 'Controle de entrada de convidados' },
+  info: { label: 'Informações', description: 'Orientações e informações da festa' },
+  prefesta: { label: 'Pré-Festa', description: 'Formulário de pré-festa para o cliente' },
+  cardapio: { label: 'Cardápio', description: 'Formulário de escolha de cardápio' },
+  avaliacao: { label: 'Avaliação', description: 'Formulário de avaliação pós-festa' },
+};
+
 const DEFAULT_MODULES: CompanyModules = {
   whatsapp: true,
   crm: true,

@@ -2,7 +2,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { CalendarDays, Clock, Users, MapPin, Package, DollarSign, Pencil, Trash2, AlertTriangle, UserCheck } from "lucide-react";
+import { CalendarDays, Clock, Users, MapPin, Package, DollarSign, Pencil, Trash2, AlertTriangle, UserCheck, Gamepad2, Copy, Check } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useEffect, useState } from "react";
@@ -43,6 +43,14 @@ const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondar
 
 export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, conflicts = [] }: EventDetailSheetProps) {
   const [leadName, setLeadName] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyControlLink = () => {
+    const url = `${window.location.origin}/festa/${event?.id}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   useEffect(() => {
     if (!event?.lead_id) { setLeadName(null); return; }
@@ -157,6 +165,28 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
           )}
 
           <Separator />
+
+          {/* Controle da Festa link */}
+          <div
+            className="rounded-xl p-3 flex items-center gap-3 cursor-pointer group"
+            style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)", border: "1px solid rgba(96,165,250,0.2)" }}
+            onClick={handleCopyControlLink}
+          >
+            <div
+              className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: "linear-gradient(135deg, #2563eb, #1d4ed8)" }}
+            >
+              <Gamepad2 className="h-5 w-5 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold" style={{ color: "#93c5fd" }}>Controle da Festa</p>
+              <p className="text-xs" style={{ color: "#64748b" }}>Toque para copiar o link do painel</p>
+            </div>
+            {copied
+              ? <Check className="h-4 w-4 shrink-0" style={{ color: "#34d399" }} />
+              : <Copy className="h-4 w-4 shrink-0" style={{ color: "#475569" }} />
+            }
+          </div>
 
           <div className="flex gap-2 pt-2">
             <Button variant="outline" className="flex-1 rounded-xl" onClick={() => onEdit(event)}>
