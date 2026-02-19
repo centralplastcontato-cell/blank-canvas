@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Sparkles } from "lucide-react";
+import { Gift } from "lucide-react";
 import type { LPOffer, LPTheme } from "@/types/landing-page";
 
 interface DLPOfferProps {
@@ -19,53 +19,88 @@ export function DLPOffer({ offer, theme, onCtaClick }: DLPOfferProps) {
       : "rounded-xl";
 
   return (
-    <section className="py-20" style={{ backgroundColor: theme.background_color }}>
-      <div className="max-w-3xl mx-auto px-4">
+    <section
+      className="py-16 md:py-24"
+      style={{
+        background: `linear-gradient(to bottom, ${theme.primary_color}11, ${theme.background_color})`,
+      }}
+    >
+      <div className="max-w-4xl mx-auto px-4">
         <motion.div
-          className="relative overflow-hidden rounded-3xl p-8 md:p-12 text-center border shadow-2xl"
-          style={{ borderColor: theme.primary_color + "44" }}
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="text-center mb-12"
+        >
+          <span
+            className="inline-flex items-center gap-2 px-6 py-2 rounded-full text-sm font-bold mb-4 shadow-lg"
+            style={{
+              backgroundColor: theme.secondary_color,
+              color: theme.text_color,
+              fontFamily: theme.font_body,
+            }}
+          >
+            <Gift className="w-4 h-4" />
+            OFERTA ESPECIAL
+          </span>
+          <h2
+            className="text-4xl md:text-5xl font-bold mb-4"
+            style={{ color: theme.text_color, fontFamily: theme.font_heading }}
+          >
+            {offer.title}
+          </h2>
+          {offer.description && (
+            <p
+              className="text-xl max-w-2xl mx-auto opacity-80"
+              style={{ color: theme.text_color, fontFamily: theme.font_body }}
+            >
+              {offer.description}
+            </p>
+          )}
+        </motion.div>
+
+        {/* Glassmorphism CTA Card */}
+        <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           whileInView={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.6 }}
           viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="relative p-8 md:p-12 rounded-3xl overflow-hidden border shadow-2xl text-center"
+          style={{
+            borderColor: theme.text_color + "15",
+            backgroundColor: theme.text_color + "08",
+            backdropFilter: "blur(20px)",
+          }}
         >
-          {/* Background gradient */}
+          {/* Decorative circles */}
           <div
-            className="absolute inset-0 opacity-10"
-            style={{
-              background: `linear-gradient(135deg, ${theme.primary_color}, ${theme.secondary_color})`,
-            }}
+            className="absolute -top-16 -right-16 w-48 h-48 rounded-full blur-3xl opacity-20"
+            style={{ backgroundColor: theme.secondary_color }}
+          />
+          <div
+            className="absolute -bottom-16 -left-16 w-48 h-48 rounded-full blur-3xl opacity-15"
+            style={{ backgroundColor: theme.primary_color }}
           />
 
           <div className="relative z-10">
             <motion.div
-              className="inline-flex items-center gap-2 px-5 py-2 rounded-full mb-6"
-              style={{ backgroundColor: theme.secondary_color + "22", color: theme.secondary_color }}
-              initial={{ scale: 0.8 }}
-              whileInView={{ scale: 1 }}
-              viewport={{ once: true }}
+              animate={{ scale: [1, 1.05, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg"
+              style={{
+                background: `linear-gradient(135deg, ${theme.primary_color}, ${theme.secondary_color})`,
+              }}
             >
-              <Sparkles className="w-4 h-4" />
-              <span className="text-sm font-bold" style={{ fontFamily: theme.font_body }}>
-                Oferta Especial
-              </span>
+              <Gift className="w-10 h-10" style={{ color: theme.text_color }} />
             </motion.div>
 
-            <h2
-              className="text-3xl md:text-4xl font-bold mb-4"
+            <h3
+              className="text-2xl md:text-3xl font-bold mb-4"
               style={{ color: theme.text_color, fontFamily: theme.font_heading }}
             >
-              {offer.title}
-            </h2>
-
-            {offer.description && (
-              <p
-                className="text-base md:text-lg mb-4 opacity-80"
-                style={{ color: theme.text_color, fontFamily: theme.font_body }}
-              >
-                {offer.description}
-              </p>
-            )}
+              Garanta sua data!
+            </h3>
 
             {offer.highlight_text && (
               <div
@@ -83,14 +118,14 @@ export function DLPOffer({ offer, theme, onCtaClick }: DLPOfferProps) {
             <div>
               <button
                 onClick={onCtaClick}
-                className={`px-8 py-4 text-lg font-bold shadow-xl hover:scale-105 transition-transform ${btnClass}`}
+                className={`px-10 py-4 text-lg md:text-xl font-bold shadow-xl hover:scale-105 transition-transform ${btnClass}`}
                 style={{
                   backgroundColor: theme.secondary_color,
                   color: theme.text_color,
                   fontFamily: theme.font_body,
                 }}
               >
-                {offer.cta_text || "Aproveitar agora!"}
+                {offer.cta_text || "Aproveitar agora!"} 🎁
               </button>
             </div>
           </div>
