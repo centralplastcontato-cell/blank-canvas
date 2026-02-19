@@ -1076,9 +1076,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     }
     
     // Build query based on allowed units
+    const companyId = localStorage.getItem('selected_company_id') || 'a0000000-0000-0000-0000-000000000001';
     let query = supabase
       .from("wapi_instances")
-      .select("id, instance_id, instance_token, status, unit");
+      .select("id, instance_id, instance_token, status, unit")
+      .eq("company_id", companyId);
 
     // Filter by allowed units - if empty, show nothing (user has no unit access)
     if (!allowedUnits.includes('all')) {
@@ -1093,6 +1095,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     }
 
     const { data, error } = await query.order("unit", { ascending: true });
+    console.log('[WhatsAppChat] Instances query result:', { companyId, count: data?.length, error: error?.message });
     console.log('[WhatsAppChat] Instances query result:', { count: data?.length, error: error?.message, data });
 
     if (error) {
@@ -1119,8 +1122,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       if (disconnected.length > 0) {
         syncInstanceStatuses(disconnected as WapiInstance[]);
       }
+    } else if (!error && retryCount < 2) {
+      // No instances found but no error - might be a timing/RLS issue, retry once
+      console.warn('[WhatsAppChat] No instances returned, retrying...', { retryCount });
+      setTimeout(() => fetchInstances(retryCount + 1), 1500);
+      return;
     } else {
-      console.warn('[WhatsAppChat] No instances returned from query');
+      console.warn('[WhatsAppChat] No instances returned from query after retries');
     }
     setIsLoading(false);
     setHasAttemptedLoad(true);
