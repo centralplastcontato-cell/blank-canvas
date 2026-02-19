@@ -25,7 +25,7 @@ interface AgendaCalendarProps {
   checklistProgress?: ChecklistProgress;
 }
 
-const STATUS_COLORS: Record<string, string> = {
+const STATUS_DOT: Record<string, string> = {
   confirmado: "bg-emerald-500",
   pendente: "bg-amber-400",
   cancelado: "bg-red-400",
@@ -48,11 +48,11 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
       onMonthChange={onMonthChange}
       locale={ptBR}
       showOutsideDays
-      className="p-2 lg:p-6"
+      className="p-2 lg:p-5"
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-        month: "space-y-5 w-full",
-        caption: "flex justify-center pt-2 lg:pt-3 relative items-center mb-3",
+        month: "space-y-4 w-full",
+        caption: "flex justify-center pt-2 lg:pt-3 relative items-center mb-2",
         caption_label: "text-base lg:text-lg font-semibold capitalize tracking-tight text-foreground",
         nav: "space-x-1 flex items-center",
         nav_button: cn(
@@ -63,12 +63,12 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
         nav_button_next: "absolute right-1",
         table: "w-full border-collapse",
         head_row: "flex",
-        head_cell: "text-muted-foreground/50 flex-1 font-medium text-[0.65rem] lg:text-[0.7rem] text-center uppercase tracking-[0.15em] pb-3",
+        head_cell: "text-muted-foreground/50 flex-1 font-medium text-[0.65rem] lg:text-[0.7rem] text-center uppercase tracking-[0.15em] pb-2",
         row: "flex w-full",
         cell: "flex-1 text-center text-sm p-0.5 lg:p-[3px] relative focus-within:relative focus-within:z-20",
         day: cn(
           buttonVariants({ variant: "ghost" }),
-          "h-11 lg:h-[4.2rem] w-full p-0 font-normal aria-selected:opacity-100 relative rounded-xl",
+          "h-12 lg:h-[4.5rem] w-full p-0 font-normal aria-selected:opacity-100 relative rounded-xl",
           "hover:bg-primary/[0.06] transition-all duration-150 cursor-pointer"
         ),
         day_range_end: "day-range-end",
@@ -92,40 +92,54 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
         DayContent: ({ date }) => {
           const dateKey = format(date, "yyyy-MM-dd");
           const dayEvents = eventsByDate.get(dateKey) || [];
+          const hasEvents = dayEvents.length > 0;
+          const eventCount = dayEvents.length;
+
           const hasPending = dayEvents.some((ev) => {
             const p = checklistProgress[ev.id];
             return p && p.total > 0 && p.completed < p.total;
           });
-          const hasEvents = dayEvents.length > 0;
 
           return (
-            <div className="flex flex-col items-center gap-0.5 lg:gap-1 w-full h-full justify-center">
+            <div className="flex flex-col items-center gap-0.5 lg:gap-1 w-full h-full justify-center relative">
               <span className={cn(
                 "text-sm lg:text-base transition-colors duration-150",
-                hasEvents ? "font-medium text-foreground" : "text-foreground/70"
+                hasEvents ? "font-semibold text-foreground" : "text-foreground/65"
               )}>
                 {date.getDate()}
               </span>
+
               {hasEvents && (
-                <div className="flex gap-[3px] lg:gap-1 justify-center items-center animate-fade-up">
+                <div className="flex items-center gap-[2px] lg:gap-[3px] justify-center">
+                  {/* Show up to 3 status dots */}
                   {dayEvents.slice(0, 3).map((ev) => (
                     <span
                       key={ev.id}
                       className={cn(
                         "h-[5px] w-[5px] lg:h-[6px] lg:w-[6px] rounded-full",
-                        STATUS_COLORS[ev.status] || "bg-muted-foreground/50"
+                        STATUS_DOT[ev.status] || "bg-muted-foreground/40"
                       )}
                     />
                   ))}
-                  {dayEvents.length > 3 && (
-                    <span className="text-[7px] lg:text-[8px] text-muted-foreground/60 font-medium leading-none ml-0.5">
-                      +{dayEvents.length - 3}
+                  {/* Counter for 4+ events */}
+                  {eventCount > 3 && (
+                    <span className="text-[7px] lg:text-[8px] font-bold text-muted-foreground/70 leading-none ml-0.5">
+                      +{eventCount - 3}
                     </span>
                   )}
                 </div>
               )}
+
+              {/* Checklist pending indicator */}
               {hasPending && (
-                <span className="text-[7px] text-amber-500/80 leading-none">📋</span>
+                <span className="text-[6px] lg:text-[7px] text-amber-500/80 leading-none">📋</span>
+              )}
+
+              {/* Event count badge for days with many events */}
+              {eventCount >= 2 && (
+                <span className="absolute top-0 right-0 lg:top-0.5 lg:right-0.5 h-3.5 w-3.5 lg:h-4 lg:w-4 rounded-full bg-primary/90 text-primary-foreground text-[7px] lg:text-[8px] font-bold flex items-center justify-center leading-none">
+                  {eventCount}
+                </span>
               )}
             </div>
           );

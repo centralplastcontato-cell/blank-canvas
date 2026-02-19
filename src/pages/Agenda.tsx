@@ -19,7 +19,7 @@ import { AgendaListView } from "@/components/agenda/AgendaListView";
 import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
 import { EventDetailSheet } from "@/components/agenda/EventDetailSheet";
 import { MonthSummaryCards } from "@/components/agenda/MonthSummaryCards";
-import { CalendarDays, Plus, Loader2, ShieldAlert, Menu, Clock, AlertTriangle, List, ListChecks } from "lucide-react";
+import { CalendarDays, Plus, Loader2, ShieldAlert, Menu, Clock, AlertTriangle, List, ListChecks, MapPin, Users, DollarSign } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -360,7 +360,7 @@ export default function Agenda() {
               </div>
 
               {/* Summary */}
-              <MonthSummaryCards events={filteredEvents} />
+              <MonthSummaryCards events={filteredEvents} month={month} />
 
               {/* Calendar + Day detail */}
               {viewMode === "calendar" ? (
@@ -407,9 +407,9 @@ export default function Agenda() {
                           <button
                             key={ev.id}
                             onClick={() => { setDetailEvent(ev); setDetailOpen(true); }}
-                            className={`w-full text-left p-4 rounded-2xl border border-border/30 border-l-[3px] ${statusColors} hover:shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 transition-all duration-200 ease-out space-y-1.5 cursor-pointer`}
+                            className={`w-full text-left p-4 rounded-2xl border border-border/30 border-l-[3px] ${statusColors} hover:shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 transition-all duration-200 ease-out cursor-pointer`}
                           >
-                            <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center justify-between gap-2 mb-1.5">
                               <span className="font-semibold text-[13px] truncate">{ev.title}</span>
                               <Badge
                                 variant={ev.status === "confirmado" ? "default" : ev.status === "cancelado" ? "destructive" : "secondary"}
@@ -418,21 +418,39 @@ export default function Agenda() {
                                 {ev.status}
                               </Badge>
                             </div>
-                            <div className="flex flex-wrap items-center gap-2.5 text-xs text-muted-foreground">
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1">
                               {ev.start_time && (
                                 <span className="flex items-center gap-1">
                                   <Clock className="h-3 w-3" />
                                   {ev.start_time.slice(0, 5)}{ev.end_time ? ` – ${ev.end_time.slice(0, 5)}` : ""}
                                 </span>
                               )}
+                              {ev.unit && (
+                                <span className="flex items-center gap-1">
+                                  <MapPin className="h-3 w-3" />
+                                  {ev.unit}
+                                </span>
+                              )}
+                              {ev.guest_count && (
+                                <span className="flex items-center gap-1">
+                                  <Users className="h-3 w-3" />
+                                  {ev.guest_count}
+                                </span>
+                              )}
+                              {ev.total_value != null && ev.total_value > 0 && (
+                                <span className="flex items-center gap-1 font-medium text-foreground/80">
+                                  <DollarSign className="h-3 w-3" />
+                                  R$ {ev.total_value.toLocaleString("pt-BR")}
+                                </span>
+                              )}
                             </div>
                             {conflicts.length > 0 && (
-                              <div className="flex items-center gap-1 text-xs text-destructive font-medium">
+                              <div className="flex items-center gap-1 text-xs text-destructive font-medium mt-1.5">
                                 <AlertTriangle className="h-3 w-3" /> Conflito de horário
                               </div>
                             )}
                             {checklistProgress[ev.id] && checklistProgress[ev.id].total > 0 && (
-                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
                                 <ListChecks className="h-3 w-3" />
                                 {checklistProgress[ev.id].completed}/{checklistProgress[ev.id].total} tarefas
                               </div>
