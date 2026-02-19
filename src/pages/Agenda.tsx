@@ -320,8 +320,8 @@ export default function Agenda() {
             </div>
           </header>
 
-          <PullToRefresh onRefresh={async () => { await fetchEvents(); }} className="flex-1 p-3 md:p-5 overflow-x-hidden overflow-y-auto">
-            <div className="max-w-7xl mx-auto space-y-4">
+          <PullToRefresh onRefresh={async () => { await fetchEvents(); }} className="flex-1 p-3 md:p-6 lg:p-8 overflow-x-hidden overflow-y-auto">
+            <div className="max-w-7xl mx-auto space-y-6">
               {/* Desktop header */}
               <div className="hidden md:flex items-center justify-between gap-3">
                 <div className="flex items-center gap-4">
@@ -364,9 +364,9 @@ export default function Agenda() {
 
               {/* Calendar + Day detail */}
               {viewMode === "calendar" ? (
-              <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4">
-                <Card className="bg-card border-border/50 shadow-[var(--shadow-premium)]">
-                  <CardContent className="p-2 md:p-4 lg:p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-5 min-h-[520px]">
+                <Card className="bg-card border-border/30 shadow-[0_4px_24px_rgba(0,0,0,0.04)] rounded-2xl">
+                  <CardContent className="p-2 md:p-4 lg:p-5">
                     {loading ? (
                       <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
                     ) : (
@@ -382,20 +382,20 @@ export default function Agenda() {
                   </CardContent>
                 </Card>
 
-                <Card className="bg-card border-border/50 shadow-[var(--shadow-premium)]">
-                  <CardContent className="p-4 md:p-5">
-                    <h3 className="font-bold text-base mb-1 tracking-tight">
+                <Card className="bg-muted/20 border-border/30 shadow-[0_4px_24px_rgba(0,0,0,0.04)] rounded-2xl">
+                  <CardContent className="p-5 md:p-6">
+                    <h3 className="font-semibold text-sm tracking-tight text-foreground/90 mb-0.5">
                       {selectedDate
                         ? format(selectedDate, "dd 'de' MMMM", { locale: ptBR })
                         : "Selecione um dia"}
                     </h3>
                     {!selectedDate && (
-                      <p className="text-sm text-muted-foreground/70 mt-2">Clique em um dia no calendário para ver os eventos.</p>
+                      <p className="text-xs text-muted-foreground/60 mt-3">Clique em um dia no calendário para ver os eventos.</p>
                     )}
                     {selectedDate && dayEvents.length === 0 && (
-                      <p className="text-sm text-muted-foreground/70 mt-2">Nenhuma festa neste dia.</p>
+                      <p className="text-xs text-muted-foreground/60 mt-3">Nenhuma festa neste dia.</p>
                     )}
-                    <div className="space-y-2.5 mt-3">
+                    <div className="space-y-2.5 mt-4">
                       {dayEvents.map((ev) => {
                         const conflicts = getConflicts(ev);
                         const statusColors = ev.status === "confirmado"
@@ -407,13 +407,13 @@ export default function Agenda() {
                           <button
                             key={ev.id}
                             onClick={() => { setDetailEvent(ev); setDetailOpen(true); }}
-                            className={`w-full text-left p-3.5 rounded-xl border border-border/50 border-l-[3px] ${statusColors} hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 ease-out space-y-1.5`}
+                            className={`w-full text-left p-4 rounded-2xl border border-border/30 border-l-[3px] ${statusColors} hover:shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 transition-all duration-200 ease-out space-y-1.5 cursor-pointer`}
                           >
                             <div className="flex items-center justify-between gap-2">
-                              <span className="font-bold text-sm truncate">{ev.title}</span>
+                              <span className="font-semibold text-[13px] truncate">{ev.title}</span>
                               <Badge
                                 variant={ev.status === "confirmado" ? "default" : ev.status === "cancelado" ? "destructive" : "secondary"}
-                                className="text-[10px] shrink-0 font-semibold uppercase tracking-wide"
+                                className="text-[10px] shrink-0 font-medium uppercase tracking-wider px-2 py-0.5"
                               >
                                 {ev.status}
                               </Badge>
@@ -458,7 +458,7 @@ export default function Agenda() {
                 </Card>
               </div>
               ) : (
-                <Card className="bg-card border-border/50 shadow-[var(--shadow-premium)]">
+                <Card className="bg-card border-border/30 shadow-[0_4px_24px_rgba(0,0,0,0.04)] rounded-2xl">
                   <CardContent className="p-4">
                     {loading ? (
                       <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
