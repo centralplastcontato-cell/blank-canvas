@@ -264,11 +264,11 @@ export function KanbanCard({
               </div>
             ) : (
               <div className="flex items-center gap-1 flex-1 min-w-0 flex-wrap">
-                <p className="font-semibold text-sm truncate max-w-[140px] flex-shrink min-w-0" title={lead.name}>{lead.name.length > 22 ? lead.name.substring(0, 22) + '…' : lead.name}</p>
+                <p className="font-bold text-sm truncate max-w-[140px] flex-shrink min-w-0" title={lead.name}>{lead.name.length > 22 ? lead.name.substring(0, 22) + '…' : lead.name}</p>
                 {lead.has_scheduled_visit && (
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <div className="flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5 bg-gradient-to-r from-blue-500/20 to-blue-600/10 border border-blue-500/30 rounded-full animate-pulse">
+                      <div className="flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5 bg-blue-500/15 border border-blue-500/30 rounded-md">
                         <CalendarCheck className="w-3 h-3 text-blue-500" />
                         <span className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide">Visita</span>
                       </div>
@@ -281,7 +281,7 @@ export function KanbanCard({
                 {lead.has_follow_up && !lead.has_follow_up_2 && (
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <div className="flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5 bg-gradient-to-r from-emerald-500/20 to-emerald-600/10 border border-emerald-500/30 rounded-full">
+                      <div className="flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5 bg-emerald-500/15 border border-emerald-500/30 rounded-md">
                         <RefreshCw className="w-3 h-3 text-emerald-500" />
                         <span className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wide">F-Up</span>
                       </div>
@@ -294,7 +294,7 @@ export function KanbanCard({
                 {lead.has_follow_up_2 && (
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <div className="flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5 bg-gradient-to-r from-amber-500/20 to-amber-600/10 border border-amber-500/30 rounded-full">
+                      <div className="flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/15 border border-amber-500/30 rounded-md">
                         <RefreshCw className="w-3 h-3 text-amber-500" />
                         <span className="text-[10px] font-semibold text-amber-600 uppercase tracking-wide">F-Up 2</span>
                       </div>

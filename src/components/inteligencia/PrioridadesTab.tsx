@@ -21,13 +21,13 @@ function timeAgo(date: string | null) {
 function LeadRow({ item }: { item: LeadIntelligence }) {
   const navigate = useNavigate();
   return (
-    <div className="p-3 rounded-lg border bg-card/50 hover:bg-card transition-colors">
+    <div className="p-4 rounded-lg border border-border/50 bg-card/50 hover:bg-card transition-colors">
       <div className="flex items-center justify-between gap-3">
         <div className="flex-1 min-w-0">
           <p className="font-medium text-sm truncate">{item.lead_name}</p>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <span className="text-xs text-muted-foreground">
-              Score: <strong>{item.score}</strong>
+              Score: <span className="font-bold text-foreground">{item.score}</span>
             </span>
             <TemperatureBadge temperature={item.temperature} />
             <span className="text-xs text-muted-foreground">
@@ -74,7 +74,7 @@ export function PrioridadesTab({ data }: PrioridadesTabProps) {
   return (
     <div className="grid gap-6 md:grid-cols-3">
       {/* Atender Agora */}
-      <Card className="border-green-500/20 shadow-card">
+      <Card className="border-green-500/20 shadow-card border-l-4 border-l-green-500">
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-green-500/10">
@@ -98,7 +98,7 @@ export function PrioridadesTab({ data }: PrioridadesTabProps) {
       </Card>
 
       {/* Em Risco */}
-      <Card className="border-orange-500/20 shadow-card">
+      <Card className="border-orange-500/20 shadow-card border-l-4 border-l-orange-500">
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-orange-500/10">
@@ -131,7 +131,7 @@ export function PrioridadesTab({ data }: PrioridadesTabProps) {
       </Card>
 
       {/* Frios */}
-      <Card className="border-blue-500/20 shadow-card">
+      <Card className="border-blue-500/20 shadow-card border-l-4 border-l-blue-500">
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-blue-500/10">

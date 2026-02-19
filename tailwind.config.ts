@@ -101,6 +101,10 @@ export default {
           "50%": { transform: "scale(1.2)" },
           "100%": { transform: "scale(1)" },
         },
+        "fade-up": {
+          "0%": { opacity: "0", transform: "translateY(8px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -109,6 +113,7 @@ export default {
         "wiggle": "wiggle 1s ease-in-out infinite",
         "scale-up": "scale-up 0.3s ease-out",
         "badge-pulse": "badge-pulse 0.3s ease-out",
+        "fade-up": "fade-up 0.3s ease-out",
       },
     },
   },

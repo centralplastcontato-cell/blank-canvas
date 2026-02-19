@@ -226,12 +226,12 @@ export function LeadsKanban({
           return (
             <div
               key={status}
-              className="flex-shrink-0 w-72 bg-gradient-to-b from-muted/50 to-muted/20 rounded-2xl border border-border/60 flex flex-col max-h-[calc(100vh-220px)] shadow-card hover:shadow-card-hover transition-shadow duration-200"
+              className="flex-shrink-0 w-72 bg-muted/30 rounded-2xl border border-border/60 flex flex-col max-h-[calc(100vh-220px)] shadow-card hover:shadow-card-hover transition-shadow duration-300"
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, status)}
             >
               {/* Column Header */}
-              <div className="p-3 border-b border-border/60 flex-shrink-0 bg-card/50 backdrop-blur-sm rounded-t-2xl">
+              <div className="p-3 border-b border-border/80 flex-shrink-0 bg-card/80 backdrop-blur-sm rounded-t-2xl">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div
@@ -251,7 +251,7 @@ export function LeadsKanban({
               <ScrollArea className="flex-1 min-h-0">
                 <div className="p-2 space-y-2">
                   {columnLeads.length === 0 ? (
-                    <div className="p-6 text-center text-sm text-muted-foreground/70 border-2 border-dashed border-border/40 rounded-lg m-2">
+                    <div className="p-4 text-center text-sm text-muted-foreground/70 border-2 border-dashed border-border/40 rounded-lg m-2">
                       Arraste leads aqui
                     </div>
                   ) : (

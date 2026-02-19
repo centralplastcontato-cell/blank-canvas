@@ -53,10 +53,10 @@ export function InlineAISummary({ leadId, leadWhatsapp }: InlineAISummaryProps) 
   }
 
   return (
-    <div className="mt-2 rounded-xl border border-blue-200/50 bg-blue-50/60 p-5 space-y-3 shadow-sm" onClick={(e) => e.stopPropagation()}>
+    <div className="mt-2 rounded-xl border border-primary/20 bg-gradient-to-br from-blue-50/80 to-indigo-50/50 p-5 space-y-3 shadow-card" onClick={(e) => e.stopPropagation()}>
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold flex items-center gap-2 text-primary">
-          <Brain className="h-5 w-5" />
+          <Brain className="h-5 w-5" style={{ filter: 'drop-shadow(0 1px 2px hsl(215 85% 50% / 0.3))' }} />
           Resumo IA
         </span>
         <div className="flex items-center gap-1">

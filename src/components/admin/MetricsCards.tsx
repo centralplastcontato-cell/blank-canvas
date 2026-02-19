@@ -98,7 +98,7 @@ export function MetricsCards({ metrics, isLoading }: MetricsCardsProps) {
             relative border ${metric.borderColor} overflow-hidden
             hover:-translate-y-1
             transition-all duration-300 ease-out cursor-default
-            bg-card
+            bg-card shadow-premium
           `}
         >
           <div className={`absolute inset-0 bg-gradient-to-br ${metric.gradient} pointer-events-none`} />
@@ -108,8 +108,8 @@ export function MetricsCards({ metrics, isLoading }: MetricsCardsProps) {
                 <metric.icon className={`w-5 h-5 ${metric.iconColor}`} />
               </div>
             </div>
-            <p className="text-2xl font-bold text-foreground tracking-tight mb-0.5">{metric.value}</p>
-            <span className="text-xs text-muted-foreground font-medium">
+            <p className="text-3xl font-extrabold text-foreground tracking-tight mb-0.5">{metric.value}</p>
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
               {metric.title}
             </span>
           </CardContent>

@@ -367,11 +367,11 @@ export default function Inteligencia() {
                 </div>
               </div>
 
-              <TabsContent value="resumo">
+              <TabsContent value="resumo" className="animate-fade-up">
                 <ResumoDiarioTab />
               </TabsContent>
 
-              <TabsContent value="prioridades">
+              <TabsContent value="prioridades" className="animate-fade-up">
                 {isLoading || isLoadingUnitPerms ? (
                   <div className="flex justify-center py-12">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -381,7 +381,7 @@ export default function Inteligencia() {
                 )}
               </TabsContent>
 
-              <TabsContent value="funil">
+              <TabsContent value="funil" className="animate-fade-up">
                 {isLoading || isLoadingUnitPerms || isDurationsLoading ? (
                   <div className="flex justify-center py-12">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -391,7 +391,7 @@ export default function Inteligencia() {
                 )}
               </TabsContent>
 
-              <TabsContent value="leads-dia">
+              <TabsContent value="leads-dia" className="animate-fade-up">
                 {isLoading || isLoadingUnitPerms ? (
                   <div className="flex justify-center py-12">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
