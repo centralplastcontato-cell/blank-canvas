@@ -26,7 +26,7 @@
 
     /* Soft Lavender Neutral */
     --muted: 225 20% 94%;
-    --muted-foreground: 225 15% 50%;
+    --muted-foreground: 225 18% 44%;
 
     /* Emerald Green Accent */
     --accent: 155 75% 38%;
@@ -48,6 +48,7 @@
     --ring: 215 85% 50%;
 
     --radius: 0.75rem;
+    --radius-card: 1rem;
 
     /* Premium Gradients */
     --gradient-hero: linear-gradient(135deg, hsl(215 85% 50%) 0%, hsl(255 70% 55%) 50%, hsl(215 85% 50%) 100%);
@@ -58,12 +59,13 @@
     --gradient-sidebar: linear-gradient(180deg, hsl(222 47% 11%) 0%, hsl(220 40% 13%) 100%);
     --gradient-chat-bg: linear-gradient(135deg, hsl(225 25% 96%) 0%, hsl(215 30% 94%) 100%);
 
-    /* Premium Shadows */
-    --shadow-card: 0px 6px 18px rgba(0,0,0,0.05);
-    --shadow-card-hover: 0px 10px 30px rgba(0,0,0,0.08);
-    --shadow-button: 0 8px 25px -5px hsl(15 90% 58% / 0.4);
-    --shadow-floating: 0 20px 60px -15px hsl(215 85% 50% / 0.25);
-    --shadow-subtle: 0 1px 3px 0 hsl(225 40% 15% / 0.08);
+    /* Premium Shadows — 4 levels */
+    --shadow-subtle: 0 1px 2px 0 hsl(225 40% 15% / 0.06);
+    --shadow-card: 0 1px 3px hsl(225 40% 15% / 0.06), 0 4px 12px hsl(225 40% 15% / 0.04);
+    --shadow-card-hover: 0 2px 6px hsl(225 40% 15% / 0.08), 0 8px 24px hsl(225 40% 15% / 0.06);
+    --shadow-elevated: 0 4px 12px hsl(225 40% 15% / 0.08), 0 16px 40px hsl(225 40% 15% / 0.1);
+    --shadow-button: 0 4px 14px -3px hsl(215 85% 50% / 0.35);
+    --shadow-floating: 0 12px 36px -8px hsl(215 85% 50% / 0.2);
 
     /* Dark Sidebar for contrast */
     --sidebar-background: 222 47% 11%;
@@ -133,8 +135,12 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-display;
+    @apply font-display tracking-tight;
   }
+
+  h1 { @apply text-3xl font-bold; }
+  h2 { @apply text-2xl font-bold; }
+  h3 { @apply text-xl font-semibold; }
 }
 
 @layer components {
@@ -218,6 +224,10 @@
 
   .shadow-floating {
     box-shadow: var(--shadow-floating);
+  }
+
+  .shadow-elevated {
+    box-shadow: var(--shadow-elevated);
   }
 
   .shadow-subtle {

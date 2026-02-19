@@ -10,8 +10,15 @@ const badgeVariants = cva(
       variant: {
         default: "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
         secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        destructive: "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
+        destructive: "border-transparent bg-destructive/15 text-destructive hover:bg-destructive/25",
         outline: "text-foreground",
+        // Semantic status variants
+        novo: "border-transparent bg-blue-100 text-blue-700",
+        negociando: "border-transparent bg-orange-100 text-orange-700",
+        fechado: "border-transparent bg-green-100 text-green-700",
+        perdido: "border-transparent bg-red-100 text-red-700",
+        visita: "border-transparent bg-purple-100 text-purple-700",
+        pendente: "border-transparent bg-yellow-100 text-yellow-700",
       },
     },
     defaultVariants: {
