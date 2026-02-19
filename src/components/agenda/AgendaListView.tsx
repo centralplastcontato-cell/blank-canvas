@@ -25,7 +25,6 @@ interface AgendaListViewProps {
 }
 
 export function AgendaListView({ events, onEventClick, getConflicts }: AgendaListViewProps) {
-  // Group by date
   const grouped = new Map<string, CompanyEvent[]>();
   events.forEach((ev) => {
     const key = ev.event_date;
@@ -42,29 +41,34 @@ export function AgendaListView({ events, onEventClick, getConflicts }: AgendaLis
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {sortedDates.map((dateStr) => {
         const dayEvents = grouped.get(dateStr)!;
         const date = new Date(dateStr + "T12:00:00");
         return (
           <div key={dateStr}>
-            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            <h4 className="text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest mb-2.5">
               {format(date, "EEEE, dd 'de' MMMM", { locale: ptBR })}
             </h4>
             <div className="space-y-2">
               {dayEvents.map((ev) => {
                 const conflicts = getConflicts(ev);
+                const statusColors = ev.status === "confirmado"
+                  ? "border-l-emerald-500 bg-emerald-500/[0.03]"
+                  : ev.status === "cancelado"
+                    ? "border-l-red-500 bg-red-500/[0.03]"
+                    : "border-l-amber-500 bg-amber-500/[0.03]";
                 return (
                   <button
                     key={ev.id}
                     onClick={() => onEventClick(ev)}
-                    className="w-full text-left p-3 rounded-lg border border-border hover:bg-accent/50 transition-colors"
+                    className={`w-full text-left p-3.5 rounded-xl border border-border/50 border-l-[3px] ${statusColors} hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 ease-out`}
                   >
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <span className="font-medium text-sm truncate">{ev.title}</span>
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="font-bold text-sm truncate">{ev.title}</span>
                       <Badge
                         variant={ev.status === "confirmado" ? "default" : ev.status === "cancelado" ? "destructive" : "secondary"}
-                        className="text-xs shrink-0"
+                        className="text-[10px] shrink-0 font-semibold uppercase tracking-wide"
                       >
                         {ev.status}
                       </Badge>
@@ -73,7 +77,7 @@ export function AgendaListView({ events, onEventClick, getConflicts }: AgendaLis
                       {ev.start_time && (
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          {ev.start_time.slice(0, 5)}{ev.end_time ? ` - ${ev.end_time.slice(0, 5)}` : ""}
+                          {ev.start_time.slice(0, 5)}{ev.end_time ? ` – ${ev.end_time.slice(0, 5)}` : ""}
                         </span>
                       )}
                       {ev.unit && (
@@ -89,13 +93,13 @@ export function AgendaListView({ events, onEventClick, getConflicts }: AgendaLis
                         </span>
                       )}
                       {ev.total_value != null && (
-                        <span className="font-medium text-foreground">
+                        <span className="font-semibold text-foreground">
                           R$ {ev.total_value.toLocaleString("pt-BR")}
                         </span>
                       )}
                     </div>
                     {conflicts.length > 0 && (
-                      <div className="flex items-center gap-1 text-xs text-destructive mt-1">
+                      <div className="flex items-center gap-1 text-xs text-destructive font-medium mt-1.5">
                         <AlertTriangle className="h-3 w-3" /> Conflito de horário
                       </div>
                     )}
