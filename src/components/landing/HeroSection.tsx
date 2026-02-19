@@ -1,6 +1,8 @@
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { campaignConfig } from "@/config/campaignConfig";
-import heroBg from "@/assets/hero-bg.jpg";
+import fachada1 from "@/assets/fachada-unidade-1.jpg";
+import fachada2 from "@/assets/fachada-unidade-2.jpg";
 import logoCastelo from "@/assets/logo-castelo.png";
 
 interface HeroSectionProps {
@@ -8,17 +10,45 @@ interface HeroSectionProps {
 }
 
 export function HeroSection({ onCtaClick }: HeroSectionProps) {
+  const [activeImage, setActiveImage] = useState(0);
+
+  // Mobile crossfade: alternate every 4s
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveImage((prev) => (prev === 0 ? 1 : 0));
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const images = [fachada1, fachada2];
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden" aria-label="Seção principal">
-      {/* Background Image - using img for better SEO and lazy loading */}
+      {/* Background - Desktop: split side-by-side | Mobile: crossfade */}
       <div className="absolute inset-0">
-        <img 
-          src={heroBg}
-          alt="Espaço de festas do Castelo da Diversão"
-          className="w-full h-full object-cover"
-          loading="eager"
-          fetchPriority="high"
-        />
+        {/* Desktop split */}
+        <div className="hidden md:flex absolute inset-0">
+          <div className="w-1/2 h-full">
+            <img src={fachada1} alt="Fachada Unidade 1 - Castelo da Diversão" className="w-full h-full object-cover" loading="eager" fetchPriority="high" />
+          </div>
+          <div className="w-1/2 h-full">
+            <img src={fachada2} alt="Fachada Unidade 2 - Castelo da Diversão" className="w-full h-full object-cover" loading="eager" />
+          </div>
+        </div>
+        {/* Mobile crossfade */}
+        <div className="md:hidden absolute inset-0">
+          {images.map((src, i) => (
+            <motion.img
+              key={i}
+              src={src}
+              alt={`Fachada Unidade ${i + 1} - Castelo da Diversão`}
+              className="absolute inset-0 w-full h-full object-cover"
+              animate={{ opacity: activeImage === i ? 1 : 0 }}
+              transition={{ duration: 1 }}
+              loading="eager"
+            />
+          ))}
+        </div>
         <div className="absolute inset-0 bg-gradient-to-b from-primary/60 via-castle/40 to-background/90" />
       </div>
 
