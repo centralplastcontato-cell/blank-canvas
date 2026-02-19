@@ -10,9 +10,8 @@ import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
 import { WhatsAppConfig } from "@/components/whatsapp/WhatsAppConfig";
 
-import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Menu } from "lucide-react";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { Menu, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logoCastelo from "@/assets/logo-castelo.png";
 import { toast } from "@/hooks/use-toast";
@@ -114,10 +113,6 @@ export default function Configuracoes() {
     );
   }
 
-  const getInitials = (name: string) => {
-    return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
-  };
-
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   // Mobile layout
@@ -164,9 +159,9 @@ export default function Configuracoes() {
 
   // Desktop layout
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={false}>
       <Helmet><title>Configurações</title></Helmet>
-      <div className="h-dvh flex w-full overflow-hidden">
+      <div className="min-h-screen flex w-full bg-background">
         <AdminSidebar 
           canManageUsers={canManageUsers}
           isAdmin={isAdmin}
@@ -175,33 +170,26 @@ export default function Configuracoes() {
           onLogout={handleLogout} 
         />
         
-        <SidebarInset className="flex-1 flex flex-col overflow-hidden min-w-0 bg-gradient-to-br from-background to-muted/30">
-          {/* Desktop Header */}
-          <header className="bg-card/80 backdrop-blur-sm border-b border-border/60 shrink-0 z-10 shadow-subtle">
-            <div className="px-6 py-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
-                <h1 className="font-display font-bold text-foreground text-lg tracking-tight">Configurações</h1>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 bg-muted/60 rounded-full pl-3 pr-1 py-1">
-                  <span className="text-sm text-muted-foreground hidden lg:block">{currentUserProfile?.full_name || user.email}</span>
-                  <Avatar className="h-8 w-8 border-2 border-primary/20">
-                    <AvatarImage src={currentUserProfile?.avatar_url || undefined} />
-                    <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
-                      {getInitials(currentUserProfile?.full_name || user.email || "U")}
-                    </AvatarFallback>
-                  </Avatar>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <main className="flex-1 p-3 md:p-5 overflow-auto">
+            <div className="max-w-7xl mx-auto space-y-4">
+              {/* Desktop header */}
+              <div className="hidden md:flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-primary/10">
+                  <Settings className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold tracking-tight">Configurações</h1>
+                  <p className="text-sm text-muted-foreground">
+                    Gerencie WhatsApp, bot e preferências do sistema
+                  </p>
                 </div>
               </div>
-            </div>
-          </header>
 
-          <main className="flex-1 p-5 overflow-auto space-y-4">
-            <WhatsAppConfig userId={user.id} isAdmin={isAdmin} />
+              <WhatsAppConfig userId={user.id} isAdmin={isAdmin} />
+            </div>
           </main>
-        </SidebarInset>
+        </div>
       </div>
     </SidebarProvider>
   );
