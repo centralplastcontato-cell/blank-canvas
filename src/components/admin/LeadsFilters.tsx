@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, Search, X, Download, CalendarCheck } from "lucide-react";
+import { CalendarIcon, Search, X, Download, CalendarCheck, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -90,6 +90,27 @@ export function LeadsFilters({
 
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
 
+  const isToday = (() => {
+    if (!filters.startDate || !filters.endDate) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const start = new Date(filters.startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(filters.endDate);
+    end.setHours(0, 0, 0, 0);
+    return start.getTime() === today.getTime() && end.getTime() === today.getTime();
+  })();
+
+  const toggleToday = () => {
+    if (isToday) {
+      onFiltersChange({ ...filters, startDate: undefined, endDate: undefined });
+    } else {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      onFiltersChange({ ...filters, startDate: today, endDate: today });
+    }
+  };
+
   return (
     <div className="bg-card rounded-2xl border border-border p-4 mb-4 shadow-card">
       <div className="flex flex-col gap-2 sm:gap-3">
@@ -139,6 +160,22 @@ export function LeadsFilters({
           "flex-col sm:flex sm:flex-row sm:flex-wrap gap-2 sm:gap-3 sm:items-center",
           isFiltersExpanded ? "flex" : "hidden sm:flex"
         )}>
+          {/* Today Filter Toggle */}
+          <Button
+            variant={isToday ? "default" : "outline"}
+            size="sm"
+            onClick={toggleToday}
+            className={cn(
+              "gap-2 transition-all",
+              isToday 
+                ? "bg-amber-500 hover:bg-amber-600 text-white border-amber-500" 
+                : "border-border/60 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-700 dark:hover:bg-amber-900/20"
+            )}
+          >
+            <Sun className="w-4 h-4" />
+            <span>Hoje</span>
+          </Button>
+
           {/* Visit Filter Toggle */}
           <Button
             variant={filters.hasScheduledVisit ? "default" : "outline"}
