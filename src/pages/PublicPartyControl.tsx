@@ -481,40 +481,39 @@ export default function PublicPartyControl() {
       style={{ background: "linear-gradient(180deg, #0a0f1e 0%, #0f172a 40%, #0f1629 100%)", height: "100dvh" }}
     >
       {/* ---- HEADER ---- */}
-      <div className="shrink-0 px-3 pt-3 pb-2">
+      <div className="shrink-0 px-3 pt-2 pb-1.5">
         {/* Top bar: company */}
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-1.5">
           <div className="flex items-center gap-1.5">
             {company.logo_url ? (
-              <img src={company.logo_url} alt={company.name} className="h-6 w-6 rounded-md object-cover" style={{ border: "1px solid rgba(255,255,255,0.1)" }} />
+              <img src={company.logo_url} alt={company.name} className="h-5 w-5 rounded-md object-cover" style={{ border: "1px solid rgba(255,255,255,0.1)" }} />
             ) : (
-              <div className="h-6 w-6 rounded-md flex items-center justify-center" style={{ background: "rgba(139,92,246,0.2)", border: "1px solid rgba(139,92,246,0.3)" }}>
-                <PartyPopper className="h-3 w-3" style={{ color: "#a78bfa" }} />
+              <div className="h-5 w-5 rounded-md flex items-center justify-center" style={{ background: "rgba(139,92,246,0.2)", border: "1px solid rgba(139,92,246,0.3)" }}>
+                <PartyPopper className="h-2.5 w-2.5" style={{ color: "#a78bfa" }} />
               </div>
             )}
-            <span className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: "#64748b" }}>{company.name}</span>
+            <span className="text-[9px] font-semibold tracking-widest uppercase" style={{ color: "#64748b" }}>{company.name}</span>
           </div>
-          {/* Polling indicator inline */}
           <div className="flex items-center gap-1">
             {refreshing ? (
-              <Loader2 className="h-2.5 w-2.5 animate-spin" style={{ color: "#64748b" }} />
+              <Loader2 className="h-2 w-2 animate-spin" style={{ color: "#64748b" }} />
             ) : (
               <span className="inline-block h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "#22c55e" }} />
             )}
-            <span style={{ color: "#475569", fontSize: "9px" }}>
+            <span style={{ color: "#475569", fontSize: "8px" }}>
               {refreshing ? "Atualizando..." : lastUpdated ? `${lastUpdated.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} • ${countdown}s` : "Ao vivo"}
             </span>
           </div>
         </div>
 
         {/* Central title area */}
-        <div className="text-center mb-2">
-          <div className="inline-flex items-center gap-1.5 mb-1 px-2.5 py-0.5 rounded-full" style={{ background: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.2)" }}>
-            <Zap className="h-3 w-3" style={{ color: "#a78bfa" }} />
-            <span className="text-[10px] font-bold tracking-wider uppercase" style={{ color: "#a78bfa" }}>Central de Controle</span>
+        <div className="text-center mb-1.5">
+          <div className="inline-flex items-center gap-1 mb-0.5 px-2 py-0.5 rounded-full" style={{ background: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.2)" }}>
+            <Zap className="h-2.5 w-2.5" style={{ color: "#a78bfa" }} />
+            <span className="text-[9px] font-bold tracking-wider uppercase" style={{ color: "#a78bfa" }}>Central de Controle</span>
           </div>
-          <h1 className="text-white font-black text-lg leading-tight mb-0.5">{event.title}</h1>
-          <p className="text-[11px] font-medium leading-tight" style={{ color: "#64748b" }}>
+          <h1 className="text-white font-black text-base leading-tight mb-0.5">{event.title}</h1>
+          <p className="text-[10px] font-medium leading-tight" style={{ color: "#64748b" }}>
             <span className="capitalize">{dateFormatted}</span>
             {timeStr && <span> • {timeStr}</span>}
             {event.unit && <span> • {event.unit}</span>}
@@ -522,9 +521,9 @@ export default function PublicPartyControl() {
           </p>
 
           {/* Status pill */}
-          <div className="mt-1 flex justify-center">
+          <div className="mt-0.5 flex justify-center">
             <span
-              className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold"
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold"
               style={
                 event.status === "confirmado"
                   ? { background: "rgba(16,185,129,0.15)", color: "#34d399", border: "1px solid rgba(16,185,129,0.25)" }
@@ -534,7 +533,7 @@ export default function PublicPartyControl() {
               }
             >
               <span
-                className="h-1.5 w-1.5 rounded-full animate-pulse"
+                className="h-1 w-1 rounded-full animate-pulse"
                 style={{
                   background: event.status === "confirmado" ? "#34d399"
                     : event.status === "cancelado" ? "#f87171" : "#fbbf24"
@@ -546,47 +545,38 @@ export default function PublicPartyControl() {
         </div>
 
         {/* ---- KPI CARDS ---- */}
-        <div className="grid grid-cols-3 gap-2 mb-2">
-          {/* OK */}
-          <div
-            className="rounded-xl p-2 text-center"
-            style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)" }}
-          >
-            <div className="text-base leading-none mb-0.5">✅</div>
-            <div className="text-xl font-black leading-none" style={{ color: "#34d399" }}>{status.checklist.completed}</div>
-            <div className="text-[9px] font-semibold uppercase tracking-wide mt-0.5" style={{ color: "#6ee7b7" }}>OK</div>
+        <div className="grid grid-cols-3 gap-1.5 mb-1.5">
+          <div className="rounded-lg p-1.5 text-center" style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)" }}>
+            <div className="text-sm leading-none mb-0.5">✅</div>
+            <div className="text-base font-black leading-none" style={{ color: "#34d399" }}>{status.checklist.completed}</div>
+            <div className="text-[8px] font-semibold uppercase tracking-wide mt-0.5" style={{ color: "#6ee7b7" }}>OK</div>
           </div>
-          {/* Pendentes */}
-          <div
-            className="rounded-xl p-2 text-center"
-            style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)" }}
-          >
-            <div className="text-base leading-none mb-0.5">⏳</div>
-            <div className="text-xl font-black leading-none" style={{ color: "#fbbf24" }}>{pendingCount}</div>
-            <div className="text-[9px] font-semibold uppercase tracking-wide mt-0.5" style={{ color: "#fde68a" }}>Pendentes</div>
+          <div className="rounded-lg p-1.5 text-center" style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)" }}>
+            <div className="text-sm leading-none mb-0.5">⏳</div>
+            <div className="text-base font-black leading-none" style={{ color: "#fbbf24" }}>{pendingCount}</div>
+            <div className="text-[8px] font-semibold uppercase tracking-wide mt-0.5" style={{ color: "#fde68a" }}>Pendentes</div>
           </div>
-          {/* Alertas */}
           <div
-            className="rounded-xl p-2 text-center"
+            className="rounded-lg p-1.5 text-center"
             style={{
               background: modulesMissing > 0 ? "rgba(239,68,68,0.1)" : "rgba(16,185,129,0.06)",
               border: modulesMissing > 0 ? "1px solid rgba(239,68,68,0.25)" : "1px solid rgba(16,185,129,0.15)",
             }}
           >
-            <div className="text-base leading-none mb-0.5">{modulesMissing > 0 ? "🚨" : "🟢"}</div>
-            <div className="text-xl font-black leading-none" style={{ color: modulesMissing > 0 ? "#f87171" : "#34d399" }}>{modulesMissing}</div>
-            <div className="text-[9px] font-semibold uppercase tracking-wide mt-0.5" style={{ color: modulesMissing > 0 ? "#fca5a5" : "#6ee7b7" }}>Alertas</div>
+            <div className="text-sm leading-none mb-0.5">{modulesMissing > 0 ? "🚨" : "🟢"}</div>
+            <div className="text-base font-black leading-none" style={{ color: modulesMissing > 0 ? "#f87171" : "#34d399" }}>{modulesMissing}</div>
+            <div className="text-[8px] font-semibold uppercase tracking-wide mt-0.5" style={{ color: modulesMissing > 0 ? "#fca5a5" : "#6ee7b7" }}>Alertas</div>
           </div>
         </div>
 
         {/* Progress bar for checklist */}
         {status.checklist.total > 0 && (
-          <div className="mb-2">
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-[10px] font-semibold" style={{ color: "#64748b" }}>Progresso do Checklist</span>
-              <span className="text-[10px] font-bold" style={{ color: checklistProgress === 100 ? "#34d399" : "#94a3b8" }}>{checklistProgress}%</span>
+          <div className="mb-1.5">
+            <div className="flex justify-between items-center mb-0.5">
+              <span className="text-[9px] font-semibold" style={{ color: "#64748b" }}>Progresso do Checklist</span>
+              <span className="text-[9px] font-bold" style={{ color: checklistProgress === 100 ? "#34d399" : "#94a3b8" }}>{checklistProgress}%</span>
             </div>
-            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.07)" }}>
+            <div className="h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.07)" }}>
               <div
                 className="h-full rounded-full transition-all duration-700"
                 style={{
@@ -603,22 +593,22 @@ export default function PublicPartyControl() {
         {/* ---- ALERT BANNER ---- */}
         {modulesMissing > 0 && (
           <div
-            className="rounded-xl px-3 py-2 flex items-center gap-2"
+            className="rounded-lg px-2.5 py-1.5 flex items-center gap-2"
             style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}
           >
-            <AlertTriangle className="h-3.5 w-3.5 text-red-400 shrink-0" />
+            <AlertTriangle className="h-3 w-3 text-red-400 shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-bold text-red-300 leading-tight">Atenção necessária</p>
-              <p className="text-[10px] leading-tight" style={{ color: "#f87171" }}>
+              <p className="text-[10px] font-bold text-red-300 leading-tight">Atenção necessária</p>
+              <p className="text-[9px] leading-tight" style={{ color: "#f87171" }}>
                 {modulesMissing} módulo{modulesMissing > 1 ? "s" : ""} não {modulesMissing > 1 ? "criados" : "criado"}
               </p>
             </div>
             <button
               onClick={() => setActiveTab("home")}
-              className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md shrink-0"
+              className="flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0"
               style={{ background: "rgba(239,68,68,0.2)", color: "#fca5a5", border: "1px solid rgba(239,68,68,0.3)" }}
             >
-              Ver <ArrowRight className="h-2.5 w-2.5" />
+              Ver <ArrowRight className="h-2 w-2" />
             </button>
           </div>
         )}
@@ -645,7 +635,7 @@ export default function PublicPartyControl() {
                       }
                     }}
                     disabled={!isClickable}
-                    className="relative rounded-xl p-3 text-left transition-all active:scale-95 disabled:opacity-40"
+                    className="relative rounded-xl p-2 text-left transition-all active:scale-95 disabled:opacity-40"
                     style={{
                       background: mod.bg,
                       border: `1px solid ${mod.border}`,
@@ -653,9 +643,9 @@ export default function PublicPartyControl() {
                     }}
                   >
                     {/* Status dot top-right */}
-                    <div className="absolute top-2 right-2">
+                    <div className="absolute top-1.5 right-1.5">
                       <div
-                        className="h-2 w-2 rounded-full"
+                        className="h-1.5 w-1.5 rounded-full"
                         style={{
                           background: mod.isOk ? "#34d399" : mod.isEmpty ? "#64748b" : "#fbbf24",
                           boxShadow: mod.isOk ? "0 0 4px rgba(52,211,153,0.6)" : mod.isEmpty ? "none" : "0 0 4px rgba(251,191,36,0.6)",
@@ -664,14 +654,14 @@ export default function PublicPartyControl() {
                     </div>
 
                     {/* Emoji icon */}
-                    <div className="text-2xl mb-1.5 leading-none">{mod.emoji}</div>
+                    <div className="text-xl mb-1 leading-none">{mod.emoji}</div>
 
                     {/* Label */}
-                    <div className="font-bold text-xs leading-tight mb-1" style={{ color: "#f1f5f9" }}>{mod.label}</div>
+                    <div className="font-bold text-[11px] leading-tight mb-0.5" style={{ color: "#f1f5f9" }}>{mod.label}</div>
 
                     {/* Status text */}
                     <div
-                      className="text-[10px] font-semibold"
+                      className="text-[9px] font-semibold"
                       style={{ color: mod.isOk ? "#6ee7b7" : mod.isEmpty ? "#64748b" : "#fde68a" }}
                     >
                       {mod.statusText}
@@ -680,10 +670,10 @@ export default function PublicPartyControl() {
                     {/* Arrow if clickable */}
                     {isClickable && (
                       <div
-                        className="absolute bottom-2 right-2 h-5 w-5 rounded-md flex items-center justify-center"
+                        className="absolute bottom-1.5 right-1.5 h-4 w-4 rounded flex items-center justify-center"
                         style={{ background: `rgba(255,255,255,0.08)` }}
                       >
-                        <ChevronRight className="h-3 w-3" style={{ color: "rgba(255,255,255,0.5)" }} />
+                        <ChevronRight className="h-2.5 w-2.5" style={{ color: "rgba(255,255,255,0.5)" }} />
                       </div>
                     )}
                   </button>
@@ -820,11 +810,11 @@ export default function PublicPartyControl() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className="flex-1 flex flex-col items-center gap-0.5 py-2 px-2 relative transition-all"
+                className="flex-1 flex flex-col items-center gap-0.5 py-1.5 px-2 relative transition-all"
                 style={{ color: isActive ? "#a78bfa" : "#475569" }}
               >
                 <div className="relative">
-                  <span className="text-lg">{tab.emoji}</span>
+                  <span className="text-base">{tab.emoji}</span>
                   {tab.badge !== null && (
                     <span
                       className="absolute -top-1 -right-1.5 h-3.5 min-w-3.5 px-0.5 rounded-full text-[9px] font-black flex items-center justify-center"
