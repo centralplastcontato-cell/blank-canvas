@@ -1,10 +1,18 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { Plus, Trash2, Loader2, GripVertical } from "lucide-react";
+import { Plus, Trash2, Loader2, ListChecks, ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "@/hooks/use-toast";
 
 interface ChecklistItem {
   id: string;
@@ -13,16 +21,25 @@ interface ChecklistItem {
   sort_order: number;
 }
 
+interface Template {
+  id: string;
+  name: string;
+  items: string[];
+}
+
 interface EventChecklistProps {
   eventId: string;
   companyId: string;
 }
 
 export function EventChecklist({ eventId, companyId }: EventChecklistProps) {
+  const { currentCompany } = useCompany();
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [newTask, setNewTask] = useState("");
   const [adding, setAdding] = useState(false);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [applyingTemplate, setApplyingTemplate] = useState(false);
 
   const fetchItems = async () => {
     const { data } = await supabase
@@ -34,8 +51,27 @@ export function EventChecklist({ eventId, companyId }: EventChecklistProps) {
     setLoading(false);
   };
 
+  const fetchTemplates = async () => {
+    const cid = currentCompany?.id || companyId;
+    if (!cid) return;
+    const { data } = await supabase
+      .from("event_checklist_templates")
+      .select("id, name, items")
+      .eq("company_id", cid)
+      .eq("is_active", true)
+      .order("name");
+    setTemplates(
+      (data || []).map((t: any) => ({
+        id: t.id,
+        name: t.name,
+        items: Array.isArray(t.items) ? t.items : [],
+      }))
+    );
+  };
+
   useEffect(() => {
     fetchItems();
+    fetchTemplates();
   }, [eventId]);
 
   const toggleItem = async (item: ChecklistItem) => {
@@ -78,6 +114,30 @@ export function EventChecklist({ eventId, companyId }: EventChecklistProps) {
     await supabase.from("event_checklist_items").delete().eq("id", id);
   };
 
+  const applyTemplate = async (template: Template) => {
+    if (template.items.length === 0) return;
+    setApplyingTemplate(true);
+
+    const maxOrder = items.length > 0 ? Math.max(...items.map((i) => i.sort_order)) + 1 : 0;
+    const newItems = template.items.map((title, idx) => ({
+      event_id: eventId,
+      company_id: companyId,
+      title,
+      sort_order: maxOrder + idx,
+    }));
+
+    const { data, error } = await supabase
+      .from("event_checklist_items")
+      .insert(newItems)
+      .select("id, title, is_completed, sort_order");
+
+    if (!error && data) {
+      setItems((prev) => [...prev, ...(data as ChecklistItem[])]);
+      toast({ title: `Template "${template.name}" aplicado!`, description: `${template.items.length} itens adicionados.` });
+    }
+    setApplyingTemplate(false);
+  };
+
   const completed = items.filter((i) => i.is_completed).length;
   const total = items.length;
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -96,9 +156,36 @@ export function EventChecklist({ eventId, companyId }: EventChecklistProps) {
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           Checklist {total > 0 ? `(${completed}/${total})` : ""}
         </p>
-        {total > 0 && (
-          <span className="text-xs font-semibold text-primary">{pct}%</span>
-        )}
+        <div className="flex items-center gap-2">
+          {total > 0 && (
+            <span className="text-xs font-semibold text-primary">{pct}%</span>
+          )}
+          {templates.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-6 px-2 text-xs gap-1" disabled={applyingTemplate}>
+                  {applyingTemplate
+                    ? <Loader2 className="h-3 w-3 animate-spin" />
+                    : <ListChecks className="h-3 w-3" />
+                  }
+                  Usar template
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[180px]">
+                {templates.map((t) => (
+                  <DropdownMenuItem key={t.id} onClick={() => applyTemplate(t)}>
+                    <ListChecks className="h-3.5 w-3.5 mr-2 text-primary" />
+                    <div>
+                      <p className="text-sm font-medium">{t.name}</p>
+                      <p className="text-xs text-muted-foreground">{t.items.length} itens</p>
+                    </div>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </div>
 
       {total > 0 && (
