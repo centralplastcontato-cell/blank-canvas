@@ -118,7 +118,7 @@ export function ChecklistTemplateManager() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="max-w-6xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ListChecks className="h-5 w-5 text-primary" />
