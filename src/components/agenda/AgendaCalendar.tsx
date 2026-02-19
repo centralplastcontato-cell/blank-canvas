@@ -26,9 +26,9 @@ interface AgendaCalendarProps {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  confirmado: "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]",
-  pendente: "bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.4)]",
-  cancelado: "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.3)]",
+  confirmado: "bg-emerald-500",
+  pendente: "bg-amber-400",
+  cancelado: "bg-red-400",
 };
 
 export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selectedDate, checklistProgress = {} }: AgendaCalendarProps) {
@@ -48,40 +48,42 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
       onMonthChange={onMonthChange}
       locale={ptBR}
       showOutsideDays
-      className="p-2 lg:p-5"
+      className="p-2 lg:p-6"
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-        month: "space-y-4 w-full",
-        caption: "flex justify-center pt-2 lg:pt-4 relative items-center mb-2",
-        caption_label: "text-base lg:text-xl font-bold capitalize tracking-tight text-foreground",
+        month: "space-y-5 w-full",
+        caption: "flex justify-center pt-2 lg:pt-3 relative items-center mb-3",
+        caption_label: "text-base lg:text-lg font-semibold capitalize tracking-tight text-foreground",
         nav: "space-x-1 flex items-center",
         nav_button: cn(
           buttonVariants({ variant: "ghost" }),
-          "h-8 w-8 lg:h-10 lg:w-10 p-0 text-muted-foreground hover:text-foreground hover:bg-primary/10 rounded-xl transition-all duration-200"
+          "h-8 w-8 lg:h-9 lg:w-9 p-0 text-muted-foreground/60 hover:text-foreground hover:bg-accent rounded-xl transition-all duration-150"
         ),
         nav_button_previous: "absolute left-1",
         nav_button_next: "absolute right-1",
         table: "w-full border-collapse",
         head_row: "flex",
-        head_cell: "text-muted-foreground/70 rounded-md flex-1 font-semibold text-[0.7rem] lg:text-xs text-center uppercase tracking-widest py-2",
-        row: "flex w-full mt-0.5 lg:mt-1",
-        cell: "flex-1 text-center text-sm p-0.5 lg:p-1 relative focus-within:relative focus-within:z-20",
+        head_cell: "text-muted-foreground/50 flex-1 font-medium text-[0.65rem] lg:text-[0.7rem] text-center uppercase tracking-[0.15em] pb-3",
+        row: "flex w-full",
+        cell: "flex-1 text-center text-sm p-0.5 lg:p-[3px] relative focus-within:relative focus-within:z-20",
         day: cn(
           buttonVariants({ variant: "ghost" }),
-          "h-12 lg:h-[4.5rem] w-full p-0 font-normal aria-selected:opacity-100 relative rounded-xl",
-          "hover:bg-muted/60 hover:shadow-sm transition-all duration-200"
+          "h-11 lg:h-[4.2rem] w-full p-0 font-normal aria-selected:opacity-100 relative rounded-xl",
+          "hover:bg-primary/[0.06] transition-all duration-150 cursor-pointer"
         ),
         day_range_end: "day-range-end",
         day_selected: cn(
-          "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-          "ring-2 ring-primary/30 ring-offset-2 ring-offset-background shadow-[0_0_12px_rgba(var(--primary-rgb,99,102,241),0.25)]"
+          "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground",
+          "hover:from-primary hover:to-primary/90 hover:text-primary-foreground",
+          "focus:from-primary focus:to-primary/90 focus:text-primary-foreground",
+          "shadow-[0_2px_12px_rgba(0,0,0,0.12)] ring-1 ring-primary/20"
         ),
         day_today: cn(
-          "bg-primary/10 text-primary font-bold",
-          "ring-1 ring-primary/20"
+          "bg-accent text-foreground font-semibold",
+          "ring-1 ring-border"
         ),
-        day_outside: "day-outside text-muted-foreground/40 opacity-50",
-        day_disabled: "text-muted-foreground opacity-50",
+        day_outside: "day-outside text-muted-foreground/30",
+        day_disabled: "text-muted-foreground/30",
         day_hidden: "invisible",
       }}
       components={{
@@ -97,36 +99,33 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
           const hasEvents = dayEvents.length > 0;
 
           return (
-            <div className={cn(
-              "flex flex-col items-center gap-0.5 lg:gap-1 w-full h-full justify-center",
-              hasEvents && "relative"
-            )}>
+            <div className="flex flex-col items-center gap-0.5 lg:gap-1 w-full h-full justify-center">
               <span className={cn(
-                "lg:text-lg transition-all duration-200",
-                hasEvents ? "font-semibold text-foreground" : "text-foreground/80"
+                "text-sm lg:text-base transition-colors duration-150",
+                hasEvents ? "font-medium text-foreground" : "text-foreground/70"
               )}>
                 {date.getDate()}
               </span>
               {hasEvents && (
-                <div className="flex gap-[3px] lg:gap-1 justify-center items-center">
+                <div className="flex gap-[3px] lg:gap-1 justify-center items-center animate-fade-up">
                   {dayEvents.slice(0, 3).map((ev) => (
                     <span
                       key={ev.id}
                       className={cn(
-                        "h-1.5 w-1.5 lg:h-2.5 lg:w-2.5 rounded-full transition-all duration-300",
-                        STATUS_COLORS[ev.status] || "bg-muted-foreground"
+                        "h-[5px] w-[5px] lg:h-[6px] lg:w-[6px] rounded-full",
+                        STATUS_COLORS[ev.status] || "bg-muted-foreground/50"
                       )}
                     />
                   ))}
                   {dayEvents.length > 3 && (
-                    <span className="text-[7px] lg:text-[9px] text-muted-foreground font-semibold leading-none ml-0.5">
+                    <span className="text-[7px] lg:text-[8px] text-muted-foreground/60 font-medium leading-none ml-0.5">
                       +{dayEvents.length - 3}
                     </span>
                   )}
                 </div>
               )}
               {hasPending && (
-                <span className="text-[7px] text-amber-500 font-medium leading-none">📋</span>
+                <span className="text-[7px] text-amber-500/80 leading-none">📋</span>
               )}
             </div>
           );
