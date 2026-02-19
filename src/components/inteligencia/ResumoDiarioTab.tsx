@@ -27,15 +27,15 @@ function MetricCard({ icon: Icon, label, value, color }: {
   icon: React.ElementType; label: string; value: number | string; color: string;
 }) {
   return (
-    <Card className="hover:-translate-y-0.5 transition-all duration-300 ease-out border-border/60 shadow-sm hover:shadow-md rounded-2xl">
-      <CardContent className="p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className={`p-2.5 rounded-full shrink-0 ${color}`}>
-            <Icon className="h-4 w-4" />
+    <Card className="hover:-translate-y-0.5 transition-all duration-300 ease-out border-border/60 shadow-sm hover:shadow-md rounded-xl md:rounded-2xl">
+      <CardContent className="p-3 md:p-6">
+        <div className="flex items-center gap-2 md:gap-3 mb-2 md:mb-4">
+          <div className={`p-1.5 md:p-2.5 rounded-full shrink-0 ${color}`}>
+            <Icon className="h-3.5 w-3.5 md:h-4 md:w-4" />
           </div>
-          <p className="text-xs font-medium text-muted-foreground leading-snug whitespace-nowrap">{label}</p>
+          <p className="text-[11px] md:text-xs font-medium text-muted-foreground leading-snug whitespace-nowrap">{label}</p>
         </div>
-        <p className="text-[32px] font-bold tracking-tight text-foreground leading-none">{value}</p>
+        <p className="text-xl md:text-[32px] font-bold tracking-tight text-foreground leading-none">{value}</p>
       </CardContent>
     </Card>
   );
@@ -45,7 +45,7 @@ function MetricsGrid({ metrics, incompleteCount, followUpLabels }: { metrics: Da
   const fu1Label = followUpLabels?.fu1 || "24h";
   const fu2Label = followUpLabels?.fu2 || "48h";
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
       <MetricCard icon={Users} label="Leads novos" value={metrics.novos} color="bg-blue-500/10 text-blue-500" />
       <MetricCard icon={CalendarCheck} label="Visitas agendadas" value={metrics.visitas} color="bg-green-500/10 text-green-500" />
       <MetricCard icon={FileText} label="Orçamentos" value={metrics.orcamentos} color="bg-purple-500/10 text-purple-500" />
