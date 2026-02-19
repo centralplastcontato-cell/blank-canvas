@@ -28,15 +28,15 @@ function MetricCard({ icon: Icon, label, value, color }: {
 }) {
   const borderColor = color.includes('blue') ? 'border-l-blue-500' : color.includes('green') ? 'border-l-green-500' : color.includes('purple') ? 'border-l-purple-500' : color.includes('yellow') ? 'border-l-yellow-500' : color.includes('orange') ? 'border-l-orange-500' : color.includes('emerald') ? 'border-l-emerald-500' : color.includes('destructive') ? 'border-l-destructive' : color.includes('sky') ? 'border-l-sky-500' : color.includes('indigo') ? 'border-l-indigo-500' : 'border-l-primary';
   return (
-    <Card className={`hover:-translate-y-0.5 transition-all duration-300 ease-out border-border/60 shadow-premium hover:shadow-card-hover border-l-[3px] ${borderColor}`}>
-      <CardContent className="p-5 sm:p-6">
-        <div className="flex items-center gap-2.5 mb-3">
-          <div className={`p-2.5 rounded-xl ${color}`}>
-            <Icon className="h-5 w-5" />
+    <Card className={`hover:-translate-y-0.5 transition-all duration-300 ease-out border-border/60 shadow-premium hover:shadow-card-hover border-l-[3px] ${borderColor} overflow-hidden`}>
+      <CardContent className="p-4 sm:p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <div className={`p-2 rounded-xl shrink-0 ${color}`}>
+            <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
-          <p className="text-[11px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider leading-tight">{label}</p>
+          <p className="text-[10px] sm:text-[11px] font-medium text-muted-foreground uppercase tracking-wider leading-tight break-words hyphens-auto min-w-0">{label}</p>
         </div>
-        <p className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">{value}</p>
+        <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">{value}</p>
       </CardContent>
     </Card>
   );
