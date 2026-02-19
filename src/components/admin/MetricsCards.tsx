@@ -90,28 +90,28 @@ export function MetricsCards({ metrics, isLoading }: MetricsCardsProps) {
   }
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
       {cards.map((metric) => (
         <Card 
           key={metric.title} 
           className={`
             relative border ${metric.borderColor} overflow-hidden
-            hover:shadow-lg hover:shadow-primary/5 hover:scale-[1.02] hover:-translate-y-1
+            hover:-translate-y-1
             transition-all duration-300 ease-out cursor-default
             bg-card
           `}
         >
           <div className={`absolute inset-0 bg-gradient-to-br ${metric.gradient} pointer-events-none`} />
-          <CardContent className="p-4 relative z-10">
-            <div className="flex items-center gap-2 mb-2">
-              <div className={`p-2.5 rounded-lg ${metric.iconBg} shadow-sm`}>
+          <CardContent className="p-5 relative z-10">
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className={`p-2.5 rounded-xl ${metric.iconBg}`}>
                 <metric.icon className={`w-5 h-5 ${metric.iconColor}`} />
               </div>
-              <span className="text-xs text-muted-foreground font-medium truncate">
-                {metric.title}
-              </span>
             </div>
-            <p className="text-2xl font-bold text-foreground tracking-tight">{metric.value}</p>
+            <p className="text-2xl font-bold text-foreground tracking-tight mb-0.5">{metric.value}</p>
+            <span className="text-xs text-muted-foreground font-medium">
+              {metric.title}
+            </span>
           </CardContent>
         </Card>
       ))}

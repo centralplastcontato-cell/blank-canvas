@@ -208,9 +208,11 @@ export default function Inteligencia() {
               {/* Desktop header */}
               <div className="hidden md:flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex items-center gap-3">
-                  <Brain className="h-7 w-7 text-primary" />
+                  <div className="p-2.5 rounded-xl bg-primary/10">
+                    <Brain className="h-6 w-6 text-primary" />
+                  </div>
                   <div>
-                    <h1 className="text-2xl font-bold">Inteligência</h1>
+                    <h1 className="text-2xl font-bold tracking-tight">Inteligência</h1>
                   <p className="text-sm text-muted-foreground">
                     Score de leads, priorização e análise de funil
                   </p>

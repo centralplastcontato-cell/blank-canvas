@@ -179,9 +179,11 @@ export default function Formularios() {
             {/* Desktop header */}
             <div className="hidden md:flex items-center justify-between gap-3 p-6 pb-0">
               <div className="flex items-center gap-3">
-                <FolderOpen className="h-7 w-7 text-primary" />
+                <div className="p-2.5 rounded-xl bg-primary/10">
+                  <FolderOpen className="h-6 w-6 text-primary" />
+                </div>
                 <div>
-                  <h1 className="text-2xl font-bold">Operações</h1>
+                  <h1 className="text-2xl font-bold tracking-tight">Operações</h1>
                   <p className="text-sm text-muted-foreground">Gerencie formulários, checklists e pacotes da sua empresa</p>
                 </div>
               </div>

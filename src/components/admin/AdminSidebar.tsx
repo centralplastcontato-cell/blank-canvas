@@ -94,11 +94,11 @@ export function AdminSidebar({
       
       <Sidebar 
         collapsible="icon" 
-        className="border-r border-sidebar-border transition-all duration-200 z-40"
+        className="border-r border-sidebar-border transition-all duration-300 z-40"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-      <SidebarHeader className="p-3">
+      <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
           <img 
             src={logoCastelo} 
