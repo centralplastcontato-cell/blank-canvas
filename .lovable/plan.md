@@ -1,25 +1,35 @@
 
-## Padronizar o layout da pagina de Configuracoes
+
+## Ajuste na Barra de Status (Pipeline Stepper)
+
+Dois ajustes pontuais na barra de status do chat desktop:
 
 ### Problema
-A pagina de Configuracoes tem um layout diferente das paginas de Inteligencia e Operacoes. O conteudo comeca direto na lateral sem o mesmo padrao de header (icone + titulo + descricao) e sem o mesmo espacamento interno.
+- Os botões de status estao grandes demais, causando scroll horizontal desnecessario
+- A altura do container esta cortando a borda superior dos elementos
 
-### O que muda
+### Alteracoes
 
-**Arquivo:** `src/pages/Configuracoes.tsx`
+**Arquivo:** `src/components/whatsapp/WhatsAppChat.tsx` (linhas 3321-3404)
 
-1. **Remover o `SidebarInset`** e usar o mesmo wrapper `div flex-1` que Inteligencia e Operacoes usam
-2. **Adicionar header desktop padronizado** com icone de Settings dentro de container colorido, titulo "Configuracoes" em negrito e subtitulo descritivo — igual ao padrao das outras paginas
-3. **Ajustar o padding do conteudo** para usar `p-3 md:p-5` consistente com as outras paginas
-4. **Manter o header mobile** sem alteracoes, ja que o mobile esta funcionando corretamente
+1. **Reduzir tamanho dos botoes de status** para eliminar o scroll lateral:
+   - Diminuir padding horizontal de `px-3` para `px-2`
+   - Reduzir gap entre itens de `gap-1.5` para `gap-1`
+   - Reduzir fonte de `text-xs` para `text-[11px]`
+   - Diminuir o conector entre etapas de `w-3` para `w-2`
 
-### Resultado esperado
-A pagina de Configuracoes tera o mesmo visual e espacamento que Inteligencia e Operacoes: um header com icone arredondado, titulo grande e subtitulo, seguido do conteudo com padding uniforme.
+2. **Aumentar altura do container** para nao cortar a moldura superior:
+   - Ajustar padding vertical de `py-3` para `py-3.5`
+   - Remover o `pb-1` do scroll area (que empurrava conteudo para cima)
 
 ### Detalhes tecnicos
 
-Substituir o bloco desktop (linhas 166-206) para:
-- Trocar `SidebarInset` por `div className="flex-1 flex flex-col overflow-hidden"`
-- Remover o header atual que usa `SidebarTrigger` e avatar pill
-- Adicionar header desktop no padrao: `hidden md:flex` com icone `Settings` em `bg-primary/10`, titulo `text-2xl font-bold` e subtitulo `text-sm text-muted-foreground`
-- Manter `main` com padding `p-3 md:p-5`
+```
+Container: px-4 py-3 → px-3 py-3.5
+Botoes: px-3 py-1.5 gap-1.5 text-xs → px-2 py-1.5 gap-1 text-[11px]
+Conector: w-3 mx-0.5 → w-2 mx-0.5
+Scroll area: pb-1 removido
+```
+
+Mudancas puramente visuais, sem impacto na logica de negocio.
+
