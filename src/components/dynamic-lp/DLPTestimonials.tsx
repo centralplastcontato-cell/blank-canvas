@@ -80,7 +80,7 @@ export function DLPTestimonials({ testimonials, theme }: DLPTestimonialsProps) {
                 borderColor: theme.text_color + "15",
               }}
             >
-              {/* Quote icon - floating circle */}
+              {/* Quote icon */}
               <div
                 className="absolute -top-3 -left-3 w-10 h-10 rounded-full flex items-center justify-center shadow-md"
                 style={{ backgroundColor: theme.primary_color }}
@@ -135,6 +135,58 @@ export function DLPTestimonials({ testimonials, theme }: DLPTestimonialsProps) {
               </div>
             </motion.div>
           ))}
+        </motion.div>
+
+        {/* Trust badges - numeric style like campaign LP */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+          className="mt-12 flex flex-wrap justify-center gap-6 md:gap-12"
+        >
+          <div className="text-center">
+            <p
+              className="text-3xl md:text-4xl font-bold"
+              style={{ color: theme.primary_color, fontFamily: theme.font_heading }}
+            >
+              +500
+            </p>
+            <p
+              className="text-sm"
+              style={{ color: theme.text_color + "99", fontFamily: theme.font_body }}
+            >
+              Festas realizadas
+            </p>
+          </div>
+          <div className="text-center">
+            <p
+              className="text-3xl md:text-4xl font-bold"
+              style={{ color: theme.primary_color, fontFamily: theme.font_heading }}
+            >
+              4.9
+            </p>
+            <p
+              className="text-sm"
+              style={{ color: theme.text_color + "99", fontFamily: theme.font_body }}
+            >
+              Avaliação média
+            </p>
+          </div>
+          <div className="text-center">
+            <p
+              className="text-3xl md:text-4xl font-bold"
+              style={{ color: theme.primary_color, fontFamily: theme.font_heading }}
+            >
+              98%
+            </p>
+            <p
+              className="text-sm"
+              style={{ color: theme.text_color + "99", fontFamily: theme.font_body }}
+            >
+              Clientes satisfeitos
+            </p>
+          </div>
         </motion.div>
       </div>
     </section>

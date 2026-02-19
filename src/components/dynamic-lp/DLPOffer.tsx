@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Gift, Check, Star } from "lucide-react";
+import { Heart, Check, Star } from "lucide-react";
 import type { LPOffer, LPTheme } from "@/types/landing-page";
 
 interface DLPOfferProps {
@@ -18,9 +18,12 @@ export function DLPOffer({ offer, theme, onCtaClick }: DLPOfferProps) {
       ? "rounded-none"
       : "rounded-xl";
 
+  // Institutional tone: use offer title or fallback
+  const sectionTitle = offer.title || "Por que nos escolher?";
+  const hasPromotion = !!offer.highlight_text;
+
   return (
     <section className="py-20 relative overflow-hidden">
-      {/* Confetti-style gradient background */}
       <div
         className="absolute inset-0"
         style={{
@@ -48,14 +51,14 @@ export function DLPOffer({ offer, theme, onCtaClick }: DLPOfferProps) {
               fontFamily: theme.font_body,
             }}
           >
-            <Gift className="w-4 h-4" />
-            OFERTA ESPECIAL
+            <Heart className="w-4 h-4" />
+            {hasPromotion ? "OFERTA ESPECIAL" : "FAÇA SUA FESTA"}
           </span>
           <h2
             className="text-4xl md:text-5xl font-bold mb-4"
             style={{ color: theme.text_color, fontFamily: theme.font_heading }}
           >
-            {offer.title}
+            {sectionTitle}
           </h2>
           {offer.description && (
             <p
@@ -67,7 +70,7 @@ export function DLPOffer({ offer, theme, onCtaClick }: DLPOfferProps) {
           )}
         </motion.div>
 
-        {/* Two-column layout like campaign LP */}
+        {/* Two-column layout */}
         <div className="grid md:grid-cols-2 gap-8">
           {/* Benefits Card - Glassmorphism */}
           <motion.div
@@ -82,15 +85,12 @@ export function DLPOffer({ offer, theme, onCtaClick }: DLPOfferProps) {
               backdropFilter: "blur(20px)",
             }}
           >
-            {/* Decorative gradient overlay */}
             <div
               className="absolute inset-0"
               style={{
                 background: `linear-gradient(135deg, ${theme.text_color}10, transparent, ${theme.text_color}05)`,
               }}
             />
-
-            {/* Decorative circles */}
             <div
               className="absolute -top-10 -right-10 w-40 h-40 rounded-full blur-3xl"
               style={{ backgroundColor: theme.secondary_color + "30" }}
@@ -155,15 +155,12 @@ export function DLPOffer({ offer, theme, onCtaClick }: DLPOfferProps) {
               backdropFilter: "blur(20px)",
             }}
           >
-            {/* Decorative gradient overlay */}
             <div
               className="absolute inset-0"
               style={{
                 background: `linear-gradient(135deg, ${theme.text_color}10, transparent, ${theme.text_color}05)`,
               }}
             />
-
-            {/* Decorative elements */}
             <div
               className="absolute -top-16 -right-16 w-40 h-40 rounded-full blur-3xl"
               style={{ backgroundColor: theme.secondary_color + "20" }}
@@ -182,7 +179,7 @@ export function DLPOffer({ offer, theme, onCtaClick }: DLPOfferProps) {
                   background: `linear-gradient(135deg, ${theme.primary_color}, ${theme.secondary_color})`,
                 }}
               >
-                <Gift className="w-10 h-10" style={{ color: "#fff" }} />
+                <Heart className="w-10 h-10" style={{ color: "#fff" }} />
               </motion.div>
 
               <h3
@@ -209,10 +206,10 @@ export function DLPOffer({ offer, theme, onCtaClick }: DLPOfferProps) {
                   boxShadow: `0 10px 30px ${theme.secondary_color}44`,
                 }}
               >
-                {offer.cta_text || "Quero Esta Oferta!"} 🎁
+                {offer.cta_text || "Quero fazer minha festa!"} 🎉
               </button>
 
-              {offer.highlight_text && (
+              {hasPromotion && (
                 <div
                   className="mt-8 pt-6 border-t"
                   style={{ borderColor: theme.text_color + "15" }}

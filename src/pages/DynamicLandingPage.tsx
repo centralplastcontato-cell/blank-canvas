@@ -4,9 +4,10 @@ import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { isHubDomain, isPreviewDomain } from "@/hooks/useDomainDetection";
 import { DLPHero } from "@/components/dynamic-lp/DLPHero";
+import { DLPBenefits } from "@/components/dynamic-lp/DLPBenefits";
+import { DLPTestimonials } from "@/components/dynamic-lp/DLPTestimonials";
 import { DLPVideo } from "@/components/dynamic-lp/DLPVideo";
 import { DLPGallery } from "@/components/dynamic-lp/DLPGallery";
-import { DLPTestimonials } from "@/components/dynamic-lp/DLPTestimonials";
 import { DLPOffer } from "@/components/dynamic-lp/DLPOffer";
 import { DLPFooter } from "@/components/dynamic-lp/DLPFooter";
 import { DLPFloatingCTA } from "@/components/dynamic-lp/DLPFloatingCTA";
@@ -28,7 +29,6 @@ interface LPData {
 }
 
 interface DynamicLandingPageProps {
-  /** When used via domain detection, pass the custom domain */
   domain?: string;
 }
 
@@ -78,7 +78,6 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
     fetchLP();
   }, [slug, domain]);
 
-  // Apply theme CSS vars for the page
   const themeStyle = useMemo(() => {
     if (!data) return {};
     return {
@@ -125,6 +124,8 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
         <meta name="twitter:title" content={`${data.company_name} | Buffet Infantil`} />
         {data.company_logo && <meta name="twitter:image" content={data.company_logo} />}
       </Helmet>
+
+      {/* Section order: Hero → Benefits → Testimonials → Video → Gallery → Offer → Footer */}
       <DLPHero
         hero={data.hero}
         theme={data.theme}
@@ -132,9 +133,10 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
         companyLogo={data.company_logo}
         onCtaClick={openChat}
       />
+      <DLPBenefits theme={data.theme} companyName={data.company_name} />
+      <DLPTestimonials testimonials={data.testimonials} theme={data.theme} />
       <DLPVideo video={data.video} theme={data.theme} companyName={data.company_name} />
       <DLPGallery gallery={data.gallery} theme={data.theme} companyName={data.company_name} />
-      <DLPTestimonials testimonials={data.testimonials} theme={data.theme} />
       <DLPOffer offer={data.offer} theme={data.theme} onCtaClick={openChat} />
       <DLPFooter footer={data.footer} theme={data.theme} companyName={data.company_name} companyLogo={data.company_logo} />
 

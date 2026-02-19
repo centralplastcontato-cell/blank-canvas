@@ -1,5 +1,6 @@
-import { motion } from "framer-motion";
-import { Camera, Star, PartyPopper, Heart } from "lucide-react";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Camera, Sparkles, MapPin } from "lucide-react";
 import type { LPGallery, LPTheme } from "@/types/landing-page";
 
 interface DLPGalleryProps {
@@ -8,43 +9,71 @@ interface DLPGalleryProps {
   companyName: string;
 }
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1 },
-  },
-};
-
-const cardVariants = {
-  hidden: { opacity: 0, y: 30 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
-};
+interface GalleryUnit {
+  name: string;
+  photos: string[];
+}
 
 export function DLPGallery({ gallery, theme, companyName }: DLPGalleryProps) {
-  if (!gallery.enabled || gallery.photos.length === 0) return null;
+  const [activeUnit, setActiveUnit] = useState(0);
+
+  if (!gallery.enabled) return null;
+
+  // Build units: new format (units[]) or legacy (flat photos[])
+  let units: GalleryUnit[] = [];
+
+  if (gallery.units && gallery.units.length > 0) {
+    units = gallery.units;
+  } else if (gallery.photos.length > 0) {
+    units = [{ name: companyName, photos: gallery.photos }];
+  }
+
+  if (units.length === 0) return null;
+
+  const hasMultipleUnits = units.length >= 2;
 
   return (
     <section className="py-20 relative overflow-hidden">
-      {/* Solid background like campaign LP bg-card */}
-      <div
-        className="absolute inset-0"
-        style={{ backgroundColor: theme.primary_color + "0a" }}
-      />
+      {/* Background blurs */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div
+          className="absolute top-10 left-10 w-32 h-32 rounded-full blur-3xl"
+          style={{ backgroundColor: theme.primary_color + "15" }}
+        />
+        <div
+          className="absolute bottom-10 right-10 w-40 h-40 rounded-full blur-3xl"
+          style={{ backgroundColor: theme.secondary_color + "15" }}
+        />
+      </div>
 
-      <div className="max-w-6xl mx-auto px-4 relative z-10">
+      <div className="container mx-auto px-4 relative z-10">
         <motion.div
+          className="text-center mb-10"
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="text-center mb-16"
+          viewport={{ once: true }}
         >
+          <motion.div
+            className="inline-flex items-center gap-2 px-6 py-2 rounded-full mb-6 shadow-lg"
+            style={{ backgroundColor: theme.primary_color, color: "#fff" }}
+            initial={{ scale: 0.8, opacity: 0 }}
+            whileInView={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            viewport={{ once: true }}
+          >
+            <Sparkles className="w-4 h-4" />
+            <span className="text-sm font-medium" style={{ fontFamily: theme.font_body }}>
+              Conheça nossos espaços
+            </span>
+            <Sparkles className="w-4 h-4" />
+          </motion.div>
+
           <h2
-            className="text-4xl md:text-5xl font-bold mb-4"
+            className="text-3xl md:text-5xl font-bold mb-4"
             style={{ color: theme.text_color, fontFamily: theme.font_heading }}
           >
-            Momentos{" "}
+            Nossas{" "}
             <span
               style={{
                 background: `linear-gradient(135deg, ${theme.primary_color}, ${theme.secondary_color})`,
@@ -52,106 +81,79 @@ export function DLPGallery({ gallery, theme, companyName }: DLPGalleryProps) {
                 WebkitTextFillColor: "transparent",
               }}
             >
-              Mágicos
+              Unidades
             </span>
           </h2>
           <p
-            className="text-xl max-w-2xl mx-auto"
+            className="text-lg max-w-md mx-auto"
             style={{ color: theme.text_color + "99", fontFamily: theme.font_body }}
           >
-            {gallery.title}
+            Veja os espaços incríveis onde realizamos festas inesquecíveis
           </p>
         </motion.div>
 
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6"
-        >
-          {gallery.photos.map((photo, index) => (
-            <motion.div
-              key={index}
-              variants={cardVariants}
-              whileHover={{ y: -8, scale: 1.02 }}
-              className="group relative rounded-2xl overflow-hidden shadow-lg cursor-default border"
-              style={{
-                borderColor: theme.primary_color + "20",
-                backgroundColor: theme.background_color,
-              }}
-            >
-              <div className="aspect-square relative overflow-hidden">
+        {/* Unit Tabs */}
+        {hasMultipleUnits && (
+          <div className="flex justify-center gap-3 mb-8">
+            {units.map((unit, idx) => (
+              <button
+                key={unit.name}
+                onClick={() => setActiveUnit(idx)}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-full font-semibold transition-all duration-300"
+                style={{
+                  backgroundColor:
+                    activeUnit === idx ? theme.primary_color : theme.text_color + "10",
+                  color:
+                    activeUnit === idx ? "#fff" : theme.text_color + "99",
+                  transform: activeUnit === idx ? "scale(1.05)" : "scale(1)",
+                  boxShadow: activeUnit === idx ? `0 4px 15px ${theme.primary_color}40` : "none",
+                  fontFamily: theme.font_body,
+                }}
+              >
+                <MapPin className="w-4 h-4" />
+                {unit.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Photo Grid */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeUnit}
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 max-w-5xl mx-auto"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.4 }}
+          >
+            {units[activeUnit].photos.map((src, index) => (
+              <motion.div
+                key={src}
+                className="group relative rounded-xl overflow-hidden shadow-lg aspect-square"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3, delay: index * 0.05 }}
+              >
                 <img
-                  src={photo}
-                  alt={`${companyName} - Foto ${index + 1}`}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  src={src}
+                  alt={`${units[activeUnit].name} - Foto ${index + 1}`}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   loading="lazy"
                 />
-                {/* Hover overlay gradient */}
                 <div
                   className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                   style={{
-                    background: `linear-gradient(to top, ${theme.primary_color}99, transparent 60%)`,
+                    background: `linear-gradient(to top, ${theme.primary_color}80, transparent 60%)`,
                   }}
                 />
-                {/* Hover icon */}
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   <Camera className="w-8 h-8 drop-shadow-lg" style={{ color: "#fff" }} />
                 </div>
-              </div>
-            </motion.div>
-          ))}
-        </motion.div>
-
-        {/* Trust Badges - pill style like campaign LP */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.5 }}
-          className="mt-16 flex flex-wrap justify-center items-center gap-4 md:gap-6"
-        >
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            className="flex items-center gap-3 px-6 py-3 rounded-full shadow-md border"
-            style={{
-              backgroundColor: theme.secondary_color + "15",
-              borderColor: theme.secondary_color + "30",
-            }}
-          >
-            <Star className="w-6 h-6" style={{ color: theme.secondary_color, fill: theme.secondary_color }} />
-            <span className="font-bold" style={{ color: theme.text_color, fontFamily: theme.font_body }}>
-              4.9/5 no Google
-            </span>
+              </motion.div>
+            ))}
           </motion.div>
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            className="flex items-center gap-3 px-6 py-3 rounded-full shadow-md border"
-            style={{
-              backgroundColor: theme.primary_color + "10",
-              borderColor: theme.primary_color + "25",
-            }}
-          >
-            <PartyPopper className="w-6 h-6" style={{ color: theme.primary_color }} />
-            <span className="font-bold" style={{ color: theme.text_color, fontFamily: theme.font_body }}>
-              +500 festas realizadas
-            </span>
-          </motion.div>
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            className="flex items-center gap-3 px-6 py-3 rounded-full shadow-md border"
-            style={{
-              backgroundColor: "#ef444415",
-              borderColor: "#ef444430",
-            }}
-          >
-            <Heart className="w-6 h-6" style={{ color: "#ef4444", fill: "#ef4444" }} />
-            <span className="font-bold" style={{ color: theme.text_color, fontFamily: theme.font_body }}>
-              98% de satisfação
-            </span>
-          </motion.div>
-        </motion.div>
+        </AnimatePresence>
       </div>
     </section>
   );

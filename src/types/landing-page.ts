@@ -6,17 +6,32 @@ export interface LPHero {
   background_images?: string[];
 }
 
+export interface LPVideoUnit {
+  name: string;
+  video_url: string;
+  video_type: "youtube" | "upload";
+  poster_url?: string;
+  location?: string;
+}
+
 export interface LPVideo {
   enabled: boolean;
   title: string;
   video_url: string | null;
   video_type: "youtube" | "upload";
+  videos?: LPVideoUnit[];
+}
+
+export interface LPGalleryUnit {
+  name: string;
+  photos: string[];
 }
 
 export interface LPGallery {
   enabled: boolean;
   title: string;
   photos: string[];
+  units?: LPGalleryUnit[];
 }
 
 export interface LPTestimonialItem {

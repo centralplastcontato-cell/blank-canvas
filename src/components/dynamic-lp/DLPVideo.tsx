@@ -23,19 +23,43 @@ function getYouTubeEmbedUrl(url: string): string | null {
   return null;
 }
 
-export function DLPVideo({ video, theme, companyName }: DLPVideoProps) {
-  if (!video.enabled || !video.video_url) return null;
+interface VideoItem {
+  name: string;
+  video_url: string;
+  video_type: "youtube" | "upload";
+  poster_url?: string;
+  location?: string;
+}
 
-  const embedUrl =
-    video.video_type === "youtube" ? getYouTubeEmbedUrl(video.video_url) : null;
+export function DLPVideo({ video, theme, companyName }: DLPVideoProps) {
+  if (!video.enabled) return null;
+
+  // Build video items array: new format (videos[]) or legacy (single video_url)
+  let items: VideoItem[] = [];
+
+  if (video.videos && video.videos.length > 0) {
+    items = video.videos;
+  } else if (video.video_url) {
+    items = [
+      {
+        name: companyName,
+        video_url: video.video_url,
+        video_type: video.video_type,
+        location: "Nosso espaço",
+      },
+    ];
+  }
+
+  if (items.length === 0) return null;
+
+  const isMultiple = items.length >= 2;
 
   return (
     <section className="py-20 relative overflow-hidden">
-      {/* Gradient background like campaign LP */}
       <div
         className="absolute inset-0"
         style={{
-          background: `linear-gradient(180deg, ${theme.background_color} 0%, ${theme.primary_color}15 50%, ${theme.background_color} 100%)`,
+          background: `linear-gradient(180deg, ${theme.background_color} 0%, ${theme.primary_color}08 50%, ${theme.background_color} 100%)`,
         }}
       />
 
@@ -49,10 +73,7 @@ export function DLPVideo({ video, theme, companyName }: DLPVideoProps) {
         >
           <motion.div
             className="inline-flex items-center gap-2 px-6 py-2 rounded-full mb-6 shadow-lg"
-            style={{
-              backgroundColor: theme.secondary_color,
-              color: "#fff",
-            }}
+            style={{ backgroundColor: theme.secondary_color, color: "#fff" }}
             initial={{ scale: 0.8, opacity: 0 }}
             whileInView={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
@@ -87,70 +108,87 @@ export function DLPVideo({ video, theme, companyName }: DLPVideoProps) {
           </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-1 gap-8 max-w-4xl mx-auto">
-          <motion.div
-            className="group"
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-          >
-            <div
-              className="relative rounded-2xl overflow-hidden shadow-2xl border-2"
-              style={{
-                borderColor: theme.primary_color + "20",
-                backgroundColor: theme.background_color,
-              }}
-            >
-              {embedUrl ? (
-                <div className="aspect-video">
-                  <iframe
-                    src={embedUrl}
-                    title={video.title}
-                    className="w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                </div>
-              ) : (
-                <div className="aspect-[9/16] md:aspect-video relative">
-                  <video
-                    src={video.video_url}
-                    controls
-                    className="w-full h-full object-cover"
-                    preload="none"
-                    playsInline
-                    aria-label={`Vídeo de ${companyName}`}
-                  >
-                    Seu navegador não suporta vídeos.
-                  </video>
-                </div>
-              )}
+        <div
+          className={`grid gap-8 max-w-5xl mx-auto ${
+            isMultiple ? "md:grid-cols-2" : "md:grid-cols-1 max-w-4xl"
+          }`}
+        >
+          {items.map((item, index) => {
+            const embedUrl =
+              item.video_type === "youtube"
+                ? getYouTubeEmbedUrl(item.video_url)
+                : null;
 
-              {/* Unit Info Bar - like campaign LP */}
-              <div
-                className="p-5"
-                style={{
-                  background: `linear-gradient(to top, ${theme.background_color}, ${theme.background_color}dd)`,
-                }}
+            return (
+              <motion.div
+                key={index}
+                className="group"
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: index * 0.2 }}
+                viewport={{ once: true }}
               >
-                <div className="flex items-center justify-between">
-                  <h3
-                    className="text-xl font-bold"
-                    style={{ color: theme.text_color, fontFamily: theme.font_heading }}
+                <div
+                  className="relative rounded-2xl overflow-hidden shadow-xl border-2"
+                  style={{
+                    borderColor: theme.primary_color + "20",
+                    backgroundColor: theme.background_color,
+                  }}
+                >
+                  {embedUrl ? (
+                    <div className="aspect-video">
+                      <iframe
+                        src={embedUrl}
+                        title={item.name}
+                        className="w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                  ) : (
+                    <div className="aspect-[9/16] md:aspect-video relative">
+                      <video
+                        src={item.video_url}
+                        poster={item.poster_url}
+                        controls
+                        className="w-full h-full object-cover"
+                        preload="none"
+                        playsInline
+                        aria-label={`Vídeo da ${item.name}`}
+                      >
+                        Seu navegador não suporta vídeos.
+                      </video>
+                    </div>
+                  )}
+
+                  {/* Unit Info Bar */}
+                  <div
+                    className="p-5"
+                    style={{
+                      background: `linear-gradient(to top, ${theme.background_color}, ${theme.background_color}dd)`,
+                    }}
                   >
-                    {companyName}
-                  </h3>
-                  <div className="flex items-center gap-1 text-sm">
-                    <MapPin className="w-4 h-4" style={{ color: theme.primary_color }} />
-                    <span style={{ color: theme.text_color + "99", fontFamily: theme.font_body }}>
-                      Nosso espaço
-                    </span>
+                    <div className="flex items-center justify-between">
+                      <h3
+                        className="text-xl font-bold"
+                        style={{ color: theme.text_color, fontFamily: theme.font_heading }}
+                      >
+                        {item.name}
+                      </h3>
+                      {item.location && (
+                        <div className="flex items-center gap-1 text-sm">
+                          <MapPin className="w-4 h-4" style={{ color: theme.primary_color }} />
+                          <span style={{ color: theme.text_color + "99", fontFamily: theme.font_body }}>
+                            {item.location}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          </motion.div>
+              </motion.div>
+            );
+          })}
         </div>
       </div>
     </section>
