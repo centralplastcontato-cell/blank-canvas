@@ -3318,10 +3318,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                   </div>
 
                   {/* Lead Classification Panel - Always visible */}
-                  <div className="border-b border-border/40 bg-muted/30 px-3 pt-4 pb-3 shrink-0">
+                  <div className="border-b border-border/40 bg-muted/30 px-3 py-2 shrink-0 overflow-hidden">
                     {linkedLead ? (
                       // Show classification stepper when lead is linked
-                      <div className="flex items-center gap-1 overflow-x-auto scrollbar-thin">
+                      <div className="flex items-center gap-1 overflow-x-auto scrollbar-thin py-1.5">
                         {[
                           { value: 'novo', label: 'Novo', color: 'bg-blue-500', textColor: 'text-blue-700', bgActive: 'bg-blue-500/15' },
                           { value: 'trabalhe_conosco', label: 'Trab. Conosco', color: 'bg-teal-500', textColor: 'text-teal-700', bgActive: 'bg-teal-500/15' },
