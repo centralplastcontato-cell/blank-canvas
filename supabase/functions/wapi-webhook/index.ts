@@ -1537,6 +1537,15 @@ async function processBotQualification(
       // Valid answer - save and proceed
       updated[step] = validation.value || content.trim();
       
+      // Update contact_name when bot collects the lead's real name
+      if (step === 'nome' && (validation.value || content.trim())) {
+        const realName = validation.value || content.trim();
+        await supabase.from('wapi_conversations').update({
+          contact_name: realName,
+        }).eq('id', conv.id);
+        console.log(`[Bot] Updated contact_name to "${realName}" for conv ${conv.id}`);
+      }
+      
       const currentQ = questions[step];
       const nextStepKey = currentQ?.next || (step === 'proximo_passo' || step === 'proximo_passo_reminded' ? 'complete_final' : 'complete');
       
