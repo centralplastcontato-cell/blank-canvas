@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Company } from "@/types/company";
-import { parseModules, CompanyModules, MODULE_LABELS } from "@/hooks/useCompanyModules";
+import { parseModules, CompanyModules, MODULE_LABELS, parsePartyControlModules, PartyControlModules, PARTY_CONTROL_MODULE_LABELS } from "@/hooks/useCompanyModules";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Loader2, Settings2 } from "lucide-react";
+import { Loader2, Settings2, Gamepad2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Json } from "@/integrations/supabase/types";
+import { Separator } from "@/components/ui/separator";
 
 interface CompanyModulesDialogProps {
   open: boolean;
@@ -19,16 +20,22 @@ interface CompanyModulesDialogProps {
 
 export function CompanyModulesDialog({ open, onOpenChange, company, onSuccess }: CompanyModulesDialogProps) {
   const [modules, setModules] = useState<CompanyModules>(parseModules(null));
+  const [partyModules, setPartyModules] = useState<PartyControlModules>(parsePartyControlModules(null));
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (company) {
       setModules(parseModules(company.settings as Json | null));
+      setPartyModules(parsePartyControlModules(company.settings as Json | null));
     }
   }, [company]);
 
   const handleToggle = (key: keyof CompanyModules) => {
     setModules(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handlePartyToggle = (key: keyof PartyControlModules) => {
+    setPartyModules(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   const handleSave = async () => {
@@ -42,6 +49,7 @@ export function CompanyModulesDialog({ open, onOpenChange, company, onSuccess }:
       const newSettings: Record<string, Json | undefined> = {
         ...currentSettings,
         enabled_modules: modules as unknown as Json,
+        party_control_modules: partyModules as unknown as Json,
       };
 
       const { error } = await supabase
@@ -62,6 +70,7 @@ export function CompanyModulesDialog({ open, onOpenChange, company, onSuccess }:
   };
 
   const moduleKeys = Object.keys(MODULE_LABELS) as (keyof CompanyModules)[];
+  const partyModuleKeys = Object.keys(PARTY_CONTROL_MODULE_LABELS) as (keyof PartyControlModules)[];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -76,7 +85,9 @@ export function CompanyModulesDialog({ open, onOpenChange, company, onSuccess }:
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-1">
+        <div className="space-y-3 py-4 max-h-[60vh] overflow-y-auto pr-1">
+          {/* System modules */}
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1">Módulos do Sistema</p>
           {moduleKeys.map((key) => (
             <div
               key={key}
@@ -92,6 +103,32 @@ export function CompanyModulesDialog({ open, onOpenChange, company, onSuccess }:
                 id={`module-${key}`}
                 checked={modules[key]}
                 onCheckedChange={() => handleToggle(key)}
+              />
+            </div>
+          ))}
+
+          <Separator className="my-2" />
+
+          {/* Party control modules */}
+          <div className="flex items-center gap-2 px-1">
+            <Gamepad2 className="h-3.5 w-3.5 text-blue-500" />
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Controle da Festa</p>
+          </div>
+          {partyModuleKeys.map((key) => (
+            <div
+              key={key}
+              className="flex items-center justify-between p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
+            >
+              <div className="space-y-0.5">
+                <Label htmlFor={`party-module-${key}`} className="text-sm font-medium cursor-pointer">
+                  {PARTY_CONTROL_MODULE_LABELS[key].label}
+                </Label>
+                <p className="text-xs text-muted-foreground">{PARTY_CONTROL_MODULE_LABELS[key].description}</p>
+              </div>
+              <Switch
+                id={`party-module-${key}`}
+                checked={partyModules[key]}
+                onCheckedChange={() => handlePartyToggle(key)}
               />
             </div>
           ))}
