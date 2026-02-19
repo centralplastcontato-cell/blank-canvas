@@ -1,133 +1,95 @@
 
-# Elevacao Premium Global - Plano de Execucao
+# Reformulacao do Modal "Nova Festa" - Layout Premium 2 Colunas
 
 ## Resumo
 
-Transformar o CELEBREI de "sistema organizado" para "SaaS premium internacional" atraves de 6 etapas focadas em contraste, profundidade, hierarquia e micro-interacoes. **Zero mudancas funcionais** - apenas classes CSS e estilos.
+Transformar o modal de 350px com campos empilhados em um formulario premium de 720px com layout em 2 colunas, secoes visuais agrupadas e footer fixo. **1 arquivo alterado, zero mudancas funcionais.**
 
-**Total: 14 arquivos alterados, somente estilos.**
+## Arquivo: `src/components/agenda/EventFormDialog.tsx`
 
----
+### 1. DialogContent - Largura e Estrutura
 
-## ETAPA 1: Fundacao Visual (Tokens CSS + Tailwind)
+- De `max-w-[350px] max-h-[90vh] overflow-y-auto p-5`
+- Para `max-w-[720px] max-h-[90vh] p-0 gap-0 overflow-hidden`
+- Body scrollavel separado do footer (overflow-y-auto no body, footer fixo fora do scroll)
+- Mobile: `max-w-[95vw]` com fallback para 1 coluna
 
-**Arquivos:** `src/index.css` + `tailwind.config.ts`
+### 2. Header Premium
 
-Mudancas em `src/index.css`:
-- `--background`: de `228 25% 95.5%` para `228 25% 93%` (mais contraste fundo vs card)
-- `--shadow-card`: aumentar opacidade para sombra mais perceptivel
-- `--shadow-card-hover`: sombra hover mais definida
-- Nova variavel `--shadow-premium` para cards de destaque (metricas, IA)
-- `--border`: reduzir luminosidade levemente para bordas mais definidas
+- Padding `px-7 pt-7 pb-4`
+- Titulo `text-xl font-bold`
+- Subtitulo discreto: "Preencha os dados do evento"
 
-Mudancas em `tailwind.config.ts`:
-- Novo keyframe `fade-up`: translateY(8px)+opacity:0 para translateY(0)+opacity:1
-- Nova animacao `animate-fade-up`
+### 3. Secoes Visuais com Separadores
 
----
+Agrupar campos em 3 blocos visuais com titulo de secao (`text-xs uppercase tracking-widest text-muted-foreground`) e separador:
 
-## ETAPA 2: Metricas com Impacto
+**Secao 1 - Dados do Cliente** (full width)
+- Nome do cliente (full width)
+- Vincular Lead do CRM (full width)
 
-**Arquivo:** `src/components/inteligencia/ResumoDiarioTab.tsx` (MetricCard)
+**Secao 2 - Data e Horario** (grid 2 colunas no desktop)
+- Coluna esquerda: Data (Dia/Mes/Ano)
+- Coluna direita: Status
+- Coluna esquerda: Horario inicio
+- Coluna direita: Horario fim
 
-Mudancas no MetricCard:
-- Adicionar borda lateral esquerda colorida (3px) usando a cor do icone para diferenciacao visual imediata
-- Icone: de `h-4 w-4` para `h-5 w-5`, container de `p-2` para `p-2.5 rounded-xl`
-- Aplicar sombra premium no card
-- Manter numeros e labels como estao (ja foram ajustados na etapa anterior)
+**Secao 3 - Informacoes da Festa** (grid 2 colunas no desktop)
+- Coluna esquerda: Tipo de festa
+- Coluna direita: Convidados
+- Coluna esquerda: Unidade
+- Coluna direita: Pacote
+- Coluna esquerda: Valor total
+- Coluna direita: Template de Checklist (se disponivel)
+- Observacoes (full width, span 2 colunas)
 
-**Arquivo:** `src/components/admin/MetricsCards.tsx` (CRM)
+### 4. Footer Fixo
 
-Mudancas:
-- Numeros: de `text-2xl font-bold` para `text-3xl font-extrabold`
-- Label: mover para baixo do numero com `text-[11px] uppercase tracking-wider`
-- Icone: manter `w-5 h-5` no container `p-2.5 rounded-xl`
-- Padronizar com o mesmo pattern do ResumoDiario
+- Fora do scroll area
+- `border-t border-border/50 bg-muted/30 px-7 py-4`
+- Botao "Cancelar" outline a esquerda
+- Botao "Criar Festa" primario a direita, maior (`px-8`)
 
----
+### 5. Responsividade Mobile
 
-## ETAPA 3: Modulo Inteligencia - "Cerebro do Sistema"
+- Grid 2 colunas: `grid grid-cols-1 md:grid-cols-2 gap-4`
+- No mobile (<768px): tudo empilha em 1 coluna automaticamente
+- Observacoes: `md:col-span-2` para ocupar largura total
 
-**Arquivo:** `src/components/inteligencia/InlineAISummary.tsx`
+### 6. Refinamentos Visuais
 
-- Container expandido: de `bg-blue-50/60` para `bg-gradient-to-br from-blue-50/80 to-indigo-50/50`
-- Borda: de `border-blue-200/50` para `border-primary/20`
-- Adicionar `shadow-card` no container
-- Icone Brain: de `h-5 w-5` para `h-5 w-5` com `drop-shadow-sm` para leve glow
+- Labels: `text-sm font-medium text-foreground/80`
+- Secao headers: icone pequeno + texto uppercase
+- Padding do body scrollavel: `px-7 py-5`
+- Espacamento entre secoes: `space-y-6` com `Separator` entre blocos
 
-**Arquivo:** `src/components/inteligencia/PrioridadesTab.tsx`
+## Secao Tecnica
 
-- Cards de coluna: adicionar `border-l-4` colorida (verde/laranja/azul) para hierarquia forte
-- LeadRow: de `p-3` para `p-4`, borda mais definida `border-border/50`
-- Score: de texto normal para `font-bold`
+### Estrutura do JSX resultante
 
-**Arquivo:** `src/components/inteligencia/FunilTab.tsx`
+```text
+DialogContent (max-w-[720px], p-0, overflow-hidden)
+  +-- DialogHeader (px-7 pt-7 pb-4)
+  +-- div.overflow-y-auto.max-h-[calc(90vh-180px)] (body scrollavel)
+  |     +-- Secao "Dados do Cliente" (full width)
+  |     +-- Separator
+  |     +-- Secao "Data e Horario" (grid md:grid-cols-2)
+  |     +-- Separator
+  |     +-- Secao "Informacoes da Festa" (grid md:grid-cols-2)
+  +-- div.border-t (footer fixo com botoes)
+```
 
-- Graficos: de `h-48` para `h-56` e `h-44` para `h-52` (melhor leitura)
-- Numeros do funil: de `text-sm font-semibold` para `text-base font-bold`
-- Barra do funil: gradiente sutil em vez de cor solida
+### Classes-chave
 
-**Arquivo:** `src/components/inteligencia/TemperatureBadge.tsx`
+- Body: `overflow-y-auto px-7 py-5 space-y-6`
+- Grid: `grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4`
+- Full-width fields: `md:col-span-2`
+- Section label: `text-[11px] uppercase tracking-widest font-semibold text-muted-foreground flex items-center gap-2 mb-3`
+- Footer: `flex justify-end gap-3 px-7 py-4 border-t border-border/40 bg-muted/20`
 
-- Corrigir cores para light mode: trocar `text-blue-300` para `text-blue-700`, `text-yellow-300` para `text-yellow-700`, etc.
-- As cores atuais sao para fundo escuro e ficam invisiveis no tema claro
+### Impacto
 
----
-
-## ETAPA 4: CRM Kanban - Limpeza e Contraste
-
-**Arquivo:** `src/components/admin/KanbanCard.tsx`
-
-- Nome do lead: de `font-semibold` para `font-bold` para mais destaque
-- Remover `animate-pulse` dos badges de Visita/Follow-up (manter apenas no "Retornou")
-- Tags de metadata: `rounded-md` uniforme, cores mais definidas sem gradiente
-
-**Arquivo:** `src/components/admin/LeadsKanban.tsx`
-
-- Fundo das colunas: simplificar para `bg-muted/30` (mais limpo)
-- Header de coluna: `bg-card/80` com borda inferior mais definida
-- Empty state: reduzir padding, mais discreto
-
----
-
-## ETAPA 5: Agenda - Calendario Sofisticado
-
-**Arquivo:** `src/components/agenda/AgendaCalendar.tsx`
-
-- Dia selecionado: adicionar `ring-2 ring-primary/30 ring-offset-2` para destacar mais
-- Dots de eventos: de `h-1.5 w-1.5 lg:h-3 lg:w-3` para `h-2 w-2 lg:h-3 lg:w-3` (mais visiveis)
-- Navegacao: botoes com `hover:bg-primary/10` para melhor feedback
-- Dias com evento: fundo sutil `bg-primary/5` (via DayContent)
-
----
-
-## ETAPA 6: Micro-Interacoes e Hover
-
-**Arquivo:** `src/components/ui/card.tsx`
-
-- Transicao: de `duration-200` para `duration-300 ease-out` (mais suave)
-
-**Arquivo:** `src/pages/Inteligencia.tsx`
-
-- Adicionar classe `animate-fade-up` nos TabsContent para transicao suave ao trocar abas
-
-**Arquivo:** `src/components/ui/badge.tsx`
-
-- Adicionar `transition-colors duration-200` ao base do badge para hover mais fluido
-
----
-
-## Resumo de Impacto
-
-| Etapa | Arquivos | Tipo |
-|-------|----------|------|
-| 1. Fundacao | `index.css`, `tailwind.config.ts` | Tokens CSS |
-| 2. Metricas | `ResumoDiarioTab.tsx`, `MetricsCards.tsx` | Classes CSS |
-| 3. Inteligencia | `InlineAISummary.tsx`, `PrioridadesTab.tsx`, `FunilTab.tsx`, `TemperatureBadge.tsx` | Classes CSS |
-| 4. Kanban | `KanbanCard.tsx`, `LeadsKanban.tsx` | Classes CSS |
-| 5. Agenda | `AgendaCalendar.tsx` | Classes CSS |
-| 6. Micro-interacoes | `card.tsx`, `Inteligencia.tsx`, `badge.tsx` | Classes CSS |
-
-**14 arquivos, 0 mudancas funcionais, 0 componentes novos.**
-
-Cada etapa sera executada sequencialmente para garantir que nada quebre.
+- 1 arquivo modificado
+- Zero mudancas de logica ou estado
+- Zero componentes novos
+- Apenas reestruturacao de layout e classes CSS
