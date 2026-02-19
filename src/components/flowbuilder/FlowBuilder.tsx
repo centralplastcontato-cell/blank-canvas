@@ -103,7 +103,7 @@ export function FlowBuilder({ flowId }: FlowBuilderProps) {
   // Mobile layout
   if (isMobile) {
     return (
-      <div className="flex flex-col h-[calc(100vh-8rem)]">
+      <div className="flex flex-col h-full">
         {/* Toolbar - scrollable on mobile */}
         <FlowToolbar
           onAddNode={handleAddNode}
@@ -186,7 +186,7 @@ export function FlowBuilder({ flowId }: FlowBuilderProps) {
 
   // Desktop layout
   return (
-    <div className="flex flex-col h-[calc(100vh-12rem)]">
+    <div className="flex flex-col h-full">
       {/* Toolbar */}
       <FlowToolbar
         onAddNode={handleAddNode}
