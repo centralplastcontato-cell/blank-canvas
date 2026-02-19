@@ -324,13 +324,13 @@ export default function Agenda() {
             <div className="max-w-7xl mx-auto space-y-4">
               {/* Desktop header */}
               <div className="hidden md:flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-primary/10">
-                    <CalendarDays className="h-6 w-6 text-primary" />
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 shadow-sm">
+                    <CalendarDays className="h-7 w-7 text-primary" />
                   </div>
                   <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Agenda de Festas</h1>
-                    <p className="text-sm text-muted-foreground">Calendário mensal de eventos</p>
+                    <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Agenda de Festas</h1>
+                    <p className="text-sm text-muted-foreground/80 mt-0.5">Calendário mensal de eventos</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -365,7 +365,7 @@ export default function Agenda() {
               {/* Calendar + Day detail */}
               {viewMode === "calendar" ? (
               <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4">
-                <Card className="bg-card border-border">
+                <Card className="bg-card border-border/50 shadow-[var(--shadow-premium)]">
                   <CardContent className="p-2 md:p-4 lg:p-6">
                     {loading ? (
                       <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
@@ -382,40 +382,53 @@ export default function Agenda() {
                   </CardContent>
                 </Card>
 
-                <Card className="bg-card border-border">
-                  <CardContent className="p-4">
-                    <h3 className="font-semibold text-sm mb-3">
+                <Card className="bg-card border-border/50 shadow-[var(--shadow-premium)]">
+                  <CardContent className="p-4 md:p-5">
+                    <h3 className="font-bold text-base mb-1 tracking-tight">
                       {selectedDate
                         ? format(selectedDate, "dd 'de' MMMM", { locale: ptBR })
                         : "Selecione um dia"}
                     </h3>
-                    {selectedDate && dayEvents.length === 0 && (
-                      <p className="text-sm text-muted-foreground">Nenhuma festa neste dia.</p>
+                    {!selectedDate && (
+                      <p className="text-sm text-muted-foreground/70 mt-2">Clique em um dia no calendário para ver os eventos.</p>
                     )}
-                    <div className="space-y-2">
+                    {selectedDate && dayEvents.length === 0 && (
+                      <p className="text-sm text-muted-foreground/70 mt-2">Nenhuma festa neste dia.</p>
+                    )}
+                    <div className="space-y-2.5 mt-3">
                       {dayEvents.map((ev) => {
                         const conflicts = getConflicts(ev);
+                        const statusColors = ev.status === "confirmado"
+                          ? "border-l-emerald-500 bg-emerald-500/[0.03]"
+                          : ev.status === "cancelado"
+                            ? "border-l-red-500 bg-red-500/[0.03]"
+                            : "border-l-amber-500 bg-amber-500/[0.03]";
                         return (
                           <button
                             key={ev.id}
                             onClick={() => { setDetailEvent(ev); setDetailOpen(true); }}
-                            className="w-full text-left p-3 rounded-lg border border-border hover:bg-accent/50 transition-colors space-y-1"
+                            className={`w-full text-left p-3.5 rounded-xl border border-border/50 border-l-[3px] ${statusColors} hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 ease-out space-y-1.5`}
                           >
                             <div className="flex items-center justify-between gap-2">
-                              <span className="font-medium text-sm truncate">{ev.title}</span>
-                              <Badge variant={ev.status === "confirmado" ? "default" : ev.status === "cancelado" ? "destructive" : "secondary"} className="text-xs shrink-0">
+                              <span className="font-bold text-sm truncate">{ev.title}</span>
+                              <Badge
+                                variant={ev.status === "confirmado" ? "default" : ev.status === "cancelado" ? "destructive" : "secondary"}
+                                className="text-[10px] shrink-0 font-semibold uppercase tracking-wide"
+                              >
                                 {ev.status}
                               </Badge>
                             </div>
-                            {ev.start_time && (
-                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <Clock className="h-3 w-3" />
-                                {ev.start_time.slice(0, 5)}{ev.end_time ? ` - ${ev.end_time.slice(0, 5)}` : ""}
-                              </div>
-                            )}
+                            <div className="flex flex-wrap items-center gap-2.5 text-xs text-muted-foreground">
+                              {ev.start_time && (
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {ev.start_time.slice(0, 5)}{ev.end_time ? ` – ${ev.end_time.slice(0, 5)}` : ""}
+                                </span>
+                              )}
+                            </div>
                             {conflicts.length > 0 && (
-                              <div className="flex items-center gap-1 text-xs text-destructive">
-                                <AlertTriangle className="h-3 w-3" /> Conflito
+                              <div className="flex items-center gap-1 text-xs text-destructive font-medium">
+                                <AlertTriangle className="h-3 w-3" /> Conflito de horário
                               </div>
                             )}
                             {checklistProgress[ev.id] && checklistProgress[ev.id].total > 0 && (
@@ -445,7 +458,7 @@ export default function Agenda() {
                 </Card>
               </div>
               ) : (
-                <Card className="bg-card border-border">
+                <Card className="bg-card border-border/50 shadow-[var(--shadow-premium)]">
                   <CardContent className="p-4">
                     {loading ? (
                       <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
