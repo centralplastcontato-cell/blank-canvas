@@ -967,13 +967,13 @@ export default function CentralAtendimento() {
           onLogout={handleLogout} 
         />
         
-        <SidebarInset className="flex-1 flex flex-col overflow-hidden min-w-0 bg-gradient-to-br from-background to-muted/30">
-          {/* Desktop Header - Premium Glass Effect */}
+        <SidebarInset className="flex-1 flex flex-col overflow-hidden min-w-0 bg-background">
+          {/* Desktop Header */}
           <header className="bg-card/80 backdrop-blur-sm border-b border-border/60 shrink-0 z-10 shadow-subtle">
-            <div className="px-4 py-2.5 flex items-center justify-between">
+            <div className="px-6 py-3 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
-                <h1 className="font-display font-bold text-foreground">Central de Atendimento</h1>
+                <h1 className="font-display font-bold text-foreground text-lg tracking-tight">Central de Atendimento</h1>
                 
                 {/* Quick Tab Buttons - Premium Style */}
                 <div className="flex items-center gap-1.5 ml-3 bg-border rounded-lg p-1">
@@ -1101,20 +1101,17 @@ export default function CentralAtendimento() {
                 </Button>
               </div>
               
-              {/* User Info Desktop - Premium Style */}
+              {/* User Info Desktop */}
               <div className="flex items-center gap-3">
-                <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigate("/inteligencia")}>
-                  <Brain className="w-5 h-5 text-[hsl(155,75%,38%)]" style={{ filter: 'drop-shadow(0 0 4px hsl(155 75% 38% / 0.5))' }} />
-                </Button>
                 <NotificationBell />
-                <div className="flex items-center gap-2 bg-border rounded-full pl-3 pr-1 py-1">
+                <div className="flex items-center gap-2 bg-muted/60 rounded-full pl-3 pr-1 py-1">
                   <span className="text-sm text-muted-foreground hidden lg:block">{currentUserProfile?.full_name || user.email}</span>
                   <Avatar 
-                    className="h-8 w-8 border-2 border-primary/20 cursor-pointer hover:border-primary/40 transition-all hover:scale-105" 
+                    className="h-8 w-8 border-2 border-primary/20 cursor-pointer hover:border-primary/40 transition-all" 
                     onClick={() => navigate("/configuracoes")}
                   >
                     <AvatarImage src={currentUserProfile?.avatar_url || undefined} />
-                    <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground text-sm font-medium">
+                    <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
                       {getInitials(currentUserProfile?.full_name || user.email || "U")}
                     </AvatarFallback>
                   </Avatar>
@@ -1172,7 +1169,7 @@ export default function CentralAtendimento() {
             }}
           />
 
-          <main className="flex-1 overflow-hidden min-h-0 p-4">
+          <main className="flex-1 overflow-hidden min-h-0 p-5">
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "chat" | "leads")} className="h-full relative">
               {/* TabsList removed - buttons are now in the header */}
 

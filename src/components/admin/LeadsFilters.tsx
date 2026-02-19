@@ -91,7 +91,7 @@ export function LeadsFilters({
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
 
   return (
-    <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border/60 p-3 mb-3 shadow-subtle">
+    <div className="bg-card rounded-2xl border border-border p-4 mb-4 shadow-card">
       <div className="flex flex-col gap-2 sm:gap-3">
         {/* Row 1: Search and Export */}
         <div className="flex gap-2 sm:gap-4">
