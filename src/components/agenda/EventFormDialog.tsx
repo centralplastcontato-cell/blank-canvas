@@ -292,7 +292,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 </div>
               </div>
 
-              <div className="space-y-2.5 md:pl-6 md:border-l-2 md:border-border/40">
+              <div className="space-y-2.5 md:pl-6 md:border-l-2 md:border-foreground/20">
                 <Label className="text-sm font-medium text-foreground/70">Status</Label>
                 <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -311,7 +311,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 </Select>
               </div>
 
-              <div className="space-y-2.5 md:pl-6 md:border-l-2 md:border-border/40">
+              <div className="space-y-2.5 md:pl-6 md:border-l-2 md:border-foreground/20">
                 <Label className="text-sm font-medium text-foreground/70">Horário fim</Label>
                 <Select value={form.end_time} onValueChange={(v) => setForm({ ...form, end_time: v === "none" ? "" : v })}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -336,7 +336,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 </Select>
               </div>
 
-              <div className="space-y-2.5 md:pl-6 md:border-l-2 md:border-border/40">
+              <div className="space-y-2.5 md:pl-6 md:border-l-2 md:border-foreground/20">
                 <Label className="text-sm font-medium text-foreground/70">Convidados</Label>
                 <Input type="number" value={form.guest_count ?? ""} onChange={(e) => setForm({ ...form, guest_count: e.target.value ? Number(e.target.value) : null })} />
               </div>
@@ -353,7 +353,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 )}
               </div>
 
-              <div className="space-y-2.5 md:pl-6 md:border-l-2 md:border-border/40">
+              <div className="space-y-2.5 md:pl-6 md:border-l-2 md:border-foreground/20">
                 <Label className="text-sm font-medium text-foreground/70">Pacote</Label>
                 {packages.length > 0 ? (
                   <Select value={form.package_name} onValueChange={(v) => setForm({ ...form, package_name: v === "none" ? "" : v })}>
@@ -375,7 +375,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
               {/* Checklist template - only for new events */}
               {!isEdit && templates.length > 0 && (
-                <div className="space-y-2.5 md:pl-6 md:border-l-2 md:border-border/40">
+                <div className="space-y-2.5 md:pl-6 md:border-l-2 md:border-foreground/20">
                   <Label className="text-sm font-medium text-foreground/70 flex items-center gap-1.5">
                     <ListChecks className="h-4 w-4" /> Template de Checklist
                   </Label>
