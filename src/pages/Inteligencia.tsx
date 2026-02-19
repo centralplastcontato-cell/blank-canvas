@@ -12,7 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Brain, Loader2, ShieldAlert, HelpCircle, Flame, AlertTriangle, Snowflake, Target, Thermometer, BarChart3, TrendingUp, Search, Menu } from "lucide-react";
+import { Brain, ShieldAlert, HelpCircle, Flame, AlertTriangle, Snowflake, Target, Thermometer, BarChart3, TrendingUp, Search, Menu } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PrioridadesTab } from "@/components/inteligencia/PrioridadesTab";
 import { FunilTab } from "@/components/inteligencia/FunilTab";
 import { LeadsDoDiaTab } from "@/components/inteligencia/LeadsDoDiaTab";
@@ -82,14 +83,7 @@ export default function Inteligencia() {
     check();
   }, [navigate]);
 
-  if (!modules.inteligencia && !isAdmin) {
-    if (permLoading) {
-      return (
-        <div className="flex items-center justify-center min-h-screen">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      );
-    }
+  if (!permLoading && !modules.inteligencia && !isAdmin) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center space-y-3">
@@ -100,15 +94,7 @@ export default function Inteligencia() {
     );
   }
 
-  if (permLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (!hasView) {
+  if (!permLoading && !hasView) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center space-y-3">
@@ -118,6 +104,19 @@ export default function Inteligencia() {
       </div>
     );
   }
+
+  // Skeleton component for loading state
+  const LoadingSkeleton = () => (
+    <div className="space-y-4 animate-pulse">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-16 rounded-xl" />
+        ))}
+      </div>
+      <Skeleton className="h-32 rounded-xl" />
+      <Skeleton className="h-48 rounded-xl" />
+    </div>
+  );
 
   // Filter data by unit permissions, selected unit, and search query
   const filteredData = (data || []).filter(d => {
@@ -368,34 +367,28 @@ export default function Inteligencia() {
               </div>
 
               <TabsContent value="resumo" className="animate-fade-up">
-                <ResumoDiarioTab />
+                {permLoading ? <LoadingSkeleton /> : <ResumoDiarioTab />}
               </TabsContent>
 
               <TabsContent value="prioridades" className="animate-fade-up">
-                {isLoading || isLoadingUnitPerms ? (
-                  <div className="flex justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  </div>
+                {isLoading || isLoadingUnitPerms || permLoading ? (
+                  <LoadingSkeleton />
                 ) : (
                   <PrioridadesTab data={filteredData} />
                 )}
               </TabsContent>
 
               <TabsContent value="funil" className="animate-fade-up">
-                {isLoading || isLoadingUnitPerms || isDurationsLoading ? (
-                  <div className="flex justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  </div>
+                {isLoading || isLoadingUnitPerms || isDurationsLoading || permLoading ? (
+                  <LoadingSkeleton />
                 ) : (
                   <FunilTab data={filteredData} stageDurations={stageDurations} />
                 )}
               </TabsContent>
 
               <TabsContent value="leads-dia" className="animate-fade-up">
-                {isLoading || isLoadingUnitPerms ? (
-                  <div className="flex justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  </div>
+                {isLoading || isLoadingUnitPerms || permLoading ? (
+                  <LoadingSkeleton />
                 ) : (
                   <LeadsDoDiaTab data={filteredData} canExport={hasExport} />
                 )}
