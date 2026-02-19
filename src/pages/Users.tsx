@@ -54,7 +54,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Plus, Loader2, Users, Shield, Pencil, Trash2, KeyRound, Lock, Menu } from "lucide-react";
@@ -901,38 +901,37 @@ export default function UsersPage() {
 
   // Desktop layout with Sidebar
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={false}>
       <Helmet><title>Usuários</title></Helmet>
-      <div className="min-h-screen flex w-full">
+      <div className="min-h-screen flex w-full bg-background">
         <AdminSidebar 
           canManageUsers={canManageUsers}
-          
+          isAdmin={isAdmin}
           currentUserName={currentUserProfile?.full_name || user.email || ""} 
           onRefresh={handleRefresh} 
           onLogout={handleLogout} 
         />
         
-        <SidebarInset className="flex-1 flex flex-col">
-          {/* Desktop Header */}
-          <header className="bg-card/80 backdrop-blur-sm border-b border-border sticky top-0 z-10 shrink-0">
-            <div className="px-6 py-3 flex items-center gap-4">
-              <SidebarTrigger />
-              <div className="flex items-center gap-3 flex-1">
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <main className="flex-1 p-3 md:p-5 overflow-auto">
+            <div className="max-w-7xl mx-auto space-y-4">
+              {/* Desktop header */}
+              <div className="hidden md:flex items-center gap-3">
                 <div className="p-2.5 rounded-xl bg-primary/10">
-                  <Shield className="h-5 w-5 text-primary" />
+                  <Shield className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <h1 className="font-display font-bold text-foreground text-lg tracking-tight">Gestão de Usuários</h1>
-                  <p className="text-sm text-muted-foreground">{currentUserProfile?.full_name || user.email}</p>
+                  <h1 className="text-2xl font-bold tracking-tight">Gestão de Usuários</h1>
+                  <p className="text-sm text-muted-foreground">
+                    Gerencie usuários, permissões e acessos do sistema
+                  </p>
                 </div>
               </div>
-            </div>
-          </header>
 
-          <main className="flex-1 p-6">
-            {renderUsersContent()}
+              {renderUsersContent()}
+            </div>
           </main>
-        </SidebarInset>
+        </div>
       </div>
     </SidebarProvider>
   );
