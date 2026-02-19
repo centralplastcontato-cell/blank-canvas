@@ -70,7 +70,8 @@ Deno.serve(async (req) => {
       .eq('user_id', requestingUser.id)
       .single()
 
-    if (roleError || roleData?.role !== 'admin') {
+    const allowedRoles = ['admin', 'gestor']
+    if (roleError || !roleData || !allowedRoles.includes(roleData.role)) {
       console.error('Role check failed:', roleError, roleData)
       return new Response(
         JSON.stringify({ error: 'Acesso negado. Apenas administradores podem gerenciar usuários.' }),
