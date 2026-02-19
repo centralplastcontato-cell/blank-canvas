@@ -22,14 +22,16 @@ export function MonthSummaryCards({ events }: MonthSummaryCardsProps) {
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       {cards.map((c) => (
-        <Card key={c.label} className="bg-card border-border hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
-          <CardContent className="p-4 flex items-center gap-3">
-            <c.icon className={`h-5 w-5 ${c.color} shrink-0`} />
+        <Card key={c.label} className="bg-card border-border hover:-translate-y-0.5 transition-all duration-200">
+          <CardContent className="p-5 flex items-center gap-3">
+            <div className={`p-2.5 rounded-xl ${c.color === 'text-primary' ? 'bg-primary/10' : c.color === 'text-green-500' ? 'bg-green-500/10' : c.color === 'text-yellow-500' ? 'bg-yellow-500/10' : 'bg-red-500/10'}`}>
+              <c.icon className={`h-5 w-5 ${c.color} shrink-0`} />
+            </div>
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground truncate">{c.label}</p>
-              <p className="text-xl font-bold">{c.value}</p>
+              <p className="text-2xl font-bold tracking-tight">{c.value}</p>
             </div>
           </CardContent>
         </Card>

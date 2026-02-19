@@ -12,6 +12,7 @@ import { LeadsFilters } from "@/components/admin/LeadsFilters";
 import { UnitKanbanTabs } from "@/components/admin/UnitKanbanTabs";
 import { LeadDetailSheet } from "@/components/admin/LeadDetailSheet";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { NotificationBell } from "@/components/admin/NotificationBell";
 import { TransferLeadDialog } from "@/components/admin/TransferLeadDialog";
 import { exportLeadsToCSV } from "@/components/admin/exportLeads";
 import { MetricsCards, LeadMetrics } from "@/components/admin/MetricsCards";
@@ -635,17 +636,18 @@ export default function Admin() {
         
         <SidebarInset className="flex-1 flex flex-col h-screen overflow-hidden">
           {/* Desktop Header */}
-          <header className="bg-card border-b border-border sticky top-0 z-10 shrink-0">
-            <div className="px-4 py-2 flex items-center gap-4">
+          <header className="bg-card/80 backdrop-blur-sm border-b border-border sticky top-0 z-10 shrink-0">
+            <div className="px-6 py-3 flex items-center gap-4">
               <SidebarTrigger />
-              <div>
-                <h1 className="font-display font-bold text-foreground text-lg leading-tight">Gestão de Leads</h1>
+              <div className="flex-1">
+                <h1 className="font-display font-bold text-foreground text-lg leading-tight tracking-tight">Gestão de Leads</h1>
                 <p className="text-xs text-muted-foreground">{currentUserProfile?.full_name || user.email}</p>
               </div>
+              <NotificationBell />
             </div>
           </header>
 
-          <main className="flex-1 overflow-auto p-4 space-y-3">
+          <main className="flex-1 overflow-auto p-6 space-y-4">
             <MetricsCards metrics={leadMetrics} isLoading={isLoadingLeads} />
             <LeadsFilters filters={filters} onFiltersChange={setFilters} responsaveis={responsaveis} onExport={canExportLeads ? handleExport : undefined} />
 
