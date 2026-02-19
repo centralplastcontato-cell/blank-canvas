@@ -6,6 +6,22 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+function resolveFirstName(
+  botData: Record<string, unknown>,
+  contactName: string | null,
+  leadName?: string | null
+): string {
+  // Priority: bot_data.nome > lead.name > contact_name
+  const raw = String(botData?.nome || leadName || contactName || "")
+    .trim()
+    .split(" ")[0];
+  // If empty, only digits (7+), or starts with +, it's not a valid name
+  if (!raw || /^\+?\d{7,}$/.test(raw)) {
+    return "cliente";
+  }
+  return raw;
+}
+
 interface FollowUpSettings {
   follow_up_enabled: boolean;
   follow_up_delay_hours: number;
@@ -211,7 +227,7 @@ async function processNextStepReminder({
   for (const conv of stuckConversations) {
     try {
       const botData = (conv.bot_data || {}) as Record<string, string>;
-      const firstName = (botData.nome || conv.contact_name || "").split(" ")[0];
+      const firstName = resolveFirstName(botData as Record<string, unknown>, conv.contact_name);
       
       const personalizedMessage = reminderTemplate
         .replace(/\{nome\}/g, firstName);
@@ -449,7 +465,7 @@ async function processFollowUp({
       }
 
       // Compose follow-up message with variable replacements
-      const firstName = lead.name.split(" ")[0];
+      const firstName = resolveFirstName({} as Record<string, unknown>, null, lead.name);
       let personalizedMessage = message
         .replace(/\{nome\}/g, firstName)
         .replace(/\{unidade\}/g, lead.unit || "nossa unidade")
@@ -667,7 +683,17 @@ Podemos continuar de onde paramos?`;
         continue;
       }
       
-      const firstName = (String(botData.nome || conv.contact_name || "")).split(" ")[0] || "cliente";
+      // Try to fetch lead name as additional fallback
+      let leadName: string | null = null;
+      if (conv.lead_id) {
+        const { data: lead } = await supabase
+          .from('campaign_leads')
+          .select('name')
+          .eq('id', conv.lead_id)
+          .single();
+        leadName = lead?.name || null;
+      }
+      const firstName = resolveFirstName(botData, conv.contact_name, leadName);
       
       let personalizedMessage = messageTemplate.replace(/\{nome\}/g, firstName);
 
