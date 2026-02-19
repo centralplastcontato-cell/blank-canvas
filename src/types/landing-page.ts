@@ -3,6 +3,7 @@ export interface LPHero {
   subtitle: string;
   cta_text: string;
   background_image_url: string | null;
+  background_images?: string[];
 }
 
 export interface LPVideo {

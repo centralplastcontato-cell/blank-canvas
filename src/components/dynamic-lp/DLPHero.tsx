@@ -1,4 +1,5 @@
-import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import type { LPHero, LPTheme } from "@/types/landing-page";
 
 interface DLPHeroProps {
@@ -10,6 +11,17 @@ interface DLPHeroProps {
 }
 
 export function DLPHero({ hero, theme, companyName, companyLogo, onCtaClick }: DLPHeroProps) {
+  const [activeImage, setActiveImage] = useState(0);
+  const hasMultipleImages = hero.background_images && hero.background_images.length >= 2;
+
+  useEffect(() => {
+    if (!hasMultipleImages) return;
+    const interval = setInterval(() => {
+      setActiveImage((prev) => (prev + 1) % hero.background_images!.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [hasMultipleImages, hero.background_images]);
+
   const btnClass =
     theme.button_style === "pill"
       ? "rounded-full"
@@ -17,9 +29,57 @@ export function DLPHero({ hero, theme, companyName, companyLogo, onCtaClick }: D
       ? "rounded-none"
       : "rounded-xl";
 
-  return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {hero.background_image_url && (
+  const renderBackground = () => {
+    if (hasMultipleImages) {
+      const images = hero.background_images!;
+      return (
+        <>
+          {/* Desktop: split 50/50 */}
+          <div className="absolute inset-0 hidden md:flex">
+            {images.slice(0, 2).map((src, i) => (
+              <div key={i} className="w-1/2 h-full">
+                <img
+                  src={src}
+                  alt={`${companyName} unidade ${i + 1}`}
+                  className="w-full h-full object-cover"
+                  loading="eager"
+                  fetchPriority="high"
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Mobile: crossfade */}
+          <div className="absolute inset-0 md:hidden">
+            <AnimatePresence initial={false}>
+              {images.map((src, i) => (
+                <motion.img
+                  key={src}
+                  src={src}
+                  alt={`${companyName} unidade ${i + 1}`}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: activeImage === i ? 1 : 0 }}
+                  transition={{ duration: 1 }}
+                  loading="eager"
+                />
+              ))}
+            </AnimatePresence>
+          </div>
+
+          {/* Gradient overlay */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background: `linear-gradient(to bottom, ${theme.primary_color}99, ${theme.background_color}ee)`,
+            }}
+          />
+        </>
+      );
+    }
+
+    if (hero.background_image_url) {
+      return (
         <div className="absolute inset-0">
           <img
             src={hero.background_image_url}
@@ -35,14 +95,20 @@ export function DLPHero({ hero, theme, companyName, companyLogo, onCtaClick }: D
             }}
           />
         </div>
-      )}
+      );
+    }
 
-      {!hero.background_image_url && (
-        <div
-          className="absolute inset-0"
-          style={{ background: theme.primary_color }}
-        />
-      )}
+    return (
+      <div
+        className="absolute inset-0"
+        style={{ background: theme.primary_color }}
+      />
+    );
+  };
+
+  return (
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+      {renderBackground()}
 
       <div className="relative z-10 max-w-4xl mx-auto px-4 text-center py-20">
         <motion.div
