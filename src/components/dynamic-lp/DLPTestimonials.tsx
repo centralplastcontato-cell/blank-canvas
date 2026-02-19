@@ -33,13 +33,15 @@ export function DLPTestimonials({ testimonials, theme }: DLPTestimonialsProps) {
   if (!testimonials.enabled || testimonials.items.length === 0) return null;
 
   return (
-    <section
-      className="py-16 md:py-24"
-      style={{
-        background: `linear-gradient(to bottom, ${theme.background_color}, ${theme.primary_color}11)`,
-      }}
-    >
-      <div className="max-w-5xl mx-auto px-4">
+    <section className="py-16 md:py-24 relative overflow-hidden">
+      <div
+        className="absolute inset-0"
+        style={{
+          background: `linear-gradient(180deg, ${theme.background_color} 0%, ${theme.primary_color}08 50%, ${theme.background_color} 100%)`,
+        }}
+      />
+
+      <div className="max-w-5xl mx-auto px-4 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -51,13 +53,13 @@ export function DLPTestimonials({ testimonials, theme }: DLPTestimonialsProps) {
             className="text-3xl md:text-4xl font-bold mb-4"
             style={{ color: theme.text_color, fontFamily: theme.font_heading }}
           >
-            {testimonials.title} 💬
+            O que nossos clientes dizem 💬
           </h2>
           <p
-            className="text-lg max-w-2xl mx-auto opacity-70"
-            style={{ color: theme.text_color, fontFamily: theme.font_body }}
+            className="text-lg max-w-2xl mx-auto"
+            style={{ color: theme.text_color + "99", fontFamily: theme.font_body }}
           >
-            Milhares de famílias já celebraram momentos especiais conosco!
+            Milhares de famílias já celebraram momentos especiais conosco. Veja o que elas têm a dizer!
           </p>
         </motion.div>
 
@@ -72,18 +74,18 @@ export function DLPTestimonials({ testimonials, theme }: DLPTestimonialsProps) {
             <motion.div
               key={index}
               variants={cardVariants}
-              className="group relative rounded-2xl p-6 shadow-xl border transition-shadow duration-300 hover:shadow-2xl"
+              className="group relative rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 border"
               style={{
                 backgroundColor: theme.background_color,
-                borderColor: theme.primary_color + "22",
+                borderColor: theme.text_color + "15",
               }}
             >
-              {/* Quote icon */}
+              {/* Quote icon - floating circle */}
               <div
                 className="absolute -top-3 -left-3 w-10 h-10 rounded-full flex items-center justify-center shadow-md"
                 style={{ backgroundColor: theme.primary_color }}
               >
-                <Quote className="w-5 h-5" style={{ color: theme.text_color }} />
+                <Quote className="w-5 h-5" style={{ color: "#fff" }} />
               </div>
 
               {/* Rating */}
@@ -93,8 +95,8 @@ export function DLPTestimonials({ testimonials, theme }: DLPTestimonialsProps) {
                     key={i}
                     className="w-5 h-5"
                     style={{
-                      color: i < item.rating ? theme.secondary_color : theme.text_color + "33",
-                      fill: i < item.rating ? theme.secondary_color : "none",
+                      color: i < item.rating ? "#facc15" : theme.text_color + "33",
+                      fill: i < item.rating ? "#facc15" : "none",
                     }}
                   />
                 ))}
@@ -102,8 +104,8 @@ export function DLPTestimonials({ testimonials, theme }: DLPTestimonialsProps) {
 
               {/* Text */}
               <p
-                className="mb-6 leading-relaxed opacity-80"
-                style={{ color: theme.text_color, fontFamily: theme.font_body }}
+                className="mb-6 leading-relaxed"
+                style={{ color: theme.text_color + "cc", fontFamily: theme.font_body }}
               >
                 "{item.text}"
               </p>
@@ -111,13 +113,13 @@ export function DLPTestimonials({ testimonials, theme }: DLPTestimonialsProps) {
               {/* Author */}
               <div
                 className="flex items-center gap-3 pt-4 border-t"
-                style={{ borderColor: theme.primary_color + "22" }}
+                style={{ borderColor: theme.text_color + "15" }}
               >
                 <div
                   className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm shadow-md"
                   style={{
                     background: `linear-gradient(135deg, ${theme.primary_color}, ${theme.secondary_color})`,
-                    color: theme.text_color,
+                    color: "#fff",
                   }}
                 >
                   {getInitials(item.name)}
@@ -132,36 +134,6 @@ export function DLPTestimonials({ testimonials, theme }: DLPTestimonialsProps) {
                 </div>
               </div>
             </motion.div>
-          ))}
-        </motion.div>
-
-        {/* Trust badges */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className="mt-12 flex flex-wrap justify-center gap-6 md:gap-12"
-        >
-          {[
-            { value: "+500", label: "Festas realizadas" },
-            { value: "4.9", label: "Avaliação média" },
-            { value: "98%", label: "Clientes satisfeitos" },
-          ].map((stat) => (
-            <div key={stat.label} className="text-center">
-              <p
-                className="text-3xl md:text-4xl font-bold"
-                style={{ color: theme.primary_color, fontFamily: theme.font_heading }}
-              >
-                {stat.value}
-              </p>
-              <p
-                className="text-sm opacity-60"
-                style={{ color: theme.text_color, fontFamily: theme.font_body }}
-              >
-                {stat.label}
-              </p>
-            </div>
           ))}
         </motion.div>
       </div>
