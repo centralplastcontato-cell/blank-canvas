@@ -205,10 +205,10 @@ export function LeadDetailSheet({
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
         <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <User className="w-5 h-5" />
+          <SheetTitle className="flex items-center gap-2 text-lg">
+            <div className="p-2 rounded-xl bg-primary/10"><User className="w-5 h-5 text-primary" /></div>
             {lead.name}
           </SheetTitle>
           <SheetDescription>
@@ -239,23 +239,23 @@ export function LeadDetailSheet({
           )}
 
           {/* Lead Info */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex items-center gap-2 text-sm">
-              <MapPin className="w-4 h-4 text-muted-foreground" />
+          <div className="grid grid-cols-2 gap-3 bg-muted/30 rounded-xl p-4">
+            <div className="flex items-center gap-2.5 text-sm">
+              <div className="p-1.5 rounded-lg bg-primary/10"><MapPin className="w-3.5 h-3.5 text-primary" /></div>
               <span>{lead.unit || "Não informado"}</span>
             </div>
-            <div className="flex items-center gap-2 text-sm">
-              <Calendar className="w-4 h-4 text-muted-foreground" />
+            <div className="flex items-center gap-2.5 text-sm">
+              <div className="p-1.5 rounded-lg bg-primary/10"><Calendar className="w-3.5 h-3.5 text-primary" /></div>
               <span>
                 {lead.day_of_month || lead.day_preference || "-"}/{lead.month || "-"}
               </span>
             </div>
-            <div className="flex items-center gap-2 text-sm">
-              <Users className="w-4 h-4 text-muted-foreground" />
+            <div className="flex items-center gap-2.5 text-sm">
+              <div className="p-1.5 rounded-lg bg-accent/10"><Users className="w-3.5 h-3.5 text-accent" /></div>
               <span>{lead.guests || "Não informado"} convidados</span>
             </div>
-            <div className="flex items-center gap-2 text-sm">
-              <Badge className="bg-primary/10 text-primary">
+            <div className="flex items-center gap-2.5 text-sm">
+              <Badge className="bg-primary/10 text-primary border-0">
                 {lead.campaign_id}
               </Badge>
             </div>
