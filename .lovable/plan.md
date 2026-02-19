@@ -1,93 +1,209 @@
 
-# Plano: DLP Institucional - Cópia da LP de Campanha
+# Controle da Festa — Plano Completo de Implementação
 
-## Objetivo
-Transformar a Landing Page Dinâmica (DLP) em uma copia fiel da LP de campanha do Castelo da Diversao, porem sem a promocao -- uma LP institucional. Todas as secoes devem ter o mesmo visual, estrutura e animacoes.
+## Respondendo suas perguntas antes de tudo
 
-## O que muda
+### Quais módulos incluir e como lidar com empresas que querem apenas alguns?
 
-### 1. Modelo de dados (tipos)
-O tipo `LPVideo` atualmente suporta apenas 1 video. O tipo `LPGallery` tem fotos sem separacao por unidade. Precisamos expandir ambos:
+A solução é usar o mesmo sistema que já existe no projeto — o `CompanyModules` que fica em `companies.settings.enabled_modules`. Hoje ele controla quais abas aparecem no menu lateral. Vamos estender esse sistema para controlar também quais módulos aparecem no Controle da Festa.
 
-- **LPVideo**: adicionar campo opcional `videos` (array de objetos com `name`, `video_url`, `video_type`, `poster_url`, `location`) para suportar multiplos videos por unidade
-- **LPGallery**: adicionar campo opcional `units` (array de objetos com `name`, `photos[]`) para fotos agrupadas por unidade
+Cada módulo do controle terá um toggle on/off, e o sistema já tem a tela de configuração (o `CompanyModulesDialog` no Hub) onde o admin habilita/desabilita. Só precisamos adicionar os novos módulos lá.
 
-Os campos antigos (`video_url`, `photos[]`) continuam funcionando como fallback para LPs que nao usam unidades.
+### Lista dos módulos do Controle da Festa
 
-### 2. Secao Hero (DLPHero)
-- Adicionar confetti animado flutuando (como na LP de campanha)
-- Adicionar scroll indicator animado no rodape
-- Manter o split de imagens e crossfade mobile que ja existe
+Todos esses já existem como páginas públicas — só precisamos agrupá-los:
 
-### 3. Secao de Video (DLPVideo) -- Redesign Total
-Copiar a estrutura da `VideoGallerySection`:
-- Grid de 2 colunas no desktop (1 coluna mobile)
-- Cada video em card com borda, sombra, info bar com nome da unidade e localizacao
-- Aspect ratio 9:16 no mobile, 16:9 no desktop
-- Suportar tanto o formato antigo (1 video) quanto o novo (array de videos)
+| Módulo | Tabela usada | Link público |
+|---|---|---|
+| Checklist | `event_checklist_items` | integrado (inline) |
+| Equipe / Financeiro | `event_staff_entries` | `/equipe/:id` |
+| Manutenção | `maintenance_entries` | `/manutencao/:id` |
+| Acompanhamento | `party_monitoring_entries` | `/acompanhamento/:id` |
+| Lista de Presença | `attendance_entries` | `/lista-presenca/:id` |
+| Informações | `event_info_entries` | `/informacoes/:id` |
+| Pré-Festa | formulário existente | `/pre-festa/:slug` |
+| Cardápio | formulário existente | `/cardapio/:slug` |
+| Avaliação | formulário existente | `/avaliacao/:slug` |
 
-### 4. Secao de Galeria (DLPGallery) -- Redesign Total
-Copiar a estrutura da `InstagramSection`:
-- Abas por unidade (botoes pill com icone MapPin)
-- Grid de fotos 2x5 no desktop com animacao de troca (AnimatePresence)
-- Hover com overlay gradiente
-- Manter trust badges na parte inferior
-- Suportar tanto formato antigo (lista plana) quanto novo (por unidade)
+### Onde configurar o que aparece no controle de cada empresa?
 
-### 5. Nova Secao: DLPBenefits
-Copiar a `BenefitsSection` da LP de campanha:
-- Grid 2x3 de cards com icones coloridos
-- Hover com efeito de escala e glow
-- Dados vindo do banco (campo `benefits` no JSONB) ou fallback com beneficios padrao
-- Trust badges pill no rodape (4.9 Google, +500 festas, 98% satisfacao) -- remover da galeria para evitar duplicacao
+**No painel lateral do evento (EventDetailSheet), já no card da festa no calendário.** Esta é a abordagem mais elegante:
 
-### 6. Secao de Depoimentos (DLPTestimonials)
-- Adicionar trust badges numericos abaixo dos cards ("+500 Festas", "4.9 Avaliacao", "98% Satisfacao") -- no estilo numerico grande da LP de campanha
-- Manter o layout de cards que ja esta bom
+1. O admin abre o evento no calendário
+2. No painel lateral já aparece um botão **"Controle da Festa"** para copiar o link
+3. Logo abaixo aparece um toggle de quais módulos ficam visíveis no controle
 
-### 7. Secao de Oferta (DLPOffer) -- Ajuste Institucional
-- Converter para tom institucional: em vez de "OFERTA ESPECIAL", usar "Por que nos escolher?" ou similar quando nao houver promocao
-- Manter glassmorphism e layout 2 colunas
-- Beneficios vem do campo `offer.description` ou lista padrao
+Isso mantém tudo centralizado no contexto do evento, sem criar uma aba nova no menu lateral.
 
-### 8. Ordem das Secoes na Pagina
-Alinhar com a LP de campanha:
+---
+
+## Arquitetura da Solução
+
+### Configuração por empresa (sem banco de dados novo)
+
+Os módulos do controle serão salvos dentro do campo `companies.settings` que já existe, seguindo o mesmo padrão dos módulos do sistema:
+
+```json
+{
+  "enabled_modules": { "agenda": true, ... },
+  "party_control_modules": {
+    "checklist": true,
+    "staff": true,
+    "maintenance": true,
+    "monitoring": true,
+    "attendance": true,
+    "info": true,
+    "prefesta": false,
+    "cardapio": false,
+    "avaliacao": false
+  }
+}
 ```
-Hero -> Benefits (nova) -> Testimonials -> Videos -> Gallery (com abas) -> Offer/CTA -> Footer
+
+Isso significa:
+- Zero migrações de banco de dados
+- Admin Hub pode configurar por empresa no mesmo dialog de módulos existente
+- Configuração padrão ativa os módulos mais usados (checklist, equipe, manutenção, acompanhamento, presença, informações)
+- Formulários (pré-festa, cardápio, avaliação) ficam off por padrão — empresa ativa se quiser
+
+### Como o link do controle chega ao gerente
+
+O fluxo é simples:
+
+```
+Admin abre o calendário
+  → Clica no dia da festa
+  → EventDetailSheet abre (painel lateral)
+  → Vê botão "🎮 Controle da Festa"
+  → Clica → link copiado: /festa/{eventId}
+  → Cola no WhatsApp e envia para o gerente
+  → Gerente abre no celular (sem login necessário)
 ```
 
-## Detalhes Tecnicos
+---
 
-### Arquivo: `src/types/landing-page.ts`
-- Adicionar `LPVideoUnit` interface com campos `name`, `video_url`, `video_type`, `poster_url?`, `location?`
-- Estender `LPVideo` com campo opcional `videos?: LPVideoUnit[]`
-- Adicionar `LPGalleryUnit` interface com campos `name`, `photos: string[]`
-- Estender `LPGallery` com campo opcional `units?: LPGalleryUnit[]`
+## Arquivos a criar e editar
 
-### Arquivo: `src/components/dynamic-lp/DLPBenefits.tsx` (novo)
-- Componente novo com grid de 6 beneficios
-- Icones mapeados por nome (Castle, Gamepad2, UtensilsCrossed, Users, Camera, Award)
-- Cores dos gradientes usando `theme.primary_color` e `theme.secondary_color`
-- Trust badges pill na parte inferior
+### 1. Criar `src/pages/PublicPartyControl.tsx` (nova página)
 
-### Arquivo: `src/components/dynamic-lp/DLPVideo.tsx` (reescrita)
-- Verificar se `video.videos[]` existe (novo formato) ou usar `video.video_url` (formato antigo)
-- Grid `md:grid-cols-2` para multiplos videos
-- Card com borda, sombra, info bar por unidade
+A página central que o gerente abre no celular. Ela:
+- Lê `eventId` da URL
+- Busca dados do evento na tabela `company_events`
+- Busca configuração de módulos em `companies.settings.party_control_modules`
+- Busca em paralelo todos os registros vinculados ao `event_id`
+- Calcula KPIs (checklist % completo, total de convidados, etc.)
+- Renderiza o painel dark com os botões dos módulos habilitados
 
-### Arquivo: `src/components/dynamic-lp/DLPGallery.tsx` (reescrita)
-- Verificar se `gallery.units[]` existe (novo formato) ou usar `gallery.photos[]` (formato antigo)
-- Abas de unidade com `useState` e `AnimatePresence`
-- Grid `grid-cols-2 sm:grid-cols-3 md:grid-cols-5`
-- Remover trust badges (movidos para DLPBenefits)
+### 2. Editar `src/App.tsx`
 
-### Arquivo: `src/components/dynamic-lp/DLPHero.tsx` (ajuste)
-- Adicionar confetti particles animados
-- Adicionar scroll indicator
+Adicionar a rota:
+```tsx
+<Route path="/festa/:eventId" element={<PublicPartyControl />} />
+```
 
-### Arquivo: `src/pages/DynamicLandingPage.tsx`
-- Importar e adicionar `DLPBenefits`
-- Reordenar secoes: Hero, Benefits, Testimonials, Video, Gallery, Offer, Footer
+### 3. Editar `src/components/agenda/EventDetailSheet.tsx`
 
-### Sem mudancas no banco de dados
-Os campos JSONB ja suportam qualquer estrutura. Basta o admin salvar os dados no novo formato. O codigo faz fallback para o formato antigo.
+Adicionar abaixo das informações do evento um novo bloco:
+
+```
+[ 🎮 Controle da Festa ]  ← botão grande que copia o link
+```
+
+### 4. Editar `src/hooks/useCompanyModules.ts`
+
+Adicionar tipo e função `parsePartyControlModules()` para ler `party_control_modules` das settings da empresa.
+
+### 5. Editar `src/components/hub/CompanyModulesDialog.tsx`
+
+Adicionar uma seção separada "Controle da Festa — Módulos" com os toggles dos módulos operacionais.
+
+---
+
+## Visual da Página (baseado na sua imagem)
+
+### Layout geral
+
+```text
+┌─────────────────────────────────────────┐
+│  [Logo empresa]                         │
+│  🎉 Joãozinho & Maria                   │
+│  Sáb 22/03 • 13h–17h • Unidade Centro   │
+├─────────────────────────────────────────┤
+│  ┌────────┐  ┌────────┐  ┌────────┐    │
+│  │ ✅ 8  │  │ 🟡 3  │  │ 🔴 1  │    │
+│  │ Feitos │  │ Pend.  │  │ Alerta │    │
+│  └────────┘  └────────┘  └────────┘    │
+│                                         │
+│  ⚠ 1 item crítico — Equipe incompleta  │
+├─────────────────────────────────────────┤
+│  ┌──────────────┐  ┌──────────────┐    │
+│  │  📋           │  │  👥           │    │
+│  │  Checklist   │  │  Equipe      │    │
+│  │  8/10 ✅     │  │  Criado ✅   │    │
+│  └──────────────┘  └──────────────┘    │
+│  ┌──────────────┐  ┌──────────────┐    │
+│  │  🔧           │  │  ✅           │    │
+│  │  Manutenção  │  │  Presença    │    │
+│  │  Criado ✅   │  │  42 guests   │    │
+│  └──────────────┘  └──────────────┘    │
+│  ┌──────────────┐  ┌──────────────┐    │
+│  │  📄           │  │  ℹ️            │    │
+│  │  Formulários  │  │  Informações │    │
+│  └──────────────┘  └──────────────┘    │
+├─────────────────────────────────────────┤
+│  [Início]  [Pendências 3]  [Checklist]  │
+└─────────────────────────────────────────┘
+```
+
+### Detalhes do visual dark
+
+- Fundo: `bg-slate-900` com gradiente suave para `bg-slate-800`
+- Header: dados da festa com logo da empresa
+- KPI cards: borda colorida (verde/amarelo/vermelho) com número grande
+- Botões de módulo: grade 2×N, cada um com gradiente de cor próprio, ícone grande e status abaixo
+- Bottom navigation: 3-4 abas fixas no rodapé
+- Totalmente otimizado para celular (touch-friendly, botões grandes)
+
+### Cores por módulo (igual ao mockup)
+
+| Módulo | Gradiente |
+|---|---|
+| Checklist | `from-emerald-500 to-green-700` |
+| Equipe | `from-blue-500 to-blue-800` |
+| Manutenção | `from-slate-500 to-slate-700` |
+| Presença | `from-orange-500 to-amber-600` |
+| Formulários | `from-purple-500 to-violet-700` |
+| Informações | `from-cyan-500 to-blue-700` |
+| Pré-Festa | `from-pink-500 to-rose-700` |
+| Cardápio | `from-yellow-500 to-orange-600` |
+| Avaliação | `from-teal-500 to-emerald-700` |
+
+---
+
+## Status de cada módulo (o que aparece no botão)
+
+Cada botão mostra um sub-status dinâmico:
+
+- **Checklist**: "8 de 10 concluídos" ou "Vazio" se sem itens
+- **Equipe**: "Registrado" ou "Não criado" (cinza/apagado)
+- **Manutenção**: "Registrado" ou "Não criado"
+- **Presença**: "42 convidados" ou "Não criado"
+- **Acompanhamento**: "X itens marcados" ou "Não criado"
+- **Informações**: "N blocos" ou "Não criado"
+- **Formulários**: abre submenu com pré-festa / cardápio / avaliação
+
+Se o módulo não foi criado ainda, o botão fica com opacidade reduzida mas ainda clicável (leva ao módulo correspondente para criação).
+
+---
+
+## Resumo das mudanças
+
+| Arquivo | Ação |
+|---|---|
+| `src/pages/PublicPartyControl.tsx` | Criar — nova página pública |
+| `src/App.tsx` | Editar — +1 rota `/festa/:eventId` |
+| `src/components/agenda/EventDetailSheet.tsx` | Editar — botão "Controle da Festa" |
+| `src/hooks/useCompanyModules.ts` | Editar — novo tipo `PartyControlModules` |
+| `src/components/hub/CompanyModulesDialog.tsx` | Editar — seção de módulos do controle |
+
+**Zero novas tabelas. Zero migrações de banco.**
