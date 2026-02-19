@@ -25,7 +25,7 @@ export default function RootPage() {
   }
 
   // Castelo da Diversão — matches both www and naked domain via canonical
-  if (canonical === "castelodadiversao.online") {
+  if (canonical === "castelodadiversao.online" || canonical === "castelodadiversao.com.br") {
     return <LandingPage />;
   }
 
