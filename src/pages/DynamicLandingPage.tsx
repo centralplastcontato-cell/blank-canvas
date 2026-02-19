@@ -132,11 +132,11 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
         companyLogo={data.company_logo}
         onCtaClick={openChat}
       />
-      <DLPVideo video={data.video} theme={data.theme} />
+      <DLPVideo video={data.video} theme={data.theme} companyName={data.company_name} />
       <DLPGallery gallery={data.gallery} theme={data.theme} companyName={data.company_name} />
       <DLPTestimonials testimonials={data.testimonials} theme={data.theme} />
       <DLPOffer offer={data.offer} theme={data.theme} onCtaClick={openChat} />
-      <DLPFooter footer={data.footer} theme={data.theme} companyName={data.company_name} />
+      <DLPFooter footer={data.footer} theme={data.theme} companyName={data.company_name} companyLogo={data.company_logo} />
 
       <DLPFloatingCTA theme={data.theme} onClick={openChat} />
       <LeadChatbot isOpen={isChatOpen} onClose={closeChat} />
