@@ -27,15 +27,15 @@ function MetricCard({ icon: Icon, label, value, color }: {
   icon: React.ElementType; label: string; value: number | string; color: string;
 }) {
   return (
-    <Card className="hover:-translate-y-0.5 transition-all duration-200">
-      <CardContent className="flex items-center gap-3 p-5">
-        <div className={`p-3 rounded-xl ${color}`}>
-          <Icon className="h-6 w-6" />
+    <Card className="hover:-translate-y-0.5 transition-all duration-200 border-border/60 shadow-card hover:shadow-card-hover">
+      <CardContent className="p-5 sm:p-6">
+        <div className="flex items-center gap-2 mb-3">
+          <div className={`p-2 rounded-lg ${color}`}>
+            <Icon className="h-4 w-4" />
+          </div>
+          <p className="text-[11px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider leading-tight">{label}</p>
         </div>
-        <div>
-          <p className="text-3xl font-bold">{value}</p>
-          <p className="text-xs text-muted-foreground">{label}</p>
-        </div>
+        <p className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">{value}</p>
       </CardContent>
     </Card>
   );
@@ -45,7 +45,7 @@ function MetricsGrid({ metrics, incompleteCount, followUpLabels }: { metrics: Da
   const fu1Label = followUpLabels?.fu1 || "24h";
   const fu2Label = followUpLabels?.fu2 || "48h";
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-4">
       <MetricCard icon={Users} label="Leads novos" value={metrics.novos} color="bg-blue-500/10 text-blue-500" />
       <MetricCard icon={CalendarCheck} label="Visitas agendadas" value={metrics.visitas} color="bg-green-500/10 text-green-500" />
       <MetricCard icon={FileText} label="Orçamentos" value={metrics.orcamentos} color="bg-purple-500/10 text-purple-500" />
