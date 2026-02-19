@@ -24,9 +24,13 @@ export default function RootPage() {
     return <HubLandingPage />;
   }
 
-  // Castelo da Diversão — matches both www and naked domain via canonical
-  if (canonical === "castelodadiversao.online" || canonical === "castelodadiversao.com.br") {
+  // Castelo da Diversão — .online stays on campaign LP, .com.br uses institutional DLP
+  if (canonical === "castelodadiversao.online") {
     return <LandingPage />;
+  }
+
+  if (canonical === "castelodadiversao.com.br") {
+    return <DynamicLandingPage domain="castelodadiversao.com.br" />;
   }
 
   if (isPreviewDomain()) {
