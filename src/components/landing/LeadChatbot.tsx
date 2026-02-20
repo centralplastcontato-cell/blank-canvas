@@ -5,6 +5,7 @@ import { campaignConfig } from "@/config/campaignConfig";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import logoCastelo from "@/assets/logo-castelo.png";
+
 interface Message {
   id: string;
   type: "bot" | "user";
@@ -26,9 +27,15 @@ interface LeadChatbotProps {
   isOpen: boolean;
   onClose: () => void;
   companyId?: string;
+  companyName?: string;
+  companyLogo?: string | null;
+  companyWhatsApp?: string;
 }
 
-export function LeadChatbot({ isOpen, onClose, companyId }: LeadChatbotProps) {
+// Default month options (all months from current month forward)
+const DEFAULT_MONTH_OPTIONS = ["Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLogo, companyWhatsApp }: LeadChatbotProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
   const [leadData, setLeadData] = useState<LeadData>({});
@@ -38,6 +45,11 @@ export function LeadChatbot({ isOpen, onClose, companyId }: LeadChatbotProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [showEmojis, setShowEmojis] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Detect if we're in dynamic (multi-company) mode
+  const isDynamic = !!companyName;
+  const displayName = companyName || "Castelo da Diversão";
+  const displayLogo = isDynamic ? companyLogo : logoCastelo;
 
   const emojis = [
     "😀","😂","😍","🥰","😎","🤩","😇","🥳","😘","😜",
@@ -51,10 +63,9 @@ export function LeadChatbot({ isOpen, onClose, companyId }: LeadChatbotProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Generate day options based on selected month
   const getDaysInMonth = (month: string): number => {
     const monthMap: Record<string, number> = {
-      "Fevereiro": 28, // 2026 is not a leap year
+      "Fevereiro": 28,
       "Março": 31,
       "Abril": 30,
       "Maio": 31,
@@ -102,7 +113,9 @@ export function LeadChatbot({ isOpen, onClose, companyId }: LeadChatbotProps) {
           options: campaignConfig.chatbot.guestOptions,
         },
       ]);
-      setCurrentStep(3);
+      // In dynamic mode without unit step, guest step is step 2
+      // In default mode, guest step is step 3
+      setCurrentStep(isDynamic ? 2 : 3);
     }, 500);
   };
 
@@ -117,23 +130,41 @@ export function LeadChatbot({ isOpen, onClose, companyId }: LeadChatbotProps) {
           {
             id: "welcome",
             type: "bot",
-            content: "Oi 👋 Que bom te ver por aqui!\n\nVou te fazer algumas perguntas rápidas para montar seu orçamento com a promoção 😉",
+            content: isDynamic
+              ? `Oi 👋 Que bom te ver por aqui!\n\nVou te fazer algumas perguntas rápidas para montar seu orçamento 😉`
+              : "Oi 👋 Que bom te ver por aqui!\n\nVou te fazer algumas perguntas rápidas para montar seu orçamento com a promoção 😉",
           },
         ]);
         setTimeout(() => {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: "unit",
-              type: "bot",
-              content: "Em qual unidade você deseja fazer sua festa?",
-              options: campaignConfig.chatbot.unitOptions,
-            },
-          ]);
+          if (isDynamic) {
+            // Dynamic mode: skip unit selection, go straight to month
+            setLeadData((prev) => ({ ...prev, unit: companyName }));
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: "month",
+                type: "bot",
+                content: "Para qual mês você pretende realizar a festa?",
+                options: DEFAULT_MONTH_OPTIONS,
+              },
+            ]);
+            setCurrentStep(1); // month step
+          } else {
+            // Default Castelo mode: ask unit first
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: "unit",
+                type: "bot",
+                content: "Em qual unidade você deseja fazer sua festa?",
+                options: campaignConfig.chatbot.unitOptions,
+              },
+            ]);
+          }
         }, 800);
       }, 500);
     }
-  }, [isOpen, messages.length]);
+  }, [isOpen, messages.length, isDynamic, companyName]);
 
   const handleOptionSelect = (option: string) => {
     const userMessage: Message = {
@@ -144,58 +175,82 @@ export function LeadChatbot({ isOpen, onClose, companyId }: LeadChatbotProps) {
     setMessages((prev) => [...prev, userMessage]);
 
     setTimeout(() => {
-      switch (currentStep) {
-        case 0:
-          setLeadData((prev) => ({ ...prev, unit: option }));
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: "month",
-              type: "bot",
-              content: "Perfeito! Para qual mês você pretende realizar a festa?",
-              options: campaignConfig.chatbot.monthOptions,
-            },
-          ]);
-          setCurrentStep(1);
-          break;
-        case 1:
-          setLeadData((prev) => ({ ...prev, month: option }));
-          // Check if selected month is outside promo period
-          const isPromoMonth = campaignConfig.chatbot.promoMonths?.includes(option);
-          if (!isPromoMonth && campaignConfig.chatbot.nonPromoMessage) {
+      if (isDynamic) {
+        // Dynamic mode flow: month(1) -> day(day-of-month) -> guests(2) -> capture(3)
+        switch (currentStep) {
+          case 1: // Month selected
+            setLeadData((prev) => ({ ...prev, month: option }));
+            addDayOfMonthStep(option);
+            setCurrentStep(1.5 as any); // intermediate step for day
+            break;
+          case 2: // Guests selected
+            setLeadData((prev) => ({ ...prev, guests: option }));
             setMessages((prev) => [
               ...prev,
               {
-                id: "non-promo-warning",
+                id: "capture",
                 type: "bot",
-                content: campaignConfig.chatbot.nonPromoMessage,
+                content: "Perfeito! 🎉\n\nAgora precisamos dos seus dados para te enviar o orçamento certinho 👇",
+                isInput: true,
               },
             ]);
-            setTimeout(() => {
+            setCurrentStep(3);
+            setInputType("name");
+            break;
+        }
+      } else {
+        // Default Castelo mode flow: unit(0) -> month(1) -> day -> guests(3) -> capture(4)
+        switch (currentStep) {
+          case 0:
+            setLeadData((prev) => ({ ...prev, unit: option }));
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: "month",
+                type: "bot",
+                content: "Perfeito! Para qual mês você pretende realizar a festa?",
+                options: campaignConfig.chatbot.monthOptions,
+              },
+            ]);
+            setCurrentStep(1);
+            break;
+          case 1:
+            setLeadData((prev) => ({ ...prev, month: option }));
+            const isPromoMonth = campaignConfig.chatbot.promoMonths?.includes(option);
+            if (!isPromoMonth && campaignConfig.chatbot.nonPromoMessage) {
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: "non-promo-warning",
+                  type: "bot",
+                  content: campaignConfig.chatbot.nonPromoMessage,
+                },
+              ]);
+              setTimeout(() => {
+                addDayOfMonthStep(option);
+              }, 1500);
+            } else {
               addDayOfMonthStep(option);
-            }, 1500);
-          } else {
-            addDayOfMonthStep(option);
-          }
-          setCurrentStep(2);
-          break;
-        case 2:
-          // Day of month selection (handled separately via handleDayOfMonthSelect)
-          break;
-        case 3:
-          setLeadData((prev) => ({ ...prev, guests: option }));
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: "capture",
-              type: "bot",
-              content: "Perfeito! 🎉\n\nAgora precisamos dos seus dados para te enviar o orçamento certinho 👇",
-              isInput: true,
-            },
-          ]);
-          setCurrentStep(4);
-          setInputType("name");
-          break;
+            }
+            setCurrentStep(2);
+            break;
+          case 2:
+            break;
+          case 3:
+            setLeadData((prev) => ({ ...prev, guests: option }));
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: "capture",
+                type: "bot",
+                content: "Perfeito! 🎉\n\nAgora precisamos dos seus dados para te enviar o orçamento certinho 👇",
+                isInput: true,
+              },
+            ]);
+            setCurrentStep(4);
+            setInputType("name");
+            break;
+        }
       }
     }, 500);
   };
@@ -203,24 +258,19 @@ export function LeadChatbot({ isOpen, onClose, companyId }: LeadChatbotProps) {
   // Função para enviar mensagem via W-API (sem autenticação - endpoint público via unit)
   const sendWelcomeMessage = async (phone: string, unit: string, leadInfo: LeadData) => {
     try {
-      // Normalizar unidade
       const normalizedUnit = unit === "Trujilo" ? "Trujillo" : unit;
-
-      // Formatar número do lead
       const cleanPhone = phone.replace(/\D/g, '');
       const phoneWithCountry = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
 
-      // Montar mensagem com os dados do lead
-      const message = `Olá! 👋🏼✨\n\nVim pelo site do *Castelo da Diversão* e gostaria de saber mais sobre a promoção! 🎉🏰\n\n📋 *Meus dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}\n👥 Convidados: ${leadInfo.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n*1* - 📩 Receber agora meu orçamento\n*2* - 💬 Falar com um atendente`;
+      const message = `Olá! 👋🏼✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}\n👥 Convidados: ${leadInfo.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n*1* - 📩 Receber agora meu orçamento\n*2* - 💬 Falar com um atendente`;
 
-      // Enviar mensagem via edge function passando apenas a unit (a edge function busca a instância)
       const { error } = await supabase.functions.invoke('wapi-send', {
         body: {
           action: 'send-text',
           phone: phoneWithCountry,
           message,
           unit: normalizedUnit,
-          lpMode: true, // Sinaliza que é uma mensagem da LP para resetar bot_step
+          lpMode: true,
         },
       });
 
@@ -257,8 +307,10 @@ export function LeadChatbot({ isOpen, onClose, companyId }: LeadChatbotProps) {
       try {
         const finalLeadData = { ...leadData, name: leadData.name, whatsapp: whatsappValue };
         
-        // Função para criar lead via edge function (com rate limiting e validação)
         const effectiveCompanyId = companyId || campaignConfig.companyId;
+        const effectiveCampaignId = isDynamic ? "lp-lead" : campaignConfig.campaignId;
+        const effectiveCampaignName = isDynamic ? `LP ${displayName}` : campaignConfig.campaignName;
+
         const submitLead = async (unit: string) => {
           const { error } = await supabase.functions.invoke('submit-lead', {
             body: {
@@ -268,8 +320,8 @@ export function LeadChatbot({ isOpen, onClose, companyId }: LeadChatbotProps) {
               month: leadData.month,
               day_of_month: leadData.dayOfMonth,
               guests: leadData.guests,
-              campaign_id: campaignConfig.campaignId,
-              campaign_name: campaignConfig.campaignName,
+              campaign_id: effectiveCampaignId,
+              campaign_name: effectiveCampaignName,
               company_id: effectiveCompanyId,
             },
           });
@@ -277,11 +329,10 @@ export function LeadChatbot({ isOpen, onClose, companyId }: LeadChatbotProps) {
           console.log(`Lead criado para ${unit}`);
         };
         
-        // Submit lead (always as a single record, even for "As duas")
         await submitLead(leadData.unit!);
 
         // Send welcome message(s) in background
-        if (leadData.unit === "As duas") {
+        if (!isDynamic && leadData.unit === "As duas") {
           Promise.all([
             sendWelcomeMessage(whatsappValue, "Manchester", finalLeadData),
             sendWelcomeMessage(whatsappValue, "Trujillo", finalLeadData),
@@ -291,17 +342,19 @@ export function LeadChatbot({ isOpen, onClose, companyId }: LeadChatbotProps) {
             .catch(err => console.error("Erro ao enviar mensagem automática:", err));
         }
 
-        // Mostrar confirmação imediatamente após salvar o lead
+        const completionMessage = isDynamic
+          ? `Prontinho 🎉\n\nRecebemos suas informações e nossa equipe vai entrar em contato em breve para confirmar valores e disponibilidade da sua data.\n\nAcabei de te enviar uma mensagem no seu WhatsApp, dá uma olhadinha lá! 📲`
+          : `Prontinho 🎉\n\nRecebemos suas informações e nossa equipe vai entrar em contato em breve para confirmar valores e disponibilidade da sua data.\n\nPromoção válida conforme regras da campanha: ${campaignConfig.campaignName}\n\nAcabei de te enviar uma mensagem no seu WhatsApp, dá uma olhadinha lá! 📲`;
+
         setMessages((prev) => [
           ...prev,
           {
             id: "complete",
             type: "bot",
-            content: `Prontinho 🎉\n\nRecebemos suas informações e nossa equipe vai entrar em contato em breve para confirmar valores e disponibilidade da sua data.\n\nPromoção válida conforme regras da campanha: ${campaignConfig.campaignName}\n\nAcabei de te enviar uma mensagem no seu WhatsApp, dá uma olhadinha lá! 📲`,
+            content: completionMessage,
           },
         ]);
         setIsComplete(true);
-        // Auto-close chat after 5 seconds
         setTimeout(() => {
           onClose();
         }, 10000);
@@ -332,6 +385,11 @@ export function LeadChatbot({ isOpen, onClose, companyId }: LeadChatbotProps) {
 
   if (!isOpen) return null;
 
+  // Build WhatsApp message for final buttons
+  const buildWhatsAppMessage = () => {
+    return `Olá! 👋🏼✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadData.name || ''}\n📍 Unidade: ${leadData.unit || ''}\n📅 Data: ${leadData.dayOfMonth || ''}/${leadData.month || ''}\n👥 Convidados: ${leadData.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n*1* - 📩 Receber agora meu orçamento\n*2* - 💬 Falar com um atendente`;
+  };
+
   return (
     <AnimatePresence>
       <motion.div
@@ -352,13 +410,15 @@ export function LeadChatbot({ isOpen, onClose, companyId }: LeadChatbotProps) {
           {/* Header */}
           <div className="bg-gradient-hero p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img 
-                src={logoCastelo} 
-                alt="Castelo da Diversão" 
-                className="h-10 w-auto"
-              />
+              {displayLogo && (
+                <img 
+                  src={displayLogo} 
+                  alt={displayName} 
+                  className="h-10 w-auto rounded-lg"
+                />
+              )}
               <div>
-                <h3 className="font-display font-bold bg-gradient-to-r from-yellow-300 via-white to-pink-200 bg-clip-text text-transparent drop-shadow-sm">Castelo da Diversão</h3>
+                <h3 className="font-display font-bold bg-gradient-to-r from-yellow-300 via-white to-pink-200 bg-clip-text text-transparent drop-shadow-sm">{displayName}</h3>
                 <p className="text-sm text-white/90">Online agora</p>
               </div>
             </div>
@@ -395,7 +455,7 @@ export function LeadChatbot({ isOpen, onClose, companyId }: LeadChatbotProps) {
                           : "flex flex-wrap gap-2"
                       }`}>
                         {message.options.map((option) => {
-                          const isPromoMonth = message.id === "month" && campaignConfig.chatbot.promoMonths?.includes(option);
+                          const isPromoMonth = !isDynamic && message.id === "month" && campaignConfig.chatbot.promoMonths?.includes(option);
                           return (
                             <button
                               key={option}
@@ -497,33 +557,45 @@ export function LeadChatbot({ isOpen, onClose, companyId }: LeadChatbotProps) {
               className="p-4 border-t border-border space-y-3"
             >
               <p className="text-sm text-muted-foreground text-center mb-2">
-                Ou fale diretamente com uma unidade:
+                Ou fale diretamente conosco:
               </p>
               <div className="flex flex-wrap justify-center gap-2">
-                <a
-                  href={`https://wa.me/5515991336278?text=${encodeURIComponent(
-                    `Olá! 👋🏼✨\n\nVim pelo site do *Castelo da Diversão* e gostaria de saber mais sobre a promoção! 🎉🏰\n\n📋 *Meus dados:*\n👤 Nome: ${leadData.name || ''}\n📍 Unidade: ${leadData.unit || ''}\n📅 Data: ${leadData.dayOfMonth || ''}/${leadData.month || ''}\n👥 Convidados: ${leadData.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n*1* - 📩 Receber agora meu orçamento\n*2* - 💬 Falar com um atendente`
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full transition-all duration-300 text-sm font-medium hover:scale-105"
-                >
-                  <MessageCircle size={16} className="transition-transform duration-300 group-hover:scale-110" />
-                  <MapPin size={12} />
-                  <span>Manchester</span>
-                </a>
-                <a
-                  href={`https://wa.me/5515974034646?text=${encodeURIComponent(
-                    `Olá! 👋🏼✨\n\nVim pelo site do *Castelo da Diversão* e gostaria de saber mais sobre a promoção! 🎉🏰\n\n📋 *Meus dados:*\n👤 Nome: ${leadData.name || ''}\n📍 Unidade: ${leadData.unit || ''}\n📅 Data: ${leadData.dayOfMonth || ''}/${leadData.month || ''}\n👥 Convidados: ${leadData.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n*1* - 📩 Receber agora meu orçamento\n*2* - 💬 Falar com um atendente`
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full transition-all duration-300 text-sm font-medium hover:scale-105"
-                >
-                  <MessageCircle size={16} className="transition-transform duration-300 group-hover:scale-110" />
-                  <MapPin size={12} />
-                  <span>Trujilo</span>
-                </a>
+                {isDynamic && companyWhatsApp ? (
+                  // Dynamic mode: single WhatsApp button
+                  <a
+                    href={`https://wa.me/55${companyWhatsApp.replace(/\D/g, '')}?text=${encodeURIComponent(buildWhatsAppMessage())}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full transition-all duration-300 text-sm font-medium hover:scale-105"
+                  >
+                    <MessageCircle size={16} className="transition-transform duration-300 group-hover:scale-110" />
+                    <span>{displayName}</span>
+                  </a>
+                ) : !isDynamic ? (
+                  // Default Castelo mode: two WhatsApp buttons
+                  <>
+                    <a
+                      href={`https://wa.me/5515991336278?text=${encodeURIComponent(buildWhatsAppMessage())}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full transition-all duration-300 text-sm font-medium hover:scale-105"
+                    >
+                      <MessageCircle size={16} className="transition-transform duration-300 group-hover:scale-110" />
+                      <MapPin size={12} />
+                      <span>Manchester</span>
+                    </a>
+                    <a
+                      href={`https://wa.me/5515974034646?text=${encodeURIComponent(buildWhatsAppMessage())}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full transition-all duration-300 text-sm font-medium hover:scale-105"
+                    >
+                      <MessageCircle size={16} className="transition-transform duration-300 group-hover:scale-110" />
+                      <MapPin size={12} />
+                      <span>Trujilo</span>
+                    </a>
+                  </>
+                ) : null}
               </div>
               <button
                 onClick={resetChat}

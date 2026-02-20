@@ -19,6 +19,7 @@ interface LPData {
   company_name: string;
   company_logo: string | null;
   company_slug: string;
+  company_whatsapp: string | null;
   hero: LPHero;
   video: LPVideo;
   gallery: LPGallery;
@@ -58,11 +59,25 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
         setNotFound(true);
       } else {
         const row = Array.isArray(result.data) ? result.data[0] : result.data;
+        const companyId = row.company_id;
+        // Fetch WhatsApp from onboarding
+        let whatsapp: string | null = null;
+        const { data: onb } = await supabase
+          .from('company_onboarding')
+          .select('whatsapp_numbers')
+          .eq('company_id', companyId)
+          .limit(1)
+          .maybeSingle();
+        if (onb?.whatsapp_numbers && onb.whatsapp_numbers.length > 0) {
+          whatsapp = onb.whatsapp_numbers[0];
+        }
+
         setData({
-          company_id: row.company_id,
+          company_id: companyId,
           company_name: row.company_name,
           company_logo: row.company_logo,
           company_slug: row.company_slug,
+          company_whatsapp: whatsapp,
           hero: row.hero as unknown as LPHero,
           video: row.video as unknown as LPVideo,
           gallery: row.gallery as unknown as LPGallery,
@@ -141,7 +156,14 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
       <DLPFooter footer={data.footer} theme={data.theme} companyName={data.company_name} companyLogo={data.company_logo} />
 
       <DLPFloatingCTA theme={data.theme} onClick={openChat} />
-      <LeadChatbot isOpen={isChatOpen} onClose={closeChat} companyId={data.company_id} />
+      <LeadChatbot
+        isOpen={isChatOpen}
+        onClose={closeChat}
+        companyId={data.company_id}
+        companyName={data.company_name}
+        companyLogo={data.company_logo}
+        companyWhatsApp={data.company_whatsapp || undefined}
+      />
     </div>
   );
 }
