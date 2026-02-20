@@ -1,108 +1,45 @@
 
-# Correção dos 3 bugs do Fluxo Comercial V2
+## Situação Atual
 
-## Diagnóstico Técnico
+O nó "Período – Sábado" foi criado via SQL direto no banco e está com estas conexões:
 
-### Bug 1: `{Vitor}` com chaves
-O template do nó "Tipo de Contato" usa `{{nome}}` (chaves duplas). A função `replaceVars` no webhook usa regex `\{nome\}` que localiza `{nome}` *dentro* de `{{nome}}`, substituindo apenas a parte interna e deixando a chave exterior — produzindo `{Vitor}`.
+- **Proposta de Visita** → (opção "No sábado") → **Período – Sábado** ✅ (edge existe)
+- **Período – Sábado** → **Confirmação de Visita** ✅ (edge existe)
 
-### Bug 2: `{{mes}}`, `{{dia}}`, `{{convidados}}` não substituídos
-Os templates usam nomes de variáveis como `{{mes}}`, `{{convidados}}`, mas os dados coletados usam as chaves técnicas `event_date` e `guest_count`. Não há mapeamento entre eles. Além disso, `{{dia}}` referencia um campo que nenhum nó captura.
-
-### Bug 3: Sábado sem restrição de horário
-A opção "No sábado" vai direto para o nó "Melhor Período" que exibe Manhã, Tarde e Noite — mas aos sábados o buffet só atende até ao meio-dia. Falta um ramo exclusivo para sábado.
+Porém o nó foi inserido de forma "invisível" — sem passar pela interface do Flow Builder — e você quer remover tudo isso do banco para poder criar o nó manualmente pela UI.
 
 ---
 
-## Solução
+## O que será removido do banco
 
-### Parte 1 — Corrigir `replaceVars` no webhook
+Serão deletados via SQL direto (sem migração de schema):
 
-**Arquivo:** `supabase/functions/wapi-webhook/index.ts` (função `replaceVars` linha ~706)
+1. **Edge** `c3d4e5f6-a7b8-9012-cdef-123456789012` → Período–Sábado → Confirmação de Visita
+2. **Edge** `f5699b9e-ce18-4367-8db9-385a0868b3c0` → Proposta de Visita → Período–Sábado (duplicata)
+3. **Edge** `e70ee266-7aa6-48b0-a2b3-1e5b71acdc18` → Proposta de Visita → Período–Sábado
+4. **Opção** `b2c3d4e5-f6a7-8901-bcde-f12345678901` → "Manhã (até meio-dia)" do nó Período–Sábado
+5. **Nó** `a1b2c3d4-e5f6-7890-abcd-ef1234567890` → "Período – Sábado"
 
-A nova função irá:
-1. Suportar **chaves duplas** `{{chave}}` além de `{chave}`
-2. Adicionar um **mapa de aliases** que traduz os nomes dos templates para as chaves reais dos dados coletados:
+## O que ficará intacto
 
-```
-nome        → customer_name
-mes         → event_date
-convidados  → guest_count
-dia         → (removido do template — ver abaixo)
-```
-
-Lógica nova:
-```typescript
-const replaceVars = (text: string) => {
-  const aliasMap: Record<string, string> = {
-    nome: data.customer_name || contactName || contactPhone,
-    mes: data.event_date || '',
-    convidados: data.guest_count || '',
-    dia: data.visit_day || '',
-  };
-
-  let result = text;
-
-  // Replace {{key}} and {key} for collected data + aliases
-  const allVars = { ...data, ...aliasMap };
-  for (const [key, value] of Object.entries(allVars)) {
-    const safeValue = String(value ?? '');
-    result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'gi'), safeValue);
-    result = result.replace(new RegExp(`\\{${key}\\}`, 'gi'), safeValue);
-  }
-  return result;
-};
-```
-
-### Parte 2 — Ajustar template da "Confirmação do Resumo"
-
-O template atual usa `{{dia}}` que não é capturado por nenhum nó. A correção remove essa linha ou a substitui por algo que faz sentido (ex: o dia da semana escolhido para a visita). Como o fluxo captura o período da visita mas não um dia específico, o `{{dia}}` será removido do template de confirmação via SQL UPDATE.
-
-**Template corrigido para "Confirmação do Resumo":**
-```
-Perfeito, {nome}! 🎊
-
-Deixa eu confirmar o que você me disse:
-
-📅 *Mês:* {mes}
-👥 *Convidados:* {convidados}
-
-Agora vou te mostrar nosso espaço incrível! 😍
-```
-
-### Parte 3 — Novo ramo para Sábado no Flow Builder
-
-**Estrutura atual:**
-```
-Proposta de Visita → [No sábado] → Melhor Período (Manhã/Tarde/Noite)
-```
-
-**Estrutura após correção:**
-```
-Proposta de Visita → [Durante a semana] → Melhor Período (Manhã/Tarde/Noite) → Confirmação de Visita
-Proposta de Visita → [No sábado]        → Período Sábado (só Manhã)          → Confirmação de Visita
-```
-
-**Mudanças no banco de dados (SQL):**
-
-1. Criar novo nó `Período – Sábado` (tipo `question`, `extract_field: preferred_slot`) com a mensagem:
-   > "Ótimo! Aos sábados o buffet atende até às 12h. 😊 Sua visita seria no período da manhã, combinado?"
-
-2. Criar opção única para esse nó: `Manhã (até meio-dia)`
-
-3. Redirecionar a aresta "No sábado" → `Período – Sábado` (em vez de "Melhor Período")
-
-4. Criar aresta de `Período – Sábado` → `Confirmação de Visita` (mesmo nó de destino do "Melhor Período")
+A opção "No sábado" do nó **Proposta de Visita** ficará sem conexão — você poderá conectá-la manualmente ao novo nó que criar no Flow Builder.
 
 ---
 
-## Arquivos / Recursos Alterados
+## O que você fará no Flow Builder (manualmente após a limpeza)
 
-| Recurso | Tipo de mudança |
-|---|---|
-| `supabase/functions/wapi-webhook/index.ts` | Corrigir `replaceVars` (chaves duplas + aliases) |
-| Banco: `flow_nodes` (Confirmação do Resumo) | Remover `{{dia}}` do template |
-| Banco: `flow_nodes` | Inserir nó "Período – Sábado" |
-| Banco: `flow_node_options` | Inserir opção "Manhã (até meio-dia)" |
-| Banco: `flow_edges` | Redirecionar "No sábado" + nova aresta para confirmação |
-| Deploy | Re-deploy de `wapi-webhook` |
+1. Abrir o **Fluxo Comercial V2** no Flow Builder
+2. Adicionar um novo nó do tipo **Pergunta** com o título "Período – Sábado"
+3. Configurar a mensagem: *"Ótimo! Aos sábados o buffet atende até às 12h. 😊 Sua visita seria no período da manhã, combinado?"*
+4. Adicionar a opção: **"Manhã (até meio-dia)"**
+5. Conectar a saída **"No sábado"** do nó "Proposta de Visita" → novo nó "Período – Sábado"
+6. Conectar a opção "Manhã (até meio-dia)" → nó "Confirmação de Visita"
+
+---
+
+## Técnico
+
+- DELETE em `flow_edges` (3 registros)
+- DELETE em `flow_node_options` (1 registro)
+- DELETE em `flow_nodes` (1 registro)
+- Nenhuma migração de schema — apenas limpeza de dados
