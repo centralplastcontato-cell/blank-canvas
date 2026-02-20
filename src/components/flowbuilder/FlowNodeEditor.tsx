@@ -198,10 +198,11 @@ export function FlowNodeEditor({
     }
   };
 
-  const showMessageField = ['start', 'message', 'question', 'action', 'end', 'timer'].includes(node.node_type);
+  const showMessageField = ['start', 'message', 'question', 'action', 'end', 'timer', 'qualify'].includes(node.node_type);
   const showActionField = node.node_type === 'action';
   const showExtractField = ['question', 'action'].includes(node.node_type);
   const showOptionsField = node.node_type === 'question';
+  const showQualifyField = node.node_type === 'qualify';
   const showDelayField = node.node_type === 'delay';
   const showTimerField = node.node_type === 'timer';
 
@@ -497,6 +498,108 @@ export function FlowNodeEditor({
         </Card>
       )}
 
+      {/* Qualify Node Configuration */}
+      {showQualifyField && node.options && (
+        <Card>
+          <CardHeader className="py-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-violet-500" />
+              Opções de Qualificação
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Configure as opções possíveis. A IA vai interpretar a resposta livre do lead e mapear para a opção correta.
+            </p>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={node.options.map(o => o.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-2">
+                  {node.options.map((option) => (
+                    <SortableOptionItem
+                      key={option.id}
+                      option={option}
+                      onUpdateOption={onUpdateOption}
+                      onDeleteOption={onDeleteOption}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+
+            <div className="pt-2 border-t space-y-2">
+              <Input
+                value={newOptionLabel}
+                onChange={(e) => setNewOptionLabel(e.target.value)}
+                placeholder="Nova opção (ex: Manhã)"
+                onKeyDown={(e) => e.key === 'Enter' && handleAddOption()}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleAddOption}
+                disabled={!newOptionLabel.trim()}
+                className="w-full"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Adicionar Opção
+              </Button>
+            </div>
+
+            <div className="mt-2 bg-violet-50 dark:bg-violet-900/20 rounded-lg p-3 text-xs text-violet-700 dark:text-violet-300">
+              <p className="font-medium mb-1">🧠 Como funciona:</p>
+              <p>O lead pode responder livremente (ex: "prefiro de manhã") e a IA classifica automaticamente na opção correta. O label legível (ex: "Manhã") é salvo no CRM.</p>
+            </div>
+
+            {/* Context hint field */}
+            <div className="space-y-1.5 pt-2 border-t">
+              <Label className="text-xs">Dica de contexto para a IA (opcional)</Label>
+              <Input
+                value={(node.action_config as any)?.qualify_context || ''}
+                onChange={(e) => onUpdate({ action_config: { ...(node.action_config as any), qualify_context: e.target.value } })}
+                placeholder="Ex: turno do dia, dia da semana, faixa de convidados"
+                className="text-xs"
+              />
+              <p className="text-xs text-muted-foreground">Contexto adicional que ajuda a IA a classificar melhor.</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Qualify extract field */}
+      {showQualifyField && (
+        <div className="space-y-2">
+          <Label>Salvar resultado em</Label>
+          <div className="space-y-2 border rounded-lg p-3 bg-muted/30">
+            {Object.entries(EXTRACT_FIELD_LABELS).map(([value, label]) => {
+              const isSelected = node.extract_field === value;
+              return (
+                <label
+                  key={value}
+                  className="flex items-center gap-2 cursor-pointer hover:bg-muted rounded px-2 py-1.5 transition-colors"
+                >
+                  <input
+                    type="radio"
+                    name="qualify_extract_field"
+                    checked={isSelected}
+                    onChange={() => onUpdate({ extract_field: value })}
+                    className="rounded-full border-input text-primary focus:ring-primary"
+                  />
+                  <span className="text-sm">{label}</span>
+                </label>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground">O label da opção classificada será salvo neste campo do CRM.</p>
+        </div>
+      )}
+
       {/* Global keywords hint */}
       <div className="bg-primary/10 rounded-lg p-3 text-sm">
         <p className="font-medium text-primary mb-1">
@@ -507,6 +610,7 @@ export function FlowNodeEditor({
         </p>
       </div>
     </div>
+
   );
 
   // Mobile layout

@@ -548,11 +548,141 @@ async function processFlowBuilderMessage(
     
     console.log(`[FlowBuilder] 💬 Processing reply for node "${currentNode.title}" (${currentNode.node_type}), extract_field: ${currentNode.extract_field || 'none'}`);
     
-    // Extract data if needed
     const collectedData = (state.collected_data || {}) as Record<string, string>;
+
+    // ── QUALIFY node: use OpenAI to classify free-text response ─────────────
+    if (currentNode.node_type === 'qualify') {
+      const { data: qualifyOptions } = await supabase
+        .from('flow_node_options')
+        .select('*')
+        .eq('node_id', currentNode.id)
+        .order('display_order', { ascending: true });
+
+      if (!qualifyOptions || qualifyOptions.length === 0) {
+        // No options configured - just save raw and advance
+        if (currentNode.extract_field) {
+          collectedData[currentNode.extract_field] = content.trim();
+          await supabase.from('flow_lead_state').update({ collected_data: collectedData }).eq('id', state.id);
+        }
+        const anyEdge = edges.find(e => e.source_node_id === currentNode.id);
+        if (anyEdge) {
+          const targetNode = nodes.find(n => n.id === anyEdge.target_node_id);
+          if (targetNode) await advanceFlowFromNode(supabase, instance, conv, state, targetNode, nodes, edges, contactPhone, contactName, collectedData);
+        }
+        return;
+      }
+
+      // Build options list for OpenAI
+      const optionsList = qualifyOptions.map((o, i) => `${i + 1}. value="${o.value}" label="${o.label}"`).join('\n');
+      const qualifyContext = (currentNode.action_config as Record<string, unknown>)?.qualify_context as string || '';
+      
+      console.log(`[FlowBuilder] 🧠 Qualifying response via OpenAI. Options: ${qualifyOptions.map(o => o.label).join(', ')}`);
+
+      let matchedOptionValue: string | null = null;
+      let matchedOptionLabel: string | null = null;
+
+      try {
+        const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+        if (OPENAI_API_KEY) {
+          const systemPrompt = `Você é um classificador de respostas de leads de buffet. Dado o texto do lead, identifique qual opção melhor representa a resposta.${qualifyContext ? ` Contexto: ${qualifyContext}.` : ''}
+Retorne APENAS o value da opção escolhida, sem explicação, sem aspas, sem pontuação adicional.
+Se não conseguir classificar com certeza, retorne a opção mais próxima.`;
+          
+          const userPrompt = `Opções disponíveis:\n${optionsList}\n\nResposta do lead: "${content.trim()}"\n\nRetorne apenas o value da opção correspondente:`;
+          
+          const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${OPENAI_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'gpt-4o-mini',
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt },
+              ],
+              max_tokens: 50,
+              temperature: 0,
+            }),
+          });
+
+          if (aiRes.ok) {
+            const aiData = await aiRes.json();
+            const aiValue = aiData.choices?.[0]?.message?.content?.trim().toLowerCase();
+            console.log(`[FlowBuilder] 🧠 OpenAI classify result: "${aiValue}"`);
+            
+            if (aiValue) {
+              // Find matching option by value
+              const matchedOpt = qualifyOptions.find(o => o.value.toLowerCase() === aiValue || aiValue.includes(o.value.toLowerCase()));
+              if (matchedOpt) {
+                matchedOptionValue = matchedOpt.value;
+                matchedOptionLabel = matchedOpt.label;
+                console.log(`[FlowBuilder] 🧠 Classified as: label="${matchedOptionLabel}" value="${matchedOptionValue}"`);
+              }
+            }
+          } else {
+            console.error(`[FlowBuilder] OpenAI error: ${aiRes.status}`);
+          }
+        }
+      } catch (e) {
+        console.error('[FlowBuilder] OpenAI classify error:', e);
+      }
+
+      // Fallback: simple text matching if AI failed
+      if (!matchedOptionValue) {
+        const lower = content.toLowerCase();
+        for (const opt of qualifyOptions) {
+          if (lower.includes(opt.label.toLowerCase()) || lower.includes(opt.value.toLowerCase())) {
+            matchedOptionValue = opt.value;
+            matchedOptionLabel = opt.label;
+            break;
+          }
+        }
+      }
+
+      // Use first option as last resort
+      if (!matchedOptionValue && qualifyOptions.length > 0) {
+        console.log(`[FlowBuilder] 🧠 No match found, using first option as fallback`);
+        matchedOptionValue = qualifyOptions[0].value;
+        matchedOptionLabel = qualifyOptions[0].label;
+      }
+
+      // Save the readable LABEL (not number, not raw input) to collected_data
+      if (currentNode.extract_field && matchedOptionLabel) {
+        collectedData[currentNode.extract_field] = matchedOptionLabel;
+        await supabase.from('flow_lead_state').update({ collected_data: collectedData }).eq('id', state.id);
+        state.collected_data = collectedData;
+        console.log(`[FlowBuilder] 📝 Qualify saved: ${currentNode.extract_field} = "${matchedOptionLabel}"`);
+      }
+
+      // Find the edge for this option
+      const matchedOpt = qualifyOptions.find(o => o.value === matchedOptionValue);
+      let qualifyEdge = null;
+      if (matchedOpt) {
+        qualifyEdge = edges.find(e => e.source_node_id === currentNode.id && e.source_option_id === matchedOpt.id);
+      }
+      // Fallback to any edge from this node
+      if (!qualifyEdge) {
+        qualifyEdge = edges.find(e => e.source_node_id === currentNode.id);
+      }
+
+      if (qualifyEdge) {
+        const targetNode = nodes.find(n => n.id === qualifyEdge!.target_node_id);
+        if (targetNode) {
+          await advanceFlowFromNode(supabase, instance, conv, state, targetNode, nodes, edges, contactPhone, contactName, collectedData);
+        }
+      } else {
+        await supabase.from('flow_lead_state').update({ waiting_for_reply: false }).eq('id', state.id);
+      }
+      return;
+    }
+    // ── END QUALIFY ─────────────────────────────────────────────────────────
+    
+    // Extract data if needed (for question/action nodes)
     if (currentNode.extract_field) {
       collectedData[currentNode.extract_field] = content.trim();
-      console.log(`[FlowBuilder] 📝 Extracted: ${currentNode.extract_field} = "${content.trim()}"`);
+      console.log(`[FlowBuilder] 📝 Extracted (raw): ${currentNode.extract_field} = "${content.trim()}"`);
     }
     
     // Update collected_data
@@ -600,10 +730,11 @@ async function processFlowBuilderMessage(
           // Find edge for this option
           matchedEdge = edges.find(e => e.source_node_id === currentNode.id && e.source_option_id === selectedOption.id);
           
-          // Store the selected option value
+          // Store the LABEL (readable text) not the number or raw value
           if (currentNode.extract_field) {
-            collectedData[currentNode.extract_field] = selectedOption.value;
+            collectedData[currentNode.extract_field] = selectedOption.label;
             await supabase.from('flow_lead_state').update({ collected_data: collectedData }).eq('id', state.id);
+            console.log(`[FlowBuilder] 📝 Saved label for choice ${choiceNum}: ${currentNode.extract_field} = "${selectedOption.label}"`);
           }
         }
       }
@@ -617,7 +748,8 @@ async function processFlowBuilderMessage(
               matchedEdge = edges.find(e => e.source_node_id === currentNode.id && e.source_option_id === opt.id);
               if (matchedEdge) {
                 if (currentNode.extract_field) {
-                  collectedData[currentNode.extract_field] = opt.value;
+                  // Save label, not value
+                  collectedData[currentNode.extract_field] = opt.label;
                   await supabase.from('flow_lead_state').update({ collected_data: collectedData }).eq('id', state.id);
                 }
                 break;
@@ -684,6 +816,7 @@ async function processFlowBuilderMessage(
     await advanceFlowFromNode(supabase, instance, conv, state, targetNode, nodes, edges, contactPhone, contactName, collectedData);
   }
 }
+
 
 async function advanceFlowFromNode(
   supabase: SupabaseClient,
@@ -1267,6 +1400,39 @@ async function advanceFlowFromNode(
       break;
     }
     
+    case 'qualify': {
+      // Qualify node: send the question and wait for free-text reply
+      // AI classification happens when the user replies (in processFlowBuilderMessage)
+      console.log(`[FlowBuilder] 🧠 Qualify node: sending question, waiting for free-text reply`);
+      
+      let msg = currentNode.message_template ? replaceVars(currentNode.message_template) : currentNode.title;
+      
+      console.log(`[FlowBuilder] 📤 Sending qualify question: "${msg.substring(0, 80)}..."`);
+      const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, msg);
+      if (msgId) {
+        await supabase.from('wapi_messages').insert({
+          conversation_id: conv.id, message_id: msgId, from_me: true,
+          message_type: 'text', content: msg, status: 'sent',
+          timestamp: new Date().toISOString(), company_id: instance.company_id,
+        });
+      }
+      
+      // Update state to wait for reply
+      await supabase.from('flow_lead_state').update({
+        current_node_id: currentNode.id,
+        waiting_for_reply: true,
+        last_sent_at: new Date().toISOString(),
+      }).eq('id', state.id);
+      
+      await supabase.from('wapi_conversations').update({
+        bot_step: `flow_qualify_${currentNode.id}`,
+        last_message_at: new Date().toISOString(),
+        last_message_content: msg.substring(0, 100),
+        last_message_from_me: true,
+      }).eq('id', conv.id);
+      break;
+    }
+    
     default: {
       // Unknown node type, try to advance
       const nextEdge = allEdges.find(e => e.source_node_id === currentNode.id);
@@ -1278,6 +1444,7 @@ async function advanceFlowFromNode(
       }
       break;
     }
+
   }
 }
 
