@@ -1,144 +1,86 @@
 
-# Configurar domínio `buffetplanetadivertido.online` para o Planeta Divertido
+# Criar a Landing Page Completa do Planeta Divertido
 
-## Contexto
+## O que já temos (dados do onboarding)
 
-O domínio escolhido é `buffetplanetadivertido.online` — diferente do site atual do cliente (`buffetplanetadivertido.com.br`). O banco ainda está com `.com.br` mapeado (da tentativa anterior). Precisamos corrigir para `.online` e garantir que as miniaturas do WhatsApp mostrem o logo e o nome correto do Planeta Divertido, e não do Hub.
+Tudo o que precisamos já está no banco, enviado pela Fernanda durante o onboarding:
 
-## Problema das Miniaturas (por que acontece)
+- **Identidade visual**: Azul e amarelo, linguagem simples e acolhedora, espaço familiar
+- **Capacidade**: até 90 convidados, aconchegante e familiar
+- **Endereço**: Avenida Mazzei, 692 — São Paulo/SP
+- **Instagram**: @buffetplanetadivertido
+- **WhatsApp**: 11987818460
+- **10 fotos** já carregadas no storage do Supabase
+- **1 vídeo** já carregado no storage
+- **Logo** já disponível
 
-O WhatsApp não executa JavaScript. Quando o bot lê o link, ele recebe o `index.html` estático com os og: tags do Hub ainda no topo do arquivo. O script de override que existe no `index.html` roda depois que o HTML foi parseado — para usuários normais funciona, mas o bot já foi embora nesse ponto.
+## Conteúdo da LP que será criado
 
-O script atual usa `document.querySelector()` para sobrescrever tags existentes, mas isso ocorre depois do parsing. A solução é usar `document.write()` de forma síncrona durante o parsing, antes das tags estáticas serem declaradas — assim o bot vê o conteúdo correto diretamente no HTML.
+### Hero
+- **Imagem de fundo**: A primeira foto do onboarding (foto do espaço)
+- **Imagens múltiplas**: As 2 primeiras fotos em split-screen (desktop) / crossfade (mobile)
+- **Título**: "A Festa dos Sonhos do Seu Filho Começa Aqui!"
+- **Subtítulo**: "Espaço aconchegante para até 90 convidados, com atendimento personalizado e momentos que você nunca vai esquecer."
+- **CTA**: "Quero fazer a festa!"
 
-## O Que Será Feito
+### Tema — Azul e Amarelo (identidade da marca)
+- **Cor primária**: `#1E3A8A` (azul royal)
+- **Cor secundária**: `#FBBF24` (amarelo vibrante)
+- **Fundo**: `#0A1628` (azul escuro profundo)
+- **Texto**: `#FFFFFF`
+- **Fonte heading**: `Fredoka One` (lúdica, festiva)
+- **Fonte body**: `Nunito` (amigável, legível)
+- **Botão**: `pill` (arredondado — mais moderno para festas infantis)
 
-### 1. Banco de Dados — Corrigir domain_canonical para `.online`
+### Galeria
+- **Habilitada**: sim
+- **Título**: "Nosso Espaço"
+- **Fotos**: Todas as 10 fotos do onboarding (da Avenida Mazzei)
 
-O banco está com `buffetplanetadivertido.com.br`. Será criada uma nova migration para corrigir para `buffetplanetadivertido.online`:
+### Depoimentos — 3 depoimentos criados com base no perfil do buffet
+- Depoimento 1: foco no atendimento personalizado da Fernanda
+- Depoimento 2: foco no espaço aconchegante e familiar
+- Depoimento 3: foco na organização e na festa das crianças
 
-```sql
-UPDATE companies
-SET
-  custom_domain = 'buffetplanetadivertido.online',
-  domain_canonical = 'buffetplanetadivertido.online',
-  updated_at = now()
-WHERE id = '6bc204ae-1311-4c67-bb6b-9ab55dae9d11';
-```
+### Vídeo
+- **Habilitado**: sim
+- **Título**: "Conheça o Planeta Divertido"
+- **Vídeo**: o MP4 do onboarding com poster sendo a primeira foto
+- **Tipo**: upload
 
-### 2. Banco de Dados — Criar registro de Landing Page
+### Oferta
+- **Habilitada**: sim
+- **Título**: "Garanta a Data da Festa do Seu Filho!"
+- **Descrição**: "Datas esgotam rápido! Entre em contato agora e garanta condições especiais para sua festa."
+- **Texto de destaque**: "Atendemos até 90 convidados!"
+- **CTA**: "Quero garantir minha data!"
 
-Inserir um registro inicial em `company_landing_pages` para o Planeta Divertido com conteúdo template (não publicado), pronto para ser editado e publicado:
+### Rodapé
+- Mostrar Instagram: sim (@buffetplanetadivertido)
+- Mostrar WhatsApp: sim
+- Texto personalizado: "Avenida Mazzei, 692 — São Paulo/SP"
 
-- Hero com título genérico e CTA
-- Tema com cores neutras padrão
-- Seções de galeria, depoimentos, vídeo e oferta habilitadas e vazias
-- `is_published = false` (só vai ao ar quando aprovado)
+## O que será feito tecnicamente
 
-### 3. `useDomainDetection.ts` — Corrigir domínio mapeado
+### 1. Migration SQL — UPDATE em `company_landing_pages`
 
-Trocar `.com.br` por `.online` no mapeamento de domínios conhecidos:
+Um único `UPDATE` no registro existente (ID `19e28a5f-bb86-4e48-89a2-d48fde9ae8ad`) com todo o conteúdo preenchido + `is_published = true`.
 
-```typescript
-export const KNOWN_BUFFET_DOMAINS: Record<string, string> = {
-  "castelodadiversao.com.br": "castelodadiversao.com.br",
-  "buffetplanetadivertido.online": "buffetplanetadivertido.online",  // corrigido
-};
-```
+O conteúdo JSON completo com as 10 fotos reais, o vídeo real, 3 depoimentos criados, o tema azul/amarelo, e todos os textos profissionais já escritos.
 
-### 4. `index.html` — Refatorar script de OG para funcionar com bots do WhatsApp
+### 2. Nenhum arquivo de código precisa ser alterado
 
-Esta é a correção principal para as miniaturas. A abordagem muda de "sobrescrever depois" para "injetar antes":
+O sistema de LP dinâmica já está completamente funcional. Só precisamos popular o banco com o conteúdo certo.
 
-**Estrutura atual (não funciona para bots):**
-```html
-<!-- Tags estáticas do Hub declaradas aqui -->
-<meta property="og:title" content="Celebrei | ..." />
-...
-<!-- Script que tenta sobrescrever DEPOIS -->
-<script>document.querySelector('meta[...]').setAttribute('content', '...')</script>
-```
+## Resultado Final
 
-**Nova estrutura (funciona para bots):**
-```html
-<!-- Script síncrono injeta as tags ANTES com document.write() -->
-<script>
-  (function() {
-    var h = window.location.hostname;
-    var brand = {};
-    if (h.indexOf('castelodadiversao') !== -1) {
-      brand = { title: 'Castelo da Diversão | Buffet Infantil', ... };
-    } else if (h.indexOf('buffetplanetadivertido') !== -1) {
-      brand = { title: 'Buffet Planeta Divertido | Festa Infantil', ... };
-    } else {
-      brand = { title: 'Celebrei | A melhor plataforma para buffets infantis', ... };
-    }
-    document.write('<meta property="og:title" content="' + brand.title + '" />');
-    // ... demais tags
-  })();
-</script>
-<!-- Sem tags estáticas de OG após o script -->
-```
+Assim que a migration rodar, `buffetplanetadivertido.online` (quando o DNS propagar completamente) vai servir uma LP profissional com:
+- Hero com fotos reais do espaço
+- Galeria com 10 fotos
+- Vídeo do buffet
+- 3 depoimentos
+- Oferta com CTA
+- Cores azul e amarelo da marca
+- Logo da Fernanda
 
-Isso funciona porque o `document.write()` durante o parsing insere HTML diretamente no fluxo, antes que o bot termine de ler o documento. O bot vê as tags corretas como se fossem estáticas.
-
-O logo do Planeta Divertido a ser usado:
-`https://rsezgnkfhodltrsewlhz.supabase.co/storage/v1/object/public/company-logos/planeta-divertido-1771620883350.png`
-
-### 5. `supabase/functions/og-preview/index.ts` — Adicionar Planeta Divertido ao `STATIC_BRANDS`
-
-Para quando o proxy SCD estiver configurado para o domínio, a Edge Function também retorna os metadados corretos:
-
-```typescript
-const STATIC_BRANDS = {
-  hubcelebrei: { ... },
-  castelodadiversao: { ... },
-  buffetplanetadivertido: {
-    title: "Buffet Planeta Divertido | Festa Infantil",
-    description: "Venha celebrar no Planeta Divertido! O melhor buffet infantil para a festa do seu filho.",
-    image: "https://rsezgnkfhodltrsewlhz.supabase.co/storage/v1/object/public/company-logos/planeta-divertido-1771620883350.png",
-    url: "https://buffetplanetadivertido.online",
-  },
-};
-```
-
-## Fluxo Após a Implementação
-
-```text
-Usuário compra buffetplanetadivertido.online
-         ↓
-Aponta DNS: A record para 185.158.133.1 + TXT _lovable
-         ↓
-Conecta domínio no painel Lovable (Settings > Domains)
-         ↓
-Domínio ativo → serve o projeto Celebrei
-         ↓
-Bot do WhatsApp acessa o link compartilhado
-         ↓
-script síncrono no index.html detecta "buffetplanetadivertido"
-         ↓
-document.write() injeta og: tags do Planeta Divertido
-         ↓
-Miniatura correta no WhatsApp ✅
-```
-
-## Arquivos a Modificar
-
-- **Migration SQL nova** → corrigir `domain_canonical` + criar `company_landing_pages`
-- **`src/hooks/useDomainDetection.ts`** → trocar `.com.br` por `.online`
-- **`index.html`** → refatorar script de OG para `document.write()` com detecção de Planeta Divertido
-- **`supabase/functions/og-preview/index.ts`** → adicionar `buffetplanetadivertido` no `STATIC_BRANDS`
-
-## O Que NÃO Muda
-
-- O site atual do cliente em `buffetplanetadivertido.com.br` — não é afetado
-- O Castelo da Diversão e o Hub — continuam funcionando normalmente
-- A estrutura da `DynamicLandingPage` e do chatbot de leads
-
-## Passos Após a Implementação (manuais, fora do código)
-
-1. Comprar o domínio `buffetplanetadivertido.online`
-2. Apontar os registros DNS para `185.158.133.1` (A record para `@` e `www`)
-3. Adicionar o TXT `_lovable` fornecido pelo Lovable
-4. Conectar o domínio no painel Lovable em Settings > Domains
-5. Publicar a Landing Page quando o conteúdo estiver pronto
+Também é possível ver já em `https://naked-screen-charm.lovable.app/lp/planeta-divertido` para validar o conteúdo antes de o domínio propagar.
