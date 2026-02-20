@@ -239,6 +239,7 @@ export function useFlowBuilder(flowId?: string) {
     const titleMap: Record<string, string> = {
       message: 'Mensagem', question: 'Pergunta', action: 'Ação',
       condition: 'Condição', end: 'Fim', delay: 'Espera', timer: 'Timer',
+      qualify: 'Qualificação IA',
     };
 
     const nodeInsert: Record<string, any> = {
@@ -248,7 +249,7 @@ export function useFlowBuilder(flowId?: string) {
       position_x: Math.round(position.x),
       position_y: Math.round(position.y),
       display_order: nodes.length,
-      message_template: (type === 'message' || type === 'question' || type === 'timer') ? '' : null,
+      message_template: (type === 'message' || type === 'question' || type === 'timer' || type === 'qualify') ? '' : null,
     };
 
     if (type === 'delay') {
