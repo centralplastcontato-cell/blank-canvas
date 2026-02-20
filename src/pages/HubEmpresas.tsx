@@ -108,7 +108,17 @@ function HubEmpresasContent() {
       custom_domain: normalizeDomain(data.custom_domain),
       parent_id: hubCompany?.id || null,
     });
-    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); throw error; }
+    if (error) {
+      const isSlugDuplicate = error.message.includes("companies_slug_key") || error.message.includes("duplicate key");
+      toast({
+        title: isSlugDuplicate ? "Slug já em uso" : "Erro ao criar empresa",
+        description: isSlugDuplicate
+          ? `O identificador "${data.slug}" já está sendo usado por outra empresa. Escolha um slug diferente.`
+          : error.message,
+        variant: "destructive",
+      });
+      throw error;
+    }
     toast({ title: "Empresa criada" }); fetchCompanies();
   };
 
