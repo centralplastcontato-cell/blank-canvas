@@ -428,6 +428,7 @@ export type Database = {
       }
       company_landing_pages: {
         Row: {
+          benefits: Json | null
           company_id: string
           created_at: string
           footer: Json
@@ -442,6 +443,7 @@ export type Database = {
           video: Json
         }
         Insert: {
+          benefits?: Json | null
           company_id: string
           created_at?: string
           footer?: Json
@@ -456,6 +458,7 @@ export type Database = {
           video?: Json
         }
         Update: {
+          benefits?: Json | null
           company_id?: string
           created_at?: string
           footer?: Json

@@ -109,13 +109,13 @@ export function DLPOffer({ offer, theme, onCtaClick }: DLPOfferProps) {
                 O que está incluso
               </h3>
               <ul className="space-y-4">
-                {[
+                {(offer.benefits_list?.length ? offer.benefits_list : [
                   "Espaço completo e climatizado",
                   "Equipe de monitores profissionais",
                   "Decoração temática inclusa",
                   "Buffet completo para crianças e adultos",
                   "Brinquedos e diversão garantida",
-                ].map((benefit, index) => (
+                ]).map((benefit, index) => (
                   <motion.li
                     key={index}
                     initial={{ opacity: 0, x: -20 }}
