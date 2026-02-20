@@ -230,54 +230,74 @@ export function CompanyMembersSheet({ open, onOpenChange, company }: CompanyMemb
             <p className="text-sm text-muted-foreground text-center py-4">Nenhum membro vinculado.</p>
           ) : (
             <div className="space-y-2">
-              {members.map((member) => (
-                <div key={member.id} className="flex items-center gap-3 p-3 rounded-lg border bg-card">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">
-                      {member.profile?.full_name || "—"}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {member.profile?.email || member.user_id}
-                    </p>
+              {members.map((member) => {
+                const name = member.profile?.full_name || "?";
+                const initials = name
+                  .split(" ")
+                  .slice(0, 2)
+                  .map((n) => n[0])
+                  .join("")
+                  .toUpperCase();
+
+                return (
+                  <div key={member.id} className="flex items-center gap-3 p-3 rounded-lg border bg-card">
+                    {/* Avatar */}
+                    <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-primary font-semibold text-sm">
+                      {initials}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium leading-tight">
+                        {name}
+                      </p>
+                      <p className="text-xs text-muted-foreground leading-tight mt-0.5 break-all">
+                        {member.profile?.email || member.user_id}
+                      </p>
+                    </div>
+
+                    {/* Role + Delete stacked on mobile */}
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <Select
+                        value={member.role}
+                        onValueChange={(v) => handleUpdateRole(member.id, v as UserCompanyRole)}
+                      >
+                        <SelectTrigger className="w-[120px] h-7 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="owner">Proprietário</SelectItem>
+                          <SelectItem value="admin">Administrador</SelectItem>
+                          <SelectItem value="member">Membro</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 w-full justify-center">
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            Remover
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Remover membro?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {member.profile?.full_name} perderá acesso a esta empresa.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleRemoveMember(member.id)}>
+                              Remover
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </div>
-
-                  <Select
-                    value={member.role}
-                    onValueChange={(v) => handleUpdateRole(member.id, v as UserCompanyRole)}
-                  >
-                    <SelectTrigger className="w-[130px] h-8 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="owner">Proprietário</SelectItem>
-                      <SelectItem value="admin">Administrador</SelectItem>
-                      <SelectItem value="member">Membro</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Remover membro?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          {member.profile?.full_name} perderá acesso a esta empresa.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleRemoveMember(member.id)}>
-                          Remover
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
