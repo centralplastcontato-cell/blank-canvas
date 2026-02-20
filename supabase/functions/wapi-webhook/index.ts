@@ -1307,7 +1307,18 @@ async function processBotQualification(
 ) {
   const settings = await getBotSettings(supabase, instance.id);
   if (!settings) return;
-  
+
+  // ── SANDBOX: número-piloto sempre vai para o Flow Builder V2 ─────
+  const PILOT_PHONE = '15981121710';
+  const cleanPhoneCheck = contactPhone.replace(/\D/g, '').replace(/^55/, '');
+  const isPilotPhone = cleanPhoneCheck === PILOT_PHONE || contactPhone.replace(/\D/g, '').endsWith(PILOT_PHONE);
+  if (isPilotPhone) {
+    console.log(`[Bot] 🧪 SANDBOX: número-piloto (${contactPhone}) → forçando Flow Builder V2`);
+    await processFlowBuilderMessage(supabase, instance, conv, content, contactPhone, contactName);
+    return;
+  }
+  // ─────────────────────────────────────────────────────────────────
+
   // Check if Flow Builder mode is enabled — delegate to flow processor
   if (settings.use_flow_builder) {
     console.log(`[Bot] Flow Builder mode enabled for instance ${instance.id}, delegating...`);
