@@ -223,10 +223,25 @@ export function FlowNodeComponent({
           </div>
         )}
 
+        {/* Qualify AI badge */}
+        {node.node_type === 'qualify' && (
+          <div className="inline-flex items-center gap-1 px-2 py-1 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 rounded text-xs">
+            <Brain className="w-3 h-3" />
+            Resposta livre → IA classifica
+          </div>
+        )}
+
         {/* Quick reply options - each with its own connection handle */}
         {node.options && node.options.length > 0 && (
           <div className="space-y-1 pt-2 border-t relative">
-            <span className="text-xs text-muted-foreground">Opções:</span>
+            {node.node_type === 'qualify' ? (
+              <div className="flex items-center gap-1 mb-1">
+                <Brain className="w-3 h-3 text-violet-500" />
+                <span className="text-xs text-violet-600 dark:text-violet-400 font-medium">Caminhos IA:</span>
+              </div>
+            ) : (
+              <span className="text-xs text-muted-foreground">Opções:</span>
+            )}
             {/* Sort options by display_order before rendering */}
             {[...node.options]
               .sort((a, b) => a.display_order - b.display_order)
@@ -235,7 +250,12 @@ export function FlowNodeComponent({
                 key={option.id}
                 data-option-id={option.id}
                 data-option-index={index}
-                className="flex items-center gap-2 text-sm bg-primary/10 rounded px-2 py-1.5 relative"
+                className={cn(
+                  "flex items-center gap-2 text-sm rounded px-2 py-1.5 relative",
+                  node.node_type === 'qualify' 
+                    ? "bg-violet-100 dark:bg-violet-900/30" 
+                    : "bg-primary/10"
+                )}
               >
                 <span className="flex-1 leading-tight">{option.label}</span>
                 {/* Connection handle for this option - centered vertically with the option */}
@@ -244,13 +264,15 @@ export function FlowNodeComponent({
                     "node-handle absolute -right-5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-2 bg-background flex items-center justify-center cursor-crosshair transition-all z-20",
                     isConnecting 
                       ? "border-primary bg-primary/20 scale-110" 
-                      : "border-green-500 hover:border-green-600 hover:scale-110 hover:bg-green-500/20"
+                      : node.node_type === 'qualify'
+                        ? "border-violet-500 hover:border-violet-600 hover:scale-110 hover:bg-violet-500/20"
+                        : "border-green-500 hover:border-green-600 hover:scale-110 hover:bg-green-500/20"
                   )}
                   onClick={(e) => handleOptionConnectionClick(e, option.id)}
                   onTouchEnd={(e) => handleOptionConnectionClick(e, option.id)}
-                  title="Conectar esta opção a outra etapa"
+                  title={node.node_type === 'qualify' ? "Caminho IA para esta opção" : "Conectar esta opção a outra etapa"}
                 >
-                  <ArrowRight className="w-3 h-3 text-green-600" />
+                  <ArrowRight className={cn("w-3 h-3", node.node_type === 'qualify' ? "text-violet-600" : "text-green-600")} />
                 </div>
               </div>
             ))}
