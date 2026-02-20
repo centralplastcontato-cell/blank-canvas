@@ -7,41 +7,69 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     
-    <!-- Primary Meta Tags -->
-    <title>Celebrei | A melhor plataforma para buffets infantis</title>
-    <meta name="description" content="Plataforma completa para buffets infantis. Automatize seu atendimento, capture leads e aumente suas vendas com a Celebrei." />
-    <meta name="keywords" content="buffet infantil, plataforma buffet, CRM buffet, automação WhatsApp, Celebrei, gestão de leads" />
-    <meta name="author" content="Celebrei" />
-    <meta name="robots" content="index, follow" />
-    
-    <!-- Canonical URL -->
-    <link rel="canonical" href="https://hubcelebrei.com.br" />
-    
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://hubcelebrei.com.br" />
-    <meta property="og:title" content="Celebrei | A melhor plataforma para buffets infantis" />
-    <meta property="og:description" content="Plataforma completa para buffets infantis. Automatize seu atendimento, capture leads e aumente suas vendas." />
-    <meta property="og:image" content="https://hubcelebrei.com.br/og-para-buffets.jpg" />
-    <meta property="og:image:secure_url" content="https://hubcelebrei.com.br/og-para-buffets.jpg" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:type" content="image/jpeg" />
-    <meta property="og:image:alt" content="Celebrei - A melhor plataforma para buffets infantis" />
-    <meta property="og:locale" content="pt_BR" />
-    <meta property="og:site_name" content="Celebrei" />
+    <!-- Dynamic OG tags: injected synchronously so bots (WhatsApp, Facebook, etc.) see correct metadata -->
+    <script>
+      (function() {
+        var h = window.location.hostname;
+        var brand;
 
-    <!-- Twitter -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:url" content="https://hubcelebrei.com.br" />
-    <meta name="twitter:title" content="Celebrei | A melhor plataforma para buffets infantis" />
-    <meta name="twitter:description" content="Plataforma completa para buffets infantis. Automatize seu atendimento, capture leads e aumente suas vendas." />
-    <meta name="twitter:image" content="https://hubcelebrei.com.br/og-para-buffets.jpg" />
-    
-    <!-- Theme Color -->
-    <meta name="theme-color" content="#7c3aed" />
-    <meta name="msapplication-TileColor" content="#7c3aed" />
-    
+        if (h.indexOf('buffetplanetadivertido') !== -1) {
+          brand = {
+            title: 'Buffet Planeta Divertido | Festa Infantil',
+            desc: 'Venha celebrar no Planeta Divertido! O melhor buffet infantil para a festa inesquecível do seu filho.',
+            img: 'https://rsezgnkfhodltrsewlhz.supabase.co/storage/v1/object/public/company-logos/planeta-divertido-1771620883350.png',
+            url: 'https://buffetplanetadivertido.online',
+            site: 'Buffet Planeta Divertido',
+            author: 'Buffet Planeta Divertido'
+          };
+        } else if (h.indexOf('castelodadiversao') !== -1) {
+          brand = {
+            title: 'Castelo da Diversão | Buffet Infantil',
+            desc: 'O melhor buffet infantil para a festa do seu filho! Conheça nossos pacotes e agende uma visita.',
+            img: 'https://www.castelodadiversao.online/og-image.jpg',
+            url: 'https://www.castelodadiversao.online',
+            site: 'Castelo da Diversão',
+            author: 'Castelo da Diversão'
+          };
+        } else {
+          brand = {
+            title: 'Celebrei | A melhor plataforma para buffets infantis',
+            desc: 'Plataforma completa para buffets infantis. Automatize seu atendimento, capture leads e aumente suas vendas com a Celebrei.',
+            img: 'https://hubcelebrei.com.br/og-para-buffets.jpg',
+            url: 'https://hubcelebrei.com.br',
+            site: 'Celebrei',
+            author: 'Celebrei'
+          };
+        }
+
+        document.write('<title>' + brand.title + '<\/title>');
+        document.write('<meta name="description" content="' + brand.desc + '" \/>');
+        document.write('<meta name="author" content="' + brand.author + '" \/>');
+        document.write('<meta name="robots" content="index, follow" \/>');
+        document.write('<link rel="canonical" href="' + brand.url + '" \/>');
+        document.write('<meta property="og:type" content="website" \/>');
+        document.write('<meta property="og:url" content="' + brand.url + '" \/>');
+        document.write('<meta property="og:title" content="' + brand.title + '" \/>');
+        document.write('<meta property="og:description" content="' + brand.desc + '" \/>');
+        document.write('<meta property="og:image" content="' + brand.img + '" \/>');
+        document.write('<meta property="og:image:secure_url" content="' + brand.img + '" \/>');
+        document.write('<meta property="og:image:width" content="1200" \/>');
+        document.write('<meta property="og:image:height" content="630" \/>');
+        document.write('<meta property="og:image:type" content="image\/jpeg" \/>');
+        document.write('<meta property="og:image:alt" content="' + brand.title + '" \/>');
+        document.write('<meta property="og:locale" content="pt_BR" \/>');
+        document.write('<meta property="og:site_name" content="' + brand.site + '" \/>');
+        document.write('<meta name="twitter:card" content="summary_large_image" \/>');
+        document.write('<meta name="twitter:url" content="' + brand.url + '" \/>');
+        document.write('<meta name="twitter:title" content="' + brand.title + '" \/>');
+        document.write('<meta name="twitter:description" content="' + brand.desc + '" \/>');
+        document.write('<meta name="twitter:image" content="' + brand.img + '" \/>');
+        document.write('<meta name="keywords" content="buffet infantil, plataforma buffet, CRM buffet, automação WhatsApp, Celebrei, gestão de leads" \/>');
+        document.write('<meta name="theme-color" content="#7c3aed" \/>');
+        document.write('<meta name="msapplication-TileColor" content="#7c3aed" \/>');
+      })();
+    </script>
+
     <!-- Preconnect to external resources -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -49,41 +77,6 @@
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/favicon.png" />
-
-    <!-- Domain-based OG override (runs before React) -->
-    <script>
-      (function() {
-        var h = window.location.hostname;
-        if (h.indexOf('castelodadiversao') !== -1) {
-          var t = 'Castelo da Diversão | Buffet Infantil';
-          var d = 'O melhor buffet infantil para a festa do seu filho! Conheça nossos pacotes e agende uma visita.';
-          var img = 'https://www.castelodadiversao.online/og-image.jpg';
-          var u = 'https://www.castelodadiversao.online';
-          document.title = t;
-          var map = {
-            'meta[property="og:title"]': t,
-            'meta[property="og:description"]': d,
-            'meta[property="og:image"]': img,
-            'meta[property="og:image:secure_url"]': img,
-            'meta[property="og:image:alt"]': t,
-            'meta[property="og:url"]': u,
-            'meta[property="og:site_name"]': 'Castelo da Diversão',
-            'meta[name="twitter:title"]': t,
-            'meta[name="twitter:description"]': d,
-            'meta[name="twitter:image"]': img,
-            'meta[name="twitter:url"]': u,
-            'meta[name="description"]': d,
-            'meta[name="author"]': 'Castelo da Diversão'
-          };
-          for (var sel in map) {
-            var el = document.querySelector(sel);
-            if (el) el.setAttribute('content', map[sel]);
-          }
-          var canon = document.querySelector('link[rel="canonical"]');
-          if (canon) canon.setAttribute('href', u);
-        }
-      })();
-    </script>
   </head>
 
   <body>

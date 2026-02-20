@@ -16,7 +16,7 @@ const HUB_DOMAINS_CANONICAL = [
  */
 export const KNOWN_BUFFET_DOMAINS: Record<string, string> = {
   "castelodadiversao.com.br": "castelodadiversao.com.br",
-  "buffetplanetadivertido.com.br": "buffetplanetadivertido.com.br",
+  "buffetplanetadivertido.online": "buffetplanetadivertido.online",
 };
 
 /**
