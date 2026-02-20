@@ -643,21 +643,21 @@ function OnboardingDetail({ record }: { record: OnboardingRecord; company?: Comp
                 Baixar todas
               </Button>
             </div>
-            <div className="grid grid-cols-4 gap-1.5">
+            <div className="grid grid-cols-3 gap-2">
               {record.photo_urls.map((url, i) => (
-                <div key={i} className="relative group aspect-square">
+                <div key={i} className="relative" style={{ paddingBottom: "100%" }}>
                   <img
                     src={url}
                     alt={`Foto ${i + 1}`}
-                    className="w-full h-full rounded-lg object-cover bg-muted cursor-pointer"
+                    className="absolute inset-0 w-full h-full rounded-xl object-cover bg-muted cursor-pointer"
                     onClick={() => window.open(url, "_blank")}
                   />
                   <button
-                    className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute bottom-1.5 right-1.5 h-7 w-7 flex items-center justify-center rounded-lg bg-black/60 backdrop-blur-sm border border-white/20"
                     onClick={(e) => { e.stopPropagation(); downloadFile(url, `${buffetName}-foto-${i + 1}.jpg`); }}
                     title="Baixar foto"
                   >
-                    <Download className="h-4 w-4 text-white" />
+                    <Download className="h-3.5 w-3.5 text-white" />
                   </button>
                 </div>
               ))}
