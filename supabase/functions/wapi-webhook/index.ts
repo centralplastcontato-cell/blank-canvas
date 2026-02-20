@@ -681,6 +681,28 @@ Se não conseguir classificar com certeza, retorne a opção mais próxima.`;
     
     // Extract data if needed (for question/action nodes)
     if (currentNode.extract_field) {
+      const nameFields = ['nome', 'name', 'nome_lead', 'contact_name'];
+      if (nameFields.includes(currentNode.extract_field)) {
+        const nameValidation = validateName(content);
+        if (!nameValidation.valid) {
+          const retryMsg = `Hmm, não consegui entender seu nome 🤔 Por favor, digite apenas seu *nome*:`;
+          const retryMsgId = `bot_${Date.now()}_retry`;
+          await sendBotMessage(instance.instance_id, contactPhone, retryMsg, instance.api_token);
+          await supabase.from('wapi_messages').insert({
+            conversation_id: conv.id,
+            message_id: retryMsgId,
+            content: retryMsg,
+            message_type: 'text',
+            from_me: true,
+            timestamp: new Date().toISOString(),
+            status: 'sent',
+          });
+          console.log(`[FlowBuilder] ❌ Name validation failed for "${content}" — re-asking`);
+          return;
+        }
+        content = nameValidation.value!;
+        console.log(`[FlowBuilder] ✅ Name validated & normalized: "${content}"`);
+      }
       collectedData[currentNode.extract_field] = content.trim();
       console.log(`[FlowBuilder] 📝 Extracted (raw): ${currentNode.extract_field} = "${content.trim()}"`);
     }
