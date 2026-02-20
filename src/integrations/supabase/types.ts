@@ -3128,6 +3128,7 @@ export type Database = {
       get_landing_page_by_domain: {
         Args: { _domain: string }
         Returns: {
+          benefits: Json
           company_id: string
           company_logo: string
           company_name: string
@@ -3144,6 +3145,7 @@ export type Database = {
       get_landing_page_by_slug: {
         Args: { _slug: string }
         Returns: {
+          benefits: Json
           company_id: string
           company_logo: string
           company_name: string
