@@ -703,12 +703,29 @@ async function advanceFlowFromNode(
   console.log(`[FlowBuilder] Data so far: ${JSON.stringify(data)}`);
   
   // Replace variables in message template
+  // Supports both {{key}} and {key}, plus aliases for template-friendly names
   const replaceVars = (text: string) => {
+    const aliasMap: Record<string, string> = {
+      nome: String(data.customer_name || contactName || contactPhone || ''),
+      mes: String(data.event_date || ''),
+      convidados: String(data.guest_count || ''),
+      dia: String(data.visit_day || ''),
+    };
+
     let result = text;
-    for (const [key, value] of Object.entries(data)) {
-      result = result.replace(new RegExp(`\\{${key}\\}`, 'gi'), value);
+
+    // Merge collected data + aliases (aliases take precedence for template keys)
+    const allVars: Record<string, string> = { ...data };
+    for (const [k, v] of Object.entries(aliasMap)) {
+      allVars[k] = v;
     }
-    result = result.replace(/\{nome\}/gi, data.nome || contactName || contactPhone);
+
+    // First replace {{key}} (double braces), then {key} (single braces)
+    for (const [key, value] of Object.entries(allVars)) {
+      const safeValue = String(value ?? '');
+      result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'gi'), safeValue);
+      result = result.replace(new RegExp(`\\{${key}\\}`, 'gi'), safeValue);
+    }
     return result;
   };
   
