@@ -144,12 +144,12 @@ export default function Onboarding() {
     }
   };
 
-  const handleNext = async () => {
+  const handleNext = () => {
     if (!validateStep()) return;
     const nextStep = step + 1;
-    await saveProgress(nextStep);
     setStep(nextStep);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    saveProgress(nextStep); // fire-and-forget, sem bloquear UI
   };
 
   const handleBack = () => {
