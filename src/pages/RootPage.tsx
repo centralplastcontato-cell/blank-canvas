@@ -1,7 +1,8 @@
-import { getCanonicalHost, isHubDomain, isPreviewDomain } from "@/hooks/useDomainDetection";
+import { getCanonicalHost, isHubDomain, isPreviewDomain, getKnownBuffetDomain } from "@/hooks/useDomainDetection";
 import LandingPage from "./LandingPage";
 import HubLandingPage from "./HubLandingPage";
 import DynamicLandingPage from "./DynamicLandingPage";
+import NotFound from "./NotFound";
 
 /**
  * Routes the root "/" path based on domain:
@@ -24,19 +25,22 @@ export default function RootPage() {
     return <HubLandingPage />;
   }
 
-  // Castelo da Diversão — .online stays on campaign LP, .com.br uses institutional DLP
-  if (canonical === "castelodadiversao.online") {
-    return <LandingPage />;
-  }
-
-  if (canonical === "castelodadiversao.com.br") {
-    return <DynamicLandingPage domain="castelodadiversao.com.br" />;
-  }
-
+  // Preview / localhost → Castelo campaign LP (dev default)
   if (isPreviewDomain()) {
     return <LandingPage />;
   }
 
-  // Custom domain → dynamic landing page (pass raw hostname, RPC normalizes)
-  return <DynamicLandingPage domain={window.location.hostname} />;
+  // Castelo da Diversão — .online = campaign LP, .com.br = institutional DLP
+  if (canonical === "castelodadiversao.online") {
+    return <LandingPage />;
+  }
+
+  // Known buffet domains — explicitly mapped, prevents LP crossover
+  const buffetDomain = getKnownBuffetDomain();
+  if (buffetDomain) {
+    return <DynamicLandingPage domain={buffetDomain} />;
+  }
+
+  // Unknown domain → safe 404 (no risk of showing the wrong buffet's LP)
+  return <NotFound />;
 }
