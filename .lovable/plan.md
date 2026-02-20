@@ -1,69 +1,55 @@
 
-## Consolidar Qualificação IA no nó Pergunta
+## Problema Identificado
 
-### O Problema
+O bot aceita qualquer texto como resposta para o nó de **nome** no Flow Builder, sem validar se o texto digitado é realmente um nome. Quando o usuário digita "QUERO UM ORÇAMENTO ?", o sistema salva isso como o nome do lead e usa nos templates seguintes, resultando em mensagens absurdas como *"QUERO UM ORÇAMENTO ?, você já é nosso cliente..."*.
 
-Hoje existem duas formas paralelas de fazer a mesma coisa:
+### Causa Raiz
 
-1. **Nó "Qualificação IA"** (`qualify`): usa OpenAI para classificar resposta livre → salva o label legível no CRM
-2. **Toggle "Interpretação IA"** no nó Pergunta (`question`): faz apenas correspondência de texto simples (não chama LLM de verdade)
+No fluxo legado (`processBotQualification`), a função `validateName()` valida e rejeita entradas inválidas. No **Flow Builder** (`processFlowBuilderMessage`), nós do tipo `question` sem opções **salvam qualquer texto imediatamente** (linha 684) sem nenhuma validação de conteúdo.
 
-Ou seja, o `allow_ai_interpretation` no nó Pergunta **não é IA de verdade** — é só um `includes()`. O nó `qualify` é o único que realmente chama o GPT-4o-mini.
+### Solução
 
-### Solução Proposta
+Adicionar validação de nome no processamento de nós `question` do Flow Builder quando o `extract_field` for `nome` (ou variações como `name`, `nome_lead`). A validação deve:
 
-Unificar tudo no nó **Pergunta** já existente: quando o toggle "Interpretação IA" estiver ativado, o comportamento passa a ser idêntico ao do nó Qualificação IA (chamada real ao LLM, salva o label, usa contexto). O nó `qualify` separado deixa de existir na toolbar.
+1. Detectar se o nó coleta um campo de nome
+2. Rejeitar entradas que são frases/pedidos (contêm palavras como "quero", "orçamento", "olá", "preço", etc.)
+3. Rejeitar se contém símbolos não-nome (`?`, `!`, números)
+4. Re-perguntar com mensagem amigável quando inválido (sem avançar o flow)
 
 ---
 
-### Arquitetura Final
+### Mudanças Técnicas
 
-```text
-Nó: Pergunta (question)
-│
-├── [toggle OFF] Interpretação IA desativada
-│   └── Aceita apenas número/texto exato das opções
-│
-└── [toggle ON] Interpretação IA ativada  ← MESMA lógica do qualify atual
-    ├── Chama GPT-4o-mini para classificar a resposta livre
-    ├── Campo: "Dica de contexto para a IA" (action_config.qualify_context)
-    ├── Salva o label legível no CRM (extract_field)
-    └── Roteia pelo handle da opção identificada
+**Arquivo único:** `supabase/functions/wapi-webhook/index.ts`
+
+**Onde:** No bloco `processFlowBuilderMessage`, logo após a linha que detecta o `extract_field` do nó (linha ~683), antes de salvar o dado.
+
+**Lógica a inserir:**
+
+```typescript
+// Validação de nome para campos de nome no Flow Builder
+if (currentNode.extract_field && 
+    ['nome', 'name', 'nome_lead', 'contact_name'].includes(currentNode.extract_field)) {
+  const nameValidation = validateName(content);
+  if (!nameValidation.valid) {
+    // Re-enviar a pergunta com mensagem de erro
+    const retryMsg = nameValidation.error || 'Por favor, digite apenas seu nome:';
+    const retryMsgId = await sendBotMessage(...);
+    // Salvar mensagem no banco
+    // NÃO avançar o estado — retornar sem salvar nem mudar o node
+    return;
+  }
+  // Se válido, usar o nome capitalizado (não o texto cru)
+  content = nameValidation.value!; // sobrescreve o content para salvar limpo
+}
 ```
-
----
-
-### Mudanças Necessárias
-
-**1. Webhook (`wapi-webhook/index.ts`)**
-
-A lógica do bloco `qualify` (linhas 553–678) precisa ser replicada dentro do bloco `question` quando `allow_ai_interpretation === true`. Em vez de só fazer `includes()`, vai chamar o OpenAI com as opções e o contexto configurado, igual ao qualify.
-
-**2. Editor do nó (`FlowNodeEditor.tsx`)**
-
-Quando `allow_ai_interpretation` estiver ativado em um nó Pergunta, exibir:
-- O campo "Dica de contexto para a IA" (`action_config.qualify_context`) — hoje só aparece em nós `qualify`
-- Badge informativa igual à do qualify
-
-**3. Visual do canvas (`FlowNodeComponent.tsx`)**
-
-Mostrar o badge roxo "Resposta livre → IA classifica" em nós do tipo `question` que tenham `allow_ai_interpretation: true` (hoje só aparece em nós `qualify`).
-
-**4. Toolbar (`FlowToolbar.tsx`)**
-
-Remover o botão "Qualificação IA" da lista de nós disponíveis para adicionar. O tipo `qualify` fica no código para não quebrar nós existentes, mas não será mais oferecido como novo nó.
-
-**5. Migração de banco de dados**
-
-Converter os nós `qualify` existentes no fluxo para `question` com `allow_ai_interpretation = true`, mantendo todas as opções, `extract_field` e `action_config` (qualify_context). Isso inclui os dois nós qualify que existem hoje no fluxo:
-- `a1b2c3d4-...` → "Qualificação – Turno da Visita"
-- `c49b9640-...` → "Qualificação – Turno da Visita (cópia)"
 
 ---
 
 ### Resultado
 
-- **Menos complexidade**: 1 tipo de nó no lugar de 2
-- **Mais consistente**: o toggle "Interpretação IA" passa a funcionar de verdade em qualquer nó Pergunta
-- **Nós existentes migrados** automaticamente via migration SQL
-- **Backward compatible**: o código ainda suporta nós `qualify` antigos caso existam em outros fluxos
+- "QUERO UM ORÇAMENTO ?" → bot responde "Hmm, não consegui entender seu nome 🤔 Por favor, digite apenas seu *nome*:"
+- "João Silva" → aceito normalmente
+- "meu nome é Ana" → extraído e capitalizado como "Ana"
+
+Nenhuma mudança de banco de dados necessária. Deploy do edge function `wapi-webhook` após a edição.
