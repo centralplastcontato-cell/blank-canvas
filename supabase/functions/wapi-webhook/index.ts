@@ -683,6 +683,7 @@ Se não conseguir classificar com certeza, retorne a opção mais próxima.`;
     if (currentNode.extract_field) {
       const nameFields = ['nome', 'name', 'nome_lead', 'contact_name'];
       if (nameFields.includes(currentNode.extract_field)) {
+        // Name-specific validation
         const nameValidation = validateName(content);
         if (!nameValidation.valid) {
           const retryMsg = `Hmm, não consegui entender seu nome 🤔 Por favor, digite apenas seu *nome*:`;
@@ -702,9 +703,28 @@ Se não conseguir classificar com certeza, retorne a opção mais próxima.`;
         }
         content = nameValidation.value!;
         console.log(`[FlowBuilder] ✅ Name validated & normalized: "${content}"`);
+      } else {
+        // Generic free-text validation for all other open-ended fields
+        const freeTextValidation = validateFreeText(content);
+        if (!freeTextValidation.valid) {
+          const retryMsg = freeTextValidation.error || 'Por favor, responda a pergunta anterior 😊';
+          const retryMsgId = `bot_${Date.now()}_retry`;
+          await sendBotMessage(instance.instance_id, contactPhone, retryMsg, instance.api_token);
+          await supabase.from('wapi_messages').insert({
+            conversation_id: conv.id,
+            message_id: retryMsgId,
+            content: retryMsg,
+            message_type: 'text',
+            from_me: true,
+            timestamp: new Date().toISOString(),
+            status: 'sent',
+          });
+          console.log(`[FlowBuilder] ❌ Free-text validation failed for field "${currentNode.extract_field}": "${content}" — re-asking`);
+          return;
+        }
       }
       collectedData[currentNode.extract_field] = content.trim();
-      console.log(`[FlowBuilder] 📝 Extracted (raw): ${currentNode.extract_field} = "${content.trim()}"`);
+      console.log(`[FlowBuilder] 📝 Extracted: ${currentNode.extract_field} = "${content.trim()}"`);
     }
     
     // Update collected_data
@@ -895,6 +915,31 @@ Se não conseguir classificar com certeza, retorne a opção mais próxima.`;
     // Advance to target node
     await advanceFlowFromNode(supabase, instance, conv, state, targetNode, nodes, edges, contactPhone, contactName, collectedData);
   }
+}
+
+// Generic free-text validation: rejects blank/very short answers and obvious non-answers
+function validateFreeText(input: string): { valid: boolean; error?: string } {
+  const text = input.trim();
+  if (text.length <= 1) {
+    return { valid: false, error: 'Por favor, digite uma resposta válida 😊' };
+  }
+  const nonAnswerWords = [
+    'oi', 'olá', 'ola', 'hey', 'hello',
+    'bom dia', 'boa tarde', 'boa noite',
+    'não sei', 'nao sei', 'talvez', 'sei lá', 'sei la',
+    'quero', 'queria', 'gostaria', 'preciso',
+    'sim', 'não', 'nao', 'ok', 'tá', 'ta', 'blz',
+    'ajuda', 'atendente', 'humano',
+  ];
+  const lower = text.toLowerCase();
+  const matched = nonAnswerWords.find(w => {
+    const regex = new RegExp(`^${w}$`, 'i');
+    return regex.test(lower);
+  });
+  if (matched) {
+    return { valid: false, error: `Não entendi sua resposta 🤔 Por favor, responda a pergunta anterior:` };
+  }
+  return { valid: true };
 }
 
 
