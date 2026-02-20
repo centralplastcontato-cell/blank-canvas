@@ -504,73 +504,89 @@ function OnboardingEditForm({ record, onSave, onCancel }: { record: OnboardingRe
 
 // ======= Detail View =======
 function OnboardingDetail({ record }: { record: OnboardingRecord; company?: CompanyInfo }) {
-  const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
-    <div className="space-y-2">
-      <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">{title}</h3>
-      {children}
+  const Section = ({ emoji, title, children }: { emoji: string; title: string; children: React.ReactNode }) => (
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="flex items-center gap-2 px-4 py-3 bg-muted/50 border-b border-border">
+        <span className="text-base">{emoji}</span>
+        <h3 className="text-xs font-bold text-foreground uppercase tracking-widest">{title}</h3>
+      </div>
+      <div className="divide-y divide-border/60">{children}</div>
     </div>
   );
 
   const InfoRow = ({ label, value }: { label: string; value: string | null | undefined }) => {
     if (!value) return null;
     return (
-      <div className="flex justify-between text-sm py-1">
-        <span className="text-muted-foreground">{label}</span>
-        <span className="text-foreground font-medium text-right max-w-[60%]">{value}</span>
+      <div className="flex items-start gap-3 px-4 py-2.5">
+        <span className="text-xs text-muted-foreground w-32 shrink-0 pt-0.5">{label}</span>
+        <span className="text-sm text-foreground font-medium flex-1 text-right">{value}</span>
       </div>
     );
   };
 
+  const hasAnyPaidTraffic = record.uses_paid_traffic !== null || record.monthly_investment || record.cost_per_lead || record.current_agency;
+
   return (
-    <div className="p-4 space-y-5">
-      <Section title="🏰 Identidade">
-        <InfoRow label="Nome" value={record.buffet_name} />
+    <div className="p-4 space-y-3 pb-8">
+
+      {/* Identidade */}
+      <Section emoji="🏰" title="Identidade">
+        <InfoRow label="Nome do Buffet" value={record.buffet_name} />
         <InfoRow label="Cidade" value={record.city} />
         <InfoRow label="Estado" value={record.state} />
         <InfoRow label="Endereço" value={record.full_address} />
         <InfoRow label="Instagram" value={record.instagram} />
         <InfoRow label="Site" value={record.website} />
       </Section>
-      <Separator />
-      <Section title="👤 Contato">
+
+      {/* Contato */}
+      <Section emoji="👤" title="Contato">
         <InfoRow label="Nome" value={record.contact_name} />
         <InfoRow label="Cargo" value={record.contact_role} />
         <InfoRow label="Telefone" value={record.contact_phone} />
         <InfoRow label="E-mail" value={record.contact_email} />
         <InfoRow label="Contato secundário" value={record.secondary_contact} />
       </Section>
-      <Separator />
-      <Section title="📊 Operação">
+
+      {/* Operação */}
+      <Section emoji="📊" title="Operação">
         <InfoRow label="Volume de leads" value={record.lead_volume} />
         <InfoRow label="Fontes" value={record.lead_sources?.join(", ")} />
         <InfoRow label="Atendimento" value={record.current_service_method} />
       </Section>
-      <Separator />
-      <Section title="📢 Tráfego Pago">
-        <InfoRow label="Investe?" value={record.uses_paid_traffic ? "Sim" : "Não"} />
-        <InfoRow label="Investimento mensal" value={record.monthly_investment} />
-        <InfoRow label="Custo por lead" value={record.cost_per_lead} />
-        <InfoRow label="Agência" value={record.current_agency} />
-      </Section>
-      <Separator />
-      <Section title="💬 WhatsApp">
+
+      {/* Tráfego Pago */}
+      {hasAnyPaidTraffic && (
+        <Section emoji="📢" title="Tráfego Pago">
+          {record.uses_paid_traffic !== null && (
+            <InfoRow label="Investe?" value={record.uses_paid_traffic ? "✅ Sim" : "❌ Não"} />
+          )}
+          <InfoRow label="Invest. mensal" value={record.monthly_investment} />
+          <InfoRow label="Custo por lead" value={record.cost_per_lead} />
+          <InfoRow label="Agência" value={record.current_agency} />
+        </Section>
+      )}
+
+      {/* WhatsApp */}
+      <Section emoji="💬" title="WhatsApp">
         <InfoRow label="Números" value={record.whatsapp_numbers?.filter(Boolean).join(", ")} />
         <InfoRow label="Atendentes" value={record.attendants_count?.toString()} />
         <InfoRow label="Horário" value={record.service_hours} />
-        <InfoRow label="Múltiplas unidades" value={record.multiple_units ? "Sim" : "Não"} />
+        <InfoRow label="Múltiplas unidades" value={record.multiple_units ? "✅ Sim" : "❌ Não"} />
       </Section>
-      <Separator />
-      <Section title="🎨 Marca">
-        {record.logo_url && (
-          <div className="mb-2">
-            <span className="text-sm text-muted-foreground">Logo:</span>
-            <img src={record.logo_url} alt="Logo" className="h-16 w-16 rounded-xl object-contain bg-muted mt-1" />
+
+      {/* Marca */}
+      <Section emoji="🎨" title="Marca">
+        {record.logo_url ? (
+          <div className="px-4 py-3 flex items-center gap-3">
+            <span className="text-xs text-muted-foreground w-32 shrink-0">Logo</span>
+            <img src={record.logo_url} alt="Logo" className="h-14 w-14 rounded-xl object-contain bg-muted border border-border" />
           </div>
-        )}
+        ) : null}
         {record.photo_urls && record.photo_urls.length > 0 && (
-          <div className="mb-2">
-            <span className="text-sm text-muted-foreground">Fotos ({record.photo_urls.length}):</span>
-            <div className="grid grid-cols-4 gap-1 mt-1">
+          <div className="px-4 py-3">
+            <p className="text-xs text-muted-foreground mb-2">Fotos ({record.photo_urls.length})</p>
+            <div className="grid grid-cols-4 gap-1.5">
               {record.photo_urls.map((url, i) => (
                 <img key={i} src={url} alt={`Foto ${i + 1}`} className="aspect-square rounded-lg object-cover bg-muted" />
               ))}
@@ -580,13 +596,20 @@ function OnboardingDetail({ record }: { record: OnboardingRecord; company?: Comp
         {record.video_urls && record.video_urls.length > 0 && (
           <InfoRow label="Vídeos" value={`${record.video_urls.length} enviado(s)`} />
         )}
-        <InfoRow label="Observações visuais" value={record.brand_notes} />
+        <InfoRow label="Observações" value={record.brand_notes} />
       </Section>
-      <Separator />
-      <Section title="🎯 Objetivos">
-        <InfoRow label="Principal objetivo" value={record.main_goal ? (GOAL_MAP[record.main_goal] || record.main_goal) : null} />
-        <InfoRow label="Observações" value={record.additional_notes} />
+
+      {/* Objetivos */}
+      <Section emoji="🎯" title="Objetivos">
+        <InfoRow label="Objetivo principal" value={record.main_goal ? (GOAL_MAP[record.main_goal] || record.main_goal) : null} />
+        {record.additional_notes && (
+          <div className="px-4 py-2.5">
+            <p className="text-xs text-muted-foreground mb-1">Observações gerais</p>
+            <p className="text-sm text-foreground">{record.additional_notes}</p>
+          </div>
+        )}
       </Section>
+
     </div>
   );
 }
