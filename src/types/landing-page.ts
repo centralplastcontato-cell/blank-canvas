@@ -46,12 +46,32 @@ export interface LPTestimonials {
   items: LPTestimonialItem[];
 }
 
+export interface LPBenefitItem {
+  icon: string;
+  title: string;
+  description: string;
+}
+
+export interface LPTrustBadge {
+  icon: string;
+  text: string;
+}
+
+export interface LPBenefits {
+  enabled: boolean;
+  title: string;
+  subtitle: string;
+  items: LPBenefitItem[];
+  trust_badges: LPTrustBadge[];
+}
+
 export interface LPOffer {
   enabled: boolean;
   title: string;
   description: string;
   highlight_text: string;
   cta_text: string;
+  benefits_list?: string[];
 }
 
 export interface LPTheme {
@@ -79,6 +99,7 @@ export interface CompanyLandingPage {
   gallery: LPGallery;
   testimonials: LPTestimonials;
   offer: LPOffer;
+  benefits: LPBenefits;
   theme: LPTheme;
   footer: LPFooter;
   is_published: boolean;

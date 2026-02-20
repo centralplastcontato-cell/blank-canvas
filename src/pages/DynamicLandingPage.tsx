@@ -12,7 +12,7 @@ import { DLPOffer } from "@/components/dynamic-lp/DLPOffer";
 import { DLPFooter } from "@/components/dynamic-lp/DLPFooter";
 import { DLPFloatingCTA } from "@/components/dynamic-lp/DLPFloatingCTA";
 import { LeadChatbot } from "@/components/landing/LeadChatbot";
-import type { LPHero, LPVideo, LPGallery, LPTestimonials, LPOffer, LPTheme, LPFooter } from "@/types/landing-page";
+import type { LPHero, LPVideo, LPGallery, LPTestimonials, LPOffer, LPTheme, LPFooter, LPBenefits } from "@/types/landing-page";
 
 interface LPData {
   company_id: string;
@@ -25,6 +25,7 @@ interface LPData {
   gallery: LPGallery;
   testimonials: LPTestimonials;
   offer: LPOffer;
+  benefits: LPBenefits;
   theme: LPTheme;
   footer: LPFooter;
 }
@@ -83,6 +84,7 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
           gallery: row.gallery as unknown as LPGallery,
           testimonials: row.testimonials as unknown as LPTestimonials,
           offer: row.offer as unknown as LPOffer,
+          benefits: row.benefits as unknown as LPBenefits || { enabled: true, title: "", subtitle: "", items: [], trust_badges: [] },
           theme: row.theme as unknown as LPTheme,
           footer: row.footer as unknown as LPFooter,
         });
@@ -148,7 +150,7 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
         companyLogo={data.company_logo}
         onCtaClick={openChat}
       />
-      <DLPBenefits theme={data.theme} companyName={data.company_name} />
+      <DLPBenefits theme={data.theme} companyName={data.company_name} benefits={data.benefits} />
       <DLPTestimonials testimonials={data.testimonials} theme={data.theme} />
       <DLPVideo video={data.video} theme={data.theme} companyName={data.company_name} />
       <DLPGallery gallery={data.gallery} theme={data.theme} companyName={data.company_name} />
