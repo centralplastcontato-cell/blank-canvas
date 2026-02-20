@@ -410,20 +410,49 @@ async function processFlowBuilderMessage(
   console.log(`[FlowBuilder] Company: ${companyId}, Conv: ${conv.id}, Phone: ${contactPhone}`);
   console.log(`[FlowBuilder] Content: "${content}", BotStep: ${conv.bot_step}, BotEnabled: ${conv.bot_enabled}`);
   
-  // 1. Find the default active flow for this company
-  const { data: flow, error: flowErr } = await supabase
-    .from('conversation_flows')
-    .select('id, name')
-    .eq('company_id', companyId)
-    .eq('is_default', true)
-    .eq('is_active', true)
-    .single();
-  
-  if (flowErr || !flow) {
-    console.log(`[FlowBuilder] ❌ No active default flow found for company ${companyId}. Error: ${flowErr?.message || 'no flow'}`);
-    return;
+  // ── SANDBOX: número-piloto usa o Fluxo Comercial V2 ────────────
+  const PILOT_PHONE = '15981121710';
+  const cleanPhone = contactPhone.replace(/\D/g, '').replace(/^55/, '');
+  const isPilot = cleanPhone === PILOT_PHONE || contactPhone.replace(/\D/g, '').endsWith(PILOT_PHONE);
+
+  let flow: { id: string; name: string } | null = null;
+
+  if (isPilot) {
+    console.log(`[FlowBuilder] 🧪 SANDBOX: número-piloto detectado (${contactPhone}) → buscando Fluxo V2`);
+    const { data: v2Flow } = await supabase
+      .from('conversation_flows')
+      .select('id, name')
+      .eq('company_id', companyId)
+      .ilike('name', '%V2%MODO TESTE%')
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (v2Flow) {
+      flow = v2Flow;
+      console.log(`[FlowBuilder] 🧪 SANDBOX: usando fluxo V2 "${v2Flow.name}" (${v2Flow.id})`);
+    } else {
+      console.log(`[FlowBuilder] 🧪 SANDBOX: fluxo V2 não encontrado, caindo no fluxo padrão`);
+    }
   }
-  
+
+  // 1. Find the default active flow for this company (se não for piloto ou V2 não existir)
+  if (!flow) {
+    const { data: defaultFlow, error: flowErr } = await supabase
+      .from('conversation_flows')
+      .select('id, name')
+      .eq('company_id', companyId)
+      .eq('is_default', true)
+      .eq('is_active', true)
+      .single();
+
+    if (flowErr || !defaultFlow) {
+      console.log(`[FlowBuilder] ❌ No active default flow found for company ${companyId}. Error: ${flowErr?.message || 'no flow'}`);
+      return;
+    }
+    flow = defaultFlow;
+  }
+  // ─────────────────────────────────────────────────────────────────
+
   const flowId = flow.id;
   console.log(`[FlowBuilder] ✅ Found flow: "${flow.name}" (${flowId})`);
   
