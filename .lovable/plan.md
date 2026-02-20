@@ -1,124 +1,69 @@
 
-# Nó de Qualificação Inteligente no Flow Builder
+## Consolidar Qualificação IA no nó Pergunta
 
-## O Problema Atual
+### O Problema
 
-Quando um nó com `extract_field` captura uma resposta livre do usuário (ex: o lead digita "1", "2", ou qualquer texto), o sistema salva literalmente o que foi digitado no campo coletado. Isso significa que o CRM mostra "1" ou "2" ao invés do que aquele número representa (ex: "Manhã", "Fim de semana").
+Hoje existem duas formas paralelas de fazer a mesma coisa:
 
-O problema central é na linha 554 do webhook:
-```typescript
-collectedData[currentNode.extract_field] = content.trim(); // salva "1" ao invés de "Manhã"
-```
+1. **Nó "Qualificação IA"** (`qualify`): usa OpenAI para classificar resposta livre → salva o label legível no CRM
+2. **Toggle "Interpretação IA"** no nó Pergunta (`question`): faz apenas correspondência de texto simples (não chama LLM de verdade)
 
-## A Solução: Nó de Qualificação com IA
+Ou seja, o `allow_ai_interpretation` no nó Pergunta **não é IA de verdade** — é só um `includes()`. O nó `qualify` é o único que realmente chama o GPT-4o-mini.
 
-Criar um novo tipo de nó chamado **`qualify`** que usa a API da OpenAI para interpretar a resposta livre do usuário e mapeá-la para o valor correto de um campo — independentemente do formato da resposta ou da pergunta feita.
+### Solução Proposta
 
-### Por que isso é poderoso?
-- Se a pergunta muda (ex: de "escolha 1 ou 2" para "qual seu turno preferido?"), o nó ainda entende a resposta
-- O usuário pode responder com texto livre ("de manhã", "prefiro sábado de manhã cedo") e o bot extrai corretamente
-- Elimina a necessidade de numeração nas opções para fins de qualificação
+Unificar tudo no nó **Pergunta** já existente: quando o toggle "Interpretação IA" estiver ativado, o comportamento passa a ser idêntico ao do nó Qualificação IA (chamada real ao LLM, salva o label, usa contexto). O nó `qualify` separado deixa de existir na toolbar.
 
 ---
 
-## Arquitetura Técnica
-
-### 1. Novo tipo de nó: `qualify`
-
-Adicionado ao `types.ts` do Flow Builder:
+### Arquitetura Final
 
 ```text
-NodeType = 'start' | 'message' | 'question' | 'action' | 'condition' | 'end' | 'delay' | 'timer' | 'qualify'
-```
-
-O nó `qualify` funciona assim:
-- Envia uma mensagem/pergunta ao lead
-- Espera a resposta (qualquer texto livre)
-- Envia a resposta para a OpenAI com o contexto das opções configuradas
-- A IA identifica qual opção melhor representa a resposta
-- Salva o **label** da opção (não o número) no `collected_data`
-- Avança o fluxo pelo edge correto, como um nó de pergunta normal
-
-### 2. Mudança no webhook (`wapi-webhook/index.ts`)
-
-**Novo case `qualify`** no switch de tipos de nó:
-1. Envia a pergunta configurada no nó
-2. Coloca o estado em `waiting_for_reply = true`
-3. Quando o lead responde, chama a OpenAI passando:
-   - A resposta do lead
-   - As opções disponíveis (labels + values)
-   - Contexto do buffet (tipo de resposta esperada)
-4. A IA retorna o `value` da opção correspondente
-5. O sistema salva o **label legível** (ex: "Manhã") no `collected_data`
-6. Avança pelo edge correto
-
-**Também corrigir o bug atual**: para nós `question` com opções, quando o usuário digita um número, salvar o **label da opção** ao invés do value numérico:
-
-```typescript
-// ANTES (bugado):
-collectedData[currentNode.extract_field] = content.trim(); // salva "1"
-
-// DEPOIS (correto):
-collectedData[currentNode.extract_field] = selectedOption.label; // salva "Manhã"
-```
-
-### 3. Mudanças no `FlowNodeEditor.tsx`
-
-Adicionar suporte visual para o novo nó `qualify`:
-- Ícone diferente (ex: `Sparkles` ou `Brain`)
-- Seção de configuração para as opções de qualificação
-- Campo para configurar a "dica de contexto" para a IA (ex: "turno do dia", "dia da semana")
-
-### 4. Mudanças no `FlowNodeComponent.tsx` e `types.ts`
-
-Adicionar cor e ícone para o novo tipo de nó.
-
----
-
-## Fluxo de Execução
-
-```text
-Lead envia mensagem
-        ↓
-Nó "qualify" enviou a pergunta? → Sim → Captura resposta livre
-        ↓
-Envia para OpenAI:
-  "O usuário respondeu: 'de manhã cedo'. 
-   Classifique em: manha, tarde, noite.
-   Retorne apenas o value."
-        ↓
-IA retorna: "manha"
-        ↓
-Sistema salva: collected_data["preferred_slot"] = "Manhã" (label)
-        ↓
-Avança pelo edge da opção "manha"
+Nó: Pergunta (question)
+│
+├── [toggle OFF] Interpretação IA desativada
+│   └── Aceita apenas número/texto exato das opções
+│
+└── [toggle ON] Interpretação IA ativada  ← MESMA lógica do qualify atual
+    ├── Chama GPT-4o-mini para classificar a resposta livre
+    ├── Campo: "Dica de contexto para a IA" (action_config.qualify_context)
+    ├── Salva o label legível no CRM (extract_field)
+    └── Roteia pelo handle da opção identificada
 ```
 
 ---
 
-## Arquivos a Modificar
+### Mudanças Necessárias
 
-| Arquivo | Mudança |
-|---|---|
-| `src/components/flowbuilder/types.ts` | Adicionar `qualify` ao `NodeType`, labels e cores |
-| `src/components/flowbuilder/FlowNodeEditor.tsx` | UI para configurar o nó qualify |
-| `src/components/flowbuilder/FlowNodeComponent.tsx` | Ícone e visual do nó qualify |
-| `supabase/functions/wapi-webhook/index.ts` | Lógica do nó qualify + correção do bug de label vs número |
+**1. Webhook (`wapi-webhook/index.ts`)**
+
+A lógica do bloco `qualify` (linhas 553–678) precisa ser replicada dentro do bloco `question` quando `allow_ai_interpretation === true`. Em vez de só fazer `includes()`, vai chamar o OpenAI com as opções e o contexto configurado, igual ao qualify.
+
+**2. Editor do nó (`FlowNodeEditor.tsx`)**
+
+Quando `allow_ai_interpretation` estiver ativado em um nó Pergunta, exibir:
+- O campo "Dica de contexto para a IA" (`action_config.qualify_context`) — hoje só aparece em nós `qualify`
+- Badge informativa igual à do qualify
+
+**3. Visual do canvas (`FlowNodeComponent.tsx`)**
+
+Mostrar o badge roxo "Resposta livre → IA classifica" em nós do tipo `question` que tenham `allow_ai_interpretation: true` (hoje só aparece em nós `qualify`).
+
+**4. Toolbar (`FlowToolbar.tsx`)**
+
+Remover o botão "Qualificação IA" da lista de nós disponíveis para adicionar. O tipo `qualify` fica no código para não quebrar nós existentes, mas não será mais oferecido como novo nó.
+
+**5. Migração de banco de dados**
+
+Converter os nós `qualify` existentes no fluxo para `question` com `allow_ai_interpretation = true`, mantendo todas as opções, `extract_field` e `action_config` (qualify_context). Isso inclui os dois nós qualify que existem hoje no fluxo:
+- `a1b2c3d4-...` → "Qualificação – Turno da Visita"
+- `c49b9640-...` → "Qualificação – Turno da Visita (cópia)"
 
 ---
 
-## Correção do Bug Atual (incluso no plano)
+### Resultado
 
-Mesmo sem o nó qualify, vamos corrigir o bug de salvar "1" ao invés do label da opção selecionada. Na resposta do usuário para nós `question`, ao invés de salvar `content.trim()` no `extract_field`, salvaremos `selectedOption.label` — que é o texto legível que aparece para o usuário.
-
----
-
-## Comportamento do Nó Qualify vs Question
-
-| Característica | `question` | `qualify` |
-|---|---|---|
-| Mostra opções numeradas | Sim | Não (opcional) |
-| Exige resposta em número | Sim | Não |
-| Entende texto livre | Parcialmente | Sim (via IA) |
-| Salva no CRM | Valor da opção | Label legível |
-| Avança por edge da opção | Sim | Sim |
+- **Menos complexidade**: 1 tipo de nó no lugar de 2
+- **Mais consistente**: o toggle "Interpretação IA" passa a funcionar de verdade em qualquer nó Pergunta
+- **Nós existentes migrados** automaticamente via migration SQL
+- **Backward compatible**: o código ainda suporta nós `qualify` antigos caso existam em outros fluxos
