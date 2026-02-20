@@ -701,6 +701,17 @@ async function advanceFlowFromNode(
   
   console.log(`[FlowBuilder] ▶️ Advancing to node: "${currentNode.title}" (type: ${currentNode.node_type}, id: ${currentNode.id})`);
   console.log(`[FlowBuilder] Data so far: ${JSON.stringify(data)}`);
+
+  // Buscar nome da empresa para templates
+  let companyName = '';
+  try {
+    const { data: companyData } = await supabase
+      .from('companies')
+      .select('name')
+      .eq('id', instance.company_id)
+      .single();
+    companyName = companyData?.name || '';
+  } catch (_) { /* silently ignore */ }
   
   // Replace variables in message template
   // Supports both {{key}} and {key}, plus aliases for template-friendly names
@@ -710,6 +721,11 @@ async function advanceFlowFromNode(
       mes: String(data.event_date || ''),
       convidados: String(data.guest_count || ''),
       dia: String(data.visit_day || ''),
+      // Aliases para nome da empresa (suportando hífen e variações)
+      'nome-empresa': companyName,
+      'nome_empresa': companyName,
+      empresa: companyName,
+      buffet: companyName,
     };
 
     let result = text;
