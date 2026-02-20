@@ -158,12 +158,31 @@ export default function Onboarding() {
   };
 
   const handleSubmit = async () => {
-    if (!companyId || !onboardingId) return;
+    if (!companyId) return;
     setSubmitting(true);
-    const payload: any = { ...data, current_step: TOTAL_STEPS, status: 'completo' };
-    await supabase.from("company_onboarding").update(payload).eq("id", onboardingId);
-    setSubmitting(false);
-    setSubmitted(true);
+    try {
+      const payload: any = { ...data, company_id: companyId, current_step: TOTAL_STEPS, status: 'completo' };
+      delete payload.photo_urls_files;
+
+      if (onboardingId) {
+        const { error } = await supabase.from("company_onboarding").update(payload).eq("id", onboardingId);
+        if (error) throw error;
+      } else {
+        // Cria o registro caso nunca tenha avançado (não tem onboardingId)
+        const { data: inserted, error } = await supabase
+          .from("company_onboarding")
+          .insert(payload)
+          .select("id")
+          .single();
+        if (error) throw error;
+        if (inserted) setOnboardingId(inserted.id);
+      }
+      setSubmitted(true);
+    } catch (err: any) {
+      toast({ title: "Erro ao finalizar", description: err.message || "Tente novamente.", variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const validateStep = (): boolean => {
