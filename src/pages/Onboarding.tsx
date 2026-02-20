@@ -136,8 +136,23 @@ export default function Onboarding() {
     if (!companyId) return;
     const payload: any = { ...data, company_id: companyId, current_step: nextStep, status: 'em_andamento' };
     delete payload.photo_urls_files;
-    if (onboardingId) {
-      await supabase.from("company_onboarding").update(payload).eq("id", onboardingId);
+
+    // Usa onboardingId se disponível, senão busca o registro existente da empresa
+    let targetId = onboardingId;
+    if (!targetId) {
+      const { data: existing } = await supabase
+        .from("company_onboarding")
+        .select("id")
+        .eq("company_id", companyId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+      targetId = existing?.id || null;
+      if (targetId) setOnboardingId(targetId);
+    }
+
+    if (targetId) {
+      await supabase.from("company_onboarding").update(payload).eq("id", targetId);
     } else {
       const { data: inserted } = await supabase.from("company_onboarding").insert(payload).select("id").single();
       if (inserted) setOnboardingId(inserted.id);
@@ -164,11 +179,23 @@ export default function Onboarding() {
       const payload: any = { ...data, company_id: companyId, current_step: TOTAL_STEPS, status: 'completo' };
       delete payload.photo_urls_files;
 
-      if (onboardingId) {
-        const { error } = await supabase.from("company_onboarding").update(payload).eq("id", onboardingId);
+      // Busca o registro mais recente desta empresa (segurança extra caso onboardingId não esteja setado)
+      let targetId = onboardingId;
+      if (!targetId) {
+        const { data: existing } = await supabase
+          .from("company_onboarding")
+          .select("id")
+          .eq("company_id", companyId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+        targetId = existing?.id || null;
+      }
+
+      if (targetId) {
+        const { error } = await supabase.from("company_onboarding").update(payload).eq("id", targetId);
         if (error) throw error;
       } else {
-        // Cria o registro caso nunca tenha avançado (não tem onboardingId)
         const { data: inserted, error } = await supabase
           .from("company_onboarding")
           .insert(payload)
