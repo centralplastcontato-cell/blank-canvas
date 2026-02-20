@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { ClipboardList, Eye, Loader2, Copy, Building2, CheckCircle2, Clock, AlertCircle, Download, Pencil, Save, X } from "lucide-react";
+import { ClipboardList, Eye, Loader2, Copy, Building2, CheckCircle2, Clock, AlertCircle, Download, Pencil, Save, X, ExternalLink } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import {
   Sheet,
@@ -503,7 +503,33 @@ function OnboardingEditForm({ record, onSave, onCancel }: { record: OnboardingRe
 }
 
 // ======= Detail View =======
+async function downloadFile(url: string, filename: string) {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+  } catch {
+    window.open(url, "_blank");
+  }
+}
+
 function OnboardingDetail({ record }: { record: OnboardingRecord; company?: CompanyInfo }) {
+  const buffetName = record.buffet_name?.replace(/\s+/g, "-").toLowerCase() || "buffet";
+
+  const downloadAllPhotos = () => {
+    if (!record.photo_urls) return;
+    record.photo_urls.forEach((url, i) => {
+      setTimeout(() => downloadFile(url, `${buffetName}-foto-${i + 1}.jpg`), i * 400);
+    });
+  };
+
   const Section = ({ emoji, title, children }: { emoji: string; title: string; children: React.ReactNode }) => (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-3 bg-muted/50 border-b border-border">
@@ -580,21 +606,82 @@ function OnboardingDetail({ record }: { record: OnboardingRecord; company?: Comp
         {record.logo_url ? (
           <div className="px-4 py-3 flex items-center gap-3">
             <span className="text-xs text-muted-foreground w-32 shrink-0">Logo</span>
-            <img src={record.logo_url} alt="Logo" className="h-14 w-14 rounded-xl object-contain bg-muted border border-border" />
+            <div className="flex items-center gap-2 flex-1 justify-end">
+              <img src={record.logo_url} alt="Logo" className="h-14 w-14 rounded-xl object-contain bg-muted border border-border" />
+              <div className="flex flex-col gap-1">
+                <Button
+                  variant="outline" size="icon"
+                  className="h-7 w-7"
+                  onClick={() => downloadFile(record.logo_url!, `${buffetName}-logo.png`)}
+                  title="Baixar logo"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="outline" size="icon"
+                  className="h-7 w-7"
+                  onClick={() => window.open(record.logo_url!, "_blank")}
+                  title="Abrir em nova aba"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
           </div>
         ) : null}
         {record.photo_urls && record.photo_urls.length > 0 && (
           <div className="px-4 py-3">
-            <p className="text-xs text-muted-foreground mb-2">Fotos ({record.photo_urls.length})</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-muted-foreground">Fotos ({record.photo_urls.length})</p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1.5"
+                onClick={downloadAllPhotos}
+              >
+                <Download className="h-3 w-3" />
+                Baixar todas
+              </Button>
+            </div>
             <div className="grid grid-cols-4 gap-1.5">
               {record.photo_urls.map((url, i) => (
-                <img key={i} src={url} alt={`Foto ${i + 1}`} className="aspect-square rounded-lg object-cover bg-muted" />
+                <div key={i} className="relative group aspect-square">
+                  <img
+                    src={url}
+                    alt={`Foto ${i + 1}`}
+                    className="w-full h-full rounded-lg object-cover bg-muted cursor-pointer"
+                    onClick={() => window.open(url, "_blank")}
+                  />
+                  <button
+                    className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); downloadFile(url, `${buffetName}-foto-${i + 1}.jpg`); }}
+                    title="Baixar foto"
+                  >
+                    <Download className="h-4 w-4 text-white" />
+                  </button>
+                </div>
               ))}
             </div>
           </div>
         )}
         {record.video_urls && record.video_urls.length > 0 && (
-          <InfoRow label="Vídeos" value={`${record.video_urls.length} enviado(s)`} />
+          <div className="px-4 py-2.5 flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">Vídeos</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-foreground font-medium">{record.video_urls.length} enviado(s)</span>
+              {record.video_urls.map((url, i) => (
+                <Button
+                  key={i}
+                  variant="outline" size="icon"
+                  className="h-7 w-7"
+                  onClick={() => downloadFile(url, `${buffetName}-video-${i + 1}.mp4`)}
+                  title={`Baixar vídeo ${i + 1}`}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                </Button>
+              ))}
+            </div>
+          </div>
         )}
         <InfoRow label="Observações" value={record.brand_notes} />
       </Section>
