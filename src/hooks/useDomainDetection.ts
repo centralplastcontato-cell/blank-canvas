@@ -10,6 +10,25 @@ const HUB_DOMAINS_CANONICAL = [
 ];
 
 /**
+ * Buffet domains with explicit LP mapping.
+ * Each entry maps a canonical domain to a DynamicLandingPage domain key.
+ * Add new buffets here + a matching entry in RootPage.tsx.
+ */
+export const KNOWN_BUFFET_DOMAINS: Record<string, string> = {
+  "castelodadiversao.com.br": "castelodadiversao.com.br",
+  "buffetplanetadivertido.com.br": "buffetplanetadivertido.com.br",
+};
+
+/**
+ * Returns the DynamicLandingPage domain key if the current host
+ * is a known buffet domain, or null otherwise.
+ */
+export function getKnownBuffetDomain(): string | null {
+  const canonical = getCanonicalHost();
+  return KNOWN_BUFFET_DOMAINS[canonical] ?? null;
+}
+
+/**
  * Normalize a hostname to canonical form:
  * - lowercase
  * - strip "www." prefix
