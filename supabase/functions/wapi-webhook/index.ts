@@ -688,7 +688,7 @@ Se não conseguir classificar com certeza, retorne a opção mais próxima.`;
         if (!nameValidation.valid) {
           const retryMsg = `Hmm, não consegui entender seu nome 🤔 Por favor, digite apenas seu *nome*:`;
           const retryMsgId = `bot_${Date.now()}_retry`;
-          await sendBotMessage(instance.instance_id, contactPhone, retryMsg, instance.api_token);
+          await sendBotMessage(instance.instance_id, instance.api_token, contactPhone, retryMsg);
           await supabase.from('wapi_messages').insert({
             conversation_id: conv.id,
             message_id: retryMsgId,
@@ -709,7 +709,7 @@ Se não conseguir classificar com certeza, retorne a opção mais próxima.`;
         if (!freeTextValidation.valid) {
           const retryMsg = freeTextValidation.error || 'Por favor, responda a pergunta anterior 😊';
           const retryMsgId = `bot_${Date.now()}_retry`;
-          await sendBotMessage(instance.instance_id, contactPhone, retryMsg, instance.api_token);
+          await sendBotMessage(instance.instance_id, instance.api_token, contactPhone, retryMsg);
           await supabase.from('wapi_messages').insert({
             conversation_id: conv.id,
             message_id: retryMsgId,
