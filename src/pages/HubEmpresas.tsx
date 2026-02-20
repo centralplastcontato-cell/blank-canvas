@@ -9,7 +9,11 @@ import { CreateCompanyAdminDialog } from "@/components/hub/CreateCompanyAdminDia
 import { CompanyModulesDialog } from "@/components/hub/CompanyModulesDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Plus, Pencil, Users, Loader2, UserPlus, Link2, Copy, ClipboardList, MessageSquare, BarChart3, Clock, CheckCircle2, AlertCircle, Globe, AlertTriangle, ExternalLink, Settings2 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Building2, Plus, Pencil, Users, Loader2, UserPlus, Link2, Copy, ClipboardList, MessageSquare, BarChart3, Clock, CheckCircle2, AlertCircle, Globe, AlertTriangle, ExternalLink, Settings2, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -46,6 +50,8 @@ function HubEmpresasContent() {
   const [onboardingStatus, setOnboardingStatus] = useState<Record<string, { status: string; updated_at: string }>>({});
   const [adminDialogCompany, setAdminDialogCompany] = useState<Company | null>(null);
   const [modulesCompany, setModulesCompany] = useState<Company | null>(null);
+  const [deleteCompany, setDeleteCompany] = useState<Company | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => { fetchCompanies(); }, []);
 
@@ -116,12 +122,47 @@ function HubEmpresasContent() {
     toast({ title: "Empresa atualizada" }); setEditingCompany(null); fetchCompanies();
   };
 
+  const handleDelete = async () => {
+    if (!deleteCompany) return;
+    setIsDeleting(true);
+    const { error } = await supabase.from("companies").delete().eq("id", deleteCompany.id);
+    setIsDeleting(false);
+    setDeleteCompany(null);
+    if (error) {
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Empresa excluída" });
+      fetchCompanies();
+    }
+  };
+
   if (isLoading) {
     return <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
   }
 
   return (
     <>
+      <AlertDialog open={!!deleteCompany} onOpenChange={(open) => !open && setDeleteCompany(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir empresa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong>{deleteCompany?.name}</strong>? Esta ação não pode ser desfeita e removerá todos os dados associados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
+              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Excluir empresa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <CompanyFormDialog open={formOpen} onOpenChange={setFormOpen} company={editingCompany} onSubmit={editingCompany ? handleUpdate : handleCreate} />
       <CompanyMembersSheet open={membersOpen} onOpenChange={setMembersOpen} company={membersCompany} />
       {adminDialogCompany && (
@@ -337,6 +378,9 @@ function HubEmpresasContent() {
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => setModulesCompany(child)} title="Módulos">
                     <Settings2 className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setDeleteCompany(child)} title="Excluir empresa" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30">
+                    <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
                 {members === 0 && (
