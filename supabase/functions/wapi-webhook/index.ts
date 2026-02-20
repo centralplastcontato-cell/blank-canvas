@@ -740,19 +740,77 @@ Se não conseguir classificar com certeza, retorne a opção mais próxima.`;
       }
       
       if (!matchedEdge) {
-        // Try AI interpretation if enabled
+      // Try AI interpretation if enabled
         if (currentNode.allow_ai_interpretation) {
-          // Simple text matching fallback
-          for (const opt of nodeOptions) {
-            if (content.toLowerCase().includes(opt.value.toLowerCase()) || content.toLowerCase().includes(opt.label.toLowerCase())) {
-              matchedEdge = edges.find(e => e.source_node_id === currentNode.id && e.source_option_id === opt.id);
-              if (matchedEdge) {
-                if (currentNode.extract_field) {
-                  // Save label, not value
-                  collectedData[currentNode.extract_field] = opt.label;
-                  await supabase.from('flow_lead_state').update({ collected_data: collectedData }).eq('id', state.id);
+          // Use real LLM classification (same logic as qualify node)
+          const optionsList = nodeOptions.map((o: any, i: number) => `${i + 1}. value="${o.value}" label="${o.label}"`).join('\n');
+          const qualifyContext = (currentNode.action_config as Record<string, unknown>)?.qualify_context as string || '';
+
+          let aiMatchedValue: string | null = null;
+          let aiMatchedLabel: string | null = null;
+
+          try {
+            const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+            if (OPENAI_API_KEY) {
+              const systemPrompt = `Você é um classificador de respostas de leads de buffet. Dado o texto do lead, identifique qual opção melhor representa a resposta.${qualifyContext ? ` Contexto: ${qualifyContext}.` : ''}
+Retorne APENAS o value da opção escolhida, sem explicação, sem aspas, sem pontuação adicional.
+Se não conseguir classificar com certeza, retorne a opção mais próxima.`;
+              const userPrompt = `Opções disponíveis:\n${optionsList}\n\nResposta do lead: "${content.trim()}"\n\nRetorne apenas o value da opção correspondente:`;
+
+              const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${OPENAI_API_KEY}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  model: 'gpt-4o-mini',
+                  messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userPrompt },
+                  ],
+                  max_tokens: 50,
+                  temperature: 0,
+                }),
+              });
+
+              if (aiRes.ok) {
+                const aiData = await aiRes.json();
+                const aiValue = aiData.choices?.[0]?.message?.content?.trim().toLowerCase();
+                console.log(`[FlowBuilder] 🧠 AI interpretation result: "${aiValue}"`);
+                if (aiValue) {
+                  const matchedOpt = nodeOptions.find((o: any) => o.value.toLowerCase() === aiValue || aiValue.includes(o.value.toLowerCase()));
+                  if (matchedOpt) {
+                    aiMatchedValue = matchedOpt.value;
+                    aiMatchedLabel = matchedOpt.label;
+                  }
                 }
+              }
+            }
+          } catch (e) {
+            console.error('[FlowBuilder] AI interpretation error:', e);
+          }
+
+          // Fallback: simple text matching if AI failed
+          if (!aiMatchedValue) {
+            const lower = content.toLowerCase();
+            for (const opt of nodeOptions) {
+              if (lower.includes(opt.label.toLowerCase()) || lower.includes(opt.value.toLowerCase())) {
+                aiMatchedValue = opt.value;
+                aiMatchedLabel = opt.label;
                 break;
+              }
+            }
+          }
+
+          if (aiMatchedValue) {
+            const aiOpt = nodeOptions.find((o: any) => o.value === aiMatchedValue);
+            if (aiOpt) {
+              matchedEdge = edges.find((e: any) => e.source_node_id === currentNode.id && e.source_option_id === aiOpt.id);
+              if (matchedEdge && currentNode.extract_field && aiMatchedLabel) {
+                collectedData[currentNode.extract_field] = aiMatchedLabel;
+                await supabase.from('flow_lead_state').update({ collected_data: collectedData }).eq('id', state.id);
+                console.log(`[FlowBuilder] 📝 AI interpreted: ${currentNode.extract_field} = "${aiMatchedLabel}"`);
               }
             }
           }

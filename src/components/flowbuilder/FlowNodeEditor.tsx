@@ -471,7 +471,7 @@ export function FlowNodeEditor({
                   Permitir IA interpretar
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Quando ativado, a IA tenta entender respostas livres
+                  Quando ativado, a IA usa LLM para classificar respostas livres
                 </p>
               </div>
               <Switch
@@ -482,15 +482,29 @@ export function FlowNodeEditor({
             </div>
             
             {(node as any).allow_ai_interpretation ? (
-              <div className="bg-primary/10 rounded-lg p-3 text-sm">
-                <p className="text-primary text-xs">
-                  ✅ A IA tentará classificar respostas livres nas opções disponíveis.
-                </p>
-              </div>
+              <>
+                <div className="bg-violet-50 dark:bg-violet-900/20 rounded-lg p-3 text-sm">
+                  <p className="font-medium text-violet-700 dark:text-violet-300 mb-1">🧠 IA classifica a resposta</p>
+                  <p className="text-violet-600 dark:text-violet-400 text-xs">
+                    O lead pode responder livremente e a IA mapeia automaticamente para uma das opções acima.
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Dica de contexto para a IA (opcional)</Label>
+                  <input
+                    type="text"
+                    value={(node.action_config as any)?.qualify_context || ''}
+                    onChange={(e) => onUpdate({ action_config: { ...(node.action_config as any), qualify_context: e.target.value } })}
+                    placeholder="Ex: turno do dia, dia da semana, faixa de convidados"
+                    className="w-full text-xs px-3 py-2 rounded-md border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  <p className="text-xs text-muted-foreground">Contexto que ajuda a IA a classificar melhor.</p>
+                </div>
+              </>
             ) : (
               <div className="bg-muted rounded-lg p-3 text-sm">
                 <p className="text-muted-foreground text-xs">
-                  ⚠️ Apenas respostas que correspondam exatamente às opções serão aceitas.
+                  ⚠️ Sem IA: apenas respostas numéricas ou texto exato das opções serão aceitos.
                 </p>
               </div>
             )}
