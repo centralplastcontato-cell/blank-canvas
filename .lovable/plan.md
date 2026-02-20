@@ -1,78 +1,144 @@
 
-# Proteção Contra Cruzamento de Landing Pages
+# Configurar domínio `buffetplanetadivertido.online` para o Planeta Divertido
 
-## Problema
+## Contexto
 
-Hoje, se alguém acessar um domínio desconhecido (ou um domínio de buffet ainda não configurado no banco), o sistema simplesmente cai na `DynamicLandingPage` sem saber qual empresa mostrar — podendo exibir conteúdo errado ou uma tela genérica confusa.
+O domínio escolhido é `buffetplanetadivertido.online` — diferente do site atual do cliente (`buffetplanetadivertido.com.br`). O banco ainda está com `.com.br` mapeado (da tentativa anterior). Precisamos corrigir para `.online` e garantir que as miniaturas do WhatsApp mostrem o logo e o nome correto do Planeta Divertido, e não do Hub.
 
-Além disso, o **Planeta Divertido** não tem `domain_canonical` preenchido no banco, então quando o domínio `buffetplanetadivertido.com.br` for conectado, o sistema não vai conseguir identificar qual LP mostrar.
+## Problema das Miniaturas (por que acontece)
+
+O WhatsApp não executa JavaScript. Quando o bot lê o link, ele recebe o `index.html` estático com os og: tags do Hub ainda no topo do arquivo. O script de override que existe no `index.html` roda depois que o HTML foi parseado — para usuários normais funciona, mas o bot já foi embora nesse ponto.
+
+O script atual usa `document.querySelector()` para sobrescrever tags existentes, mas isso ocorre depois do parsing. A solução é usar `document.write()` de forma síncrona durante o parsing, antes das tags estáticas serem declaradas — assim o bot vê o conteúdo correto diretamente no HTML.
 
 ## O Que Será Feito
 
-### 1. Banco de Dados — Configurar domain_canonical do Planeta Divertido
+### 1. Banco de Dados — Corrigir domain_canonical para `.online`
 
-Atualizar o registro da empresa "Planeta Divertido" com:
-- `custom_domain = 'buffetplanetadivertido.com.br'`
-- `domain_canonical = 'buffetplanetadivertido.com.br'`
+O banco está com `buffetplanetadivertido.com.br`. Será criada uma nova migration para corrigir para `buffetplanetadivertido.online`:
 
-Isso garante que quando o domínio for apontado para o Lovable, o sistema saberá exatamente qual LP renderizar.
-
-### 2. RootPage.tsx — Adicionar o Planeta Divertido como domínio explícito
-
-Seguindo o mesmo padrão já usado para o Castelo (`castelodadiversao.com.br`), adicionar uma entrada explícita para o Planeta Divertido:
-
-```
-// Antes (qualquer domínio desconhecido cai aqui):
-return <DynamicLandingPage domain={window.location.hostname} />;
-
-// Depois (domínios conhecidos têm entrada explícita):
-if (canonical === "buffetplanetadivertido.com.br") {
-  return <DynamicLandingPage domain="buffetplanetadivertido.com.br" />;
-}
-
-// Domínio desconhecido → página não encontrada
-return <NotFound />;
+```sql
+UPDATE companies
+SET
+  custom_domain = 'buffetplanetadivertido.online',
+  domain_canonical = 'buffetplanetadivertido.online',
+  updated_at = now()
+WHERE id = '6bc204ae-1311-4c67-bb6b-9ab55dae9d11';
 ```
 
-Isso cria um "portão" claro: apenas domínios cadastrados explicitamente conseguem mostrar uma LP. Qualquer domínio não mapeado recebe uma página 404 limpa, sem risco de mostrar a LP errada.
+### 2. Banco de Dados — Criar registro de Landing Page
 
-### 3. useDomainDetection.ts — Centralizar a lista de domínios conhecidos
+Inserir um registro inicial em `company_landing_pages` para o Planeta Divertido com conteúdo template (não publicado), pronto para ser editado e publicado:
 
-Em vez de espalhar as checagens pelo `RootPage.tsx`, criar uma função `isKnownBuffetDomain()` que centraliza todos os domínios de buffet mapeados. Isso facilita adicionar novos buffets no futuro sem risco de esquecer um passo.
+- Hero com título genérico e CTA
+- Tema com cores neutras padrão
+- Seções de galeria, depoimentos, vídeo e oferta habilitadas e vazias
+- `is_published = false` (só vai ao ar quando aprovado)
 
-## Estado Atual vs. Estado Após a Implementação
+### 3. `useDomainDetection.ts` — Corrigir domínio mapeado
 
-Estado atual:
+Trocar `.com.br` por `.online` no mapeamento de domínios conhecidos:
+
+```typescript
+export const KNOWN_BUFFET_DOMAINS: Record<string, string> = {
+  "castelodadiversao.com.br": "castelodadiversao.com.br",
+  "buffetplanetadivertido.online": "buffetplanetadivertido.online",  // corrigido
+};
 ```
-Domínio desconhecido → DynamicLandingPage → comportamento imprevisível
-Planeta Divertido (domínio futuro) → não tem domain_canonical → erro
+
+### 4. `index.html` — Refatorar script de OG para funcionar com bots do WhatsApp
+
+Esta é a correção principal para as miniaturas. A abordagem muda de "sobrescrever depois" para "injetar antes":
+
+**Estrutura atual (não funciona para bots):**
+```html
+<!-- Tags estáticas do Hub declaradas aqui -->
+<meta property="og:title" content="Celebrei | ..." />
+...
+<!-- Script que tenta sobrescrever DEPOIS -->
+<script>document.querySelector('meta[...]').setAttribute('content', '...')</script>
 ```
 
-Após a implementação:
+**Nova estrutura (funciona para bots):**
+```html
+<!-- Script síncrono injeta as tags ANTES com document.write() -->
+<script>
+  (function() {
+    var h = window.location.hostname;
+    var brand = {};
+    if (h.indexOf('castelodadiversao') !== -1) {
+      brand = { title: 'Castelo da Diversão | Buffet Infantil', ... };
+    } else if (h.indexOf('buffetplanetadivertido') !== -1) {
+      brand = { title: 'Buffet Planeta Divertido | Festa Infantil', ... };
+    } else {
+      brand = { title: 'Celebrei | A melhor plataforma para buffets infantis', ... };
+    }
+    document.write('<meta property="og:title" content="' + brand.title + '" />');
+    // ... demais tags
+  })();
+</script>
+<!-- Sem tags estáticas de OG após o script -->
 ```
-buffetplanetadivertido.com.br → LP do Planeta Divertido ✓
-castelodadiversao.com.br → LP do Castelo ✓
-castelodadiversao.online → LP de campanha do Castelo ✓
-hubcelebrei.com.br → Hub Celebrei ✓
-Domínio desconhecido → Página 404 clara ✓
+
+Isso funciona porque o `document.write()` durante o parsing insere HTML diretamente no fluxo, antes que o bot termine de ler o documento. O bot vê as tags corretas como se fossem estáticas.
+
+O logo do Planeta Divertido a ser usado:
+`https://rsezgnkfhodltrsewlhz.supabase.co/storage/v1/object/public/company-logos/planeta-divertido-1771620883350.png`
+
+### 5. `supabase/functions/og-preview/index.ts` — Adicionar Planeta Divertido ao `STATIC_BRANDS`
+
+Para quando o proxy SCD estiver configurado para o domínio, a Edge Function também retorna os metadados corretos:
+
+```typescript
+const STATIC_BRANDS = {
+  hubcelebrei: { ... },
+  castelodadiversao: { ... },
+  buffetplanetadivertido: {
+    title: "Buffet Planeta Divertido | Festa Infantil",
+    description: "Venha celebrar no Planeta Divertido! O melhor buffet infantil para a festa do seu filho.",
+    image: "https://rsezgnkfhodltrsewlhz.supabase.co/storage/v1/object/public/company-logos/planeta-divertido-1771620883350.png",
+    url: "https://buffetplanetadivertido.online",
+  },
+};
+```
+
+## Fluxo Após a Implementação
+
+```text
+Usuário compra buffetplanetadivertido.online
+         ↓
+Aponta DNS: A record para 185.158.133.1 + TXT _lovable
+         ↓
+Conecta domínio no painel Lovable (Settings > Domains)
+         ↓
+Domínio ativo → serve o projeto Celebrei
+         ↓
+Bot do WhatsApp acessa o link compartilhado
+         ↓
+script síncrono no index.html detecta "buffetplanetadivertido"
+         ↓
+document.write() injeta og: tags do Planeta Divertido
+         ↓
+Miniatura correta no WhatsApp ✅
 ```
 
 ## Arquivos a Modificar
 
-- **Banco de dados** (via SQL) → atualizar `companies` do Planeta Divertido com `custom_domain` e `domain_canonical`
-- **`src/pages/RootPage.tsx`** → adicionar entrada explícita para Planeta Divertido e proteção 404 para domínios desconhecidos
-- **`src/hooks/useDomainDetection.ts`** → adicionar função auxiliar `getKnownBuffetDomain()` para centralizar o mapeamento
+- **Migration SQL nova** → corrigir `domain_canonical` + criar `company_landing_pages`
+- **`src/hooks/useDomainDetection.ts`** → trocar `.com.br` por `.online`
+- **`index.html`** → refatorar script de OG para `document.write()` com detecção de Planeta Divertido
+- **`supabase/functions/og-preview/index.ts`** → adicionar `buffetplanetadivertido` no `STATIC_BRANDS`
 
 ## O Que NÃO Muda
 
-- A miniatura do WhatsApp — isso fica para a próxima etapa
-- O funcionamento atual do Castelo e do Hub — não serão alterados
-- A estrutura interna da `DynamicLandingPage` — ela continua igual
+- O site atual do cliente em `buffetplanetadivertido.com.br` — não é afetado
+- O Castelo da Diversão e o Hub — continuam funcionando normalmente
+- A estrutura da `DynamicLandingPage` e do chatbot de leads
 
-## Importante
+## Passos Após a Implementação (manuais, fora do código)
 
-Após essa implementação, **qualquer novo buffet** que tiver o domínio conectado precisará de dois passos simples:
-1. Atualizar `domain_canonical` no banco (via Hub Empresas)
-2. Adicionar uma linha no `RootPage.tsx`
-
-Estamos planejando tornar esse segundo passo automático em uma versão futura, mas por enquanto o processo manual garante segurança total contra cruzamentos.
+1. Comprar o domínio `buffetplanetadivertido.online`
+2. Apontar os registros DNS para `185.158.133.1` (A record para `@` e `www`)
+3. Adicionar o TXT `_lovable` fornecido pelo Lovable
+4. Conectar o domínio no painel Lovable em Settings > Domains
+5. Publicar a Landing Page quando o conteúdo estiver pronto
