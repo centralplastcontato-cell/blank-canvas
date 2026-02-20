@@ -13,7 +13,8 @@ import {
   Pencil,
   Copy,
   Clock,
-  Timer
+  Timer,
+  Brain,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -39,6 +40,7 @@ const NODE_ICONS: Record<string, React.ReactNode> = {
   end: <Square className="w-4 h-4" />,
   delay: <Clock className="w-4 h-4" />,
   timer: <Timer className="w-4 h-4" />,
+  qualify: <Brain className="w-4 h-4" />,
 };
 
 export function FlowNodeComponent({
