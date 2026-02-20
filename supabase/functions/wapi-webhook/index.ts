@@ -681,7 +681,7 @@ Se não conseguir classificar com certeza, retorne a opção mais próxima.`;
     
     // Extract data if needed (for question/action nodes)
     if (currentNode.extract_field) {
-      const nameFields = ['nome', 'name', 'nome_lead', 'contact_name'];
+      const nameFields = ['nome', 'name', 'nome_lead', 'contact_name', 'customer_name', 'nome_cliente', 'client_name'];
       if (nameFields.includes(currentNode.extract_field)) {
         // Name-specific validation
         const nameValidation = validateName(content);
