@@ -1,86 +1,93 @@
 
-# Criar a Landing Page Completa do Planeta Divertido
+# Corrigir o Chatbot para ser Multi-Empresa
 
-## O que já temos (dados do onboarding)
+## Problema
 
-Tudo o que precisamos já está no banco, enviado pela Fernanda durante o onboarding:
+O chatbot que aparece na LP do Planeta Divertido mostra "Castelo da Diversão", o logo do Castelo, e pergunta sobre unidades Manchester/Trujillo. Tudo isso e hardcoded do `campaignConfig` e do `logo-castelo.png`.
 
-- **Identidade visual**: Azul e amarelo, linguagem simples e acolhedora, espaço familiar
-- **Capacidade**: até 90 convidados, aconchegante e familiar
-- **Endereço**: Avenida Mazzei, 692 — São Paulo/SP
-- **Instagram**: @buffetplanetadivertido
-- **WhatsApp**: 11987818460
-- **10 fotos** já carregadas no storage do Supabase
-- **1 vídeo** já carregado no storage
-- **Logo** já disponível
+## Solucao
 
-## Conteúdo da LP que será criado
+Passar os dados da empresa (nome, logo, unidades) como props do `DynamicLandingPage` para o `LeadChatbot`, para que ele se adapte automaticamente a qualquer buffet.
 
-### Hero
-- **Imagem de fundo**: A primeira foto do onboarding (foto do espaço)
-- **Imagens múltiplas**: As 2 primeiras fotos em split-screen (desktop) / crossfade (mobile)
-- **Título**: "A Festa dos Sonhos do Seu Filho Começa Aqui!"
-- **Subtítulo**: "Espaço aconchegante para até 90 convidados, com atendimento personalizado e momentos que você nunca vai esquecer."
-- **CTA**: "Quero fazer a festa!"
+## O Que Muda
 
-### Tema — Azul e Amarelo (identidade da marca)
-- **Cor primária**: `#1E3A8A` (azul royal)
-- **Cor secundária**: `#FBBF24` (amarelo vibrante)
-- **Fundo**: `#0A1628` (azul escuro profundo)
-- **Texto**: `#FFFFFF`
-- **Fonte heading**: `Fredoka One` (lúdica, festiva)
-- **Fonte body**: `Nunito` (amigável, legível)
-- **Botão**: `pill` (arredondado — mais moderno para festas infantis)
+### 1. Props do LeadChatbot (`LeadChatbot.tsx`)
 
-### Galeria
-- **Habilitada**: sim
-- **Título**: "Nosso Espaço"
-- **Fotos**: Todas as 10 fotos do onboarding (da Avenida Mazzei)
+Adicionar novas props opcionais para dados dinâmicos:
 
-### Depoimentos — 3 depoimentos criados com base no perfil do buffet
-- Depoimento 1: foco no atendimento personalizado da Fernanda
-- Depoimento 2: foco no espaço aconchegante e familiar
-- Depoimento 3: foco na organização e na festa das crianças
+```text
+LeadChatbotProps {
+  isOpen, onClose, companyId,
+  + companyName?: string       // "Planeta Divertido"
+  + companyLogo?: string       // URL do logo
+  + companyUnits?: string[]    // ["Planeta Divertido"] ou vazio
+  + companyWhatsApp?: string   // telefone da empresa
+}
+```
 
-### Vídeo
-- **Habilitado**: sim
-- **Título**: "Conheça o Planeta Divertido"
-- **Vídeo**: o MP4 do onboarding com poster sendo a primeira foto
-- **Tipo**: upload
+### 2. Logica Adaptativa no Chatbot
 
-### Oferta
-- **Habilitada**: sim
-- **Título**: "Garanta a Data da Festa do Seu Filho!"
-- **Descrição**: "Datas esgotam rápido! Entre em contato agora e garanta condições especiais para sua festa."
-- **Texto de destaque**: "Atendemos até 90 convidados!"
-- **CTA**: "Quero garantir minha data!"
+- **Header**: usar `companyName` e `companyLogo` quando fornecidos, senao fallback para Castelo
+- **Passo de unidade**: se empresa tem apenas 1 unidade (ou nenhuma), PULAR o passo de selecao de unidade e auto-selecionar
+- **Meses/Promo**: quando nao e o Castelo, nao mostrar mensagem de promo (usar meses simples)
+- **Guest options**: manter as mesmas opcoes para todos
+- **WhatsApp final**: quando `companyWhatsApp` fornecido, mostrar apenas 1 botao com o telefone da empresa
+- **Campaign**: usar `companyId` passado como prop (ja funciona) e gerar campaign_id generico ("lp-lead") quando nao e o Castelo
 
-### Rodapé
-- Mostrar Instagram: sim (@buffetplanetadivertido)
-- Mostrar WhatsApp: sim
-- Texto personalizado: "Avenida Mazzei, 692 — São Paulo/SP"
+### 3. DynamicLandingPage.tsx
 
-## O que será feito tecnicamente
+Passar os dados da empresa para o chatbot:
 
-### 1. Migration SQL — UPDATE em `company_landing_pages`
+```text
+<LeadChatbot
+  isOpen={isChatOpen}
+  onClose={closeChat}
+  companyId={data.company_id}
+  companyName={data.company_name}        // NOVO
+  companyLogo={data.company_logo}        // NOVO
+/>
+```
 
-Um único `UPDATE` no registro existente (ID `19e28a5f-bb86-4e48-89a2-d48fde9ae8ad`) com todo o conteúdo preenchido + `is_published = true`.
+As unidades serao buscadas do banco (`wapi_instances` da empresa) dentro do proprio chatbot quando abrir.
 
-O conteúdo JSON completo com as 10 fotos reais, o vídeo real, 3 depoimentos criados, o tema azul/amarelo, e todos os textos profissionais já escritos.
+### 4. Fluxo do Chatbot para Planeta Divertido
 
-### 2. Nenhum arquivo de código precisa ser alterado
+Como o Planeta Divertido tem apenas 1 unidade e nao tem promocao ativa:
 
-O sistema de LP dinâmica já está completamente funcional. Só precisamos popular o banco com o conteúdo certo.
+```text
+Bot: "Oi! Vou te ajudar a montar seu orcamento!"
+Bot: "Para qual mes voce pretende realizar a festa?"
+  -> [Fevereiro] [Marco] [Abril] ... [Dezembro]
+Bot: "Para qual dia de {mes}?"
+  -> Calendario com dias
+Bot: "Para quantas pessoas sera a festa?"
+  -> [50] [60] [70] [80] [90] [100]
+Bot: "Agora preciso dos seus dados..."
+  -> Nome -> WhatsApp -> Pronto!
+```
 
-## Resultado Final
+Sem perguntar unidade. Sem mensagem de promo. Sem links de Manchester/Trujillo.
 
-Assim que a migration rodar, `buffetplanetadivertido.online` (quando o DNS propagar completamente) vai servir uma LP profissional com:
-- Hero com fotos reais do espaço
-- Galeria com 10 fotos
-- Vídeo do buffet
-- 3 depoimentos
-- Oferta com CTA
-- Cores azul e amarelo da marca
-- Logo da Fernanda
+### 5. Tela Final (Completo)
 
-Também é possível ver já em `https://naked-screen-charm.lovable.app/lp/planeta-divertido` para validar o conteúdo antes de o domínio propagar.
+Em vez de mostrar 2 botoes de WhatsApp (Manchester/Trujillo), mostrar apenas 1 botao com o telefone da empresa (11987818460 para Planeta Divertido), ou nenhum se nao houver telefone configurado.
+
+## Arquivos Modificados
+
+1. **`src/components/landing/LeadChatbot.tsx`** -- refatorar para aceitar props dinamicos e adaptar fluxo
+2. **`src/pages/DynamicLandingPage.tsx`** -- passar `companyName` e `companyLogo` ao chatbot
+
+## O Que NAO Muda
+
+- A LP do Castelo da Diversao (`/` e `LandingPage.tsx`) continua usando o chatbot com `campaignConfig` normalmente
+- O `campaignConfig.ts` nao muda
+- Nenhuma migration de banco necessaria
+- A edge function `submit-lead` ja aceita qualquer `company_id`
+
+## Detalhes Tecnicos
+
+- O chatbot detecta se e modo "dinamico" pela presenca de `companyName` nas props
+- Quando `companyName` esta presente, ignora `campaignConfig` e usa os dados da prop
+- Busca as unidades da empresa via `wapi_instances` para decidir se mostra seletor de unidade
+- O telefone do WhatsApp sera buscado da `wapi_instances.phone_number` da empresa
+- Fallback para o comportamento atual (Castelo) quando nao ha props dinamicos
