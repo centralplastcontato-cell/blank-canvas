@@ -21,6 +21,12 @@ const STATIC_BRANDS: Record<string, { title: string; description: string; image:
     image: "https://www.castelodadiversao.online/og-image.jpg",
     url: "https://www.castelodadiversao.online",
   },
+  buffetplanetadivertido: {
+    title: "Buffet Planeta Divertido | Festa Infantil",
+    description: "Venha celebrar no Planeta Divertido! O melhor buffet infantil para a festa inesquecível do seu filho.",
+    image: "https://rsezgnkfhodltrsewlhz.supabase.co/storage/v1/object/public/company-logos/planeta-divertido-1771620883350.png",
+    url: "https://buffetplanetadivertido.online",
+  },
 };
 
 // Form type display labels
