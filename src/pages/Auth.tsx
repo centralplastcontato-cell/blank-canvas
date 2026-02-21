@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Lock, Mail, ArrowLeft } from "lucide-react";
-import { isHubDomain } from "@/hooks/useDomainDetection";
+import { isHubDomain, getCanonicalHost, isPreviewDomain } from "@/hooks/useDomainDetection";
 import { z } from "zod";
 
 
@@ -22,7 +22,7 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState<string | null>(null);
-  const [isLoadingCompany, setIsLoadingCompany] = useState(!!slug);
+  const [isLoadingCompany, setIsLoadingCompany] = useState(true);
 
   // Redirect to Hub login if on Hub domain
   useEffect(() => {
@@ -31,27 +31,40 @@ export default function Auth() {
     }
   }, [navigate]);
 
+  // Fetch company branding by slug OR by domain
   useEffect(() => {
-    if (slug) {
+    const fetchBranding = async () => {
       setIsLoadingCompany(true);
-      Promise.resolve(
-        supabase
-          .rpc("get_company_branding_by_slug", { _slug: slug })
-          .maybeSingle()
-      )
-        .then(({ data }) => {
+      try {
+        if (slug) {
+          // Branded login via /auth/:slug
+          const { data } = await supabase
+            .rpc("get_company_branding_by_slug", { _slug: slug })
+            .maybeSingle();
           if (data) {
             setCompanyName(data.name);
             setCompanyLogo(data.logo_url);
           }
-        })
-        .catch(() => {
-          // silently fallback to default branding
-        })
-        .finally(() => {
-          setIsLoadingCompany(false);
-        });
-    }
+        } else if (!isPreviewDomain()) {
+          // Detect company from custom domain
+          const domain = getCanonicalHost();
+          const { data } = await supabase
+            .from("companies")
+            .select("name, logo_url")
+            .eq("domain_canonical", domain)
+            .maybeSingle();
+          if (data) {
+            setCompanyName(data.name);
+            setCompanyLogo(data.logo_url);
+          }
+        }
+      } catch {
+        // silently fallback to default branding
+      } finally {
+        setIsLoadingCompany(false);
+      }
+    };
+    fetchBranding();
   }, [slug]);
 
   useEffect(() => {
