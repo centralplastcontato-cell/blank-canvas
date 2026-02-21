@@ -8,6 +8,7 @@ import { CompanyMembersSheet } from "@/components/admin/CompanyMembersSheet";
 import { CreateCompanyAdminDialog } from "@/components/hub/CreateCompanyAdminDialog";
 import { CompanyModulesDialog } from "@/components/hub/CompanyModulesDialog";
 import { HubOnboardingContent } from "@/pages/HubOnboarding";
+import { HubUsersContent } from "@/pages/HubUsers";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -33,7 +34,7 @@ export default function HubEmpresas() {
         </div>
       }
     >
-      {() => (
+      {({ user }) => (
         <Tabs defaultValue="empresas" className="w-full">
           <TabsList className="mb-4 h-11">
             <TabsTrigger value="empresas" className="text-sm gap-2 px-5">
@@ -44,12 +45,19 @@ export default function HubEmpresas() {
               <ClipboardList className="h-4 w-4" />
               Onboarding
             </TabsTrigger>
+            <TabsTrigger value="usuarios" className="text-sm gap-2 px-5">
+              <Users className="h-4 w-4" />
+              Usuários
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="empresas">
             <HubEmpresasContent />
           </TabsContent>
           <TabsContent value="onboarding">
             <HubOnboardingContent />
+          </TabsContent>
+          <TabsContent value="usuarios">
+            <HubUsersContent currentUserId={user.id} />
           </TabsContent>
         </Tabs>
       )}

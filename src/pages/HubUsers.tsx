@@ -1,15 +1,11 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { HubLayout } from "@/components/hub/HubLayout";
-import { UserWithRole, AppRole, ROLE_LABELS } from "@/types/crm";
+import { UserWithRole, AppRole } from "@/types/crm";
 import { Company } from "@/types/company";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2, Users, Building2 } from "lucide-react";
+import { Plus, Loader2, Users } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown } from "lucide-react";
 import { HubUserCreateDialog } from "@/components/hub/HubUserCreateDialog";
 import { HubUserCompanySection } from "@/components/hub/HubUserCompanySection";
 
@@ -35,7 +31,7 @@ export default function HubUsers() {
   );
 }
 
-function HubUsersContent({ currentUserId }: { currentUserId: string }) {
+export function HubUsersContent({ currentUserId }: { currentUserId: string }) {
   const [users, setUsers] = useState<UserWithCompanies[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [isLoading, setIsLoading] = useState(true);
