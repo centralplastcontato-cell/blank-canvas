@@ -2985,12 +2985,14 @@ async function processWebhookEvent(body: Record<string, unknown>) {
       // ⏱️ LATENCY: Start timing at beginning of message processing
       const processingStartAt = Date.now();
       
-      // For messages.upsert, the message data is directly in `data` (with key, pushName, message, etc.)
+       // For messages.upsert, the message data is directly in `data` (with key, pushName, message, etc.)
       // For other events, message may be nested in data.message
       const rawData = data as Record<string, unknown>;
+      console.log(`[Debug-0] evt=${evt}, rawData keys: [${rawData ? Object.keys(rawData).join(',') : 'null'}], body keys: [${Object.keys(body).join(',')}]`);
       const msg = rawData?.key ? rawData : (rawData?.message as Record<string, unknown>) || rawData || body;
-      if (!msg) break;
+      if (!msg) { console.log('[Debug-0] msg is null, breaking'); break; }
       const mc = (msg as Record<string, unknown>).message || (msg as Record<string, unknown>).msgContent || {};
+      console.log(`[Debug-0] msg keys: [${Object.keys(msg as object).join(',')}], mc keys: [${Object.keys(mc as object).join(',')}], mc type: ${typeof mc}`);
       if ((mc as Record<string, unknown>).protocolMessage) break;
       
       let rj = (msg as Record<string, unknown>).key?.remoteJid || (msg as Record<string, unknown>).from || (msg as Record<string, unknown>).remoteJid || ((msg as Record<string, unknown>).chat?.id ? `${(msg as Record<string, unknown>).chat?.id}` : null) || ((msg as Record<string, unknown>).sender?.id ? `${(msg as Record<string, unknown>).sender?.id}@s.whatsapp.net` : null);
@@ -3006,13 +3008,21 @@ async function processWebhookEvent(body: Record<string, unknown>) {
       let cName = isGrp ? ((msg as Record<string, unknown>).chat?.name || (msg as Record<string, unknown>).groupName || (msg as Record<string, unknown>).subject || null) : ((msg as Record<string, unknown>).pushName || (msg as Record<string, unknown>).verifiedBizName || (msg as Record<string, unknown>).sender?.pushName || phone);
       const cPic = (msg as Record<string, unknown>).chat?.profilePicture || (msg as Record<string, unknown>).sender?.profilePicture || null;
 
-      if (Object.keys(mc as object).length === 0 && !(msg as Record<string, unknown>).body && !(msg as Record<string, unknown>).text) break;
+      if (Object.keys(mc as object).length === 0 && !(msg as Record<string, unknown>).body && !(msg as Record<string, unknown>).text) { console.log(`[Debug-0] mc empty + no body/text, breaking. msg sample: ${JSON.stringify(msg).substring(0, 400)}`); break; }
       if ((mc as Record<string, unknown>).call || (mc as Record<string, unknown>).callLogMessage || (mc as Record<string, unknown>).bcallMessage || (mc as Record<string, unknown>).missedCallMessage || (msg as Record<string, unknown>).type === 'call' || (msg as Record<string, unknown>).callId) break;
 
-      // Extract message content early (no DB call)
+       // Extract message content early (no DB call)
+      const mcKeys = Object.keys(mc as object);
+      const msgKeys = Object.keys(msg as object);
+      console.log(`[Debug] msg keys: [${msgKeys.join(',')}], mc keys: [${mcKeys.join(',')}], mc empty: ${mcKeys.length === 0}`);
+      if (mcKeys.length === 0) {
+        console.log(`[Debug] msg.body: ${(msg as Record<string,unknown>).body}, msg.text: ${(msg as Record<string,unknown>).text}, msg.type: ${(msg as Record<string,unknown>).type}`);
+        console.log(`[Debug] Full msg sample: ${JSON.stringify(msg).substring(0, 500)}`);
+      }
       const ext = extractMsgContent(mc as Record<string, unknown>, msg as Record<string, unknown>);
       if (!ext) break;
       let { type, content, url, key, path, fn, download, mime } = ext;
+      console.log(`[Debug] Extracted: type=${type}, download=${download}, hasUrl=${!!url}, hasKey=${!!key}, hasPath=${!!path}, msgId=${msgId}`);
       
       const preview = getPreview(mc as Record<string, unknown>, msg as Record<string, unknown>);
       const messageTimestamp = (msg as Record<string, unknown>).messageTimestamp 
@@ -3225,13 +3235,41 @@ async function processWebhookEvent(body: Record<string, unknown>) {
               }
               else { const { data: nc } = await supabase.from('wapi_conversations').insert({ instance_id: instance.id, remote_jid: rj, contact_phone: p, contact_name: (body?.chat as Record<string, unknown>)?.name || p, last_message_at: new Date().toISOString(), last_message_content: pv.substring(0, 100), last_message_from_me: true, bot_enabled: false, company_id: instance.company_id }).select().single(); cv = nc; }
               
-              if (cv) {
-                let ct = '', tp = 'text', mu = null;
+               if (cv) {
+                let ct = '', tp = 'text', mu: string | null = null, mk: string | null = null, dp: string | null = null, mm: string | null = null;
                 if ((mcd as Record<string, unknown>).conversation) ct = (mcd as Record<string, unknown>).conversation as string;
                 else if ((mcd as Record<string, unknown>).extendedTextMessage?.text) ct = (mcd as Record<string, unknown>).extendedTextMessage?.text as string;
-                else if ((mcd as Record<string, unknown>).imageMessage) { tp = 'image'; ct = (mcd as Record<string, unknown>).imageMessage?.caption || '[Imagem]'; mu = (mcd as Record<string, unknown>).imageMessage?.url; }
-                else if ((mcd as Record<string, unknown>).documentMessage) { tp = 'document'; ct = (mcd as Record<string, unknown>).documentMessage?.fileName || '[Documento]'; mu = (mcd as Record<string, unknown>).documentMessage?.url; }
-                await supabase.from('wapi_messages').insert({ conversation_id: cv.id, message_id: mId, from_me: true, message_type: tp, content: ct, media_url: mu, status: 'sent', timestamp: body.moment ? new Date((body.moment as number) * 1000).toISOString() : new Date().toISOString(), company_id: instance.company_id });
+                else if ((mcd as Record<string, unknown>).imageMessage) { 
+                  const im = (mcd as Record<string, unknown>).imageMessage as Record<string, unknown>;
+                  tp = 'image'; ct = (im.caption as string) || '[Imagem]'; mu = im.url as string || null; mk = im.mediaKey as string || null; dp = im.directPath as string || null; mm = im.mimetype as string || null;
+                }
+                else if ((mcd as Record<string, unknown>).videoMessage) {
+                  const vm = (mcd as Record<string, unknown>).videoMessage as Record<string, unknown>;
+                  tp = 'video'; ct = (vm.caption as string) || '[Vídeo]'; mu = vm.url as string || null; mk = vm.mediaKey as string || null; dp = vm.directPath as string || null; mm = vm.mimetype as string || null;
+                }
+                else if ((mcd as Record<string, unknown>).audioMessage) {
+                  const am = (mcd as Record<string, unknown>).audioMessage as Record<string, unknown>;
+                  tp = 'audio'; ct = '[Áudio]'; mu = am.url as string || null; mk = am.mediaKey as string || null; dp = am.directPath as string || null; mm = am.mimetype as string || null;
+                }
+                else if ((mcd as Record<string, unknown>).documentMessage) { 
+                  const dm = (mcd as Record<string, unknown>).documentMessage as Record<string, unknown>;
+                  tp = 'document'; ct = (dm.fileName as string) || '[Documento]'; mu = dm.url as string || null; mk = dm.mediaKey as string || null; dp = dm.directPath as string || null; mm = dm.mimetype as string || null;
+                }
+                
+                await supabase.from('wapi_messages').insert({ conversation_id: cv.id, message_id: mId, from_me: true, message_type: tp, content: ct, media_url: mu, media_key: mk, media_direct_path: dp, status: 'sent', timestamp: body.moment ? new Date((body.moment as number) * 1000).toISOString() : new Date().toISOString(), company_id: instance.company_id });
+                
+                // Download media to persistent storage if it's a media message
+                if ((tp === 'image' || tp === 'video' || tp === 'audio' || tp === 'document') && mId) {
+                  const fn = tp === 'document' ? ct : undefined;
+                  downloadMedia(supabase, instance.instance_id, instance.instance_token, mId as string, tp, fn, mk, dp, mu, mm)
+                    .then(async (res) => {
+                      if (res) {
+                        await supabase.from('wapi_messages').update({ media_url: res.url, media_key: null, media_direct_path: null }).eq('message_id', mId);
+                        console.log(`[webhookDelivery] Media persisted for ${mId}: ${res.url.substring(0, 60)}...`);
+                      }
+                    })
+                    .catch(err => console.error('[webhookDelivery] Media download error:', err));
+                }
               }
             }
           }
