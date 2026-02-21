@@ -848,10 +848,25 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     }
   }, []);
 
+  // Handle realtime UPDATE events (e.g. media_url updated after async download)
+  const handleRealtimeMessageUpdate = useCallback((updatedMessage: Message & { media_url?: string | null }) => {
+    setMessages((prev) => {
+      const idx = prev.findIndex(m => m.id === updatedMessage.id);
+      if (idx === -1) return prev;
+      const existing = prev[idx];
+      // Only update if media_url actually changed
+      if (existing.media_url === updatedMessage.media_url && existing.status === updatedMessage.status) return prev;
+      const updated = [...prev];
+      updated[idx] = { ...existing, ...updatedMessage };
+      return updated;
+    });
+  }, []);
+
   // Use the robust realtime hook for messages
   useMessagesRealtime({
     conversationId: selectedConversation?.id || null,
     onNewMessage: handleNewRealtimeMessage,
+    onMessageUpdate: handleRealtimeMessageUpdate,
     enabled: true,
   });
   
