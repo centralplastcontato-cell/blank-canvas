@@ -2718,8 +2718,40 @@ function getExt(mime: string, fn?: string): string {
 
 async function downloadMedia(supabase: SupabaseClient, iId: string, iToken: string, msgId: string, type: string, fn?: string, mKey?: string | null, dPath?: string | null, mUrl?: string | null, mime?: string | null): Promise<{ url: string; fileName: string } | null> {
   try {
+    // If no media key/path but we have a URL, try direct download
+    if ((!mKey || !dPath) && mUrl && !mUrl.includes('supabase.co')) {
+      console.log(`[${msgId}] No mediaKey/directPath, trying direct URL download: ${mUrl.substring(0, 60)}...`);
+      try {
+        const directRes = await fetch(mUrl);
+        if (directRes.ok) {
+          const ct = directRes.headers.get('content-type') || (type === 'image' ? 'image/jpeg' : type === 'video' ? 'video/mp4' : 'application/octet-stream');
+          const rMime = ct.split(';')[0].trim();
+          const buf = await directRes.arrayBuffer();
+          if (buf.byteLength > 0) {
+            const ext = getExt(rMime, fn);
+            const path = `received/${type}s/${msgId}.${ext}`;
+            console.log(`[${msgId}] Direct download: ${buf.byteLength} bytes, uploading to ${path}`);
+            const { error: upErr } = await supabase.storage.from('whatsapp-media').upload(path, buf, { contentType: rMime, upsert: true });
+            if (!upErr) {
+              const { data: signedUrlData } = await supabase.storage.from('whatsapp-media').createSignedUrl(path, 604800);
+              if (signedUrlData?.signedUrl) {
+                return { url: signedUrlData.signedUrl, fileName: fn || `${msgId}.${ext}` };
+              }
+            } else {
+              console.error(`[${msgId}] Direct upload error:`, upErr.message);
+            }
+          }
+        } else {
+          console.log(`[${msgId}] Direct URL fetch failed: ${directRes.status}`);
+        }
+      } catch (e) {
+        console.log(`[${msgId}] Direct URL download error:`, e instanceof Error ? e.message : String(e));
+      }
+      return null;
+    }
+    
     if (!mKey || !dPath) {
-      console.log(`[${msgId}] Skipping download - missing mediaKey or directPath`);
+      console.log(`[${msgId}] Skipping download - missing mediaKey, directPath, and no usable URL`);
       return null;
     }
     
@@ -2918,10 +2950,24 @@ async function processWebhookEvent(body: Record<string, unknown>) {
     const rawD = data as Record<string, unknown> | undefined;
     const hasKey = rawD?.key || body.key;
     const hasRemoteJid = rawD?.key?.remoteJid || rawD?.remoteJid || rawD?.from || body.key?.remoteJid || body.remoteJid || body.from;
-    const hasMessageContent = rawD?.message || rawD?.msgContent || rawD?.body || rawD?.text || body.message || body.body || body.text;
-    if (hasKey || (hasRemoteJid && hasMessageContent)) {
+    const hasMessageContent = rawD?.message || rawD?.msgContent || rawD?.body || rawD?.text || body.message || body.body || body.text || body.msgContent;
+    // Also check for media-specific fields
+    const hasMediaContent = rawD?.message?.imageMessage || rawD?.message?.videoMessage || rawD?.message?.audioMessage || rawD?.message?.documentMessage || body.message?.imageMessage || body.message?.videoMessage || body.message?.audioMessage || body.message?.documentMessage;
+    // Check for messageId (delivery/status events)
+    const hasMessageId = body.messageId || rawD?.messageId;
+    const hasStatus = body.status || rawD?.status || body.ack !== undefined || rawD?.ack !== undefined;
+    
+    if (hasKey || (hasRemoteJid && (hasMessageContent || hasMediaContent))) {
       console.log('[Webhook] No event field but message data detected, routing as messages.upsert');
       evt = 'messages.upsert';
+    } else if (hasMessageId && (hasStatus || body.fromMe !== undefined)) {
+      console.log('[Webhook] No event field but status/delivery data detected, routing as webhookDelivery');
+      evt = 'webhookDelivery';
+    } else {
+      // Log body keys for debugging unknown events
+      const bodyKeys = Object.keys(body).join(', ');
+      const dataKeys = rawD ? Object.keys(rawD).join(', ') : 'none';
+      console.log(`[Webhook] Unroutable event. body keys: [${bodyKeys}], data keys: [${dataKeys}]`);
     }
   }
 
@@ -3198,8 +3244,11 @@ async function processWebhookEvent(body: Record<string, unknown>) {
       break;
     }
     default: {
-      // Log the full body for unknown events to help debug
-      console.log('Unhandled event:', evt);
+      // Log full body structure for debugging
+      const bodyKeys = Object.keys(body).join(', ');
+      console.log(`Unhandled event: ${evt}, body keys: [${bodyKeys}]`);
+      if (body.msgContent) console.log(`[Unknown] Has msgContent keys: [${Object.keys(body.msgContent).join(', ')}]`);
+      if (body.chat) console.log(`[Unknown] Has chat.id: ${(body.chat as Record<string, unknown>)?.id}`);
       
       // Try to extract message from unknown events - W-API sometimes sends messages with different event names
       const unknownMsg = (data as Record<string, unknown>)?.message || data || body;
