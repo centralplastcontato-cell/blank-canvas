@@ -555,6 +555,7 @@ async function processFollowUp({
       if (usersToNotify && usersToNotify.length > 0) {
         const notifications = usersToNotify.map((u) => ({
           user_id: u.user_id,
+          company_id: instance.company_id,
           type: "follow_up_sent",
           title: `📬 Follow-up #${followUpNumber} enviado: ${lead.name}`,
           message: `Mensagem de acompanhamento automático #${followUpNumber} enviada para ${firstName}`,
@@ -1062,6 +1063,7 @@ async function processStaleRemindedAlerts({
     if (companyUsers) {
       const notifications = companyUsers.map(u => ({
         user_id: u.user_id,
+        company_id: conv.company_id,
         type: "stale_reminded",
         title: "⏰ Lead sem resposta após lembrete",
         message: `${leadName} está há mais de ${STALE_HOURS}h sem responder após o lembrete de próximo passo.`,

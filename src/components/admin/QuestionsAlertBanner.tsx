@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentCompanyId } from "@/lib/supabase-helpers";
 import { HelpCircle, X, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNotificationSounds } from "@/hooks/useNotificationSounds";
@@ -39,13 +40,20 @@ export function QuestionsAlertBanner({ userId, onOpenConversation }: QuestionsAl
 
   useEffect(() => {
     const fetchAlerts = async () => {
-      const { data } = await supabase
+      const companyId = getCurrentCompanyId();
+      let query = supabase
         .from("notifications")
         .select("*")
         .eq("user_id", userId)
         .eq("type", "lead_questions")
         .eq("read", false)
         .order("created_at", { ascending: false });
+
+      if (companyId) {
+        query = query.or(`company_id.eq.${companyId},company_id.is.null`);
+      }
+
+      const { data } = await query;
 
       if (data) {
         const validAlerts = data

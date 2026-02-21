@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentCompanyId } from "@/lib/supabase-helpers";
 import { Crown, X, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNotificationSounds } from "@/hooks/useNotificationSounds";
@@ -41,13 +42,20 @@ export function ClientAlertBanner({ userId, onOpenConversation }: ClientAlertBan
   // Fetch unread client notifications
   useEffect(() => {
     const fetchAlerts = async () => {
-      const { data } = await supabase
+      const companyId = getCurrentCompanyId();
+      let query = supabase
         .from("notifications")
         .select("*")
         .eq("user_id", userId)
         .eq("type", "existing_client")
         .eq("read", false)
         .order("created_at", { ascending: false });
+
+      if (companyId) {
+        query = query.or(`company_id.eq.${companyId},company_id.is.null`);
+      }
+
+      const { data } = await query;
 
       if (data) {
         // Filter and cast only valid client notifications

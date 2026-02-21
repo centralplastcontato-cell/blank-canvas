@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentCompanyId } from "@/lib/supabase-helpers";
 import { ArrowRightLeft, X, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -30,13 +31,20 @@ export function TransferAlertBanner({ userId, onViewLead }: TransferAlertBannerP
   // Fetch unread transfer notifications
   useEffect(() => {
     const fetchTransfers = async () => {
-      const { data } = await supabase
+      const companyId = getCurrentCompanyId();
+      let query = supabase
         .from("notifications")
         .select("*")
         .eq("user_id", userId)
         .eq("type", "lead_transfer")
         .eq("read", false)
         .order("created_at", { ascending: false });
+
+      if (companyId) {
+        query = query.or(`company_id.eq.${companyId},company_id.is.null`);
+      }
+
+      const { data } = await query;
 
       if (data) {
         // Filter and cast only valid transfer notifications

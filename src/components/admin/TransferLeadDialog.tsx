@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
-import { insertWithCompany } from "@/lib/supabase-helpers";
+import { insertWithCompany, getCurrentCompanyId } from "@/lib/supabase-helpers";
 import { Lead, UserWithRole, LEAD_STATUS_LABELS } from "@/types/crm";
 import {
   AlertDialog,
@@ -237,6 +237,7 @@ export function TransferLeadDialog({
       // Create notification for the receiving user
       await supabase.from("notifications").insert({
         user_id: selectedUserId,
+        company_id: getCurrentCompanyId(),
         type: "lead_transfer",
         title: "📬 Novo lead transferido para você!",
         message: `🔄 ${currentUserName} transferiu o lead "${lead.name}" (${LEAD_STATUS_LABELS[lead.status]}) para você. 🎯`,

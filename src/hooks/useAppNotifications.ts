@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNotifications } from "./useNotifications";
 import { useNotificationSounds } from "./useNotificationSounds";
+import { getCurrentCompanyId } from "@/lib/supabase-helpers";
 
 export interface AppNotification {
   id: string;
@@ -36,12 +37,21 @@ export function useAppNotifications() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data, error } = await supabase
+    const companyId = getCurrentCompanyId();
+    
+    let query = supabase
       .from("notifications")
       .select("*")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(50);
+
+    // Filter by company_id (include null for backward compatibility with old notifications)
+    if (companyId) {
+      query = query.or(`company_id.eq.${companyId},company_id.is.null`);
+    }
+
+    const { data, error } = await query;
 
     if (!error && data) {
       const notifs = data as AppNotification[];
@@ -119,7 +129,14 @@ export function useAppNotifications() {
             filter: `user_id=eq.${user.id}`,
           },
           (payload) => {
-            const newNotification = payload.new as AppNotification;
+            const newNotification = payload.new as AppNotification & { company_id?: string };
+            const companyId = getCurrentCompanyId();
+            
+            // Filter: only show notifications for current company (or null for backward compat)
+            if (newNotification.company_id && companyId && newNotification.company_id !== companyId) {
+              return; // Skip notifications from other companies
+            }
+            
             setNotifications((prev) => {
               const updated = [newNotification, ...prev];
               updateCounts(updated);
