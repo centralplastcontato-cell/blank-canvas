@@ -45,6 +45,7 @@ export function DLPVideo({ video, theme, companyName }: DLPVideoProps) {
         name: companyName,
         video_url: video.video_url,
         video_type: video.video_type,
+        poster_url: (video as any).poster_url,
         location: "Nosso espaço",
       },
     ];
@@ -89,16 +90,7 @@ export function DLPVideo({ video, theme, companyName }: DLPVideoProps) {
             className="text-3xl md:text-5xl font-bold mb-4"
             style={{ color: theme.text_color, fontFamily: theme.font_heading }}
           >
-            Nossas{" "}
-            <span
-              style={{
-                background: `linear-gradient(135deg, ${theme.primary_color}, ${theme.secondary_color})`,
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
-              Unidades
-            </span>
+            {video.title || (isMultiple ? "Nossas Unidades" : "Conheça Nosso Espaço")}
           </h2>
           <p
             className="text-lg max-w-2xl mx-auto"

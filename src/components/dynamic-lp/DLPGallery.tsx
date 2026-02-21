@@ -73,16 +73,7 @@ export function DLPGallery({ gallery, theme, companyName }: DLPGalleryProps) {
             className="text-3xl md:text-5xl font-bold mb-4"
             style={{ color: theme.text_color, fontFamily: theme.font_heading }}
           >
-            Nossas{" "}
-            <span
-              style={{
-                background: `linear-gradient(135deg, ${theme.primary_color}, ${theme.secondary_color})`,
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
-              Unidades
-            </span>
+            {gallery.title || (hasMultipleUnits ? "Nossas Unidades" : "Nosso Espaço")}
           </h2>
           <p
             className="text-lg max-w-md mx-auto"
