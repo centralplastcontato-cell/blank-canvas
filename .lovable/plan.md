@@ -1,66 +1,55 @@
 
 
-## Problema Identificado
+## Reformulacao do Onboarding no Hub
 
-A LP do Planeta Divertido usa o **mesmo layout split 50/50** no Hero que foi projetado para o Castelo da Diversao (que tem 2 unidades com fachadas diferentes). O Planeta Divertido tem **apenas 1 unidade**, entao:
+### Problema atual
+1. O formulario publico de onboarding (`/onboarding/:slug`) mostra tela de "concluido" quando o status e `completo`, impedindo qualquer edicao posterior
+2. O painel de detalhes no Hub abre como Sheet lateral (estreita), ruim no desktop
+3. O formulario de edicao no Hub nao permite upload de fotos, videos ou logo - apenas campos de texto
 
-- No desktop: a imagem ocupa so metade da tela, e a outra metade mostra uma segunda foto que nao e uma "segunda unidade"
-- O visual fica identico ao layout antigo do Castelo
-- A galeria e video tambem nao tem separacao por unidades/abas (porque so tem 1 unidade)
+### Solucao proposta
 
-## Solucao
+#### 1. Formulario publico: permitir reedicao quando ja concluido
+- Quando `status === 'completo'`, ao inves de mostrar apenas a tela de sucesso, carregar os dados existentes no formulario normalmente
+- Adicionar um botao "Editar informacoes" na tela de concluido que recarrega o formulario com os dados preenchidos
+- Ao salvar novamente, manter status `completo` e atualizar os dados
 
-Modificar o componente `DLPHero` para detectar se o buffet tem **multiplas unidades** e adaptar o layout automaticamente:
+#### 2. Hub: trocar Sheet por Dialog responsivo
+- **Desktop**: Usar `Dialog` com largura generosa (~900px) para mostrar os detalhes em duas colunas
+- **Mobile**: Manter o comportamento de Sheet lateral (tela cheia)
+- Usar o hook `useIsMobile()` para alternar entre Dialog e Sheet automaticamente
 
-### 1. Hero - Layout adaptativo (DLPHero.tsx)
-
-- **1 unidade (Planeta Divertido)**: Usar imagem de fundo **full-width** com crossfade entre as fotos (tanto desktop quanto mobile) -- visual mais impactante e imersivo
-- **2+ unidades (Castelo)**: Manter o layout split 50/50 atual no desktop
-
-A logica ja existe parcialmente: `hasMultipleImages` verifica se tem 2+ imagens, mas nao distingue se sao "unidades diferentes" ou "fotos do mesmo lugar". A correcao sera passar uma prop `multipleUnits` baseada nos dados do onboarding.
-
-### 2. Passar informacao de unidades (DynamicLandingPage.tsx)
-
-- Buscar o campo `multiple_units` do `company_onboarding` (ja e feito o fetch do onboarding para pegar o WhatsApp)
-- Passar como prop para o `DLPHero`
-
-### 3. Ajuste no Hero para unidade unica
-
-Quando `multipleUnits === false` e tem `background_images`, o Hero vai:
-- Desktop: mostrar a **primeira imagem full-width** como fundo fixo, com crossfade entre todas as imagens disponíveis (igual ao mobile atual)
-- Mobile: manter o crossfade entre imagens (ja funciona bem)
-- Resultado: visual premium de tela cheia, sem o lado "vazio"
+#### 3. Hub: adicionar upload de midias no formulario de edicao
+- Adicionar secao de upload de logo (com preview e remocao)
+- Adicionar secao de upload de fotos (grid com preview, limite de 10, botao remover)
+- Adicionar secao de upload de videos (limite de 2, botao remover)
+- Reutilizar a mesma logica de upload do Supabase Storage (`onboarding-uploads` bucket)
 
 ---
 
-## Detalhes Tecnicos
+### Detalhes tecnicos
 
-### Arquivos modificados
+**Arquivos modificados:**
 
-1. **`src/components/dynamic-lp/DLPHero.tsx`**
-   - Adicionar prop `multipleUnits?: boolean`
-   - No `renderBackground()`, quando `hasMultipleImages && !multipleUnits`: renderizar crossfade full-width em todas as telas (remover o split 50/50)
-   - Quando `hasMultipleImages && multipleUnits`: manter split 50/50 atual
+1. **`src/pages/Onboarding.tsx`** (linhas 100-103)
+   - Remover o bloco `if (e.status === 'completo') { setSubmitted(true); }` 
+   - Em vez disso, carregar os dados normalmente e permitir edicao
+   - Adicionar um estado `wasCompleted` para mostrar um banner informativo ("Onboarding ja preenchido. Voce pode atualizar as informacoes abaixo.")
+   - No `handleSubmit`, manter status `completo`
 
-2. **`src/pages/DynamicLandingPage.tsx`**
-   - Extrair `multiple_units` do fetch de `company_onboarding` (ja feito para WhatsApp)
-   - Passar `multipleUnits={data.multipleUnits}` para `<DLPHero />`
+2. **`src/pages/HubOnboarding.tsx`** (linhas 151-185)
+   - Importar `Dialog`, `DialogContent`, `useIsMobile`
+   - No desktop: renderizar `Dialog` com `max-w-4xl` ao inves de `Sheet`
+   - No mobile: manter `Sheet` com `SheetContent` full width
+   - Criar componente wrapper `ResponsiveDetailPanel` que alterna entre os dois
+   - Adicionar uploads de logo/fotos/videos no `OnboardingEditForm`:
+     - Campos de upload com `<input type="file">` e upload para Supabase Storage
+     - Grid de preview para fotos existentes com botao de remocao
+     - Preview de logo com opcao de troca
+     - Lista de videos com botao de remocao
 
-### Mudancas especificas no DLPHero
-
-```text
-renderBackground():
-  SE hasMultipleImages E multipleUnits:
-    -> Split 50/50 desktop + crossfade mobile (comportamento atual)
-  SE hasMultipleImages E NAO multipleUnits:
-    -> Crossfade full-width em TODAS as telas
-  SE apenas background_image_url:
-    -> Imagem unica full-width (comportamento atual)
-```
-
-### Impacto
-
-- **Planeta Divertido**: Hero passa a ter imagem de fundo full-width com crossfade elegante
-- **Castelo da Diversao**: Continua com split 50/50 mostrando as duas fachadas
-- **Novos buffets**: Automaticamente detectado via `multiple_units` do onboarding
+**Fluxo do upload no Hub edit form:**
+- Usar `supabase.storage.from("onboarding-uploads").upload(path, file)` (mesmo bucket do formulario publico)
+- Ao salvar, incluir `logo_url`, `photo_urls` e `video_urls` no payload de update
+- Preview imediato apos upload com URL publica
 
