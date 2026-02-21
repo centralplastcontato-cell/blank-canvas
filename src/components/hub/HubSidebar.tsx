@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { BarChart3, Building2, Users, LogOut, ChevronLeft, Pin, PinOff, Smartphone, ClipboardList, Target, Presentation } from "lucide-react";
 import logoCelebrei from "@/assets/logo-celebrei-2.png";
 import { NavLink } from "@/components/NavLink";
+import { cn } from "@/lib/utils";
 import {
   Sidebar,
   SidebarContent,
@@ -77,8 +78,11 @@ export function HubSidebar({ currentUserName, onLogout }: HubSidebarProps) {
       >
         <SidebarHeader className="p-3">
           <div className="flex items-center gap-3">
-            <div className="h-[72px] w-[72px] rounded-lg flex items-center justify-center shrink-0">
-              <img src={logoCelebrei} alt="Celebrei" className="h-16 w-16 object-contain" />
+            <div className={cn(
+              "rounded-lg flex items-center justify-center shrink-0 transition-all duration-200",
+              collapsed ? "h-8 w-8" : "h-[72px] w-[72px]"
+            )}>
+              <img src={logoCelebrei} alt="Celebrei" className={cn("object-contain transition-all duration-200", collapsed ? "h-7 w-7" : "h-16 w-16")} />
             </div>
             {!collapsed && (
               <>
