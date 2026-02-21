@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { LEAD_STATUS_COLORS, type LeadStatus } from "@/types/crm";
 import { supabase } from "@/integrations/supabase/client";
-import { insertWithCompany, insertSingleWithCompany } from "@/lib/supabase-helpers";
+import { insertWithCompany, insertSingleWithCompany, getCurrentCompanyId } from "@/lib/supabase-helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -482,6 +482,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
       await supabase.from("notifications").insert({
         user_id: selectedTransferUserId,
+        company_id: getCurrentCompanyId(),
         type: "lead_transfer",
         title: "Novo lead transferido para você",
         message: `${currentUserName} transferiu o lead "${linkedLead.name}" (${statusLabels[linkedLead.status] || linkedLead.status}) para você.`,

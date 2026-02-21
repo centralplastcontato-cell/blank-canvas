@@ -1181,6 +1181,7 @@ async function advanceFlowFromNode(
             
             const notifications = Array.from(userIds).map(userId => ({
               user_id: userId,
+              company_id: instance.company_id,
               type: 'flow_handoff',
               title: '🔄 Lead transferido pelo Flow Builder',
               message: `${data.customer_name || data.nome || contactName || contactPhone} foi transferido para atendimento humano.`,
@@ -1396,6 +1397,7 @@ async function advanceFlowFromNode(
             const leadName = data.customer_name || data.nome || contactName || contactPhone;
             const notifications = Array.from(userIds).map(userId => ({
               user_id: userId,
+              company_id: instance.company_id,
               type: 'existing_client',
               title: '👤 Cliente existente identificado',
               message: `${leadName} foi marcado como cliente existente pelo Flow Builder.`,
@@ -1980,6 +1982,7 @@ async function processBotQualification(
             // Create notification for each user
             const notifications = Array.from(userIds).map(userId => ({
               user_id: userId,
+              company_id: instance.company_id,
               type: 'existing_client',
               title: 'Cliente existente precisa de atenção',
               message: `${updated.nome || contactName || contactPhone} disse que já é cliente`,
@@ -2068,6 +2071,7 @@ async function processBotQualification(
             
             const notifications = (adminRoles || []).map(r => ({
               user_id: r.user_id,
+              company_id: instance.company_id,
               type: 'work_interest',
               title: '👷 Interesse em trabalhar no Castelo',
               message: `${leadName} quer trabalhar no Castelo! Enviou interesse via WhatsApp.`,
@@ -2256,6 +2260,7 @@ async function processBotQualification(
               // Create notification for each user
               const notifications = Array.from(userIds).map(userId => ({
                 user_id: userId,
+                company_id: instance.company_id,
                 type: notificationType,
                 title: notificationTitle,
                 message: notificationMessage,
