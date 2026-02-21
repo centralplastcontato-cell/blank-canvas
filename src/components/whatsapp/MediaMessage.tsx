@@ -197,12 +197,12 @@ export function MediaMessage({
           return (
             <video
               controls
-              className="max-w-full max-h-64 block"
-              preload="metadata"
+              src={currentUrl!}
+              className="max-w-full max-h-64 block rounded-lg"
+              preload="auto"
+              playsInline
               onError={handleImageError}
-            >
-              <source src={currentUrl!} />
-            </video>
+            />
           );
         }
         return renderPlaceholder();
