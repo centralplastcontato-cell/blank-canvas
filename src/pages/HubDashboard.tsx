@@ -92,62 +92,106 @@ function HubDashboardContent({ userId }: { userId: string }) {
         const allLeadsRecords: LeadRecord[] = [];
         const timings: ConversationTiming[] = [];
 
-        for (const company of targetCompanies) {
-          const { data: leads } = await supabase
-            .from("campaign_leads").select("id, status, created_at").eq("company_id", company.id);
+        // Fetch all data in parallel instead of sequential per-company
+        const companyIds = targetCompanies.map(c => c.id);
 
-          const allLeads = leads || [];
-          allLeadsRecords.push(...allLeads.map(l => ({
+        const [
+          { data: allLeads },
+          { data: allConvos },
+          { count: _totalMessagesCount },
+          { data: allInstances },
+        ] = await Promise.all([
+          supabase.from("campaign_leads").select("id, status, created_at, company_id").in("company_id", companyIds),
+          supabase.from("wapi_conversations").select("id, is_closed, created_at, company_id").in("company_id", companyIds),
+          supabase.from("wapi_messages").select("id", { count: "exact", head: true }).in("company_id", companyIds),
+          supabase.from("wapi_instances").select("status, phone_number, company_id, connected_at").in("company_id", companyIds).order("connected_at", { ascending: false }),
+        ]);
+
+        const leadsByCompany = new Map<string, typeof allLeads>();
+        (allLeads || []).forEach(l => {
+          const arr = leadsByCompany.get(l.company_id) || [];
+          arr.push(l);
+          leadsByCompany.set(l.company_id, arr);
+        });
+
+        const convosByCompany = new Map<string, typeof allConvos>();
+        (allConvos || []).forEach(c => {
+          const arr = convosByCompany.get(c.company_id) || [];
+          arr.push(c);
+          convosByCompany.set(c.company_id, arr);
+        });
+
+        // Get first messages for response time - batch up to 50 convos total for speed
+        const allConvosList = allConvos || [];
+        const sampleConvos = allConvosList.slice(0, 100);
+        if (sampleConvos.length > 0) {
+          const convoIds = sampleConvos.map(c => c.id);
+          const { data: firstMessages } = await supabase
+            .from("wapi_messages")
+            .select("conversation_id, created_at")
+            .in("conversation_id", convoIds)
+            .eq("from_me", true)
+            .order("created_at", { ascending: true });
+
+          // Group by conversation_id, take first per convo
+          const firstMsgMap = new Map<string, string>();
+          (firstMessages || []).forEach(m => {
+            if (!firstMsgMap.has(m.conversation_id)) {
+              firstMsgMap.set(m.conversation_id, m.created_at);
+            }
+          });
+
+          sampleConvos.forEach(convo => {
+            timings.push({
+              company_id: convo.company_id,
+              created_at: convo.created_at,
+              first_message_at: firstMsgMap.get(convo.id) || null,
+            });
+          });
+        }
+
+        // Count messages per company from totals
+        const msgCountByCompany = new Map<string, number>();
+        // We'll use the total count divided proportionally, or just use totalMessagesCount for now
+        // For per-company counts, we need individual queries but can do them in parallel
+        const msgCountPromises = targetCompanies.map(c =>
+          supabase.from("wapi_messages").select("id", { count: "exact", head: true }).eq("company_id", c.id)
+            .then(res => ({ companyId: c.id, count: res.count || 0 }))
+        );
+        const msgCounts = await Promise.all(msgCountPromises);
+        msgCounts.forEach(mc => msgCountByCompany.set(mc.companyId, mc.count));
+
+        // Instance map (latest per company)
+        const instanceMap = new Map<string, { status: string; phone_number: string | null }>();
+        (allInstances || []).forEach(inst => {
+          if (!instanceMap.has(inst.company_id)) {
+            instanceMap.set(inst.company_id, { status: inst.status, phone_number: inst.phone_number });
+          }
+        });
+
+        for (const company of targetCompanies) {
+          const companyLeads = leadsByCompany.get(company.id) || [];
+          const companyConvos = convosByCompany.get(company.id) || [];
+          const instance = instanceMap.get(company.id);
+
+          allLeadsRecords.push(...companyLeads.map(l => ({
             company_id: company.id, company_name: company.name, status: l.status, created_at: l.created_at,
           })));
 
-          const { data: convos } = await supabase
-            .from("wapi_conversations").select("id, is_closed, created_at").eq("company_id", company.id);
-          const allConvos = convos || [];
-
-          // Get first message timing for response time calc
-          for (const convo of allConvos.slice(0, 50)) {
-            const { data: firstMsg } = await supabase
-              .from("wapi_messages")
-              .select("created_at")
-              .eq("conversation_id", convo.id)
-              .eq("from_me", true)
-              .order("created_at", { ascending: true })
-              .limit(1);
-
-            timings.push({
-              company_id: company.id,
-              created_at: convo.created_at,
-              first_message_at: firstMsg?.[0]?.created_at || null,
-            });
-          }
-
-          const { count: messagesCount } = await supabase
-            .from("wapi_messages").select("id", { count: "exact", head: true }).eq("company_id", company.id);
-
-          // Fetch WhatsApp instance for this company
-          const { data: instances } = await supabase
-            .from("wapi_instances")
-            .select("status, phone_number")
-            .eq("company_id", company.id)
-            .order("connected_at", { ascending: false })
-            .limit(1);
-
-          const instance = instances?.[0];
-          const lastLead = allLeads.length > 0
-            ? allLeads.reduce((latest, l) => l.created_at > latest ? l.created_at : latest, allLeads[0].created_at)
+          const lastLead = companyLeads.length > 0
+            ? companyLeads.reduce((latest, l) => l.created_at > latest ? l.created_at : latest, companyLeads[0].created_at)
             : null;
 
           metrics.push({
             companyId: company.id, companyName: company.name, logoUrl: company.logo_url,
-            totalLeads: allLeads.length,
-            leadsToday: allLeads.filter(l => l.created_at >= todayISO).length,
-            leadsClosed: allLeads.filter(l => l.status === "fechado").length,
-            leadsLost: allLeads.filter(l => l.status === "perdido").length,
-            leadsNew: allLeads.filter(l => l.status === "novo").length,
-            totalConversations: allConvos.length,
-            activeConversations: allConvos.filter(c => !c.is_closed).length,
-            totalMessages: messagesCount || 0,
+            totalLeads: companyLeads.length,
+            leadsToday: companyLeads.filter(l => l.created_at >= todayISO).length,
+            leadsClosed: companyLeads.filter(l => l.status === "fechado").length,
+            leadsLost: companyLeads.filter(l => l.status === "perdido").length,
+            leadsNew: companyLeads.filter(l => l.status === "novo").length,
+            totalConversations: companyConvos.length,
+            activeConversations: companyConvos.filter(c => !c.is_closed).length,
+            totalMessages: msgCountByCompany.get(company.id) || 0,
             lastLeadAt: lastLead,
             whatsappStatus: instance?.status === 'open' || instance?.status === 'connected' ? 'connected' : instance ? 'disconnected' : 'unknown',
             whatsappPhone: instance?.phone_number || null,
