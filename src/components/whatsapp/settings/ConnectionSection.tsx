@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUnitPermissions } from "@/hooks/useUnitPermissions";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
@@ -78,9 +78,10 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
 
   // Phone pairing states
   const [connectionMode, setConnectionMode] = useState<'qr' | 'phone'>('qr');
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [_phoneNumber, setPhoneNumber] = useState('');
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [isPairingLoading, setIsPairingLoading] = useState(false);
+  const phoneInputRef = useRef<HTMLInputElement>(null);
 
   // Number change detection states
   const [numberChangeDialogOpen, setNumberChangeDialogOpen] = useState(false);
@@ -763,7 +764,8 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
   };
 
   const handleRequestPairingCode = async () => {
-    if (!qrInstance || !phoneNumber) {
+    const currentPhone = phoneInputRef.current?.value.replace(/\D/g, '') || '';
+    if (!qrInstance || !currentPhone || currentPhone.length < 10) {
       toast({
         title: "Erro",
         description: "Informe o número de telefone com DDD.",
@@ -781,7 +783,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
           action: "request-pairing-code",
           instanceId: qrInstance.instance_id,
           instanceToken: qrInstance.instance_token,
-          phoneNumber: phoneNumber,
+          phoneNumber: currentPhone,
         },
       });
 
@@ -1065,29 +1067,25 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                   <span className="text-lg">🇧🇷</span>
                   <span className="text-sm font-medium">+55</span>
                 </div>
-                <Input
-                  type="tel"
-                  inputMode="tel"
-                  pattern="[0-9]*"
+                <input
+                  ref={phoneInputRef}
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
                   placeholder="11999999999"
-                  value={phoneNumber}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, '');
-                    setPhoneNumber(value);
-                  }}
-                  onFocus={(e) => e.target.select()}
-                  className="flex-1 text-base min-w-0"
                   maxLength={11}
-                  autoComplete="tel-national"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck={false}
+                  onInput={(e) => {
+                    const el = e.currentTarget;
+                    const cleaned = el.value.replace(/\D/g, '').slice(0, 11);
+                    if (cleaned !== el.value) el.value = cleaned;
+                  }}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 flex-1 min-w-0"
                 />
               </div>
               
               <Button 
                 onClick={handleRequestPairingCode}
-                disabled={isPairingLoading || phoneNumber.length < 10}
+                disabled={isPairingLoading}
                 className="w-full"
               >
                 {isPairingLoading ? (
