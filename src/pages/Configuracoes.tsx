@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -31,6 +31,8 @@ interface Profile {
 
 export default function Configuracoes() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const defaultTab = searchParams.get("tab") === "perfil" ? "perfil" : "whatsapp";
   const [user, setUser] = useState<User | null>(null);
   const [_session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -155,7 +157,7 @@ export default function Configuracoes() {
         </header>
 
         <main className="flex-1 p-3 overflow-auto space-y-4">
-          <Tabs defaultValue="whatsapp">
+          <Tabs defaultValue={defaultTab}>
             <TabsList className="w-full">
               <TabsTrigger value="perfil" className="flex-1 gap-2">
                 <UserCircle className="h-4 w-4" />
@@ -217,7 +219,7 @@ export default function Configuracoes() {
                 </div>
               </div>
 
-              <Tabs defaultValue="whatsapp">
+              <Tabs defaultValue={defaultTab}>
                 <TabsList>
                   <TabsTrigger value="perfil" className="gap-2">
                     <UserCircle className="h-4 w-4" />

@@ -63,7 +63,7 @@ const App = () => (
             <Route path="/auth/:slug" element={<Auth />} />
             <Route path="/atendimento" element={<CentralAtendimento />} />
             <Route path="/configuracoes" element={<Configuracoes />} />
-            <Route path="/perfil" element={<UserSettings />} />
+            <Route path="/perfil" element={<Navigate to="/configuracoes?tab=perfil" replace />} />
             <Route path="/hub/comercial-b2b" element={<ComercialB2B />} />
             <Route path="/para-buffets" element={<ParaBuffets />} />
             <Route path="/dashboard" element={<Index />} />
