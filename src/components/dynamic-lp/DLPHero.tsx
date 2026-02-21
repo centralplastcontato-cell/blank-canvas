@@ -13,15 +13,32 @@ interface DLPHeroProps {
 
 export function DLPHero({ hero, theme, companyName, companyLogo, onCtaClick, multipleUnits }: DLPHeroProps) {
   const [activeImage, setActiveImage] = useState(0);
+  const [imagesLoaded, setImagesLoaded] = useState(false);
   const hasMultipleImages = hero.background_images && hero.background_images.length >= 2;
 
+  // Preload all background images before starting crossfade
   useEffect(() => {
     if (!hasMultipleImages) return;
+    let cancelled = false;
+    const imgs = hero.background_images!.map((src) => {
+      const img = new Image();
+      img.src = src;
+      return img;
+    });
+    // Wait for at least the first image, then mark loaded
+    imgs[0].onload = () => { if (!cancelled) setImagesLoaded(true); };
+    // Fallback: mark loaded after 2s even if slow
+    const timeout = setTimeout(() => { if (!cancelled) setImagesLoaded(true); }, 2000);
+    return () => { cancelled = true; clearTimeout(timeout); };
+  }, [hasMultipleImages, hero.background_images]);
+
+  useEffect(() => {
+    if (!hasMultipleImages || !imagesLoaded) return;
     const interval = setInterval(() => {
       setActiveImage((prev) => (prev + 1) % hero.background_images!.length);
     }, 4000);
     return () => clearInterval(interval);
-  }, [hasMultipleImages, hero.background_images]);
+  }, [hasMultipleImages, hero.background_images, imagesLoaded]);
 
   const btnClass =
     theme.button_style === "pill"
