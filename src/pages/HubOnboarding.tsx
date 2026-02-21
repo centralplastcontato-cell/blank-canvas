@@ -237,9 +237,14 @@ function HubOnboardingContent() {
                     <Eye className="mr-1.5 h-3.5 w-3.5" /> Ver detalhes
                   </Button>
                   {company && (
-                    <Button variant="ghost" size="sm" onClick={() => copyLink(company.slug)}>
-                      <Copy className="h-3.5 w-3.5" />
-                    </Button>
+                    <>
+                      <Button variant="ghost" size="sm" onClick={() => window.open(`/onboarding/${company.slug}`, '_blank')} title="Abrir formulário de onboarding">
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => copyLink(company.slug)}>
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>
