@@ -103,7 +103,7 @@ export default function HubOnboarding() {
   );
 }
 
-function HubOnboardingContent() {
+export function HubOnboardingContent() {
   const [records, setRecords] = useState<OnboardingRecord[]>([]);
   const [companies, setCompanies] = useState<Record<string, CompanyInfo>>({});
   const [isLoading, setIsLoading] = useState(true);
