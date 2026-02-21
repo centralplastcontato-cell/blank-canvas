@@ -18,7 +18,7 @@ import {
   Image as ImageIcon, Mic, Paperclip, Loader2, Square, X, Pause, Play,
   Users, ArrowRightLeft, Trash2,
   CalendarCheck, Briefcase, FileCheck, ArrowDown, Video,
-  Pencil, Copy, ChevronDown, Download
+  Pencil, Copy, ChevronDown, Download, Pin, PinOff
 } from "lucide-react";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { LinkPreviewCard, extractFirstUrl } from "@/components/whatsapp/LinkPreviewCard";
@@ -101,6 +101,7 @@ interface Conversation {
   last_message_from_me: boolean;
   bot_enabled: boolean | null;
   bot_step: string | null;
+  pinned_message_id: string | null;
 }
 
 interface Lead {
@@ -1174,7 +1175,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     // Optimized: Select only necessary columns instead of "*"
     const { data } = await supabase
       .from("wapi_conversations")
-      .select("id, instance_id, lead_id, remote_jid, contact_name, contact_phone, contact_picture, last_message_at, unread_count, is_favorite, is_closed, has_scheduled_visit, is_freelancer, is_equipe, last_message_content, last_message_from_me, bot_enabled, bot_step, created_at")
+      .select("id, instance_id, lead_id, remote_jid, contact_name, contact_phone, contact_picture, last_message_at, unread_count, is_favorite, is_closed, has_scheduled_visit, is_freelancer, is_equipe, last_message_content, last_message_from_me, bot_enabled, bot_step, pinned_message_id, created_at")
       .eq("instance_id", selectedInstance.id)
       .order("last_message_at", { ascending: false, nullsFirst: true });
 
@@ -1266,7 +1267,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           // Not found in current instance — search across ALL instances
           const { data: crossInstanceConv } = await supabase
             .from("wapi_conversations")
-            .select("id, instance_id, remote_jid, contact_name, contact_phone, contact_picture, last_message_at, unread_count, is_favorite, is_closed, has_scheduled_visit, is_freelancer, is_equipe, last_message_content, last_message_from_me, bot_enabled, bot_step, lead_id, is_imported, company_id")
+            .select("id, instance_id, remote_jid, contact_name, contact_phone, contact_picture, last_message_at, unread_count, is_favorite, is_closed, has_scheduled_visit, is_freelancer, is_equipe, last_message_content, last_message_from_me, bot_enabled, bot_step, lead_id, is_imported, company_id, pinned_message_id")
             .or(phoneVariants.map(p => `contact_phone.ilike.%${p}%`).join(','))
             .order("last_message_at", { ascending: false })
             .limit(1)
@@ -1840,6 +1841,51 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     setEditingMessageId(null);
     setEditingContent("");
     setIsSavingEdit(false);
+  };
+
+  // Emoji reaction handler
+  const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+  
+  const handleReaction = async (msg: Message, emoji: string) => {
+    if (!selectedInstance || !selectedConversation || !msg.message_id) return;
+    try {
+      const { error } = await supabase.functions.invoke("wapi-send", {
+        body: {
+          action: "send-reaction",
+          phone: selectedConversation.contact_phone,
+          messageId: msg.message_id,
+          emoji,
+          instanceId: selectedInstance.instance_id,
+          instanceToken: selectedInstance.instance_token,
+        },
+      });
+      if (error) throw error;
+      toast({ title: `Reação ${emoji} enviada` });
+    } catch (err: any) {
+      toast({ title: "Erro ao reagir", description: err.message, variant: "destructive" });
+    }
+  };
+
+  // Pin message handler
+  const handlePinMessage = async (msg: Message) => {
+    if (!selectedConversation) return;
+    const isPinned = selectedConversation.pinned_message_id === msg.id;
+    const newPinnedId = isPinned ? null : msg.id;
+    
+    try {
+      const { error } = await supabase
+        .from('wapi_conversations')
+        .update({ pinned_message_id: newPinnedId })
+        .eq('id', selectedConversation.id);
+      
+      if (error) throw error;
+      
+      setSelectedConversation(prev => prev ? { ...prev, pinned_message_id: newPinnedId } : null);
+      setConversations(prev => prev.map(c => c.id === selectedConversation.id ? { ...c, pinned_message_id: newPinnedId } : c));
+      toast({ title: isPinned ? "Mensagem desafixada" : "Mensagem fixada 📌" });
+    } catch (err: any) {
+      toast({ title: "Erro ao fixar", description: err.message, variant: "destructive" });
+    }
   };
 
 
@@ -3467,6 +3513,23 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                     )}
                   </div>
 
+                  {/* Pinned message banner - desktop */}
+                  {selectedConversation?.pinned_message_id && (() => {
+                    const pinnedMsg = messages.find(m => m.id === selectedConversation.pinned_message_id);
+                    if (!pinnedMsg) return null;
+                    return (
+                      <div className="flex items-center gap-2 px-4 py-2 bg-accent/50 border-b text-sm cursor-pointer hover:bg-accent/70 transition-colors" onClick={() => {
+                        const el = document.getElementById(`msg-${pinnedMsg.id}`);
+                        el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      }}>
+                        <Pin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        <span className="truncate text-muted-foreground">{pinnedMsg.content || `[${pinnedMsg.message_type}]`}</span>
+                        <Button variant="ghost" size="icon" className="h-5 w-5 ml-auto shrink-0" onClick={(e) => { e.stopPropagation(); handlePinMessage(pinnedMsg); }}>
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    );
+                  })()}
                   {/* Messages */}
                   <div className="flex-1 relative min-h-0">
                     <ScrollArea ref={scrollAreaDesktopRef} className="h-full bg-muted/30">
@@ -3508,7 +3571,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                           messages.map((msg, idx) => {
                             const showDateSep = idx === 0 || getDateKey(msg.timestamp) !== getDateKey(messages[idx - 1].timestamp);
                             return (
-                            <div key={msg.id}>
+                            <div key={msg.id} id={`msg-${msg.id}`}>
                             {showDateSep && (
                               <div className="flex justify-center my-3">
                                 <span className="bg-muted text-muted-foreground text-xs px-3 py-1 rounded-md shadow-sm font-medium">
@@ -3641,6 +3704,23 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                       </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align={msg.from_me ? "end" : "start"}>
+                                      {/* Emoji reaction row */}
+                                      {msg.message_id && (
+                                        <>
+                                          <div className="flex items-center gap-1 px-2 py-1.5">
+                                            {REACTION_EMOJIS.map(emoji => (
+                                              <button
+                                                key={emoji}
+                                                className="text-lg hover:scale-125 transition-transform p-0.5 rounded hover:bg-accent"
+                                                onClick={() => handleReaction(msg, emoji)}
+                                              >
+                                                {emoji}
+                                              </button>
+                                            ))}
+                                          </div>
+                                          <DropdownMenuSeparator />
+                                        </>
+                                      )}
                                       {msg.content && (
                                         <DropdownMenuItem onClick={() => {
                                           navigator.clipboard.writeText(msg.content!);
@@ -3665,6 +3745,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                           Baixar
                                         </DropdownMenuItem>
                                       )}
+                                      <DropdownMenuItem onClick={() => handlePinMessage(msg)}>
+                                        {selectedConversation?.pinned_message_id === msg.id ? (
+                                          <><PinOff className="w-4 h-4 mr-2" />Desafixar</>
+                                        ) : (
+                                          <><Pin className="w-4 h-4 mr-2" />Fixar</>
+                                        )}
+                                      </DropdownMenuItem>
                                       {msg.from_me && (
                                         <>
                                           <DropdownMenuSeparator />
@@ -4328,7 +4415,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                       messages.map((msg, idx) => {
                         const showDateSep = idx === 0 || getDateKey(msg.timestamp) !== getDateKey(messages[idx - 1].timestamp);
                         return (
-                        <div key={msg.id}>
+                        <div key={msg.id} id={`msg-${msg.id}`}>
                         {showDateSep && (
                           <div className="flex justify-center my-3">
                             <span className="bg-muted text-muted-foreground text-xs px-3 py-1 rounded-md shadow-sm font-medium">
@@ -4458,6 +4545,23 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align={msg.from_me ? "end" : "start"}>
+                                  {/* Emoji reaction row */}
+                                  {msg.message_id && (
+                                    <>
+                                      <div className="flex items-center gap-1 px-2 py-1.5">
+                                        {REACTION_EMOJIS.map(emoji => (
+                                          <button
+                                            key={emoji}
+                                            className="text-lg hover:scale-125 transition-transform p-0.5 rounded hover:bg-accent"
+                                            onClick={() => handleReaction(msg, emoji)}
+                                          >
+                                            {emoji}
+                                          </button>
+                                        ))}
+                                      </div>
+                                      <DropdownMenuSeparator />
+                                    </>
+                                  )}
                                   {msg.content && (
                                     <DropdownMenuItem onClick={() => {
                                       navigator.clipboard.writeText(msg.content!);
@@ -4482,6 +4586,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                       Baixar
                                     </DropdownMenuItem>
                                   )}
+                                  <DropdownMenuItem onClick={() => handlePinMessage(msg)}>
+                                    {selectedConversation?.pinned_message_id === msg.id ? (
+                                      <><PinOff className="w-4 h-4 mr-2" />Desafixar</>
+                                    ) : (
+                                      <><Pin className="w-4 h-4 mr-2" />Fixar</>
+                                    )}
+                                  </DropdownMenuItem>
                                   {msg.from_me && (
                                     <>
                                       <DropdownMenuSeparator />
