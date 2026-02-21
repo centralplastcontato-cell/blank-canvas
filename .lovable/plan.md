@@ -1,41 +1,19 @@
 
 ## Menu de contexto nas mensagens do chat (estilo WhatsApp Business)
 
-### O que sera feito
-Adicionar um menu de acoes em cada mensagem do chat na Central de Atendimento, similar ao WhatsApp Business. Atualmente, o menu so aparece em mensagens editaveis (enviadas por voce, texto, menos de 15min). A proposta e expandir para **todas as mensagens** com opcoes relevantes.
+### Implementado ✅
 
-### Acoes do menu
-
-| Acao | Quando aparece | O que faz |
+| Ação | Quando aparece | O que faz |
 |------|---------------|-----------|
-| **Copiar** | Mensagens de texto | Copia o conteudo para a area de transferencia |
-| **Editar** | Mensagens enviadas por voce, texto, menos de 15min | Abre o campo de edicao inline (ja existe) |
-| **Baixar** | Mensagens com midia (imagem, video, audio, documento) | Abre o link da midia em nova aba |
-| **Apagar** | Mensagens enviadas por voce | Exclui a mensagem do banco de dados |
+| **Reagir** | Mensagens com message_id (enviadas via W-API) | Mostra 6 emojis rápidos (👍❤️😂😮😢🙏) e envia reação via W-API |
+| **Copiar** | Mensagens de texto | Copia o conteúdo para a área de transferência |
+| **Editar** | Mensagens enviadas por você, texto, menos de 15min | Abre o campo de edição inline |
+| **Baixar** | Mensagens com mídia (imagem, vídeo, áudio, documento) | Abre o link da mídia em nova aba |
+| **Fixar** | Todas as mensagens | Fixa/desafixa mensagem no topo do chat com banner clicável |
+| **Apagar** | Mensagens enviadas por você | Exclui a mensagem do banco de dados |
 
-### Como vai funcionar
-- O botao de contexto (icone de seta/chevron) aparecera ao passar o mouse sobre **qualquer mensagem** (hover), nao apenas as editaveis
-- Ao clicar, abre um `DropdownMenu` com as opcoes aplicaveis para aquela mensagem
-- As opcoes sao filtradas dinamicamente com base no tipo e origem da mensagem
-
-### Detalhes tecnicos
-
-**Arquivo modificado:** `src/components/whatsapp/WhatsAppChat.tsx`
-
-1. **Expandir o menu de contexto** (linhas 3609-3640):
-   - Remover a condicao `isMessageEditable(msg)` que limita o menu
-   - Exibir o botao de contexto em **todas as mensagens** usando `ChevronDown` (ja importado)
-   - Montar as opcoes do menu dinamicamente:
-     - "Copiar" - se `msg.content` existe
-     - "Editar" - se `isMessageEditable(msg)`
-     - "Baixar" - se `msg.media_url` existe
-     - Separador
-     - "Apagar" - se `msg.from_me` (com confirmacao)
-
-2. **Adicionar handler de exclusao de mensagem individual**:
-   - Criar funcao `handleDeleteMessage(msgId)` que deleta de `wapi_messages` e remove do state local
-   - Adicionar um `AlertDialog` simples para confirmar a exclusao
-
-3. **Replicar as mesmas mudancas no bloco de renderizacao mobile** (linhas ~4200+), que tem uma copia do mesmo template de mensagem
-
-O menu aparecera discretamente no hover, sem atrapalhar a leitura, e tera visual consistente com o DropdownMenu ja usado no chat.
+### Detalhes técnicos
+- Edge function `wapi-send` atualizada com ação `send-reaction` (PUT para W-API)
+- Coluna `pinned_message_id` adicionada em `wapi_conversations` (FK para `wapi_messages`)
+- Banner de mensagem fixada aparece no topo da área de mensagens (desktop)
+- Scroll suave até a mensagem fixada ao clicar no banner

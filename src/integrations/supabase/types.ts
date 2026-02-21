@@ -2729,6 +2729,7 @@ export type Database = {
           last_message_content: string | null
           last_message_from_me: boolean | null
           lead_id: string | null
+          pinned_message_id: string | null
           remote_jid: string
           unread_count: number | null
           updated_at: string
@@ -2754,6 +2755,7 @@ export type Database = {
           last_message_content?: string | null
           last_message_from_me?: boolean | null
           lead_id?: string | null
+          pinned_message_id?: string | null
           remote_jid: string
           unread_count?: number | null
           updated_at?: string
@@ -2779,6 +2781,7 @@ export type Database = {
           last_message_content?: string | null
           last_message_from_me?: boolean | null
           lead_id?: string | null
+          pinned_message_id?: string | null
           remote_jid?: string
           unread_count?: number | null
           updated_at?: string
@@ -2803,6 +2806,13 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "campaign_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wapi_conversations_pinned_message_id_fkey"
+            columns: ["pinned_message_id"]
+            isOneToOne: false
+            referencedRelation: "wapi_messages"
             referencedColumns: ["id"]
           },
         ]

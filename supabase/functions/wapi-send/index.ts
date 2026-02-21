@@ -1263,6 +1263,33 @@ Deno.serve(async (req) => {
         });
       }
 
+      case 'send-reaction': {
+        const { messageId: reactionMsgId, emoji } = body;
+        
+        if (!reactionMsgId || !emoji) {
+          return new Response(JSON.stringify({ error: 'messageId e emoji são obrigatórios' }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        const res = await wapiRequest(
+          `${WAPI_BASE_URL}/message/send-reaction?instanceId=${instance_id}`,
+          instance_token,
+          'PUT',
+          { phone, messageId: reactionMsgId, emoji }
+        );
+
+        if (!res.ok) {
+          return new Response(JSON.stringify({ error: res.error }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        return new Response(JSON.stringify({ success: true }), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       default:
         return new Response(JSON.stringify({ error: `Ação desconhecida: ${action}` }), {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
