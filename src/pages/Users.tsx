@@ -59,7 +59,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Plus, Loader2, Users, Shield, Pencil, Trash2, KeyRound, Lock, Menu } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import logoCastelo from "@/assets/logo-castelo.png";
+
 import { useIsMobile } from "@/hooks/use-mobile";
 import { UserCard } from "@/components/admin/UserCard";
 import { PermissionsPanel } from "@/components/admin/PermissionsPanel";
@@ -98,7 +98,7 @@ export default function UsersPage() {
 
   const { isAdmin, isLoading: isLoadingRole, hasFetched, error: roleError, canManageUsers } = useUserRole(user?.id);
   const { hasPermission } = usePermissions(user?.id);
-  const { currentCompanyId } = useCompany();
+  const { currentCompanyId, currentCompany } = useCompany();
   
   const [accessChecked, setAccessChecked] = useState(false);
 
@@ -884,7 +884,7 @@ export default function UsersPage() {
                 />
 
                 <div className="flex items-center gap-2 min-w-0">
-                  <img src={logoCastelo} alt="Castelo da Diversão" className="h-8 w-auto shrink-0" />
+                  <img src={currentCompany?.logo_url || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-8 w-auto shrink-0" />
                   <h1 className="font-display font-bold text-foreground text-sm truncate">Gerenciar Usuários</h1>
                 </div>
               </div>

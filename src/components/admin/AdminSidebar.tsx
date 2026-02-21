@@ -20,7 +20,6 @@ import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 
-import logoCastelo from "@/assets/logo-castelo.png";
 import { CompanySwitcher } from "./CompanySwitcher";
 import { useCompany } from "@/contexts/CompanyContext";
 
@@ -103,7 +102,7 @@ export function AdminSidebar({
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
           <img 
-            src={currentCompany?.logo_url || logoCastelo} 
+            src={currentCompany?.logo_url || '/placeholder.svg'} 
             alt={currentCompany?.name || "Logo"} 
             className="h-9 w-9 object-contain shrink-0 rounded-lg"
           />

@@ -23,7 +23,7 @@ import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
 import { NotificationBell } from "@/components/admin/NotificationBell";
-import logoCastelo from "@/assets/logo-castelo.png";
+
 
 export default function Inteligencia() {
   const navigate = useNavigate();
@@ -192,7 +192,7 @@ export default function Inteligencia() {
                     onLogout={handleLogout}
                   />
                   <div className="flex items-center gap-2 min-w-0">
-                    <img src={logoCastelo} alt="Logo" className="h-8 w-auto shrink-0" />
+                    <img src={currentCompany?.logo_url || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-8 w-auto shrink-0" />
                     <h1 className="font-display font-bold text-foreground text-sm truncate">Inteligência</h1>
                   </div>
                 </div>

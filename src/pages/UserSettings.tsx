@@ -10,10 +10,11 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/s
 import { toast } from "@/hooks/use-toast";
 import { Menu, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import logoCastelo from "@/assets/logo-castelo.png";
+import { useCompany } from "@/contexts/CompanyContext";
 
 export default function UserSettings() {
   const navigate = useNavigate();
+  const { currentCompany } = useCompany();
   const [user, setUser] = useState<User | null>(null);
   const [_session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -88,7 +89,7 @@ export default function UserSettings() {
                 onLogout={handleLogout}
               />
               <div className="flex items-center gap-2 min-w-0">
-                <img src={logoCastelo} alt="Castelo da Diversão" className="h-8 w-auto shrink-0" />
+                <img src={currentCompany?.logo_url || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-8 w-auto shrink-0" />
                 <h1 className="font-display font-bold text-foreground text-sm truncate">Perfil</h1>
               </div>
             </div>
