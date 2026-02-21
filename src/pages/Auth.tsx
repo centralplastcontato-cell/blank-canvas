@@ -9,7 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { Loader2, Lock, Mail, ArrowLeft } from "lucide-react";
 import { isHubDomain } from "@/hooks/useDomainDetection";
 import { z } from "zod";
-import logoCastelo from "@/assets/logo-castelo.png";
+
 
 const emailSchema = z.string().email("Email inválido");
 const passwordSchema = z.string().min(6, "Senha deve ter pelo menos 6 caracteres");
@@ -137,7 +137,7 @@ export default function Auth() {
     }
   };
 
-  const displayLogo = companyLogo || logoCastelo;
+  const displayLogo = companyLogo || '/placeholder.svg';
   const displayName = companyName || "Entrar";
 
   if (isLoadingCompany) {
