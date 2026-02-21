@@ -1,19 +1,57 @@
 
-## Menu de contexto nas mensagens do chat (estilo WhatsApp Business)
 
-### Implementado ✅
+## Problema: Tela de login do Planeta Divertido trava no loading
 
-| Ação | Quando aparece | O que faz |
-|------|---------------|-----------|
-| **Reagir** | Mensagens com message_id (enviadas via W-API) | Mostra 6 emojis rápidos (👍❤️😂😮😢🙏) e envia reação via W-API |
-| **Copiar** | Mensagens de texto | Copia o conteúdo para a área de transferência |
-| **Editar** | Mensagens enviadas por você, texto, menos de 15min | Abre o campo de edição inline |
-| **Baixar** | Mensagens com mídia (imagem, vídeo, áudio, documento) | Abre o link da mídia em nova aba |
-| **Fixar** | Todas as mensagens | Fixa/desafixa mensagem no topo do chat com banner clicável |
-| **Apagar** | Mensagens enviadas por você | Exclui a mensagem do banco de dados |
+### Diagnóstico
 
-### Detalhes técnicos
-- Edge function `wapi-send` atualizada com ação `send-reaction` (PUT para W-API)
-- Coluna `pinned_message_id` adicionada em `wapi_conversations` (FK para `wapi_messages`)
-- Banner de mensagem fixada aparece no topo da área de mensagens (desktop)
-- Scroll suave até a mensagem fixada ao clicar no banner
+A página `/auth/planeta-divertido` fica presa no spinner de carregamento infinito. A causa raiz é dupla:
+
+1. **Falta de tratamento de erro**: O código em `Auth.tsx` (linhas 37-46) chama o RPC `get_company_branding_by_slug` sem um `.catch()`. Se a requisição falhar por qualquer motivo (rede, timeout, CORS), o estado `isLoadingCompany` permanece `true` para sempre, travando a tela no spinner.
+
+2. **Frontend possivelmente desatualizado**: Alteracoes recentes no codigo podem nao ter sido publicadas no dominio customizado `buffetplanetadivertido.online`. O dominio customizado serve apenas a versao publicada.
+
+### Solucao
+
+#### 1. Adicionar tratamento de erro no Auth.tsx
+
+Modificar a chamada RPC para incluir `.catch()`, garantindo que `isLoadingCompany` seja definido como `false` mesmo em caso de falha:
+
+```typescript
+// Auth.tsx linhas 37-46 — antes
+supabase
+  .rpc("get_company_branding_by_slug", { _slug: slug })
+  .maybeSingle()
+  .then(({ data }) => {
+    if (data) {
+      setCompanyName(data.name);
+      setCompanyLogo(data.logo_url);
+    }
+    setIsLoadingCompany(false);
+  });
+
+// depois
+supabase
+  .rpc("get_company_branding_by_slug", { _slug: slug })
+  .maybeSingle()
+  .then(({ data }) => {
+    if (data) {
+      setCompanyName(data.name);
+      setCompanyLogo(data.logo_url);
+    }
+  })
+  .catch(() => {
+    // silently fallback to default branding
+  })
+  .finally(() => {
+    setIsLoadingCompany(false);
+  });
+```
+
+#### 2. Publicar as alteracoes
+
+Apos a correcao, clicar em **Publish > Update** para que o dominio customizado receba a versao mais recente do frontend.
+
+### Arquivos modificados
+
+- `src/pages/Auth.tsx` — adicionar `.catch()` e `.finally()` na chamada RPC de branding
+
