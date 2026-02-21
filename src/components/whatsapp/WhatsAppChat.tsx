@@ -18,7 +18,7 @@ import {
   Image as ImageIcon, Mic, Paperclip, Loader2, Square, X, Pause, Play,
   Users, ArrowRightLeft, Trash2,
   CalendarCheck, Briefcase, FileCheck, ArrowDown, Video,
-  Pencil, Copy, ChevronDown
+  Pencil, Copy, ChevronDown, Download
 } from "lucide-react";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { LinkPreviewCard, extractFirstUrl } from "@/components/whatsapp/LinkPreviewCard";
@@ -1851,6 +1851,28 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     return (now - msgTime) < 15 * 60 * 1000; // 15 minutes
   };
 
+  // Delete message state
+  const [deleteMessageId, setDeleteMessageId] = useState<string | null>(null);
+
+  // Delete message handler
+  const handleDeleteMessage = async (msgId: string) => {
+    try {
+      const { error } = await supabase
+        .from('wapi_messages')
+        .delete()
+        .eq('id', msgId);
+      
+      if (error) throw error;
+      
+      setMessages(prev => prev.filter(m => m.id !== msgId));
+      toast({ title: "Mensagem apagada" });
+    } catch (err: any) {
+      toast({ title: "Erro ao apagar", description: err.message, variant: "destructive" });
+    } finally {
+      setDeleteMessageId(null);
+    }
+  };
+
   // Direct text message sender for SalesMaterialsMenu
   const sendTextMessageDirect = async (message: string): Promise<void> => {
     if (!message.trim() || !selectedConversation || !selectedInstance) return;
@@ -3606,8 +3628,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                   {msg.from_me && getStatusIcon(msg.status)}
                                 </div>
                                 </div>
-                                {/* Context menu for editable messages */}
-                                {isMessageEditable(msg) && editingMessageId !== msg.id && (
+                                {/* Context menu for all messages */}
+                                {editingMessageId !== msg.id && (
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                       <Button
@@ -3615,26 +3637,43 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                         size="icon"
                                         className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                                       >
-                                        <Pencil className="w-3 h-3" />
+                                        <ChevronDown className="w-3 h-3" />
                                       </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align={msg.from_me ? "end" : "start"}>
-                                      <DropdownMenuItem onClick={() => {
-                                        setEditingMessageId(msg.id);
-                                        setEditingContent(msg.content || "");
-                                      }}>
-                                        <Pencil className="w-4 h-4 mr-2" />
-                                        Editar
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => {
-                                        if (msg.content) {
-                                          navigator.clipboard.writeText(msg.content);
+                                      {msg.content && (
+                                        <DropdownMenuItem onClick={() => {
+                                          navigator.clipboard.writeText(msg.content!);
                                           toast({ title: "Copiado!" });
-                                        }
-                                      }}>
-                                        <Copy className="w-4 h-4 mr-2" />
-                                        Copiar
-                                      </DropdownMenuItem>
+                                        }}>
+                                          <Copy className="w-4 h-4 mr-2" />
+                                          Copiar
+                                        </DropdownMenuItem>
+                                      )}
+                                      {isMessageEditable(msg) && (
+                                        <DropdownMenuItem onClick={() => {
+                                          setEditingMessageId(msg.id);
+                                          setEditingContent(msg.content || "");
+                                        }}>
+                                          <Pencil className="w-4 h-4 mr-2" />
+                                          Editar
+                                        </DropdownMenuItem>
+                                      )}
+                                      {msg.media_url && (
+                                        <DropdownMenuItem onClick={() => window.open(msg.media_url!, '_blank')}>
+                                          <Download className="w-4 h-4 mr-2" />
+                                          Baixar
+                                        </DropdownMenuItem>
+                                      )}
+                                      {msg.from_me && (
+                                        <>
+                                          <DropdownMenuSeparator />
+                                          <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteMessageId(msg.id)}>
+                                            <Trash2 className="w-4 h-4 mr-2" />
+                                            Apagar
+                                          </DropdownMenuItem>
+                                        </>
+                                      )}
                                     </DropdownMenuContent>
                                   </DropdownMenu>
                                 )}
@@ -4406,8 +4445,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                               {msg.from_me && getStatusIcon(msg.status)}
                             </div>
                             </div>
-                            {/* Context menu for editable messages - mobile */}
-                            {isMessageEditable(msg) && editingMessageId !== msg.id && (
+                            {/* Context menu for all messages - mobile */}
+                            {editingMessageId !== msg.id && (
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button
@@ -4415,26 +4454,43 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                     size="icon"
                                     className="h-6 w-6 opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity shrink-0"
                                   >
-                                    <Pencil className="w-3 h-3" />
+                                    <ChevronDown className="w-3 h-3" />
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align={msg.from_me ? "end" : "start"}>
-                                  <DropdownMenuItem onClick={() => {
-                                    setEditingMessageId(msg.id);
-                                    setEditingContent(msg.content || "");
-                                  }}>
-                                    <Pencil className="w-4 h-4 mr-2" />
-                                    Editar
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => {
-                                    if (msg.content) {
-                                      navigator.clipboard.writeText(msg.content);
+                                  {msg.content && (
+                                    <DropdownMenuItem onClick={() => {
+                                      navigator.clipboard.writeText(msg.content!);
                                       toast({ title: "Copiado!" });
-                                    }
-                                  }}>
-                                    <Copy className="w-4 h-4 mr-2" />
-                                    Copiar
-                                  </DropdownMenuItem>
+                                    }}>
+                                      <Copy className="w-4 h-4 mr-2" />
+                                      Copiar
+                                    </DropdownMenuItem>
+                                  )}
+                                  {isMessageEditable(msg) && (
+                                    <DropdownMenuItem onClick={() => {
+                                      setEditingMessageId(msg.id);
+                                      setEditingContent(msg.content || "");
+                                    }}>
+                                      <Pencil className="w-4 h-4 mr-2" />
+                                      Editar
+                                    </DropdownMenuItem>
+                                  )}
+                                  {msg.media_url && (
+                                    <DropdownMenuItem onClick={() => window.open(msg.media_url!, '_blank')}>
+                                      <Download className="w-4 h-4 mr-2" />
+                                      Baixar
+                                    </DropdownMenuItem>
+                                  )}
+                                  {msg.from_me && (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteMessageId(msg.id)}>
+                                        <Trash2 className="w-4 h-4 mr-2" />
+                                        Apagar
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             )}
@@ -4892,6 +4948,27 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete message confirmation */}
+      <AlertDialog open={!!deleteMessageId} onOpenChange={(open) => !open && setDeleteMessageId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apagar mensagem</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja apagar esta mensagem? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteMessageId && handleDeleteMessage(deleteMessageId)}
+            >
+              Apagar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
