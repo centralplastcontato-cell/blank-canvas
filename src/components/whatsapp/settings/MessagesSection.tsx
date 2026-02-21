@@ -306,6 +306,7 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
             <code className="bg-muted px-2 py-1 rounded">{"{{data}}"}</code>
             <code className="bg-muted px-2 py-1 rounded">{"{{hora}}"}</code>
             <code className="bg-muted px-2 py-1 rounded">{"{{convidados}}"}</code>
+            <code className="bg-muted px-2 py-1 rounded">{"{{empresa}}"}</code>
           </div>
         </CardContent>
       </Card>

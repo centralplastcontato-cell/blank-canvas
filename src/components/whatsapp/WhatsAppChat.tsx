@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { LEAD_STATUS_COLORS, type LeadStatus } from "@/types/crm";
 import { supabase } from "@/integrations/supabase/client";
 import { insertWithCompany, insertSingleWithCompany, getCurrentCompanyId } from "@/lib/supabase-helpers";
+import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -162,6 +163,7 @@ import { ShareToGroupDialog } from "@/components/whatsapp/ShareToGroupDialog";
 import { useFilterOrder } from "@/hooks/useFilterOrder";
 
 export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft, onPhoneHandled, externalSelectedUnit, onInstancesLoaded }: WhatsAppChatProps) {
+  const { currentCompany } = useCompany();
   const [instances, setInstances] = useState<WapiInstance[]>([]);
   const [selectedInstance, setSelectedInstance] = useState<WapiInstance | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -2155,6 +2157,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         .replace(/\{\{?campanha\}?\}/gi, leadCampaign)
         .replace(/\{\{?unidade\}?\}/gi, leadUnit);
     }
+
+    // Replace company/brand variables
+    const companyName = currentCompany?.name || '';
+    message = message
+      .replace(/\{\{?empresa\}?\}/gi, companyName)
+      .replace(/\{\{?buffet\}?\}/gi, companyName)
+      .replace(/\{\{?nome[_-]?empresa\}?\}/gi, companyName);
     
     setNewMessage(message);
   };
