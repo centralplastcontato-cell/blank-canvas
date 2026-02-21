@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 
 import logoCastelo from "@/assets/logo-castelo.png";
 import { CompanySwitcher } from "./CompanySwitcher";
+import { useCompany } from "@/contexts/CompanyContext";
 
 interface AdminSidebarProps {
   canManageUsers: boolean;
@@ -45,6 +46,7 @@ export function AdminSidebar({
   const [isPinned, setIsPinned] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const modules = useCompanyModules();
+  const { currentCompany } = useCompany();
 
   // Build menu items dynamically based on permissions AND enabled modules
   const allItems = [
@@ -101,15 +103,15 @@ export function AdminSidebar({
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
           <img 
-            src={logoCastelo} 
-            alt="Castelo da Diversão" 
+            src={currentCompany?.logo_url || logoCastelo} 
+            alt={currentCompany?.name || "Logo"} 
             className="h-9 w-9 object-contain shrink-0 rounded-lg"
           />
           {!collapsed && (
             <>
               <div className="min-w-0 overflow-hidden flex-1">
                 <p className="font-display font-bold text-sm text-sidebar-foreground truncate">
-                  Castelo
+                  {currentCompany?.name || "Empresa"}
                 </p>
                 <p className="text-xs text-sidebar-foreground/60 truncate">
                   {currentUserName}
