@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -28,6 +29,90 @@ interface ConnectionDialogProps {
   onSetPhoneNumber: (phone: string) => void;
   onRequestPairingCode: () => void;
   onRetryQr: () => void;
+}
+
+function PhoneInput({ 
+  initialValue, 
+  onPhoneChange, 
+  onRequestPairingCode, 
+  isPairingLoading, 
+  pairingCode 
+}: { 
+  initialValue: string;
+  onPhoneChange: (phone: string) => void;
+  onRequestPairingCode: () => void;
+  isPairingLoading: boolean;
+  pairingCode: string | null;
+}) {
+  const [localPhone, setLocalPhone] = useState(initialValue);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const onPhoneChangeRef = useRef(onPhoneChange);
+  onPhoneChangeRef.current = onPhoneChange;
+
+  // Sync local → parent via ref (no re-render loop)
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const cleaned = e.target.value.replace(/\D/g, "");
+    setLocalPhone(cleaned);
+    onPhoneChangeRef.current(cleaned);
+  }, []);
+
+  return (
+    <div className="flex flex-col gap-4 py-4">
+      <p className="text-sm text-muted-foreground text-center">
+        Informe o número que deseja conectar (o mesmo presente no seu WhatsApp)
+      </p>
+      <div className="space-y-3">
+        <div className="flex gap-2">
+          <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg border border-input shrink-0">
+            <span className="text-lg">🇧🇷</span>
+            <span className="text-sm font-medium">+55</span>
+          </div>
+          <Input
+            ref={inputRef}
+            type="tel"
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="11999999999"
+            value={localPhone}
+            onChange={handleChange}
+            className="flex-1 text-base min-w-0"
+            maxLength={11}
+          />
+        </div>
+        <Button
+          onClick={onRequestPairingCode}
+          disabled={isPairingLoading || localPhone.length < 10}
+          className="w-full"
+        >
+          {isPairingLoading ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Solicitando código...
+            </>
+          ) : (
+            <>
+              <Phone className="w-4 h-4 mr-2" />
+              Solicitar código
+            </>
+          )}
+        </Button>
+      </div>
+
+      {pairingCode && (
+        <div className="mt-4 p-4 bg-primary/10 rounded-lg text-center">
+          <p className="text-sm text-muted-foreground mb-2">Código de pareamento:</p>
+          <p className="text-3xl font-bold tracking-widest text-primary font-mono">{pairingCode}</p>
+          <p className="text-xs text-muted-foreground mt-3">
+            No seu WhatsApp: Configurações → Aparelhos conectados → Conectar aparelho → Conectar com número de telefone
+          </p>
+          <div className="flex items-center justify-center gap-2 mt-3 text-sm text-muted-foreground">
+            <RefreshCw className="w-4 h-4 animate-spin" />
+            <span>Aguardando conexão...</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function ConnectionDialog({
@@ -119,60 +204,13 @@ export function ConnectionDialog({
             )}
           </div>
         ) : (
-          <div className="flex flex-col gap-4 py-4">
-            <p className="text-sm text-muted-foreground text-center">
-              Informe o número que deseja conectar (o mesmo presente no seu WhatsApp)
-            </p>
-            <div className="space-y-3">
-              <div className="flex gap-2">
-                <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg border border-input shrink-0">
-                  <span className="text-lg">🇧🇷</span>
-                  <span className="text-sm font-medium">+55</span>
-                </div>
-                <Input
-                  type="tel"
-                  inputMode="numeric"
-                  autoComplete="tel-national"
-                  placeholder="11999999999"
-                  value={phoneNumber}
-                  onChange={(e) => onSetPhoneNumber(e.target.value.replace(/\D/g, ""))}
-                  className="flex-1 text-base min-w-0"
-                  maxLength={11}
-                />
-              </div>
-              <Button
-                onClick={onRequestPairingCode}
-                disabled={isPairingLoading || phoneNumber.length < 10}
-                className="w-full"
-              >
-                {isPairingLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Solicitando código...
-                  </>
-                ) : (
-                  <>
-                    <Phone className="w-4 h-4 mr-2" />
-                    Solicitar código
-                  </>
-                )}
-              </Button>
-            </div>
-
-            {pairingCode && (
-              <div className="mt-4 p-4 bg-primary/10 rounded-lg text-center">
-                <p className="text-sm text-muted-foreground mb-2">Código de pareamento:</p>
-                <p className="text-3xl font-bold tracking-widest text-primary font-mono">{pairingCode}</p>
-                <p className="text-xs text-muted-foreground mt-3">
-                  No seu WhatsApp: Configurações → Aparelhos conectados → Conectar aparelho → Conectar com número de telefone
-                </p>
-                <div className="flex items-center justify-center gap-2 mt-3 text-sm text-muted-foreground">
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Aguardando conexão...</span>
-                </div>
-              </div>
-            )}
-          </div>
+          <PhoneInput
+            initialValue={phoneNumber}
+            onPhoneChange={onSetPhoneNumber}
+            onRequestPairingCode={onRequestPairingCode}
+            isPairingLoading={isPairingLoading}
+            pairingCode={pairingCode}
+          />
         )}
 
         <DialogFooter>
