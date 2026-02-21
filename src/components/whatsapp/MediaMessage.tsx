@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { FileText, ImageIcon, Mic, Video, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -72,6 +72,15 @@ export function MediaMessage({
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [imageLoadError, setImageLoadError] = useState(false);
+
+  // Sync currentUrl when mediaUrl prop changes (e.g. from realtime UPDATE)
+  useEffect(() => {
+    if (mediaUrl && mediaUrl !== currentUrl) {
+      setCurrentUrl(mediaUrl);
+      setImageLoadError(false);
+      setDownloadError(null);
+    }
+  }, [mediaUrl]);
 
   const isPersisted = isPersistedMediaUrl(currentUrl);
   
