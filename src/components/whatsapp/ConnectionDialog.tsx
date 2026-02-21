@@ -131,8 +131,8 @@ export function ConnectionDialog({
                 </div>
                 <Input
                   type="tel"
-                  inputMode="tel"
-                  pattern="[0-9]*"
+                  inputMode="numeric"
+                  autoComplete="tel-national"
                   placeholder="11999999999"
                   value={phoneNumber}
                   onChange={(e) => onSetPhoneNumber(e.target.value.replace(/\D/g, ""))}
