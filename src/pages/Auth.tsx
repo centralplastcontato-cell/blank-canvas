@@ -34,14 +34,21 @@ export default function Auth() {
   useEffect(() => {
     if (slug) {
       setIsLoadingCompany(true);
-      supabase
-        .rpc("get_company_branding_by_slug", { _slug: slug })
-        .maybeSingle()
+      Promise.resolve(
+        supabase
+          .rpc("get_company_branding_by_slug", { _slug: slug })
+          .maybeSingle()
+      )
         .then(({ data }) => {
           if (data) {
             setCompanyName(data.name);
             setCompanyLogo(data.logo_url);
           }
+        })
+        .catch(() => {
+          // silently fallback to default branding
+        })
+        .finally(() => {
           setIsLoadingCompany(false);
         });
     }
