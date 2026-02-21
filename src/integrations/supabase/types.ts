@@ -1936,6 +1936,7 @@ export type Database = {
       }
       notifications: {
         Row: {
+          company_id: string | null
           created_at: string
           data: Json | null
           id: string
@@ -1946,6 +1947,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          company_id?: string | null
           created_at?: string
           data?: Json | null
           id?: string
@@ -1956,6 +1958,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          company_id?: string | null
           created_at?: string
           data?: Json | null
           id?: string
@@ -1965,7 +1968,15 @@ export type Database = {
           type?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "notifications_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       party_monitoring_entries: {
         Row: {
