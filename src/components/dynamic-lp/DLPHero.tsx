@@ -8,9 +8,10 @@ interface DLPHeroProps {
   companyName: string;
   companyLogo: string | null;
   onCtaClick: () => void;
+  multipleUnits?: boolean;
 }
 
-export function DLPHero({ hero, theme, companyName, companyLogo, onCtaClick }: DLPHeroProps) {
+export function DLPHero({ hero, theme, companyName, companyLogo, onCtaClick, multipleUnits }: DLPHeroProps) {
   const [activeImage, setActiveImage] = useState(0);
   const hasMultipleImages = hero.background_images && hero.background_images.length >= 2;
 
@@ -35,6 +36,39 @@ export function DLPHero({ hero, theme, companyName, companyLogo, onCtaClick }: D
   const renderBackground = () => {
     if (hasMultipleImages) {
       const images = hero.background_images!;
+
+      // Single unit: full-width crossfade on all screens
+      if (!multipleUnits) {
+        return (
+          <>
+            <div className="absolute inset-0">
+              <AnimatePresence initial={false}>
+                {images.map((src, i) => (
+                  <motion.img
+                    key={src}
+                    src={src}
+                    alt={`${companyName} - Foto ${i + 1}`}
+                    className="absolute inset-0 w-full h-full object-cover"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: activeImage === i ? 1 : 0 }}
+                    transition={{ duration: 1 }}
+                    loading="eager"
+                    fetchPriority={i === 0 ? "high" : undefined}
+                  />
+                ))}
+              </AnimatePresence>
+            </div>
+            <div
+              className="absolute inset-0"
+              style={{
+                background: `linear-gradient(to bottom, ${theme.primary_color}99, ${theme.background_color}ee)`,
+              }}
+            />
+          </>
+        );
+      }
+
+      // Multiple units: split 50/50 desktop + crossfade mobile
       return (
         <>
           {/* Desktop: split 50/50 */}
