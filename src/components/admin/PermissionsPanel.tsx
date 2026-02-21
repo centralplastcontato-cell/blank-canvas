@@ -17,6 +17,7 @@ import {
   ClipboardList, Users, Shield, Loader2, Crown, Building2, MapPin, 
   MessageCircle, Settings, BarChart3, Briefcase, Plus, Pencil, Trash2, Save
 } from "lucide-react";
+import { useCompanyModules, CompanyModules } from "@/hooks/useCompanyModules";
 
 interface PermissionsPanelProps {
   targetUserId: string;
@@ -59,6 +60,16 @@ const iconOptions: Record<string, React.ElementType> = {
   Briefcase,
 };
 
+// Map permission categories to company module keys
+const categoryToModule: Record<string, keyof CompanyModules> = {
+  B2B: 'comercial_b2b',
+  Dashboard: 'dashboard',
+  WhatsApp: 'whatsapp',
+  Configurações: 'config',
+  Inteligência: 'inteligencia',
+  'Operações': 'operacoes',
+};
+
 export function PermissionsPanel({
   targetUserId,
   targetUserName,
@@ -66,6 +77,7 @@ export function PermissionsPanel({
   onClose,
 }: PermissionsPanelProps) {
   const { units: companyUnits } = useCompanyUnits();
+  const modules = useCompanyModules();
   const { definitions, isLoading: isLoadingDefs, getPermissionsByCategory } = usePermissions(currentUserId);
   const [userPermissions, setUserPermissions] = useState<Record<string, boolean>>({});
   const [isLoadingPerms, setIsLoadingPerms] = useState(true);
@@ -588,6 +600,10 @@ export function PermissionsPanel({
       </Card>
 
       {Object.entries(permissionsByCategory).map(([category, perms]) => {
+        // Hide categories whose module is disabled
+        const moduleKey = categoryToModule[category];
+        if (moduleKey && !modules[moduleKey]) return null;
+
         const Icon = categoryIcons[category] || Shield;
         
         return (
