@@ -11,10 +11,11 @@ import { MobileMenu } from "@/components/admin/MobileMenu";
 import { WhatsAppConfig } from "@/components/whatsapp/WhatsAppConfig";
 import { PartyControlConfig } from "@/components/admin/PartyControlConfig";
 import { ChecklistTemplateManager } from "@/components/agenda/ChecklistTemplateManager";
+import { ProfileContent } from "@/components/admin/ProfileContent";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { Menu, Settings, MessageSquare, PartyPopper } from "lucide-react";
+import { Menu, Settings, MessageSquare, PartyPopper, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logoCastelo from "@/assets/logo-castelo.png";
 import { toast } from "@/hooks/use-toast";
@@ -156,15 +157,22 @@ export default function Configuracoes() {
         <main className="flex-1 p-3 overflow-auto space-y-4">
           <Tabs defaultValue="whatsapp">
             <TabsList className="w-full">
+              <TabsTrigger value="perfil" className="flex-1 gap-2">
+                <UserCircle className="h-4 w-4" />
+                Perfil
+              </TabsTrigger>
               <TabsTrigger value="whatsapp" className="flex-1 gap-2">
                 <MessageSquare className="h-4 w-4" />
                 WhatsApp
               </TabsTrigger>
               <TabsTrigger value="festa" className="flex-1 gap-2">
                 <PartyPopper className="h-4 w-4" />
-                Controle da Festa
+                Festa
               </TabsTrigger>
             </TabsList>
+            <TabsContent value="perfil" className="mt-4">
+              <ProfileContent userId={user.id} userEmail={user.email || ""} />
+            </TabsContent>
             <TabsContent value="whatsapp" className="mt-4">
               <WhatsAppConfig userId={user.id} isAdmin={isAdmin} />
             </TabsContent>
@@ -211,6 +219,10 @@ export default function Configuracoes() {
 
               <Tabs defaultValue="whatsapp">
                 <TabsList>
+                  <TabsTrigger value="perfil" className="gap-2">
+                    <UserCircle className="h-4 w-4" />
+                    Perfil
+                  </TabsTrigger>
                   <TabsTrigger value="whatsapp" className="gap-2">
                     <MessageSquare className="h-4 w-4" />
                     WhatsApp
@@ -220,6 +232,9 @@ export default function Configuracoes() {
                     Controle da Festa
                   </TabsTrigger>
                 </TabsList>
+                <TabsContent value="perfil" className="mt-4">
+                  <ProfileContent userId={user.id} userEmail={user.email || ""} />
+                </TabsContent>
                 <TabsContent value="whatsapp" className="mt-4">
                   <WhatsAppConfig userId={user.id} isAdmin={isAdmin} />
                 </TabsContent>
