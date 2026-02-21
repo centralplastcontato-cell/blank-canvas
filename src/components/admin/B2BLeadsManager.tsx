@@ -336,15 +336,25 @@ interface B2BLead {
                            {format(new Date(lead.created_at), "dd/MM/yy", { locale: ptBR })}
                          </span>
                        </TableCell>
-                       <TableCell className="text-right">
-                         <Button
-                           variant="ghost"
-                           size="icon"
-                           onClick={() => openDetail(lead)}
-                         >
-                           <Eye className="h-4 w-4" />
-                         </Button>
-                       </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openDetail(lead)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive"
+                              onClick={(e) => { e.stopPropagation(); deleteLead(lead.id); }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
                      </TableRow>
                    ))}
                  </TableBody>
