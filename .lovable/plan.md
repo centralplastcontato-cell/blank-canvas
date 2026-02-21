@@ -1,22 +1,33 @@
 
 
-## Clique no nome do usuario abre Perfil (/perfil)
+## Adicionar variavel `{{empresa}}` nos templates de mensagem
 
-Atualmente, apenas o avatar (bolinha) na area superior direita da Central de Atendimento tem acao de clique, e navega para `/configuracoes`. O nome do usuario ao lado nao e clicavel.
+### Problema
+Os templates de resposta rapida na Central de Atendimento contem o nome "Castelo da Diversao" escrito diretamente no texto (hardcoded). Isso faz com que, quando outro buffet usar a plataforma, as mensagens ainda mencionem o nome errado.
+
+### Solucao
+Adicionar suporte a variavel `{{empresa}}` (e alias `{{buffet}}`) nos templates, permitindo que qualquer buffet use templates genericos que se adaptam automaticamente ao nome da empresa logada.
 
 ### O que sera feito
 
-1. **Tornar toda a area clicavel** (nome + avatar) no header desktop da Central de Atendimento
-2. **Alterar o destino** de `/configuracoes` para `/perfil` ao clicar nessa area
-3. **Verificar outras paginas** que tenham o mesmo padrao (nome + avatar no header) e aplicar a mesma correcao para consistencia
+1. **Frontend - Substituicao de variaveis ao aplicar template** (`src/components/whatsapp/WhatsAppChat.tsx`)
+   - Na funcao `applyTemplate`, adicionar a substituicao de `{{empresa}}` e `{{buffet}}` pelo nome da empresa atual (ja disponivel via `useCompany()` ou contexto existente)
+
+2. **Frontend - Lista de variaveis disponiveis** (`src/components/whatsapp/settings/MessagesSection.tsx`)
+   - Adicionar `{{empresa}}` na grade de "Variaveis Disponiveis" para que os usuarios saibam que podem usar essa variavel
+
+3. **Dados existentes - Nao sera alterado automaticamente**
+   - Os templates ja salvos no banco com "Castelo da Diversao" hardcoded precisam ser editados manualmente pelo administrador de cada empresa, trocando o texto fixo por `{{empresa}}`
+   - Isso e intencional: nao queremos alterar mensagens que o usuario ja personalizou
 
 ### Detalhes tecnicos
 
-**Arquivo principal**: `src/pages/CentralAtendimento.tsx` (linhas ~1105-1116)
+**Arquivo 1**: `src/components/whatsapp/WhatsAppChat.tsx` (funcao `applyTemplate`, ~linha 2150)
+- Adicionar `.replace(/\{\{?empresa\}?\}/gi, companyName)` e `.replace(/\{\{?buffet\}?\}/gi, companyName)`
+- O `companyName` vem do contexto da empresa atual (hook `useCompany` ja usado no componente ou propagado via props)
 
-- Envolver o `div` container (que contem o nome e o avatar) com `onClick={() => navigate("/perfil")}` e adicionar `cursor-pointer`
-- Mover o `onClick` do `Avatar` para o container pai
-- Garantir que o destino seja `/perfil` (pagina de perfil do usuario)
+**Arquivo 2**: `src/components/whatsapp/settings/MessagesSection.tsx` (secao "Variaveis Disponiveis", ~linha 239)
+- Adicionar `{{empresa}}` na grid de variaveis exibidas
 
-**Verificacao de consistencia**: Checar se paginas como `Configuracoes.tsx`, `WhatsApp.tsx`, `Inteligencia.tsx` e outras possuem o mesmo componente de nome+avatar no header, e aplicar o mesmo comportamento.
+**Backend**: O `wapi-webhook` e o `follow-up-check` ja suportam `{{empresa}}` e `{{buffet}}` no `replaceVars` -- nenhuma alteracao necessaria no backend.
 
