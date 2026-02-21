@@ -15,7 +15,7 @@ export function DLPFloatingCTA({ theme, onClick }: DLPFloatingCTAProps) {
       transition={{ delay: 2, type: "spring", stiffness: 300, damping: 20 }}
       onClick={onClick}
       className="fixed bottom-6 right-6 z-40 p-4 rounded-full shadow-2xl hover:scale-110 transition-transform duration-300"
-      style={{ backgroundColor: theme.secondary_color, color: theme.text_color }}
+      style={{ backgroundColor: "#25D366", color: "#ffffff" }}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
     >
@@ -24,7 +24,7 @@ export function DLPFloatingCTA({ theme, onClick }: DLPFloatingCTAProps) {
       </motion.div>
       <span
         className="absolute inset-0 rounded-full animate-ping"
-        style={{ backgroundColor: theme.secondary_color + "44" }}
+        style={{ backgroundColor: "#25D36644" }}
       />
     </motion.button>
   );
