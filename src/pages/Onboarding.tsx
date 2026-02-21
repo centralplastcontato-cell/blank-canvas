@@ -75,6 +75,7 @@ export default function Onboarding() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [onboardingId, setOnboardingId] = useState<string | null>(null);
+  const [wasCompleted, setWasCompleted] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [uploadingVideos, setUploadingVideos] = useState(false);
@@ -99,10 +100,10 @@ export default function Onboarding() {
         if (existing && existing.length > 0) {
           const e = existing[0] as any;
           if (e.status === 'completo') {
-            setSubmitted(true);
-          } else {
+            setWasCompleted(true);
+          }
             setOnboardingId(e.id);
-            setStep(e.current_step || 1);
+            setStep(e.status === 'completo' ? 1 : (e.current_step || 1));
             setData({
               buffet_name: e.buffet_name || "", city: e.city || "", state: e.state || "",
               full_address: e.full_address || "", instagram: e.instagram || "", website: e.website || "",
@@ -120,7 +121,6 @@ export default function Onboarding() {
               video_urls: e.video_urls || [], brand_notes: e.brand_notes || "",
               main_goal: e.main_goal || "", additional_notes: e.additional_notes || "",
             });
-          }
         }
       }
       setLoading(false);
@@ -134,7 +134,7 @@ export default function Onboarding() {
 
   const saveProgress = async (nextStep: number) => {
     if (!companyId) return;
-    const payload: any = { ...data, company_id: companyId, current_step: nextStep, status: 'em_andamento' };
+    const payload: any = { ...data, company_id: companyId, current_step: nextStep, status: wasCompleted ? 'completo' : 'em_andamento' };
     delete payload.photo_urls_files;
 
     // Usa onboardingId se disponível, senão busca o registro existente da empresa
@@ -360,6 +360,12 @@ export default function Onboarding() {
 
       {/* Content */}
       <main className="max-w-2xl mx-auto px-4 py-6 pb-32">
+        {wasCompleted && (
+          <div className="mb-4 p-3 rounded-xl bg-accent/10 border border-accent/30 text-sm text-accent-foreground flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-accent shrink-0" />
+            <span>Onboarding já preenchido. Você pode atualizar as informações abaixo.</span>
+          </div>
+        )}
         {step === 1 && <Step1 data={data} update={update} />}
         {step === 2 && <Step2 data={data} update={update} />}
         {step === 3 && <Step3 data={data} update={update} />}

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { ClipboardList, Eye, Loader2, Copy, Building2, CheckCircle2, Clock, AlertCircle, Download, Pencil, Save, X, ExternalLink } from "lucide-react";
+import { ClipboardList, Eye, Loader2, Copy, Building2, CheckCircle2, Clock, AlertCircle, Download, Pencil, Save, X, ExternalLink, Upload, Camera, Video } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import {
   Sheet,
@@ -15,8 +15,15 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { useIsMobile } from "@/hooks/use-mobile";
 import jsPDF from "jspdf";
 
 interface OnboardingRecord {
@@ -103,6 +110,7 @@ function HubOnboardingContent() {
   const [selectedRecord, setSelectedRecord] = useState<OnboardingRecord | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     fetchData();
@@ -150,39 +158,39 @@ function HubOnboardingContent() {
 
   return (
     <>
-      <Sheet open={!!selectedRecord} onOpenChange={(open) => { if (!open) { setSelectedRecord(null); setIsEditing(false); } }}>
-        <SheetContent className="w-full sm:max-w-lg p-0">
-          <SheetHeader className="p-4 border-b border-border">
-            <div className="flex items-center justify-between">
-              <SheetTitle className="text-left">Detalhes do Onboarding</SheetTitle>
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => selectedRecord && exportToPDF(selectedRecord, companies[selectedRecord.company_id])} title="Exportar PDF">
-                  <Download className="h-4 w-4" />
-                </Button>
-                {isAdmin && !isEditing && (
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsEditing(true)} title="Editar">
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                )}
-                {isEditing && (
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsEditing(false)} title="Cancelar edição">
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            </div>
-          </SheetHeader>
-          {selectedRecord && (
-            <ScrollArea className="h-[calc(100vh-80px)]">
-              {isEditing ? (
-                <OnboardingEditForm record={selectedRecord} onSave={handleRecordUpdated} onCancel={() => setIsEditing(false)} />
-              ) : (
-                <OnboardingDetail record={selectedRecord} company={companies[selectedRecord.company_id]} />
-              )}
-            </ScrollArea>
-          )}
-        </SheetContent>
-      </Sheet>
+      <ResponsiveDetailPanel
+        open={!!selectedRecord}
+        onOpenChange={(open) => { if (!open) { setSelectedRecord(null); setIsEditing(false); } }}
+        isMobile={isMobile}
+        title="Detalhes do Onboarding"
+        headerActions={
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => selectedRecord && exportToPDF(selectedRecord, companies[selectedRecord.company_id])} title="Exportar PDF">
+              <Download className="h-4 w-4" />
+            </Button>
+            {isAdmin && !isEditing && (
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsEditing(true)} title="Editar">
+                <Pencil className="h-4 w-4" />
+              </Button>
+            )}
+            {isEditing && (
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsEditing(false)} title="Cancelar edição">
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        }
+      >
+        {selectedRecord && (
+          <ScrollArea className={isMobile ? "h-[calc(100vh-80px)]" : "max-h-[75vh]"}>
+            {isEditing ? (
+              <OnboardingEditForm record={selectedRecord} onSave={handleRecordUpdated} onCancel={() => setIsEditing(false)} />
+            ) : (
+              <OnboardingDetail record={selectedRecord} company={companies[selectedRecord.company_id]} />
+            )}
+          </ScrollArea>
+        )}
+      </ResponsiveDetailPanel>
 
       {records.length === 0 ? (
         <div className="text-center py-12">
@@ -345,13 +353,108 @@ function exportToPDF(record: OnboardingRecord, company?: CompanyInfo) {
   toast({ title: "PDF exportado!", description: fileName });
 }
 
+// ======= Responsive Detail Panel =======
+function ResponsiveDetailPanel({ open, onOpenChange, isMobile, title, headerActions, children }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  isMobile: boolean;
+  title: string;
+  headerActions?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  if (isMobile) {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent className="w-full sm:max-w-lg p-0">
+          <SheetHeader className="p-4 border-b border-border">
+            <div className="flex items-center justify-between">
+              <SheetTitle className="text-left">{title}</SheetTitle>
+              {headerActions}
+            </div>
+          </SheetHeader>
+          {children}
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl p-0 gap-0">
+        <DialogHeader className="p-4 border-b border-border">
+          <div className="flex items-center justify-between">
+            <DialogTitle>{title}</DialogTitle>
+            {headerActions}
+          </div>
+        </DialogHeader>
+        {children}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ======= Edit Form =======
 function OnboardingEditForm({ record, onSave, onCancel }: { record: OnboardingRecord; onSave: (r: OnboardingRecord) => void; onCancel: () => void }) {
   const [form, setForm] = useState({ ...record });
   const [isSaving, setIsSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [uploadingVideos, setUploadingVideos] = useState(false);
 
-  const update = (field: keyof OnboardingRecord, value: string | boolean | number | null) => {
+  const update = (field: keyof OnboardingRecord, value: any) => {
     setForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const uploadFile = async (file: File, folder: string): Promise<string | null> => {
+    const ext = file.name.split('.').pop();
+    const path = `${record.company_id}/${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await supabase.storage.from("onboarding-uploads").upload(path, file);
+    if (error) { toast({ title: "Erro no upload", description: error.message, variant: "destructive" }); return null; }
+    const { data: urlData } = supabase.storage.from("onboarding-uploads").getPublicUrl(path);
+    return urlData.publicUrl;
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingLogo(true);
+    const url = await uploadFile(file, "logos");
+    if (url) update("logo_url", url);
+    setUploadingLogo(false);
+  };
+
+  const handlePhotosUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const current = form.photo_urls || [];
+    if (files.length + current.length > 10) {
+      toast({ title: "Limite excedido", description: "Máximo de 10 fotos", variant: "destructive" });
+      return;
+    }
+    setUploadingPhotos(true);
+    const urls: string[] = [];
+    for (const file of files) {
+      const url = await uploadFile(file, "photos");
+      if (url) urls.push(url);
+    }
+    update("photo_urls", [...current, ...urls]);
+    setUploadingPhotos(false);
+  };
+
+  const handleVideosUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const current = form.video_urls || [];
+    if (files.length + current.length > 2) {
+      toast({ title: "Limite excedido", description: "Máximo de 2 vídeos", variant: "destructive" });
+      return;
+    }
+    setUploadingVideos(true);
+    const urls: string[] = [];
+    for (const file of files) {
+      const url = await uploadFile(file, "videos");
+      if (url) urls.push(url);
+    }
+    update("video_urls", [...current, ...urls]);
+    setUploadingVideos(false);
   };
 
   const handleSave = async () => {
@@ -384,6 +487,9 @@ function OnboardingEditForm({ record, onSave, onCancel }: { record: OnboardingRe
         brand_notes: form.brand_notes,
         main_goal: form.main_goal,
         additional_notes: form.additional_notes,
+        logo_url: form.logo_url,
+        photo_urls: form.photo_urls,
+        video_urls: form.video_urls,
       })
       .eq("id", record.id);
 
@@ -488,8 +594,98 @@ function OnboardingEditForm({ record, onSave, onCancel }: { record: OnboardingRe
       <SwitchField label="Múltiplas unidades?" field="multiple_units" />
 
       <Separator />
-      <SectionTitle title="🎨 Marca" />
+      <SectionTitle title="🎨 Marca e Mídia" />
       <TextareaField label="Observações visuais" field="brand_notes" />
+
+      {/* Logo upload */}
+      <div className="space-y-2">
+        <Label className="text-xs text-muted-foreground">Logo</Label>
+        {form.logo_url ? (
+          <div className="flex items-center gap-3">
+            <img src={form.logo_url} alt="Logo" className="h-16 w-16 rounded-xl object-contain bg-muted border border-border" />
+            <div className="flex flex-col gap-1">
+              <label className="cursor-pointer">
+                <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                <span className="text-xs text-primary hover:underline">Trocar</span>
+              </label>
+              <button className="text-xs text-destructive hover:underline text-left" onClick={() => update("logo_url", null)}>Remover</button>
+            </div>
+            {uploadingLogo && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+          </div>
+        ) : (
+          <label className="flex items-center gap-2 cursor-pointer p-3 rounded-lg border border-dashed border-border hover:border-primary/50 transition-colors">
+            <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+            {uploadingLogo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4 text-muted-foreground" />}
+            <span className="text-sm text-muted-foreground">Enviar logo</span>
+          </label>
+        )}
+      </div>
+
+      {/* Photos upload */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label className="text-xs text-muted-foreground">Fotos ({(form.photo_urls || []).length}/10)</Label>
+          {(form.photo_urls || []).length < 10 && (
+            <label className="cursor-pointer">
+              <input type="file" accept="image/*" multiple className="hidden" onChange={handlePhotosUpload} />
+              <span className="text-xs text-primary hover:underline flex items-center gap-1">
+                {uploadingPhotos ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
+                Adicionar fotos
+              </span>
+            </label>
+          )}
+        </div>
+        {(form.photo_urls || []).length > 0 && (
+          <div className="grid grid-cols-4 gap-2">
+            {(form.photo_urls || []).map((url, i) => (
+              <div key={i} className="relative aspect-square">
+                <img src={url} alt={`Foto ${i + 1}`} className="w-full h-full rounded-lg object-cover bg-muted" />
+                <button
+                  className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground"
+                  onClick={() => update("photo_urls", (form.photo_urls || []).filter((_, j) => j !== i))}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Videos upload */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label className="text-xs text-muted-foreground">Vídeos ({(form.video_urls || []).length}/2)</Label>
+          {(form.video_urls || []).length < 2 && (
+            <label className="cursor-pointer">
+              <input type="file" accept="video/*" multiple className="hidden" onChange={handleVideosUpload} />
+              <span className="text-xs text-primary hover:underline flex items-center gap-1">
+                {uploadingVideos ? <Loader2 className="h-3 w-3 animate-spin" /> : <Video className="h-3 w-3" />}
+                Adicionar vídeos
+              </span>
+            </label>
+          )}
+        </div>
+        {(form.video_urls || []).length > 0 && (
+          <div className="space-y-2">
+            {(form.video_urls || []).map((url, i) => (
+              <div key={i} className="flex items-center gap-2 p-2 rounded-lg border border-border bg-muted/30">
+                <Video className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="text-xs text-foreground truncate flex-1">Vídeo {i + 1}</span>
+                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => window.open(url, "_blank")}>
+                  <ExternalLink className="h-3 w-3" />
+                </Button>
+                <button
+                  className="h-5 w-5 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground shrink-0"
+                  onClick={() => update("video_urls", (form.video_urls || []).filter((_, j) => j !== i))}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <Separator />
       <SectionTitle title="🎯 Objetivos" />
