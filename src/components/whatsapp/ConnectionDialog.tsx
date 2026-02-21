@@ -1,6 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, memo } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -31,30 +30,33 @@ interface ConnectionDialogProps {
   onRetryQr: () => void;
 }
 
-function PhoneInput({ 
-  initialValue, 
-  onPhoneChange, 
-  onRequestPairingCode, 
-  isPairingLoading, 
-  pairingCode 
-}: { 
-  initialValue: string;
-  onPhoneChange: (phone: string) => void;
+// Fully isolated phone input — uses uncontrolled input (ref-based) so re-renders
+// from polling or other state changes cannot interfere with typing.
+const PhoneSection = memo(function PhoneSection({
+  onPhoneReady,
+  onRequestPairingCode,
+  isPairingLoading,
+  pairingCode,
+}: {
+  onPhoneReady: (phone: string) => void;
   onRequestPairingCode: () => void;
   isPairingLoading: boolean;
   pairingCode: string | null;
 }) {
-  const [localPhone, setLocalPhone] = useState(initialValue);
   const inputRef = useRef<HTMLInputElement>(null);
-  const onPhoneChangeRef = useRef(onPhoneChange);
-  onPhoneChangeRef.current = onPhoneChange;
+  const [canSubmit, setCanSubmit] = useState(false);
 
-  // Sync local → parent via ref (no re-render loop)
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const cleaned = e.target.value.replace(/\D/g, "");
-    setLocalPhone(cleaned);
-    onPhoneChangeRef.current(cleaned);
-  }, []);
+  const handleInput = useCallback(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    // Strip non-digits in-place
+    const cleaned = el.value.replace(/\D/g, "").slice(0, 11);
+    if (cleaned !== el.value) {
+      el.value = cleaned;
+    }
+    setCanSubmit(cleaned.length >= 10);
+    onPhoneReady(cleaned);
+  }, [onPhoneReady]);
 
   return (
     <div className="flex flex-col gap-4 py-4">
@@ -67,21 +69,21 @@ function PhoneInput({
             <span className="text-lg">🇧🇷</span>
             <span className="text-sm font-medium">+55</span>
           </div>
-          <Input
+          {/* Uncontrolled input — immune to parent re-renders */}
+          <input
             ref={inputRef}
-            type="tel"
+            type="text"
             inputMode="numeric"
             autoComplete="off"
             placeholder="11999999999"
-            value={localPhone}
-            onChange={handleChange}
-            className="flex-1 text-base min-w-0"
             maxLength={11}
+            onInput={handleInput}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 flex-1 min-w-0"
           />
         </div>
         <Button
           onClick={onRequestPairingCode}
-          disabled={isPairingLoading || localPhone.length < 10}
+          disabled={isPairingLoading || !canSubmit}
           className="w-full"
         >
           {isPairingLoading ? (
@@ -113,7 +115,7 @@ function PhoneInput({
       )}
     </div>
   );
-}
+});
 
 export function ConnectionDialog({
   open,
@@ -122,7 +124,7 @@ export function ConnectionDialog({
   qrCode,
   qrLoading,
   connectionMode,
-  phoneNumber,
+  phoneNumber: _phoneNumber,
   pairingCode,
   isPairingLoading,
   onClose,
@@ -204,9 +206,8 @@ export function ConnectionDialog({
             )}
           </div>
         ) : (
-          <PhoneInput
-            initialValue={phoneNumber}
-            onPhoneChange={onSetPhoneNumber}
+          <PhoneSection
+            onPhoneReady={onSetPhoneNumber}
             onRequestPairingCode={onRequestPairingCode}
             isPairingLoading={isPairingLoading}
             pairingCode={pairingCode}
