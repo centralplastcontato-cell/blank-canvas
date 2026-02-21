@@ -1102,12 +1102,12 @@ export default function CentralAtendimento() {
               {/* User Info Desktop */}
               <div className="flex items-center gap-3">
                 <NotificationBell />
-                <div className="flex items-center gap-2 bg-muted/60 rounded-full pl-3 pr-1 py-1">
+                <div 
+                  className="flex items-center gap-2 bg-muted/60 rounded-full pl-3 pr-1 py-1 cursor-pointer hover:bg-muted/80 transition-all"
+                  onClick={() => navigate("/perfil")}
+                >
                   <span className="text-sm text-muted-foreground hidden lg:block">{currentUserProfile?.full_name || user.email}</span>
-                  <Avatar 
-                    className="h-8 w-8 border-2 border-primary/20 cursor-pointer hover:border-primary/40 transition-all" 
-                    onClick={() => navigate("/configuracoes")}
-                  >
+                  <Avatar className="h-8 w-8 border-2 border-primary/20">
                     <AvatarImage src={currentUserProfile?.avatar_url || undefined} />
                     <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
                       {getInitials(currentUserProfile?.full_name || user.email || "U")}
