@@ -3008,6 +3008,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_manage_permissions: {
+        Args: { _target_user_id: string; _user_id: string }
+        Returns: boolean
+      }
       get_cardapio_template_by_slugs: {
         Args: { _company_slug: string; _template_slug: string }
         Returns: {
