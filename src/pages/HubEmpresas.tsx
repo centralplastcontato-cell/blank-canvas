@@ -7,8 +7,10 @@ import { CompanyFormDialog } from "@/components/admin/CompanyFormDialog";
 import { CompanyMembersSheet } from "@/components/admin/CompanyMembersSheet";
 import { CreateCompanyAdminDialog } from "@/components/hub/CreateCompanyAdminDialog";
 import { CompanyModulesDialog } from "@/components/hub/CompanyModulesDialog";
+import { HubOnboardingContent } from "@/pages/HubOnboarding";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -27,11 +29,30 @@ export default function HubEmpresas() {
           <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
             <Building2 className="h-5 w-5" /> Empresas
           </h1>
-          <p className="text-xs text-muted-foreground">Gerencie as empresas e seus membros</p>
+          <p className="text-xs text-muted-foreground">Gerencie as empresas, membros e onboarding</p>
         </div>
       }
     >
-      {() => <HubEmpresasContent />}
+      {() => (
+        <Tabs defaultValue="empresas" className="w-full">
+          <TabsList className="mb-4 h-11">
+            <TabsTrigger value="empresas" className="text-sm gap-2 px-5">
+              <Building2 className="h-4 w-4" />
+              Empresas
+            </TabsTrigger>
+            <TabsTrigger value="onboarding" className="text-sm gap-2 px-5">
+              <ClipboardList className="h-4 w-4" />
+              Onboarding
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="empresas">
+            <HubEmpresasContent />
+          </TabsContent>
+          <TabsContent value="onboarding">
+            <HubOnboardingContent />
+          </TabsContent>
+        </Tabs>
+      )}
     </HubLayout>
   );
 }
