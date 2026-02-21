@@ -230,7 +230,7 @@ function HubEmpresasContent() {
             const rawDomain = child.custom_domain || '';
             const domainUrl = rawDomain
               ? (rawDomain.startsWith('http') ? rawDomain : `https://${rawDomain}`)
-              : window.location.origin;
+              : 'https://naked-screen-charm.lovable.app';
             // domainUrl is used for copy; window.location.origin for opening
             const copyLink = (path: string, label: string) => {
               const url = `${domainUrl}${path}`;
@@ -328,7 +328,7 @@ function HubEmpresasContent() {
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <button
-                          onClick={() => window.open(`${window.location.origin}/auth/${child.slug}`, '_blank')}
+                          onClick={() => window.open(`${domainUrl}/auth/${child.slug}`, '_blank')}
                           className="p-1 rounded hover:bg-muted transition-colors"
                           title="Abrir link"
                         >
@@ -351,7 +351,7 @@ function HubEmpresasContent() {
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <button
-                          onClick={() => window.open(`${window.location.origin}/onboarding/${child.slug}`, '_blank')}
+                          onClick={() => window.open(`${domainUrl}/onboarding/${child.slug}`, '_blank')}
                           className="p-1 rounded hover:bg-muted transition-colors"
                           title="Abrir link"
                         >
