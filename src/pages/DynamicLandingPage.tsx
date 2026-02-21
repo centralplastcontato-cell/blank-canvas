@@ -20,6 +20,7 @@ interface LPData {
   company_logo: string | null;
   company_slug: string;
   company_whatsapp: string | null;
+  multipleUnits: boolean;
   hero: LPHero;
   video: LPVideo;
   gallery: LPGallery;
@@ -65,7 +66,7 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
         let whatsapp: string | null = null;
         const { data: onb } = await supabase
           .from('company_onboarding')
-          .select('whatsapp_numbers')
+          .select('whatsapp_numbers, multiple_units')
           .eq('company_id', companyId)
           .limit(1)
           .maybeSingle();
@@ -75,6 +76,7 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
 
         setData({
           company_id: companyId,
+          multipleUnits: onb?.multiple_units === true,
           company_name: row.company_name,
           company_logo: row.company_logo,
           company_slug: row.company_slug,
@@ -149,6 +151,7 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
         companyName={data.company_name}
         companyLogo={data.company_logo}
         onCtaClick={openChat}
+        multipleUnits={data.multipleUnits}
       />
       <DLPBenefits theme={data.theme} companyName={data.company_name} benefits={data.benefits} />
       <DLPTestimonials testimonials={data.testimonials} theme={data.theme} />
