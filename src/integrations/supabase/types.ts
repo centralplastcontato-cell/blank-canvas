@@ -2884,12 +2884,14 @@ export type Database = {
           created_at: string
           from_me: boolean
           id: string
+          is_starred: boolean
           media_direct_path: string | null
           media_key: string | null
           media_url: string | null
           message_id: string | null
           message_type: string
           metadata: Json | null
+          quoted_message_id: string | null
           status: string | null
           timestamp: string
         }
@@ -2900,12 +2902,14 @@ export type Database = {
           created_at?: string
           from_me?: boolean
           id?: string
+          is_starred?: boolean
           media_direct_path?: string | null
           media_key?: string | null
           media_url?: string | null
           message_id?: string | null
           message_type?: string
           metadata?: Json | null
+          quoted_message_id?: string | null
           status?: string | null
           timestamp?: string
         }
@@ -2916,12 +2920,14 @@ export type Database = {
           created_at?: string
           from_me?: boolean
           id?: string
+          is_starred?: boolean
           media_direct_path?: string | null
           media_key?: string | null
           media_url?: string | null
           message_id?: string | null
           message_type?: string
           metadata?: Json | null
+          quoted_message_id?: string | null
           status?: string | null
           timestamp?: string
         }
@@ -2938,6 +2944,13 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "wapi_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wapi_messages_quoted_message_id_fkey"
+            columns: ["quoted_message_id"]
+            isOneToOne: false
+            referencedRelation: "wapi_messages"
             referencedColumns: ["id"]
           },
         ]
