@@ -18,13 +18,12 @@ import {
   Copy,
   Check,
   Phone,
-  Building2,
   Monitor
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { ProposalGenerator } from "@/components/admin/ProposalGenerator";
-import { B2BLeadsManager } from "@/components/admin/B2BLeadsManager";
+
 import { HubLayout } from "@/components/hub/HubLayout";
 
 const ComercialB2B = () => {
@@ -64,13 +63,8 @@ const ComercialB2B = () => {
         <div className="max-w-6xl mx-auto">
  
              {/* Tabs */}
-              <Tabs defaultValue="leads" className="space-y-6">
-                <TabsList className="grid w-full grid-cols-8 h-auto p-1">
-                  <TabsTrigger value="leads" className="flex items-center gap-2 py-3">
-                    <Building2 className="h-4 w-4" />
-                    <span className="hidden sm:inline">Leads B2B</span>
-                    <span className="sm:hidden">Leads</span>
-                  </TabsTrigger>
+              <Tabs defaultValue="pitch" className="space-y-6">
+                <TabsList className="grid w-full grid-cols-7 h-auto p-1">
                   <TabsTrigger value="pitch" className="flex items-center gap-2 py-3">
                     <Target className="h-4 w-4" />
                     <span className="hidden sm:inline">Pitch de Vendas</span>
@@ -861,11 +855,6 @@ Deixe o prospect falar. Anote objeções.
                    </CardContent>
                  </Card>
                </TabsContent>
-               
-                {/* Leads B2B Tab */}
-                <TabsContent value="leads">
-                  <B2BLeadsManager />
-                </TabsContent>
 
                 {/* Landing Page Tab */}
                 <TabsContent value="landing" className="space-y-4">
