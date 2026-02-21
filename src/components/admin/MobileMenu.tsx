@@ -89,14 +89,14 @@ export function MobileMenu({
       label: "Operações",
       icon: FolderOpen,
       path: "/formularios",
-      show: true,
+      show: !!modules.operacoes,
     },
     {
       id: "configuracoes",
       label: "Configurações",
       icon: Settings,
       path: "/configuracoes",
-      show: true,
+      show: !!modules.config,
     },
     {
       id: "users",
