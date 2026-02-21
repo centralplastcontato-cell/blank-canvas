@@ -18,7 +18,7 @@ import {
   Image as ImageIcon, Mic, Paperclip, Loader2, Square, X, Pause, Play,
   Users, ArrowRightLeft, Trash2,
   CalendarCheck, Briefcase, FileCheck, ArrowDown, Video,
-  Pencil, Copy, ChevronDown, Download, Pin, PinOff
+  Pencil, Copy, ChevronDown, Download, Pin, PinOff, Reply
 } from "lucide-react";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { LinkPreviewCard, extractFirstUrl } from "@/components/whatsapp/LinkPreviewCard";
@@ -138,6 +138,8 @@ interface Message {
   status: string;
   timestamp: string;
   metadata?: Record<string, string> | null;
+  quoted_message_id?: string | null;
+  is_starred?: boolean;
 }
 
 interface WhatsAppChatProps {
@@ -223,6 +225,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState("");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  
+  // Reply (quote) state
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   
   const [mobileStatusExpanded, setMobileStatusExpanded] = useState(false);
   
@@ -860,6 +865,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       if (prevConversationIdRef.current !== selectedConversation.id) {
         setMessages([]);
         setLinkedLead(null);
+        setReplyingTo(null);
         setIsLoadingMessages(true);
         setHasMoreMessages(true);
         setOldestMessageTimestamp(null);
@@ -1389,7 +1395,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       // Build query with cursor-based pagination - select only necessary columns
       let query = supabase
         .from("wapi_messages")
-        .select("id, conversation_id, message_id, from_me, message_type, content, media_url, status, timestamp, metadata")
+        .select("id, conversation_id, message_id, from_me, message_type, content, media_url, status, timestamp, metadata, quoted_message_id, is_starred")
         .eq("conversation_id", conversationId)
         .order("timestamp", { ascending: false })
         .limit(MESSAGES_LIMIT);
@@ -1656,7 +1662,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       return;
     }
     const messageToSend = newMessage.trim();
+    const quotedMsg = replyingTo;
     setNewMessage(""); // Clear immediately for UX
+    setReplyingTo(null);
     setIsSending(true);
 
     // Auto-disable bot when human sends a message
@@ -1685,6 +1693,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       media_url: null,
       status: 'pending',
       timestamp: new Date().toISOString(),
+      quoted_message_id: quotedMsg?.id || null,
     };
     
     setMessages(prev => [...prev, optimisticMessage]);
@@ -1888,6 +1897,21 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     }
   };
 
+  // Star message handler
+  const handleStarMessage = async (msg: Message) => {
+    const newStarred = !msg.is_starred;
+    try {
+      const { error } = await supabase
+        .from('wapi_messages')
+        .update({ is_starred: newStarred })
+        .eq('id', msg.id);
+      if (error) throw error;
+      setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, is_starred: newStarred } : m));
+      toast({ title: newStarred ? "Mensagem favoritada ⭐" : "Favorito removido" });
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    }
+  };
 
   // Check if message is editable (from_me, text, less than 15 min)
   const isMessageEditable = (msg: Message) => {
@@ -3638,6 +3662,34 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                     </div>
                                   </div>
                                 )}
+                                {/* Quoted message reference */}
+                                {msg.quoted_message_id && (() => {
+                                  const quoted = messages.find(m => m.id === msg.quoted_message_id);
+                                  if (!quoted) return null;
+                                  return (
+                                    <div 
+                                      className={cn(
+                                        "px-3 py-1.5 mb-1 rounded border-l-2 cursor-pointer text-xs",
+                                        msg.from_me ? "bg-primary/20 border-primary-foreground/40" : "bg-muted border-primary"
+                                      )}
+                                      onClick={() => {
+                                        const el = document.getElementById(`msg-${quoted.id}`);
+                                        el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                      }}
+                                    >
+                                      <p className={cn("font-medium", msg.from_me ? "text-primary-foreground/80" : "text-primary")}>
+                                        {quoted.from_me ? 'Você' : (selectedConversation?.contact_name || 'Contato')}
+                                      </p>
+                                      <p className={cn("truncate", msg.from_me ? "text-primary-foreground/60" : "text-muted-foreground")}>
+                                        {quoted.content || `[${quoted.message_type}]`}
+                                      </p>
+                                    </div>
+                                  );
+                                })()}
+                                {/* Star indicator */}
+                                {msg.is_starred && (
+                                  <Star className={cn("w-3 h-3 mb-0.5", msg.from_me ? "text-primary-foreground/60" : "text-yellow-500")} />
+                                )}
                                 {msg.message_type === 'text' && editingMessageId === msg.id ? (
                                   <div className="space-y-2">
                                     <Textarea
@@ -3721,6 +3773,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                           <DropdownMenuSeparator />
                                         </>
                                       )}
+                                      <DropdownMenuItem onClick={() => {
+                                        setReplyingTo(msg);
+                                        messageTextareaRef.current?.focus();
+                                      }}>
+                                        <Reply className="w-4 h-4 mr-2" />
+                                        Responder
+                                      </DropdownMenuItem>
                                       {msg.content && (
                                         <DropdownMenuItem onClick={() => {
                                           navigator.clipboard.writeText(msg.content!);
@@ -3750,6 +3809,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                           <><PinOff className="w-4 h-4 mr-2" />Desafixar</>
                                         ) : (
                                           <><Pin className="w-4 h-4 mr-2" />Fixar</>
+                                        )}
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleStarMessage(msg)}>
+                                        {msg.is_starred ? (
+                                          <><StarOff className="w-4 h-4 mr-2" />Desfavoritar</>
+                                        ) : (
+                                          <><Star className="w-4 h-4 mr-2" />Favoritar</>
                                         )}
                                       </DropdownMenuItem>
                                       {msg.from_me && (
@@ -3810,6 +3876,19 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
                   {/* Message Input */}
                   <div className="px-4 py-3 border-t border-border/40 shrink-0 bg-card">
+                    {/* Reply preview bar */}
+                    {replyingTo && (
+                      <div className="flex items-center gap-2 mb-2 p-2 bg-muted rounded-lg border-l-4 border-primary">
+                        <Reply className="w-4 h-4 text-primary shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-primary">{replyingTo.from_me ? 'Você' : (selectedConversation?.contact_name || 'Contato')}</p>
+                          <p className="text-xs text-muted-foreground truncate">{replyingTo.content || `[${replyingTo.message_type}]`}</p>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => setReplyingTo(null)}>
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    )}
                     {isRecording || audioBlob ? (
                       <div className="flex items-center gap-2">
                         <div className="flex-1 flex items-center gap-3 bg-muted rounded-lg px-4 py-2">
@@ -4482,6 +4561,34 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                 </div>
                               </div>
                             )}
+                            {/* Quoted message reference - mobile */}
+                            {msg.quoted_message_id && (() => {
+                              const quoted = messages.find(m => m.id === msg.quoted_message_id);
+                              if (!quoted) return null;
+                              return (
+                                <div 
+                                  className={cn(
+                                    "px-3 py-1.5 mb-1 rounded border-l-2 cursor-pointer text-xs",
+                                    msg.from_me ? "bg-primary/20 border-primary-foreground/40" : "bg-muted border-primary"
+                                  )}
+                                  onClick={() => {
+                                    const el = document.getElementById(`msg-${quoted.id}`);
+                                    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                  }}
+                                >
+                                  <p className={cn("font-medium", msg.from_me ? "text-primary-foreground/80" : "text-primary")}>
+                                    {quoted.from_me ? 'Você' : (selectedConversation?.contact_name || 'Contato')}
+                                  </p>
+                                  <p className={cn("truncate", msg.from_me ? "text-primary-foreground/60" : "text-muted-foreground")}>
+                                    {quoted.content || `[${quoted.message_type}]`}
+                                  </p>
+                                </div>
+                              );
+                            })()}
+                            {/* Star indicator - mobile */}
+                            {msg.is_starred && (
+                              <Star className={cn("w-3 h-3 mb-0.5", msg.from_me ? "text-primary-foreground/60" : "text-yellow-500")} />
+                            )}
                             {msg.message_type === 'text' && editingMessageId === msg.id ? (
                               <div className="space-y-2">
                                 <Textarea
@@ -4562,6 +4669,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                       <DropdownMenuSeparator />
                                     </>
                                   )}
+                                  <DropdownMenuItem onClick={() => {
+                                    setReplyingTo(msg);
+                                    messageTextareaRef.current?.focus();
+                                  }}>
+                                    <Reply className="w-4 h-4 mr-2" />
+                                    Responder
+                                  </DropdownMenuItem>
                                   {msg.content && (
                                     <DropdownMenuItem onClick={() => {
                                       navigator.clipboard.writeText(msg.content!);
@@ -4591,6 +4705,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                       <><PinOff className="w-4 h-4 mr-2" />Desafixar</>
                                     ) : (
                                       <><Pin className="w-4 h-4 mr-2" />Fixar</>
+                                    )}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleStarMessage(msg)}>
+                                    {msg.is_starred ? (
+                                      <><StarOff className="w-4 h-4 mr-2" />Desfavoritar</>
+                                    ) : (
+                                      <><Star className="w-4 h-4 mr-2" />Favoritar</>
                                     )}
                                   </DropdownMenuItem>
                                   {msg.from_me && (
@@ -4648,6 +4769,19 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                   )}
                 </div>
                 <div className="p-3 border-t shrink-0">
+                  {/* Reply preview bar - mobile */}
+                  {replyingTo && (
+                    <div className="flex items-center gap-2 mb-2 p-2 bg-muted rounded-lg border-l-4 border-primary">
+                      <Reply className="w-4 h-4 text-primary shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-primary">{replyingTo.from_me ? 'Você' : (selectedConversation?.contact_name || 'Contato')}</p>
+                        <p className="text-xs text-muted-foreground truncate">{replyingTo.content || `[${replyingTo.message_type}]`}</p>
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => setReplyingTo(null)}>
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  )}
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
