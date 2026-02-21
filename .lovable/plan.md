@@ -1,55 +1,41 @@
 
+## Menu de contexto nas mensagens do chat (estilo WhatsApp Business)
 
-## Reformulacao do Onboarding no Hub
+### O que sera feito
+Adicionar um menu de acoes em cada mensagem do chat na Central de Atendimento, similar ao WhatsApp Business. Atualmente, o menu so aparece em mensagens editaveis (enviadas por voce, texto, menos de 15min). A proposta e expandir para **todas as mensagens** com opcoes relevantes.
 
-### Problema atual
-1. O formulario publico de onboarding (`/onboarding/:slug`) mostra tela de "concluido" quando o status e `completo`, impedindo qualquer edicao posterior
-2. O painel de detalhes no Hub abre como Sheet lateral (estreita), ruim no desktop
-3. O formulario de edicao no Hub nao permite upload de fotos, videos ou logo - apenas campos de texto
+### Acoes do menu
 
-### Solucao proposta
+| Acao | Quando aparece | O que faz |
+|------|---------------|-----------|
+| **Copiar** | Mensagens de texto | Copia o conteudo para a area de transferencia |
+| **Editar** | Mensagens enviadas por voce, texto, menos de 15min | Abre o campo de edicao inline (ja existe) |
+| **Baixar** | Mensagens com midia (imagem, video, audio, documento) | Abre o link da midia em nova aba |
+| **Apagar** | Mensagens enviadas por voce | Exclui a mensagem do banco de dados |
 
-#### 1. Formulario publico: permitir reedicao quando ja concluido
-- Quando `status === 'completo'`, ao inves de mostrar apenas a tela de sucesso, carregar os dados existentes no formulario normalmente
-- Adicionar um botao "Editar informacoes" na tela de concluido que recarrega o formulario com os dados preenchidos
-- Ao salvar novamente, manter status `completo` e atualizar os dados
-
-#### 2. Hub: trocar Sheet por Dialog responsivo
-- **Desktop**: Usar `Dialog` com largura generosa (~900px) para mostrar os detalhes em duas colunas
-- **Mobile**: Manter o comportamento de Sheet lateral (tela cheia)
-- Usar o hook `useIsMobile()` para alternar entre Dialog e Sheet automaticamente
-
-#### 3. Hub: adicionar upload de midias no formulario de edicao
-- Adicionar secao de upload de logo (com preview e remocao)
-- Adicionar secao de upload de fotos (grid com preview, limite de 10, botao remover)
-- Adicionar secao de upload de videos (limite de 2, botao remover)
-- Reutilizar a mesma logica de upload do Supabase Storage (`onboarding-uploads` bucket)
-
----
+### Como vai funcionar
+- O botao de contexto (icone de seta/chevron) aparecera ao passar o mouse sobre **qualquer mensagem** (hover), nao apenas as editaveis
+- Ao clicar, abre um `DropdownMenu` com as opcoes aplicaveis para aquela mensagem
+- As opcoes sao filtradas dinamicamente com base no tipo e origem da mensagem
 
 ### Detalhes tecnicos
 
-**Arquivos modificados:**
+**Arquivo modificado:** `src/components/whatsapp/WhatsAppChat.tsx`
 
-1. **`src/pages/Onboarding.tsx`** (linhas 100-103)
-   - Remover o bloco `if (e.status === 'completo') { setSubmitted(true); }` 
-   - Em vez disso, carregar os dados normalmente e permitir edicao
-   - Adicionar um estado `wasCompleted` para mostrar um banner informativo ("Onboarding ja preenchido. Voce pode atualizar as informacoes abaixo.")
-   - No `handleSubmit`, manter status `completo`
+1. **Expandir o menu de contexto** (linhas 3609-3640):
+   - Remover a condicao `isMessageEditable(msg)` que limita o menu
+   - Exibir o botao de contexto em **todas as mensagens** usando `ChevronDown` (ja importado)
+   - Montar as opcoes do menu dinamicamente:
+     - "Copiar" - se `msg.content` existe
+     - "Editar" - se `isMessageEditable(msg)`
+     - "Baixar" - se `msg.media_url` existe
+     - Separador
+     - "Apagar" - se `msg.from_me` (com confirmacao)
 
-2. **`src/pages/HubOnboarding.tsx`** (linhas 151-185)
-   - Importar `Dialog`, `DialogContent`, `useIsMobile`
-   - No desktop: renderizar `Dialog` com `max-w-4xl` ao inves de `Sheet`
-   - No mobile: manter `Sheet` com `SheetContent` full width
-   - Criar componente wrapper `ResponsiveDetailPanel` que alterna entre os dois
-   - Adicionar uploads de logo/fotos/videos no `OnboardingEditForm`:
-     - Campos de upload com `<input type="file">` e upload para Supabase Storage
-     - Grid de preview para fotos existentes com botao de remocao
-     - Preview de logo com opcao de troca
-     - Lista de videos com botao de remocao
+2. **Adicionar handler de exclusao de mensagem individual**:
+   - Criar funcao `handleDeleteMessage(msgId)` que deleta de `wapi_messages` e remove do state local
+   - Adicionar um `AlertDialog` simples para confirmar a exclusao
 
-**Fluxo do upload no Hub edit form:**
-- Usar `supabase.storage.from("onboarding-uploads").upload(path, file)` (mesmo bucket do formulario publico)
-- Ao salvar, incluir `logo_url`, `photo_urls` e `video_urls` no payload de update
-- Preview imediato apos upload com URL publica
+3. **Replicar as mesmas mudancas no bloco de renderizacao mobile** (linhas ~4200+), que tem uma copia do mesmo template de mensagem
 
+O menu aparecera discretamente no hover, sem atrapalhar a leitura, e tera visual consistente com o DropdownMenu ja usado no chat.
