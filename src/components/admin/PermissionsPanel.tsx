@@ -68,6 +68,7 @@ const categoryToModule: Record<string, keyof CompanyModules> = {
   Configurações: 'config',
   Inteligência: 'inteligencia',
   'Operações': 'operacoes',
+  Agenda: 'agenda',
 };
 
 export function PermissionsPanel({
@@ -628,6 +629,7 @@ export function PermissionsPanel({
                   dashboard: 'dashboard',
                   whatsapp: 'whatsapp',
                   config: 'config',
+                  agenda: 'agenda',
                 };
                 const mod = prefixToModule[prefix];
                 if (mod && !modules[mod]) return false;
