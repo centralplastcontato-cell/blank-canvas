@@ -23,6 +23,7 @@ interface PermissionsPanelProps {
   targetUserId: string;
   targetUserName: string;
   currentUserId: string;
+  targetCompanyId?: string;
   onClose?: () => void;
 }
 
@@ -75,9 +76,10 @@ export function PermissionsPanel({
   targetUserId,
   targetUserName,
   currentUserId,
+  targetCompanyId,
   onClose,
 }: PermissionsPanelProps) {
-  const { units: companyUnits } = useCompanyUnits();
+  const { units: companyUnits } = useCompanyUnits(targetCompanyId);
   const modules = useCompanyModules();
   const { definitions, isLoading: isLoadingDefs, getPermissionsByCategory } = usePermissions(currentUserId);
   const [userPermissions, setUserPermissions] = useState<Record<string, boolean>>({});
@@ -633,6 +635,14 @@ export function PermissionsPanel({
                 };
                 const mod = prefixToModule[prefix];
                 if (mod && !modules[mod]) return false;
+                
+                // Filter unit-specific permissions to only show units from target company
+                if (perm.code.startsWith('leads.unit.') && perm.code !== 'leads.unit.all') {
+                  const unitSlug = perm.code.replace('leads.unit.', '');
+                  const unitExists = companyUnits.some(u => u.slug === unitSlug);
+                  if (!unitExists) return false;
+                }
+                
                 return true;
               }).map((perm) => {
                 const isGranted = userPermissions[perm.code] ?? false;

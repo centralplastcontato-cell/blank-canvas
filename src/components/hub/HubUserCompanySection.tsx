@@ -59,7 +59,7 @@ export function HubUserCompanySection({
       <Sheet open={!!permissionsUser} onOpenChange={(open) => !open && setPermissionsUser(null)}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader><SheetTitle>Permissões — {permissionsUser?.full_name}</SheetTitle></SheetHeader>
-          {permissionsUser && <PermissionsPanel targetUserId={permissionsUser.user_id} targetUserName={permissionsUser.full_name} currentUserId={currentUserId} onClose={() => setPermissionsUser(null)} />}
+          {permissionsUser && <PermissionsPanel targetUserId={permissionsUser.user_id} targetUserName={permissionsUser.full_name} currentUserId={currentUserId} targetCompanyId={company?.id} onClose={() => setPermissionsUser(null)} />}
         </SheetContent>
       </Sheet>
 
