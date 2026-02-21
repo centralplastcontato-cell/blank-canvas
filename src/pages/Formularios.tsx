@@ -9,7 +9,7 @@ import { NotificationBell } from "@/components/admin/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { FolderOpen, Menu, Loader2, ClipboardCheck, PartyPopper, FileSignature, UtensilsCrossed, ListChecks, FileText, Package, Users, Wrench, HardHat, ShieldAlert, CalendarClock } from "lucide-react";
-import logoCastelo from "@/assets/logo-castelo.png";
+import { useCompany } from "@/contexts/CompanyContext";
 import { AvaliacoesContent } from "./Avaliacoes";
 import { PreFestaContent } from "./PreFesta";
 import { ContratoContent } from "./Contrato";
@@ -26,6 +26,7 @@ import { FreelancerSchedulesTab } from "@/components/freelancer/FreelancerSchedu
 
 export default function Formularios() {
   const navigate = useNavigate();
+  const { currentCompany } = useCompany();
   const [searchParams, setSearchParams] = useSearchParams();
   
   const [isAdmin, setIsAdmin] = useState(false);
@@ -166,7 +167,7 @@ export default function Formularios() {
                     onLogout={handleLogout}
                   />
                   <div className="flex items-center gap-2 min-w-0">
-                    <img src={logoCastelo} alt="Logo" className="h-8 w-auto shrink-0" />
+                    <img src={currentCompany?.logo_url || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-8 w-auto shrink-0" />
                     <h1 className="font-display font-bold text-foreground text-sm truncate">Operações</h1>
                   </div>
                 </div>

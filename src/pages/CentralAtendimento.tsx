@@ -36,7 +36,7 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { LayoutList, Columns, Menu, Bell, BellOff, MessageSquare, BarChart3, Filter, ChevronDown, Building2, Brain } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import logoCastelo from "@/assets/logo-castelo.png";
+import { useCompany } from "@/contexts/CompanyContext";
 
 export interface LeadFilters {
   campaign: string;
@@ -52,6 +52,7 @@ export interface LeadFilters {
 
 export default function CentralAtendimento() {
   const navigate = useNavigate();
+  const { currentCompany } = useCompany();
 
   // Guard: redirect to Hub dashboard if on Hub domain
   useEffect(() => {
@@ -656,7 +657,7 @@ export default function CentralAtendimento() {
                 />
 
                 <div className="flex items-center gap-2 min-w-0">
-                  <img src={logoCastelo} alt="Castelo da Diversão" className="h-8 w-auto shrink-0" />
+                  <img src={currentCompany?.logo_url || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-8 w-auto shrink-0" />
                   <h1 className="font-display font-bold text-foreground text-sm truncate">Central de Atendimento</h1>
                 </div>
               </div>

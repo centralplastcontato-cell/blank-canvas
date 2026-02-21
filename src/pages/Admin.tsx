@@ -29,7 +29,7 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/s
 import { Separator } from "@/components/ui/separator";
 import { LogOut, RefreshCw, LayoutList, Columns, Menu, Users as UsersIcon, MessageSquare } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import logoCastelo from "@/assets/logo-castelo.png";
+import { useCompany } from "@/contexts/CompanyContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export interface LeadFilters {
@@ -46,6 +46,7 @@ export interface LeadFilters {
 
 export default function Admin() {
   const navigate = useNavigate();
+  const { currentCompany } = useCompany();
   const [searchParams, setSearchParams] = useSearchParams();
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -465,9 +466,9 @@ export default function Admin() {
                   <SheetContent side="left" className="w-72 p-0">
                     <SheetHeader className="p-4 border-b border-border">
                       <div className="flex items-center gap-3">
-                        <img src={logoCastelo} alt="Castelo da Diversão" className="h-10 w-auto" />
+                        <img src={currentCompany?.logo_url || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-10 w-auto" />
                         <div>
-                          <SheetTitle className="text-left text-base">Castelo da Diversão</SheetTitle>
+                          <SheetTitle className="text-left text-base">{currentCompany?.name || 'Menu'}</SheetTitle>
                           <p className="text-xs text-muted-foreground">
                             {currentUserProfile?.full_name || user.email}
                           </p>
@@ -509,7 +510,7 @@ export default function Admin() {
                 </Sheet>
 
                 <div className="flex items-center gap-2 min-w-0">
-                  <img src={logoCastelo} alt="Castelo da Diversão" className="h-8 w-auto shrink-0" />
+                  <img src={currentCompany?.logo_url || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-8 w-auto shrink-0" />
                   <h1 className="font-display font-bold text-foreground text-sm truncate">Gestão de Leads</h1>
                 </div>
               </div>

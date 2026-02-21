@@ -11,7 +11,7 @@ import { WhatsAppChat } from "@/components/whatsapp/WhatsAppChat";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Menu, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import logoCastelo from "@/assets/logo-castelo.png";
+import { useCompany } from "@/contexts/CompanyContext";
 import { toast } from "@/hooks/use-toast";
 
 interface Profile {
@@ -24,6 +24,7 @@ interface Profile {
 
 export default function WhatsApp() {
   const navigate = useNavigate();
+  const { currentCompany } = useCompany();
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -127,7 +128,7 @@ export default function WhatsApp() {
                   onLogout={handleLogout}
                 />
                 <div className="flex items-center gap-2 min-w-0">
-                  <img src={logoCastelo} alt="Castelo da Diversão" className="h-8 w-auto shrink-0" />
+                  <img src={currentCompany?.logo_url || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-8 w-auto shrink-0" />
                   <h1 className="font-display font-bold text-foreground text-sm truncate">WhatsApp</h1>
               </div>
               <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate("/inteligencia")}>

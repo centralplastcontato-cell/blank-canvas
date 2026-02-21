@@ -17,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { Menu, Settings, MessageSquare, PartyPopper, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import logoCastelo from "@/assets/logo-castelo.png";
+import { useCompany } from "@/contexts/CompanyContext";
 import { toast } from "@/hooks/use-toast";
 
 interface Profile {
@@ -31,6 +31,7 @@ interface Profile {
 
 export default function Configuracoes() {
   const navigate = useNavigate();
+  const { currentCompany } = useCompany();
   const [searchParams] = useSearchParams();
   const defaultTab = searchParams.get("tab") === "perfil" ? "perfil" : "whatsapp";
   const [user, setUser] = useState<User | null>(null);
@@ -148,7 +149,7 @@ export default function Configuracoes() {
                 />
 
                 <div className="flex items-center gap-2 min-w-0">
-                  <img src={logoCastelo} alt="Castelo da Diversão" className="h-8 w-auto shrink-0" />
+                  <img src={currentCompany?.logo_url || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-8 w-auto shrink-0" />
                   <h1 className="font-display font-bold text-foreground text-sm truncate">Configurações</h1>
                 </div>
               </div>

@@ -48,7 +48,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
 
   // Detect if we're in dynamic (multi-company) mode
   const isDynamic = !!companyName;
-  const displayName = companyName || "Castelo da Diversão";
+  const displayName = companyName || "nosso buffet";
   const displayLogo = isDynamic ? companyLogo : logoCastelo;
 
   const emojis = [

@@ -138,7 +138,7 @@ export default function Auth() {
   };
 
   const displayLogo = companyLogo || logoCastelo;
-  const displayName = companyName || "Castelo da Diversão";
+  const displayName = companyName || "Entrar";
 
   if (isLoadingCompany) {
     return (
