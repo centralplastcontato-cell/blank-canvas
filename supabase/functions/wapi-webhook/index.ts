@@ -3090,9 +3090,9 @@ async function processWebhookEvent(body: Record<string, unknown>) {
       
       console.log(`[Latency] conversation_ready: ${Date.now() - processingStartAt}ms`);
 
-      // Download media in parallel with message insert if needed (but only for received messages)
+      // Download media in parallel with message insert if needed (for both sent and received messages)
       let mediaPromise: Promise<{ url: string; fileName: string } | null> | null = null;
-      if (download && !fromMe && msgId) {
+      if (download && msgId) {
         mediaPromise = downloadMedia(supabase, instance.instance_id, instance.instance_token, msgId as string, type, fn, key, path, url, mime);
       }
 
