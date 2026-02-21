@@ -3162,20 +3162,21 @@ async function processWebhookEvent(body: Record<string, unknown>) {
             let rj = (cId as string).includes('@') ? cId : `${cId}@s.whatsapp.net`;
             const p = (rj as string).replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@g.us', '').replace('@lid', '');
             if (!(rj as string).includes('@g.us')) {
-              const { data: ec } = await supabase.from('wapi_conversations').select('*').eq('instance_id', instance.id).eq('remote_jid', rj).single();
+              const { data: ec } = await supabase.from('wapi_conversations').select('*').eq('instance_id', instance.id).eq('remote_jid', rj).maybeSingle();
               let pv = '';
               if ((mcd as Record<string, unknown>).conversation) pv = (mcd as Record<string, unknown>).conversation as string;
               else if ((mcd as Record<string, unknown>).extendedTextMessage?.text) pv = (mcd as Record<string, unknown>).extendedTextMessage?.text as string;
               else if ((mcd as Record<string, unknown>).imageMessage) pv = '📷 Imagem';
               else if ((mcd as Record<string, unknown>).documentMessage) pv = '📄 ' + ((mcd as Record<string, unknown>).documentMessage?.fileName || 'Documento');
               
-              // Check if bot is in an active step - don't disable it during qualification flow
-              const statusActiveBotSteps = ['welcome', 'tipo', 'nome', 'mes', 'dia', 'convidados', 'sending_materials', 'proximo_passo', 'proximo_passo_reminded'];
-              const statusIsFlowStep = (ec.bot_step || '').startsWith('flow_');
-              const statusIsBotActive = statusActiveBotSteps.includes(ec.bot_step || '') || statusIsFlowStep;
-              
               let cv;
-              if (ec) { cv = ec; await supabase.from('wapi_conversations').update({ last_message_at: new Date().toISOString(), last_message_content: pv.substring(0, 100), last_message_from_me: true, ...(ec.bot_step && ec.bot_step !== 'complete' && !statusIsBotActive ? { bot_enabled: false } : {}) }).eq('id', ec.id); }
+              if (ec) {
+                // Check if bot is in an active step - don't disable it during qualification flow
+                const statusActiveBotSteps = ['welcome', 'tipo', 'nome', 'mes', 'dia', 'convidados', 'sending_materials', 'proximo_passo', 'proximo_passo_reminded'];
+                const statusIsFlowStep = (ec.bot_step || '').startsWith('flow_');
+                const statusIsBotActive = statusActiveBotSteps.includes(ec.bot_step || '') || statusIsFlowStep;
+                cv = ec; await supabase.from('wapi_conversations').update({ last_message_at: new Date().toISOString(), last_message_content: pv.substring(0, 100), last_message_from_me: true, ...(ec.bot_step && ec.bot_step !== 'complete' && !statusIsBotActive ? { bot_enabled: false } : {}) }).eq('id', ec.id);
+              }
               else { const { data: nc } = await supabase.from('wapi_conversations').insert({ instance_id: instance.id, remote_jid: rj, contact_phone: p, contact_name: (body?.chat as Record<string, unknown>)?.name || p, last_message_at: new Date().toISOString(), last_message_content: pv.substring(0, 100), last_message_from_me: true, bot_enabled: false, company_id: instance.company_id }).select().single(); cv = nc; }
               
               if (cv) {
