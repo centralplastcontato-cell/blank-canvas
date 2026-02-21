@@ -151,9 +151,11 @@ export function useWhatsAppConnection(onConnected?: () => void) {
     setIsPairingLoading(false);
   };
 
-  // Connection status polling (every 3s)
+  // Connection status polling (every 3s) — pause while typing phone number
+  const shouldPoll = qrDialogOpen && qrInstance && qrPolling && (connectionMode === "qr" || !!pairingCode);
+  
   useEffect(() => {
-    if (!qrDialogOpen || !qrInstance || !qrPolling) return;
+    if (!shouldPoll || !qrInstance) return;
     const initialTimeout = setTimeout(async () => {
       await pollConnectionStatus(qrInstance);
     }, 2000);
@@ -162,7 +164,7 @@ export function useWhatsAppConnection(onConnected?: () => void) {
       if (connected) clearInterval(interval);
     }, 3000);
     return () => { clearTimeout(initialTimeout); clearInterval(interval); };
-  }, [qrDialogOpen, qrInstance, qrPolling, pollConnectionStatus]);
+  }, [shouldPoll, qrInstance, pollConnectionStatus]);
 
   // QR code refresh (every 15s)
   useEffect(() => {
