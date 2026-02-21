@@ -765,6 +765,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
 
   const handleRequestPairingCode = async () => {
     const currentPhone = phoneInputRef.current?.value.replace(/\D/g, '') || '';
+    console.log("[PairingCode] phoneInputRef:", phoneInputRef.current, "value:", currentPhone, "qrInstance:", qrInstance?.unit);
     if (!qrInstance || !currentPhone || currentPhone.length < 10) {
       toast({
         title: "Erro",
