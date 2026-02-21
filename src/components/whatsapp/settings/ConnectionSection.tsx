@@ -904,7 +904,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
   }
 
   // Dialog for number change detection - offers to clean non-imported conversations
-  const NumberChangeDialog = () => (
+  const numberChangeDialogJsx = (
     <Dialog open={numberChangeDialogOpen} onOpenChange={setNumberChangeDialogOpen}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -968,7 +968,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
     </Dialog>
   );
 
-  const ConnectionDialog = () => (
+  const connectionDialogJsx = (
     <Dialog open={qrDialogOpen} onOpenChange={(open) => {
       setQrDialogOpen(open);
       if (!open) {
@@ -1135,8 +1135,8 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
   if (!isAdmin) {
     return (
       <div className="space-y-4">
-        <ConnectionDialog />
-        <NumberChangeDialog />
+        {connectionDialogJsx}
+        {numberChangeDialogJsx}
         <Card>
           <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
@@ -1213,8 +1213,8 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
   // Admin view
   return (
     <div className="space-y-6">
-      <ConnectionDialog />
-      <NumberChangeDialog />
+      {connectionDialogJsx}
+      {numberChangeDialogJsx}
       
       {/* Instances Management */}
       <Card>
