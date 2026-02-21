@@ -33,13 +33,11 @@ interface ConnectionDialogProps {
 // Fully isolated phone input — uses uncontrolled input (ref-based) so re-renders
 // from polling or other state changes cannot interfere with typing.
 const PhoneSection = memo(function PhoneSection({
-  onPhoneReady,
-  onRequestPairingCode,
+  onSubmitPhone,
   isPairingLoading,
   pairingCode,
 }: {
-  onPhoneReady: (phone: string) => void;
-  onRequestPairingCode: () => void;
+  onSubmitPhone: (phone: string) => void;
   isPairingLoading: boolean;
   pairingCode: string | null;
 }) {
@@ -49,14 +47,17 @@ const PhoneSection = memo(function PhoneSection({
   const handleInput = useCallback(() => {
     const el = inputRef.current;
     if (!el) return;
-    // Strip non-digits in-place
     const cleaned = el.value.replace(/\D/g, "").slice(0, 11);
     if (cleaned !== el.value) {
       el.value = cleaned;
     }
     setCanSubmit(cleaned.length >= 10);
-    onPhoneReady(cleaned);
-  }, [onPhoneReady]);
+  }, []);
+
+  const handleSubmit = useCallback(() => {
+    const phone = inputRef.current?.value.replace(/\D/g, "") || "";
+    if (phone.length >= 10) onSubmitPhone(phone);
+  }, [onSubmitPhone]);
 
   return (
     <div className="flex flex-col gap-4 py-4">
@@ -82,7 +83,7 @@ const PhoneSection = memo(function PhoneSection({
           />
         </div>
         <Button
-          onClick={onRequestPairingCode}
+          onClick={handleSubmit}
           disabled={isPairingLoading || !canSubmit}
           className="w-full"
         >
@@ -207,8 +208,11 @@ export function ConnectionDialog({
           </div>
         ) : (
           <PhoneSection
-            onPhoneReady={onSetPhoneNumber}
-            onRequestPairingCode={onRequestPairingCode}
+            onSubmitPhone={(phone) => {
+              onSetPhoneNumber(phone);
+              // Small delay to ensure state is set before requesting
+              setTimeout(onRequestPairingCode, 50);
+            }}
             isPairingLoading={isPairingLoading}
             pairingCode={pairingCode}
           />
