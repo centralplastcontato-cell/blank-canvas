@@ -618,7 +618,21 @@ export function PermissionsPanel({
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {perms.map((perm) => {
+              {perms.filter((perm) => {
+                // Hide individual permissions whose code prefix maps to a disabled module
+                const prefix = perm.code.split('.')[0];
+                const prefixToModule: Record<string, keyof CompanyModules> = {
+                  b2b: 'comercial_b2b',
+                  inteligencia: 'inteligencia',
+                  operacoes: 'operacoes',
+                  dashboard: 'dashboard',
+                  whatsapp: 'whatsapp',
+                  config: 'config',
+                };
+                const mod = prefixToModule[prefix];
+                if (mod && !modules[mod]) return false;
+                return true;
+              }).map((perm) => {
                 const isGranted = userPermissions[perm.code] ?? false;
                 const isSavingThis = isSaving === perm.code;
                 
