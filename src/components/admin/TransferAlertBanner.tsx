@@ -72,7 +72,11 @@ export function TransferAlertBanner({ userId, onViewLead }: TransferAlertBannerP
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          const notification = payload.new as TransferNotification;
+          const notification = payload.new as TransferNotification & { company_id?: string };
+          const currentCompanyId = getCurrentCompanyId();
+          if (notification.company_id && currentCompanyId && notification.company_id !== currentCompanyId) {
+            return;
+          }
           if (notification.type === "lead_transfer") {
             setTransfers((prev) => [notification, ...prev]);
           }
