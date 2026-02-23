@@ -104,9 +104,10 @@ interface BotQuestion {
 
 const DEFAULT_QUESTIONS = [
   { step: 'nome', question_text: 'Para começar, me conta: qual é o seu nome? 👑', confirmation_text: 'Muito prazer, {nome}! 👑✨', sort_order: 1 },
-  { step: 'mes', question_text: 'Que legal! 🎉 E pra qual mês você tá pensando em fazer essa festa incrível?\n\n📅 Ex: Fevereiro, Março, Abril...', confirmation_text: '{mes}, ótima escolha! 🎊', sort_order: 2 },
-  { step: 'dia', question_text: 'Maravilha! Tem preferência de dia da semana? 🗓️\n\n• Segunda a Quinta\n• Sexta\n• Sábado\n• Domingo', confirmation_text: 'Anotado!', sort_order: 3 },
-  { step: 'convidados', question_text: 'E quantos convidados você pretende chamar pra essa festa mágica? 🎈\n\n👥 Ex: 50, 70, 100 pessoas...', confirmation_text: null, sort_order: 4 },
+  { step: 'tipo', question_text: 'Você já é nosso cliente ou gostaria de receber um orçamento? 😊\n\n1️⃣ Já sou cliente\n2️⃣ Quero um orçamento', confirmation_text: null, sort_order: 2 },
+  { step: 'mes', question_text: 'Que legal! 🎉 E pra qual mês você tá pensando em fazer essa festa incrível?\n\n📅 Ex: Fevereiro, Março, Abril...', confirmation_text: '{mes}, ótima escolha! 🎊', sort_order: 3 },
+  { step: 'dia', question_text: 'Maravilha! Tem preferência de dia da semana? 🗓️\n\n• Segunda a Quinta\n• Sexta\n• Sábado\n• Domingo', confirmation_text: 'Anotado!', sort_order: 4 },
+  { step: 'convidados', question_text: 'E quantos convidados você pretende chamar pra essa festa mágica? 🎈\n\n👥 Ex: 50, 70, 100 pessoas...', confirmation_text: null, sort_order: 5 },
 ];
 
 const SELECTED_INSTANCE_KEY = 'selected_automation_instance_id';
@@ -204,7 +205,7 @@ export function AutomationsSection() {
           bot_enabled: false,
           test_mode_enabled: false,
           test_mode_number: null,
-          welcome_message: "Olá! 👋 Bem-vindo ao Castelo da Diversão! Para podermos te ajudar melhor, preciso de algumas informações.",
+          welcome_message: "Olá! 👋 Bem-vindo ao {{empresa}}! Para podermos te ajudar melhor, preciso de algumas informações.",
         })
         .select()
         .single();
@@ -248,7 +249,33 @@ export function AutomationsSection() {
       return;
     }
 
-    setBotQuestions(data || []);
+    // Auto-populate default questions if none exist
+    if (!data || data.length === 0) {
+      const inserts = DEFAULT_QUESTIONS.map(q => ({
+        ...q,
+        instance_id: selectedInstance.id,
+        is_active: true,
+      }));
+
+      const { data: inserted, error: insertError } = await supabase
+        .from("wapi_bot_questions")
+        .insert(inserts)
+        .select();
+
+      if (insertError) {
+        console.error("Error auto-inserting default questions:", insertError);
+        setBotQuestions([]);
+      } else {
+        setBotQuestions(inserted || []);
+        toast({
+          title: "Perguntas padrão criadas",
+          description: "As perguntas padrão foram inseridas automaticamente. Edite-as conforme necessário.",
+        });
+      }
+      return;
+    }
+
+    setBotQuestions(data);
   };
 
   const updateBotSettings = async (updates: Partial<BotSettings>) => {
