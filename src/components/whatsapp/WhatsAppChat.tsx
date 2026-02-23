@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { formatMessageContent } from "@/lib/format-message";
 import { LEAD_STATUS_COLORS, type LeadStatus } from "@/types/crm";
 import { supabase } from "@/integrations/supabase/client";
 import { insertWithCompany, insertSingleWithCompany, getCurrentCompanyId } from "@/lib/supabase-helpers";
@@ -3731,14 +3732,14 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                   </div>
                                 ) : msg.message_type === 'text' ? (
                                   <>
-                                    <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                                    <p className="whitespace-pre-wrap break-words">{formatMessageContent(msg.content)}</p>
                                     {extractFirstUrl(msg.content) && (
                                       <LinkPreviewCard url={extractFirstUrl(msg.content)!} fromMe={msg.from_me} />
                                     )}
                                   </>
                                 ) : null}
                                 {msg.message_type !== 'text' && msg.content && msg.content !== '[Imagem]' && msg.content !== '[Áudio]' && (
-                                  <p className={cn("whitespace-pre-wrap break-words mt-1", (msg.message_type === 'image' || msg.message_type === 'video') && "px-2")}>{msg.content}</p>
+                                  <p className={cn("whitespace-pre-wrap break-words mt-1", (msg.message_type === 'image' || msg.message_type === 'video') && "px-2")}>{formatMessageContent(msg.content)}</p>
                                 )}
                                 <div className={cn(
                                   "flex items-center gap-1 mt-1",
@@ -4630,7 +4631,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                               </div>
                             ) : msg.message_type === 'text' ? (
                               <>
-                                <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                                <p className="whitespace-pre-wrap break-words">{formatMessageContent(msg.content)}</p>
                                 {extractFirstUrl(msg.content) && (
                                   <LinkPreviewCard url={extractFirstUrl(msg.content)!} fromMe={msg.from_me} />
                                 )}
