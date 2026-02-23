@@ -1,45 +1,150 @@
 
-# Corrigir isolamento de notificacoes entre empresas
+# Corrigir vazamento de notificacoes entre empresas (problema no backend)
 
-## Problema
+## Diagnostico
 
-Os 4 banners de alerta (ClientAlertBanner, VisitAlertBanner, QuestionsAlertBanner, TransferAlertBanner) filtram por `company_id` na busca inicial, mas os handlers de **INSERT realtime** nao verificam o `company_id`. Quando um usuario pertence a mais de uma empresa, notificacoes de outra empresa aparecem no painel da empresa ativa.
+O problema NAO esta no frontend (os filtros dos banners ja estao corretos). O erro esta no **backend**: as Edge Functions `wapi-webhook` e `follow-up-check` criam notificacoes para usuarios de TODAS as empresas porque consultam `user_permissions` e `user_roles` **sem filtrar por company_id**.
 
-O hook `useAppNotifications` ja implementa essa verificacao corretamente (linhas 130-136), mas os banners individuais nao replicam esse padrao.
+### Prova concreta
 
-## Solucao
+A usuaria Fernanda do Planeta Divertido (`7f89aad1...`) tem a permissao `leads.unit.all`. Quando o Castelo da Diversao recebe um lead, o webhook busca todos os usuarios com `leads.unit.all` no sistema inteiro e cria notificacoes para todos eles - incluindo a Fernanda que pertence a outra empresa.
 
-Adicionar verificacao de `company_id` no handler de INSERT realtime de cada banner, usando `getCurrentCompanyId()` (que ja esta importado em todos os arquivos).
+Resultado: 20+ notificacoes do Castelo da Diversao no painel do Planeta Divertido.
 
-## Arquivos a editar
+## Locais afetados
 
-### 1. `src/components/admin/ClientAlertBanner.tsx` (linhas 89-97)
+### 1. `supabase/functions/wapi-webhook/index.ts` - 5 pontos
 
-No handler de INSERT, antes de verificar o tipo, adicionar:
+Todos os blocos de criacao de notificacao seguem o mesmo padrao defeituoso:
+
+```text
+// ATUAL (errado): busca em TODAS as empresas
+const { data: adminRoles } = await supabase
+  .from('user_roles').select('user_id').eq('role', 'admin');
+const { data: userPerms } = await supabase
+  .from('user_permissions').select('user_id')
+  .eq('granted', true)
+  .in('permission', [unitPermission, 'leads.unit.all']);
+```
+
+A correcao eh restringir aos usuarios da empresa usando `user_companies`:
+
+```text
+// CORRETO: filtra apenas usuarios da empresa
+const { data: companyUsers } = await supabase
+  .from('user_companies')
+  .select('user_id')
+  .eq('company_id', instance.company_id);
+
+const companyUserIds = new Set(companyUsers?.map(u => u.user_id) || []);
+
+// Agora buscar permissoes apenas entre esses usuarios
+const { data: userPerms } = await supabase
+  .from('user_permissions')
+  .select('user_id')
+  .eq('granted', true)
+  .in('permission', [unitPermission, 'leads.unit.all'])
+  .in('user_id', Array.from(companyUserIds));
+```
+
+#### Locais exatos no wapi-webhook:
+
+| Linha  | Tipo de notificacao | Descricao |
+|--------|-------------------|-----------|
+| ~1183  | flow_handoff      | Flow Builder transferencia |
+| ~1398  | existing_client   | Flow Builder cliente existente |
+| ~1970  | existing_client   | Bot classico cliente existente |
+| ~2077  | work_interest     | Interesse em trabalhar |
+| ~2250  | visit/questions   | Proximos passos do bot |
+
+### 2. `supabase/functions/follow-up-check/index.ts` - 1 ponto
+
+Linha ~549: busca `user_permissions` sem filtrar por empresa.
+
+```text
+// ATUAL (errado)
+const { data: usersToNotify } = await supabase
+  .from("user_permissions")
+  .select("user_id")
+  .or(`permission.eq.leads.unit.all,...`)
+  .eq("granted", true);
+```
+
+Correcao: intersecionar com `user_companies` para garantir que so usuarios da empresa recebam.
+
+### 3. Trigger `fn_notify_temperature_change` (banco de dados)
+
+Este ja esta **CORRETO** - usa `user_companies.company_id = NEW.company_id`. Nenhuma mudanca necessaria.
+
+### 4. Funcao `follow-up-check` - stale alerts (linha ~1058)
+
+Esta tambem **CORRETO** - usa `user_companies.company_id`. Nenhuma mudanca necessaria.
+
+## Estrategia de implementacao
+
+Para cada um dos 6 pontos defeituosos (5 no webhook + 1 no follow-up), aplicar o mesmo padrao:
+
+1. Buscar `user_companies` filtrado por `company_id`
+2. Criar um Set com os user_ids dessa empresa
+3. Filtrar `user_permissions` e `user_roles` apenas entre esses user_ids
+
+Isso cria uma funcao helper reutilizavel para evitar duplicacao:
 
 ```typescript
-const notification = payload.new as ClientNotification & { company_id?: string };
-const currentCompanyId = getCurrentCompanyId();
-if (notification.company_id && currentCompanyId && notification.company_id !== currentCompanyId) {
-  return;
+async function getCompanyNotificationTargets(
+  supabase: any,
+  companyId: string,
+  unitPermission: string
+): Promise<string[]> {
+  // 1. Get users that belong to this company
+  const { data: companyUsers } = await supabase
+    .from('user_companies')
+    .select('user_id')
+    .eq('company_id', companyId);
+
+  const companyUserIds = new Set(
+    companyUsers?.map((u: any) => u.user_id) || []
+  );
+
+  if (companyUserIds.size === 0) return [];
+
+  // 2. Filter by permissions within company users
+  const { data: userPerms } = await supabase
+    .from('user_permissions')
+    .select('user_id')
+    .eq('granted', true)
+    .in('permission', [unitPermission, 'leads.unit.all'])
+    .in('user_id', Array.from(companyUserIds));
+
+  // 3. Admin roles within company users
+  const { data: adminRoles } = await supabase
+    .from('user_roles')
+    .select('user_id')
+    .eq('role', 'admin')
+    .in('user_id', Array.from(companyUserIds));
+
+  const targetIds = new Set<string>();
+  userPerms?.forEach((p: any) => targetIds.add(p.user_id));
+  adminRoles?.forEach((r: any) => targetIds.add(r.user_id));
+
+  return Array.from(targetIds);
 }
 ```
 
-### 2. `src/components/admin/VisitAlertBanner.tsx` (linhas 90-98)
+### 5. Limpeza de dados
 
-Mesma logica no handler de INSERT.
+Apos o deploy, limpar as notificacoes erradas do banco:
 
-### 3. `src/components/admin/QuestionsAlertBanner.tsx` (linhas 84-91)
+```sql
+DELETE FROM notifications
+WHERE user_id = '7f89aad1-4167-496d-8ab8-85a996a58fea'
+AND company_id = 'a0000000-0000-0000-0000-000000000001';
+```
 
-Mesma logica no handler de INSERT.
+## Resumo
 
-### 4. `src/components/admin/TransferAlertBanner.tsx` (linhas 74-78)
-
-Mesma logica no handler de INSERT.
-
-## Detalhes tecnicos
-
-- `getCurrentCompanyId()` ja esta importado nos 4 arquivos
-- O padrao e identico ao usado em `useAppNotifications` (linhas 130-136)
-- Nenhuma mudanca de banco de dados necessaria
-- A filtragem inicial (fetch) ja funciona corretamente, apenas o realtime precisa do filtro
+- **6 correcoes** em 2 Edge Functions
+- **1 funcao helper** reutilizavel para evitar duplicacao
+- **1 limpeza de dados** para remover notificacoes erradas existentes
+- **0 mudancas no frontend** (filtros ja estao corretos)
+- Deploy das funcoes `wapi-webhook` e `follow-up-check`
