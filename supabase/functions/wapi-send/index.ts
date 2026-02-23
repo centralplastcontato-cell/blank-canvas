@@ -1274,74 +1274,57 @@ Deno.serve(async (req) => {
 
         console.log(`send-reaction: msgId=${reactionMsgId}, emoji=${emoji}, phone=${phone}, instance=${instance_id}`);
 
-        // Try PUT first (W-API standard for reactions), fallback to POST
-        const reactionUrl = `${WAPI_BASE_URL}/message/send-reaction?instanceId=${instance_id}`;
         const reactionBody = { phone, messageId: reactionMsgId, emoji };
+        
+        // Try multiple endpoint/method combinations since W-API versions differ
+        const attempts = [
+          { url: `${WAPI_BASE_URL}/message/send-reaction?instanceId=${instance_id}`, method: 'POST' },
+          { url: `${WAPI_BASE_URL}/message/sendReaction?instanceId=${instance_id}`, method: 'POST' },
+          { url: `${WAPI_BASE_URL}/message/send-reaction?instanceId=${instance_id}`, method: 'PUT' },
+          { url: `${WAPI_BASE_URL}/message/sendReaction?instanceId=${instance_id}`, method: 'PUT' },
+        ];
 
-        // Direct fetch to get full details
-        let reactionRes: Response;
-        try {
-          reactionRes = await fetch(reactionUrl, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${instance_token}`,
-            },
-            body: JSON.stringify(reactionBody),
-          });
-        } catch (e) {
-          console.error('send-reaction fetch error:', e);
-          return new Response(JSON.stringify({ error: 'Erro de conexão com W-API' }), {
-            status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
+        let lastStatus = 0;
+        let lastBody = '';
 
-        const reactionText = await reactionRes.text();
-        console.log(`send-reaction PUT status=${reactionRes.status}, body=${reactionText}`);
-
-        // If PUT fails with 403/405, try POST
-        if (reactionRes.status === 403 || reactionRes.status === 405) {
+        for (const attempt of attempts) {
           try {
-            const postRes = await fetch(reactionUrl, {
-              method: 'POST',
+            const res = await fetch(attempt.url, {
+              method: attempt.method,
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${instance_token}`,
               },
               body: JSON.stringify(reactionBody),
             });
-            const postText = await postRes.text();
-            console.log(`send-reaction POST fallback status=${postRes.status}, body=${postText}`);
-
-            if (postRes.ok) {
+            const text = await res.text();
+            console.log(`send-reaction ${attempt.method} ${attempt.url} => status=${res.status}, body=${text.slice(0, 200)}`);
+            
+            if (res.ok) {
               return new Response(JSON.stringify({ success: true }), {
                 status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
               });
             }
-          } catch (e2) {
-            console.error('send-reaction POST fallback error:', e2);
+            lastStatus = res.status;
+            lastBody = text;
+          } catch (e) {
+            console.error(`send-reaction ${attempt.method} error:`, e);
           }
         }
 
-        if (!reactionRes.ok) {
-          let errorMsg = 'Erro ao reagir';
-          try {
-            const parsed = JSON.parse(reactionText);
-            errorMsg = parsed.message || parsed.error || errorMsg;
-          } catch {}
-          
-          // If it's a 403 "Acesso negado", it likely means the W-API plan doesn't support reactions
-          if (reactionRes.status === 403) {
-            errorMsg = 'Reações não disponíveis neste plano da W-API';
+        // All attempts failed
+        let errorMsg = 'Reações não disponíveis neste plano da W-API';
+        try {
+          const parsed = JSON.parse(lastBody);
+          if (parsed.message || parsed.error) {
+            errorMsg = parsed.message || parsed.error;
           }
-          
-          return new Response(JSON.stringify({ error: errorMsg }), {
-            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
-
-        return new Response(JSON.stringify({ success: true }), {
-          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        } catch {}
+        
+        console.error(`send-reaction: all attempts failed. lastStatus=${lastStatus}`);
+        
+        return new Response(JSON.stringify({ error: errorMsg }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
