@@ -16,7 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { MessageSquare, Plus, Pencil, Trash2, GripVertical, Loader2 } from "lucide-react";
+import { MessageSquare, Plus, Pencil, Trash2, GripVertical, Loader2, Copy } from "lucide-react";
 import { CaptionsCard } from "./CaptionsCard";
 
 const DEFAULT_TEMPLATES = [
@@ -46,6 +46,7 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
   const [formData, setFormData] = useState({
     name: "",
@@ -216,6 +217,19 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
     }
   };
 
+  const handleSeedDefaults = async () => {
+    if (!currentCompanyId) return;
+    setIsSeeding(true);
+    try {
+      const seeded = await seedDefaultTemplates(currentCompanyId);
+      setTemplates(seeded);
+      toast({ title: "Sucesso", description: "Templates padrão carregados com sucesso!" });
+    } catch {
+      toast({ title: "Erro", description: "Erro ao carregar templates padrão.", variant: "destructive" });
+    }
+    setIsSeeding(false);
+  };
+
   const handleOpenDialog = (template?: MessageTemplate) => {
     if (template) {
       setEditingTemplate(template);
@@ -271,10 +285,20 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
                 Crie templates para enviar mensagens rapidamente.
               </p>
               {isAdmin && (
-                <Button onClick={() => handleOpenDialog()}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Criar Primeiro Template
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                  <Button onClick={handleSeedDefaults} disabled={isSeeding}>
+                    {isSeeding ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Copy className="w-4 h-4 mr-2" />
+                    )}
+                    Carregar Templates Padrão
+                  </Button>
+                  <Button variant="outline" onClick={() => handleOpenDialog()}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Criar do Zero
+                  </Button>
+                </div>
               )}
             </div>
           ) : (
