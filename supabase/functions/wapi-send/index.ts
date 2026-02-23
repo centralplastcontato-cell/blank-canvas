@@ -1272,12 +1272,17 @@ Deno.serve(async (req) => {
           });
         }
 
+        console.log(`send-reaction: msgId=${reactionMsgId}, emoji=${emoji}, phone=${phone}`);
+
+        // Try POST method (W-API v1 standard)
         const res = await wapiRequest(
           `${WAPI_BASE_URL}/message/send-reaction?instanceId=${instance_id}`,
           instance_token,
-          'PUT',
+          'POST',
           { phone, messageId: reactionMsgId, emoji }
         );
+
+        console.log(`send-reaction response: ok=${res.ok}, error=${res.error}, data=${JSON.stringify(res.data)}`);
 
         if (!res.ok) {
           return new Response(JSON.stringify({ error: res.error }), {
