@@ -1045,7 +1045,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                   className="hidden"
                   accept={
                     formData.type === "pdf_package" 
-                      ? ".pdf,application/pdf" 
+                      ? ".pdf,application/pdf,application/octet-stream,*/*" 
                       : formData.type === "photo" 
                         ? ".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
                         : ".mp4,.mov,.webm,video/mp4,video/quicktime,video/webm"
