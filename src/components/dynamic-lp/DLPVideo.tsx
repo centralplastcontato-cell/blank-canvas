@@ -153,30 +153,6 @@ export function DLPVideo({ video, theme, companyName }: DLPVideoProps) {
                     </div>
                   )}
 
-                  {/* Unit Info Bar */}
-                  <div
-                    className="p-5"
-                    style={{
-                      background: `linear-gradient(to top, ${theme.background_color}, ${theme.background_color}dd)`,
-                    }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <h3
-                        className="text-xl font-bold"
-                        style={{ color: theme.text_color, fontFamily: theme.font_heading }}
-                      >
-                        {item.name}
-                      </h3>
-                      {item.location && (
-                        <div className="flex items-center gap-1 text-sm">
-                          <MapPin className="w-4 h-4" style={{ color: theme.primary_color }} />
-                          <span style={{ color: theme.text_color + "99", fontFamily: theme.font_body }}>
-                            {item.location}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
                 </div>
               </motion.div>
             );
