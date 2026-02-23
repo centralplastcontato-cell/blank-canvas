@@ -1611,14 +1611,16 @@ async function processStuckBotRecovery({
           last_message_from_me: true,
         }).eq('id', conv.id);
 
-        // Now send the next step question after a short delay
-        // (Materials sending will be handled by the webhook when it's called next, 
-        //  or we send just the next step question here for simplicity)
+        // ===== SEND MATERIALS (photos, videos, PDFs) =====
+        await recoverySendMaterials(supabase, instance, conv, updated, settings);
+
+        // Now send the next step question after materials
         const defaultNextStepQuestion = `E agora, como você gostaria de continuar? 🤔\n\nResponda com o *número*:\n\n${recoveryBuildMenuText(RECOVERY_PROXIMO_PASSO_OPTIONS)}`;
         const nextStepQuestion = settings?.next_step_question || defaultNextStepQuestion;
 
         // Wait a bit then send next step question
-        await new Promise(r => setTimeout(r, 3000));
+        const nsMsgDelay = (settings?.message_delay_seconds || 5) * 1000;
+        await new Promise(r => setTimeout(r, nsMsgDelay));
         
         const res2 = await fetch(`https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`, {
           method: 'POST',
@@ -1643,7 +1645,7 @@ async function processStuckBotRecovery({
           last_message_from_me: true,
         }).eq('id', conv.id);
 
-        console.log(`[follow-up-check] 🔄 Recovered conv ${conv.id} - qualification complete, sent next step question`);
+        console.log(`[follow-up-check] 🔄 Recovered conv ${conv.id} - qualification complete, materials sent, next step question sent`);
         successCount++;
         continue;
       }
@@ -1690,4 +1692,224 @@ async function processStuckBotRecovery({
   }
 
   return { successCount, errors };
+}
+
+// ============= RECOVERY: SEND MATERIALS (photos, videos, PDFs) =============
+
+const WAPI_BASE_URL = 'https://api.w-api.app/v1';
+
+async function recoverySendMaterials(
+  supabase: ReturnType<typeof createClient>,
+  instance: { id: string; instance_id: string; instance_token: string; unit: string | null; company_id: string },
+  conv: { id: string; remote_jid: string },
+  botData: Record<string, string>,
+  settings: Record<string, unknown> | null
+) {
+  if (settings?.auto_send_materials === false) {
+    console.log('[Recovery Materials] Auto-send is disabled');
+    return;
+  }
+
+  const unit = instance.unit;
+  const month = botData.mes || '';
+  const guestsStr = botData.convidados || '';
+  const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
+
+  if (!unit) {
+    console.log('[Recovery Materials] No unit configured, skipping');
+    return;
+  }
+
+  const sendPhotos = settings?.auto_send_photos !== false;
+  const sendPresentationVideo = settings?.auto_send_presentation_video !== false;
+  const sendPromoVideo = settings?.auto_send_promo_video !== false;
+  const sendPdf = settings?.auto_send_pdf !== false;
+  const messageDelay = ((settings?.message_delay_seconds as number) || 5) * 1000;
+  const photosIntro = (settings?.auto_send_photos_intro as string) || '✨ Conheça nosso espaço incrível! 🏰🎉';
+  const pdfIntro = (settings?.auto_send_pdf_intro as string) || '📋 Oi {nome}! Segue o pacote completo para {convidados} na unidade {unidade}. Qualquer dúvida é só chamar! 💜';
+
+  await new Promise(r => setTimeout(r, messageDelay));
+
+  // Fetch captions
+  const { data: captions } = await supabase
+    .from('sales_material_captions')
+    .select('caption_type, caption_text')
+    .eq('is_active', true);
+
+  const captionMap: Record<string, string> = {};
+  captions?.forEach((c: { caption_type: string; caption_text: string }) => { captionMap[c.caption_type] = c.caption_text; });
+
+  // Fetch materials
+  const { data: materials, error: matError } = await supabase
+    .from('sales_materials')
+    .select('*')
+    .eq('unit', unit)
+    .eq('is_active', true)
+    .order('type', { ascending: true })
+    .order('sort_order', { ascending: true });
+
+  if (matError || !materials?.length) {
+    console.log(`[Recovery Materials] No materials found for unit ${unit}`);
+    return;
+  }
+
+  console.log(`[Recovery Materials] Found ${materials.length} materials for ${unit}`);
+
+  const photoCollections = materials.filter((m: any) => m.type === 'photo_collection');
+  const presentationVideos = materials.filter((m: any) => m.type === 'video' && m.name?.toLowerCase().includes('apresentação'));
+  const promoVideos = materials.filter((m: any) => m.type === 'video' && (m.name?.toLowerCase().includes('promo') || m.name?.toLowerCase().includes('carnaval')));
+  const pdfPackages = materials.filter((m: any) => m.type === 'pdf_package');
+
+  const guestMatch = guestsStr.match(/(\d+)/);
+  const guestCount = guestMatch ? parseInt(guestMatch[1]) : null;
+  const isPromoMonth = month === 'Fevereiro' || month === 'Março';
+
+  // Helper functions
+  const sendImage = async (url: string, caption: string) => {
+    try {
+      const imgRes = await fetch(url);
+      if (!imgRes.ok) return null;
+      const buf = await imgRes.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let bin = '';
+      for (let i = 0; i < bytes.length; i += 32768) {
+        const chunk = bytes.subarray(i, Math.min(i + 32768, bytes.length));
+        bin += String.fromCharCode.apply(null, Array.from(chunk));
+      }
+      const ct = imgRes.headers.get('content-type') || 'image/jpeg';
+      const base64 = `data:${ct};base64,${btoa(bin)}`;
+      const res = await fetch(`${WAPI_BASE_URL}/message/send-image?instanceId=${instance.instance_id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
+        body: JSON.stringify({ phone, image: base64, caption })
+      });
+      if (!res.ok) return null;
+      const r = await res.json();
+      return r.messageId || null;
+    } catch (e) { console.error('[Recovery Materials] Error sending image:', e); return null; }
+  };
+
+  const sendVideo = async (url: string, caption: string) => {
+    try {
+      const res = await fetch(`${WAPI_BASE_URL}/message/send-video?instanceId=${instance.instance_id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
+        body: JSON.stringify({ phone, video: url, caption })
+      });
+      if (!res.ok) return null;
+      const r = await res.json();
+      return r.messageId || null;
+    } catch (e) { console.error('[Recovery Materials] Error sending video:', e); return null; }
+  };
+
+  const sendDocument = async (url: string, fileName: string) => {
+    try {
+      const ext = url.split('.').pop()?.split('?')[0] || 'pdf';
+      const res = await fetch(`${WAPI_BASE_URL}/message/send-document?instanceId=${instance.instance_id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
+        body: JSON.stringify({ phone, document: url, fileName, extension: ext })
+      });
+      if (!res.ok) return null;
+      const r = await res.json();
+      return r.messageId || null;
+    } catch (e) { console.error('[Recovery Materials] Error sending document:', e); return null; }
+  };
+
+  const sendText = async (message: string) => {
+    try {
+      const res = await fetch(`${WAPI_BASE_URL}/message/send-text?instanceId=${instance.instance_id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
+        body: JSON.stringify({ phone, message, delayTyping: 1 })
+      });
+      if (!res.ok) return null;
+      const r = await res.json();
+      return r.messageId || null;
+    } catch (e) { console.error('[Recovery Materials] Error sending text:', e); return null; }
+  };
+
+  const saveMessage = async (msgId: string, type: string, content: string, mediaUrl?: string) => {
+    await supabase.from('wapi_messages').insert({
+      conversation_id: conv.id, message_id: msgId, from_me: true,
+      message_type: type, content, media_url: mediaUrl || null,
+      status: 'sent', timestamp: new Date().toISOString(),
+      company_id: instance.company_id,
+      metadata: { source: 'stuck_bot_recovery' },
+    });
+  };
+
+  // 1. PHOTOS
+  if (sendPhotos && photoCollections.length > 0) {
+    const collection = photoCollections[0] as any;
+    const photos = collection.photo_urls || [];
+    if (photos.length > 0) {
+      console.log(`[Recovery Materials] Sending ${photos.length} photos`);
+      const introText = photosIntro.replace(/\{unidade\}/gi, unit);
+      const introMsgId = await sendText(introText);
+      if (introMsgId) await saveMessage(introMsgId, 'text', introText);
+      await new Promise(r => setTimeout(r, messageDelay / 2));
+      for (let i = 0; i < photos.length; i++) {
+        const msgId = await sendImage(photos[i], '');
+        if (msgId) await saveMessage(msgId, 'image', '📷', photos[i]);
+        if (i < photos.length - 1) await new Promise(r => setTimeout(r, 2000));
+      }
+      console.log(`[Recovery Materials] Photos sent`);
+      await new Promise(r => setTimeout(r, messageDelay));
+    }
+  }
+
+  // 2. PRESENTATION VIDEO
+  if (sendPresentationVideo && presentationVideos.length > 0) {
+    const video = presentationVideos[0] as any;
+    console.log(`[Recovery Materials] Sending presentation video: ${video.name}`);
+    const videoCaption = captionMap['video'] || `🎬 Conheça a unidade ${unit}! ✨`;
+    const caption = videoCaption.replace(/\{unidade\}/gi, unit);
+    const msgId = await sendVideo(video.file_url, caption);
+    if (msgId) await saveMessage(msgId, 'video', caption, video.file_url);
+    await new Promise(r => setTimeout(r, messageDelay));
+  }
+
+  // 3. PDF PACKAGE
+  if (sendPdf && guestCount && pdfPackages.length > 0) {
+    let matchingPdf = pdfPackages.find((p: any) => p.guest_count === guestCount) as any;
+    if (!matchingPdf) {
+      const sorted = pdfPackages.filter((p: any) => p.guest_count).sort((a: any, b: any) => (a.guest_count || 0) - (b.guest_count || 0));
+      matchingPdf = sorted.find((p: any) => (p.guest_count || 0) >= guestCount) || sorted[sorted.length - 1];
+    }
+    if (matchingPdf) {
+      console.log(`[Recovery Materials] Sending PDF: ${matchingPdf.name} for ${guestCount} guests`);
+      const firstName = (botData.nome || '').split(' ')[0] || 'você';
+      const pdfIntroText = pdfIntro
+        .replace(/\{nome\}/gi, firstName)
+        .replace(/\{convidados\}/gi, guestsStr)
+        .replace(/\{unidade\}/gi, unit);
+      const introMsgId = await sendText(pdfIntroText);
+      if (introMsgId) await saveMessage(introMsgId, 'text', pdfIntroText);
+      await new Promise(r => setTimeout(r, messageDelay / 4));
+      const fileName = matchingPdf.name?.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, ' ').trim() + '.pdf' || `Pacote ${guestCount} pessoas.pdf`;
+      const msgId = await sendDocument(matchingPdf.file_url, fileName);
+      if (msgId) await saveMessage(msgId, 'document', fileName, matchingPdf.file_url);
+      await new Promise(r => setTimeout(r, messageDelay));
+    }
+  }
+
+  // 4. PROMO VIDEO (Feb/March only)
+  if (sendPromoVideo && isPromoMonth && promoVideos.length > 0) {
+    const promoVideo = promoVideos[0] as any;
+    console.log(`[Recovery Materials] Sending promo video for ${month}: ${promoVideo.name}`);
+    const promoCaption = captionMap['video_promo'] || `🎭 Promoção especial! Garanta sua festa em ${month}! 🎉`;
+    const caption = promoCaption.replace(/\{unidade\}/gi, unit);
+    const msgId = await sendVideo(promoVideo.file_url, caption);
+    if (msgId) await saveMessage(msgId, 'video', caption, promoVideo.file_url);
+    await new Promise(r => setTimeout(r, messageDelay * 1.5));
+  }
+
+  await supabase.from('wapi_conversations').update({
+    last_message_at: new Date().toISOString(),
+    last_message_content: '📄 Materiais enviados (recovery)',
+    last_message_from_me: true,
+  }).eq('id', conv.id);
+
+  console.log(`[Recovery Materials] Auto-send complete for ${phone}`);
 }
