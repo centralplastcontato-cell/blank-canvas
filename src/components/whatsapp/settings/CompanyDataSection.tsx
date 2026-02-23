@@ -156,9 +156,20 @@ export function CompanyDataSection() {
         <p className="text-xs text-muted-foreground">
           Esse é o nome usado no link da sua página.
         </p>
-        <p className="text-xs font-medium text-primary/80">
-          celebrei.com/<span className="font-bold">{currentCompany.slug}</span>
-        </p>
+        {currentCompany.custom_domain ? (
+          <>
+            <p className="text-xs font-medium text-primary/80">
+              <span className="font-bold">{currentCompany.custom_domain}</span>
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Também acessível via celebrei.com/<span className="font-semibold">{currentCompany.slug}</span>
+            </p>
+          </>
+        ) : (
+          <p className="text-xs font-medium text-primary/80">
+            celebrei.com/<span className="font-bold">{currentCompany.slug}</span>
+          </p>
+        )}
       </div>
 
       {/* Custom Domain */}
