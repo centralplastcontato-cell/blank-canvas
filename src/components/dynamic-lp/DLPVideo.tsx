@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Play } from "lucide-react";
 import type { LPVideo, LPTheme } from "@/types/landing-page";
@@ -138,19 +139,7 @@ export function DLPVideo({ video, theme, companyName }: DLPVideoProps) {
                       />
                     </div>
                   ) : (
-                    <div className="aspect-[9/16] md:aspect-video relative">
-                      <video
-                        src={item.video_url}
-                        poster={item.poster_url}
-                        controls
-                        className="w-full h-full object-cover"
-                        preload="none"
-                        playsInline
-                        aria-label={`Vídeo da ${item.name}`}
-                      >
-                        Seu navegador não suporta vídeos.
-                      </video>
-                    </div>
+                    <VideoWithPoster item={item} theme={theme} />
                   )}
 
                 </div>
@@ -160,5 +149,49 @@ export function DLPVideo({ video, theme, companyName }: DLPVideoProps) {
         </div>
       </div>
     </section>
+  );
+}
+
+function VideoWithPoster({ item, theme }: { item: VideoItem; theme: LPTheme }) {
+  const [playing, setPlaying] = useState(false);
+  const isLogo = item.poster_url?.toLowerCase().endsWith('.png') || item.poster_url?.toLowerCase().endsWith('.svg');
+
+  return (
+    <div className="aspect-[9/16] md:aspect-video relative overflow-hidden">
+      <video
+        src={item.video_url}
+        controls
+        className="w-full h-full object-cover"
+        preload="none"
+        playsInline
+        aria-label={`Vídeo da ${item.name}`}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => setPlaying(false)}
+      >
+        Seu navegador não suporta vídeos.
+      </video>
+      {item.poster_url && !playing && (
+        <div
+          className="absolute inset-0 flex items-center justify-center cursor-pointer"
+          style={{ backgroundColor: isLogo ? (theme.background_color || '#0f0d15') : 'transparent' }}
+          onClick={(e) => {
+            const video = (e.currentTarget.previousElementSibling as HTMLVideoElement);
+            video?.play();
+          }}
+        >
+          <img
+            src={item.poster_url}
+            alt={item.name}
+            className={`w-full h-full ${isLogo ? 'object-contain p-8 md:p-16' : 'object-cover'}`}
+          />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30">
+              <div className="w-0 h-0 border-l-[20px] border-l-white border-y-[12px] border-y-transparent ml-1.5" />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
