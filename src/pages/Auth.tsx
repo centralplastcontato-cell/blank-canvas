@@ -46,13 +46,24 @@ export default function Auth() {
             setCompanyLogo(data.logo_url);
           }
         } else if (!isPreviewDomain()) {
-          // Detect company from custom domain
+          // Detect company from custom domain or known buffet domain
           const domain = getCanonicalHost();
-          const { data } = await supabase
+          let { data } = await supabase
             .from("companies")
             .select("name, logo_url")
             .eq("domain_canonical", domain)
             .maybeSingle();
+
+          // Fallback: try matching by base name (e.g. castelodadiversao.online → castelodadiversao.com.br)
+          if (!data) {
+            const baseName = domain.replace(/\.\w+$/, "");
+            const { data: fallback } = await supabase
+              .from("companies")
+              .select("name, logo_url")
+              .ilike("domain_canonical", `${baseName}%`)
+              .maybeSingle();
+            data = fallback;
+          }
           if (data) {
             setCompanyName(data.name);
             setCompanyLogo(data.logo_url);
