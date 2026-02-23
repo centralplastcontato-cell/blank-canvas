@@ -1,45 +1,38 @@
 
-## Tornar Templates de Mensagem editaveis por empresa e substituir "Castelo da Diversao"
+
+## Adicionar botao "Carregar Templates Padrao" no estado vazio
 
 ### Problema
-Os templates de resposta rapida na tabela `message_templates` estao com `company_id: null` (globais) e contem texto hardcoded "Castelo da Diversao". Todos os buffets veem os mesmos templates com o nome errado. Alem disso, o codigo nao filtra por empresa ao buscar nem ao inserir.
+Quando um buffet novo (ex: Aventura Kids) acessa a secao de Templates, o auto-seeding pode falhar silenciosamente (erro de RLS, rede, etc.) e o usuario ve "Nenhum template criado" sem opcao de carregar os templates padrao. Ele so tem o botao "Criar Primeiro Template" que abre o dialog para criar UM template manualmente.
 
 ### Solucao
 
-**1. Filtrar templates por empresa no frontend**
+Alterar o estado vazio em `MessagesSection.tsx` para incluir:
 
-Alterar `MessagesSection.tsx` para:
-- Importar `useCompany` e obter `currentCompanyId`
-- Na query `fetchTemplates`, filtrar por `company_id = currentCompanyId`
-- Ao inserir novo template, incluir `company_id: currentCompanyId`
+1. Um botao principal **"Carregar Templates Padrao"** que chama `seedDefaultTemplates(currentCompanyId)` e popula todos os 5 templates de uma vez
+2. Manter o botao secundario "Criar Primeiro Template" para quem quiser criar do zero
+3. Adicionar estado `isSeeding` para mostrar loading no botao enquanto os templates sao criados
+4. Mostrar toast de sucesso/erro apos a tentativa
 
-**2. Auto-popular templates padrao por empresa**
+### Arquivo alterado
 
-Quando uma empresa ainda nao tem templates proprios, criar automaticamente uma copia dos templates padrao (com `{{empresa}}` no lugar de "Castelo da Diversao") vinculados ao `company_id` da empresa. Isso acontece dentro de `fetchTemplates`:
-- Se a query retornar 0 templates para o `company_id`, inserir os defaults
-- Os defaults usarao `{{empresa}}` em vez de nomes hardcoded
+**`src/components/whatsapp/settings/MessagesSection.tsx`**
 
-Templates padrao que serao copiados:
-- **Primeiro contato**: "Oi {{nome}}! Aqui e do {{empresa}}! Vi seu pedido para festa em {{mes}} com {{convidados}}. Vou te enviar as opcoes e valores!!"
-- **Follow-up**: "Oi {{nome}}! Tudo bem? Passando pra ver se voce conseguiu avaliar o orcamento. Posso te ajudar a garantir sua data?"
-- **Envio de Orcamento**: "Oi {{nome}}! Segue seu orcamento com a promocao da campanha {{campanha}}."
-- **Convite para visita**: "Gostaria de vir conhecer pessoalmente?"
-- **Convite para visita (completo)**: "Oi {{nome}}! Que legal que voce esta interessado(a) no {{empresa}}! Gostaria de agendar uma visita para conhecer nosso espaco? ..."
-
-**3. Filtrar templates no WhatsAppChat tambem**
-
-Alterar `WhatsAppChat.tsx` para filtrar `message_templates` por `company_id` ao buscar templates ativos para o menu de resposta rapida.
-
-### Arquivos alterados
-
-| Arquivo | Alteracao |
-|---|---|
-| `src/components/whatsapp/settings/MessagesSection.tsx` | Importar `useCompany`, filtrar por `company_id`, incluir `company_id` no insert, auto-popular defaults |
-| `src/components/whatsapp/WhatsAppChat.tsx` | Filtrar templates por `company_id` na query de fetch |
+- Adicionar estado `isSeeding`
+- Criar funcao `handleSeedDefaults` que chama `seedDefaultTemplates`, atualiza o estado e mostra feedback
+- No bloco de estado vazio (linhas 264-279), adicionar o botao "Carregar Templates Padrao" com icone e loading state, e rebaixar o "Criar Primeiro Template" para `variant="outline"`
 
 ### Detalhes tecnicos
 
-- A tabela `message_templates` ja tem a coluna `company_id` (nullable)
-- As RLS policies ja permitem leitura de templates com `company_id IS NULL` ou do proprio company
-- Os templates globais existentes (company_id=null) continuam no banco mas nao aparecerao mais para empresas que ja tiverem seus proprios
-- A substituicao da variavel `{{empresa}}` ja e suportada pelo sistema de templates existente
+O layout do estado vazio ficara:
+
+```text
+[icone MessageSquare]
+Nenhum template criado
+Crie templates para enviar mensagens rapidamente.
+
+[ Carregar Templates Padrao ]   (botao primario, chama seedDefaultTemplates)
+[ Criar do Zero ]               (botao outline, abre dialog)
+```
+
+Nenhuma alteracao de banco de dados e necessaria - a funcao `seedDefaultTemplates` ja existe e insere os 5 templates padrao com `company_id`.
