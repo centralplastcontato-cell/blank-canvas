@@ -1,61 +1,74 @@
 
+# Corrigir: follow-up-check ignora o Modo de Teste
 
-# Permitir imagens como "Pacote" (alem de PDF)
+## Problema identificado
 
-## Problema
+O guard de "Modo de Teste" existe corretamente no **wapi-webhook** (linha 1709-1718) -- quando o bot recebe uma mensagem, ele verifica se o modo de teste esta ativo e bloqueia qualquer numero que nao seja o numero de teste.
 
-O Planeta Divertido envia seus precos de pacotes como **imagens** (JPG/PNG), nao como PDF. Porem, o tipo "PDF de Pacote" so aceita arquivos PDF -- tanto no upload (validacao no front) quanto no envio pelo bot (sempre envia como `document`).
+Porem, a edge function **follow-up-check** (que roda periodicamente e envia mensagens automaticas como follow-ups, lembretes de inatividade, next-step reminders e recuperacao de bot travado) **NAO verifica o modo de teste**. Isso significa que:
+
+- Follow-ups automaticos sao enviados para TODOS os leads, mesmo com modo de teste ativo
+- Lembretes de "proximo passo" sao enviados para qualquer conversa parada
+- Recuperacao de bot travado envia mensagens para contatos reais
+- Lembretes de inatividade do bot sao enviados sem filtro
 
 ## Solucao
 
-Transformar o tipo "PDF de Pacote" em um tipo mais generico que aceita tanto PDF quanto imagem. O sistema detectara automaticamente o formato do arquivo e enviara como `document` (PDF) ou `image` (foto), mantendo toda a logica de faixa de convidados e materiais universais.
+Adicionar verificacao de `test_mode_enabled` e `test_mode_number` na funcao `follow-up-check`. Quando o modo de teste estiver ativo para uma instancia, todas as mensagens automaticas dessa instancia devem ser enviadas **somente** para o numero de teste configurado.
 
-## Alteracoes
+### Alteracoes no arquivo `supabase/functions/follow-up-check/index.ts`
 
-### 1. Frontend -- Upload e validacao (`SalesMaterialsSection.tsx`)
+**1. Buscar campos de test_mode junto com os settings (linha ~69)**
 
-- Renomear o label de "PDF de Pacote" para **"Pacote"** (ou "Pacote de Precos")
-- Ampliar a validacao de tipo no `handleFileUpload` para aceitar `image/jpeg`, `image/png`, `image/webp` alem de `application/pdf` quando o tipo for `pdf_package`
-- Atualizar o texto de ajuda: de "Apenas PDF (max. 50MB)" para "PDF ou Imagem (max. 50MB)"
-- Atualizar o `accept` do input de arquivo para incluir formatos de imagem
+Adicionar `test_mode_enabled` e `test_mode_number` na query de `wapi_bot_settings`:
 
-### 2. Menu de envio manual (`SalesMaterialsMenu.tsx`)
-
-- Detectar se o `file_url` do material e uma imagem (pela extensao: `.jpg`, `.jpeg`, `.png`, `.webp`) ou PDF
-- Se for imagem, enviar como `image` em vez de `document`
-- Ajustar o caption e fileName de acordo
-
-### 3. Bot -- Flow Builder (`wapi-webhook/index.ts`)
-
-- No bloco `send_pdf` do Flow Builder (linhas ~1335-1344): detectar se o arquivo e imagem pela extensao da URL
-- Se for imagem, usar `sendBotImage` em vez de `sendBotDocument`
-
-### 4. Bot -- Legacy (`wapi-webhook/index.ts`)
-
-- Na funcao `sendQualificationMaterials` (linhas ~2648-2654): mesma logica -- detectar extensao e usar `sendImage` ou `sendDocument` conforme o caso
-
-### 5. Bot -- Follow-up (`follow-up-check/index.ts`)
-
-- Aplicar a mesma deteccao de tipo de arquivo na funcao equivalente de envio de materiais
-
-## Detalhes tecnicos
-
-**Funcao auxiliar de deteccao** (usada em todos os pontos):
 ```text
-function isImageUrl(url: string): boolean {
-  const ext = url.split('?')[0].split('.').pop()?.toLowerCase();
-  return ['jpg', 'jpeg', 'png', 'webp'].includes(ext || '');
+.select("instance_id, test_mode_enabled, test_mode_number, follow_up_enabled, ...")
+```
+
+**2. Filtrar conversas nas 4 funcoes per-instance**
+
+Em cada funcao que envia mensagens (`processNextStepReminder`, `processFollowUp`, `processBotInactiveFollowUp`), adicionar um guard no loop de conversas:
+
+```text
+// Se modo de teste ativo, so envia para o numero de teste
+if (settings.test_mode_enabled && settings.test_mode_number) {
+  const testNum = settings.test_mode_number.replace(/\D/g, '');
+  const convPhone = conv.remote_jid.replace('@s.whatsapp.net','').replace('@c.us','');
+  if (!convPhone.includes(testNum.replace(/^55/, ''))) {
+    continue; // Pula este contato
+  }
 }
 ```
 
-**Fluxo de envio atualizado:**
+**3. Filtrar nas funcoes globais**
+
+As funcoes `processStuckBotRecovery` e `processStaleRemindedAlerts` rodam de forma global (nao por instancia). Para essas, buscar os bot_settings da instancia de cada conversa e aplicar o mesmo filtro.
+
+### Resumo das funcoes afetadas
+
+| Funcao | Tipo | Acao |
+|--------|------|------|
+| `processNextStepReminder` | Per-instance | Adicionar guard no loop |
+| `processFollowUp` | Per-instance | Adicionar guard no loop |
+| `processBotInactiveFollowUp` | Per-instance | Adicionar guard no loop |
+| `processStuckBotRecovery` | Global | Buscar settings e aplicar guard |
+| `processStaleRemindedAlerts` | Global | Buscar settings e aplicar guard |
+| `processFlowTimerTimeouts` | Global | Buscar settings e aplicar guard |
+
+### Interface atualizada
+
 ```text
-Material tipo "pdf_package"
-  |
-  +-- file_url termina em .jpg/.png/.webp?
-  |     SIM --> envia como IMAGE (com caption)
-  |     NAO --> envia como DOCUMENT (como PDF, com fileName .pdf)
+interface FollowUpSettings {
+  // ... campos existentes ...
+  test_mode_enabled?: boolean;
+  test_mode_number?: string | null;
+}
 ```
 
-**Impacto no banco de dados:** Nenhum. O tipo continua sendo `pdf_package` no banco. Apenas a logica de upload e envio se torna mais flexivel.
+## Resultado esperado
 
+Com modo de teste ativo e numero `15974000152` configurado:
+- Mensagens automaticas so serao enviadas para `15974000152`
+- Todos os demais contatos serao ignorados pelas automacoes
+- Logs indicarao claramente quando uma mensagem for bloqueada pelo modo de teste
