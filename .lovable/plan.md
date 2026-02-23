@@ -1,74 +1,61 @@
 
-# Corrigir: follow-up-check ignora o Modo de Teste
+
+# Corrigir: Bot repete pergunta do mes por causa de numeros em emoji
 
 ## Problema identificado
 
-O guard de "Modo de Teste" existe corretamente no **wapi-webhook** (linha 1709-1718) -- quando o bot recebe uma mensagem, ele verifica se o modo de teste esta ativo e bloqueia qualquer numero que nao seja o numero de teste.
+A pergunta de "mes" do Planeta Divertido usa **numeros em emoji** no texto:
+```
+2️⃣ Fevereiro
+3️⃣ Março
+...
+🔟 Outubro
+1️⃣2️⃣ Dezembro
+```
 
-Porem, a edge function **follow-up-check** (que roda periodicamente e envia mensagens automaticas como follow-ups, lembretes de inatividade, next-step reminders e recuperacao de bot travado) **NAO verifica o modo de teste**. Isso significa que:
+Porem, a funcao `extractOptionsFromQuestion` so reconhece formatos como `*2* - Fevereiro` ou `2 - Fevereiro` (digitos plain text). Quando o usuario responde "12" (Dezembro), o sistema nao consegue extrair as opcoes customizadas, cai no fallback `MONTH_OPTIONS` (que vai de 1 a 11), e "12" e rejeitado como invalido -- causando a repetição da pergunta com numeracao diferente.
 
-- Follow-ups automaticos sao enviados para TODOS os leads, mesmo com modo de teste ativo
-- Lembretes de "proximo passo" sao enviados para qualquer conversa parada
-- Recuperacao de bot travado envia mensagens para contatos reais
-- Lembretes de inatividade do bot sao enviados sem filtro
+O mesmo problema afeta as outras instancias que usam emojis (Castelo tambem tem esse formato).
 
 ## Solucao
 
-Adicionar verificacao de `test_mode_enabled` e `test_mode_number` na funcao `follow-up-check`. Quando o modo de teste estiver ativo para uma instancia, todas as mensagens automaticas dessa instancia devem ser enviadas **somente** para o numero de teste configurado.
+Atualizar a funcao `extractOptionsFromQuestion` no `wapi-webhook/index.ts` para reconhecer numeros em formato de emoji (keycap digits como 2️⃣, 3️⃣ e compostos como 1️⃣2️⃣, alem do especial 🔟).
 
-### Alteracoes no arquivo `supabase/functions/follow-up-check/index.ts`
+## Alteracao
 
-**1. Buscar campos de test_mode junto com os settings (linha ~69)**
+### Arquivo: `supabase/functions/wapi-webhook/index.ts`
 
-Adicionar `test_mode_enabled` e `test_mode_number` na query de `wapi_bot_settings`:
+Na funcao `extractOptionsFromQuestion` (linhas 33-46), adicionar um segundo pattern que converte emojis keycap em digitos antes de tentar o match:
 
-```text
-.select("instance_id, test_mode_enabled, test_mode_number, follow_up_enabled, ...")
-```
+1. Adicionar funcao auxiliar `emojiToDigit` que converte `2️⃣` em `2`, `1️⃣0️⃣` em `10`, `🔟` em `10`, etc.
+2. Para cada linha, primeiro tentar o regex atual (formatos `*N*` e `N -`)
+3. Se nao casar, tentar converter emojis keycap para digitos e re-tentar o match
 
-**2. Filtrar conversas nas 4 funcoes per-instance**
-
-Em cada funcao que envia mensagens (`processNextStepReminder`, `processFollowUp`, `processBotInactiveFollowUp`), adicionar um guard no loop de conversas:
+### Logica da conversao de emoji
 
 ```text
-// Se modo de teste ativo, so envia para o numero de teste
-if (settings.test_mode_enabled && settings.test_mode_number) {
-  const testNum = settings.test_mode_number.replace(/\D/g, '');
-  const convPhone = conv.remote_jid.replace('@s.whatsapp.net','').replace('@c.us','');
-  if (!convPhone.includes(testNum.replace(/^55/, ''))) {
-    continue; // Pula este contato
+function emojiDigitsToNumber(text: string): number | null {
+  // Handle special 🔟 = 10
+  if (text.includes('🔟')) return 10;
+  
+  // Extract keycap digits: 0️⃣ through 9️⃣
+  const keycapPattern = /([\d])\uFE0F?\u20E3/g;
+  let digits = '';
+  let match;
+  while ((match = keycapPattern.exec(text)) !== null) {
+    digits += match[1];
   }
+  return digits ? parseInt(digits, 10) : null;
 }
 ```
 
-**3. Filtrar nas funcoes globais**
+Exemplos:
+- `2️⃣ Fevereiro` -> num=2, value="Fevereiro"
+- `1️⃣2️⃣ Dezembro` -> num=12, value="Dezembro"
+- `🔟 Outubro` -> num=10, value="Outubro"
 
-As funcoes `processStuckBotRecovery` e `processStaleRemindedAlerts` rodam de forma global (nao por instancia). Para essas, buscar os bot_settings da instancia de cada conversa e aplicar o mesmo filtro.
+### Impacto
 
-### Resumo das funcoes afetadas
-
-| Funcao | Tipo | Acao |
-|--------|------|------|
-| `processNextStepReminder` | Per-instance | Adicionar guard no loop |
-| `processFollowUp` | Per-instance | Adicionar guard no loop |
-| `processBotInactiveFollowUp` | Per-instance | Adicionar guard no loop |
-| `processStuckBotRecovery` | Global | Buscar settings e aplicar guard |
-| `processStaleRemindedAlerts` | Global | Buscar settings e aplicar guard |
-| `processFlowTimerTimeouts` | Global | Buscar settings e aplicar guard |
-
-### Interface atualizada
-
-```text
-interface FollowUpSettings {
-  // ... campos existentes ...
-  test_mode_enabled?: boolean;
-  test_mode_number?: string | null;
-}
-```
-
-## Resultado esperado
-
-Com modo de teste ativo e numero `15974000152` configurado:
-- Mensagens automaticas so serao enviadas para `15974000152`
-- Todos os demais contatos serao ignorados pelas automacoes
-- Logs indicarao claramente quando uma mensagem for bloqueada pelo modo de teste
+- Corrige o Planeta Divertido e qualquer outra instancia que use emojis
+- Nao quebra instancias que usam formato `*N* - texto` (o regex atual continua como primeira tentativa)
+- Nenhuma alteracao no banco de dados necessaria
