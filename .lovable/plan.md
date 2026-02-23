@@ -1,52 +1,30 @@
 
+## Corrigir exibicao do endereco da pagina
 
-# Tornar a opcao "Trabalhe Conosco" generica (sem "Castelo")
+O texto auxiliar abaixo do campo "Endereco da Pagina" sempre mostra `celebrei.com/{slug}`, mesmo quando a empresa possui um dominio customizado configurado. A correcao fara com que, quando houver dominio customizado, o texto exiba o dominio proprio.
 
-## O que muda
+### Logica
 
-Remover todas as referencias fixas a "Castelo" no webhook e na interface, substituindo por textos genericos ou usando a variavel `{empresa}` para que cada buffet veja seu proprio nome.
+- Se `customDomain` (ou `currentCompany.custom_domain`) estiver preenchido, mostrar o dominio customizado como link principal
+- Caso contrario, manter o fallback `celebrei.com/{slug}`
 
-## Arquivos e alteracoes
+### Arquivo alterado
 
-### 1. `supabase/functions/wapi-webhook/index.ts`
+**`src/components/whatsapp/settings/CompanyDataSection.tsx`** (linhas 156-161)
 
-**Constante TIPO_OPTIONS (linha 62):**
-- De: `'Trabalhe no Castelo'`
-- Para: `'Trabalhe Conosco'`
+Texto atual:
+```
+Esse e o nome usado no link da sua pagina.
+celebrei.com/planeta-divertido
+```
 
-**Validacao wantsWork (linha 2032):**
-- De: `validation.value === 'Trabalhe no Castelo'`
-- Para: `validation.value === 'Trabalhe Conosco'`
+Novo comportamento:
+- Com dominio customizado: mostra `buffetplanetadivertido.online` e uma nota secundaria com o link alternativo `celebrei.com/{slug}`
+- Sem dominio customizado: mantem `celebrei.com/{slug}` como esta hoje
 
-**Mensagem default de RH (linha 2037):**
-- De: `fazer parte do nosso time! 🏰✨`
-- Para: `fazer parte do nosso time! 💼✨` (remove emoji do castelo)
-
-**Notificacoes internas (linhas 2095-2096):**
-- De: `trabalhar no Castelo`
-- Para: `trabalhar na empresa` ou usar o nome da empresa se disponivel
-
-**Mensagens de visita/proximo-passo (linhas 2188, 2201):**
-- De: `Castelo da Diversão` / `no Castelo`
-- Para: usar `{empresa}` ou texto generico `no buffet`
-
-### 2. `supabase/functions/follow-up-check/index.ts`
-
-**DEFAULT_QUESTIONS_MAP tipo (linha 737):**
-- De: `*3* - Trabalhe no Castelo`
-- Para: `*3* - Trabalhe Conosco`
-
-### 3. `src/components/whatsapp/settings/AutomationsSection.tsx`
-
-**Label e descricao do campo RH (linhas 906-909):**
-- De: `Mensagem de RH (Trabalhe no Castelo)` e `"Trabalhe no Castelo"`
-- Para: `Mensagem de RH (Trabalhe Conosco)` e `"Trabalhe Conosco"`
-
-**Placeholder do textarea (linha 916):**
-- De: `🏰✨`
-- Para: `💼✨`
-
-## Resultado
-
-Todos os textos ficam genericos. O buffet pode personalizar a mensagem de RH pelo campo editavel na aba Automacoes, e a opcao 3 do bot funciona para qualquer empresa sem mencionar "Castelo".
-
+Exemplo visual com dominio:
+```
+Esse e o nome usado no link da sua pagina.
+buffetplanetadivertido.online  (link principal)
+Tambem acessivel via celebrei.com/planeta-divertido
+```
