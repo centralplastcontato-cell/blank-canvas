@@ -293,43 +293,36 @@ Deno.serve(async (req) => {
       case 'send-image': {
         const { base64, caption, mediaUrl } = body;
         
-        let imageBase64 = base64;
-        if (!imageBase64 && mediaUrl) {
-          const imgRes = await fetch(mediaUrl);
-          if (!imgRes.ok) {
-            return new Response(JSON.stringify({ error: 'Falha ao baixar imagem' }), {
-              status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            });
-          }
-          const buf = await imgRes.arrayBuffer();
-          const bytes = new Uint8Array(buf);
-          let bin = '';
-          for (let i = 0; i < bytes.length; i += 32768) {
-            const chunk = bytes.subarray(i, Math.min(i + 32768, bytes.length));
-            bin += String.fromCharCode.apply(null, Array.from(chunk));
-          }
-          const ct = imgRes.headers.get('content-type') || 'image/jpeg';
-          imageBase64 = `data:${ct};base64,${btoa(bin)}`;
-        }
+        let imagePayload: Record<string, string> = { phone, caption: caption || '' };
         
-        if (!imageBase64) {
+        // Prefer sending by URL directly (avoids base64 memory/size limits)
+        if (mediaUrl && !base64) {
+          console.log('send-image: sending by URL:', mediaUrl.substring(0, 80));
+          imagePayload.image = mediaUrl;
+        } else if (base64) {
+          // Use provided base64
+          let imageBase64 = base64;
+          if (!imageBase64.startsWith('data:')) {
+            imageBase64 = `data:image/jpeg;base64,${imageBase64}`;
+          }
+          imagePayload.image = imageBase64;
+        } else {
           return new Response(JSON.stringify({ error: 'Imagem é obrigatória' }), {
             status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
-        }
-        
-        if (!imageBase64.startsWith('data:')) {
-          imageBase64 = `data:image/jpeg;base64,${imageBase64}`;
         }
 
         const res = await wapiRequest(
           `${WAPI_BASE_URL}/message/send-image?instanceId=${instance_id}`,
           instance_token,
           'POST',
-          { phone, image: imageBase64, caption: caption || '' }
+          imagePayload
         );
         
+        console.log('send-image response:', JSON.stringify(res));
+        
         if (!res.ok) {
+          console.error('send-image failed:', res.error, 'mediaUrl:', mediaUrl?.substring(0, 80));
           return new Response(JSON.stringify({ error: res.error }), {
             status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
