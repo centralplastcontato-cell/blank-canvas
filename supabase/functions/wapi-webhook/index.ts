@@ -2505,26 +2505,11 @@ async function sendQualificationMaterials(
   // Helper to send via W-API
   const sendImage = async (url: string, caption: string) => {
     try {
-      // Download image to base64
-      const imgRes = await fetch(url);
-      if (!imgRes.ok) return null;
-      
-      const buf = await imgRes.arrayBuffer();
-      const bytes = new Uint8Array(buf);
-      let bin = '';
-      for (let i = 0; i < bytes.length; i += 32768) {
-        const chunk = bytes.subarray(i, Math.min(i + 32768, bytes.length));
-        bin += String.fromCharCode.apply(null, Array.from(chunk));
-      }
-      const ct = imgRes.headers.get('content-type') || 'image/jpeg';
-      const base64 = `data:${ct};base64,${btoa(bin)}`;
-      
       const res = await fetch(`${WAPI_BASE_URL}/message/send-image?instanceId=${instance.instance_id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-        body: JSON.stringify({ phone, image: base64, caption })
+        body: JSON.stringify({ phone, image: url, caption }),
       });
-      
       if (!res.ok) return null;
       const r = await res.json();
       return r.messageId || null;
@@ -2620,7 +2605,7 @@ async function sendQualificationMaterials(
         const msgId = await sendImage(photos[i], '');
         if (msgId) await saveMessage(msgId, 'image', '📷', photos[i]);
         if (i < photos.length - 1) {
-          await new Promise(r => setTimeout(r, 2000));
+          await new Promise(r => setTimeout(r, 3000));
         }
       }
       
