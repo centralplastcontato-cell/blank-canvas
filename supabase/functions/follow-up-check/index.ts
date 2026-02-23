@@ -545,14 +545,40 @@ async function processFollowUp({
         new_value: `Mensagem de acompanhamento #${followUpNumber} após ${delayHours}h`,
       });
 
-      // Create notification for the team
-      const { data: usersToNotify } = await supabase
-        .from("user_permissions")
+      // Create notification for the team (scoped to company)
+      const unitLower = (lead.unit || "all").toLowerCase();
+      const unitPermission = `leads.unit.${unitLower}`;
+      
+      // Get users that belong to this company
+      const { data: companyUsers } = await supabase
+        .from("user_companies")
         .select("user_id")
-        .or(`permission.eq.leads.unit.all,permission.eq.leads.unit.${(lead.unit || "all").toLowerCase()}`)
-        .eq("granted", true);
+        .eq("company_id", instance.company_id);
+      
+      const companyUserIds = companyUsers?.map((u: any) => u.user_id) || [];
+      
+      let usersToNotify: { user_id: string }[] = [];
+      if (companyUserIds.length > 0) {
+        const { data: perms } = await supabase
+          .from("user_permissions")
+          .select("user_id")
+          .or(`permission.eq.leads.unit.all,permission.eq.${unitPermission}`)
+          .eq("granted", true)
+          .in("user_id", companyUserIds);
+        
+        const { data: adminRoles } = await supabase
+          .from("user_roles")
+          .select("user_id")
+          .eq("role", "admin")
+          .in("user_id", companyUserIds);
+        
+        const ids = new Set<string>();
+        perms?.forEach((p: any) => ids.add(p.user_id));
+        adminRoles?.forEach((r: any) => ids.add(r.user_id));
+        usersToNotify = Array.from(ids).map(id => ({ user_id: id }));
+      }
 
-      if (usersToNotify && usersToNotify.length > 0) {
+      if (usersToNotify.length > 0) {
         const notifications = usersToNotify.map((u) => ({
           user_id: u.user_id,
           company_id: instance.company_id,

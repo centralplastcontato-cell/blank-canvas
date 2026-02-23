@@ -74,6 +74,43 @@ function buildMenuText(options: { num: number; value: string }[]): string {
   return options.map(opt => `*${opt.num}* - ${opt.value}`).join('\n');
 }
 
+// Helper: get notification targets scoped to a specific company
+async function getCompanyNotificationTargets(
+  supabase: SupabaseClient,
+  companyId: string,
+  unitPermission: string
+): Promise<string[]> {
+  // 1. Get users that belong to this company
+  const { data: companyUsers } = await supabase
+    .from('user_companies')
+    .select('user_id')
+    .eq('company_id', companyId);
+
+  const companyUserIds = companyUsers?.map((u: any) => u.user_id) || [];
+  if (companyUserIds.length === 0) return [];
+
+  // 2. Filter by permissions within company users
+  const { data: userPerms } = await supabase
+    .from('user_permissions')
+    .select('user_id')
+    .eq('granted', true)
+    .in('permission', [unitPermission, 'leads.unit.all'])
+    .in('user_id', companyUserIds);
+
+  // 3. Admin roles within company users
+  const { data: adminRoles } = await supabase
+    .from('user_roles')
+    .select('user_id')
+    .eq('role', 'admin')
+    .in('user_id', companyUserIds);
+
+  const targetIds = new Set<string>();
+  userPerms?.forEach((p: any) => targetIds.add(p.user_id));
+  adminRoles?.forEach((r: any) => targetIds.add(r.user_id));
+
+  return Array.from(targetIds);
+}
+
 // Validation functions
 function validateName(input: string): { valid: boolean; value?: string; error?: string } {
   let name = input.trim();
@@ -1180,18 +1217,13 @@ async function advanceFlowFromNode(
             waiting_for_reply: false,
           }).eq('id', state.id);
           
-          // Create notification
+          // Create notification (scoped to company)
           try {
-            const { data: adminRoles } = await supabase.from('user_roles').select('user_id').eq('role', 'admin');
             const unitLower = instance.unit?.toLowerCase() || '';
             const unitPermission = `leads.unit.${unitLower}`;
-            const { data: userPerms } = await supabase.from('user_permissions').select('user_id').eq('granted', true).in('permission', [unitPermission, 'leads.unit.all']);
+            const targetUserIds = await getCompanyNotificationTargets(supabase, instance.company_id, unitPermission);
             
-            const userIds = new Set<string>();
-            userPerms?.forEach(p => userIds.add(p.user_id));
-            adminRoles?.forEach(r => userIds.add(r.user_id));
-            
-            const notifications = Array.from(userIds).map(userId => ({
+            const notifications = targetUserIds.map(userId => ({
               user_id: userId,
               company_id: instance.company_id,
               type: 'flow_handoff',
@@ -1395,19 +1427,14 @@ async function advanceFlowFromNode(
             await supabase.from('campaign_leads').update({ status: 'em_contato' }).eq('id', conv.lead_id);
           }
           
-          // Notify team
+          // Notify team (scoped to company)
           try {
-            const { data: adminRoles } = await supabase.from('user_roles').select('user_id').eq('role', 'admin');
             const unitLower = instance.unit?.toLowerCase() || '';
             const unitPermission = `leads.unit.${unitLower}`;
-            const { data: userPerms } = await supabase.from('user_permissions').select('user_id').eq('granted', true).in('permission', [unitPermission, 'leads.unit.all']);
-            
-            const userIds = new Set<string>();
-            userPerms?.forEach(p => userIds.add(p.user_id));
-            adminRoles?.forEach(r => userIds.add(r.user_id));
+            const targetUserIds = await getCompanyNotificationTargets(supabase, instance.company_id, unitPermission);
             
             const leadName = data.customer_name || data.nome || contactName || contactPhone;
-            const notifications = Array.from(userIds).map(userId => ({
+            const notifications = targetUserIds.map(userId => ({
               user_id: userId,
               company_id: instance.company_id,
               type: 'existing_client',
@@ -1968,31 +1995,14 @@ async function processBotQualification(
             last_message_from_me: true
           }).eq('id', conv.id);
           
-          // Create notifications for users with permission for this unit
+          // Create notifications for users with permission for this unit (scoped to company)
           try {
             const unitLower = instance.unit?.toLowerCase() || '';
             const unitPermission = `leads.unit.${unitLower}`;
-            
-            // Get users with permission for this unit or all units
-            const { data: userPerms } = await supabase
-              .from('user_permissions')
-              .select('user_id')
-              .eq('granted', true)
-              .in('permission', [unitPermission, 'leads.unit.all']);
-            
-            // Also get admin users
-            const { data: adminRoles } = await supabase
-              .from('user_roles')
-              .select('user_id')
-              .eq('role', 'admin');
-            
-            // Combine unique user IDs
-            const userIds = new Set<string>();
-            userPerms?.forEach(p => userIds.add(p.user_id));
-            adminRoles?.forEach(r => userIds.add(r.user_id));
+            const targetUserIds = await getCompanyNotificationTargets(supabase, instance.company_id, unitPermission);
             
             // Create notification for each user
-            const notifications = Array.from(userIds).map(userId => ({
+            const notifications = targetUserIds.map(userId => ({
               user_id: userId,
               company_id: instance.company_id,
               type: 'existing_client',
@@ -2074,15 +2084,12 @@ async function processBotQualification(
             last_message_from_me: true
           }).eq('id', conv.id);
           
-          // Create notifications for admins
+          // Create notifications for admins (scoped to company)
           try {
-            const { data: adminRoles } = await supabase
-              .from('user_roles')
-              .select('user_id')
-              .eq('role', 'admin');
+            const targetUserIds = await getCompanyNotificationTargets(supabase, instance.company_id, 'leads.unit.all');
             
-            const notifications = (adminRoles || []).map(r => ({
-              user_id: r.user_id,
+            const notifications = targetUserIds.map(userId => ({
+              user_id: userId,
               company_id: instance.company_id,
               type: 'work_interest',
               title: '👷 Interesse em trabalhar no Castelo',
@@ -2245,32 +2252,15 @@ async function processBotQualification(
             console.log(`[Bot] Lead ${conv.lead_id} status updated to ${newLeadStatus}`);
           }
           
-          // Create notifications for team
+          // Create notifications for team (scoped to company)
           if (notificationType) {
             try {
               const unitLower = instance.unit?.toLowerCase() || '';
               const unitPermission = `leads.unit.${unitLower}`;
-              
-              // Get users with permission for this unit or all units
-              const { data: userPerms } = await supabase
-                .from('user_permissions')
-                .select('user_id')
-                .eq('granted', true)
-                .in('permission', [unitPermission, 'leads.unit.all']);
-              
-              // Also get admin users
-              const { data: adminRoles } = await supabase
-                .from('user_roles')
-                .select('user_id')
-                .eq('role', 'admin');
-              
-              // Combine unique user IDs
-              const userIds = new Set<string>();
-              userPerms?.forEach(p => userIds.add(p.user_id));
-              adminRoles?.forEach(r => userIds.add(r.user_id));
+              const targetUserIds = await getCompanyNotificationTargets(supabase, instance.company_id, unitPermission);
               
               // Create notification for each user
-              const notifications = Array.from(userIds).map(userId => ({
+              const notifications = targetUserIds.map(userId => ({
                 user_id: userId,
                 company_id: instance.company_id,
                 type: notificationType,
