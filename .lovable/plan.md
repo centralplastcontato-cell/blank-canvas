@@ -1,55 +1,60 @@
 
 
-# Numeros de telefone clicaveis no chat do WhatsApp
+# Reativar reacoes com emoji no chat do WhatsApp
 
 ## Problema
 
-Quando uma mensagem no chat contem um numero de telefone (ex: `15997151079`), ele aparece como texto simples. O usuario quer poder clicar no numero para iniciar uma conversa ou salvar o contato.
+As reacoes com emoji foram desabilitadas no frontend, exibindo a mensagem "Recurso temporariamente indisponivel" ao clicar em um emoji. O suporte da W-API confirmou que o plano Lite suporta essa funcionalidade, entao o bloqueio no frontend precisa ser removido.
+
+## Situacao atual
+
+- **Frontend** (`WhatsAppChat.tsx`, linha ~1879): A funcao `handleReaction` foi substituida por um simples toast que bloqueia a acao
+- **Backend** (`wapi-send/index.ts`, linhas 1259-1322): A logica de `send-reaction` ja esta implementada e funcional, tentando 4 combinacoes de endpoint/metodo (POST/PUT com send-reaction/sendReaction)
 
 ## Solucao
 
-Criar uma funcao utilitaria `formatMessageContent` que detecta numeros de telefone e URLs dentro do texto das mensagens e os transforma em links clicaveis. Numeros de telefone abrem com `tel:` (para ligar/salvar) ou `https://wa.me/` (para abrir no WhatsApp).
+Restaurar a funcao `handleReaction` para efetivamente chamar a Edge Function `wapi-send` com a action `send-reaction`.
 
-## Detalhes tecnicos
+### Alteracao unica em `src/components/whatsapp/WhatsAppChat.tsx`
 
-### 1. Criar helper `formatMessageContent`
+Substituir o handler atual (linha ~1879):
 
-Novo arquivo: `src/lib/format-message.tsx`
+```typescript
+// DE:
+const handleReaction = async (_msg: Message, _emoji: string) => {
+  toast({ title: "Recurso temporariamente indisponível", ... });
+};
 
-- Recebe o texto da mensagem como string
-- Usa regex para detectar:
-  - Numeros de telefone brasileiros (8-13 digitos consecutivos, com ou sem DDI 55)
-  - URLs (http/https)
-- Retorna um array de `ReactNode` com textos normais e `<a>` clicaveis
-- Links de telefone usam `href="https://wa.me/55XXXXXXXXXX"` com `target="_blank"` para abrir no WhatsApp
-- Links de URL usam `href` com `target="_blank"`
-- Estilizacao: underline + cor azul para destaque visual
+// PARA:
+const handleReaction = async (msg: Message, emoji: string) => {
+  if (!selectedInstance || !msg.message_id) return;
+  try {
+    const response = await supabase.functions.invoke("wapi-send", {
+      body: {
+        action: "send-reaction",
+        instanceId: selectedInstance.instance_id,
+        instanceToken: selectedInstance.instance_token,
+        messageId: msg.message_id,
+        emoji,
+      },
+    });
+    if (response.error) throw new Error(response.error.message);
+    if (response.data?.error) {
+      toast({ title: "Erro", description: response.data.error, variant: "destructive" });
+    }
+  } catch (err: any) {
+    toast({ title: "Erro ao reagir", description: err.message, variant: "destructive" });
+  }
+};
+```
 
-Regex para telefones: `/\b(\d{10,13})\b/g` (captura sequencias de 10-13 digitos que representam telefones BR)
+## Arquivo a editar
 
-### 2. Aplicar nos renders de mensagem
-
-No arquivo `src/components/whatsapp/WhatsAppChat.tsx`, substituir `{msg.content}` por `{formatMessageContent(msg.content)}` nos seguintes pontos:
-
-| Local | Linha aprox. | Contexto |
-|---|---|---|
-| Mensagem de texto (desktop) | ~3734 | `<p className="whitespace-pre-wrap...">{msg.content}</p>` |
-| Caption de midia (desktop) | ~3741 | `<p className="whitespace-pre-wrap...">{msg.content}</p>` |
-| Mensagem de texto (mobile) | ~4633 | `<p className="whitespace-pre-wrap...">{msg.content}</p>` |
-| Caption de midia (mobile) | Proximo ao 4633 | Similar ao desktop |
-
-### 3. Comportamento esperado
-
-- Numero `15997151079` no texto vira um link azul sublinhado
-- Ao clicar, abre `https://wa.me/5515997151079` em nova aba
-- URLs existentes (`https://...`) tambem ficam clicaveis
-- Texto normal continua sem alteracao
-- Funciona tanto no layout desktop quanto mobile
-
-### Arquivos a criar/editar
-
-| Arquivo | Acao |
+| Arquivo | Alteracao |
 |---|---|
-| `src/lib/format-message.tsx` | Criar - funcao utilitaria |
-| `src/components/whatsapp/WhatsAppChat.tsx` | Editar - usar a funcao nos 4 pontos de render |
+| `src/components/whatsapp/WhatsAppChat.tsx` | Restaurar `handleReaction` para chamar a API (linhas 1879-1881) |
+
+## Resultado esperado
+
+Ao clicar em um emoji no menu de contexto, o sistema chamara a Edge Function que ja existe no backend, enviando a reacao via W-API. Se houver algum erro real da API, ele sera exibido ao usuario em vez da mensagem generica de "indisponivel".
 
