@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface WhatsAppConfigProps {
   userId: string;
   isAdmin: boolean;
+  isGestor?: boolean;
 }
 
 const allConfigSections = [
@@ -80,7 +81,7 @@ const allConfigSections = [
   },
 ];
 
-export function WhatsAppConfig({ userId, isAdmin }: WhatsAppConfigProps) {
+export function WhatsAppConfig({ userId, isAdmin, isGestor = false }: WhatsAppConfigProps) {
   const navigate = useNavigate();
   const { permissions, isLoading, hasAnyPermission } = useConfigPermissions(userId, isAdmin);
   const modules = useCompanyModules();
@@ -90,12 +91,12 @@ export function WhatsAppConfig({ userId, isAdmin }: WhatsAppConfigProps) {
   // Filter sections based on permissions AND company modules
   const configSections = useMemo(() => {
     return allConfigSections.filter(section => {
-      if ((section as any).requiresCompanyAdmin && !isCompanyAdminOrOwner && !isAdmin) return false;
+      if ((section as any).requiresCompanyAdmin && !isCompanyAdminOrOwner && !isAdmin && !isGestor) return false;
       const hasPermission = section.permissionKey === null || permissions[section.permissionKey];
       const moduleEnabled = isAdmin || section.moduleKey === null || modules[section.moduleKey];
       return hasPermission && moduleEnabled;
     });
-  }, [permissions, modules, isAdmin, isCompanyAdminOrOwner]);
+  }, [permissions, modules, isAdmin, isCompanyAdminOrOwner, isGestor]);
 
   const [activeSection, setActiveSection] = useState<string | null>(null);
 
