@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
 import { useUserRole } from "@/hooks/useUserRole";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useCompanyModules } from "@/hooks/useCompanyModules";
 
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
@@ -40,8 +41,10 @@ export default function Configuracoes() {
   const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const { role, isLoading: isLoadingRole, canManageUsers, isAdmin } = useUserRole(user?.id);
+  const { role, isLoading: isLoadingRole, canManageUsers, isAdmin, isGestor } = useUserRole(user?.id);
   const { hasPermission, isLoading: isLoadingPermissions } = usePermissions(user?.id);
+  const modules = useCompanyModules();
+  const showOperacoes = isAdmin || modules.operacoes;
   
   const canAccessConfig = isAdmin || hasPermission('config.view');
 
@@ -168,23 +171,27 @@ export default function Configuracoes() {
                 <MessageSquare className="h-4 w-4" />
                 WhatsApp
               </TabsTrigger>
-              <TabsTrigger value="festa" className="flex-1 gap-2">
-                <PartyPopper className="h-4 w-4" />
-                Festa
-              </TabsTrigger>
+              {showOperacoes && (
+                <TabsTrigger value="festa" className="flex-1 gap-2">
+                  <PartyPopper className="h-4 w-4" />
+                  Festa
+                </TabsTrigger>
+              )}
             </TabsList>
             <TabsContent value="perfil" className="mt-4">
               <ProfileContent userId={user.id} userEmail={user.email || ""} />
             </TabsContent>
             <TabsContent value="whatsapp" className="mt-4">
-              <WhatsAppConfig userId={user.id} isAdmin={isAdmin} />
+              <WhatsAppConfig userId={user.id} isAdmin={isAdmin} isGestor={isGestor} />
             </TabsContent>
-            <TabsContent value="festa" className="mt-4 space-y-6">
-              <PartyControlConfig />
-              <div className="pt-2">
-                <ChecklistTemplateManager />
-              </div>
-            </TabsContent>
+            {showOperacoes && (
+              <TabsContent value="festa" className="mt-4 space-y-6">
+                <PartyControlConfig />
+                <div className="pt-2">
+                  <ChecklistTemplateManager />
+                </div>
+              </TabsContent>
+            )}
           </Tabs>
         </main>
       </div>
@@ -230,23 +237,27 @@ export default function Configuracoes() {
                     <MessageSquare className="h-4 w-4" />
                     WhatsApp
                   </TabsTrigger>
-                  <TabsTrigger value="festa" className="gap-2">
-                    <PartyPopper className="h-4 w-4" />
-                    Controle da Festa
-                  </TabsTrigger>
+                  {showOperacoes && (
+                    <TabsTrigger value="festa" className="gap-2">
+                      <PartyPopper className="h-4 w-4" />
+                      Controle da Festa
+                    </TabsTrigger>
+                  )}
                 </TabsList>
                 <TabsContent value="perfil" className="mt-4">
                   <ProfileContent userId={user.id} userEmail={user.email || ""} />
                 </TabsContent>
                 <TabsContent value="whatsapp" className="mt-4">
-                  <WhatsAppConfig userId={user.id} isAdmin={isAdmin} />
+                  <WhatsAppConfig userId={user.id} isAdmin={isAdmin} isGestor={isGestor} />
                 </TabsContent>
-                <TabsContent value="festa" className="mt-4 space-y-6">
-                  <PartyControlConfig />
-                  <div className="pt-2">
-                    <ChecklistTemplateManager />
-                  </div>
-                </TabsContent>
+                {showOperacoes && (
+                  <TabsContent value="festa" className="mt-4 space-y-6">
+                    <PartyControlConfig />
+                    <div className="pt-2">
+                      <ChecklistTemplateManager />
+                    </div>
+                  </TabsContent>
+                )}
               </Tabs>
             </div>
           </main>
