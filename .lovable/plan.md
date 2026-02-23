@@ -1,29 +1,37 @@
 
 
-# Corrigir upload de PDF no iOS (galeria/arquivos nao abre)
+# Conectar dominio aventurakids.online ao projeto
 
-## Problema
+## O que precisa ser feito
 
-No iOS Safari, o campo de upload com `accept=".pdf,application/pdf"` pode nao abrir o seletor de arquivos corretamente. O iOS tem limitacoes conhecidas com o atributo `accept` em inputs de arquivo, especialmente para PDFs.
+### 1. Registrar o dominio no codigo de roteamento
 
-## Solucao
+**Arquivo: `src/hooks/useDomainDetection.ts`**
+- Adicionar `"aventurakids.online": "aventurakids.online"` ao objeto `KNOWN_BUFFET_DOMAINS`
 
-Ampliar o atributo `accept` do input de arquivo para PDFs, usando `accept="*/*"` ou `accept=".pdf,application/pdf,application/octet-stream"` quando o tipo for `pdf_package`. Isso garante que o iOS apresente o seletor de arquivos (app Arquivos) corretamente. A validacao do tipo de arquivo sera mantida no handler `handleFileUpload`, que ja verifica a extensao e o MIME type antes de aceitar o upload.
+Isso garante que quando alguem acessar `aventurakids.online`, o sistema carregue a `DynamicLandingPage` com os dados da empresa Aventura Kids (puxados do Supabase via `custom_domain` ou `domain_canonical`).
 
-## Alteracao tecnica
+### 2. Configurar o dominio customizado no Lovable
 
-**Arquivo: `src/components/whatsapp/settings/SalesMaterialsSection.tsx`**
+Apos a alteracao no codigo, voce precisara:
 
-Na linha 1046-1051, alterar o `accept` para PDF de:
-```
-".pdf,application/pdf"
-```
-Para:
-```
-".pdf,application/pdf,application/octet-stream,*/*"
-```
+1. Ir em **Project Settings > Domains** no Lovable
+2. Adicionar `aventurakids.online` e `www.aventurakids.online`
+3. Configurar os registros DNS no provedor do dominio:
+   - **A Record** `@` apontando para `185.158.133.1`
+   - **A Record** `www` apontando para `185.158.133.1`
+   - **TXT Record** `_lovable` com o valor fornecido pelo Lovable
+4. **Importante**: Se estiver usando Cloudflare, desativar o Proxy (deixar "DNS only" / nuvem cinza) para que o SSL seja emitido corretamente
 
-Isso faz o iOS abrir o seletor completo de arquivos (com acesso a iCloud Drive, Downloads, etc.), enquanto a validacao no codigo continua garantindo que apenas PDFs sejam aceitos.
+### 3. Atualizar a empresa no Supabase
 
-Tambem sera necessario verificar o `handleFileUpload` para garantir que ele valide corretamente o tipo do arquivo apos a selecao, rejeitando arquivos que nao sejam PDF quando o tipo for `pdf_package`.
+No Hub Empresas, editar a Aventura Kids e preencher:
+- **custom_domain**: `aventurakids.online`
+- **domain_canonical**: `aventurakids.online`
+
+Isso conecta o dominio aos dados da empresa para que a LP dinamica carregue o conteudo correto.
+
+## Resumo tecnico
+
+Apenas 1 linha de codigo precisa ser adicionada. O restante e configuracao de DNS e dados no Supabase.
 
