@@ -1310,25 +1310,38 @@ async function advanceFlowFromNode(
               .eq('is_active', true)
               .order('guest_count');
             
-            let matchingPdf = null;
+            let pdfsToSend: typeof pdfMats = [];
             if (pdfMats && pdfMats.length > 0) {
-              if (guestCount) {
-                matchingPdf = pdfMats.find(p => p.guest_count === guestCount);
+              // Separate universal (guest_count=null) from specific PDFs
+              const universalPdfs = pdfMats.filter(p => p.guest_count === null);
+              const specificPdfs = pdfMats.filter(p => p.guest_count !== null);
+              
+              if (universalPdfs.length > 0) {
+                // Universal mode: send ALL universal PDFs
+                pdfsToSend = universalPdfs;
+                console.log(`[FlowBuilder] Found ${universalPdfs.length} universal PDFs`);
+              } else if (guestCount && specificPdfs.length > 0) {
+                // Specific mode: find matching PDF by guest count
+                let matchingPdf = specificPdfs.find(p => p.guest_count === guestCount);
                 if (!matchingPdf) {
-                  matchingPdf = pdfMats.find(p => (p.guest_count || 0) >= guestCount) || pdfMats[pdfMats.length - 1];
+                  matchingPdf = specificPdfs.find(p => (p.guest_count || 0) >= guestCount) || specificPdfs[specificPdfs.length - 1];
                 }
-              } else {
-                matchingPdf = pdfMats[0];
+                if (matchingPdf) pdfsToSend = [matchingPdf];
+              } else if (specificPdfs.length > 0) {
+                pdfsToSend = [specificPdfs[0]];
               }
             }
             
-            if (matchingPdf) {
+            if (pdfsToSend.length > 0) {
               await sendActionMessage();
               await new Promise(r => setTimeout(r, 1000));
               
-              const fileName = (matchingPdf.name?.replace(/[^a-zA-Z0-9\s\-]/g, '').trim() || 'Pacote') + '.pdf';
-              const msgId = await sendBotDocument(instance.instance_id, instance.instance_token, conv.remote_jid, matchingPdf.file_url, fileName);
-              if (msgId) await saveMediaMsg(msgId, 'document', fileName, matchingPdf.file_url);
+              for (const pdf of pdfsToSend) {
+                const fileName = (pdf.name?.replace(/[^a-zA-Z0-9\s\-]/g, '').trim() || 'Pacote') + '.pdf';
+                const msgId = await sendBotDocument(instance.instance_id, instance.instance_token, conv.remote_jid, pdf.file_url, fileName);
+                if (msgId) await saveMediaMsg(msgId, 'document', fileName, pdf.file_url);
+                if (pdfsToSend.length > 1) await new Promise(r => setTimeout(r, 1500));
+              }
             } else {
               console.log(`[FlowBuilder] No PDF found for unit ${unit}`);
               await sendActionMessage();
@@ -2595,21 +2608,33 @@ async function sendQualificationMaterials(
     await new Promise(r => setTimeout(r, messageDelay));
   }
   
-  // 3. SEND PDF PACKAGE (matching guest count) - Send PDF BEFORE promo video
-  if (sendPdf && guestCount && pdfPackages.length > 0) {
-    // Find exact match or closest package
-    let matchingPdf = pdfPackages.find(p => p.guest_count === guestCount);
+  // 3. SEND PDF PACKAGE (matching guest count or universal) - Send PDF BEFORE promo video
+  if (sendPdf && pdfPackages.length > 0) {
+    // Separate universal (guest_count=null) from specific PDFs
+    const universalPdfs = pdfPackages.filter(p => p.guest_count === null);
+    const specificPdfs = pdfPackages.filter(p => p.guest_count !== null);
     
-    if (!matchingPdf) {
-      // Find closest package (equal or greater)
-      const sortedPackages = pdfPackages.filter(p => p.guest_count).sort((a, b) => (a.guest_count || 0) - (b.guest_count || 0));
-      matchingPdf = sortedPackages.find(p => (p.guest_count || 0) >= guestCount) || sortedPackages[sortedPackages.length - 1];
+    let pdfsToSend: typeof pdfPackages = [];
+    
+    if (universalPdfs.length > 0) {
+      // Universal mode: send ALL universal PDFs
+      pdfsToSend = universalPdfs;
+      console.log(`[Bot Materials] Found ${universalPdfs.length} universal PDFs`);
+    } else if (guestCount && specificPdfs.length > 0) {
+      // Specific mode: find matching PDF by guest count
+      let matchingPdf = specificPdfs.find(p => p.guest_count === guestCount);
+      if (!matchingPdf) {
+        const sortedPackages = specificPdfs.sort((a, b) => (a.guest_count || 0) - (b.guest_count || 0));
+        matchingPdf = sortedPackages.find(p => (p.guest_count || 0) >= guestCount) || sortedPackages[sortedPackages.length - 1];
+      }
+      if (matchingPdf) pdfsToSend = [matchingPdf];
     }
     
-    if (matchingPdf) {
-      console.log(`[Bot Materials] Sending PDF package: ${matchingPdf.name} for ${guestCount} guests`);
+    if (pdfsToSend.length > 0) {
+      const firstPdf = pdfsToSend[0];
+      console.log(`[Bot Materials] Sending ${pdfsToSend.length} PDF(s): ${firstPdf.name}`);
       
-      // Send intro message for PDF (use custom template with variables)
+      // Send intro message for PDF
       const firstName = (botData.nome || '').split(' ')[0] || 'você';
       const pdfIntroText = pdfIntro
         .replace(/\{nome\}/gi, firstName)
@@ -2618,12 +2643,15 @@ async function sendQualificationMaterials(
       const introMsgId = await sendText(pdfIntroText);
       if (introMsgId) await saveMessage(introMsgId, 'text', pdfIntroText);
       
-      await new Promise(r => setTimeout(r, messageDelay / 4)); // Short delay before PDF file
+      await new Promise(r => setTimeout(r, messageDelay / 4));
       
-      // Send PDF with proper filename
-      const fileName = matchingPdf.name?.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, ' ').trim() + '.pdf' || `Pacote ${guestCount} pessoas.pdf`;
-      const msgId = await sendDocument(matchingPdf.file_url, fileName);
-      if (msgId) await saveMessage(msgId, 'document', fileName, matchingPdf.file_url);
+      // Send all PDFs
+      for (const pdf of pdfsToSend) {
+        const fileName = pdf.name?.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, ' ').trim() + '.pdf' || 'Pacote.pdf';
+        const msgId = await sendDocument(pdf.file_url, fileName);
+        if (msgId) await saveMessage(msgId, 'document', fileName, pdf.file_url);
+        if (pdfsToSend.length > 1) await new Promise(r => setTimeout(r, 2000));
+      }
       
       await new Promise(r => setTimeout(r, messageDelay));
     }
