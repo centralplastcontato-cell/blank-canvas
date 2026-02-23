@@ -853,7 +853,7 @@ export function AutomationsSection() {
                             <Textarea
                               value={question.question_text}
                               onChange={(e) => updateQuestion(index, 'question_text', e.target.value)}
-                              className="min-h-[100px] text-base"
+                              className="min-h-[200px] text-base"
                               placeholder="Digite a pergunta..."
                             />
                           </div>
