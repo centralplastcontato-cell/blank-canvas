@@ -199,6 +199,7 @@ async function processNextStepReminder({
     .eq("instance_id", settings.instance_id)
     .eq("bot_step", "proximo_passo")
     .eq("last_message_from_me", true)
+    .not("remote_jid", "like", "%@g.us%")
     .lte("last_message_at", cutoffTime.toISOString())
     .gte("last_message_at", maxWindow.toISOString());
 
@@ -360,7 +361,8 @@ async function processFollowUp({
     .from("wapi_conversations")
     .select("lead_id")
     .in("lead_id", allLeadIds)
-    .eq("instance_id", settings.instance_id);
+    .eq("instance_id", settings.instance_id)
+    .not("remote_jid", "like", "%@g.us%");
 
   const leadsInThisInstance = new Set(
     (instanceConversations || []).map((c: { lead_id: string }) => c.lead_id)
@@ -657,6 +659,7 @@ async function processBotInactiveFollowUp({
     .eq("instance_id", settings.instance_id)
     .eq("bot_enabled", true)
     .eq("last_message_from_me", true)
+    .not("remote_jid", "like", "%@g.us%")
     .in("bot_step", activeBotSteps)
     .lte("last_message_at", cutoffTime.toISOString())
     .gte("last_message_at", maxWindow.toISOString());
@@ -1048,6 +1051,7 @@ async function processStaleRemindedAlerts({
     .select("id, company_id, lead_id, contact_name, contact_phone, last_message_at")
     .eq("bot_step", "proximo_passo_reminded")
     .eq("last_message_from_me", true)
+    .not("remote_jid", "like", "%@g.us%")
     .lte("last_message_at", cutoff);
 
   if (error || !staleConvs || staleConvs.length === 0) {
@@ -1282,6 +1286,7 @@ async function processStuckBotRecovery({
     .select('id, remote_jid, instance_id, lead_id, bot_data, bot_step, contact_name')
     .eq('bot_enabled', true)
     .eq('last_message_from_me', false)  // Lead responded
+    .not('remote_jid', 'like', '%@g.us%')
     .in('bot_step', activeBotSteps)
     .lt('last_message_at', twoMinutesAgo)   // At least 2 min ago
     .gt('last_message_at', thirtyMinutesAgo); // Within 30 min window
@@ -1695,8 +1700,6 @@ async function processStuckBotRecovery({
 }
 
 // ============= RECOVERY: SEND MATERIALS (photos, videos, PDFs) =============
-
-const WAPI_BASE_URL = 'https://api.w-api.app/v1';
 
 async function recoverySendMaterials(
   supabase: ReturnType<typeof createClient>,
