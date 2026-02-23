@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Play, MapPin } from "lucide-react";
+import { Play } from "lucide-react";
 import type { LPVideo, LPTheme } from "@/types/landing-page";
 
 interface DLPVideoProps {
