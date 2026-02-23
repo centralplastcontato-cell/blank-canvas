@@ -381,7 +381,7 @@ function ResponsiveDetailPanel({ open, onOpenChange, isMobile, title, headerActi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl p-0 gap-0">
+      <DialogContent className="max-w-4xl p-0 gap-0 [&>button.absolute]:hidden">
         <DialogHeader className="p-4 border-b border-border">
           <div className="flex items-center justify-between">
             <DialogTitle>{title}</DialogTitle>
