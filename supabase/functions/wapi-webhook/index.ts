@@ -679,6 +679,14 @@ Se não conseguir classificar com certeza, retorne a opção mais próxima.`;
     }
     // ── END QUALIFY ─────────────────────────────────────────────────────────
     
+    // Pre-fetch node options to decide validation strategy
+    const { data: preCheckOptions } = await supabase
+      .from('flow_node_options')
+      .select('id')
+      .eq('node_id', currentNode.id)
+      .limit(1);
+    const nodeHasOptions = preCheckOptions && preCheckOptions.length > 0;
+    
     // Extract data if needed (for question/action nodes)
     if (currentNode.extract_field) {
       const nameFields = ['nome', 'name', 'nome_lead', 'contact_name', 'customer_name', 'nome_cliente', 'client_name'];
@@ -688,7 +696,7 @@ Se não conseguir classificar com certeza, retorne a opção mais próxima.`;
         if (!nameValidation.valid) {
           const retryMsg = `Hmm, não consegui entender seu nome 🤔 Por favor, digite apenas seu *nome*:`;
           const retryMsgId = `bot_${Date.now()}_retry`;
-          await sendBotMessage(instance.instance_id, instance.api_token, contactPhone, retryMsg);
+          await sendBotMessage(instance.instance_id, instance.instance_token, contactPhone, retryMsg);
           await supabase.from('wapi_messages').insert({
             conversation_id: conv.id,
             message_id: retryMsgId,
@@ -703,13 +711,14 @@ Se não conseguir classificar com certeza, retorne a opção mais próxima.`;
         }
         content = nameValidation.value!;
         console.log(`[FlowBuilder] ✅ Name validated & normalized: "${content}"`);
-      } else {
-        // Generic free-text validation for all other open-ended fields
+      } else if (!nodeHasOptions) {
+        // Generic free-text validation ONLY for open-ended fields WITHOUT options
+        // Skip this when node has options — the option matching logic below handles validation
         const freeTextValidation = validateFreeText(content);
         if (!freeTextValidation.valid) {
           const retryMsg = freeTextValidation.error || 'Por favor, responda a pergunta anterior 😊';
           const retryMsgId = `bot_${Date.now()}_retry`;
-          await sendBotMessage(instance.instance_id, instance.api_token, contactPhone, retryMsg);
+          await sendBotMessage(instance.instance_id, instance.instance_token, contactPhone, retryMsg);
           await supabase.from('wapi_messages').insert({
             conversation_id: conv.id,
             message_id: retryMsgId,
@@ -723,8 +732,11 @@ Se não conseguir classificar com certeza, retorne a opção mais próxima.`;
           return;
         }
       }
-      collectedData[currentNode.extract_field] = content.trim();
-      console.log(`[FlowBuilder] 📝 Extracted: ${currentNode.extract_field} = "${content.trim()}"`);
+      // For nodes WITH options, the extract_field value will be saved AFTER option matching below
+      if (!nodeHasOptions) {
+        collectedData[currentNode.extract_field] = content.trim();
+        console.log(`[FlowBuilder] 📝 Extracted: ${currentNode.extract_field} = "${content.trim()}"`);
+      }
     }
     
     // Update collected_data
