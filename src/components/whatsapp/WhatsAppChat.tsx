@@ -1875,24 +1875,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   // Emoji reaction handler
   const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
   
-  const handleReaction = async (msg: Message, emoji: string) => {
-    if (!selectedInstance || !selectedConversation || !msg.message_id) return;
-    try {
-      const { error } = await supabase.functions.invoke("wapi-send", {
-        body: {
-          action: "send-reaction",
-          phone: selectedConversation.contact_phone,
-          messageId: msg.message_id,
-          emoji,
-          instanceId: selectedInstance.instance_id,
-          instanceToken: selectedInstance.instance_token,
-        },
-      });
-      if (error) throw error;
-      toast({ title: `Reação ${emoji} enviada` });
-    } catch (err: any) {
-      toast({ title: "Erro ao reagir", description: err.message, variant: "destructive" });
-    }
+  const handleReaction = async (_msg: Message, _emoji: string) => {
+    toast({ title: "Indisponível", description: "Reações com emoji não são suportadas no plano atual da W-API.", variant: "destructive" });
   };
 
   // Pin message handler
