@@ -735,7 +735,7 @@ Podemos continuar de onde paramos?`;
         const DEFAULT_QUESTIONS_MAP: Record<string, string> = {
           nome: 'Para começar, me conta: qual é o seu nome? 👑',
           tipo: `Você já é nosso cliente e tem uma festa agendada, ou gostaria de receber um orçamento? 🎉\n\nResponda com o *número*:\n\n1️⃣ Já sou cliente\n2️⃣ Quero um orçamento\n3️⃣ Trabalhe Conosco`,
-          mes: `Que legal! 🎉 E pra qual mês você tá pensando em fazer essa festa incrível?\n\n📅 Responda com o *número*:\n\n1️⃣ Janeiro\n2️⃣ Fevereiro\n3️⃣ Março\n4️⃣ Abril\n5️⃣ Maio\n6️⃣ Junho\n7️⃣ Julho\n8️⃣ Agosto\n9️⃣ Setembro\n🔟 Outubro\n1️⃣1️⃣ Novembro\n1️⃣2️⃣ Dezembro`,
+          mes: `Que legal! 🎉 E pra qual mês você tá pensando em fazer essa festa incrível?\n\n📅 Responda com o *número*:\n\n2️⃣ Fevereiro\n3️⃣ Março\n4️⃣ Abril\n5️⃣ Maio\n6️⃣ Junho\n7️⃣ Julho\n8️⃣ Agosto\n9️⃣ Setembro\n🔟 Outubro\n1️⃣1️⃣ Novembro\n1️⃣2️⃣ Dezembro`,
           dia: `Maravilha! Tem preferência de dia da semana? 🗓️\n\nResponda com o *número*:\n\n1️⃣ Segunda a Quinta\n2️⃣ Sexta\n3️⃣ Sábado\n4️⃣ Domingo`,
           convidados: `E quantos convidados você pretende chamar pra essa festa mágica? 🎈\n\n👥 Responda com o *número*:\n\n1️⃣ 50 pessoas\n2️⃣ 60 pessoas\n3️⃣ 70 pessoas\n4️⃣ 80 pessoas\n5️⃣ 90 pessoas\n6️⃣ 100 pessoas`,
           welcome: 'Para começar, me conta: qual é o seu nome? 👑',
