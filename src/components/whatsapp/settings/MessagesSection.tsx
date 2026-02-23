@@ -42,6 +42,8 @@ interface MessagesSectionProps {
 
 export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
   const { currentCompanyId } = useCompany();
+  // Any user who can see this section has permission to manage templates
+  const canManage = true;
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -267,7 +269,7 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
               Crie mensagens pré-definidas para agilizar o atendimento
             </CardDescription>
           </div>
-          {isAdmin && (
+          {canManage && (
             <Button onClick={() => handleOpenDialog()} className="w-full sm:w-auto">
               <Plus className="w-4 h-4 mr-2" />
               Novo Template
@@ -284,7 +286,7 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
               <p className="text-sm text-muted-foreground mb-4">
                 Crie templates para enviar mensagens rapidamente.
               </p>
-              {isAdmin && (
+                {canManage && (
                 <div className="flex flex-col sm:flex-row gap-2 justify-center">
                   <Button onClick={handleSeedDefaults} disabled={isSeeding}>
                     {isSeeding ? (
@@ -322,7 +324,7 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
                       {template.template}
                     </p>
                   </div>
-                  {isAdmin && (
+                  {canManage && (
                     <div className="flex items-center gap-2 shrink-0">
                       <Switch
                         checked={template.is_active}
