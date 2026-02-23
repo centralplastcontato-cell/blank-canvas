@@ -1876,8 +1876,25 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   // Emoji reaction handler
   const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
   
-  const handleReaction = async (_msg: Message, _emoji: string) => {
-    toast({ title: "Recurso temporariamente indisponível", description: "Nossa equipe está trabalhando para ativá-lo em breve." });
+  const handleReaction = async (msg: Message, emoji: string) => {
+    if (!selectedInstance || !msg.message_id) return;
+    try {
+      const response = await supabase.functions.invoke("wapi-send", {
+        body: {
+          action: "send-reaction",
+          instanceId: selectedInstance.instance_id,
+          instanceToken: selectedInstance.instance_token,
+          messageId: msg.message_id,
+          emoji,
+        },
+      });
+      if (response.error) throw new Error(response.error.message);
+      if (response.data?.error) {
+        toast({ title: "Erro", description: response.data.error, variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: "Erro ao reagir", description: err.message, variant: "destructive" });
+    }
   };
 
   // Pin message handler
