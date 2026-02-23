@@ -188,12 +188,13 @@ export function SalesMaterialsMenu({
           await new Promise(resolve => setTimeout(resolve, 500));
         }
 
-        // Send all photos in parallel WITHOUT caption (caption was sent as text message)
-        const sendPromises = material.photo_urls.map((photoUrl) => 
-          onSendMedia(photoUrl, "image")
-        );
-        
-        await Promise.all(sendPromises);
+        // Send photos sequentially with delay to avoid API rate limits
+        for (let i = 0; i < material.photo_urls.length; i++) {
+          await onSendMedia(material.photo_urls[i], "image");
+          if (i < material.photo_urls.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 1500));
+          }
+        }
 
         toast({
           title: "Coleção enviada",
