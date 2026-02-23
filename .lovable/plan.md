@@ -1,89 +1,43 @@
 
-# Corrigir Modo de Teste do Bot sendo ignorado no Flow Builder
+# Suportar PDFs universais (sem faixa de convidados) nos Materiais de Venda
 
-## Problema encontrado
+## Contexto
 
-O bug esta no arquivo `supabase/functions/wapi-webhook/index.ts`, na funcao `processBotQualification`.
-
-Quando o Flow Builder esta ativado (`use_flow_builder = true`), o codigo na **linha 1689** delega imediatamente para `processFlowBuilderMessage` **ANTES** de verificar o Modo de Teste (linhas 1695-1700). Isso significa que a verificacao de `test_mode_enabled` e `test_mode_number` e completamente ignorada, e o bot dispara mensagens para TODOS os contatos.
-
-```text
-Fluxo atual (com bug):
-
-  processBotQualification()
-    |
-    +-- Piloto? --> Flow Builder V2
-    |
-    +-- use_flow_builder? --> processFlowBuilderMessage()  <-- PULA O CHECK DE TEST MODE!
-    |
-    +-- Verificar test_mode_enabled / test_mode_number  <-- So chega aqui se use_flow_builder=false
-```
+O Castelo da Diversao usa um PDF por faixa de convidados (50, 60, 70...). Ja o Planeta Divertido tem apenas 3 PDFs que devem ser enviados para TODOS os leads, independentemente da quantidade de convidados. Hoje o campo "Quantidade de Convidados" e obrigatorio para PDFs, impedindo esse modelo.
 
 ## Solucao
 
-Mover a verificacao de Modo de Teste para **antes** da delegacao ao Flow Builder. Assim, quando `test_mode_enabled=true`, o bot so responde ao numero de teste, independentemente de ser Flow Builder ou bot original.
+Adicionar a opcao "Todos (universal)" no seletor de convidados. Quando selecionada, o PDF sera salvo com `guest_count = null` e enviado para qualquer lead.
 
-```text
-Fluxo corrigido:
+## Alteracoes
 
-  processBotQualification()
-    |
-    +-- Piloto? --> Flow Builder V2
-    |
-    +-- Verificar test_mode_enabled / test_mode_number  <-- AGORA VERIFICA PRIMEIRO
-    |   (se test_mode ativo e nao e o numero de teste --> return)
-    |
-    +-- use_flow_builder? --> processFlowBuilderMessage()
-    |
-    +-- Bot original (perguntas sequenciais)
-```
+### 1. Frontend: `src/components/whatsapp/settings/SalesMaterialsSection.tsx`
 
-## Alteracao tecnica
+**a) Adicionar opcao "Todos" no select de convidados**
+- Inserir um `SelectItem` com valor `"all"` antes das opcoes numericas
+- Ajustar o `onValueChange` para setar `guest_count = null` quando `value === "all"`
+- Ajustar o `value` do Select para mostrar `"all"` quando `guest_count === null` e estiver editando
 
-**Arquivo: `supabase/functions/wapi-webhook/index.ts`**
+**b) Remover validacao obrigatoria de guest_count para PDF**
+- A validacao na linha ~400 que impede salvar sem guest_count precisa permitir `null` (universal)
+- A logica sera: se o usuario nao selecionou nada (nem "Todos" nem um numero), ai sim bloquear
 
-Reorganizar o codigo entre as linhas ~1688-1700:
+**c) Ajustar exibicao no card**
+- Quando `guest_count` for `null` em um PDF, mostrar "Todos os pacotes" em vez de "X pessoas"
 
-1. Mover as linhas de verificacao de test mode (1695-1700) para ANTES do bloco `if (settings.use_flow_builder)`
-2. Adicionar um guard: se `test_mode_enabled` esta ativo e o numero NAO e o numero de teste, retornar imediatamente (nao processar)
-3. Tambem verificar: se `bot_enabled` esta desligado E `test_mode_enabled` tambem esta desligado, retornar (nenhum bot ativo)
+### 2. Backend: `supabase/functions/wapi-webhook/index.ts`
 
-O codigo ficara assim:
+**a) Flow Builder (`send_pdf`, linha ~1295)**
+- Apos buscar PDFs ativos, considerar PDFs com `guest_count = null` como universais
+- Se nao encontrar PDF para a faixa especifica, enviar todos os PDFs universais (`guest_count IS NULL`)
+- Se houver PDFs universais, enviar TODOS eles (nao apenas 1)
 
-```typescript
-// ── Test mode guard (applies to ALL bot modes including Flow Builder) ──
-const n = normalizePhone(contactPhone);
-const tn = settings.test_mode_number ? normalizePhone(settings.test_mode_number) : null;
-const isTest = tn && n.includes(tn.replace(/^55/, ''));
-
-// If test mode is on, only allow the test number through
-if (settings.test_mode_enabled && !isTest) {
-  console.log(`[Bot] Test mode ON — phone ${contactPhone} is NOT test number, skipping`);
-  return;
-}
-
-// If neither bot_enabled nor test_mode_enabled, no bot should run
-if (!settings.bot_enabled && !settings.test_mode_enabled) {
-  // Still allow LP leads to be processed below
-  // (the existing LP logic handles this)
-}
-
-// Check if Flow Builder mode is enabled — delegate to flow processor
-if (settings.use_flow_builder) {
-  console.log(`[Bot] Flow Builder mode enabled for instance ${instance.id}, delegating...`);
-  await processFlowBuilderMessage(supabase, instance, conv, content, contactPhone, contactName);
-  return;
-}
-```
-
-## Arquivo a editar
-
-| Arquivo | Alteracao |
-|---|---|
-| `supabase/functions/wapi-webhook/index.ts` | Mover verificacao de test_mode para antes do bloco use_flow_builder (linhas ~1688-1700) |
+**b) Bot original (linha ~2598)**
+- Mesma logica: PDFs com `guest_count = null` sao enviados para qualquer lead
+- Se nao encontrar match por faixa, enviar os universais
 
 ## Resultado esperado
 
-- Com "Modo de Teste" ativado e numero `15974000152` configurado, o bot so respondera a esse numero
-- Todos os outros contatos nao receberao mensagens automaticas do bot
-- Funciona tanto para o bot original quanto para o Flow Builder
+- Planeta Divertido: cadastra 3 PDFs como "Todos (universal)", e os 3 sao enviados para qualquer lead qualificado
+- Castelo da Diversao: continua funcionando igual, com PDFs por faixa de convidados
+- Ambos os modelos coexistem na mesma plataforma
