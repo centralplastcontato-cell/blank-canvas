@@ -1,67 +1,66 @@
 
+# Corrigir envio de colecao de fotos - Planeta Divertido
 
-# Corrigir erro ao enviar coleção "Planeta Divertido"
+## Problema
 
-## Problema identificado
+A colecao e enviada sequencialmente, os logs mostram 10 chamadas `send-image` sem erros, o toast confirma "Colecao enviada", mas apenas 1-2 fotos chegam no WhatsApp do destinatario. O problema esta no backend.
 
-Existem **dois caminhos de envio** de coleções de fotos no sistema:
+## Causa raiz identificada
 
-1. **SalesMaterialsMenu.tsx (frontend)** - Ja corrigido para envio sequencial com delay de 1.5s
-2. **wapi-webhook/index.ts (backend/bot)** - Linha 2564: ainda usa `Promise.all` para enviar todas as fotos em paralelo
+Dois problemas no `wapi-send/index.ts`:
 
-Os logs confirmam que todas as 10 fotos do "Planeta Divertido" sao disparadas no mesmo segundo, sobrecarregando a W-API e causando o erro.
+1. **Sem log de resposta para imagens**: O `send-text` tem `console.log('send-text response:', ...)` mas o `send-image` nao loga a resposta da W-API, impossibilitando detectar falhas silenciosas.
 
-A colecao do Planeta Divertido tem **10 fotos**, o que e muito mais do que outras unidades, explicando por que o erro ocorre so nessa unidade.
+2. **Conversao para base64 desnecessaria**: O edge function baixa cada imagem e converte para base64 antes de enviar. Com 10 fotos grandes, isso sobrecarrega a memoria e pode gerar payloads que excedem o limite da W-API no plano LITE. A W-API aceita a requisicao (retorna 200) mas nao entrega a mensagem.
 
 ## Solucao
 
-### 1. Corrigir envio paralelo no webhook (wapi-webhook/index.ts)
+### 1. Enviar imagem por URL diretamente (wapi-send/index.ts)
 
-Substituir o `Promise.all` (linha 2563-2567) por envio sequencial com delay:
+A W-API suporta receber a imagem como URL ao inves de base64. Isso elimina o download + conversao no edge function:
 
 ```typescript
-// ANTES (paralelo - causa erro):
-await Promise.all(photos.map(async (photoUrl: string) => {
-  const msgId = await sendImage(photoUrl, '');
-  if (msgId) await saveMessage(msgId, 'image', '📷', photoUrl);
-}));
-
-// DEPOIS (sequencial com delay):
-for (let i = 0; i < photos.length; i++) {
-  const msgId = await sendImage(photos[i], '');
-  if (msgId) await saveMessage(msgId, 'image', '📷', photos[i]);
-  if (i < photos.length - 1) {
-    await new Promise(r => setTimeout(r, 2000));
+case 'send-image': {
+  const { base64, caption, mediaUrl } = body;
+  
+  let imagePayload: Record<string, string> = { phone, caption: caption || '' };
+  
+  // Prefer sending by URL (avoids base64 size limits)
+  if (mediaUrl && !base64) {
+    imagePayload.image = mediaUrl; // W-API accepts URL directly
+  } else {
+    // Fallback to base64 for direct uploads
+    let imageBase64 = base64;
+    // ... existing base64 conversion logic ...
+    imagePayload.image = imageBase64;
   }
+  
+  const res = await wapiRequest(...);
+  console.log('send-image response:', JSON.stringify(res));
+  // ... rest unchanged
 }
 ```
 
-### 2. Aumentar delay no SalesMaterialsMenu (seguranca extra)
+### 2. Adicionar log de resposta (wapi-send/index.ts)
 
-Aumentar o delay de 1.5s para 2s no frontend e adicionar tratamento de erro por imagem individual para que uma falha nao interrompa o envio das demais:
+Adicionar `console.log('send-image response:', JSON.stringify(res))` apos a chamada da W-API para diagnosticar falhas silenciosas.
+
+### 3. Aumentar delay para colecoes grandes (SalesMaterialsMenu.tsx)
+
+Para colecoes com mais de 5 fotos, usar delay de 3 segundos ao inves de 2:
 
 ```typescript
-for (let i = 0; i < material.photo_urls.length; i++) {
-  try {
-    await onSendMedia(material.photo_urls[i], "image");
-  } catch (err) {
-    console.error(`[SalesMaterialsMenu] Erro na foto ${i+1}:`, err);
-    // Continua enviando as proximas mesmo se uma falhar
-  }
-  if (i < material.photo_urls.length - 1) {
-    await new Promise(resolve => setTimeout(resolve, 2000));
-  }
-}
+const delay = material.photo_urls.length > 5 ? 3000 : 2000;
+await new Promise(resolve => setTimeout(resolve, delay));
 ```
 
-### 3. Deploy da edge function
+### 4. Deploy
 
-Redeployar `wapi-webhook` apos a correcao.
+Redeployar `wapi-send` apos as correcoes.
 
 ## Arquivos a editar
 
 | Arquivo | Alteracao |
 |---|---|
-| `supabase/functions/wapi-webhook/index.ts` | Trocar `Promise.all` por loop sequencial (linha ~2564) |
-| `src/components/whatsapp/SalesMaterialsMenu.tsx` | Aumentar delay para 2s e adicionar try/catch por imagem |
-
+| `supabase/functions/wapi-send/index.ts` | Enviar imagem por URL + adicionar log de resposta |
+| `src/components/whatsapp/SalesMaterialsMenu.tsx` | Delay dinamico para colecoes grandes |
