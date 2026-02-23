@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
+import { useCompany } from "@/contexts/CompanyContext";
 import { insertWithCompany } from "@/lib/supabase-helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,8 @@ const MAX_COLLECTIONS_PER_UNIT = 5;
 
 export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSectionProps) {
   const { unitNames: UNITS } = useCompanyUnits();
+  const { currentRole } = useCompany();
+  const canManage = isAdmin || currentRole === 'admin' || currentRole === 'owner';
   const [materials, setMaterials] = useState<SalesMaterial[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -634,7 +637,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                 <CardDescription className="text-xs">PDFs, coleções, fotos e vídeos</CardDescription>
               </div>
             </div>
-            {isAdmin && (
+            {canManage && (
               <Button size="sm" onClick={() => handleOpenDialog()}>
                 <Plus className="w-4 h-4" />
               </Button>
@@ -689,7 +692,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                       : "Nenhum material"
                     }
                   </p>
-                  {isAdmin && (
+                  {canManage && (
                     <Button size="sm" variant="outline" onClick={() => handleOpenDialog()}>
                       <Plus className="w-4 h-4 mr-1" />
                       {selectedType === "photo_collection" ? "Nova Coleção" : "Adicionar"}
@@ -717,7 +720,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                           </p>
                         )}
                       </div>
-                      {isAdmin && (
+                      {canManage && (
                         <div className="flex items-center gap-1 shrink-0">
                           <Switch
                             checked={material.is_active}
