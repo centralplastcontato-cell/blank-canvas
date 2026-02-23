@@ -1890,9 +1890,17 @@ async function recoverySendMaterials(
       const introMsgId = await sendText(pdfIntroText);
       if (introMsgId) await saveMessage(introMsgId, 'text', pdfIntroText);
       await new Promise(r => setTimeout(r, messageDelay / 4));
-      const fileName = matchingPdf.name?.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, ' ').trim() + '.pdf' || `Pacote ${guestCount} pessoas.pdf`;
-      const msgId = await sendDocument(matchingPdf.file_url, fileName);
-      if (msgId) await saveMessage(msgId, 'document', fileName, matchingPdf.file_url);
+      const fileExt = matchingPdf.file_url.split('?')[0].split('.').pop()?.toLowerCase() || '';
+      const isPkgImage = ['jpg', 'jpeg', 'png', 'webp'].includes(fileExt);
+      if (isPkgImage) {
+        const caption = matchingPdf.name || 'Pacote';
+        const msgId = await sendImage(matchingPdf.file_url, caption);
+        if (msgId) await saveMessage(msgId, 'image', caption, matchingPdf.file_url);
+      } else {
+        const fileName = matchingPdf.name?.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, ' ').trim() + '.pdf' || `Pacote ${guestCount} pessoas.pdf`;
+        const msgId = await sendDocument(matchingPdf.file_url, fileName);
+        if (msgId) await saveMessage(msgId, 'document', fileName, matchingPdf.file_url);
+      }
       await new Promise(r => setTimeout(r, messageDelay));
     }
   }

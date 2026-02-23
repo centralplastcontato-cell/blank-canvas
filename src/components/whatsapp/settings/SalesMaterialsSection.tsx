@@ -100,7 +100,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
 
     // Validate file type
     const allowedTypes: Record<string, string[]> = {
-      pdf_package: ["application/pdf"],
+      pdf_package: ["application/pdf", "image/jpeg", "image/png", "image/webp"],
       photo: ["image/jpeg", "image/png", "image/webp"],
       video: ["video/mp4", "video/quicktime", "video/webm"],
     };
@@ -108,7 +108,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
     if (!allowedTypes[formData.type].includes(file.type)) {
       toast({
         title: "Tipo de arquivo inválido",
-        description: `Apenas ${formData.type === "pdf_package" ? "PDFs" : formData.type === "photo" ? "imagens" : "vídeos"} são permitidos.`,
+        description: `Apenas ${formData.type === "pdf_package" ? "PDFs ou imagens" : formData.type === "photo" ? "imagens" : "vídeos"} são permitidos.`,
         variant: "destructive",
       });
       return;
@@ -758,7 +758,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
           {/* Summary */}
           <div className="mt-4 pt-3 border-t">
             <p className="text-xs text-muted-foreground">
-              {materials.filter(m => m.unit === selectedUnit && m.type === "pdf_package" && m.is_active).length} PDFs · {" "}
+              {materials.filter(m => m.unit === selectedUnit && m.type === "pdf_package" && m.is_active).length} pacotes · {" "}
               {materials.filter(m => m.unit === selectedUnit && m.type === "photo_collection" && m.is_active).length} coleções · {" "}
               {materials.filter(m => m.unit === selectedUnit && m.type === "photo" && m.is_active).length} fotos · {" "}
               {materials.filter(m => m.unit === selectedUnit && m.type === "video" && m.is_active).length} vídeos
@@ -822,7 +822,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                     <SelectItem value="pdf_package">
                       <div className="flex items-center gap-2">
                         <FileText className="w-4 h-4 text-red-500" />
-                        PDF de Pacote
+                        Pacote de Preços
                       </div>
                     </SelectItem>
                     <SelectItem value="photo_collection" disabled={collectionsCount >= MAX_COLLECTIONS_PER_UNIT}>
@@ -1033,7 +1033,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                       {isUploading ? "Enviando..." : "Clique para fazer upload"}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {formData.type === "pdf_package" && "Apenas PDF (máx. 50MB)"}
+                      {formData.type === "pdf_package" && "PDF ou Imagem (máx. 50MB)"}
                       {formData.type === "photo" && "JPG, PNG ou WebP (máx. 50MB)"}
                       {formData.type === "video" && "MP4, MOV ou WebM (máx. 50MB)"}
                     </p>
@@ -1045,7 +1045,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                   className="hidden"
                   accept={
                     formData.type === "pdf_package" 
-                      ? ".pdf,application/pdf,application/octet-stream,*/*" 
+                      ? ".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp,application/octet-stream,*/*" 
                       : formData.type === "photo" 
                         ? ".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
                         : ".mp4,.mov,.webm,video/mp4,video/quicktime,video/webm"

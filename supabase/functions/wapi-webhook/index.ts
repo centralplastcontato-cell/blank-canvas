@@ -1337,9 +1337,17 @@ async function advanceFlowFromNode(
               await new Promise(r => setTimeout(r, 1000));
               
               for (const pdf of pdfsToSend) {
-                const fileName = (pdf.name?.replace(/[^a-zA-Z0-9\s\-]/g, '').trim() || 'Pacote') + '.pdf';
-                const msgId = await sendBotDocument(instance.instance_id, instance.instance_token, conv.remote_jid, pdf.file_url, fileName);
-                if (msgId) await saveMediaMsg(msgId, 'document', fileName, pdf.file_url);
+                const fileExt = pdf.file_url.split('?')[0].split('.').pop()?.toLowerCase() || '';
+                const isPkgImage = ['jpg', 'jpeg', 'png', 'webp'].includes(fileExt);
+                if (isPkgImage) {
+                  const caption = pdf.name || 'Pacote';
+                  const msgId = await sendBotImage(instance.instance_id, instance.instance_token, conv.remote_jid, pdf.file_url, caption);
+                  if (msgId) await saveMediaMsg(msgId, 'image', caption, pdf.file_url);
+                } else {
+                  const fileName = (pdf.name?.replace(/[^a-zA-Z0-9\s\-]/g, '').trim() || 'Pacote') + '.pdf';
+                  const msgId = await sendBotDocument(instance.instance_id, instance.instance_token, conv.remote_jid, pdf.file_url, fileName);
+                  if (msgId) await saveMediaMsg(msgId, 'document', fileName, pdf.file_url);
+                }
                 if (pdfsToSend.length > 1) await new Promise(r => setTimeout(r, 1500));
               }
             } else {
@@ -2645,11 +2653,19 @@ async function sendQualificationMaterials(
       
       await new Promise(r => setTimeout(r, messageDelay / 4));
       
-      // Send all PDFs
+      // Send all PDFs (or images if file is an image)
       for (const pdf of pdfsToSend) {
-        const fileName = pdf.name?.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, ' ').trim() + '.pdf' || 'Pacote.pdf';
-        const msgId = await sendDocument(pdf.file_url, fileName);
-        if (msgId) await saveMessage(msgId, 'document', fileName, pdf.file_url);
+        const fileExt = pdf.file_url.split('?')[0].split('.').pop()?.toLowerCase() || '';
+        const isPkgImage = ['jpg', 'jpeg', 'png', 'webp'].includes(fileExt);
+        if (isPkgImage) {
+          const caption = pdf.name || 'Pacote';
+          const msgId = await sendImage(pdf.file_url, caption);
+          if (msgId) await saveMessage(msgId, 'image', caption, pdf.file_url);
+        } else {
+          const fileName = pdf.name?.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, ' ').trim() + '.pdf' || 'Pacote.pdf';
+          const msgId = await sendDocument(pdf.file_url, fileName);
+          if (msgId) await saveMessage(msgId, 'document', fileName, pdf.file_url);
+        }
         if (pdfsToSend.length > 1) await new Promise(r => setTimeout(r, 2000));
       }
       

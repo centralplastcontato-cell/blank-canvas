@@ -61,6 +61,11 @@ interface SalesMaterialsMenuProps {
 
 type CategoryType = "main" | "pdf_package" | "photo" | "video" | "photo_collection";
 
+function isImageUrl(url: string): boolean {
+  const ext = url.split('?')[0].split('.').pop()?.toLowerCase();
+  return ['jpg', 'jpeg', 'png', 'webp'].includes(ext || '');
+}
+
 export function SalesMaterialsMenu({ 
   unit, 
   lead, 
@@ -211,12 +216,14 @@ export function SalesMaterialsMenu({
         return;
       }
 
-      let mediaType: "document" | "image" | "video" = "document";
+      // Detect if pdf_package file is actually an image
+      const isPackageImage = material.type === "pdf_package" && isImageUrl(material.file_url);
+      let mediaType: "document" | "image" | "video" = isPackageImage ? "image" : "document";
       let caption = material.name;
       // Use material name as the file name for documents (adds .pdf extension)
       let fileName: string | undefined = undefined;
 
-      if (material.type === "photo") {
+      if (material.type === "photo" || isPackageImage) {
         mediaType = "image";
       } else if (material.type === "video") {
         mediaType = "video";
@@ -232,7 +239,7 @@ export function SalesMaterialsMenu({
           // Get regular video caption from database or use fallback
           caption = getCaption("video");
         }
-      } else if (material.type === "pdf_package") {
+      } else if (material.type === "pdf_package" && !isPackageImage) {
         // Create a descriptive file name for PDFs
         fileName = `${material.name.replace(/[^a-zA-Z0-9\s]/g, '').trim()}.pdf`;
         if (material.guest_count) {
