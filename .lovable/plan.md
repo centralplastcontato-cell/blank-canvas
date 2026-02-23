@@ -1,60 +1,31 @@
 
-
-# Reativar reacoes com emoji no chat do WhatsApp
+# Permitir administradores de empresa gerenciar materiais de venda
 
 ## Problema
 
-As reacoes com emoji foram desabilitadas no frontend, exibindo a mensagem "Recurso temporariamente indisponivel" ao clicar em um emoji. O suporte da W-API confirmou que o plano Lite suporta essa funcionalidade, entao o bloqueio no frontend precisa ser removido.
+O botao de adicionar/editar/excluir materiais de venda so aparece para administradores da plataforma (`isAdmin` vindo de `useUserRole`). Administradores e donos de empresa (`admin`/`owner` na tabela `user_companies`) nao conseguem ver essas opcoes, mesmo tendo acesso a pagina de Configuracoes.
 
-## Situacao atual
+## Causa raiz
 
-- **Frontend** (`WhatsAppChat.tsx`, linha ~1879): A funcao `handleReaction` foi substituida por um simples toast que bloqueia a acao
-- **Backend** (`wapi-send/index.ts`, linhas 1259-1322): A logica de `send-reaction` ja esta implementada e funcional, tentando 4 combinacoes de endpoint/metodo (POST/PUT com send-reaction/sendReaction)
+O componente `SalesMaterialsSection` usa a prop `isAdmin` (que e `true` apenas para admins da plataforma) para controlar a exibicao dos botoes de gerenciamento. Precisamos tambem considerar o papel do usuario na empresa.
 
 ## Solucao
 
-Restaurar a funcao `handleReaction` para efetivamente chamar a Edge Function `wapi-send` com a action `send-reaction`.
+Adicionar verificacao do papel do usuario na empresa dentro do `SalesMaterialsSection`. Se o usuario for `admin` ou `owner` da empresa atual, ele tambem pode gerenciar materiais.
 
-### Alteracao unica em `src/components/whatsapp/WhatsAppChat.tsx`
+### Alteracoes
 
-Substituir o handler atual (linha ~1879):
+**Arquivo: `src/components/whatsapp/settings/SalesMaterialsSection.tsx`**
 
-```typescript
-// DE:
-const handleReaction = async (_msg: Message, _emoji: string) => {
-  toast({ title: "Recurso temporariamente indisponível", ... });
-};
+1. Importar `useCompany` do contexto
+2. Obter `currentRole` do contexto da empresa
+3. Criar variavel `canManage` que e `true` se `isAdmin` (plataforma) OU se `currentRole` e `admin`/`owner`
+4. Substituir todas as verificacoes `{isAdmin && (...)}` por `{canManage && (...)}`
 
-// PARA:
-const handleReaction = async (msg: Message, emoji: string) => {
-  if (!selectedInstance || !msg.message_id) return;
-  try {
-    const response = await supabase.functions.invoke("wapi-send", {
-      body: {
-        action: "send-reaction",
-        instanceId: selectedInstance.instance_id,
-        instanceToken: selectedInstance.instance_token,
-        messageId: msg.message_id,
-        emoji,
-      },
-    });
-    if (response.error) throw new Error(response.error.message);
-    if (response.data?.error) {
-      toast({ title: "Erro", description: response.data.error, variant: "destructive" });
-    }
-  } catch (err: any) {
-    toast({ title: "Erro ao reagir", description: err.message, variant: "destructive" });
-  }
-};
-```
+Pontos afetados (4 ocorrencias no arquivo):
+- Botao "+" no header do card (linha ~637)
+- Botao "Adicionar" no estado vazio (linha ~692)
+- Switch de ativar/desativar material (nos cards de material)
+- Botoes de editar/excluir material (nos cards de material)
 
-## Arquivo a editar
-
-| Arquivo | Alteracao |
-|---|---|
-| `src/components/whatsapp/WhatsAppChat.tsx` | Restaurar `handleReaction` para chamar a API (linhas 1879-1881) |
-
-## Resultado esperado
-
-Ao clicar em um emoji no menu de contexto, o sistema chamara a Edge Function que ja existe no backend, enviando a reacao via W-API. Se houver algum erro real da API, ele sera exibido ao usuario em vez da mensagem generica de "indisponivel".
-
+Nenhum outro arquivo precisa ser alterado. A prop `isAdmin` continua existindo para manter compatibilidade, mas agora o acesso e expandido para incluir admins da empresa.
