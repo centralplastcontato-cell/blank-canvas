@@ -1,91 +1,81 @@
 
 
-# Corrigir: Bot envia apenas 1 foto ao inves de todas
+# Corrigir: Variavel `{{empresa}}` nao substituida no bot
 
-## Problema
+## Problema identificado
 
-A funcao `sendImage` no `wapi-webhook/index.ts` (linhas 2506-2535) converte cada imagem para base64 em memoria antes de enviar para a W-API. Com 10 fotos do Planeta Divertido, a Edge Function estoura o limite de memoria/tempo e trava apos enviar apenas a primeira foto.
+A mensagem de boas-vindas do Planeta Divertido mostra literalmente `{{empresa}}` ao inves do nome do buffet. Sao **3 bugs combinados**:
 
-Evidencia no banco de dados: apenas 1 mensagem do tipo "image" foi registrada (as 22:59:45), enquanto a colecao tem 10 fotos. Nenhum video ou PDF foi enviado depois, confirmando que a funcao travou.
+1. **A welcome message NAO passa pela funcao de substituicao de variaveis** - na linha 1951, o texto e concatenado diretamente sem processamento:
+   ```
+   msg = settings.welcome_message + '\n\n' + firstQ.question;
+   // Nenhuma chamada a replaceVariables()
+   ```
 
-## Causa raiz
+2. **A funcao `replaceVariables` so reconhece chaves simples `{key}`** - mas os templates usam chaves duplas `{{empresa}}`. O regex atual (`\{key\}`) nao casa com `{{empresa}}`.
 
-```text
-// Codigo atual - linha 2506-2535
-const sendImage = async (url: string, caption: string) => {
-  const imgRes = await fetch(url);        // Download inteiro na memoria
-  const buf = await imgRes.arrayBuffer(); // Buffer completo
-  // ... converte byte a byte para base64 ...
-  const base64 = `data:${ct};base64,${btoa(bin)}`;  // Duplica na memoria
-  // envia base64 para W-API
-};
-```
+3. **O nome da empresa nunca e injetado no mapa de variaveis** - a variavel `updated` contem apenas dados coletados do lead (`nome`, `mes`, `dia`, `convidados`), mas nao inclui `empresa` ou `buffet`.
 
-Cada foto ocupa ~2-5MB como base64. Com 10 fotos processadas sequencialmente, a Edge Function ultrapassa o limite de ~150MB de memoria ou o timeout de 150 segundos.
+Nota: o Flow Builder ja tem esse problema resolvido (linhas 1039-1079) com sua propria funcao `replaceVars` que busca o nome da empresa e suporta `{{chaves duplas}}`. A correcao consiste em alinhar o bot principal com essa mesma logica.
 
 ## Solucao
 
-Alterar `sendImage` para enviar a URL diretamente para a W-API (assim como a funcao `wapi-send` ja faz com sucesso na linha 299-301). A W-API aceita tanto base64 quanto URL no campo `image`.
+### Arquivo: `supabase/functions/wapi-webhook/index.ts`
 
-### Alteracao no arquivo `supabase/functions/wapi-webhook/index.ts`
+**1. Atualizar `replaceVariables` (linha 366) para suportar chaves duplas:**
 
-**Substituir a funcao `sendImage` (linhas 2506-2535):**
+Adicionar um segundo passo de substituicao para `{{key}}` alem de `{key}`:
 
 ```text
-// ANTES: download + base64 (pesado, causa OOM)
-const sendImage = async (url: string, caption: string) => {
-  const imgRes = await fetch(url);
-  const buf = await imgRes.arrayBuffer();
-  // ... conversao base64 ...
-};
-
-// DEPOIS: envia URL diretamente (leve, sem download)
-const sendImage = async (url: string, caption: string) => {
-  try {
-    const res = await fetch(
-      `${WAPI_BASE_URL}/message/send-image?instanceId=${instance.instance_id}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${instance.instance_token}`,
-        },
-        body: JSON.stringify({ phone, image: url, caption }),
-      }
-    );
-    if (!res.ok) return null;
-    const r = await res.json();
-    return r.messageId || null;
-  } catch (e) {
-    console.error('[Bot Materials] Error sending image:', e);
-    return null;
+function replaceVariables(text: string, data: Record<string, string>): string {
+  let result = text;
+  for (const [key, value] of Object.entries(data)) {
+    // Primeiro tenta {{key}} (chaves duplas), depois {key} (chave simples)
+    result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'gi'), value);
+    result = result.replace(new RegExp(`\\{${key}\\}`, 'gi'), value);
   }
-};
-```
-
-### Aumento do delay entre fotos
-
-Tambem aumentar o delay entre fotos de 2s para 3s para respeitar os limites do plano W-API Lite (conforme padrao ja usado no frontend):
-
-```text
-// Linha 2623: mudar de 2000 para 3000
-if (i < photos.length - 1) {
-  await new Promise(r => setTimeout(r, 3000));
+  return result;
 }
 ```
 
-## Resultado esperado
+**2. Buscar o nome da empresa e injetar no mapa de variaveis (antes da linha 1948):**
 
-- Todas as 10 fotos da colecao serao enviadas com sucesso
-- O video de apresentacao sera enviado apos as fotos
-- Os PDFs (IMAGEM 1, IMAGEM 2, TABELA DE PRECOS) serao enviados apos o video
-- Consumo de memoria reduzido drasticamente (de ~50MB por foto para ~0)
-- Tempo de execucao reduzido (sem download de arquivos)
+Buscar o nome da empresa via `companies` (mesmo padrao do FlowBuilder) e adicionar ao objeto `updated`:
+
+```text
+// Buscar nome da empresa para variaveis de template
+let companyName = '';
+try {
+  const { data: companyData } = await supabase
+    .from('companies')
+    .select('name')
+    .eq('id', instance.company_id)
+    .single();
+  companyName = companyData?.name || '';
+} catch (_) { /* ignore */ }
+
+// Injetar variaveis de empresa no mapa
+updated.empresa = companyName;
+updated.buffet = companyName;
+updated['nome-empresa'] = companyName;
+updated['nome_empresa'] = companyName;
+```
+
+**3. Processar a welcome message com replaceVariables (linha 1951):**
+
+```text
+// ANTES:
+msg = settings.welcome_message + '\n\n' + (firstQ?.question || DEFAULT_QUESTIONS.nome.question);
+
+// DEPOIS:
+msg = replaceVariables(settings.welcome_message, updated) + '\n\n' + (firstQ?.question || DEFAULT_QUESTIONS.nome.question);
+```
 
 ## Impacto
 
-- Corrige o Planeta Divertido e qualquer outra instancia com colecoes de fotos
-- Nao afeta o Castelo da Diversao (usa o mesmo codigo)
+- Corrige `{{empresa}}` na mensagem de boas-vindas de TODAS as instancias
+- Tambem corrige `{empresa}`, `{{buffet}}`, `{{nome-empresa}}`, `{{nome_empresa}}` em qualquer template do bot (completion, transfer, work_here)
+- Retrocompativel: templates com chaves simples `{nome}` continuam funcionando
 - Nenhuma alteracao no banco de dados necessaria
-- Apenas 1 arquivo alterado + deploy da edge function
+- 1 arquivo alterado + deploy da edge function
 
