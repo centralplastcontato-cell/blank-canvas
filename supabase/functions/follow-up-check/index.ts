@@ -36,6 +36,23 @@ interface FollowUpSettings {
   bot_inactive_followup_delay_minutes: number;
   bot_inactive_followup_message: string | null;
   instance_id: string;
+  test_mode_enabled?: boolean;
+  test_mode_number?: string | null;
+}
+
+// Helper: checks if a conversation phone should be skipped due to test mode
+function shouldSkipTestMode(
+  testModeEnabled: boolean | undefined,
+  testModeNumber: string | null | undefined,
+  remoteJid: string
+): boolean {
+  if (!testModeEnabled || !testModeNumber) return false;
+  const testNum = testModeNumber.replace(/\D/g, '');
+  const convPhone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, '');
+  // Compare last digits to handle country code variations
+  const shortTest = testNum.replace(/^55/, '');
+  if (convPhone.includes(shortTest)) return false; // this IS the test number, don't skip
+  return true; // skip — not the test number
 }
 
 interface LeadForFollowUp {
@@ -66,7 +83,7 @@ Deno.serve(async (req) => {
     // Fetch all bot settings with any follow-up enabled
     const { data: allSettings, error: settingsError } = await supabase
       .from("wapi_bot_settings")
-      .select("instance_id, follow_up_enabled, follow_up_delay_hours, follow_up_message, follow_up_2_enabled, follow_up_2_delay_hours, follow_up_2_message, next_step_reminder_enabled, next_step_reminder_delay_minutes, next_step_reminder_message, bot_inactive_followup_enabled, bot_inactive_followup_delay_minutes, bot_inactive_followup_message")
+      .select("instance_id, test_mode_enabled, test_mode_number, follow_up_enabled, follow_up_delay_hours, follow_up_message, follow_up_2_enabled, follow_up_2_delay_hours, follow_up_2_message, next_step_reminder_enabled, next_step_reminder_delay_minutes, next_step_reminder_message, bot_inactive_followup_enabled, bot_inactive_followup_delay_minutes, bot_inactive_followup_message")
       .or("follow_up_enabled.eq.true,follow_up_2_enabled.eq.true,next_step_reminder_enabled.eq.true,bot_inactive_followup_enabled.eq.true");
 
     if (settingsError) {
@@ -232,6 +249,12 @@ async function processNextStepReminder({
 
   for (const conv of stuckConversations) {
     try {
+      // Test mode guard: skip if not the test number
+      if (shouldSkipTestMode(settings.test_mode_enabled, settings.test_mode_number, conv.remote_jid)) {
+        console.log(`[follow-up-check] 🧪 Test mode active — skipping next-step reminder for ${conv.remote_jid}`);
+        continue;
+      }
+
       const botData = (conv.bot_data || {}) as Record<string, string>;
       const firstName = resolveFirstName(botData as Record<string, unknown>, conv.contact_name);
       
@@ -444,6 +467,20 @@ async function processFollowUp({
 
   for (const lead of leads) {
     try {
+      // Test mode guard: find conversation phone and check
+      if (settings.test_mode_enabled && settings.test_mode_number) {
+        const { data: testConv } = await supabase
+          .from("wapi_conversations")
+          .select("remote_jid")
+          .eq("lead_id", lead.id)
+          .eq("instance_id", settings.instance_id)
+          .single();
+        if (testConv && shouldSkipTestMode(settings.test_mode_enabled, settings.test_mode_number, testConv.remote_jid)) {
+          console.log(`[follow-up-check] 🧪 Test mode active — skipping follow-up #${followUpNumber} for ${lead.name}`);
+          continue;
+        }
+      }
+
       console.log(`[follow-up-check] Processing lead: ${lead.name} (${lead.id}) for follow-up #${followUpNumber}`);
 
       // Find the conversation for this lead that belongs to this instance
@@ -710,6 +747,12 @@ Podemos continuar de onde paramos?`;
 
   for (const conv of stuckConversations) {
     try {
+      // Test mode guard: skip if not the test number
+      if (shouldSkipTestMode(settings.test_mode_enabled, settings.test_mode_number, conv.remote_jid)) {
+        console.log(`[follow-up-check] 🧪 Test mode active — skipping bot-inactive follow-up for ${conv.remote_jid}`);
+        continue;
+      }
+
       const botData = (conv.bot_data || {}) as Record<string, unknown>;
       
       // Skip if already reminded (prevent duplicate reminders)
@@ -924,6 +967,19 @@ async function processFlowTimerTimeouts({
         continue;
       }
 
+      // Test mode guard for flow timer timeouts
+      {
+        const { data: tmSettings } = await supabase
+          .from('wapi_bot_settings')
+          .select('test_mode_enabled, test_mode_number')
+          .eq('instance_id', conv.instance_id)
+          .single();
+        if (shouldSkipTestMode(tmSettings?.test_mode_enabled, tmSettings?.test_mode_number, conv.remote_jid)) {
+          console.log(`[follow-up-check] 🧪 Test mode active — skipping flow timer timeout for ${conv.remote_jid}`);
+          continue;
+        }
+      }
+
       const { data: instance } = await supabase
         .from('wapi_instances')
         .select('id, instance_id, instance_token, unit, company_id')
@@ -1048,7 +1104,7 @@ async function processStaleRemindedAlerts({
   // Find conversations stuck at proximo_passo_reminded for 2h+ with no reply
   const { data: staleConvs, error } = await supabase
     .from("wapi_conversations")
-    .select("id, company_id, lead_id, contact_name, contact_phone, last_message_at")
+    .select("id, company_id, lead_id, contact_name, contact_phone, last_message_at, instance_id, remote_jid")
     .eq("bot_step", "proximo_passo_reminded")
     .eq("last_message_from_me", true)
     .not("remote_jid", "like", "%@g.us%")
@@ -1079,6 +1135,19 @@ async function processStaleRemindedAlerts({
   console.log(`[follow-up-check] Creating alerts for ${newStale.length} new stale leads`);
 
   for (const conv of newStale) {
+    // Test mode guard
+    {
+      const { data: tmSettings } = await supabase
+        .from('wapi_bot_settings')
+        .select('test_mode_enabled, test_mode_number')
+        .eq('instance_id', conv.instance_id)
+        .single();
+      if (shouldSkipTestMode(tmSettings?.test_mode_enabled, tmSettings?.test_mode_number, conv.remote_jid)) {
+        console.log(`[follow-up-check] 🧪 Test mode active — skipping stale alert for ${conv.remote_jid}`);
+        continue;
+      }
+    }
+
     const leadName = conv.contact_name || "Lead";
 
     // Record in lead_history to prevent duplicate alerts
@@ -1305,6 +1374,19 @@ async function processStuckBotRecovery({
 
   for (const conv of stuckConversations) {
     try {
+      // Test mode guard: fetch settings for this instance and skip if not test number
+      {
+        const { data: tmSettings } = await supabase
+          .from('wapi_bot_settings')
+          .select('test_mode_enabled, test_mode_number')
+          .eq('instance_id', conv.instance_id)
+          .single();
+        if (shouldSkipTestMode(tmSettings?.test_mode_enabled, tmSettings?.test_mode_number, conv.remote_jid)) {
+          console.log(`[follow-up-check] 🧪 Test mode active — skipping stuck bot recovery for ${conv.remote_jid}`);
+          continue;
+        }
+      }
+
       const botData = (conv.bot_data || {}) as Record<string, string>;
 
       // Skip if already recovered (prevent loops)
