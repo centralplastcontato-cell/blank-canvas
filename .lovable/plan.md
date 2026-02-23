@@ -1,38 +1,67 @@
 
 
-## Corrigir templates ausentes para Buffet Planeta Divertido
+# Corrigir erro ao enviar coleção "Planeta Divertido"
 
-### Problema identificado
-A usuario "Fernanda" do Buffet Planeta Divertido tem o papel de **member** (nao admin/owner). Isso causa dois problemas:
+## Problema identificado
 
-1. O **auto-seed** (inserir templates padrao automaticamente na primeira visita) falha silenciosamente porque a politica RLS da tabela `message_templates` exige role `admin` ou `owner` para INSERT
-2. O **botao "Carregar Templates Padrao"** fica oculto porque o componente verifica `isAdmin`, que e `false` para members
+Existem **dois caminhos de envio** de coleções de fotos no sistema:
 
-### Solucao
+1. **SalesMaterialsMenu.tsx (frontend)** - Ja corrigido para envio sequencial com delay de 1.5s
+2. **wapi-webhook/index.ts (backend/bot)** - Linha 2564: ainda usa `Promise.all` para enviar todas as fotos em paralelo
 
-**Passo 1 - Inserir templates padrao via migracao SQL**
-Criar uma migracao que insere os 5 templates padrao para o company_id do Planeta Divertido (`6bc204ae-1311-4c67-bb6b-9ab55dae9d11`), garantindo que eles aparecem imediatamente.
+Os logs confirmam que todas as 10 fotos do "Planeta Divertido" sao disparadas no mesmo segundo, sobrecarregando a W-API e causando o erro.
 
-**Passo 2 - Corrigir o componente MessagesSection para members com permissao**
-Atualizar a logica do componente para que usuarios com permissao de configuracao (nao apenas admins) possam:
-- Ver o botao "Carregar Templates Padrao" no estado vazio
-- Criar e editar templates
+A colecao do Planeta Divertido tem **10 fotos**, o que e muito mais do que outras unidades, explicando por que o erro ocorre so nessa unidade.
 
-Isso sera feito mudando as verificacoes de `isAdmin` para incluir tambem o parametro `isAdmin` OR quando o usuario tem acesso a pagina de configuracoes (se ele esta vendo a tela, ele tem permissao).
+## Solucao
 
-### Detalhes tecnicos
+### 1. Corrigir envio paralelo no webhook (wapi-webhook/index.ts)
 
-**Migracao SQL:**
-```sql
-INSERT INTO message_templates (name, template, is_active, sort_order, company_id)
-VALUES
-  ('Primeiro contato', 'Oi {{nome}}! Aqui e do {{empresa}}! Vi seu pedido para festa em {{mes}} com {{convidados}}. Vou te enviar as opcoes e valores!!', true, 0, '6bc204ae-1311-4c67-bb6b-9ab55dae9d11'),
-  ('Follow-up', 'Oi {{nome}}! Tudo bem? Passando pra ver se voce conseguiu avaliar o orcamento. Posso te ajudar a garantir sua data?', true, 1, '6bc204ae-1311-4c67-bb6b-9ab55dae9d11'),
-  ('Envio de Orcamento', 'Oi {{nome}}! Segue seu orcamento com a promocao da campanha {{campanha}}.', true, 2, '6bc204ae-1311-4c67-bb6b-9ab55dae9d11'),
-  ('Convite para visita', 'Gostaria de vir conhecer pessoalmente?', true, 3, '6bc204ae-1311-4c67-bb6b-9ab55dae9d11'),
-  ('Convite para visita (completo)', 'Oi {{nome}}! Que legal que voce esta interessado(a) no {{empresa}}! Gostaria de agendar uma visita para conhecer nosso espaco? Temos horarios disponiveis e seria um prazer receber voce!', true, 4, '6bc204ae-1311-4c67-bb6b-9ab55dae9d11');
+Substituir o `Promise.all` (linha 2563-2567) por envio sequencial com delay:
+
+```typescript
+// ANTES (paralelo - causa erro):
+await Promise.all(photos.map(async (photoUrl: string) => {
+  const msgId = await sendImage(photoUrl, '');
+  if (msgId) await saveMessage(msgId, 'image', '📷', photoUrl);
+}));
+
+// DEPOIS (sequencial com delay):
+for (let i = 0; i < photos.length; i++) {
+  const msgId = await sendImage(photos[i], '');
+  if (msgId) await saveMessage(msgId, 'image', '📷', photos[i]);
+  if (i < photos.length - 1) {
+    await new Promise(r => setTimeout(r, 2000));
+  }
+}
 ```
 
-**`src/components/whatsapp/settings/MessagesSection.tsx`:**
-- Trocar as verificacoes `{isAdmin && (...)}` nos botoes de acao (Novo Template, Carregar Padrao, Editar, Excluir) para permitir tambem usuarios que tem acesso a pagina -- ou seja, se o usuario esta vendo esta secao, ele tem permissao para editar. Simplificar usando uma variavel `canManage = true` (qualquer usuario que acessa a tela de configuracoes ja passou pela verificacao de permissao).
+### 2. Aumentar delay no SalesMaterialsMenu (seguranca extra)
+
+Aumentar o delay de 1.5s para 2s no frontend e adicionar tratamento de erro por imagem individual para que uma falha nao interrompa o envio das demais:
+
+```typescript
+for (let i = 0; i < material.photo_urls.length; i++) {
+  try {
+    await onSendMedia(material.photo_urls[i], "image");
+  } catch (err) {
+    console.error(`[SalesMaterialsMenu] Erro na foto ${i+1}:`, err);
+    // Continua enviando as proximas mesmo se uma falhar
+  }
+  if (i < material.photo_urls.length - 1) {
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+}
+```
+
+### 3. Deploy da edge function
+
+Redeployar `wapi-webhook` apos a correcao.
+
+## Arquivos a editar
+
+| Arquivo | Alteracao |
+|---|---|
+| `supabase/functions/wapi-webhook/index.ts` | Trocar `Promise.all` por loop sequencial (linha ~2564) |
+| `src/components/whatsapp/SalesMaterialsMenu.tsx` | Aumentar delay para 2s e adicionar try/catch por imagem |
 
