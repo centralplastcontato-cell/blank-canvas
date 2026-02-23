@@ -59,7 +59,7 @@ const DEFAULT_GUEST_OPTIONS = [
 const TIPO_OPTIONS = [
   { num: 1, value: 'Já sou cliente' },
   { num: 2, value: 'Quero um orçamento' },
-  { num: 3, value: 'Trabalhe no Castelo' },
+  { num: 3, value: 'Trabalhe Conosco' },
 ];
 
 // Default próximo passo options
@@ -2029,12 +2029,12 @@ async function processBotQualification(
           return; // Exit early - don't continue with normal flow
         }
         // Check if wants to work here (option 3)
-        const wantsWork = validation.value === 'Trabalhe no Castelo' || content.trim() === '3';
+        const wantsWork = validation.value === 'Trabalhe Conosco' || content.trim() === '3';
         
         if (wantsWork) {
           console.log(`[Bot] User ${contactPhone} wants to work here. Creating RH lead.`);
           
-          const defaultWorkResponse = `Que legal que você quer fazer parte do nosso time! 🏰✨\n\nEnvie seu currículo aqui nesta conversa e nossa equipe de RH vai analisar!\n\nObrigado pelo interesse! 👑`;
+          const defaultWorkResponse = `Que legal que você quer fazer parte do nosso time! 💼✨\n\nEnvie seu currículo aqui nesta conversa e nossa equipe de RH vai analisar!\n\nObrigado pelo interesse! 😊`;
           const workResponseTemplate = settings.work_here_response || defaultWorkResponse;
           msg = replaceVariables(workResponseTemplate, updated);
           nextStep = 'work_interest';
@@ -2092,8 +2092,8 @@ async function processBotQualification(
               user_id: userId,
               company_id: instance.company_id,
               type: 'work_interest',
-              title: '👷 Interesse em trabalhar no Castelo',
-              message: `${leadName} quer trabalhar no Castelo! Enviou interesse via WhatsApp.`,
+              title: '👷 Interesse em trabalhar na empresa',
+              message: `${leadName} quer trabalhar na empresa! Enviou interesse via WhatsApp.`,
               data: {
                 conversation_id: conv.id,
                 contact_name: leadName,
@@ -2185,7 +2185,7 @@ async function processBotQualification(
         let notificationPriority = false;
         
         // Default responses
-        const defaultVisitResponse = `Ótima escolha! 🏰✨\n\nNossa equipe vai entrar em contato para agendar sua visita ao Castelo da Diversão!\n\nAguarde um momento que já vamos te chamar! 👑`;
+        const defaultVisitResponse = `Ótima escolha! 🎉✨\n\nNossa equipe vai entrar em contato para agendar sua visita ao buffet!\n\nAguarde um momento que já vamos te chamar! 😊`;
         const defaultQuestionsResponse = `Claro! 💬\n\nPode mandar sua dúvida aqui que nossa equipe vai te responder rapidinho!\n\nEstamos à disposição! 👑`;
         const defaultAnalyzeResponse = `Sem problemas! 📋\n\nVou enviar nossos materiais para você analisar com calma. Quando estiver pronto, é só chamar aqui!\n\nEstamos à disposição! 👑✨`;
         
@@ -2198,7 +2198,7 @@ async function processBotQualification(
           responseMsg = settings.next_step_visit_response || defaultVisitResponse;
           notificationType = 'visit_scheduled';
           notificationTitle = '🗓️ VISITA AGENDADA - Ação urgente!';
-          notificationMessage = `${leadName} quer agendar uma visita no Castelo! Entre em contato o mais rápido possível.`;
+          notificationMessage = `${leadName} quer agendar uma visita! Entre em contato o mais rápido possível.`;
           notificationPriority = true;
           console.log(`[Bot] User ${contactPhone} wants to schedule a visit - updating status to em_contato`);
         } else if (choice === 'Tirar dúvidas' || content.trim() === '2') {

@@ -903,17 +903,17 @@ export function AutomationsSection() {
                       <span className="w-6 h-6 rounded-full bg-teal-500 text-white flex items-center justify-center text-xs">
                         👷
                       </span>
-                      Mensagem de RH (Trabalhe no Castelo)
+                      Mensagem de RH (Trabalhe Conosco)
                     </Label>
                     <p className="text-xs text-muted-foreground mb-2">
-                      Mensagem enviada quando o lead escolhe a opção "Trabalhe no Castelo". O bot para e o lead é enviado para a aba RH do CRM. Use {`{nome}`} para incluir o nome.
+                      Mensagem enviada quando o lead escolhe a opção "Trabalhe Conosco". O bot para e o lead é enviado para a aba RH do CRM. Use {`{nome}`} para incluir o nome.
                     </p>
                     <Textarea
-                      value={botSettings?.work_here_response || "Que legal que você quer fazer parte do nosso time! 🏰✨\n\nEnvie seu currículo aqui nesta conversa e nossa equipe de RH vai analisar!\n\nObrigado pelo interesse! 👑"}
+                      value={botSettings?.work_here_response || "Que legal que você quer fazer parte do nosso time! 💼✨\n\nEnvie seu currículo aqui nesta conversa e nossa equipe de RH vai analisar!\n\nObrigado pelo interesse! 😊"}
                       onChange={(e) => setBotSettings(prev => prev ? { ...prev, work_here_response: e.target.value } : null)}
                       onBlur={() => botSettings && updateBotSettings({ work_here_response: botSettings.work_here_response })}
                       className="min-h-[100px] text-base"
-                      placeholder="Que legal que você quer fazer parte do nosso time! 🏰✨..."
+                      placeholder="Que legal que você quer fazer parte do nosso time! 💼✨..."
                     />
                   </div>
 
