@@ -190,9 +190,13 @@ export function SalesMaterialsMenu({
 
         // Send photos sequentially with delay to avoid API rate limits
         for (let i = 0; i < material.photo_urls.length; i++) {
-          await onSendMedia(material.photo_urls[i], "image");
+          try {
+            await onSendMedia(material.photo_urls[i], "image");
+          } catch (err) {
+            console.error(`[SalesMaterialsMenu] Erro na foto ${i+1}:`, err);
+          }
           if (i < material.photo_urls.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            await new Promise(resolve => setTimeout(resolve, 2000));
           }
         }
 

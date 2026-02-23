@@ -2560,11 +2560,14 @@ async function sendQualificationMaterials(
       
       await new Promise(r => setTimeout(r, messageDelay / 2)); // Half delay for intro before photos
       
-      // Send photos in parallel
-      await Promise.all(photos.map(async (photoUrl: string) => {
-        const msgId = await sendImage(photoUrl, '');
-        if (msgId) await saveMessage(msgId, 'image', '📷', photoUrl);
-      }));
+      // Send photos sequentially with delay to avoid W-API rate limits
+      for (let i = 0; i < photos.length; i++) {
+        const msgId = await sendImage(photos[i], '');
+        if (msgId) await saveMessage(msgId, 'image', '📷', photos[i]);
+        if (i < photos.length - 1) {
+          await new Promise(r => setTimeout(r, 2000));
+        }
+      }
       
       console.log(`[Bot Materials] Photos sent`);
       await new Promise(r => setTimeout(r, messageDelay));
