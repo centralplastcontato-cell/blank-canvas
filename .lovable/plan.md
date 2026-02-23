@@ -1,37 +1,61 @@
 
 
-# Conectar dominio aventurakids.online ao projeto
+# Permitir imagens como "Pacote" (alem de PDF)
 
-## O que precisa ser feito
+## Problema
 
-### 1. Registrar o dominio no codigo de roteamento
+O Planeta Divertido envia seus precos de pacotes como **imagens** (JPG/PNG), nao como PDF. Porem, o tipo "PDF de Pacote" so aceita arquivos PDF -- tanto no upload (validacao no front) quanto no envio pelo bot (sempre envia como `document`).
 
-**Arquivo: `src/hooks/useDomainDetection.ts`**
-- Adicionar `"aventurakids.online": "aventurakids.online"` ao objeto `KNOWN_BUFFET_DOMAINS`
+## Solucao
 
-Isso garante que quando alguem acessar `aventurakids.online`, o sistema carregue a `DynamicLandingPage` com os dados da empresa Aventura Kids (puxados do Supabase via `custom_domain` ou `domain_canonical`).
+Transformar o tipo "PDF de Pacote" em um tipo mais generico que aceita tanto PDF quanto imagem. O sistema detectara automaticamente o formato do arquivo e enviara como `document` (PDF) ou `image` (foto), mantendo toda a logica de faixa de convidados e materiais universais.
 
-### 2. Configurar o dominio customizado no Lovable
+## Alteracoes
 
-Apos a alteracao no codigo, voce precisara:
+### 1. Frontend -- Upload e validacao (`SalesMaterialsSection.tsx`)
 
-1. Ir em **Project Settings > Domains** no Lovable
-2. Adicionar `aventurakids.online` e `www.aventurakids.online`
-3. Configurar os registros DNS no provedor do dominio:
-   - **A Record** `@` apontando para `185.158.133.1`
-   - **A Record** `www` apontando para `185.158.133.1`
-   - **TXT Record** `_lovable` com o valor fornecido pelo Lovable
-4. **Importante**: Se estiver usando Cloudflare, desativar o Proxy (deixar "DNS only" / nuvem cinza) para que o SSL seja emitido corretamente
+- Renomear o label de "PDF de Pacote" para **"Pacote"** (ou "Pacote de Precos")
+- Ampliar a validacao de tipo no `handleFileUpload` para aceitar `image/jpeg`, `image/png`, `image/webp` alem de `application/pdf` quando o tipo for `pdf_package`
+- Atualizar o texto de ajuda: de "Apenas PDF (max. 50MB)" para "PDF ou Imagem (max. 50MB)"
+- Atualizar o `accept` do input de arquivo para incluir formatos de imagem
 
-### 3. Atualizar a empresa no Supabase
+### 2. Menu de envio manual (`SalesMaterialsMenu.tsx`)
 
-No Hub Empresas, editar a Aventura Kids e preencher:
-- **custom_domain**: `aventurakids.online`
-- **domain_canonical**: `aventurakids.online`
+- Detectar se o `file_url` do material e uma imagem (pela extensao: `.jpg`, `.jpeg`, `.png`, `.webp`) ou PDF
+- Se for imagem, enviar como `image` em vez de `document`
+- Ajustar o caption e fileName de acordo
 
-Isso conecta o dominio aos dados da empresa para que a LP dinamica carregue o conteudo correto.
+### 3. Bot -- Flow Builder (`wapi-webhook/index.ts`)
 
-## Resumo tecnico
+- No bloco `send_pdf` do Flow Builder (linhas ~1335-1344): detectar se o arquivo e imagem pela extensao da URL
+- Se for imagem, usar `sendBotImage` em vez de `sendBotDocument`
 
-Apenas 1 linha de codigo precisa ser adicionada. O restante e configuracao de DNS e dados no Supabase.
+### 4. Bot -- Legacy (`wapi-webhook/index.ts`)
+
+- Na funcao `sendQualificationMaterials` (linhas ~2648-2654): mesma logica -- detectar extensao e usar `sendImage` ou `sendDocument` conforme o caso
+
+### 5. Bot -- Follow-up (`follow-up-check/index.ts`)
+
+- Aplicar a mesma deteccao de tipo de arquivo na funcao equivalente de envio de materiais
+
+## Detalhes tecnicos
+
+**Funcao auxiliar de deteccao** (usada em todos os pontos):
+```text
+function isImageUrl(url: string): boolean {
+  const ext = url.split('?')[0].split('.').pop()?.toLowerCase();
+  return ['jpg', 'jpeg', 'png', 'webp'].includes(ext || '');
+}
+```
+
+**Fluxo de envio atualizado:**
+```text
+Material tipo "pdf_package"
+  |
+  +-- file_url termina em .jpg/.png/.webp?
+  |     SIM --> envia como IMAGE (com caption)
+  |     NAO --> envia como DOCUMENT (como PDF, com fileName .pdf)
+```
+
+**Impacto no banco de dados:** Nenhum. O tipo continua sendo `pdf_package` no banco. Apenas a logica de upload e envio se torna mais flexivel.
 
