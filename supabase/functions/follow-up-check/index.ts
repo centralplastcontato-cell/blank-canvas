@@ -93,6 +93,11 @@ Deno.serve(async (req) => {
     // Process stale proximo_passo_reminded alerts (global, runs once)
     await processStaleRemindedAlerts({ supabase });
 
+    // Process stuck bot recovery (global, before per-instance follow-ups)
+    const stuckBotResult = await processStuckBotRecovery({ supabase });
+    totalSuccessCount += stuckBotResult.successCount;
+    allErrors.push(...stuckBotResult.errors);
+
     // Process each instance with follow-up enabled
     for (const settings of allSettings) {
       // Process bot inactive follow-up (leads who stopped responding during bot flow)
@@ -1106,4 +1111,583 @@ async function processStaleRemindedAlerts({
 
     console.log(`[follow-up-check] ⏰ Stale alert created for ${leadName} (lead ${conv.lead_id})`);
   }
+}
+
+// ============= STUCK BOT RECOVERY (reprocesses conversations where webhook timed out) =============
+
+// --- Validation functions (copied from wapi-webhook since edge functions can't share code) ---
+
+const RECOVERY_MONTH_OPTIONS = [
+  { num: 1, value: 'Fevereiro' }, { num: 2, value: 'Março' }, { num: 3, value: 'Abril' },
+  { num: 4, value: 'Maio' }, { num: 5, value: 'Junho' }, { num: 6, value: 'Julho' },
+  { num: 7, value: 'Agosto' }, { num: 8, value: 'Setembro' }, { num: 9, value: 'Outubro' },
+  { num: 10, value: 'Novembro' }, { num: 11, value: 'Dezembro' },
+];
+
+const RECOVERY_DAY_OPTIONS = [
+  { num: 1, value: 'Segunda a Quinta' }, { num: 2, value: 'Sexta' },
+  { num: 3, value: 'Sábado' }, { num: 4, value: 'Domingo' },
+];
+
+const RECOVERY_DEFAULT_GUEST_OPTIONS = [
+  { num: 1, value: '50 pessoas' }, { num: 2, value: '60 pessoas' },
+  { num: 3, value: '70 pessoas' }, { num: 4, value: '80 pessoas' },
+  { num: 5, value: '90 pessoas' }, { num: 6, value: '100 pessoas' },
+];
+
+const RECOVERY_TIPO_OPTIONS = [
+  { num: 1, value: 'Já sou cliente' }, { num: 2, value: 'Quero um orçamento' },
+  { num: 3, value: 'Trabalhe Conosco' },
+];
+
+const RECOVERY_PROXIMO_PASSO_OPTIONS = [
+  { num: 1, value: 'Agendar visita' }, { num: 2, value: 'Tirar dúvidas' },
+  { num: 3, value: 'Analisar com calma' },
+];
+
+function recoveryBuildMenuText(options: { num: number; value: string }[]): string {
+  return options.map(opt => `*${opt.num}* - ${opt.value}`).join('\n');
+}
+
+function recoveryExtractOptionsFromQuestion(questionText: string): { num: number; value: string }[] | null {
+  const lines = questionText.split('\n');
+  const options: { num: number; value: string }[] = [];
+  for (const line of lines) {
+    const match = line.match(/^\*?(\d+)\*?\s*[-\.]\s*(.+)$/);
+    if (match) {
+      options.push({ num: parseInt(match[1]), value: match[2].trim() });
+    }
+  }
+  return options.length > 0 ? options : null;
+}
+
+function recoveryValidateName(input: string): { valid: boolean; value?: string; error?: string } {
+  let name = input.trim();
+  const namePatterns = [
+    /^(?:(?:o\s+)?meu\s+nome\s+(?:é|e)\s+)(.+)/i,
+    /^(?:me\s+chamo\s+)(.+)/i,
+    /^(?:(?:eu\s+)?sou\s+(?:o|a)\s+)(.+)/i,
+    /^(?:pode\s+me\s+chamar\s+(?:de\s+)?)(.+)/i,
+    /^(?:é\s+)(.+)/i,
+    /^(?:nome:?\s+)(.+)/i,
+  ];
+  for (const pattern of namePatterns) {
+    const match = name.match(pattern);
+    if (match && match[1]) { name = match[1].trim(); break; }
+  }
+  if (name.length < 2) return { valid: false, error: 'Hmm, não consegui entender seu nome 🤔\n\nPor favor, digite seu nome:' };
+  if (!/^[\p{L}\s'-]+$/u.test(name)) return { valid: false, error: 'Por favor, digite apenas seu nome (sem números ou símbolos):' };
+  const words = name.split(/\s+/).filter(w => w.length > 0);
+  if (words.length > 5) return { valid: false, error: 'Hmm, parece uma frase 🤔\n\nPor favor, digite apenas seu *nome*:' };
+  const nonNameWords = ['que','tem','como','quero','queria','gostaria','preciso','vi','vou','estou','tenho','pode','posso','sobre','instagram','facebook','whatsapp','site','promoção','promocao','preço','preco','valor','orçamento','orcamento','festa','evento','buffet','aniversário','aniversario','obrigado','obrigada','por favor','bom dia','boa tarde','boa noite','olá','ola','oi','hey','hello'];
+  const lowerName = name.toLowerCase();
+  const hasNonNameWord = nonNameWords.some(w => new RegExp(`\\b${w}\\b`, 'i').test(lowerName));
+  if (hasNonNameWord) return { valid: false, error: 'Hmm, não consegui entender seu nome 🤔\n\nPor favor, digite apenas seu *nome*:' };
+  name = name.replace(/\b\w/g, (c) => c.toUpperCase());
+  return { valid: true, value: name };
+}
+
+function recoveryValidateMenuChoice(input: string, options: { num: number; value: string }[]): { valid: boolean; value?: string; error?: string } {
+  const normalized = input.trim();
+  const numMatch = normalized.match(/^(\d+)/);
+  if (numMatch) {
+    const num = parseInt(numMatch[1]);
+    const option = options.find(opt => opt.num === num);
+    if (option) return { valid: true, value: option.value };
+  }
+  const lower = normalized.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').trim();
+  if (lower.length >= 3) {
+    for (const opt of options) {
+      const optLower = opt.value.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').trim();
+      if (optLower === lower || optLower.includes(lower) || lower.includes(optLower)) {
+        return { valid: true, value: opt.value };
+      }
+    }
+    const keywordMap: Record<string, string[]> = {
+      'cliente': ['cliente', 'ja sou', 'já sou', 'sou cliente'],
+      'orçamento': ['orcamento', 'orçamento', 'quero um', 'preço', 'preco', 'valor', 'quanto custa'],
+      'trabalhe': ['trabalhe', 'trabalhar', 'emprego', 'vaga', 'curriculo', 'currículo'],
+      'visita': ['visita', 'agendar', 'conhecer'],
+      'dúvidas': ['duvida', 'dúvida', 'duvidas', 'dúvidas', 'pergunta', 'saber mais'],
+      'analisar': ['analisar', 'pensar', 'calma', 'depois', 'mais tarde'],
+    };
+    for (const opt of options) {
+      const optLower = opt.value.toLowerCase();
+      for (const [keyword, variations] of Object.entries(keywordMap)) {
+        if (optLower.includes(keyword)) {
+          for (const variation of variations) {
+            if (lower.includes(variation)) return { valid: true, value: opt.value };
+          }
+        }
+      }
+    }
+  }
+  const validNumbers = options.map(opt => opt.num).join(', ');
+  return { valid: false, error: `Por favor, responda apenas com o *número* da opção desejada (${validNumbers}) 👇\n\n${recoveryBuildMenuText(options)}` };
+}
+
+function recoveryValidateAnswer(step: string, input: string, questionText?: string): { valid: boolean; value?: string; error?: string } {
+  switch (step) {
+    case 'nome': return recoveryValidateName(input);
+    case 'tipo': {
+      const co = questionText ? recoveryExtractOptionsFromQuestion(questionText) : null;
+      return recoveryValidateMenuChoice(input, co || RECOVERY_TIPO_OPTIONS);
+    }
+    case 'mes': {
+      const co = questionText ? recoveryExtractOptionsFromQuestion(questionText) : null;
+      return recoveryValidateMenuChoice(input, co || RECOVERY_MONTH_OPTIONS);
+    }
+    case 'dia': {
+      const co = questionText ? recoveryExtractOptionsFromQuestion(questionText) : null;
+      return recoveryValidateMenuChoice(input, co || RECOVERY_DAY_OPTIONS);
+    }
+    case 'convidados': {
+      const co = questionText ? recoveryExtractOptionsFromQuestion(questionText) : null;
+      return recoveryValidateMenuChoice(input, co || RECOVERY_DEFAULT_GUEST_OPTIONS);
+    }
+    case 'proximo_passo': case 'proximo_passo_reminded': {
+      const co = questionText ? recoveryExtractOptionsFromQuestion(questionText) : null;
+      return recoveryValidateMenuChoice(input, co || RECOVERY_PROXIMO_PASSO_OPTIONS);
+    }
+    default: return { valid: true, value: input.trim() };
+  }
+}
+
+function recoveryReplaceVariables(text: string, data: Record<string, string>): string {
+  let result = text;
+  for (const [key, value] of Object.entries(data)) {
+    result = result.replace(new RegExp(`\\{${key}\\}`, 'gi'), value);
+  }
+  return result;
+}
+
+// --- Main recovery function ---
+
+async function processStuckBotRecovery({
+  supabase,
+}: { supabase: ReturnType<typeof createClient> }): Promise<{ successCount: number; errors: string[] }> {
+  const errors: string[] = [];
+  let successCount = 0;
+
+  const now = new Date();
+  const twoMinutesAgo = new Date(now.getTime() - 2 * 60 * 1000).toISOString();
+  const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000).toISOString();
+
+  console.log(`[follow-up-check] 🔄 Processing stuck bot recovery...`);
+
+  // Find conversations where lead responded but bot never advanced
+  const activeBotSteps = ['nome', 'tipo', 'mes', 'dia', 'convidados', 'welcome'];
+  const { data: stuckConversations, error: convError } = await supabase
+    .from('wapi_conversations')
+    .select('id, remote_jid, instance_id, lead_id, bot_data, bot_step, contact_name')
+    .eq('bot_enabled', true)
+    .eq('last_message_from_me', false)  // Lead responded
+    .in('bot_step', activeBotSteps)
+    .lt('last_message_at', twoMinutesAgo)   // At least 2 min ago
+    .gt('last_message_at', thirtyMinutesAgo); // Within 30 min window
+
+  if (convError) {
+    console.error(`[follow-up-check] Error fetching stuck bot conversations:`, convError);
+    return { successCount: 0, errors: [String(convError)] };
+  }
+
+  if (!stuckConversations || stuckConversations.length === 0) {
+    console.log(`[follow-up-check] 🔄 No stuck bot conversations found`);
+    return { successCount: 0, errors: [] };
+  }
+
+  console.log(`[follow-up-check] 🔄 Found ${stuckConversations.length} stuck bot conversations to recover`);
+
+  for (const conv of stuckConversations) {
+    try {
+      const botData = (conv.bot_data || {}) as Record<string, string>;
+
+      // Skip if already recovered (prevent loops)
+      if ((botData as Record<string, unknown>)._recovery_attempted) {
+        console.log(`[follow-up-check] 🔄 Skipping conv ${conv.id} - already recovered`);
+        continue;
+      }
+
+      // Get last message from lead
+      const { data: lastMsg } = await supabase
+        .from('wapi_messages')
+        .select('content, timestamp')
+        .eq('conversation_id', conv.id)
+        .eq('from_me', false)
+        .order('timestamp', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!lastMsg?.content) {
+        console.log(`[follow-up-check] 🔄 No lead message found for conv ${conv.id}`);
+        continue;
+      }
+
+      const content = lastMsg.content.trim();
+      console.log(`[follow-up-check] 🔄 Recovering conv ${conv.id}, step: ${conv.bot_step}, answer: "${content.substring(0, 50)}"`);
+
+      // Get instance info
+      const { data: instance } = await supabase
+        .from('wapi_instances')
+        .select('id, instance_id, instance_token, unit, company_id')
+        .eq('id', conv.instance_id)
+        .single();
+
+      if (!instance) {
+        console.log(`[follow-up-check] 🔄 Instance not found for conv ${conv.id}`);
+        continue;
+      }
+
+      // Get bot questions for this instance
+      const { data: botQuestionsData } = await supabase
+        .from('wapi_bot_questions')
+        .select('step, question_text, confirmation_text, sort_order')
+        .eq('instance_id', instance.id)
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+
+      // Build questions chain
+      const questions: Record<string, { question: string; confirmation: string | null; next: string }> = {};
+      if (botQuestionsData && botQuestionsData.length > 0) {
+        for (let i = 0; i < botQuestionsData.length; i++) {
+          const q = botQuestionsData[i];
+          const nextStep = i < botQuestionsData.length - 1 ? botQuestionsData[i + 1].step : 'complete';
+          questions[q.step] = { question: q.question_text, confirmation: q.confirmation_text || null, next: nextStep };
+        }
+      } else {
+        // Default questions
+        questions['nome'] = { question: 'Para começar, me conta: qual é o seu nome? 👑', confirmation: 'Muito prazer, {nome}! 👑✨', next: 'tipo' };
+        questions['tipo'] = { question: `Você já é nosso cliente e tem uma festa agendada, ou gostaria de receber um orçamento? 🎉\n\nResponda com o *número*:\n\n${recoveryBuildMenuText(RECOVERY_TIPO_OPTIONS)}`, confirmation: null, next: 'mes' };
+        questions['mes'] = { question: `Que legal! 🎉 E pra qual mês você tá pensando em fazer essa festa incrível?\n\n📅 Responda com o *número*:\n\n${recoveryBuildMenuText(RECOVERY_MONTH_OPTIONS)}`, confirmation: '{mes}, ótima escolha! 🎊', next: 'dia' };
+        questions['dia'] = { question: `Maravilha! Tem preferência de dia da semana? 🗓️\n\nResponda com o *número*:\n\n${recoveryBuildMenuText(RECOVERY_DAY_OPTIONS)}`, confirmation: 'Anotado!', next: 'convidados' };
+        questions['convidados'] = { question: `E quantos convidados você pretende chamar pra essa festa mágica? 🎈\n\n👥 Responda com o *número*:\n\n${recoveryBuildMenuText(RECOVERY_DEFAULT_GUEST_OPTIONS)}`, confirmation: null, next: 'complete' };
+      }
+
+      const step = conv.bot_step || 'welcome';
+      const updated = { ...botData };
+      delete (updated as Record<string, unknown>)._inactive_reminded;
+
+      // Get bot settings for messages
+      const { data: settings } = await supabase
+        .from('wapi_bot_settings')
+        .select('*')
+        .eq('instance_id', instance.id)
+        .single();
+
+      // Handle welcome step - the lead's first message, need to send welcome + first question
+      if (step === 'welcome') {
+        const questionSteps = Object.keys(questions);
+        const firstStep = questionSteps[0] || 'nome';
+        const firstQ = questions[firstStep];
+        const welcomeMsg = (settings?.welcome_message || 'Olá! 👋') + '\n\n' + (firstQ?.question || 'Para começar, me conta: qual é o seu nome? 👑');
+
+        const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
+        const res = await fetch(`https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
+          body: JSON.stringify({ phone, message: welcomeMsg, delayTyping: 1 }),
+        });
+
+        let msgId: string | null = null;
+        if (res.ok) {
+          const r = await res.json();
+          msgId = r.messageId || r.data?.messageId || null;
+        }
+
+        if (msgId) {
+          await supabase.from('wapi_messages').insert({
+            conversation_id: conv.id, message_id: msgId, from_me: true,
+            message_type: 'text', content: welcomeMsg, status: 'sent',
+            timestamp: new Date().toISOString(), company_id: instance.company_id,
+            metadata: { source: 'stuck_bot_recovery' },
+          });
+        }
+
+        const recoveryData = { ...updated, _recovery_attempted: true };
+        await supabase.from('wapi_conversations').update({
+          bot_step: firstStep, bot_data: recoveryData, bot_enabled: true,
+          last_message_at: new Date().toISOString(),
+          last_message_content: welcomeMsg.substring(0, 100),
+          last_message_from_me: true,
+        }).eq('id', conv.id);
+
+        console.log(`[follow-up-check] 🔄 Recovered welcome step for conv ${conv.id}`);
+        successCount++;
+        continue;
+      }
+
+      // For active qualification steps, validate the answer
+      const currentQuestionText = questions[step]?.question;
+      const validation = recoveryValidateAnswer(step, content, currentQuestionText);
+
+      if (!validation.valid) {
+        // Invalid answer - re-send the question with error
+        const errorMsg = validation.error || 'Não entendi sua resposta. Por favor, tente novamente.';
+        const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
+        
+        const res = await fetch(`https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
+          body: JSON.stringify({ phone, message: errorMsg, delayTyping: 1 }),
+        });
+
+        let msgId: string | null = null;
+        if (res.ok) { const r = await res.json(); msgId = r.messageId || r.data?.messageId || null; }
+        
+        if (msgId) {
+          await supabase.from('wapi_messages').insert({
+            conversation_id: conv.id, message_id: msgId, from_me: true,
+            message_type: 'text', content: errorMsg, status: 'sent',
+            timestamp: new Date().toISOString(), company_id: instance.company_id,
+            metadata: { source: 'stuck_bot_recovery' },
+          });
+        }
+
+        const recoveryData = { ...updated, _recovery_attempted: true };
+        await supabase.from('wapi_conversations').update({
+          bot_step: step, bot_data: recoveryData, bot_enabled: true,
+          last_message_at: new Date().toISOString(),
+          last_message_content: errorMsg.substring(0, 100),
+          last_message_from_me: true,
+        }).eq('id', conv.id);
+
+        console.log(`[follow-up-check] 🔄 Invalid answer for conv ${conv.id}, re-sent question`);
+        successCount++;
+        continue;
+      }
+
+      // Valid answer - save and advance
+      updated[step] = validation.value || content;
+
+      // Special handling for tipo step
+      if (step === 'tipo') {
+        const isAlreadyClient = validation.value === 'Já sou cliente' || content.trim() === '1';
+        const wantsWork = validation.value === 'Trabalhe Conosco' || content.trim() === '3';
+
+        if (isAlreadyClient) {
+          const defaultTransfer = `Entendido, {nome}! 🏰\n\nVou transferir sua conversa para nossa equipe comercial.\n\nAguarde um momento! 👑`;
+          const transferMsg = recoveryReplaceVariables(settings?.transfer_message || defaultTransfer, updated);
+          const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
+
+          const res = await fetch(`https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
+            body: JSON.stringify({ phone, message: transferMsg, delayTyping: 1 }),
+          });
+          let msgId: string | null = null;
+          if (res.ok) { const r = await res.json(); msgId = r.messageId || r.data?.messageId || null; }
+          if (msgId) {
+            await supabase.from('wapi_messages').insert({
+              conversation_id: conv.id, message_id: msgId, from_me: true,
+              message_type: 'text', content: transferMsg, status: 'sent',
+              timestamp: new Date().toISOString(), company_id: instance.company_id,
+              metadata: { source: 'stuck_bot_recovery' },
+            });
+          }
+          await supabase.from('wapi_conversations').update({
+            bot_step: 'transferred', bot_data: updated, bot_enabled: false,
+            last_message_at: new Date().toISOString(),
+            last_message_content: transferMsg.substring(0, 100),
+            last_message_from_me: true,
+          }).eq('id', conv.id);
+
+          console.log(`[follow-up-check] 🔄 Recovered conv ${conv.id} - client transfer`);
+          successCount++;
+          continue;
+        }
+
+        if (wantsWork) {
+          const defaultWork = `Que legal que você quer fazer parte do nosso time! 💼✨\n\nEnvie seu currículo aqui nesta conversa!\n\nObrigado pelo interesse! 😊`;
+          const workMsg = recoveryReplaceVariables(settings?.work_here_response || defaultWork, updated);
+          const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
+
+          const res = await fetch(`https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
+            body: JSON.stringify({ phone, message: workMsg, delayTyping: 1 }),
+          });
+          let msgId: string | null = null;
+          if (res.ok) { const r = await res.json(); msgId = r.messageId || r.data?.messageId || null; }
+          if (msgId) {
+            await supabase.from('wapi_messages').insert({
+              conversation_id: conv.id, message_id: msgId, from_me: true,
+              message_type: 'text', content: workMsg, status: 'sent',
+              timestamp: new Date().toISOString(), company_id: instance.company_id,
+              metadata: { source: 'stuck_bot_recovery' },
+            });
+          }
+
+          // Create RH lead
+          const leadName = updated.nome || conv.contact_name || conv.remote_jid;
+          const n = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, '');
+          const { data: newLead } = await supabase.from('campaign_leads').insert({
+            name: leadName, whatsapp: n, unit: 'Trabalhe Conosco',
+            campaign_id: 'whatsapp-bot-rh', campaign_name: 'WhatsApp (Bot) - RH',
+            status: 'trabalhe_conosco', company_id: instance.company_id,
+          }).select('id').single();
+
+          if (newLead) {
+            await supabase.from('wapi_conversations').update({ lead_id: newLead.id }).eq('id', conv.id);
+          }
+
+          await supabase.from('wapi_conversations').update({
+            bot_step: 'work_interest', bot_data: updated, bot_enabled: false,
+            last_message_at: new Date().toISOString(),
+            last_message_content: workMsg.substring(0, 100),
+            last_message_from_me: true,
+          }).eq('id', conv.id);
+
+          console.log(`[follow-up-check] 🔄 Recovered conv ${conv.id} - work interest`);
+          successCount++;
+          continue;
+        }
+        // Option 2 (quote) - continue normal flow below
+      }
+
+      // Update contact_name when bot collects the lead's real name
+      if (step === 'nome' && validation.value) {
+        await supabase.from('wapi_conversations').update({ contact_name: validation.value }).eq('id', conv.id);
+      }
+
+      const currentQ = questions[step];
+      const nextStepKey = currentQ?.next || 'complete';
+
+      if (nextStepKey === 'complete') {
+        // Qualification complete - create/update lead + send completion message
+        const defaultCompletion = `Perfeito, {nome}! 🏰✨\n\nAnotei tudo aqui:\n\n📅 Mês: {mes}\n🗓️ Dia: {dia}\n👥 Convidados: {convidados}`;
+        const completionMsg = recoveryReplaceVariables(settings?.completion_message || defaultCompletion, updated);
+        const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
+        const n = phone.replace(/\D/g, '');
+
+        // Send completion message
+        const res = await fetch(`https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
+          body: JSON.stringify({ phone, message: completionMsg, delayTyping: 1 }),
+        });
+        let msgId: string | null = null;
+        if (res.ok) { const r = await res.json(); msgId = r.messageId || r.data?.messageId || null; }
+        if (msgId) {
+          await supabase.from('wapi_messages').insert({
+            conversation_id: conv.id, message_id: msgId, from_me: true,
+            message_type: 'text', content: completionMsg, status: 'sent',
+            timestamp: new Date().toISOString(), company_id: instance.company_id,
+            metadata: { source: 'stuck_bot_recovery' },
+          });
+        }
+
+        // Create or update lead
+        if (conv.lead_id) {
+          await supabase.from('campaign_leads').update({
+            name: updated.nome || conv.contact_name || phone,
+            month: updated.mes || null,
+            day_preference: updated.dia || null,
+            guests: updated.convidados || null,
+          }).eq('id', conv.lead_id);
+        } else {
+          const { data: newLead } = await supabase.from('campaign_leads').insert({
+            name: updated.nome || conv.contact_name || phone,
+            whatsapp: n,
+            unit: instance.unit,
+            campaign_id: 'whatsapp-bot',
+            campaign_name: 'WhatsApp (Bot)',
+            status: 'novo',
+            month: updated.mes || null,
+            day_preference: updated.dia || null,
+            guests: updated.convidados || null,
+            company_id: instance.company_id,
+          }).select('id').single();
+          if (newLead) {
+            await supabase.from('wapi_conversations').update({ lead_id: newLead.id }).eq('id', conv.id);
+          }
+        }
+
+        // Update conversation to sending_materials step
+        const recoveryData = { ...updated, _recovery_attempted: true };
+        await supabase.from('wapi_conversations').update({
+          bot_step: 'sending_materials', bot_data: recoveryData, bot_enabled: true,
+          last_message_at: new Date().toISOString(),
+          last_message_content: completionMsg.substring(0, 100),
+          last_message_from_me: true,
+        }).eq('id', conv.id);
+
+        // Now send the next step question after a short delay
+        // (Materials sending will be handled by the webhook when it's called next, 
+        //  or we send just the next step question here for simplicity)
+        const defaultNextStepQuestion = `E agora, como você gostaria de continuar? 🤔\n\nResponda com o *número*:\n\n${recoveryBuildMenuText(RECOVERY_PROXIMO_PASSO_OPTIONS)}`;
+        const nextStepQuestion = settings?.next_step_question || defaultNextStepQuestion;
+
+        // Wait a bit then send next step question
+        await new Promise(r => setTimeout(r, 3000));
+        
+        const res2 = await fetch(`https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
+          body: JSON.stringify({ phone, message: nextStepQuestion, delayTyping: 2 }),
+        });
+        let msgId2: string | null = null;
+        if (res2.ok) { const r = await res2.json(); msgId2 = r.messageId || r.data?.messageId || null; }
+        if (msgId2) {
+          await supabase.from('wapi_messages').insert({
+            conversation_id: conv.id, message_id: msgId2, from_me: true,
+            message_type: 'text', content: nextStepQuestion, status: 'sent',
+            timestamp: new Date().toISOString(), company_id: instance.company_id,
+            metadata: { source: 'stuck_bot_recovery' },
+          });
+        }
+
+        await supabase.from('wapi_conversations').update({
+          bot_step: 'proximo_passo',
+          last_message_at: new Date().toISOString(),
+          last_message_content: nextStepQuestion.substring(0, 100),
+          last_message_from_me: true,
+        }).eq('id', conv.id);
+
+        console.log(`[follow-up-check] 🔄 Recovered conv ${conv.id} - qualification complete, sent next step question`);
+        successCount++;
+        continue;
+      }
+
+      // Normal step progression - send confirmation + next question
+      const nextQ = questions[nextStepKey];
+      let confirmation = currentQ?.confirmation || '';
+      if (confirmation) confirmation = recoveryReplaceVariables(confirmation, updated);
+      const nextQuestionMsg = confirmation
+        ? `${confirmation}\n\n${nextQ?.question || ''}`
+        : (nextQ?.question || '');
+
+      const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
+      const res = await fetch(`https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
+        body: JSON.stringify({ phone, message: nextQuestionMsg, delayTyping: 1 }),
+      });
+      let msgId: string | null = null;
+      if (res.ok) { const r = await res.json(); msgId = r.messageId || r.data?.messageId || null; }
+      if (msgId) {
+        await supabase.from('wapi_messages').insert({
+          conversation_id: conv.id, message_id: msgId, from_me: true,
+          message_type: 'text', content: nextQuestionMsg, status: 'sent',
+          timestamp: new Date().toISOString(), company_id: instance.company_id,
+          metadata: { source: 'stuck_bot_recovery' },
+        });
+      }
+
+      const recoveryData = { ...updated, _recovery_attempted: true };
+      await supabase.from('wapi_conversations').update({
+        bot_step: nextStepKey, bot_data: recoveryData, bot_enabled: true,
+        last_message_at: new Date().toISOString(),
+        last_message_content: nextQuestionMsg.substring(0, 100),
+        last_message_from_me: true,
+      }).eq('id', conv.id);
+
+      console.log(`[follow-up-check] 🔄 Recovered conv ${conv.id}: ${step} → ${nextStepKey}`);
+      successCount++;
+    } catch (err) {
+      console.error(`[follow-up-check] 🔄 Error recovering conv ${conv.id}:`, err);
+      errors.push(`Recovery error conv ${conv.id}: ${String(err)}`);
+    }
+  }
+
+  return { successCount, errors };
 }
