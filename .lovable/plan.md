@@ -1,66 +1,71 @@
 
-# Corrigir envio de colecao de fotos - Planeta Divertido
+# Protecao contra bot travado (stuck bot recovery)
 
 ## Problema
 
-A colecao e enviada sequencialmente, os logs mostram 10 chamadas `send-image` sem erros, o toast confirma "Colecao enviada", mas apenas 1-2 fotos chegam no WhatsApp do destinatario. O problema esta no backend.
+Quando o edge function `wapi-webhook` sofre um `Shutdown` (timeout) enquanto processa a resposta de um lead, a mensagem e salva no banco (`wapi_messages`), mas a funcao `processBotQualification` nao executa. Isso deixa a conversa "travada": o lead respondeu, mas o bot nunca avancou para o proximo passo.
 
-## Causa raiz identificada
-
-Dois problemas no `wapi-send/index.ts`:
-
-1. **Sem log de resposta para imagens**: O `send-text` tem `console.log('send-text response:', ...)` mas o `send-image` nao loga a resposta da W-API, impossibilitando detectar falhas silenciosas.
-
-2. **Conversao para base64 desnecessaria**: O edge function baixa cada imagem e converte para base64 antes de enviar. Com 10 fotos grandes, isso sobrecarrega a memoria e pode gerar payloads que excedem o limite da W-API no plano LITE. A W-API aceita a requisicao (retorna 200) mas nao entrega a mensagem.
+O caso da Daniella Harumi na unidade Trujillo e exatamente este cenario -- ela respondeu "1" no passo `convidados`, a mensagem foi salva, mas o bot_step nunca foi atualizado.
 
 ## Solucao
 
-### 1. Enviar imagem por URL diretamente (wapi-send/index.ts)
+Adicionar uma nova verificacao no `follow-up-check` que detecta conversas onde:
+- `bot_enabled = true`
+- `last_message_from_me = false` (o lead respondeu)
+- `bot_step` esta em um passo ativo do bot (nome, tipo, mes, dia, convidados)
+- `last_message_at` tem mais de 2 minutos (tempo suficiente para confirmar que nao e processamento normal)
 
-A W-API suporta receber a imagem como URL ao inves de base64. Isso elimina o download + conversao no edge function:
+Quando detectada, a funcao busca a ultima mensagem do lead nessa conversa e chama o endpoint `wapi-webhook` para reprocessar, ou diretamente reprocessa a logica de validacao do bot inline.
 
-```typescript
-case 'send-image': {
-  const { base64, caption, mediaUrl } = body;
-  
-  let imagePayload: Record<string, string> = { phone, caption: caption || '' };
-  
-  // Prefer sending by URL (avoids base64 size limits)
-  if (mediaUrl && !base64) {
-    imagePayload.image = mediaUrl; // W-API accepts URL directly
-  } else {
-    // Fallback to base64 for direct uploads
-    let imageBase64 = base64;
-    // ... existing base64 conversion logic ...
-    imagePayload.image = imageBase64;
-  }
-  
-  const res = await wapiRequest(...);
-  console.log('send-image response:', JSON.stringify(res));
-  // ... rest unchanged
-}
-```
+## Abordagem escolhida: Reprocessamento direto no follow-up-check
 
-### 2. Adicionar log de resposta (wapi-send/index.ts)
+Em vez de chamar o webhook novamente (o que adicionaria complexidade), o follow-up-check vai:
 
-Adicionar `console.log('send-image response:', JSON.stringify(res))` apos a chamada da W-API para diagnosticar falhas silenciosas.
-
-### 3. Aumentar delay para colecoes grandes (SalesMaterialsMenu.tsx)
-
-Para colecoes com mais de 5 fotos, usar delay de 3 segundos ao inves de 2:
-
-```typescript
-const delay = material.photo_urls.length > 5 ? 3000 : 2000;
-await new Promise(resolve => setTimeout(resolve, delay));
-```
-
-### 4. Deploy
-
-Redeployar `wapi-send` apos as correcoes.
+1. Buscar a ultima mensagem do lead (`from_me = false`) na conversa
+2. Validar a resposta usando a mesma logica de `validateAnswer`
+3. Atualizar `bot_data` e `bot_step` no banco
+4. Enviar a proxima pergunta do bot via W-API
+5. Registrar no log que foi um "recovery" automatico
 
 ## Arquivos a editar
 
 | Arquivo | Alteracao |
 |---|---|
-| `supabase/functions/wapi-send/index.ts` | Enviar imagem por URL + adicionar log de resposta |
-| `src/components/whatsapp/SalesMaterialsMenu.tsx` | Delay dinamico para colecoes grandes |
+| `supabase/functions/follow-up-check/index.ts` | Adicionar funcao `processStuckBotRecovery` que detecta e reprocessa conversas travadas |
+
+## Detalhes tecnicos
+
+### Nova funcao: processStuckBotRecovery
+
+```typescript
+async function processStuckBotRecovery({ supabase }): Promise<{ successCount, errors }> {
+  // 1. Buscar conversas onde:
+  //    - bot_enabled = true
+  //    - last_message_from_me = false (lead respondeu)
+  //    - bot_step IN (nome, tipo, mes, dia, convidados, welcome)
+  //    - last_message_at < now() - 2 minutes
+  //    - last_message_at > now() - 30 minutes (janela razoavel)
+  
+  // 2. Para cada conversa travada:
+  //    a. Buscar ultima mensagem from_me=false da wapi_messages
+  //    b. Buscar bot_questions da instancia
+  //    c. Validar a resposta com validateAnswer()
+  //    d. Se valida: atualizar bot_data + bot_step + enviar proxima pergunta
+  //    e. Se invalida: re-enviar pergunta atual com erro
+  //    f. Log: "[follow-up-check] Recovered stuck bot for conv {id}"
+}
+```
+
+### Integracao no handler principal
+
+Chamar `processStuckBotRecovery` no inicio do loop (antes dos follow-ups por instancia), pois e uma verificacao global que nao depende de settings de follow-up.
+
+### Funcoes de validacao
+
+Copiar as funcoes `validateAnswer`, `validateName`, `validateMenuChoice`, `validateMonth`, `validateDay`, `validateGuests` do `wapi-webhook` para o `follow-up-check`, ou extrair para um modulo compartilhado. Como edge functions nao suportam imports entre funcoes, sera necessario copiar as funcoes relevantes.
+
+### Seguranca
+
+- Janela maxima de 30 minutos para evitar reprocessar mensagens antigas
+- Minimo de 2 minutos para nao interferir com processamento normal
+- Marcar conversa com flag temporaria apos recovery para evitar loops
