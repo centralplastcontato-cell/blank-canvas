@@ -1272,20 +1272,70 @@ Deno.serve(async (req) => {
           });
         }
 
-        console.log(`send-reaction: msgId=${reactionMsgId}, emoji=${emoji}, phone=${phone}`);
+        console.log(`send-reaction: msgId=${reactionMsgId}, emoji=${emoji}, phone=${phone}, instance=${instance_id}`);
 
-        // Try POST method (W-API v1 standard)
-        const res = await wapiRequest(
-          `${WAPI_BASE_URL}/message/send-reaction?instanceId=${instance_id}`,
-          instance_token,
-          'POST',
-          { phone, messageId: reactionMsgId, emoji }
-        );
+        // Try PUT first (W-API standard for reactions), fallback to POST
+        const reactionUrl = `${WAPI_BASE_URL}/message/send-reaction?instanceId=${instance_id}`;
+        const reactionBody = { phone, messageId: reactionMsgId, emoji };
 
-        console.log(`send-reaction response: ok=${res.ok}, error=${res.error}, data=${JSON.stringify(res.data)}`);
+        // Direct fetch to get full details
+        let reactionRes: Response;
+        try {
+          reactionRes = await fetch(reactionUrl, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${instance_token}`,
+            },
+            body: JSON.stringify(reactionBody),
+          });
+        } catch (e) {
+          console.error('send-reaction fetch error:', e);
+          return new Response(JSON.stringify({ error: 'Erro de conexão com W-API' }), {
+            status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
 
-        if (!res.ok) {
-          return new Response(JSON.stringify({ error: res.error }), {
+        const reactionText = await reactionRes.text();
+        console.log(`send-reaction PUT status=${reactionRes.status}, body=${reactionText}`);
+
+        // If PUT fails with 403/405, try POST
+        if (reactionRes.status === 403 || reactionRes.status === 405) {
+          try {
+            const postRes = await fetch(reactionUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${instance_token}`,
+              },
+              body: JSON.stringify(reactionBody),
+            });
+            const postText = await postRes.text();
+            console.log(`send-reaction POST fallback status=${postRes.status}, body=${postText}`);
+
+            if (postRes.ok) {
+              return new Response(JSON.stringify({ success: true }), {
+                status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              });
+            }
+          } catch (e2) {
+            console.error('send-reaction POST fallback error:', e2);
+          }
+        }
+
+        if (!reactionRes.ok) {
+          let errorMsg = 'Erro ao reagir';
+          try {
+            const parsed = JSON.parse(reactionText);
+            errorMsg = parsed.message || parsed.error || errorMsg;
+          } catch {}
+          
+          // If it's a 403 "Acesso negado", it likely means the W-API plan doesn't support reactions
+          if (reactionRes.status === 403) {
+            errorMsg = 'Reações não disponíveis neste plano da W-API';
+          }
+          
+          return new Response(JSON.stringify({ error: errorMsg }), {
             status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
