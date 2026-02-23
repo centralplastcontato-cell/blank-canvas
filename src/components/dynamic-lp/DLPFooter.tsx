@@ -6,9 +6,18 @@ interface DLPFooterProps {
   theme: LPTheme;
   companyName: string;
   companyLogo: string | null;
+  instagramHandle?: string | null;
+  whatsappNumber?: string | null;
 }
 
-export function DLPFooter({ footer, theme, companyName, companyLogo }: DLPFooterProps) {
+export function DLPFooter({ footer, theme, companyName, companyLogo, instagramHandle, whatsappNumber }: DLPFooterProps) {
+  const instagramUrl = instagramHandle
+    ? `https://instagram.com/${instagramHandle.replace(/^@/, '')}`
+    : '#';
+  const whatsappUrl = whatsappNumber
+    ? `https://wa.me/${whatsappNumber.replace(/\D/g, '')}`
+    : '#';
+
   return (
     <footer
       className="py-12"
@@ -40,7 +49,9 @@ export function DLPFooter({ footer, theme, companyName, companyLogo }: DLPFooter
         {footer.show_instagram && (
           <div className="flex flex-wrap justify-center gap-6 mb-8">
             <a
-              href="#"
+              href={instagramUrl}
+              target="_blank"
+              rel="noopener noreferrer"
               className="group flex items-center gap-2 transition-all duration-300 text-lg hover:opacity-100 opacity-70"
               style={{
                 color: theme.text_color === "#ffffff" ? "#fff" : theme.background_color,
@@ -58,7 +69,9 @@ export function DLPFooter({ footer, theme, companyName, companyLogo }: DLPFooter
         {footer.show_phone && (
           <div className="flex flex-wrap justify-center gap-4 mb-8">
             <a
-              href="#"
+              href={whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
               className="group flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full transition-all duration-300 text-sm font-medium hover:scale-105 hover:shadow-lg"
             >
               <MessageCircle size={18} className="transition-transform duration-300 group-hover:scale-110" />
