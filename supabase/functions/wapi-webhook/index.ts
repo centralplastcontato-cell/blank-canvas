@@ -3121,7 +3121,8 @@ async function processWebhookEvent(body: Record<string, unknown>) {
             .single();
           
           const hasCompleteLead = lead?.name && lead?.month && lead?.day_preference && lead?.guests;
-          const shouldStartBot = !hasCompleteLead;
+          const isGroupJid = rj.includes('@g.us');
+          const shouldStartBot = !isGroupJid && !hasCompleteLead;
           
           const { data: nc, error: ce } = await supabase.from('wapi_conversations').insert({
             instance_id: instance.id, remote_jid: rj, contact_phone: phone, 
