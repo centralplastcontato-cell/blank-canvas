@@ -978,7 +978,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                   ref={multiFileInputRef}
                   type="file"
                   className="hidden"
-                  accept="image/jpeg,image/png,image/webp"
+                  accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
                   multiple
                   onChange={handleMultiFileUpload}
                 />
@@ -1029,10 +1029,10 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                   className="hidden"
                   accept={
                     formData.type === "pdf_package" 
-                      ? ".pdf" 
+                      ? ".pdf,application/pdf" 
                       : formData.type === "photo" 
-                        ? "image/jpeg,image/png,image/webp"
-                        : "video/mp4,video/quicktime,video/webm"
+                        ? ".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                        : ".mp4,.mov,.webm,video/mp4,video/quicktime,video/webm"
                   }
                   onChange={handleFileUpload}
                 />
