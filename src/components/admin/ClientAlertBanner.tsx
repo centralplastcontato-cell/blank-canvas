@@ -87,7 +87,11 @@ export function ClientAlertBanner({ userId, onOpenConversation }: ClientAlertBan
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          const notification = payload.new as ClientNotification;
+          const notification = payload.new as ClientNotification & { company_id?: string };
+          const currentCompanyId = getCurrentCompanyId();
+          if (notification.company_id && currentCompanyId && notification.company_id !== currentCompanyId) {
+            return;
+          }
           if (notification.type === "existing_client") {
             setAlerts((prev) => [notification, ...prev]);
             // Play sound for new client alert

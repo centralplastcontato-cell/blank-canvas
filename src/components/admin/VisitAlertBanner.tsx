@@ -88,7 +88,11 @@ export function VisitAlertBanner({ userId, onOpenConversation }: VisitAlertBanne
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          const notification = payload.new as VisitNotification;
+          const notification = payload.new as VisitNotification & { company_id?: string };
+          const currentCompanyId = getCurrentCompanyId();
+          if (notification.company_id && currentCompanyId && notification.company_id !== currentCompanyId) {
+            return;
+          }
           if (notification.type === "visit_scheduled") {
             setAlerts((prev) => [notification, ...prev]);
             // Play sound for new visit alert
