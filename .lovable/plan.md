@@ -1,72 +1,55 @@
 
 
-# Bloqueio total do bot em grupos do WhatsApp
+# Numeros de telefone clicaveis no chat do WhatsApp
 
 ## Problema
 
-O bot enviou mensagens para grupos do WhatsApp porque nenhuma parte do sistema diferencia conversas individuais de conversas de grupo. Grupos no WhatsApp usam JIDs com sufixo `@g.us`, enquanto contatos individuais usam `@s.whatsapp.net`.
+Quando uma mensagem no chat contem um numero de telefone (ex: `15997151079`), ele aparece como texto simples. O usuario quer poder clicar no numero para iniciar uma conversa ou salvar o contato.
 
-Atualmente existem **82 conversas de grupo** no banco com `bot_enabled = true`, e nenhuma das rotinas automatizadas filtra esse tipo de conversa.
+## Solucao
 
-## Solucao: Bloqueio permanente em 3 camadas
-
-### 1. Webhook (prevencao na origem)
-
-No `wapi-webhook/index.ts`, ao criar uma nova conversa (linha ~3126-3134), o sistema define `bot_enabled: true` sem verificar se e grupo. A correcao: se o `remote_jid` contem `@g.us`, forcar `bot_enabled = false` e `bot_step = null`.
-
-Tambem adicionar uma verificacao antes de chamar `processBotQualification` (linha ~3212) para pular grupos.
-
-### 2. Follow-up-check (prevencao nas rotinas automatizadas)
-
-Adicionar filtro `.not('remote_jid', 'like', '%@g.us%')` em **todas** as 5 queries que buscam conversas:
-
-| Rotina | O que faz |
-|---|---|
-| `processNextStepReminder` | Envia lembrete de proximo passo |
-| `processFollowUp` (2x) | Envia follow-up 1 e 2 |
-| `processBotInactiveFollowUp` | Envia lembrete quando lead nao responde |
-| `processStaleRemindedAlerts` | Cria alerta de leads travados |
-| `processStuckBotRecovery` | Reprocessa conversas travadas |
-
-### 3. Limpeza do banco de dados
-
-Desativar o bot em todas as 82 conversas de grupo existentes:
-
-```text
-UPDATE wapi_conversations 
-SET bot_enabled = false, bot_step = NULL 
-WHERE remote_jid LIKE '%@g.us%' AND bot_enabled = true;
-```
+Criar uma funcao utilitaria `formatMessageContent` que detecta numeros de telefone e URLs dentro do texto das mensagens e os transforma em links clicaveis. Numeros de telefone abrem com `tel:` (para ligar/salvar) ou `https://wa.me/` (para abrir no WhatsApp).
 
 ## Detalhes tecnicos
 
-### wapi-webhook/index.ts
+### 1. Criar helper `formatMessageContent`
 
-Na criacao de nova conversa (linha ~3126):
-- Antes do `insert`, verificar `const isGroup = rj.includes('@g.us');`
-- Se grupo: `bot_enabled: false, bot_step: null`
+Novo arquivo: `src/lib/format-message.tsx`
 
-Antes de chamar `processBotQualification` (linha ~3212):
-- Adicionar `if (conv.remote_jid.includes('@g.us')) { skip }` 
+- Recebe o texto da mensagem como string
+- Usa regex para detectar:
+  - Numeros de telefone brasileiros (8-13 digitos consecutivos, com ou sem DDI 55)
+  - URLs (http/https)
+- Retorna um array de `ReactNode` com textos normais e `<a>` clicaveis
+- Links de telefone usam `href="https://wa.me/55XXXXXXXXXX"` com `target="_blank"` para abrir no WhatsApp
+- Links de URL usam `href` com `target="_blank"`
+- Estilizacao: underline + cor azul para destaque visual
 
-### follow-up-check/index.ts
+Regex para telefones: `/\b(\d{10,13})\b/g` (captura sequencias de 10-13 digitos que representam telefones BR)
 
-Adicionar `.not('remote_jid', 'like', '%@g.us%')` nas queries das linhas:
-- ~196 (processNextStepReminder)
-- ~654 (processBotInactiveFollowUp)
-- ~1046 (processStaleRemindedAlerts)
-- ~1280 (processStuckBotRecovery)
-- Nas queries de processFollowUp (busca por leads com `Analisar`)
+### 2. Aplicar nos renders de mensagem
 
-### Correcao adicional: WAPI_BASE_URL duplicado
+No arquivo `src/components/whatsapp/WhatsAppChat.tsx`, substituir `{msg.content}` por `{formatMessageContent(msg.content)}` nos seguintes pontos:
 
-Existe uma declaracao duplicada de `WAPI_BASE_URL` no follow-up-check (linhas ~826 e ~1699) que causa erro de compilacao. Remover a duplicata.
+| Local | Linha aprox. | Contexto |
+|---|---|---|
+| Mensagem de texto (desktop) | ~3734 | `<p className="whitespace-pre-wrap...">{msg.content}</p>` |
+| Caption de midia (desktop) | ~3741 | `<p className="whitespace-pre-wrap...">{msg.content}</p>` |
+| Mensagem de texto (mobile) | ~4633 | `<p className="whitespace-pre-wrap...">{msg.content}</p>` |
+| Caption de midia (mobile) | Proximo ao 4633 | Similar ao desktop |
 
-## Resultado esperado
+### 3. Comportamento esperado
 
-Apos essas correcoes:
-- Nenhuma rotina automatizada processara conversas de grupo
-- Novas conversas de grupo serao criadas com bot desativado
-- Grupos existentes serao limpos no banco
-- O bot so interagira com contatos individuais (`@s.whatsapp.net`)
+- Numero `15997151079` no texto vira um link azul sublinhado
+- Ao clicar, abre `https://wa.me/5515997151079` em nova aba
+- URLs existentes (`https://...`) tambem ficam clicaveis
+- Texto normal continua sem alteracao
+- Funciona tanto no layout desktop quanto mobile
+
+### Arquivos a criar/editar
+
+| Arquivo | Acao |
+|---|---|
+| `src/lib/format-message.tsx` | Criar - funcao utilitaria |
+| `src/components/whatsapp/WhatsAppChat.tsx` | Editar - usar a funcao nos 4 pontos de render |
 
