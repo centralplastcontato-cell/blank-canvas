@@ -3244,6 +3244,14 @@ export type Database = {
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       recalculate_lead_score: { Args: { _lead_id: string }; Returns: undefined }
+      reset_company_data: {
+        Args: {
+          _company_id: string
+          _delete_conversations?: boolean
+          _delete_leads?: boolean
+        }
+        Returns: Json
+      }
       user_has_company_access: {
         Args: { _company_id: string; _user_id: string }
         Returns: boolean

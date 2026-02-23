@@ -16,7 +16,8 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Building2, Plus, Pencil, Users, Loader2, UserPlus, Link2, Copy, ClipboardList, MessageSquare, BarChart3, Clock, CheckCircle2, AlertCircle, Globe, AlertTriangle, ExternalLink, Settings2, Trash2 } from "lucide-react";
+import { Building2, Plus, Pencil, Users, Loader2, UserPlus, Link2, Copy, ClipboardList, MessageSquare, BarChart3, Clock, CheckCircle2, AlertCircle, Globe, AlertTriangle, ExternalLink, Settings2, Trash2, RotateCcw } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -81,6 +82,10 @@ function HubEmpresasContent() {
   const [modulesCompany, setModulesCompany] = useState<Company | null>(null);
   const [deleteCompany, setDeleteCompany] = useState<Company | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [resetCompany, setResetCompany] = useState<Company | null>(null);
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetConversations, setResetConversations] = useState(true);
+  const [resetLeads, setResetLeads] = useState(true);
 
   useEffect(() => { fetchCompanies(); }, []);
 
@@ -175,6 +180,29 @@ function HubEmpresasContent() {
     }
   };
 
+  const handleReset = async () => {
+    if (!resetCompany || (!resetConversations && !resetLeads)) return;
+    setIsResetting(true);
+    const { data, error } = await supabase.rpc("reset_company_data", {
+      _company_id: resetCompany.id,
+      _delete_conversations: resetConversations,
+      _delete_leads: resetLeads,
+    });
+    setIsResetting(false);
+    setResetCompany(null);
+    if (error) {
+      toast({ title: "Erro ao resetar", description: error.message, variant: "destructive" });
+    } else {
+      const r = data as any;
+      const parts: string[] = [];
+      if (r.deleted_conversations) parts.push(`${r.deleted_conversations} conversas`);
+      if (r.deleted_messages) parts.push(`${r.deleted_messages} mensagens`);
+      if (r.deleted_leads) parts.push(`${r.deleted_leads} leads`);
+      toast({ title: "Reset concluído", description: parts.join(", ") + " excluídos." });
+      fetchCompanies();
+    }
+  };
+
   if (isLoading) {
     return <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
   }
@@ -202,6 +230,61 @@ function HubEmpresasContent() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Reset Company Data Dialog */}
+      <AlertDialog open={!!resetCompany} onOpenChange={(open) => { if (!open) setResetCompany(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Resetar dados de {resetCompany?.name}?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4">
+                <p>Esta ação é <strong>irreversível</strong>. Selecione o que deseja excluir:</p>
+                <div className="space-y-3">
+                  <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50">
+                    <Checkbox
+                      checked={resetConversations}
+                      onCheckedChange={(v) => setResetConversations(!!v)}
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Conversas do WhatsApp</p>
+                      <p className="text-xs text-muted-foreground">
+                        {conversationCounts[resetCompany?.id || ''] || 0} conversas + todas as mensagens
+                      </p>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50">
+                    <Checkbox
+                      checked={resetLeads}
+                      onCheckedChange={(v) => setResetLeads(!!v)}
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Leads (CRM)</p>
+                      <p className="text-xs text-muted-foreground">
+                        {leadCounts[resetCompany?.id || ''] || 0} leads + histórico + inteligência + notificações
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleReset}
+              disabled={isResetting || (!resetConversations && !resetLeads)}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
+              {isResetting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Resetar dados
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <CompanyFormDialog open={formOpen} onOpenChange={setFormOpen} company={editingCompany} onSubmit={editingCompany ? handleUpdate : handleCreate} />
       <CompanyMembersSheet open={membersOpen} onOpenChange={setMembersOpen} company={membersCompany} />
       {adminDialogCompany && (
@@ -417,6 +500,9 @@ function HubEmpresasContent() {
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => setModulesCompany(child)} title="Módulos">
                     <Settings2 className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => { setResetConversations(true); setResetLeads(true); setResetCompany(child); }} title="Resetar dados" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30">
+                    <RotateCcw className="h-3.5 w-3.5" />
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => setDeleteCompany(child)} title="Excluir empresa" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30">
                     <Trash2 className="h-3.5 w-3.5" />
