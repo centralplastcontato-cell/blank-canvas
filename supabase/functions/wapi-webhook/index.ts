@@ -366,6 +366,8 @@ async function getBotQuestions(supabase: SupabaseClient, instanceId: string): Pr
 function replaceVariables(text: string, data: Record<string, string>): string {
   let result = text;
   for (const [key, value] of Object.entries(data)) {
+    // Primeiro tenta {{key}} (chaves duplas), depois {key} (chave simples)
+    result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'gi'), value);
     result = result.replace(new RegExp(`\\{${key}\\}`, 'gi'), value);
   }
   return result;
@@ -1945,10 +1947,27 @@ async function processBotQualification(
   // Clear inactive reminder flag so follow-up can re-trigger if lead stops again at next step
   delete (updated as Record<string, unknown>)._inactive_reminded;
 
+  // Buscar nome da empresa para variáveis de template
+  let companyName = '';
+  try {
+    const { data: companyData } = await supabase
+      .from('companies')
+      .select('name')
+      .eq('id', instance.company_id)
+      .single();
+    companyName = companyData?.name || '';
+  } catch (_) { /* ignore */ }
+
+  // Injetar variáveis de empresa no mapa
+  updated.empresa = companyName;
+  updated.buffet = companyName;
+  updated['nome-empresa'] = companyName;
+  updated['nome_empresa'] = companyName;
+
   if (step === 'welcome') {
     // Send welcome message + first question
     const firstQ = questions[firstStep];
-    msg = settings.welcome_message + '\n\n' + (firstQ?.question || DEFAULT_QUESTIONS.nome.question);
+    msg = replaceVariables(settings.welcome_message, updated) + '\n\n' + (firstQ?.question || DEFAULT_QUESTIONS.nome.question);
     nextStep = firstStep;
   } else if (questions[step] || step === 'proximo_passo' || step === 'proximo_passo_reminded') {
     // Check if lead is responding "1" to the inactive follow-up "Responda *1* para continuar"
