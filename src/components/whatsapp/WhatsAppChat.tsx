@@ -1876,7 +1876,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
   
   const handleReaction = async (_msg: Message, _emoji: string) => {
-    toast({ title: "Indisponível", description: "Reações com emoji não são suportadas no plano atual da W-API.", variant: "destructive" });
+    toast({ title: "Recurso temporariamente indisponível", description: "Nossa equipe está trabalhando para ativá-lo em breve." });
   };
 
   // Pin message handler
