@@ -196,7 +196,8 @@ export function SalesMaterialsMenu({
             console.error(`[SalesMaterialsMenu] Erro na foto ${i+1}:`, err);
           }
           if (i < material.photo_urls.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            const delay = material.photo_urls.length > 5 ? 3000 : 2000;
+            await new Promise(resolve => setTimeout(resolve, delay));
           }
         }
 
