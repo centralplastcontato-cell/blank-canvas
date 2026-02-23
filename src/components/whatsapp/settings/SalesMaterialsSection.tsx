@@ -70,6 +70,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
     is_active: true,
     unit: null as string | null,
   });
+  const [guestSelectionTouched, setGuestSelectionTouched] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const photoGridRef = useRef<HTMLDivElement>(null);
@@ -397,10 +398,10 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
       return;
     }
 
-    if (formData.type === "pdf_package" && !formData.guest_count) {
+    if (formData.type === "pdf_package" && formData.guest_count === null && !guestSelectionTouched) {
       toast({
         title: "Erro",
-        description: "Selecione a quantidade de convidados para o pacote.",
+        description: "Selecione a quantidade de convidados ou 'Todos (universal)'.",
         variant: "destructive",
       });
       return;
@@ -549,6 +550,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
     if (material) {
       setEditingMaterial(material);
       setSelectedUnit(material.unit);
+      setGuestSelectionTouched(material.type === "pdf_package");
       setFormData({
         name: material.name,
         type: material.type,
@@ -567,6 +569,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
 
   const resetForm = () => {
     setEditingMaterial(null);
+    setGuestSelectionTouched(false);
     setFormData({
       name: "",
       type: "pdf_package",
@@ -714,9 +717,9 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                             {material.photo_urls.length} foto{material.photo_urls.length !== 1 ? 's' : ''}
                           </p>
                         )}
-                        {material.guest_count && (
+                        {material.type === "pdf_package" && (
                           <p className="text-xs text-muted-foreground">
-                            {material.guest_count} pessoas
+                            {material.guest_count ? `${material.guest_count} pessoas` : "Todos os pacotes"}
                           </p>
                         )}
                       </div>
@@ -849,13 +852,21 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
               <div className="space-y-2">
                 <Label>Quantidade de Convidados *</Label>
                 <Select 
-                  value={formData.guest_count?.toString() || ""} 
-                  onValueChange={(value) => setFormData({ ...formData, guest_count: parseInt(value) })}
+                  value={formData.guest_count === null && guestSelectionTouched ? "all" : formData.guest_count?.toString() || ""} 
+                  onValueChange={(value) => {
+                    setGuestSelectionTouched(true);
+                    if (value === "all") {
+                      setFormData({ ...formData, guest_count: null });
+                    } else {
+                      setFormData({ ...formData, guest_count: parseInt(value) });
+                    }
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="all">🌐 Todos (universal)</SelectItem>
                     {GUEST_OPTIONS.map(count => (
                       <SelectItem key={count} value={count.toString()}>
                         {count} pessoas
@@ -863,6 +874,11 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                     ))}
                   </SelectContent>
                 </Select>
+                {formData.guest_count === null && guestSelectionTouched && (
+                  <p className="text-xs text-muted-foreground">
+                    Este PDF será enviado para todos os leads, independente da quantidade de convidados.
+                  </p>
+                )}
               </div>
             )}
 
