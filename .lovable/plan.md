@@ -1,150 +1,79 @@
 
-# Corrigir vazamento de notificacoes entre empresas (problema no backend)
 
-## Diagnostico
+# Plano: Autonomia Total do Bot para Cada Empresa
 
-O problema NAO esta no frontend (os filtros dos banners ja estao corretos). O erro esta no **backend**: as Edge Functions `wapi-webhook` e `follow-up-check` criam notificacoes para usuarios de TODAS as empresas porque consultam `user_permissions` e `user_roles` **sem filtrar por company_id**.
+## Problema Identificado
 
-### Prova concreta
+1. O `DEFAULT_QUESTIONS` no frontend (AutomationsSection) tem apenas 4 passos (nome, mes, dia, convidados), enquanto o webhook tem 5 (inclui `tipo_cliente`)
+2. Quando uma nova empresa e criada, nenhuma pergunta e inserida automaticamente na tabela `wapi_bot_questions` -- o bot depende de um fallback hardcoded no webhook
+3. Isso causa inconsistencia entre empresas (Castelo funciona porque foi configurado manualmente, Planeta Divertido ficou incompleto)
 
-A usuaria Fernanda do Planeta Divertido (`7f89aad1...`) tem a permissao `leads.unit.all`. Quando o Castelo da Diversao recebe um lead, o webhook busca todos os usuarios com `leads.unit.all` no sistema inteiro e cria notificacoes para todos eles - incluindo a Fernanda que pertence a outra empresa.
+## Solucao
 
-Resultado: 20+ notificacoes do Castelo da Diversao no painel do Planeta Divertido.
+### 1. Corrigir o DEFAULT_QUESTIONS no frontend
 
-## Locais afetados
+Adicionar o passo `tipo` (Ja sou cliente / Quero orcamento) na lista padrao do `AutomationsSection.tsx`, alinhando com o que o webhook espera:
 
-### 1. `supabase/functions/wapi-webhook/index.ts` - 5 pontos
-
-Todos os blocos de criacao de notificacao seguem o mesmo padrao defeituoso:
-
-```text
-// ATUAL (errado): busca em TODAS as empresas
-const { data: adminRoles } = await supabase
-  .from('user_roles').select('user_id').eq('role', 'admin');
-const { data: userPerms } = await supabase
-  .from('user_permissions').select('user_id')
-  .eq('granted', true)
-  .in('permission', [unitPermission, 'leads.unit.all']);
+```
+nome -> tipo -> mes -> dia -> convidados
 ```
 
-A correcao eh restringir aos usuarios da empresa usando `user_companies`:
+### 2. Auto-popular perguntas ao selecionar instancia
 
-```text
-// CORRETO: filtra apenas usuarios da empresa
-const { data: companyUsers } = await supabase
-  .from('user_companies')
-  .select('user_id')
-  .eq('company_id', instance.company_id);
+No `AutomationsSection`, quando o usuario seleciona uma instancia e **nao existem perguntas salvas** (`wapi_bot_questions` vazio para aquela instancia), inserir automaticamente os 5 passos padrao no banco. Assim toda empresa nova ja tera as perguntas prontas para editar.
 
-const companyUserIds = new Set(companyUsers?.map(u => u.user_id) || []);
+### 3. Corrigir dados do Planeta Divertido
 
-// Agora buscar permissoes apenas entre esses usuarios
-const { data: userPerms } = await supabase
-  .from('user_permissions')
-  .select('user_id')
-  .eq('granted', true)
-  .in('permission', [unitPermission, 'leads.unit.all'])
-  .in('user_id', Array.from(companyUserIds));
-```
+Executar uma migracao SQL para:
+- Atualizar a `welcome_message` do Planeta Divertido (remover referencia ao "Castelo da Diversao")
+- Inserir o passo `tipo` que esta faltando, reordenando os demais
 
-#### Locais exatos no wapi-webhook:
+## Detalhes Tecnicos
 
-| Linha  | Tipo de notificacao | Descricao |
-|--------|-------------------|-----------|
-| ~1183  | flow_handoff      | Flow Builder transferencia |
-| ~1398  | existing_client   | Flow Builder cliente existente |
-| ~1970  | existing_client   | Bot classico cliente existente |
-| ~2077  | work_interest     | Interesse em trabalhar |
-| ~2250  | visit/questions   | Proximos passos do bot |
+### Arquivo: `src/components/whatsapp/settings/AutomationsSection.tsx`
 
-### 2. `supabase/functions/follow-up-check/index.ts` - 1 ponto
-
-Linha ~549: busca `user_permissions` sem filtrar por empresa.
-
-```text
-// ATUAL (errado)
-const { data: usersToNotify } = await supabase
-  .from("user_permissions")
-  .select("user_id")
-  .or(`permission.eq.leads.unit.all,...`)
-  .eq("granted", true);
-```
-
-Correcao: intersecionar com `user_companies` para garantir que so usuarios da empresa recebam.
-
-### 3. Trigger `fn_notify_temperature_change` (banco de dados)
-
-Este ja esta **CORRETO** - usa `user_companies.company_id = NEW.company_id`. Nenhuma mudanca necessaria.
-
-### 4. Funcao `follow-up-check` - stale alerts (linha ~1058)
-
-Esta tambem **CORRETO** - usa `user_companies.company_id`. Nenhuma mudanca necessaria.
-
-## Estrategia de implementacao
-
-Para cada um dos 6 pontos defeituosos (5 no webhook + 1 no follow-up), aplicar o mesmo padrao:
-
-1. Buscar `user_companies` filtrado por `company_id`
-2. Criar um Set com os user_ids dessa empresa
-3. Filtrar `user_permissions` e `user_roles` apenas entre esses user_ids
-
-Isso cria uma funcao helper reutilizavel para evitar duplicacao:
-
+**Mudanca 1** -- Atualizar `DEFAULT_QUESTIONS` (linha ~105):
 ```typescript
-async function getCompanyNotificationTargets(
-  supabase: any,
-  companyId: string,
-  unitPermission: string
-): Promise<string[]> {
-  // 1. Get users that belong to this company
-  const { data: companyUsers } = await supabase
-    .from('user_companies')
-    .select('user_id')
-    .eq('company_id', companyId);
+const DEFAULT_QUESTIONS = [
+  { step: 'nome', question_text: 'Para comecar, me conta: qual e o seu nome? ...', confirmation_text: 'Muito prazer, {nome}! ...', sort_order: 1, is_active: true },
+  { step: 'tipo', question_text: 'Voce ja e nosso cliente ou gostaria de receber um orcamento? ...\n\n1 - Ja sou cliente\n2 - Quero um orcamento', confirmation_text: null, sort_order: 2, is_active: true },
+  { step: 'mes', ..., sort_order: 3 },
+  { step: 'dia', ..., sort_order: 4 },
+  { step: 'convidados', ..., sort_order: 5 },
+];
+```
 
-  const companyUserIds = new Set(
-    companyUsers?.map((u: any) => u.user_id) || []
-  );
-
-  if (companyUserIds.size === 0) return [];
-
-  // 2. Filter by permissions within company users
-  const { data: userPerms } = await supabase
-    .from('user_permissions')
-    .select('user_id')
-    .eq('granted', true)
-    .in('permission', [unitPermission, 'leads.unit.all'])
-    .in('user_id', Array.from(companyUserIds));
-
-  // 3. Admin roles within company users
-  const { data: adminRoles } = await supabase
-    .from('user_roles')
-    .select('user_id')
-    .eq('role', 'admin')
-    .in('user_id', Array.from(companyUserIds));
-
-  const targetIds = new Set<string>();
-  userPerms?.forEach((p: any) => targetIds.add(p.user_id));
-  adminRoles?.forEach((r: any) => targetIds.add(r.user_id));
-
-  return Array.from(targetIds);
+**Mudanca 2** -- Na funcao `fetchBotQuestions`, apos detectar que nao existem perguntas salvas, inserir automaticamente os defaults:
+```typescript
+if (!data || data.length === 0) {
+  // Auto-inserir perguntas padrao
+  const inserts = DEFAULT_QUESTIONS.map(q => ({
+    instance_id: selectedInstanceId,
+    ...q
+  }));
+  await supabase.from('wapi_bot_questions').insert(inserts);
+  // Recarregar
 }
 ```
 
-### 5. Limpeza de dados
-
-Apos o deploy, limpar as notificacoes erradas do banco:
+### Migracao SQL (dados do Planeta Divertido)
 
 ```sql
-DELETE FROM notifications
-WHERE user_id = '7f89aad1-4167-496d-8ab8-85a996a58fea'
-AND company_id = 'a0000000-0000-0000-0000-000000000001';
+-- Atualizar welcome_message
+UPDATE wapi_bot_settings
+SET welcome_message = 'Ola! Bem-vindo ao Planeta Divertido! ...'
+WHERE instance_id IN (
+  SELECT id FROM wapi_instances
+  WHERE company_id = '6bc204ae-1311-4c67-bb6b-9ab55dae9d11'
+);
+
+-- Inserir passo 'tipo' faltante
+-- Reordenar passos existentes
 ```
 
-## Resumo
+## Resultado Esperado
 
-- **6 correcoes** em 2 Edge Functions
-- **1 funcao helper** reutilizavel para evitar duplicacao
-- **1 limpeza de dados** para remover notificacoes erradas existentes
-- **0 mudancas no frontend** (filtros ja estao corretos)
-- Deploy das funcoes `wapi-webhook` e `follow-up-check`
+- Toda empresa nova ja tera as 5 perguntas padrao **editaveis pela interface**
+- O buffet pode alterar textos, desativar passos e reordenar sem precisar de programacao
+- O Planeta Divertido tera o fluxo identico ao Castelo da Diversao imediatamente
+
