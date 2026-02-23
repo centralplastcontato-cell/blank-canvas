@@ -1685,19 +1685,26 @@ async function processBotQualification(
   }
   // ─────────────────────────────────────────────────────────────────
 
+  // ── Test mode guard (applies to ALL bot modes including Flow Builder) ──
+  const n = normalizePhone(contactPhone);
+  const tn = settings.test_mode_number ? normalizePhone(settings.test_mode_number) : null;
+  const isTest = tn && n.includes(tn.replace(/^55/, ''));
+
+  // If test mode is on, only allow the test number through
+  if (settings.test_mode_enabled && !isTest) {
+    console.log(`[Bot] Test mode ON — phone ${contactPhone} is NOT test number, skipping`);
+    return;
+  }
+
+  // Check if bot settings allow running
+  const botSettingsAllow = (settings.test_mode_enabled && isTest) || (settings.bot_enabled && !settings.test_mode_enabled);
+
   // Check if Flow Builder mode is enabled — delegate to flow processor
   if (settings.use_flow_builder) {
     console.log(`[Bot] Flow Builder mode enabled for instance ${instance.id}, delegating...`);
     await processFlowBuilderMessage(supabase, instance, conv, content, contactPhone, contactName);
     return;
   }
-
-  const n = normalizePhone(contactPhone);
-  const tn = settings.test_mode_number ? normalizePhone(settings.test_mode_number) : null;
-  const isTest = tn && n.includes(tn.replace(/^55/, ''));
-  
-  // Check if bot settings allow running
-  const botSettingsAllow = (settings.test_mode_enabled && isTest) || (settings.bot_enabled && !settings.test_mode_enabled);
   
   // If bot_enabled is false, check if this is an LP lead that needs bot activation
   // This happens when the LP sends the first message (outgoing), creating the conversation with bot_enabled=false
