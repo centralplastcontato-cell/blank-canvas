@@ -29,16 +29,43 @@ const DAY_OPTIONS = [
   { num: 4, value: 'Domingo' },
 ];
 
+// Convert keycap emoji digits (2️⃣, 1️⃣2️⃣, 🔟) to a number
+function emojiDigitsToNumber(text: string): number | null {
+  if (text.includes('🔟')) return 10;
+  const keycapPattern = /([\d])\uFE0F?\u20E3/g;
+  let digits = '';
+  let m: RegExpExecArray | null;
+  while ((m = keycapPattern.exec(text)) !== null) {
+    digits += m[1];
+  }
+  return digits ? parseInt(digits, 10) : null;
+}
+
 // Extract options from question text dynamically
 function extractOptionsFromQuestion(questionText: string): { num: number; value: string }[] | null {
   const lines = questionText.split('\n');
   const options: { num: number; value: string }[] = [];
   
   for (const line of lines) {
+    const trimmed = line.trim();
     // Match patterns like "1 - 50 pessoas" or "*1* - 50 pessoas" or "1. 50 pessoas"
-    const match = line.match(/^\*?(\d+)\*?\s*[-\.]\s*(.+)$/);
+    const match = trimmed.match(/^\*?(\d+)\*?\s*[-\.]\s*(.+)$/);
     if (match) {
       options.push({ num: parseInt(match[1]), value: match[2].trim() });
+      continue;
+    }
+    // Try emoji keycap digits: "2️⃣ Fevereiro", "1️⃣2️⃣ Dezembro", "🔟 Outubro"
+    const emojiNum = emojiDigitsToNumber(trimmed);
+    if (emojiNum !== null) {
+      // Remove all keycap sequences and 🔟 to get the label text
+      const label = trimmed
+        .replace(/🔟/g, '')
+        .replace(/[\d]\uFE0F?\u20E3/g, '')
+        .replace(/^\s*[-\.]\s*/, '')
+        .trim();
+      if (label) {
+        options.push({ num: emojiNum, value: label });
+      }
     }
   }
   
