@@ -138,7 +138,7 @@ export function CompanyFormDialog({ open, onOpenChange, company, onSubmit }: Com
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="company-slug">Slug (identificador único)</Label>
+            <Label htmlFor="company-slug">Endereço da Página</Label>
             <Input
               id="company-slug"
               value={slug}
@@ -147,7 +147,7 @@ export function CompanyFormDialog({ open, onOpenChange, company, onSubmit }: Com
             />
             {slug && (
               <p className="text-xs text-muted-foreground">
-                Login: <code className="bg-muted px-1 py-0.5 rounded">/auth/{slug}</code>
+                Usado no link: <code className="bg-muted px-1 py-0.5 rounded">celebrei.com/{slug}</code>
               </p>
             )}
           </div>

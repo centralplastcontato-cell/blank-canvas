@@ -144,16 +144,21 @@ export function CompanyDataSection() {
         />
       </div>
 
-      {/* Slug (read-only) */}
+      {/* Endereço da Página (read-only) */}
       <div className="space-y-2">
-        <Label htmlFor="company-slug">Slug</Label>
+        <Label htmlFor="company-slug">Endereço da Página</Label>
         <Input
           id="company-slug"
           value={currentCompany.slug}
           disabled
           className="bg-muted"
         />
-        <p className="text-xs text-muted-foreground">Identificador único — não editável.</p>
+        <p className="text-xs text-muted-foreground">
+          Esse é o nome usado no link da sua página.
+        </p>
+        <p className="text-xs font-medium text-primary/80">
+          celebrei.com/<span className="font-bold">{currentCompany.slug}</span>
+        </p>
       </div>
 
       {/* Custom Domain */}
