@@ -660,10 +660,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   };
 
   const fetchTemplates = async () => {
+    const companyId = getCurrentCompanyId();
     const { data } = await supabase
       .from("message_templates")
       .select("*")
       .eq("is_active", true)
+      .eq("company_id", companyId)
       .order("sort_order", { ascending: true });
 
     if (data) {

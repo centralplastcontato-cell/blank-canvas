@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +19,14 @@ import { toast } from "@/hooks/use-toast";
 import { MessageSquare, Plus, Pencil, Trash2, GripVertical, Loader2 } from "lucide-react";
 import { CaptionsCard } from "./CaptionsCard";
 
+const DEFAULT_TEMPLATES = [
+  { name: "Primeiro contato", template: "Oi {{nome}}! Aqui é do {{empresa}}! Vi seu pedido para festa em {{mes}} com {{convidados}}. Vou te enviar as opções e valores!!" },
+  { name: "Follow-up", template: "Oi {{nome}}! Tudo bem? Passando pra ver se você conseguiu avaliar o orçamento. Posso te ajudar a garantir sua data?" },
+  { name: "Envio de Orçamento", template: "Oi {{nome}}! Segue seu orçamento com a promoção da campanha {{campanha}}." },
+  { name: "Convite para visita", template: "Gostaria de vir conhecer pessoalmente?" },
+  { name: "Convite para visita (completo)", template: "Oi {{nome}}! Que legal que você está interessado(a) no {{empresa}}! Gostaria de agendar uma visita para conhecer nosso espaço? Temos horários disponíveis e seria um prazer receber você!" },
+];
+
 interface MessageTemplate {
   id: string;
   name: string;
@@ -32,6 +41,7 @@ interface MessagesSectionProps {
 }
 
 export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
+  const { currentCompanyId } = useCompany();
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -44,18 +54,48 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
   });
 
   useEffect(() => {
-    fetchTemplates();
-  }, []);
+    if (currentCompanyId) {
+      fetchTemplates();
+    }
+  }, [currentCompanyId]);
 
-  const fetchTemplates = async () => {
-    setIsLoading(true);
+  const seedDefaultTemplates = async (companyId: string) => {
+    const defaults = DEFAULT_TEMPLATES.map((t, i) => ({
+      name: t.name,
+      template: t.template,
+      is_active: true,
+      sort_order: i,
+      company_id: companyId,
+    }));
+
     const { data, error } = await supabase
       .from("message_templates")
+      .insert(defaults)
+      .select();
+
+    if (error) {
+      console.error("Error seeding default templates:", error);
+      return [];
+    }
+    return data || [];
+  };
+
+  const fetchTemplates = async () => {
+    if (!currentCompanyId) return;
+    setIsLoading(true);
+
+    const { data } = await supabase
+      .from("message_templates")
       .select("*")
+      .eq("company_id", currentCompanyId)
       .order("sort_order", { ascending: true });
 
-    if (data) {
+    if (data && data.length > 0) {
       setTemplates(data);
+    } else {
+      // Auto-populate defaults for this company
+      const seeded = await seedDefaultTemplates(currentCompanyId);
+      setTemplates(seeded);
     }
     setIsLoading(false);
   };
@@ -101,6 +141,7 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
             template: formData.template,
             is_active: formData.is_active,
             sort_order: maxOrder,
+            company_id: currentCompanyId,
           });
 
         if (error) throw error;
