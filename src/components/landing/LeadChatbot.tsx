@@ -361,13 +361,15 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
   };
 
   // Função para enviar mensagem via W-API (sem autenticação - endpoint público via unit)
-  const sendWelcomeMessage = async (phone: string, unit: string, leadInfo: LeadData) => {
+  const sendWelcomeMessage = async (phone: string, unit: string, leadInfo: LeadData, redirectInfo?: { partnerName: string; limit: number }) => {
     try {
       const normalizedUnit = unit === "Trujilo" ? "Trujillo" : unit;
       const cleanPhone = phone.replace(/\D/g, '');
       const phoneWithCountry = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
 
-      const message = `Olá! 👋🏼✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}\n👥 Convidados: ${leadInfo.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n*1* - 📩 Receber agora meu orçamento\n*2* - 💬 Falar com um atendente`;
+      const message = redirectInfo
+        ? `Olá! 👋✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}\n👥 Convidados: ${leadInfo.guests || ''}\n\nNossa capacidade máxima é de ${redirectInfo.limit} convidados 😊\nSeus dados foram encaminhados para o *${redirectInfo.partnerName}*, próximo de nós, que entrará em contato em breve para envio de orçamento sem compromisso!\n\nObrigado pelo interesse! 💜`
+        : `Olá! 👋🏼✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}\n👥 Convidados: ${leadInfo.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n*1* - 📩 Receber agora meu orçamento\n*2* - 💬 Falar com um atendente`;
 
       const { error } = await supabase.functions.invoke('wapi-send', {
         body: {
@@ -442,13 +444,18 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
         await submitLead(leadData.unit!);
 
         // Send welcome message(s) in background
+        const redirectInfo = isRedirected ? {
+          partnerName: lpBotConfig?.guest_limit_redirect_name || 'buffet parceiro',
+          limit: lpBotConfig?.guest_limit || 0,
+        } : undefined;
+
         if (!isDynamic && leadData.unit === "As duas") {
           Promise.all([
-            sendWelcomeMessage(whatsappValue, "Manchester", finalLeadData),
-            sendWelcomeMessage(whatsappValue, "Trujillo", finalLeadData),
+            sendWelcomeMessage(whatsappValue, "Manchester", finalLeadData, redirectInfo),
+            sendWelcomeMessage(whatsappValue, "Trujillo", finalLeadData, redirectInfo),
           ]).catch(err => console.error("Erro ao enviar mensagem automática:", err));
         } else if (leadData.unit) {
-          sendWelcomeMessage(whatsappValue, leadData.unit, finalLeadData)
+          sendWelcomeMessage(whatsappValue, leadData.unit, finalLeadData, redirectInfo)
             .catch(err => console.error("Erro ao enviar mensagem automática:", err));
         }
 
