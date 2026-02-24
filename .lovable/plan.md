@@ -1,56 +1,69 @@
 
 
-## Tornar a legenda do video promo realmente configuravel e remover hardcode de meses
+## Corrigir redirecionamento por limite de convidados no WhatsApp direto
 
-### Problema identificado
-O cliente nao esta fazendo promocao, mas o bot envia o video com a legenda "Promocao especial! Garanta sua festa em Marco!" porque:
+### Problema
+Quando o lead vem pela LP, o redirecionamento por limite de convidados (90+) funciona corretamente. Porem, quando o lead fala direto no WhatsApp e seleciona "+ DE 90 PESSOAS", o bot **nao redireciona** -- continua o fluxo normal.
 
-1. **Legenda fallback hardcoded**: Se a tabela `sales_material_captions` nao tem uma entrada para `video_promo`, o sistema usa o fallback "Promocao especial! Garanta sua festa em {mes}!"
-2. **Meses de promocao hardcoded**: O backend verifica `month === 'Fevereiro' || month === 'Marco'` para decidir se envia o video promo. Isso nao deveria ser fixo.
-3. **Filtro por nome**: Videos com "promo" ou "carnaval" no nome sao automaticamente classificados como promocionais, o que pode pegar videos que nao sao de promocao.
+### Causa raiz
+As configuracoes de limite de convidados estao na tabela `lp_bot_settings` (guest_limit=90, mensagem personalizada, nome do parceiro), mas a tabela `wapi_bot_settings` tem esses campos como **null**. O webhook (`wapi-webhook`) so consulta `wapi_bot_settings`, entao nunca encontra o limite configurado.
+
+```text
+lp_bot_settings (Planeta Divertido):
+  guest_limit = 90
+  guest_limit_message = "Nossa capacidade maxima e de 90 convidados..."
+  guest_limit_redirect_name = "Buffet Mega Magic"
+
+wapi_bot_settings (Planeta Divertido):
+  guest_limit = null        <-- problema!
+  guest_limit_message = null
+  guest_limit_redirect_name = null
+```
 
 ### Solucao
 
-**1. Mudar o fallback da legenda para algo neutro (2 arquivos)**
+**Arquivo: `supabase/functions/wapi-webhook/index.ts`**
 
-Arquivos: `supabase/functions/wapi-webhook/index.ts` e `supabase/functions/follow-up-check/index.ts`
+No trecho onde o bot verifica o limite de convidados (linha ~2244), adicionar fallback para `lp_bot_settings` quando `wapi_bot_settings.guest_limit` for null:
 
-Trocar o fallback de:
-```
-captionMap['video_promo'] || `🎭 Promoção especial! Garanta sua festa em ${month}! 🎉`
-```
-Para:
-```
-captionMap['video_promo'] || captionMap['video'] || `🎬 Confira nosso video! ✨`
+1. Apos carregar `settings` de `wapi_bot_settings`, verificar se `guest_limit` e null
+2. Se for null, buscar `lp_bot_settings` pela `company_id` da instancia
+3. Usar os valores de `lp_bot_settings` como fallback (guest_limit, guest_limit_message, guest_limit_redirect_name)
+
+```text
+// Antes do guest limit check (~linha 2241):
+// Fallback: if wapi_bot_settings has no guest_limit, check lp_bot_settings
+let effectiveGuestLimit = settings.guest_limit;
+let effectiveGuestLimitMessage = settings.guest_limit_message;
+let effectiveGuestLimitRedirectName = settings.guest_limit_redirect_name;
+
+if (!effectiveGuestLimit) {
+  const { data: lpSettings } = await supabase
+    .from('lp_bot_settings')
+    .select('guest_limit, guest_limit_message, guest_limit_redirect_name')
+    .eq('company_id', instance.company_id)
+    .single();
+  
+  if (lpSettings?.guest_limit) {
+    effectiveGuestLimit = lpSettings.guest_limit;
+    effectiveGuestLimitMessage = lpSettings.guest_limit_message;
+    effectiveGuestLimitRedirectName = lpSettings.guest_limit_redirect_name;
+  }
+}
+
+// Usar effectiveGuestLimit no lugar de settings.guest_limit
 ```
 
-Assim, se nao ha legenda promo configurada, usa a legenda normal de video, e se nenhuma existe, usa um texto generico neutro.
-
-**2. Remover restricao de meses hardcoded**
-
-Nos mesmos 2 arquivos, remover a verificacao `isPromoMonth` para que o video promo seja enviado independentemente do mes (ja que a flag `auto_send_promo_video` controla se deve enviar ou nao):
-
-Antes:
-```
-if (sendPromoVideo && isPromoMonth && promoVideos.length > 0)
-```
-Depois:
-```
-if (sendPromoVideo && promoVideos.length > 0)
-```
-
-Isso permite que o admin controle o envio do video promo apenas pela flag `auto_send_promo_video` nas configuracoes, sem restricao de mes.
+4. Substituir todas as referencias a `settings.guest_limit`, `settings.guest_limit_message` e `settings.guest_limit_redirect_name` no bloco de guest limit check pelas variaveis `effective*`
 
 ### Arquivos a editar
 
 | Arquivo | Mudanca |
 |---|---|
-| `supabase/functions/wapi-webhook/index.ts` | Fallback neutro na legenda + remover `isPromoMonth` |
-| `supabase/functions/follow-up-check/index.ts` | Mesmas mudancas |
+| `supabase/functions/wapi-webhook/index.ts` | Fallback para lp_bot_settings quando guest_limit e null |
 
 ### Resultado esperado
-- Videos promo usam a legenda configurada pelo admin no CaptionsCard
-- Se nenhuma legenda promo foi configurada, aparece texto generico neutro (sem mencionar promocao)
-- O envio do video promo e controlado apenas pela flag `auto_send_promo_video`, sem restricao de mes
-- O admin continua podendo personalizar a legenda via Configuracoes > Legendas
-
+- Leads que vem pelo WhatsApp direto e selecionam "+ DE 90 PESSOAS" serao redirecionados para o Buffet Mega Magic, usando a mesma mensagem configurada no Bot LP
+- Nao e necessario configurar o limite em dois lugares -- basta configurar no Bot LP e o WhatsApp herda
+- Se o admin configurar explicitamente em `wapi_bot_settings`, esse valor tem prioridade
+- Leads da LP continuam funcionando normalmente (sem mudanca)
