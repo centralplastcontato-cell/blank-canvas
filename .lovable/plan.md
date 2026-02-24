@@ -1,53 +1,85 @@
 
 
-## Reordenar envio de materiais: PDF sempre por ultimo
+## Tornar Follow-ups Dinamicos + Nova Aba "Follow-ups" na Inteligencia
 
-### Problema atual
-A sequencia atual no bot e:
-1. Fotos do espaco
-2. Video de apresentacao
-3. **PDF/Pacote de precos** (posicao 3)
-4. Video promocional
+### O que muda
 
-### Nova sequencia desejada
-1. Fotos do espaco
-2. Video de apresentacao
-3. Video promocional
-4. **PDF/Pacote de precos** (sempre por ultimo)
+Atualmente, os follow-ups na tela de Inteligencia aparecem agrupados por tempo fixo ("24h", "48h"). O problema e que cada buffet configura tempos diferentes (ex: 72h, 96h, 144h). A proposta e:
 
-### Correcoes incluidas
+1. **Renomear para "1o Follow-up", "2o Follow-up", "3o Follow-up", "4o Follow-up"** em vez de usar horas
+2. **Criar uma nova aba "Follow-ups"** na pagina de Inteligencia com 4 colunas estilo Kanban (igual Prioridades), onde leads se movem conforme recebem cada follow-up
+3. **Atualizar metricas e labels** para usar a nomenclatura por etapa em vez de horas
 
-Alem da reordenacao, tambem sera corrigido o problema de classificacao de videos discutido anteriormente:
-- **Antes**: videos so eram reconhecidos como "apresentacao" se tivessem "apresentacao" no nome
-- **Depois**: qualquer video que NAO seja promo/carnaval sera tratado como video de apresentacao
+---
 
-### Mudanca tecnica
-
-**Arquivo: `supabase/functions/wapi-webhook/index.ts`** (funcao `sendQualificationMaterials`)
-
-1. **Linhas ~2648-2649** -- Corrigir classificacao de videos:
+### Mudancas visuais
 
 ```text
-Antes:
-  presentationVideos = videos com "apresentação" no nome
-  promoVideos = videos com "promo" ou "carnaval" no nome
-
-Depois:
-  promoVideos = videos com "promo" ou "carnaval" no nome
-  presentationVideos = todos os outros videos
++--------------------+--------------------+--------------------+--------------------+
+| 1o Follow-up       | 2o Follow-up       | 3o Follow-up       | 4o Follow-up       |
+| (72h)  [3 leads]   | (96h)  [2 leads]   | (144h) [1 lead]    | (192h) [0 leads]   |
++--------------------+--------------------+--------------------+--------------------+
+| Lead A             | Lead C             | Lead E             |                    |
+|   Score: 45        |   Score: 30        |   Score: 15        | Nenhum lead nesta  |
+|   Morno            |   Frio             |   Frio             | etapa              |
+|   [WhatsApp]       |   [WhatsApp]       |   [WhatsApp]       |                    |
+| Lead B             | Lead D             |                    |                    |
++--------------------+--------------------+--------------------+--------------------+
 ```
 
-2. **Blocos 3 e 4 (linhas ~2784-2854)** -- Trocar a ordem:
-   - Bloco 3 passa a ser: Envio do Video Promocional
-   - Bloco 4 passa a ser: Envio do PDF/Pacote de precos (ultimo material antes da proxima pergunta)
+- Cada coluna mostra o numero do follow-up e entre parenteses o tempo configurado pelo buffet
+- Cores: Verde (1o), Azul (2o), Laranja (3o), Vermelho (4o) -- mesmas cores dos badges existentes
+- Leads com link direto para o WhatsApp e resumo de IA inline
 
-### Resultado
+---
 
-| Empresa | Sequencia |
+### Plano tecnico
+
+**1. Edge Function `daily-summary/index.ts`**
+- Buscar tambem `follow_up_3_delay_hours` e `follow_up_4_delay_hours` do `wapi_bot_settings`
+- Adicionar acoes de follow-up 3 e 4 na lista `FOLLOW_UP_ACTIONS`
+- Expandir metricas para incluir `followUp3` e `followUp4`
+- Mudar labels de "72h" para "1o Follow-up (72h)" etc.
+- Retornar `followUpLabels` com os 4 valores de delay
+
+**2. Hook `useDailySummary.ts`**
+- Expandir `DailyMetrics` para incluir `followUp3` e `followUp4`
+- Expandir `FollowUpLabels` para incluir `fu3` e `fu4`
+- Atualizar `aggregateResults` para somar os novos campos
+
+**3. Componente `ResumoDiarioTab.tsx`**
+- Atualizar `MetricsGrid` para mostrar 4 metricas de follow-up com labels "1o FU", "2o FU", "3o FU", "4o FU" (mostrando horas entre parenteses)
+- Atualizar `FollowUpLeadsSection` para agrupar por numero de follow-up em vez de horas
+- Atualizar contagem na aba "Follow-ups" para incluir todos os 4
+
+**4. Nova aba "Follow-ups" na pagina `Inteligencia.tsx`**
+- Adicionar botao "Follow-ups" no seletor de abas (entre "Prioridades" e "Funil")
+- Buscar dados de `lead_history` para identificar em qual etapa de follow-up cada lead esta
+- Passar dados para o novo componente
+
+**5. Novo componente `FollowUpsTab.tsx`**
+- Layout em 4 colunas (estilo identico ao `PrioridadesTab`)
+- Cada coluna: "1o Follow-up", "2o Follow-up", "3o Follow-up", "4o Follow-up"
+- Subtitulo mostrando o tempo configurado (ex: "72h")
+- Cores das bordas: verde, azul, laranja, vermelho
+- Cada lead mostra: nome, score, temperatura, status, ultimo contato, botao WhatsApp, resumo IA
+- Leads sao filtrados para mostrar apenas leads ativos (nao fechados/perdidos) que receberam aquele follow-up especifico mas nao responderam ainda
+
+**6. Hook de dados para a aba Follow-ups**
+- Buscar do `lead_history` as acoes de follow-up por lead
+- Buscar os delays configurados do `wapi_bot_settings` da empresa atual
+- Cruzar com dados de `lead_intelligence` para enriquecer com score/temperatura
+- Classificar cada lead na coluna do ultimo follow-up recebido
+
+---
+
+### Arquivos que serao modificados
+
+| Arquivo | Tipo de mudanca |
 |---|---|
-| Castelo da Diversao | Fotos -> Video Apresentacao -> Video Carnaval -> PDF |
-| Planeta Divertido | Fotos -> Video do Espaco -> Video Promo -> PDF |
-| Qualquer outra | Fotos -> Videos -> PDF (sempre por ultimo) |
-
-O PDF sendo o ultimo material garante que o lead recebe primeiro o conteudo visual/emocional e so depois o preco, aumentando o engajamento.
+| `supabase/functions/daily-summary/index.ts` | Buscar 4 follow-ups, expandir metricas e labels |
+| `src/hooks/useDailySummary.ts` | Novos campos em DailyMetrics e FollowUpLabels |
+| `src/components/inteligencia/ResumoDiarioTab.tsx` | 4 metricas FU, labels por numero |
+| `src/components/inteligencia/FollowUpsTab.tsx` | **Novo arquivo** -- Kanban de 4 colunas |
+| `src/pages/Inteligencia.tsx` | Nova aba "Follow-ups" no seletor |
 
