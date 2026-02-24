@@ -105,7 +105,7 @@ serve(async (req) => {
 
       if (!saved) {
         return new Response(JSON.stringify({
-          metrics: { novos: 0, visitas: 0, orcamentos: 0, fechados: 0, querPensar: 0, querHumano: 0, taxaConversao: 0, followUp24h: 0, followUp48h: 0 },
+          metrics: { novos: 0, visitas: 0, orcamentos: 0, fechados: 0, querPensar: 0, querHumano: 0, taxaConversao: 0, followUp24h: 0, followUp48h: 0, followUp3: 0, followUp4: 0 },
           aiSummary: null,
           timeline: [],
           incompleteLeads: [],
@@ -462,36 +462,48 @@ Gere um resumo de 3-5 parágrafos curtos com:
     const FOLLOW_UP_ACTIONS = [
       "Follow-up automático enviado",
       "Follow-up #2 automático enviado",
+      "Follow-up #3 automático enviado",
+      "Follow-up #4 automático enviado",
     ];
 
     // Fetch bot settings to get real delay values per instance
     const { data: botSettingsRows } = await supabaseAdmin
       .from("wapi_bot_settings")
-      .select("instance_id, follow_up_delay_hours, follow_up_2_delay_hours")
+      .select("instance_id, follow_up_delay_hours, follow_up_2_delay_hours, follow_up_3_delay_hours, follow_up_4_delay_hours")
       .eq("company_id", company_id);
 
-    const instanceDelayMap = new Map<string, { fu1: number; fu2: number }>();
+    const instanceDelayMap = new Map<string, { fu1: number; fu2: number; fu3: number; fu4: number }>();
     for (const bs of (botSettingsRows || [])) {
       instanceDelayMap.set(bs.instance_id, {
         fu1: bs.follow_up_delay_hours ?? 24,
         fu2: bs.follow_up_2_delay_hours ?? 48,
+        fu3: bs.follow_up_3_delay_hours ?? 72,
+        fu4: bs.follow_up_4_delay_hours ?? 96,
       });
     }
 
     // Collect unique delay labels across all instances
     const allFu1Values = new Set<number>();
     const allFu2Values = new Set<number>();
+    const allFu3Values = new Set<number>();
+    const allFu4Values = new Set<number>();
     for (const delays of instanceDelayMap.values()) {
       allFu1Values.add(delays.fu1);
       allFu2Values.add(delays.fu2);
+      allFu3Values.add(delays.fu3);
+      allFu4Values.add(delays.fu4);
     }
     // Fallback if no settings found
     if (allFu1Values.size === 0) allFu1Values.add(24);
     if (allFu2Values.size === 0) allFu2Values.add(48);
+    if (allFu3Values.size === 0) allFu3Values.add(72);
+    if (allFu4Values.size === 0) allFu4Values.add(96);
 
-    // Build dynamic labels: if all instances share the same value, use that; otherwise list them
+    // Build dynamic labels
     const fu1Label = [...allFu1Values].sort((a, b) => a - b).map(v => `${v}h`).join("/");
     const fu2Label = [...allFu2Values].sort((a, b) => a - b).map(v => `${v}h`).join("/");
+    const fu3Label = [...allFu3Values].sort((a, b) => a - b).map(v => `${v}h`).join("/");
+    const fu4Label = [...allFu4Values].sort((a, b) => a - b).map(v => `${v}h`).join("/");
 
     let followUpQuery = supabase
       .from("lead_history")
@@ -505,6 +517,8 @@ Gere um resumo de 3-5 parágrafos curtos com:
     let followUpLeads: any[] = [];
     let followUpFu1Count = 0;
     let followUpFu2Count = 0;
+    let followUpFu3Count = 0;
+    let followUpFu4Count = 0;
 
     if ((followUpEvents || []).length > 0) {
       const fuLeadIds = [...new Set((followUpEvents || []).map((e: any) => e.lead_id))];
@@ -537,13 +551,19 @@ Gere um resumo de 3-5 parágrafos curtos com:
 
       for (const ev of (followUpEvents || [])) {
         const instanceId = fuInstanceMap.get(ev.lead_id);
-        const delays = instanceDelayMap.get(instanceId) || { fu1: 24, fu2: 48 };
-        const isFirstFollowUp = ev.action === "Follow-up automático enviado";
-
-        const tipo = isFirstFollowUp ? `${delays.fu1}h` : `${delays.fu2}h`;
-
-        if (isFirstFollowUp) followUpFu1Count++;
-        else followUpFu2Count++;
+        const delays = instanceDelayMap.get(instanceId) || { fu1: 24, fu2: 48, fu3: 72, fu4: 96 };
+        
+        let fuNumber = 1;
+        let tipo = `${delays.fu1}h`;
+        if (ev.action === "Follow-up automático enviado") {
+          fuNumber = 1; tipo = `${delays.fu1}h`; followUpFu1Count++;
+        } else if (ev.action === "Follow-up #2 automático enviado") {
+          fuNumber = 2; tipo = `${delays.fu2}h`; followUpFu2Count++;
+        } else if (ev.action === "Follow-up #3 automático enviado") {
+          fuNumber = 3; tipo = `${delays.fu3}h`; followUpFu3Count++;
+        } else if (ev.action === "Follow-up #4 automático enviado") {
+          fuNumber = 4; tipo = `${delays.fu4}h`; followUpFu4Count++;
+        }
 
         const eventDate = new Date(ev.created_at);
         const brtTime = new Date(eventDate.getTime() + BRT_OFFSET * 60 * 60 * 1000);
@@ -554,6 +574,7 @@ Gere um resumo de 3-5 parágrafos curtos com:
           name: fuLeadNamesMap.get(ev.lead_id) || "Lead",
           whatsapp: fuWhatsappMap.get(ev.lead_id) || "",
           tipo,
+          fuNumber,
           time: timeStr,
         });
       }
@@ -561,8 +582,10 @@ Gere um resumo de 3-5 parágrafos curtos com:
 
     metrics.followUp24h = followUpFu1Count;
     metrics.followUp48h = followUpFu2Count;
+    metrics.followUp3 = followUpFu3Count;
+    metrics.followUp4 = followUpFu4Count;
 
-    const followUpLabels = { fu1: fu1Label, fu2: fu2Label };
+    const followUpLabels = { fu1: fu1Label, fu2: fu2Label, fu3: fu3Label, fu4: fu4Label };
     const result = { metrics, aiSummary, timeline, incompleteLeads, followUpLeads, followUpLabels, userNote, isHistorical: isHistoricalDate || false };
 
     // Persist to daily_summaries using service role (upsert) — never overwrite user_note

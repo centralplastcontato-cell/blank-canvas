@@ -40,10 +40,12 @@ function MetricCard({ icon: Icon, label, value, color }: {
   );
 }
 
-function MetricsGrid({ metrics, incompleteCount, followUpLabels }: { metrics: DailyMetrics; incompleteCount: number; followUpLabels?: { fu1: string; fu2: string } }) {
+function MetricsGrid({ metrics, incompleteCount, followUpLabels }: { metrics: DailyMetrics; incompleteCount: number; followUpLabels?: { fu1: string; fu2: string; fu3: string; fu4: string } }) {
   const [isOpen, setIsOpen] = useState(false);
   const fu1Label = followUpLabels?.fu1 || "24h";
   const fu2Label = followUpLabels?.fu2 || "48h";
+  const fu3Label = followUpLabels?.fu3 || "72h";
+  const fu4Label = followUpLabels?.fu4 || "96h";
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -66,8 +68,10 @@ function MetricsGrid({ metrics, incompleteCount, followUpLabels }: { metrics: Da
           <MetricCard icon={MessageCircle} label="Querem humano" value={metrics.querHumano} color="bg-orange-500/10 text-orange-500" />
           <MetricCard icon={Trophy} label="Taxa conversão" value={`${metrics.taxaConversao}%`} color="bg-emerald-500/10 text-emerald-500" />
           <MetricCard icon={AlertTriangle} label="Não completaram" value={incompleteCount} color="bg-destructive/10 text-destructive" />
-          <MetricCard icon={Timer} label={`Follow-up ${fu1Label}`} value={metrics.followUp24h || 0} color="bg-sky-500/10 text-sky-500" />
-          <MetricCard icon={Timer} label={`Follow-up ${fu2Label}`} value={metrics.followUp48h || 0} color="bg-indigo-500/10 text-indigo-500" />
+          <MetricCard icon={Timer} label={`1º FU (${fu1Label})`} value={metrics.followUp24h || 0} color="bg-green-500/10 text-green-500" />
+          <MetricCard icon={Timer} label={`2º FU (${fu2Label})`} value={metrics.followUp48h || 0} color="bg-sky-500/10 text-sky-500" />
+          <MetricCard icon={Timer} label={`3º FU (${fu3Label})`} value={metrics.followUp3 || 0} color="bg-orange-500/10 text-orange-500" />
+          <MetricCard icon={Timer} label={`4º FU (${fu4Label})`} value={metrics.followUp4 || 0} color="bg-red-500/10 text-red-500" />
         </div>
       </CollapsibleContent>
     </Collapsible>
@@ -635,7 +639,7 @@ export function ResumoDiarioTab() {
             Não Completaram {incompleteCount > 0 && `(${incompleteCount})`}
           </TabsTrigger>
           <TabsTrigger value="follow-ups">
-            Follow-ups {((data?.metrics?.followUp24h || 0) + (data?.metrics?.followUp48h || 0)) > 0 && `(${(data?.metrics?.followUp24h || 0) + (data?.metrics?.followUp48h || 0)})`}
+            Follow-ups {((data?.metrics?.followUp24h || 0) + (data?.metrics?.followUp48h || 0) + (data?.metrics?.followUp3 || 0) + (data?.metrics?.followUp4 || 0)) > 0 && `(${(data?.metrics?.followUp24h || 0) + (data?.metrics?.followUp48h || 0) + (data?.metrics?.followUp3 || 0) + (data?.metrics?.followUp4 || 0)})`}
           </TabsTrigger>
         </TabsList>
 

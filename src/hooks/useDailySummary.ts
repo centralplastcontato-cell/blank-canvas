@@ -13,6 +13,8 @@ export interface DailyMetrics {
   taxaConversao: number;
   followUp24h: number;
   followUp48h: number;
+  followUp3: number;
+  followUp4: number;
 }
 
 export interface FollowUpLead {
@@ -47,6 +49,8 @@ export interface IncompleteLead {
 export interface FollowUpLabels {
   fu1: string;
   fu2: string;
+  fu3: string;
+  fu4: string;
 }
 
 export interface DailySummaryData {
@@ -65,7 +69,7 @@ function aggregateResults(results: DailySummaryData[]): DailySummaryData {
   const valid = results.filter(r => !r.noData);
   if (valid.length === 0) {
     return {
-      metrics: { novos: 0, visitas: 0, orcamentos: 0, fechados: 0, querPensar: 0, querHumano: 0, taxaConversao: 0, followUp24h: 0, followUp48h: 0 },
+      metrics: { novos: 0, visitas: 0, orcamentos: 0, fechados: 0, querPensar: 0, querHumano: 0, taxaConversao: 0, followUp24h: 0, followUp48h: 0, followUp3: 0, followUp4: 0 },
       aiSummary: null,
       timeline: [],
       incompleteLeads: [],
@@ -77,7 +81,7 @@ function aggregateResults(results: DailySummaryData[]): DailySummaryData {
   const metrics: DailyMetrics = {
     novos: 0, visitas: 0, orcamentos: 0, fechados: 0,
     querPensar: 0, querHumano: 0, taxaConversao: 0,
-    followUp24h: 0, followUp48h: 0,
+    followUp24h: 0, followUp48h: 0, followUp3: 0, followUp4: 0,
   };
 
   for (const r of valid) {
@@ -90,6 +94,8 @@ function aggregateResults(results: DailySummaryData[]): DailySummaryData {
       metrics.querHumano += r.metrics.querHumano || 0;
       metrics.followUp24h += r.metrics.followUp24h || 0;
       metrics.followUp48h += r.metrics.followUp48h || 0;
+      metrics.followUp3 += r.metrics.followUp3 || 0;
+      metrics.followUp4 += r.metrics.followUp4 || 0;
     }
   }
 
