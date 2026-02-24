@@ -53,6 +53,8 @@ export interface Lead {
   has_scheduled_visit?: boolean; // From wapi_conversations link
   has_follow_up?: boolean; // From lead_history - follow-up automático enviado
   has_follow_up_2?: boolean; // From lead_history - second follow-up
+  has_follow_up_3?: boolean; // From lead_history - third follow-up
+  has_follow_up_4?: boolean; // From lead_history - fourth follow-up
   has_return?: boolean; // From lead_history - lead retornou pela LP
 }
 
