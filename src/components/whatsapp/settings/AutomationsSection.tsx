@@ -1438,10 +1438,14 @@ export function AutomationsSection() {
                       type="number"
                       min={1}
                       max={168}
-                      value={botSettings?.follow_up_delay_hours || 24}
+                      value={(botSettings?.follow_up_delay_hours ?? 24) || ''}
                       onChange={(e) => {
                         const raw = e.target.value;
-                        const value = raw === '' ? 0 : parseInt(raw);
+                        if (raw === '') {
+                          setBotSettings(prev => prev ? { ...prev, follow_up_delay_hours: 0 } : prev);
+                          return;
+                        }
+                        const value = parseInt(raw);
                         if (!isNaN(value)) {
                           setBotSettings(prev => prev ? { ...prev, follow_up_delay_hours: value } : prev);
                         }
@@ -1524,10 +1528,14 @@ export function AutomationsSection() {
                       type="number"
                       min={24}
                       max={336}
-                      value={botSettings?.follow_up_2_delay_hours || 48}
+                      value={(botSettings?.follow_up_2_delay_hours ?? 48) || ''}
                       onChange={(e) => {
                         const raw = e.target.value;
-                        const value = raw === '' ? 0 : parseInt(raw);
+                        if (raw === '') {
+                          setBotSettings(prev => prev ? { ...prev, follow_up_2_delay_hours: 0 } : prev);
+                          return;
+                        }
+                        const value = parseInt(raw);
                         if (!isNaN(value)) {
                           setBotSettings(prev => prev ? { ...prev, follow_up_2_delay_hours: value } : prev);
                         }
@@ -1608,10 +1616,14 @@ export function AutomationsSection() {
                       type="number"
                       min={48}
                       max={504}
-                      value={botSettings?.follow_up_3_delay_hours || 72}
+                      value={(botSettings?.follow_up_3_delay_hours ?? 72) || ''}
                       onChange={(e) => {
                         const raw = e.target.value;
-                        const value = raw === '' ? 0 : parseInt(raw);
+                        if (raw === '') {
+                          setBotSettings(prev => prev ? { ...prev, follow_up_3_delay_hours: 0 } : prev);
+                          return;
+                        }
+                        const value = parseInt(raw);
                         if (!isNaN(value)) {
                           setBotSettings(prev => prev ? { ...prev, follow_up_3_delay_hours: value } : prev);
                         }
@@ -1692,10 +1704,14 @@ export function AutomationsSection() {
                       type="number"
                       min={72}
                       max={720}
-                      value={botSettings?.follow_up_4_delay_hours || 96}
+                      value={(botSettings?.follow_up_4_delay_hours ?? 96) || ''}
                       onChange={(e) => {
                         const raw = e.target.value;
-                        const value = raw === '' ? 0 : parseInt(raw);
+                        if (raw === '') {
+                          setBotSettings(prev => prev ? { ...prev, follow_up_4_delay_hours: 0 } : prev);
+                          return;
+                        }
+                        const value = parseInt(raw);
                         if (!isNaN(value)) {
                           setBotSettings(prev => prev ? { ...prev, follow_up_4_delay_hours: value } : prev);
                         }
