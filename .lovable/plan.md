@@ -1,42 +1,56 @@
 
 
-## Corrigir correspondencia entre configuracoes e mensagens exibidas
+## Tornar a legenda do video promo realmente configuravel e remover hardcode de meses
 
-### Problema
-As mensagens configuradas no Bot LP nao estao correspondendo ao que aparece no WhatsApp. O screenshot mostra que a mensagem do WhatsApp contem texto extra hardcoded ("Seus dados foram encaminhados para o Buffet Mega Magic...") alem do texto personalizado configurado.
+### Problema identificado
+O cliente nao esta fazendo promocao, mas o bot envia o video com a legenda "Promocao especial! Garanta sua festa em Marco!" porque:
 
-### Causa raiz
-Na linha 371-372 do `LeadChatbot.tsx`, o fallback do `redirectText` ainda contem o texto longo hardcoded. Se por qualquer motivo o `customMessage` falhar (null, undefined, string vazia), o sistema usa esse fallback com texto duplicado. Alem disso, o acesso `redirectInfo.customMessage` sem optional chaining pode causar erro quando `redirectInfo` e undefined.
+1. **Legenda fallback hardcoded**: Se a tabela `sales_material_captions` nao tem uma entrada para `video_promo`, o sistema usa o fallback "Promocao especial! Garanta sua festa em {mes}!"
+2. **Meses de promocao hardcoded**: O backend verifica `month === 'Fevereiro' || month === 'Marco'` para decidir se envia o video promo. Isso nao deveria ser fixo.
+3. **Filtro por nome**: Videos com "promo" ou "carnaval" no nome sao automaticamente classificados como promocionais, o que pode pegar videos que nao sao de promocao.
 
 ### Solucao
 
-**Arquivo: `src/components/landing/LeadChatbot.tsx`**
+**1. Mudar o fallback da legenda para algo neutro (2 arquivos)**
 
-**1. Corrigir acesso seguro e simplificar fallback (linhas 371-372):**
+Arquivos: `supabase/functions/wapi-webhook/index.ts` e `supabase/functions/follow-up-check/index.ts`
+
+Trocar o fallback de:
+```
+captionMap['video_promo'] || `🎭 Promoção especial! Garanta sua festa em ${month}! 🎉`
+```
+Para:
+```
+captionMap['video_promo'] || captionMap['video'] || `🎬 Confira nosso video! ✨`
+```
+
+Assim, se nao ha legenda promo configurada, usa a legenda normal de video, e se nenhuma existe, usa um texto generico neutro.
+
+**2. Remover restricao de meses hardcoded**
+
+Nos mesmos 2 arquivos, remover a verificacao `isPromoMonth` para que o video promo seja enviado independentemente do mes (ja que a flag `auto_send_promo_video` controla se deve enviar ou nao):
 
 Antes:
-```text
-const redirectText = redirectInfo.customMessage
-  || `Nossa capacidade maxima e de ${redirectInfo.limit} convidados. Seus dados foram encaminhados para o *${redirectInfo.partnerName}*...`;
 ```
-
+if (sendPromoVideo && isPromoMonth && promoVideos.length > 0)
+```
 Depois:
-```text
-const redirectText = (redirectInfo?.customMessage && redirectInfo.customMessage.trim())
-  || `Nossa capacidade maxima e de ${redirectInfo?.limit || 0} convidados.`;
+```
+if (sendPromoVideo && promoVideos.length > 0)
 ```
 
-Mudancas:
-- Adiciona optional chaining (`?.`) para evitar erro
-- Adiciona `.trim()` para garantir que strings vazias nao passem
-- Remove TODA a frase "Seus dados foram encaminhados..." do fallback -- fica so o texto minimo do limite
+Isso permite que o admin controle o envio do video promo apenas pela flag `auto_send_promo_video` nas configuracoes, sem restricao de mes.
 
-**2. Garantir que a mensagem de conclusao usa o campo correto (linhas 467-470):**
+### Arquivos a editar
 
-Verificar que `redirect_completion_message` esta sendo priorizado corretamente. O codigo atual ja esta correto, mas confirmar que o campo chega via `lpBotConfig`.
+| Arquivo | Mudanca |
+|---|---|
+| `supabase/functions/wapi-webhook/index.ts` | Fallback neutro na legenda + remover `isPromoMonth` |
+| `supabase/functions/follow-up-check/index.ts` | Mesmas mudancas |
 
 ### Resultado esperado
-- **WhatsApp**: Mostra SOMENTE o texto configurado em "Mensagem de redirecionamento", sem nenhuma frase extra
-- **Chat da LP**: Mostra o texto configurado em "Mensagem de conclusao (chat da LP)"
-- **Fallback**: Se nenhuma mensagem estiver configurada, mostra apenas "Nossa capacidade maxima e de X convidados." -- limpo e sem duplicacao
+- Videos promo usam a legenda configurada pelo admin no CaptionsCard
+- Se nenhuma legenda promo foi configurada, aparece texto generico neutro (sem mencionar promocao)
+- O envio do video promo e controlado apenas pela flag `auto_send_promo_video`, sem restricao de mes
+- O admin continua podendo personalizar a legenda via Configuracoes > Legendas
 
