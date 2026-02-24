@@ -369,7 +369,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
 
       const message = redirectInfo
         ? `Olá! 👋✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}\n👥 Convidados: ${leadInfo.guests || ''}\n\nNossa capacidade máxima é de ${redirectInfo.limit} convidados 😊\nSeus dados foram encaminhados para o *${redirectInfo.partnerName}*, próximo de nós, que entrará em contato em breve para envio de orçamento sem compromisso!\n\nObrigado pelo interesse! 💜`
-        : `Olá! 👋🏼✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}\n👥 Convidados: ${leadInfo.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n*1* - 📩 Receber agora meu orçamento\n*2* - 💬 Falar com um atendente`;
+        : `Olá! 👋🏼✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}\n👥 Convidados: ${leadInfo.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n1️⃣ - 📩 Receber agora meu orçamento\n2️⃣ - 💬 Falar com um atendente`;
 
       const { error } = await supabase.functions.invoke('wapi-send', {
         body: {
@@ -507,7 +507,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
 
   // Build WhatsApp message for final buttons
   const buildWhatsAppMessage = () => {
-    return `Olá! 👋🏼✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadData.name || ''}\n📍 Unidade: ${leadData.unit || ''}\n📅 Data: ${leadData.dayOfMonth || ''}/${leadData.month || ''}\n👥 Convidados: ${leadData.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n*1* - 📩 Receber agora meu orçamento\n*2* - 💬 Falar com um atendente`;
+    return `Olá! 👋🏼✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadData.name || ''}\n📍 Unidade: ${leadData.unit || ''}\n📅 Data: ${leadData.dayOfMonth || ''}/${leadData.month || ''}\n👥 Convidados: ${leadData.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n1️⃣ - 📩 Receber agora meu orçamento\n2️⃣ - 💬 Falar com um atendente`;
   };
 
   return (
