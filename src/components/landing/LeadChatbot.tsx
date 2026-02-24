@@ -368,8 +368,8 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
       const cleanPhone = phone.replace(/\D/g, '');
       const phoneWithCountry = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
 
-      const redirectText = redirectInfo.customMessage
-        || `Nossa capacidade máxima é de ${redirectInfo.limit} convidados. Seus dados foram encaminhados para o *${redirectInfo.partnerName}*, próximo de nós, que entrará em contato em breve para envio de orçamento sem compromisso!`;
+      const redirectText = (redirectInfo?.customMessage && redirectInfo.customMessage.trim())
+        || `Nossa capacidade máxima é de ${redirectInfo?.limit || 0} convidados.`;
 
       const message = redirectInfo
         ? `Olá! 👋✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}\n👥 Convidados: ${leadInfo.guests || ''}\n\n${redirectText}\n\nObrigado pelo interesse! 💜`
