@@ -96,9 +96,15 @@ const PROXIMO_PASSO_OPTIONS = [
   { num: 3, value: 'Analisar com calma' },
 ];
 
-// Build menu text
+// Convert number to keycap emoji (1→1️⃣, 10→🔟, 12→1️⃣2️⃣)
+function numToKeycap(n: number): string {
+  if (n === 10) return '🔟';
+  return String(n).split('').map(d => `${d}\uFE0F\u20E3`).join('');
+}
+
+// Build menu text with keycap emojis
 function buildMenuText(options: { num: number; value: string }[]): string {
-  return options.map(opt => `*${opt.num}* - ${opt.value}`).join('\n');
+  return options.map(opt => `${numToKeycap(opt.num)} - ${opt.value}`).join('\n');
 }
 
 // Helper: get notification targets scoped to a specific company
