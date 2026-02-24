@@ -1,43 +1,42 @@
 
 
-## Corrigir navegacao de notificacao para abrir conversa no chat
+## Corrigir correspondencia entre configuracoes e mensagens exibidas
 
 ### Problema
-Quando o usuario clica em "Abrir Chat" na notificacao, o sistema navega para `/atendimento?phone=XXX`, mas a conversa nao abre. Isso acontece porque:
+As mensagens configuradas no Bot LP nao estao correspondendo ao que aparece no WhatsApp. O screenshot mostra que a mensagem do WhatsApp contem texto extra hardcoded ("Seus dados foram encaminhados para o Buffet Mega Magic...") alem do texto personalizado configurado.
 
-1. O componente `WhatsAppChat` tem uma flag `initialPhoneProcessed` que e marcada como `true` apos o primeiro uso e **nunca e resetada**
-2. Quando o usuario ja esta em `/atendimento` e clica numa segunda notificacao, a flag impede que a nova conversa seja buscada e selecionada
+### Causa raiz
+Na linha 371-372 do `LeadChatbot.tsx`, o fallback do `redirectText` ainda contem o texto longo hardcoded. Se por qualquer motivo o `customMessage` falhar (null, undefined, string vazia), o sistema usa esse fallback com texto duplicado. Alem disso, o acesso `redirectInfo.customMessage` sem optional chaining pode causar erro quando `redirectInfo` e undefined.
 
 ### Solucao
 
-**Arquivo: `src/components/whatsapp/WhatsAppChat.tsx`**
+**Arquivo: `src/components/landing/LeadChatbot.tsx`**
 
-Adicionar um `useEffect` que reseta `initialPhoneProcessed` sempre que o valor de `initialPhone` muda. Assim, cada nova navegacao via notificacao dispara corretamente a busca da conversa.
+**1. Corrigir acesso seguro e simplificar fallback (linhas 371-372):**
 
+Antes:
 ```text
-// Novo useEffect (antes do useEffect da linha 689):
-useEffect(() => {
-  if (initialPhone) {
-    setInitialPhoneProcessed(false);
-    setDraftApplied(false);
-  }
-}, [initialPhone]);
+const redirectText = redirectInfo.customMessage
+  || `Nossa capacidade maxima e de ${redirectInfo.limit} convidados. Seus dados foram encaminhados para o *${redirectInfo.partnerName}*...`;
 ```
 
-**Arquivo: `src/pages/CentralAtendimento.tsx`**
-
-Garantir que o `useEffect` que lida com `searchParams` tambem reseta o `initialPhone` antes de atribuir o novo valor, forcando o React a detectar a mudanca mesmo quando o telefone e o mesmo:
-
+Depois:
 ```text
-// No useEffect da linha 102-125:
-// Antes de setar o novo initialPhone, limpar o anterior
-setInitialPhone(null);
-// ...depois setar o novo valor
-setInitialPhone(phoneParam);
+const redirectText = (redirectInfo?.customMessage && redirectInfo.customMessage.trim())
+  || `Nossa capacidade maxima e de ${redirectInfo?.limit || 0} convidados.`;
 ```
+
+Mudancas:
+- Adiciona optional chaining (`?.`) para evitar erro
+- Adiciona `.trim()` para garantir que strings vazias nao passem
+- Remove TODA a frase "Seus dados foram encaminhados..." do fallback -- fica so o texto minimo do limite
+
+**2. Garantir que a mensagem de conclusao usa o campo correto (linhas 467-470):**
+
+Verificar que `redirect_completion_message` esta sendo priorizado corretamente. O codigo atual ja esta correto, mas confirmar que o campo chega via `lpBotConfig`.
 
 ### Resultado esperado
-- Cada clique em "Abrir Chat" nas notificacoes abre a conversa correta, mesmo quando o usuario ja esta na Central de Atendimento
-- Funciona para todas as notificacoes: cliente existente, visita agendada, transferencia e leads
-- Nao quebra o comportamento normal de navegacao inicial
+- **WhatsApp**: Mostra SOMENTE o texto configurado em "Mensagem de redirecionamento", sem nenhuma frase extra
+- **Chat da LP**: Mostra o texto configurado em "Mensagem de conclusao (chat da LP)"
+- **Fallback**: Se nenhuma mensagem estiver configurada, mostra apenas "Nossa capacidade maxima e de X convidados." -- limpo e sem duplicacao
 
