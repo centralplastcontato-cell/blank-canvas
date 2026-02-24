@@ -1,81 +1,111 @@
 
+# Bot LP Configuravel por Empresa
 
-# Corrigir: Variavel `{{empresa}}` nao substituida no bot
+## O que sera feito
 
-## Problema identificado
+Criar um sistema onde cada empresa pode personalizar o chatbot da sua Landing Page (LP) de forma independente, sem afetar outras empresas. Toda a configuracao ficara acessivel em uma **nova aba "Bot LP"** dentro das Configuracoes.
 
-A mensagem de boas-vindas do Planeta Divertido mostra literalmente `{{empresa}}` ao inves do nome do buffet. Sao **3 bugs combinados**:
+## Como funciona hoje
 
-1. **A welcome message NAO passa pela funcao de substituicao de variaveis** - na linha 1951, o texto e concatenado diretamente sem processamento:
-   ```
-   msg = settings.welcome_message + '\n\n' + firstQ.question;
-   // Nenhuma chamada a replaceVariables()
-   ```
+O chatbot da LP e 100% hardcoded no codigo React. As opcoes de meses, convidados, mensagens de boas-vindas e conclusao estao fixas no arquivo `LeadChatbot.tsx`. Nao existe nenhuma tabela no banco de dados para configurar o bot da LP.
 
-2. **A funcao `replaceVariables` so reconhece chaves simples `{key}`** - mas os templates usam chaves duplas `{{empresa}}`. O regex atual (`\{key\}`) nao casa com `{{empresa}}`.
+## O que muda
 
-3. **O nome da empresa nunca e injetado no mapa de variaveis** - a variavel `updated` contem apenas dados coletados do lead (`nome`, `mes`, `dia`, `convidados`), mas nao inclui `empresa` ou `buffet`.
+### 1. Nova tabela no banco: `lp_bot_settings`
 
-Nota: o Flow Builder ja tem esse problema resolvido (linhas 1039-1079) com sua propria funcao `replaceVars` que busca o nome da empresa e suporta `{{chaves duplas}}`. A correcao consiste em alinhar o bot principal com essa mesma logica.
+Uma tabela que armazena toda a configuracao do bot da LP **por empresa**:
 
-## Solucao
+| Campo | Descricao | Exemplo (Planeta Divertido) |
+|---|---|---|
+| `company_id` | Empresa dona da config | UUID do Planeta |
+| `welcome_message` | Mensagem de boas-vindas | "Oi! Bem-vindo ao Planeta Divertido..." |
+| `month_options` | Meses disponiveis (JSON array) | ["Marco","Abril",...] |
+| `guest_options` | Opcoes de convidados (JSON array) | ["Ate 50","51 a 70","71 a 90"] |
+| `guest_limit` | Limite maximo de convidados | 90 |
+| `guest_limit_message` | Mensagem quando excede o limite | "Nossa capacidade e de 90..." |
+| `guest_limit_redirect_name` | Nome do buffet parceiro | "Buffet Mega Magic" |
+| `completion_message` | Mensagem final apos captura | "Prontinho! Entraremos em contato..." |
+| `month_question` | Texto da pergunta de mes | "Para qual mes voce pretende..." |
+| `guest_question` | Texto da pergunta de convidados | "Para quantas pessoas sera a festa?" |
+| `name_question` | Texto pedindo o nome | "Qual o seu nome?" |
+| `whatsapp_question` | Texto pedindo o WhatsApp | "Qual seu WhatsApp?" |
 
-### Arquivo: `supabase/functions/wapi-webhook/index.ts`
+**Empresas sem registro nesta tabela continuam usando o fluxo padrao hardcoded** -- ou seja, o Castelo da Diversao nao precisa de nenhuma configuracao e continua funcionando identico.
 
-**1. Atualizar `replaceVariables` (linha 366) para suportar chaves duplas:**
+### 2. Nova aba "Bot LP" nas Configuracoes
 
-Adicionar um segundo passo de substituicao para `{{key}}` alem de `{key}`:
+Dentro da pagina de Configuracoes (`/configuracoes`), sera adicionada uma nova aba chamada **"Bot LP"** (ao lado de Perfil, WhatsApp e Festa). Nessa aba, o gestor podera editar:
+
+- **Mensagem de boas-vindas** (textarea)
+- **Opcoes de meses** (lista editavel)
+- **Opcoes de convidados** (lista editavel)
+- **Limite de convidados** (campo numerico, opcional)
+- **Mensagem de redirecionamento** (textarea, aparece so quando limite e preenchido)
+- **Nome do buffet parceiro** (campo texto, aparece so quando limite e preenchido)
+- **Mensagens de cada etapa** (pergunta de mes, convidados, nome, whatsapp)
+- **Mensagem de conclusao** (textarea)
+
+### 3. Alteracao no LeadChatbot (frontend)
+
+O componente `LeadChatbot.tsx` sera atualizado para:
+
+1. Quando em modo dinamico (`companyId` presente), buscar `lp_bot_settings` no banco
+2. Se encontrar configuracao, usar os textos e opcoes do banco
+3. Se nao encontrar, manter o comportamento atual (hardcoded)
+4. Ao receber a selecao de convidados, verificar contra `guest_limit`:
+   - Se dentro do limite: fluxo normal
+   - Se acima: mostrar `guest_limit_message` com opcoes "Sim" / "Nao"
+   - Se "Sim": salvar lead com status `transferido` e observacao "Redirecionado para [Buffet Mega Magic]"
+   - Se "Nao": continuar fluxo normal
+
+### 4. Alteracao no bot do WhatsApp (wapi-webhook)
+
+A mesma logica de limite sera aplicada no bot do WhatsApp:
+
+1. No passo `convidados`, ler `guest_limit` de `wapi_bot_settings` (que ja existe)
+2. Se ultrapassar: enviar mensagem de redirecionamento + aguardar resposta
+3. Se aceitar: criar lead como `transferido`
+
+### 5. DynamicLandingPage
+
+A pagina `DynamicLandingPage.tsx` sera atualizada para buscar `lp_bot_settings` junto com os dados da LP e passar as configuracoes ao `LeadChatbot`.
+
+## Fluxo do lead com limite
 
 ```text
-function replaceVariables(text: string, data: Record<string, string>): string {
-  let result = text;
-  for (const [key, value] of Object.entries(data)) {
-    // Primeiro tenta {{key}} (chaves duplas), depois {key} (chave simples)
-    result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'gi'), value);
-    result = result.replace(new RegExp(`\\{${key}\\}`, 'gi'), value);
-  }
-  return result;
-}
+Lead seleciona convidados
+         |
+   Existe guest_limit?
+    /          \
+  Nao           Sim
+   |             |
+Fluxo         Numero > limite?
+normal        /          \
+            Nao           Sim
+             |             |
+          Fluxo        Mensagem:
+          normal       "Podemos direcionar
+                        para Mega Magic?"
+                        /          \
+                      Sim          Nao
+                       |            |
+                    Lead com     Fluxo
+                    status       normal
+                    "transferido"
+                    obs: "Mega Magic"
 ```
 
-**2. Buscar o nome da empresa e injetar no mapa de variaveis (antes da linha 1948):**
+## Impacto nas outras empresas
 
-Buscar o nome da empresa via `companies` (mesmo padrao do FlowBuilder) e adicionar ao objeto `updated`:
+**ZERO.** Empresas sem registro na tabela `lp_bot_settings` continuam com o fluxo hardcoded. A aba "Bot LP" simplesmente ficara com os valores padrao pre-preenchidos para quem quiser personalizar.
 
-```text
-// Buscar nome da empresa para variaveis de template
-let companyName = '';
-try {
-  const { data: companyData } = await supabase
-    .from('companies')
-    .select('name')
-    .eq('id', instance.company_id)
-    .single();
-  companyName = companyData?.name || '';
-} catch (_) { /* ignore */ }
+## Arquivos que serao criados/alterados
 
-// Injetar variaveis de empresa no mapa
-updated.empresa = companyName;
-updated.buffet = companyName;
-updated['nome-empresa'] = companyName;
-updated['nome_empresa'] = companyName;
-```
-
-**3. Processar a welcome message com replaceVariables (linha 1951):**
-
-```text
-// ANTES:
-msg = settings.welcome_message + '\n\n' + (firstQ?.question || DEFAULT_QUESTIONS.nome.question);
-
-// DEPOIS:
-msg = replaceVariables(settings.welcome_message, updated) + '\n\n' + (firstQ?.question || DEFAULT_QUESTIONS.nome.question);
-```
-
-## Impacto
-
-- Corrige `{{empresa}}` na mensagem de boas-vindas de TODAS as instancias
-- Tambem corrige `{empresa}`, `{{buffet}}`, `{{nome-empresa}}`, `{{nome_empresa}}` em qualquer template do bot (completion, transfer, work_here)
-- Retrocompativel: templates com chaves simples `{nome}` continuam funcionando
-- Nenhuma alteracao no banco de dados necessaria
-- 1 arquivo alterado + deploy da edge function
-
+1. **Nova migration SQL** - Criar tabela `lp_bot_settings` + RLS policies + popular dados do Planeta Divertido
+2. **Novo componente** `src/components/whatsapp/settings/LPBotSection.tsx` - Formulario de edicao do Bot LP
+3. **`src/components/landing/LeadChatbot.tsx`** - Carregar config do banco + logica de limite
+4. **`src/pages/DynamicLandingPage.tsx`** - Buscar `lp_bot_settings` e passar ao chatbot
+5. **`src/pages/Configuracoes.tsx`** - Adicionar aba "Bot LP"
+6. **`src/components/whatsapp/WhatsAppConfig.tsx`** - Adicionar secao Bot LP no menu
+7. **`supabase/functions/wapi-webhook/index.ts`** - Adicionar campos `guest_limit` + logica de redirecionamento no bot WhatsApp
+8. **Nova migration SQL** - Adicionar colunas `guest_limit`, `guest_limit_message`, `guest_limit_redirect_name` em `wapi_bot_settings`
