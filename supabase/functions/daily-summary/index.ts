@@ -378,6 +378,16 @@ serve(async (req) => {
     const existingAiSummary = existingSaved?.ai_summary || null;
     const existingAiGeneratedAt = existingSaved?.ai_generated_at || null;
 
+    // Pre-fetch ai_context for the AI prompt
+    const { data: aiContextRows } = await supabaseAdmin
+      .from("wapi_bot_settings")
+      .select("ai_context")
+      .eq("company_id", company_id);
+    const customAiContext = (aiContextRows || [])
+      .map((r: any) => r.ai_context)
+      .filter(Boolean)
+      .join("\n");
+
     const shouldGenerate = openaiKey && shouldRegenerateAI(
       !!force_refresh,
       existingAiSummary,
@@ -394,7 +404,22 @@ serve(async (req) => {
         .filter((i: any) => i.abandonment_type)
         .map((i: any) => `${allLeadNames.get(i.lead_id) || "Lead"} (${i.abandonment_type})`);
 
-      const prompt = `Você é um assistente de vendas de buffet infantil. Analise os dados do dia e gere um briefing curto e actionable em português brasileiro.
+      const customContextBlock = customAiContext
+        ? `\nCONTEXTO PERSONALIZADO DESTA EMPRESA:\n${customAiContext}\n`
+        : "";
+
+      const prompt = `Você é um consultor especialista no mercado de buffet de festas infantis.
+
+CONTEXTO IMPORTANTE DO SETOR:
+- O ciclo de venda de buffet infantil é naturalmente longo (dias a semanas). Os pais pesquisam vários buffets antes de decidir.
+- É normal receber muitos leads e orçamentos com poucos fechamentos no mesmo dia. Isso NÃO é um problema.
+- Uma taxa de conversão de 5-15% sobre o total de leads é considerada saudável neste mercado.
+- O volume de leads novos e orçamentos enviados são indicadores positivos de demanda.
+- "Quer pensar" NÃO é negativo — faz parte do processo natural de decisão dos pais.
+- O foco deve ser em nutrir o relacionamento e agendar visitas, não pressionar.
+- Evite tom alarmista. Analise com perspectiva realista do setor.
+${customContextBlock}
+Analise os dados do dia e gere um briefing curto e actionable em português brasileiro.
 
 Dados do dia:
 - ${novos} leads novos
@@ -411,10 +436,10 @@ Leads em risco: ${atRisk.length > 0 ? atRisk.join(", ") : "nenhum"}
 Eventos do dia: ${timeline.length} eventos registrados
 
 Gere um resumo de 3-5 parágrafos curtos com:
-1. Visão geral do dia
-2. Destaques positivos
-3. Alertas e pontos de atenção
-4. Sugestões de próximos passos para o time`;
+1. Visão geral do dia (tom positivo e realista)
+2. Destaques positivos (valorize volume de leads e orçamentos)
+3. Alertas e pontos de atenção (apenas se realmente relevantes)
+4. Sugestões de próximos passos para o time (foco em nutrição e relacionamento)`;
 
       try {
         const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -466,11 +491,14 @@ Gere um resumo de 3-5 parágrafos curtos com:
       "Follow-up #4 automático enviado",
     ];
 
-    // Fetch bot settings to get real delay values per instance
+    // Fetch bot settings to get real delay values per instance + ai_context
     const { data: botSettingsRows } = await supabaseAdmin
       .from("wapi_bot_settings")
-      .select("instance_id, follow_up_delay_hours, follow_up_2_delay_hours, follow_up_3_delay_hours, follow_up_4_delay_hours")
+      .select("instance_id, follow_up_delay_hours, follow_up_2_delay_hours, follow_up_3_delay_hours, follow_up_4_delay_hours, ai_context")
       .eq("company_id", company_id);
+
+
+
 
     const instanceDelayMap = new Map<string, { fu1: number; fu2: number; fu3: number; fu4: number }>();
     for (const bs of (botSettingsRows || [])) {

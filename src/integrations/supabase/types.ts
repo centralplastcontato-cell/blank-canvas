@@ -2647,6 +2647,7 @@ export type Database = {
       }
       wapi_bot_settings: {
         Row: {
+          ai_context: string | null
           auto_send_materials: boolean | null
           auto_send_pdf: boolean | null
           auto_send_pdf_intro: string | null
@@ -2696,6 +2697,7 @@ export type Database = {
           work_here_response: string | null
         }
         Insert: {
+          ai_context?: string | null
           auto_send_materials?: boolean | null
           auto_send_pdf?: boolean | null
           auto_send_pdf_intro?: string | null
@@ -2745,6 +2747,7 @@ export type Database = {
           work_here_response?: string | null
         }
         Update: {
+          ai_context?: string | null
           auto_send_materials?: boolean | null
           auto_send_pdf?: boolean | null
           auto_send_pdf_intro?: string | null
