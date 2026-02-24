@@ -1450,7 +1450,12 @@ export function AutomationsSection() {
                       className="w-24"
                       disabled={isSaving || !botSettings?.follow_up_enabled}
                     />
-                    <span className="text-sm text-muted-foreground">horas</span>
+                    <span className="text-sm text-muted-foreground">
+                      horas
+                      {(botSettings?.follow_up_delay_hours || 24) >= 24 && (
+                        <span className="ml-1 text-xs">({Math.floor((botSettings?.follow_up_delay_hours || 24) / 24)} {Math.floor((botSettings?.follow_up_delay_hours || 24) / 24) === 1 ? 'dia' : 'dias'}{(botSettings?.follow_up_delay_hours || 24) % 24 > 0 ? ` e ${(botSettings?.follow_up_delay_hours || 24) % 24}h` : ''})</span>
+                      )}
+                    </span>
                   </div>
                 </div>
 
@@ -1528,7 +1533,12 @@ export function AutomationsSection() {
                       className="w-24"
                       disabled={isSaving || !botSettings?.follow_up_2_enabled}
                     />
-                    <span className="text-sm text-muted-foreground">horas (desde a escolha original)</span>
+                    <span className="text-sm text-muted-foreground">
+                      horas
+                      {(botSettings?.follow_up_2_delay_hours || 48) >= 24 && (
+                        <span className="ml-1 text-xs">({Math.floor((botSettings?.follow_up_2_delay_hours || 48) / 24)} {Math.floor((botSettings?.follow_up_2_delay_hours || 48) / 24) === 1 ? 'dia' : 'dias'}{(botSettings?.follow_up_2_delay_hours || 48) % 24 > 0 ? ` e ${(botSettings?.follow_up_2_delay_hours || 48) % 24}h` : ''})</span>
+                      )}
+                    </span>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Deve ser maior que o tempo da primeira mensagem. Recomendado: 48h.
@@ -1604,7 +1614,12 @@ export function AutomationsSection() {
                       className="w-24"
                       disabled={isSaving || !botSettings?.follow_up_3_enabled}
                     />
-                    <span className="text-sm text-muted-foreground">horas (desde a escolha original)</span>
+                    <span className="text-sm text-muted-foreground">
+                      horas
+                      {(botSettings?.follow_up_3_delay_hours || 72) >= 24 && (
+                        <span className="ml-1 text-xs">({Math.floor((botSettings?.follow_up_3_delay_hours || 72) / 24)} {Math.floor((botSettings?.follow_up_3_delay_hours || 72) / 24) === 1 ? 'dia' : 'dias'}{(botSettings?.follow_up_3_delay_hours || 72) % 24 > 0 ? ` e ${(botSettings?.follow_up_3_delay_hours || 72) % 24}h` : ''})</span>
+                      )}
+                    </span>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Deve ser maior que o tempo da segunda mensagem. Recomendado: 72h.
@@ -1680,7 +1695,12 @@ export function AutomationsSection() {
                       className="w-24"
                       disabled={isSaving || !botSettings?.follow_up_4_enabled}
                     />
-                    <span className="text-sm text-muted-foreground">horas (desde a escolha original)</span>
+                    <span className="text-sm text-muted-foreground">
+                      horas
+                      {(botSettings?.follow_up_4_delay_hours || 96) >= 24 && (
+                        <span className="ml-1 text-xs">({Math.floor((botSettings?.follow_up_4_delay_hours || 96) / 24)} {Math.floor((botSettings?.follow_up_4_delay_hours || 96) / 24) === 1 ? 'dia' : 'dias'}{(botSettings?.follow_up_4_delay_hours || 96) % 24 > 0 ? ` e ${(botSettings?.follow_up_4_delay_hours || 96) % 24}h` : ''})</span>
+                      )}
+                    </span>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Deve ser maior que o tempo da terceira mensagem. Recomendado: 96h.
