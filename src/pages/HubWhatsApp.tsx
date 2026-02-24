@@ -181,6 +181,7 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
     setIsSyncing(true);
 
     try {
+      let degradedCount = 0;
       const updates = await Promise.all(
         instances.map(async (inst) => {
           try {
@@ -193,13 +194,20 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
             });
             const wapiStatus = res.data?.status;
             const wapiPhone = res.data?.phoneNumber || res.data?.phone;
+            const errorType = res.data?.errorType;
+
+            // DEGRADED/TIMEOUT: keep previous status, don't update DB
+            if (wapiStatus === 'degraded' || errorType === 'TIMEOUT_OR_GATEWAY') {
+              degradedCount++;
+              return inst;
+            }
 
             if (wapiStatus && wapiStatus !== inst.status) {
               const updateData: Record<string, unknown> = { status: wapiStatus };
               if (wapiStatus === "connected" && wapiPhone) {
                 updateData.phone_number = wapiPhone;
                 updateData.connected_at = new Date().toISOString();
-              } else if (wapiStatus === "disconnected") {
+              } else if (wapiStatus === "disconnected" || wapiStatus === "instance_not_found") {
                 updateData.connected_at = null;
               }
               await supabase.from("wapi_instances").update(updateData).eq("id", inst.id);
@@ -212,7 +220,10 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
         })
       );
       setInstances(updates);
-      toast({ title: "Status atualizado", description: "Todas as instâncias foram sincronizadas." });
+      const desc = degradedCount > 0 
+        ? `Sincronizado. ${degradedCount} instância(s) com W-API instável (status mantido).`
+        : "Todas as instâncias foram sincronizadas.";
+      toast({ title: "Status atualizado", description: desc });
     } catch (err) {
       console.error("Sync error:", err);
     }

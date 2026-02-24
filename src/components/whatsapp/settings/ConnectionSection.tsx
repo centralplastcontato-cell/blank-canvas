@@ -137,6 +137,13 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
 
           const wapiStatus = response.data?.status;
           const wapiPhone = response.data?.phoneNumber || response.data?.phone;
+          const errorType = response.data?.errorType;
+
+          // DEGRADED/TIMEOUT: keep previous status, don't update DB
+          if (wapiStatus === 'degraded' || errorType === 'TIMEOUT_OR_GATEWAY') {
+            console.log(`Sync: ${instance.unit} returned degraded/timeout, keeping previous status`);
+            return instance;
+          }
 
           if (wapiStatus && wapiStatus !== instance.status) {
             const updateData: Record<string, unknown> = { status: wapiStatus };
@@ -150,7 +157,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
               if (previousPhone && wapiPhone && previousPhone !== wapiPhone && !detectedNumberChange) {
                 detectedNumberChange = { instance, oldPhone: previousPhone, newPhone: wapiPhone };
               }
-            } else if (wapiStatus === 'disconnected') {
+            } else if (wapiStatus === 'disconnected' || wapiStatus === 'instance_not_found') {
               updateData.connected_at = null;
             }
 
@@ -167,7 +174,6 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
               instance.phone_number !== wapiPhone && !detectedNumberChange) {
             detectedNumberChange = { instance, oldPhone: instance.phone_number, newPhone: wapiPhone };
             
-            // Update the phone number in DB
             await supabase
               .from("wapi_instances")
               .update({ phone_number: wapiPhone })
@@ -511,23 +517,38 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
         throw new Error(response.error.message);
       }
 
-      if (response.data?.status) {
+      const wapiStatus = response.data?.status;
+      const errorType = response.data?.errorType;
+
+      // DEGRADED: don't update DB, show warning
+      if (wapiStatus === 'degraded' || errorType === 'TIMEOUT_OR_GATEWAY') {
+        toast({
+          title: "⚠️ Instabilidade na W-API",
+          description: response.data?.error || "Comunicação instável. Status anterior mantido.",
+        });
+        setIsRefreshing(false);
+        return;
+      }
+
+      if (wapiStatus) {
         const newPhone = response.data.phoneNumber || response.data.phone || null;
         const previousPhone = instance.phone_number;
         
-        // Detect phone number change
         const phoneChanged = previousPhone && newPhone && previousPhone !== newPhone;
         
+        const updateData: Record<string, unknown> = { status: wapiStatus };
+        if (wapiStatus === 'connected') {
+          updateData.phone_number = newPhone;
+          updateData.connected_at = new Date().toISOString();
+        } else if (wapiStatus === 'disconnected' || wapiStatus === 'instance_not_found') {
+          updateData.connected_at = null;
+        }
+
         await supabase
           .from("wapi_instances")
-          .update({ 
-            status: response.data.status,
-            phone_number: newPhone,
-            connected_at: response.data.status === 'connected' ? new Date().toISOString() : null,
-          })
+          .update(updateData)
           .eq("id", instance.id);
         
-        // Show number change dialog if detected
         if (phoneChanged) {
           setOldPhoneNumber(previousPhone);
           setNewPhoneNumber(newPhone);
@@ -538,9 +559,13 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
             description: `A instância ${instance.unit} está conectada com um número diferente.`,
           });
         } else {
+          const statusLabel = wapiStatus === 'connected' ? 'Conectado ✅' :
+                              wapiStatus === 'unauthorized' ? 'Token inválido ⚠️' :
+                              wapiStatus === 'instance_not_found' ? 'Instância não encontrada ❌' :
+                              wapiStatus;
           toast({
             title: "Status atualizado",
-            description: `Instância ${instance.unit}: ${response.data?.status || 'verificado'}`,
+            description: `Instância ${instance.unit}: ${statusLabel}`,
           });
         }
       } else {
@@ -566,6 +591,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
     setIsSyncingAll(true);
     let successCount = 0;
     let errorCount = 0;
+    let degradedCount = 0;
 
     try {
       for (const instance of instances) {
@@ -578,15 +604,24 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
             },
           });
 
-          if (response.data?.status) {
-            const updateData: Record<string, unknown> = { status: response.data.status };
+          const wapiStatus = response.data?.status;
+          const errorType = response.data?.errorType;
+
+          // Skip DB update for degraded/timeout
+          if (wapiStatus === 'degraded' || errorType === 'TIMEOUT_OR_GATEWAY') {
+            degradedCount++;
+            continue;
+          }
+
+          if (wapiStatus) {
+            const updateData: Record<string, unknown> = { status: wapiStatus };
             
-            if (response.data.status === 'connected') {
+            if (wapiStatus === 'connected') {
               updateData.phone_number = response.data.phoneNumber || response.data.phone || instance.phone_number;
               if (!instance.connected_at) {
                 updateData.connected_at = new Date().toISOString();
               }
-            } else if (response.data.status === 'disconnected') {
+            } else if (wapiStatus === 'disconnected' || wapiStatus === 'instance_not_found') {
               updateData.connected_at = null;
             }
 
@@ -605,9 +640,13 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
 
       await fetchInstances();
 
+      const parts = [`${successCount} sincronizada(s)`];
+      if (degradedCount > 0) parts.push(`${degradedCount} instável(is)`);
+      if (errorCount > 0) parts.push(`${errorCount} erro(s)`);
+
       toast({
         title: "Sincronização concluída",
-        description: `${successCount} instância(s) sincronizada(s)${errorCount > 0 ? `, ${errorCount} erro(s)` : ''}.`,
+        description: parts.join(', ') + '.',
       });
     } catch (error: any) {
       toast({
