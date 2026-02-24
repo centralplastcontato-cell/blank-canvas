@@ -1852,7 +1852,7 @@ async function recoverySendMaterials(
 
   const guestMatch = guestsStr.match(/(\d+)/);
   const guestCount = guestMatch ? parseInt(guestMatch[1]) : null;
-  const isPromoMonth = month === 'Fevereiro' || month === 'Março';
+  // Promo video is now controlled solely by the auto_send_promo_video flag
 
   // Helper functions
   const sendImage = async (url: string, caption: string) => {
@@ -1992,11 +1992,11 @@ async function recoverySendMaterials(
     }
   }
 
-  // 4. PROMO VIDEO (Feb/March only)
-  if (sendPromoVideo && isPromoMonth && promoVideos.length > 0) {
+  // 4. PROMO VIDEO
+  if (sendPromoVideo && promoVideos.length > 0) {
     const promoVideo = promoVideos[0] as any;
-    console.log(`[Recovery Materials] Sending promo video for ${month}: ${promoVideo.name}`);
-    const promoCaption = captionMap['video_promo'] || `🎭 Promoção especial! Garanta sua festa em ${month}! 🎉`;
+    console.log(`[Recovery Materials] Sending promo video: ${promoVideo.name}`);
+    const promoCaption = captionMap['video_promo'] || captionMap['video'] || `🎬 Confira nosso vídeo! ✨`;
     const caption = promoCaption.replace(/\{unidade\}/gi, unit);
     const msgId = await sendVideo(promoVideo.file_url, caption);
     if (msgId) await saveMessage(msgId, 'video', caption, promoVideo.file_url);
