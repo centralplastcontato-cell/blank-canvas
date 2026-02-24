@@ -79,8 +79,7 @@ function validateCampaignId(campaignId: string): { valid: boolean; error?: strin
 
 function validateUnit(unit: string | null): { valid: boolean; error?: string } {
   if (!unit) return { valid: true }; // Optional
-  const validUnits = ['Manchester', 'Trujillo', 'As duas'];
-  if (!validUnits.includes(unit)) {
+  if (typeof unit !== 'string' || unit.length > 100) {
     return { valid: false, error: 'Unidade inválida' };
   }
   return { valid: true };
