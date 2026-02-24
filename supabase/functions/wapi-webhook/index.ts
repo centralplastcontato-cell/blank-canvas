@@ -2633,8 +2633,7 @@ async function sendQualificationMaterials(
   const guestMatch = guestsStr.match(/(\d+)/);
   const guestCount = guestMatch ? parseInt(guestMatch[1]) : null;
   
-  // Determine if promo video should be sent (Feb/March)
-  const isPromoMonth = month === 'Fevereiro' || month === 'Março';
+  // Promo video is now controlled solely by the auto_send_promo_video flag
   
   // Helper to send via W-API
   const sendImage = async (url: string, caption: string) => {
@@ -2819,12 +2818,12 @@ async function sendQualificationMaterials(
     }
   }
   
-  // 4. SEND PROMO VIDEO (only for Feb/March) - LAST material before next step question
-  if (sendPromoVideo && isPromoMonth && promoVideos.length > 0) {
+  // 4. SEND PROMO VIDEO - LAST material before next step question
+  if (sendPromoVideo && promoVideos.length > 0) {
     const promoVideo = promoVideos[0];
-    console.log(`[Bot Materials] Sending promo video for ${month}: ${promoVideo.name}`);
+    console.log(`[Bot Materials] Sending promo video: ${promoVideo.name}`);
     
-    const promoCaption = captionMap['video_promo'] || `🎭 Promoção especial! Garanta sua festa em ${month}! 🎉`;
+    const promoCaption = captionMap['video_promo'] || captionMap['video'] || `🎬 Confira nosso vídeo! ✨`;
     const caption = promoCaption.replace(/\{unidade\}/gi, unit);
     
     const msgId = await sendVideo(promoVideo.file_url, caption);
