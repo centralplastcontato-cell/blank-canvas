@@ -1,118 +1,91 @@
 
-## Diagnóstico atualizado (com base no cenário novo)
+Objetivo: corrigir o travamento em “Gerando QR Code...” para que o QR apareça (ou erro claro), sem spinner infinito, tanto na tela de Configurações quanto no Hub.
 
-Você está certa: o problema não é só do Planeta Divertido. Há sinal de problema sistêmico na integração W-API para múltiplas instâncias (incluindo Castelo da Diversão).
+Diagnóstico confirmado no código e logs:
+- O fluxo de QR chama `wapi-send` com ação `get-qr` em:
+  - `src/components/whatsapp/settings/ConnectionSection.tsx` (`fetchQrCode`)
+  - `src/hooks/useWhatsAppConnection.ts` (usado por `HubWhatsApp` + `ConnectionDialog`)
+- No edge function `supabase/functions/wapi-send/index.ts`, a ação `get-qr` usa `fetch(...)` sem timeout (`AbortController`), então quando a W-API fica pendente, a Promise pode ficar “presa”.
+- Resultado no front:
+  - `qrLoading` vira `true`
+  - `setQrLoading(false)` só roda quando a Promise resolve/rejeita
+  - em caso de pendência longa, a UI fica eternamente em “Gerando QR Code...”
+- Evidência adicional:
+  - logs mostram entrada em `wapi-send: get-qr` sem progressão útil
+  - chamada direta de `get-qr` chegou a cancelar por timeout de contexto
 
-### O que eu confirmei agora
-1. **Todas as instâncias desses dois buffets estão marcadas como `disconnected` no banco**:
-   - `LITE-YGE96V-MKGKLK` (Planeta Divertido)
-   - `LITE-I2660D-A8QLPN` (Castelo da Diversão)
-   - `LITE-MY22EC-0T7RSL` (Castelo da Diversão)
-2. **A ação `configure-webhooks` está retornando “Instância não encontrada”** também para Castelo, não só Planeta.
-3. **Logs recentes de `wapi-send` mostram `get-status qr response: 504` repetidamente**, ou seja, timeout/instabilidade no endpoint de status (não apenas 404).
-4. **Não há logs recentes em `wapi-webhook`**, sugerindo ausência de chamadas recentes de webhook (ou assinatura de eventos quebrada).
-5. Existem mensagens recentes no banco, mas isso pode vir de fluxos internos/outbound e não garante que o webhook inbound esteja saudável para todos os casos.
+Escopo de implementação:
+1) Robustecer `get-qr` no edge function
+2) Adicionar proteção de timeout no front (dupla proteção)
+3) Melhorar feedback UX quando a W-API estiver instável
+4) Validar ponta a ponta em Planeta e Castelo
 
----
+Plano técnico detalhado:
 
-## Causa provável (mais precisa)
+1. Edge function: timeout e classificação de erro no `get-qr`
+- Arquivo: `supabase/functions/wapi-send/index.ts`
+- Alterações:
+  - Envolver o `fetch` de `get-qr` com `AbortController` (ex.: 8–10s)
+  - Se abortar ou 502/503/504: retornar JSON com:
+    - `errorType: "TIMEOUT_OR_GATEWAY"`
+    - mensagem amigável de instabilidade
+    - status HTTP coerente (manter padrão atual, mas com payload padronizado)
+  - Melhorar logs estruturados:
+    - início da tentativa
+    - status HTTP recebido
+    - tipo de erro final (timeout/not_found/unauthorized/unknown)
+  - Preservar comportamento de `connected` e parsing de `qrCode` já existente
 
-Hoje o sistema está tratando “falha de endpoint” como se fosse “instância não existe”, mas os sinais atuais mostram mistura de:
-- **timeouts 504** (instabilidade/rede/endpoint),
-- possível **incompatibilidade de endpoint para instâncias LITE** (especialmente webhook config/status),
-- e **falta/queda de assinatura de webhooks** para eventos de mensagem.
+2. Front (Configurações): fail-safe para encerrar spinner
+- Arquivo: `src/components/whatsapp/settings/ConnectionSection.tsx`
+- Alterações:
+  - No `fetchQrCode`, usar `try/catch/finally` com `setQrLoading(false)` no `finally`
+  - Adicionar timeout de segurança no cliente (ex.: Promise.race ~12s) para evitar spinner infinito mesmo se backend pendurar
+  - Tratar `errorType === "TIMEOUT_OR_GATEWAY"` com mensagem específica:
+    - “W-API instável no momento; tente novamente ou conecte por Telefone”
+  - Manter botão “Tentar novamente” funcional e sem estado preso
+  - Garantir que troca para aba “Telefone” continue disponível sem bloqueio
 
-Ou seja: o problema é de **camada de integração W-API**, não de um único token.
+3. Front (Hub): mesmo tratamento para evitar regressão
+- Arquivo: `src/hooks/useWhatsAppConnection.ts`
+- Alterações:
+  - Repetir padrão de `finally` + timeout client-side no `fetchQrCode`
+  - Tratar `TIMEOUT_OR_GATEWAY` com toast específico e fallback claro para pareamento por telefone
+  - Evitar estado preso caso o modal feche durante requisição (guardas simples de estado ativo)
 
----
+4. UX de diagnóstico rápido no modal de conexão
+- Arquivos:
+  - `src/components/whatsapp/settings/ConnectionSection.tsx`
+  - `src/components/whatsapp/ConnectionDialog.tsx` (se necessário para texto)
+- Alterações:
+  - Quando houver timeout:
+    - parar spinner
+    - mostrar estado de “instabilidade temporária”
+    - CTA explícito: “Tentar novamente” e “Usar Telefone”
+  - Isso reduz suporte manual e evita percepção de “travou”
 
-## Plano de implementação (para corrigir de forma definitiva)
+5. Validação funcional (obrigatória)
+- Testes manuais:
+  - Abrir conexão em instância com problema (Planeta/Castelo)
+  - Confirmar que:
+    - spinner não fica infinito
+    - em timeout aparece aviso + botão de retry
+    - aba telefone funciona normalmente
+  - Cenário feliz:
+    - quando W-API responder, QR renderiza no modal
+  - Hub e Configurações devem se comportar igual
+- Teste técnico:
+  - chamar edge `get-qr` diretamente e validar `errorType` em timeout/gateway
 
-### Fase 1 — Corrigir diagnóstico falso e estabilizar status
-**Objetivo:** parar de derrubar instância para `disconnected` por erro transitório.
+Riscos e mitigação:
+- Risco: timeout muito curto gerar falso erro.
+  - Mitigação: usar janela moderada (8–12s) e permitir retry imediato.
+- Risco: duplicar mensagens de erro por polling/retry.
+  - Mitigação: centralizar mensagens por tentativa e evitar toast em loop.
+- Risco: diferenças entre telas (Hub vs Configurações).
+  - Mitigação: aplicar o mesmo padrão nos dois fluxos (`ConnectionSection` e `useWhatsAppConnection`).
 
-1. Ajustar `supabase/functions/wapi-send/index.ts` na ação `get-status`:
-   - classificar resposta por tipo:
-     - `NOT_FOUND` (404 consistente)
-     - `TIMEOUT_OR_GATEWAY` (502/503/504/network abort)
-     - `UNAUTHORIZED` (401/403)
-     - `UNKNOWN`
-   - **não atualizar DB para disconnected** em timeout/erro transitório.
-   - retornar status explícito técnico para UI (`degraded`, `timeout`, etc.) mantendo `connected` anterior quando aplicável.
-
-2. Ajustar `configure-webhooks`:
-   - diferenciar `404` real vs resposta não-JSON de gateway/erro intermediário.
-   - não marcar instância como inexistente em qualquer `non-json`.
-   - retornar erro orientativo correto (“timeout/configuração não aplicada”) com código padronizado.
-
-### Fase 2 — Tornar configuração de webhook robusta para variações da W-API
-**Objetivo:** garantir configuração mesmo com variação de endpoint/plano.
-
-3. Implementar estratégia de fallback para configuração de webhooks no `wapi-send`:
-   - tentar endpoint/payload principal atual,
-   - se falhar com padrão de incompatibilidade, tentar fallback(s) compatíveis,
-   - logar qual variante funcionou por instância.
-   
-4. Criar ação de verificação (`check-webhooks`) no `wapi-send`:
-   - consultar configuração ativa de webhook/eventos,
-   - retornar se `onMessageReceived` e `onMessageSent` estão realmente habilitados.
-
-### Fase 3 — Dar visibilidade no front para suporte operacional
-**Objetivo:** parar “falso verde” e facilitar correção por buffet.
-
-5. Atualizar telas de conexão (`ConnectionSection` e `HubWhatsApp`) para mostrar estados técnicos:
-   - Conectado
-   - Desconectado
-   - Instável (timeout)
-   - Webhook não configurado
-   - Credencial inválida
-6. Adicionar CTA de ação rápida:
-   - “Reconfigurar Webhooks”
-   - “Diagnóstico” (executa `get-status` + `check-webhooks` em sequência e mostra resultado amigável).
-
-### Fase 4 — Validação fim a fim em Planeta + Castelo
-**Objetivo:** confirmar retorno real das mensagens na plataforma.
-
-7. Teste técnico por instância:
-   - `get-status` (espera conectado sem falso negativo),
-   - `configure-webhooks`,
-   - `check-webhooks`.
-8. Teste real de operação:
-   - enviar mensagem no WhatsApp cliente → confirmar entrada no `wapi_messages` como `from_me=false`,
-   - responder pelo painel → confirmar ida e atualização de conversa,
-   - validar em **Planeta Divertido** e **Castelo da Diversão**.
-
----
-
-## Arquivos previstos para alteração
-
-- `supabase/functions/wapi-send/index.ts`
-  - endurecer classificação de erro,
-  - fallback de configuração de webhook,
-  - nova ação de diagnóstico/check webhook,
-  - logs estruturados.
-- `src/components/whatsapp/settings/ConnectionSection.tsx`
-  - exibir status técnico detalhado,
-  - botões de diagnóstico/reconfiguração.
-- `src/pages/HubWhatsApp.tsx`
-  - sincronização com novos status técnicos e feedback claro.
-
----
-
-## Riscos e mitigação
-
-- **Risco:** endpoint da W-API variar por plano/conta.
-  - **Mitigação:** fallback controlado + logs por tentativa.
-- **Risco:** timeout intermitente mascarar estado real.
-  - **Mitigação:** não rebaixar instância para disconnected por timeout único.
-- **Risco:** UI continuar mostrando status enganoso.
-  - **Mitigação:** separar “offline real” de “instabilidade de integração”.
-
----
-
-## Resultado esperado após implementação
-
-- Você deixa de ver “desconectado” falso por timeout.
-- O sistema identifica corretamente quando o problema é webhook e não credencial.
-- Reconfiguração de webhook volta a funcionar (ou falha com motivo real e acionável).
-- Mensagens voltam a aparecer de forma confiável tanto no **Planeta Divertido** quanto no **Castelo da Diversão**.
+Resultado esperado após implementação:
+- O QR deixa de “sumir com spinner infinito”.
+- Usuária sempre recebe retorno claro: QR exibido, erro com retry, ou orientação para conexão por telefone.
+- Fluxo fica resiliente à instabilidade intermitente da W-API sem parecer travado.
