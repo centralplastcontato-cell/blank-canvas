@@ -330,6 +330,46 @@ const DEFAULT_QUESTIONS: Record<string, { question: string; confirmation: string
   },
 };
 
+// Check if a guest option exceeds the configured limit
+// Detects semantically: "Mais de 90", "Acima de 100", "+ de 150", or extracts the max number from ranges like "91 a 120"
+function exceedsGuestLimit(guestOption: string, limit: number): boolean {
+  const lower = guestOption.toLowerCase().trim();
+  
+  // Patterns that indicate "more than X": "mais de X", "acima de X", "+ de X", "> X"
+  const abovePatterns = [
+    /(?:mais\s+de|acima\s+de|\+\s*de|>\s*)(\d+)/i,
+    /(\d+)\s*\+/,  // "150+"
+  ];
+  for (const pattern of abovePatterns) {
+    const match = lower.match(pattern);
+    if (match) {
+      const num = parseInt(match[1]);
+      if (num >= limit) return true;
+      // "Mais de 90" with limit=91 → the person wants >90, which is ≥91
+      if (num >= limit - 1) return true;
+    }
+  }
+  
+  // Range pattern: "91 a 120 pessoas" → extract max number (120)
+  const rangeMatch = lower.match(/(\d+)\s*(?:a|até|ate|-)\s*(\d+)/);
+  if (rangeMatch) {
+    const maxNum = parseInt(rangeMatch[2]);
+    if (maxNum >= limit) return true;
+    // Also check if min of range exceeds
+    const minNum = parseInt(rangeMatch[1]);
+    if (minNum >= limit) return true;
+  }
+  
+  // Single number: "100 pessoas" → extract the number
+  const singleMatch = lower.match(/(\d+)/);
+  if (singleMatch) {
+    const num = parseInt(singleMatch[1]);
+    if (num >= limit) return true;
+  }
+  
+  return false;
+}
+
 const normalizePhone = (phone: string) => phone.replace(/\D/g, '');
 
 async function isVipNumber(supabase: SupabaseClient, instanceId: string, phone: string): Promise<boolean> {
@@ -2196,6 +2236,75 @@ async function processBotQualification(
         
         // If wants quote (option 2), continue with normal flow
         console.log(`[Bot] User ${contactPhone} wants a quote. Continuing qualification.`);
+      }
+      
+      // ── GUEST LIMIT CHECK ──
+      // If the last answered step was "convidados" and a guest limit is configured,
+      // check if the selected option exceeds the limit and redirect if so.
+      if (nextStepKey === 'complete' && settings.guest_limit) {
+        const guestAnswer = updated.convidados || '';
+        if (exceedsGuestLimit(guestAnswer, settings.guest_limit)) {
+          console.log(`[Bot] 🚫 Guest limit exceeded! Answer="${guestAnswer}", limit=${settings.guest_limit}`);
+          
+          const redirectMsg = settings.guest_limit_message || `Nossa capacidade máxima é de ${settings.guest_limit - 1} convidados. Infelizmente não conseguimos atender essa demanda.`;
+          const redirectName = settings.guest_limit_redirect_name || 'buffet parceiro';
+          
+          // Send redirect message
+          const redirectMsgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, redirectMsg);
+          if (redirectMsgId) {
+            await supabase.from('wapi_messages').insert({
+              conversation_id: conv.id, message_id: redirectMsgId, from_me: true,
+              message_type: 'text', content: redirectMsg, status: 'sent',
+              timestamp: new Date().toISOString(), company_id: instance.company_id,
+            });
+          }
+          
+          // Create lead with status "transferido"
+          const leadName = updated.nome || contactName || contactPhone;
+          const obs = `Redirecionado para ${redirectName} - acima do limite de ${settings.guest_limit - 1} convidados (${guestAnswer})`;
+          
+          if (conv.lead_id) {
+            await supabase.from('campaign_leads').update({
+              name: leadName,
+              month: updated.mes || null,
+              day_preference: updated.dia || null,
+              guests: guestAnswer,
+              status: 'transferido' as any,
+              observacoes: obs,
+            }).eq('id', conv.lead_id);
+          } else {
+            const { data: newLead } = await supabase.from('campaign_leads').insert({
+              name: leadName,
+              whatsapp: n,
+              unit: instance.unit,
+              campaign_id: 'whatsapp-bot',
+              campaign_name: 'WhatsApp (Bot)',
+              status: 'transferido' as any,
+              month: updated.mes || null,
+              day_preference: updated.dia || null,
+              guests: guestAnswer,
+              observacoes: obs,
+              company_id: instance.company_id,
+            }).select('id').single();
+            
+            if (newLead) {
+              await supabase.from('wapi_conversations').update({ lead_id: newLead.id }).eq('id', conv.id);
+            }
+          }
+          
+          // Disable bot
+          await supabase.from('wapi_conversations').update({
+            bot_step: 'complete_final',
+            bot_data: updated,
+            bot_enabled: false,
+            last_message_at: new Date().toISOString(),
+            last_message_content: redirectMsg.substring(0, 100),
+            last_message_from_me: true,
+          }).eq('id', conv.id);
+          
+          console.log(`[Bot] Guest limit redirect complete. Bot disabled.`);
+          return;
+        }
       }
       
       if (nextStepKey === 'complete') {
