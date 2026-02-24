@@ -1,73 +1,26 @@
 
+## Problema
 
-## Contextualizar a IA para o Mercado de Buffet Infantil
+O campo de horas do **2o Follow-up** tem um limite maximo de **96 horas** definido no codigo (`max={96}`). Por isso, ao tentar digitar 144h, o valor e cortado para 96 no `onBlur`.
 
-### Problema
-O "Insight da IA" gera analises alarmistas (ex: "taxa de conversao 0%, necessidade de analise profunda") porque nao entende que buffet infantil tem um ciclo de venda naturalmente longo. Os pais pesquisam varios buffets, agendam visitas, pedem orcamentos e demoram dias/semanas para fechar. Isso e normal e nao deveria ser tratado como problema.
+## Solucao
 
-### Solucao
+Aumentar os limites maximos de todos os follow-ups para permitir intervalos maiores, ja que buffets com ciclos de venda longos precisam de mais flexibilidade:
 
-**Duas frentes complementares:**
+| Follow-up | Limite atual | Novo limite |
+|-----------|-------------|-------------|
+| 1o        | 72h         | 168h (7 dias) |
+| 2o        | 96h         | 336h (14 dias) |
+| 3o        | 168h        | 504h (21 dias) |
+| 4o        | 240h        | 720h (30 dias) |
 
-1. **Enriquecer o prompt da IA com contexto do setor** -- adicionar instrucoes fixas explicando como funciona o mercado de buffet infantil
-2. **Campo customizavel por empresa** -- permitir que cada buffet adicione seu proprio contexto (ex: "nossa taxa media de conversao e 8%", "nosso ticket medio e R$3.500")
+## Detalhes tecnicos
 
----
+Arquivo: `src/components/whatsapp/settings/AutomationsSection.tsx`
 
-### Mudancas tecnicas
+Alterar os atributos `max` dos 4 inputs de delay e os respectivos `Math.min()` no `onBlur`:
 
-**1. Arquivo: `supabase/functions/daily-summary/index.ts` (prompt da IA, linhas ~397-417)**
-
-Substituir o prompt atual por um enriquecido com contexto do setor:
-
-```text
-Antes:
-  "Voce e um assistente de vendas de buffet infantil. Analise os dados..."
-
-Depois:
-  "Voce e um consultor especialista no mercado de buffet de festas infantis.
-
-  CONTEXTO IMPORTANTE DO SETOR:
-  - O ciclo de venda de buffet infantil e naturalmente longo (dias a semanas)
-  - Os pais pesquisam varios buffets antes de decidir
-  - E normal receber muitos leads e orcamentos com poucos fechamentos no mesmo dia
-  - Uma taxa de conversao de 5-15% sobre o total de leads e considerada saudavel
-  - O volume de leads novos e orcamentos enviados sao indicadores positivos de demanda
-  - 'Quer pensar' nao e negativo -- faz parte do processo natural de decisao
-  - O foco deve ser em nutrir o relacionamento, nao pressionar
-  
-  [contexto customizado da empresa, se houver]
-
-  Analise os dados com essa perspectiva realista do setor..."
-```
-
-**2. Novo campo `ai_context` na tabela `wapi_bot_settings`**
-
-Adicionar um campo de texto onde cada empresa pode inserir contexto proprio para a IA. Exemplos:
-- "Nossa taxa media de conversao e 10%"
-- "Temos 2 unidades e atendemos em media 80 festas/mes"
-- "Nosso ticket medio e R$4.000"
-
-O prompt da IA incluira esse texto quando disponivel.
-
-**3. Arquivo: `src/components/whatsapp/settings/AdvancedSection.tsx` (ou nova secao)**
-
-Adicionar um campo de texto nas Configuracoes do WhatsApp para o buffet preencher o contexto personalizado da IA.
-
----
-
-### Resultado esperado
-
-**Antes (IA generica):**
-> "Taxa de conversao 0%, necessidade de analise profunda no processo de abordagem"
-
-**Depois (IA contextualizada):**
-> "Dia forte com 25 novos leads demonstrando boa demanda. 9 orcamentos enviados e um excelente indicador -- esses leads estao no processo natural de decisao. Foco: nutrir os que pediram para pensar e agendar visitas para os mais engajados."
-
-### Arquivos modificados
-
-| Arquivo | Mudanca |
-|---|---|
-| `supabase/functions/daily-summary/index.ts` | Prompt enriquecido + leitura do campo `ai_context` |
-| `src/components/whatsapp/settings/AdvancedSection.tsx` | Novo campo "Contexto para a IA" |
-
+1. **1o Follow-up** (linha ~1440): `max={72}` para `max={168}`, clamp para `168`
+2. **2o Follow-up** (linha ~1518): `max={96}` para `max={336}`, clamp para `336`
+3. **3o Follow-up** (linha ~1594): `max={168}` para `max={504}`, clamp para `504`
+4. **4o Follow-up** (linha ~1670): `max={240}` para `max={720}`, clamp para `720`
