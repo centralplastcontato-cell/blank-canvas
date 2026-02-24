@@ -244,7 +244,7 @@ async function processNextStepReminder({
     return { successCount: 0, errors: [`Instance not found: ${settings.instance_id}`] };
   }
 
-  const defaultReminderMsg = `Oi {nome} estou por aqui escolha uma das opções.\n\n*1* - Agendar visita\n*2* - Tirar dúvidas\n*3* - Analisar com calma`;
+  const defaultReminderMsg = `Oi {nome} estou por aqui escolha uma das opções.\n\n1️⃣ - Agendar visita\n2️⃣ - Tirar dúvidas\n3️⃣ - Analisar com calma`;
   const reminderTemplate = settings.next_step_reminder_message || defaultReminderMsg;
 
   for (const conv of stuckConversations) {
@@ -517,9 +517,9 @@ async function processFollowUp({
         .replace(/\{convidados\}/g, lead.guests || "");
 
       // Append numbered options if not already present in the message
-      const hasOptions = /\*1\*/.test(personalizedMessage) && /\*2\*/.test(personalizedMessage);
+      const hasOptions = /1️⃣/.test(personalizedMessage) || /\*1\*/.test(personalizedMessage);
       if (!hasOptions) {
-        personalizedMessage += `\n\n*1* - Agendar visita\n*2* - Tirar dúvidas\n*3* - Analisar com calma`;
+        personalizedMessage += `\n\n1️⃣ - Agendar visita\n2️⃣ - Tirar dúvidas\n3️⃣ - Analisar com calma`;
       }
 
       // Send the message via W-API
@@ -790,7 +790,7 @@ Podemos continuar de onde paramos?`;
           dia: `Maravilha! Tem preferência de dia da semana? 🗓️\n\nResponda com o *número*:\n\n1️⃣ Segunda a Quinta\n2️⃣ Sexta\n3️⃣ Sábado\n4️⃣ Domingo`,
           convidados: `E quantos convidados você pretende chamar pra essa festa mágica? 🎈\n\n👥 Responda com o *número*:\n\n1️⃣ 50 pessoas\n2️⃣ 60 pessoas\n3️⃣ 70 pessoas\n4️⃣ 80 pessoas\n5️⃣ 90 pessoas\n6️⃣ 100 pessoas`,
           welcome: 'Para começar, me conta: qual é o seu nome? 👑',
-          lp_sent: 'Oi {nome}, ainda estou por aqui! Escolha a opção que mais te agrada:\n\n*1* - Receber agora meu orçamento\n*2* - Falar com um atendente',
+          lp_sent: 'Oi {nome}, ainda estou por aqui! Escolha a opção que mais te agrada:\n\n1️⃣ - Receber agora meu orçamento\n2️⃣ - Falar com um atendente',
         };
         const fallbackQuestion = DEFAULT_QUESTIONS_MAP[currentStep];
         if (fallbackQuestion) {
@@ -1218,8 +1218,13 @@ const RECOVERY_PROXIMO_PASSO_OPTIONS = [
   { num: 3, value: 'Analisar com calma' },
 ];
 
+function recoveryNumToKeycap(n: number): string {
+  if (n === 10) return '🔟';
+  return String(n).split('').map(d => `${d}\uFE0F\u20E3`).join('');
+}
+
 function recoveryBuildMenuText(options: { num: number; value: string }[]): string {
-  return options.map(opt => `*${opt.num}* - ${opt.value}`).join('\n');
+  return options.map(opt => `${recoveryNumToKeycap(opt.num)} - ${opt.value}`).join('\n');
 }
 
 function recoveryExtractOptionsFromQuestion(questionText: string): { num: number; value: string }[] | null {
