@@ -686,6 +686,14 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     }
   }, [initialDraft, selectedConversation, draftApplied]);
 
+  // Reset processed flag when initialPhone changes (e.g. notification click)
+  useEffect(() => {
+    if (initialPhone) {
+      setInitialPhoneProcessed(false);
+      setDraftApplied(false);
+    }
+  }, [initialPhone]);
+
   useEffect(() => {
     if (selectedInstance) {
       // Pass initialPhone only on first load if not yet processed

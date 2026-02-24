@@ -105,6 +105,7 @@ export default function CentralAtendimento() {
     const leadIdParam = searchParams.get("leadId");
 
     if (phoneParam) {
+      setInitialPhone(null);
       setInitialPhone(phoneParam);
       setInitialDraft(draftParam ? decodeURIComponent(draftParam) : null);
       setActiveTab("chat");
