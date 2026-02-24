@@ -503,6 +503,12 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
     setRedirectAccepted(null);
   };
 
+  useEffect(() => {
+    if (!isOpen) {
+      resetChat();
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   // Build WhatsApp message for final buttons
