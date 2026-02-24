@@ -1,63 +1,43 @@
 
 
-## Corrigir mensagem duplicada no WhatsApp e tornar mensagem de conclusão editável
+## Corrigir navegacao de notificacao para abrir conversa no chat
 
-### Problema identificado
+### Problema
+Quando o usuario clica em "Abrir Chat" na notificacao, o sistema navega para `/atendimento?phone=XXX`, mas a conversa nao abre. Isso acontece porque:
 
-Analisando o código e os screenshots, identifiquei **dois problemas**:
-
-1. **Mensagem do WhatsApp** (linha 372-373): O código foi corrigido corretamente na ultima alteracao. O caminho com `customMessage` (linha 372) NAO inclui o texto extra "Seus dados foram encaminhados...". Porem, o texto extra ainda aparece na mensagem. Isso pode ser porque:
-   - O build anterior ainda estava em cache no navegador do usuario
-   - OU a variavel `customMessage` esta chegando como `null`/vazio e caindo no fallback (linha 373) que TEM o texto hardcoded
-
-   Para garantir que funcione: vou adicionar uma verificacao mais robusta e tambem remover o texto redundante do fallback.
-
-2. **Mensagem de conclusao no chat da LP** (linha 465-466): Quando o lead e redirecionado, o chatbot mostra no chat: "Seus dados foram encaminhados para o {parceiro}. Eles entrarão em contato em breve!" -- este texto e 100% hardcoded e NAO pode ser editado nas configuracoes. Precisa usar a mensagem personalizada tambem.
+1. O componente `WhatsAppChat` tem uma flag `initialPhoneProcessed` que e marcada como `true` apos o primeiro uso e **nunca e resetada**
+2. Quando o usuario ja esta em `/atendimento` e clica numa segunda notificacao, a flag impede que a nova conversa seja buscada e selecionada
 
 ### Solucao
 
-**Arquivo: `src/components/landing/LeadChatbot.tsx`**
+**Arquivo: `src/components/whatsapp/WhatsAppChat.tsx`**
 
-**1. Garantir que customMessage nunca caia no fallback errado (linhas 449-453):**
+Adicionar um `useEffect` que reseta `initialPhoneProcessed` sempre que o valor de `initialPhone` muda. Assim, cada nova navegacao via notificacao dispara corretamente a busca da conversa.
 
-Mudar a logica para verificar se a string tem conteudo real, nao apenas se nao e null:
-
-```typescript
-const redirectInfo = isRedirected ? {
-  partnerName: lpBotConfig?.guest_limit_redirect_name || 'buffet parceiro',
-  limit: lpBotConfig?.guest_limit || 0,
-  customMessage: (lpBotConfig?.guest_limit_message && lpBotConfig.guest_limit_message.trim()) || null,
-} : undefined;
+```text
+// Novo useEffect (antes do useEffect da linha 689):
+useEffect(() => {
+  if (initialPhone) {
+    setInitialPhoneProcessed(false);
+    setDraftApplied(false);
+  }
+}, [initialPhone]);
 ```
 
-**2. Simplificar o fallback da mensagem WhatsApp (linhas 370-374):**
+**Arquivo: `src/pages/CentralAtendimento.tsx`**
 
-Remover o texto "Seus dados foram encaminhados" do fallback tambem, deixando apenas o limite:
+Garantir que o `useEffect` que lida com `searchParams` tambem reseta o `initialPhone` antes de atribuir o novo valor, forcando o React a detectar a mudanca mesmo quando o telefone e o mesmo:
 
-```typescript
-const redirectText = redirectInfo?.customMessage
-  || `Nossa capacidade máxima é de ${redirectInfo?.limit} convidados.`;
-
-const message = redirectInfo
-  ? `Olá! ...dados...\n\n${redirectText}\n\nObrigado pelo interesse! 💜`
-  : `Olá! ...dados...\n\nVou dar continuidade...`;
-```
-
-**3. Tornar a mensagem de conclusao editavel (linhas 465-466):**
-
-Usar `guest_limit_message` tambem para a mensagem de conclusao no chat:
-
-```typescript
-const completionMessage = isRedirected
-  ? (lpBotConfig?.guest_limit_message
-    ? `${lpBotConfig.guest_limit_message}\n\nObrigado pelo interesse! 💜`
-    : `Prontinho! 🎉\n\nSeus dados foram encaminhados para o ${lpBotConfig?.guest_limit_redirect_name || 'buffet parceiro'}. Eles entrarão em contato em breve!\n\nObrigado pelo interesse! 💜`)
-  : isDynamic ? ...
+```text
+// No useEffect da linha 102-125:
+// Antes de setar o novo initialPhone, limpar o anterior
+setInitialPhone(null);
+// ...depois setar o novo valor
+setInitialPhone(phoneParam);
 ```
 
 ### Resultado esperado
-- A mensagem no WhatsApp mostra SOMENTE o texto configurado em Bot LP, sem nenhuma frase extra hardcoded
-- A mensagem de conclusao no chat da LP tambem reflete o texto personalizado
-- O fallback (sem mensagem customizada) funciona com texto simples e limpo
-- Verificacao robusta garante que strings vazias nao caiam no fallback errado
+- Cada clique em "Abrir Chat" nas notificacoes abre a conversa correta, mesmo quando o usuario ja esta na Central de Atendimento
+- Funciona para todas as notificacoes: cliente existente, visita agendada, transferencia e leads
+- Nao quebra o comportamento normal de navegacao inicial
 
