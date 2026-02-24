@@ -69,6 +69,9 @@ interface BotSettings {
   auto_send_photos_intro: string | null;
   auto_send_pdf_intro: string | null;
   message_delay_seconds: number;
+  guest_limit: number | null;
+  guest_limit_message: string | null;
+  guest_limit_redirect_name: string | null;
   follow_up_enabled: boolean;
   follow_up_delay_hours: number;
   follow_up_message: string | null;
@@ -706,6 +709,75 @@ export function AutomationsSection() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Guest Limit Section */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg">
+                <div className="flex items-start sm:items-center gap-3 min-w-0">
+                  <div className={`p-2 rounded-full shrink-0 ${botSettings?.guest_limit ? "bg-amber-100 text-amber-600" : "bg-muted text-muted-foreground"}`}>
+                    <Shield className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="font-medium text-sm sm:text-base">Limite de Convidados</h4>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      Redireciona leads acima da capacidade para um buffet parceiro
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={!!botSettings?.guest_limit}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      updateBotSettings({ guest_limit: 91 });
+                    } else {
+                      updateBotSettings({ guest_limit: null, guest_limit_message: null, guest_limit_redirect_name: null });
+                    }
+                  }}
+                  disabled={isSaving}
+                  className="shrink-0 self-end sm:self-auto"
+                />
+              </div>
+
+              {botSettings?.guest_limit && (
+                <div className="ml-2 sm:ml-4 p-3 sm:p-4 border-l-2 border-amber-500 bg-amber-50/30 dark:bg-amber-950/5 rounded-r-lg space-y-3">
+                  <div>
+                    <Label className="text-sm font-medium">Limite máximo de convidados</Label>
+                    <p className="text-xs text-muted-foreground mb-1">
+                      Opções com número igual ou acima desse valor serão redirecionadas
+                    </p>
+                    <Input
+                      type="number"
+                      value={botSettings.guest_limit || ''}
+                      onChange={(e) => {
+                        const val = e.target.value ? parseInt(e.target.value) : null;
+                        setBotSettings(prev => prev ? { ...prev, guest_limit: val } : null);
+                      }}
+                      onBlur={() => botSettings && debouncedUpdateBotSettings('guest_limit', { guest_limit: botSettings.guest_limit }, 300)}
+                      placeholder="Ex: 91"
+                      className="max-w-[120px] text-base"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Mensagem de redirecionamento</Label>
+                    <Textarea
+                      value={botSettings.guest_limit_message || ''}
+                      onChange={(e) => setBotSettings(prev => prev ? { ...prev, guest_limit_message: e.target.value } : null)}
+                      onBlur={() => botSettings && debouncedUpdateBotSettings('guest_limit_message', { guest_limit_message: botSettings.guest_limit_message }, 300)}
+                      placeholder="Ex: Nossa capacidade máxima é de 90 convidados..."
+                      className="min-h-[80px] text-base"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Nome do buffet parceiro</Label>
+                    <Input
+                      value={botSettings.guest_limit_redirect_name || ''}
+                      onChange={(e) => setBotSettings(prev => prev ? { ...prev, guest_limit_redirect_name: e.target.value } : null)}
+                      onBlur={() => botSettings && debouncedUpdateBotSettings('guest_limit_redirect_name', { guest_limit_redirect_name: botSettings.guest_limit_redirect_name }, 300)}
+                      placeholder="Ex: Buffet Mega Magic"
+                      className="text-base"
+                    />
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
