@@ -1,68 +1,59 @@
 
-# Limite de Convidados no Bot do WhatsApp (Planeta Divertido)
+# Diagnostico: Mensagens nao chegando na plataforma (Planeta Divertido)
 
-## Contexto
-O Planeta Divertido precisa redirecionar leads com +90 convidados para o "Buffet Mega Magic". Essa logica ja funciona no chatbot da Landing Page (frontend), mas NAO existe no bot do WhatsApp (backend). Alem disso, a tela de Configuracoes/Automacoes nao tem campos para configurar esse limite.
+## Problema encontrado
 
-## O que sera feito
+A instancia W-API do Planeta Divertido (`LITE-YGE96V-MKGKLK`) esta com problemas graves:
 
-### 1. Frontend: Campos de Limite na aba "Geral" (AutomationsSection)
-Adicionar uma nova secao no card "Bot de Qualificacao" dentro da aba Geral, logo apos o delay de mensagens:
+1. **A API W-API retorna 404** para todas as chamadas (get-status, configure-webhooks, etc.)
+2. **O webhook NAO esta configurado** - por isso mensagens individuais nao estao chegando
+3. **So existem 6 conversas de grupo** no sistema, zero conversas individuais
+4. O banco de dados mostra a instancia como "connected", mas a W-API nao reconhece mais a instancia
 
-- **Toggle** "Limite de Convidados" (ativa/desativa)
-- **Campo numerico**: Limite maximo (ex: 91)
-- **Textarea**: Mensagem de redirecionamento (ex: "Nossa capacidade maxima e de 90 convidados...")
-- **Input texto**: Nome do buffet parceiro (ex: "Buffet Mega Magic")
+## Causa raiz
 
-Os campos serao salvos com debounce em `wapi_bot_settings` (que ja possui as colunas `guest_limit`, `guest_limit_message`, `guest_limit_redirect_name`).
+A instancia `LITE-YGE96V-MKGKLK` provavelmente foi desativada, expirou ou foi recriada no painel da W-API (w-api.app). Quando a API retorna 404, significa que o ID da instancia nao existe mais no servidor deles.
 
-A interface `BotSettings` tambem precisa ser atualizada com esses 3 campos.
+## O que precisa ser feito
 
-### 2. Backend: Logica no wapi-webhook
-No `supabase/functions/wapi-webhook/index.ts`, apos o step "convidados" ser validado e antes de entrar no bloco `nextStepKey === 'complete'`:
+### Passo 1: Verificar a instancia no painel W-API
+- Acessar o painel da W-API (w-api.app) e verificar se a instancia `LITE-YGE96V-MKGKLK` ainda existe
+- Se nao existir, criar uma nova instancia
 
-- Carregar `guest_limit`, `guest_limit_message` e `guest_limit_redirect_name` do `wapi_bot_settings`
-- Verificar se a opcao selecionada excede o limite (mesma logica semantica do frontend: detectar "acima", "mais de", "+ de", ou extrair o numero maximo)
-- Se exceder:
-  - Enviar a mensagem de redirecionamento configurada
-  - Criar o lead com status "transferido" e observacao do redirecionamento
-  - Marcar o bot como `complete_final` (desativar bot)
-  - NAO enviar materiais nem pergunta de proximo passo
-- Se nao exceder: seguir o fluxo normal
+### Passo 2: Atualizar credenciais (se necessario)
+Se a instancia foi recriada com novo ID/token:
+- Acessar Configuracoes > WhatsApp > Conexao na plataforma
+- Editar a instancia do Planeta Divertido com o novo `instance_id` e `instance_token`
 
-### 3. Dados: Configurar Planeta Divertido
-Atualizar o registro `wapi_bot_settings` da instancia do Planeta Divertido (id: `de1ab5b0-b867-4004-8c48-8cdd0691ea9e`) com:
-- `guest_limit`: 91
-- `guest_limit_message`: "Nossa capacidade maxima e de 90 convidados. Para melhor lhe atender, podemos direcionar seu contato para o Buffet Mega Magic, proximo de nos, para envio de orcamento sem compromisso."
-- `guest_limit_redirect_name`: "Buffet Mega Magic"
+### Passo 3: Reconectar e configurar webhooks
+- Na plataforma, clicar para reconectar (QR code ou telefone)
+- O sistema tentara automaticamente configurar os webhooks apos a conexao
+
+### Passo 4: Melhoria no codigo (preventiva)
+Adicionar tratamento mais robusto no `wapi-send` para o caso de respostas 404 da W-API, alertando o usuario de que a instancia precisa ser reconfigurada ao inves de falhar silenciosamente.
 
 ---
 
 ## Detalhes tecnicos
 
-### Arquivos modificados
-1. `src/components/whatsapp/settings/AutomationsSection.tsx`
-   - Adicionar `guest_limit`, `guest_limit_message`, `guest_limit_redirect_name` na interface `BotSettings`
-   - Adicionar secao de UI na aba "geral" com toggle + campos condicionais
-
-2. `supabase/functions/wapi-webhook/index.ts`
-   - Adicionar funcao `exceedsGuestLimit(guestOption, guestLimit)` que detecta semanticamente se excede
-   - No bloco antes de `nextStepKey === 'complete'`, checar o limite e desviar o fluxo
-
-3. Migration SQL para popular os dados do Planeta Divertido
-
-### Fluxo no bot apos a mudanca
+### Evidencias do diagnostico
 
 ```text
-Lead responde "convidados"
-        |
-   Valida opcao
-        |
-   Excede limite? ---- NAO ----> Fluxo normal (materiais + proximo passo)
-        |
-       SIM
-        |
-   Envia mensagem de redirecionamento
-   Cria lead com status "transferido"
-   Desativa bot (complete_final)
+Logs do wapi-send:
+- get-status info response: 404
+- get-status connection-state response: 404  
+- get-status profile response: 404
+- configure-webhooks: SyntaxError (HTML 404 page instead of JSON)
 ```
+
+### Arquivo a modificar
+`supabase/functions/wapi-send/index.ts`:
+- Na acao `configure-webhooks` (linha ~891), adicionar verificacao de resposta HTML/404 antes de tentar `res.json()`
+- Retornar erro informativo ao usuario quando a instancia nao existe mais na W-API
+
+### Banco de dados
+- Tabela `wapi_instances`: atualizar `status` para `disconnected` quando a W-API retornar 404 consistentemente
+- Nenhuma migration necessaria
+
+### Acoes imediatas recomendadas
+O usuario precisa verificar no painel da W-API (w-api.app) se a instancia `LITE-YGE96V-MKGKLK` ainda existe e esta ativa. Caso contrario, recria-la e atualizar as credenciais na plataforma.
