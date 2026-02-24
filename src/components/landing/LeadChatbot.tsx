@@ -126,8 +126,17 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
   // Helper: check if guest selection exceeds the limit
   const exceedsGuestLimit = (guestOption: string): boolean => {
     if (!lpBotConfig?.guest_limit) return false;
-    const lower = guestOption.toLowerCase();
-    if (lower.includes('acima') || lower.includes('mais de')) return true;
+
+    const lower = guestOption.toLowerCase().trim();
+    const isExplicitAboveLimit =
+      lower.includes('acima') ||
+      lower.includes('mais de') ||
+      lower.includes('+ de') ||
+      lower.startsWith('+') ||
+      />\s*\d+/.test(lower);
+
+    if (isExplicitAboveLimit) return true;
+
     const maxGuests = extractMaxGuests(guestOption);
     return maxGuests >= lpBotConfig.guest_limit;
   };
