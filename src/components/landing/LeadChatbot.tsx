@@ -35,6 +35,7 @@ interface LPBotConfig {
   guest_limit?: number | null;
   guest_limit_message?: string | null;
   guest_limit_redirect_name?: string | null;
+  redirect_completion_message?: string | null;
 }
 
 interface LeadChatbotProps {
@@ -464,8 +465,8 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
         }
 
         const completionMessage = isRedirected
-          ? ((lpBotConfig?.guest_limit_message && lpBotConfig.guest_limit_message.trim())
-            ? `${lpBotConfig.guest_limit_message}\n\nObrigado pelo interesse! 💜`
+          ? ((lpBotConfig?.redirect_completion_message && lpBotConfig.redirect_completion_message.trim())
+            ? lpBotConfig.redirect_completion_message
             : `Prontinho! 🎉\n\nSeus dados foram encaminhados para o ${lpBotConfig?.guest_limit_redirect_name || 'buffet parceiro'}. Eles entrarão em contato em breve!\n\nObrigado pelo interesse! 💜`)
           : isDynamic
           ? (lpBotConfig?.completion_message || `Prontinho 🎉\n\nRecebemos suas informações e nossa equipe vai entrar em contato em breve para confirmar valores e disponibilidade da sua data.\n\nAcabei de te enviar uma mensagem no seu WhatsApp, dá uma olhadinha lá! 📲`)
