@@ -1,91 +1,56 @@
 
-Objetivo: corrigir o travamento em “Gerando QR Code...” para que o QR apareça (ou erro claro), sem spinner infinito, tanto na tela de Configurações quanto no Hub.
+## Corrigir corte do lado direito na lista de conversas (mobile)
 
-Diagnóstico confirmado no código e logs:
-- O fluxo de QR chama `wapi-send` com ação `get-qr` em:
-  - `src/components/whatsapp/settings/ConnectionSection.tsx` (`fetchQrCode`)
-  - `src/hooks/useWhatsAppConnection.ts` (usado por `HubWhatsApp` + `ConnectionDialog`)
-- No edge function `supabase/functions/wapi-send/index.ts`, a ação `get-qr` usa `fetch(...)` sem timeout (`AbortController`), então quando a W-API fica pendente, a Promise pode ficar “presa”.
-- Resultado no front:
-  - `qrLoading` vira `true`
-  - `setQrLoading(false)` só roda quando a Promise resolve/rejeita
-  - em caso de pendência longa, a UI fica eternamente em “Gerando QR Code...”
-- Evidência adicional:
-  - logs mostram entrada em `wapi-send: get-qr` sem progressão útil
-  - chamada direta de `get-qr` chegou a cancelar por timeout de contexto
+### Problema identificado
+Na tela mobile da Central de Atendimento, os itens da lista de conversas estao sendo cortados no lado direito. Isso afeta:
+- O menu de tres pontos (ConversationStatusActions)
+- O horario da ultima mensagem
+- Badges de contagem de nao lidas
 
-Escopo de implementação:
-1) Robustecer `get-qr` no edge function
-2) Adicionar proteção de timeout no front (dupla proteção)
-3) Melhorar feedback UX quando a W-API estiver instável
-4) Validar ponta a ponta em Planeta e Castelo
+### Causa raiz
+O container principal do chat (linha 2910 do WhatsAppChat.tsx) usa `overflow-hidden` com `rounded-xl`, e internamente os itens de conversa tem elementos que ultrapassam o limite visivel. Especificamente:
+- O container pai tem `border` + `rounded-xl` + `overflow-hidden` que corta o conteudo nos extremos
+- Os itens de conversa usam `w-full` mas o padding interno nao compensa o espaco perdido pela borda e arredondamento
 
-Plano técnico detalhado:
+### Solucao
 
-1. Edge function: timeout e classificação de erro no `get-qr`
-- Arquivo: `supabase/functions/wapi-send/index.ts`
-- Alterações:
-  - Envolver o `fetch` de `get-qr` com `AbortController` (ex.: 8–10s)
-  - Se abortar ou 502/503/504: retornar JSON com:
-    - `errorType: "TIMEOUT_OR_GATEWAY"`
-    - mensagem amigável de instabilidade
-    - status HTTP coerente (manter padrão atual, mas com payload padronizado)
-  - Melhorar logs estruturados:
-    - início da tentativa
-    - status HTTP recebido
-    - tipo de erro final (timeout/not_found/unauthorized/unknown)
-  - Preservar comportamento de `connected` e parsing de `qrCode` já existente
+**Arquivo: `src/components/whatsapp/WhatsAppChat.tsx`**
 
-2. Front (Configurações): fail-safe para encerrar spinner
-- Arquivo: `src/components/whatsapp/settings/ConnectionSection.tsx`
-- Alterações:
-  - No `fetchQrCode`, usar `try/catch/finally` com `setQrLoading(false)` no `finally`
-  - Adicionar timeout de segurança no cliente (ex.: Promise.race ~12s) para evitar spinner infinito mesmo se backend pendurar
-  - Tratar `errorType === "TIMEOUT_OR_GATEWAY"` com mensagem específica:
-    - “W-API instável no momento; tente novamente ou conecte por Telefone”
-  - Manter botão “Tentar novamente” funcional e sem estado preso
-  - Garantir que troca para aba “Telefone” continue disponível sem bloqueio
+1. **Ajustar o container mobile da lista de conversas** (linha ~2910):
+   - Remover o `rounded-xl` e `border` do container principal no mobile, pois ele ja esta dentro de um layout que fornece a moldura
+   - Ou adicionar padding interno para compensar o corte
 
-3. Front (Hub): mesmo tratamento para evitar regressão
-- Arquivo: `src/hooks/useWhatsAppConnection.ts`
-- Alterações:
-  - Repetir padrão de `finally` + timeout client-side no `fetchQrCode`
-  - Tratar `TIMEOUT_OR_GATEWAY` com toast específico e fallback claro para pareamento por telefone
-  - Evitar estado preso caso o modal feche durante requisição (guardas simples de estado ativo)
+2. **Ajustar os itens de conversa mobile** (linhas ~2948-3033):
+   - Adicionar `pr-3` ou `pr-4` ao botao de cada conversa para garantir que o lado direito tenha respiro
+   - O item atual usa `p-2.5` que pode ser insuficiente para acomodar o `ConversationStatusActions` + timestamp sem corte
 
-4. UX de diagnóstico rápido no modal de conexão
-- Arquivos:
-  - `src/components/whatsapp/settings/ConnectionSection.tsx`
-  - `src/components/whatsapp/ConnectionDialog.tsx` (se necessário para texto)
-- Alterações:
-  - Quando houver timeout:
-    - parar spinner
-    - mostrar estado de “instabilidade temporária”
-    - CTA explícito: “Tentar novamente” e “Usar Telefone”
-  - Isso reduz suporte manual e evita percepção de “travou”
+3. **Garantir que o `ConversationStatusActions`** nao ultrapasse os limites:
+   - Verificar se o componente de status/menu de tres pontos respeita o espaco disponivel
 
-5. Validação funcional (obrigatória)
-- Testes manuais:
-  - Abrir conexão em instância com problema (Planeta/Castelo)
-  - Confirmar que:
-    - spinner não fica infinito
-    - em timeout aparece aviso + botão de retry
-    - aba telefone funciona normalmente
-  - Cenário feliz:
-    - quando W-API responder, QR renderiza no modal
-  - Hub e Configurações devem se comportar igual
-- Teste técnico:
-  - chamar edge `get-qr` diretamente e validar `errorType` em timeout/gateway
+### Mudancas especificas
 
-Riscos e mitigação:
-- Risco: timeout muito curto gerar falso erro.
-  - Mitigação: usar janela moderada (8–12s) e permitir retry imediato.
-- Risco: duplicar mensagens de erro por polling/retry.
-  - Mitigação: centralizar mensagens por tentativa e evitar toast em loop.
-- Risco: diferenças entre telas (Hub vs Configurações).
-  - Mitigação: aplicar o mesmo padrão nos dois fluxos (`ConnectionSection` e `useWhatsAppConnection`).
+```text
+Antes (linha 2910):
+<div className="flex flex-1 border border-border/60 rounded-xl overflow-hidden ...">
 
-Resultado esperado após implementação:
-- O QR deixa de “sumir com spinner infinito”.
-- Usuária sempre recebe retorno claro: QR exibido, erro com retry, ou orientação para conexão por telefone.
-- Fluxo fica resiliente à instabilidade intermitente da W-API sem parecer travado.
+Depois:
+<div className="flex flex-1 border border-border/60 rounded-xl overflow-hidden md:rounded-xl ...">
+  (mobile container interno recebe padding compensatorio)
+```
+
+```text
+Antes (linha 2952-2953, item de conversa mobile):
+className="w-full p-2.5 flex items-center gap-2.5 ..."
+
+Depois:
+className="w-full px-3 py-2.5 flex items-center gap-2.5 ..."
+```
+
+E na area de status/horario (linhas 2998-3010), garantir que o container `shrink-0` nao empurre conteudo para fora:
+- Limitar o `ConversationStatusActions` para nao exceder o espaco
+- Reduzir levemente gap ou tamanho do timestamp se necessario
+
+### Resultado esperado
+- Lista de conversas mobile mostra todos os elementos visiveis (menu, horario, badges)
+- Sem corte no lado direito
+- Layout continua identico no desktop (sem regressao)
