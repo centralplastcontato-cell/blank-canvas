@@ -1,43 +1,71 @@
 
 
-# Corrigir logica de limite de convidados
+# Mensagem personalizada no WhatsApp para leads redirecionados
 
-## Problema
+## O que muda
 
-A opcao "Acima de 90 pessoas" extrai o numero **90** do texto. A comparacao atual e `90 > 90`, que retorna `false`, entao o redirecionamento nunca e acionado.
+Quando o lead seleciona uma opcao acima do limite (ex: "+ DE 90 PESSOAS") e aceita o redirecionamento, a mensagem enviada no WhatsApp sera diferente da mensagem padrao.
 
-## Solucao
+**Hoje:** Todos os leads recebem a mesma mensagem com opcoes "1-Receber orcamento / 2-Falar com atendente", mesmo os redirecionados.
 
-Duas mudancas na funcao `exceedsGuestLimit` em `src/components/landing/LeadChatbot.tsx`:
+**Depois:** Leads redirecionados receberao uma mensagem informando que seus dados foram encaminhados para o buffet parceiro.
 
-1. Se o texto contem "acima" ou "mais de", tratar como **excedendo** o limite automaticamente (independente do numero extraido)
-2. Mudar a comparacao de `>` para `>=` como fallback
+## Mensagem para leads redirecionados
+
+```
+Ola! 👋✨
+
+Vim pelo site do *Planeta Divertido* e gostaria de saber mais!
+
+📋 *Meus dados:*
+👤 Nome: VICTOR
+📍 Unidade: Planeta Divertido
+📅 Data: 21/Maio
+👥 Convidados: + DE 90 PESSOAS
+
+Nossa capacidade maxima e de 90 convidados 😊
+Seus dados foram encaminhados para o *Buffet Mega Magic*, proximo de nos, que entrara em contato em breve para envio de orcamento sem compromisso!
+
+Obrigado pelo interesse! 💜
+```
 
 ## Detalhes Tecnicos
 
 ### Arquivo: `src/components/landing/LeadChatbot.tsx`
 
-**Funcao `exceedsGuestLimit` (linhas 126-131)**
+**1. Alterar a assinatura da funcao `sendWelcomeMessage` (linha 364):**
 
-De:
+Adicionar parametro opcional `redirectInfo`:
+
 ```typescript
-const exceedsGuestLimit = (guestOption: string): boolean => {
-  if (!lpBotConfig?.guest_limit) return false;
-  const maxGuests = extractMaxGuests(guestOption);
-  return maxGuests > lpBotConfig.guest_limit;
-};
+const sendWelcomeMessage = async (
+  phone: string,
+  unit: string,
+  leadInfo: LeadData,
+  redirectInfo?: { partnerName: string; limit: number }
+) => {
 ```
 
-Para:
+**2. Montar a mensagem condicional dentro da funcao (linha 370):**
+
 ```typescript
-const exceedsGuestLimit = (guestOption: string): boolean => {
-  if (!lpBotConfig?.guest_limit) return false;
-  const lower = guestOption.toLowerCase();
-  if (lower.includes('acima') || lower.includes('mais de')) return true;
-  const maxGuests = extractMaxGuests(guestOption);
-  return maxGuests >= lpBotConfig.guest_limit;
-};
+const message = redirectInfo
+  ? `Ola! 👋✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}\n👥 Convidados: ${leadInfo.guests || ''}\n\nNossa capacidade maxima e de ${redirectInfo.limit} convidados 😊\nSeus dados foram encaminhados para o *${redirectInfo.partnerName}*, proximo de nos, que entrara em contato em breve para envio de orcamento sem compromisso!\n\nObrigado pelo interesse! 💜`
+  : `Ola! 👋🏼✨\n\nVim pelo site...`; // mensagem atual mantida
 ```
 
-A verificacao por "acima" garante que opcoes como "Acima de 90 pessoas" sempre acionem o redirecionamento, sem depender da comparacao numerica.
+**3. Passar `redirectInfo` na chamada (linhas 444-453):**
+
+Quando `isRedirected === true`, passar os dados do buffet parceiro:
+
+```typescript
+const redirectInfo = isRedirected ? {
+  partnerName: lpBotConfig?.guest_limit_redirect_name || 'buffet parceiro',
+  limit: lpBotConfig?.guest_limit || 0
+} : undefined;
+
+sendWelcomeMessage(whatsappValue, leadData.unit, finalLeadData, redirectInfo)
+```
+
+Nenhuma mudanca no backend -- tudo acontece no front, que ja controla o envio via `wapi-send`.
 
