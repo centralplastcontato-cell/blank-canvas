@@ -367,10 +367,11 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
       const cleanPhone = phone.replace(/\D/g, '');
       const phoneWithCountry = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
 
+      const redirectText = redirectInfo.customMessage
+        || `Nossa capacidade máxima é de ${redirectInfo.limit} convidados. Seus dados foram encaminhados para o *${redirectInfo.partnerName}*, próximo de nós, que entrará em contato em breve para envio de orçamento sem compromisso!`;
+
       const message = redirectInfo
-        ? (redirectInfo.customMessage
-          ? `Olá! 👋✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}\n👥 Convidados: ${leadInfo.guests || ''}\n\n${redirectInfo.customMessage}\n\nObrigado pelo interesse! 💜`
-          : `Olá! 👋✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}\n👥 Convidados: ${leadInfo.guests || ''}\n\nNossa capacidade máxima é de ${redirectInfo.limit} convidados 😊\nSeus dados foram encaminhados para o *${redirectInfo.partnerName}*, próximo de nós, que entrará em contato em breve para envio de orçamento sem compromisso!\n\nObrigado pelo interesse! 💜`)
+        ? `Olá! 👋✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}\n👥 Convidados: ${leadInfo.guests || ''}\n\n${redirectText}\n\nObrigado pelo interesse! 💜`
         : `Olá! 👋🏼✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}\n👥 Convidados: ${leadInfo.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n1️⃣ - 📩 Receber agora meu orçamento\n2️⃣ - 💬 Falar com um atendente`;
 
       const { error } = await supabase.functions.invoke('wapi-send', {
@@ -449,7 +450,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
         const redirectInfo = isRedirected ? {
           partnerName: lpBotConfig?.guest_limit_redirect_name || 'buffet parceiro',
           limit: lpBotConfig?.guest_limit || 0,
-          customMessage: lpBotConfig?.guest_limit_message || null,
+          customMessage: (lpBotConfig?.guest_limit_message && lpBotConfig.guest_limit_message.trim()) || null,
         } : undefined;
 
         if (!isDynamic && leadData.unit === "As duas") {
@@ -463,7 +464,9 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
         }
 
         const completionMessage = isRedirected
-          ? `Prontinho! 🎉\n\nSeus dados foram encaminhados para o ${lpBotConfig?.guest_limit_redirect_name || 'buffet parceiro'}. Eles entrarão em contato em breve!\n\nObrigado pelo interesse! 💜`
+          ? ((lpBotConfig?.guest_limit_message && lpBotConfig.guest_limit_message.trim())
+            ? `${lpBotConfig.guest_limit_message}\n\nObrigado pelo interesse! 💜`
+            : `Prontinho! 🎉\n\nSeus dados foram encaminhados para o ${lpBotConfig?.guest_limit_redirect_name || 'buffet parceiro'}. Eles entrarão em contato em breve!\n\nObrigado pelo interesse! 💜`)
           : isDynamic
           ? (lpBotConfig?.completion_message || `Prontinho 🎉\n\nRecebemos suas informações e nossa equipe vai entrar em contato em breve para confirmar valores e disponibilidade da sua data.\n\nAcabei de te enviar uma mensagem no seu WhatsApp, dá uma olhadinha lá! 📲`)
           : `Prontinho 🎉\n\nRecebemos suas informações e nossa equipe vai entrar em contato em breve para confirmar valores e disponibilidade da sua data.\n\nPromoção válida conforme regras da campanha: ${campaignConfig.campaignName}\n\nAcabei de te enviar uma mensagem no seu WhatsApp, dá uma olhadinha lá! 📲`;
