@@ -396,6 +396,41 @@ serve(async (req) => {
     );
 
     if (shouldGenerate) {
+      // === Compute 30-day benchmarks from historical daily_summaries ===
+      const thirtyDaysAgo = new Date(brtNow.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const { data: last30Summaries } = await supabase
+        .from("daily_summaries")
+        .select("metrics")
+        .eq("company_id", company_id)
+        .gte("summary_date", thirtyDaysAgo)
+        .neq("summary_date", targetDateStr);
+
+      let benchmarkBlock = "";
+      if (last30Summaries && last30Summaries.length >= 3) {
+        const days = last30Summaries.length;
+        let totalNovos = 0, totalOrcamentos = 0, totalFechados = 0, totalVisitas = 0;
+        for (const s of last30Summaries) {
+          const m = s.metrics as any;
+          if (!m) continue;
+          totalNovos += m.novos || 0;
+          totalOrcamentos += m.orcamentos || 0;
+          totalFechados += m.fechados || 0;
+          totalVisitas += m.visitas || 0;
+        }
+        const avgNovos = (totalNovos / days).toFixed(1);
+        const avgOrcamentos = (totalOrcamentos / days).toFixed(1);
+        const avgFechados = (totalFechados / days).toFixed(1);
+        const avgVisitas = (totalVisitas / days).toFixed(1);
+        const avgConversao = totalNovos > 0 ? ((totalFechados / totalNovos) * 100).toFixed(1) : "0";
+
+        benchmarkBlock = `
+BENCHMARKS DA EMPRESA (média dos últimos ${days} dias):
+- Média diária: ${avgNovos} leads novos, ${avgOrcamentos} orçamentos, ${avgFechados} fechados, ${avgVisitas} visitas
+- Taxa de conversão média: ${avgConversao}%
+- Compare o dia atual com essas médias para dar contexto realista (acima/abaixo da média).
+`;
+      }
+
       const hotLeads = intelligenceData
         .filter((i: any) => i.temperature === "quente" || i.temperature === "pronto")
         .map((i: any) => `${allLeadNames.get(i.lead_id) || "Lead"} (score: ${i.score}, temp: ${i.temperature})`);
@@ -418,7 +453,7 @@ CONTEXTO IMPORTANTE DO SETOR:
 - "Quer pensar" NÃO é negativo — faz parte do processo natural de decisão dos pais.
 - O foco deve ser em nutrir o relacionamento e agendar visitas, não pressionar.
 - Evite tom alarmista. Analise com perspectiva realista do setor.
-${customContextBlock}
+${benchmarkBlock}${customContextBlock}
 Analise os dados do dia e gere um briefing curto e actionable em português brasileiro.
 
 Dados do dia:
@@ -436,7 +471,7 @@ Leads em risco: ${atRisk.length > 0 ? atRisk.join(", ") : "nenhum"}
 Eventos do dia: ${timeline.length} eventos registrados
 
 Gere um resumo de 3-5 parágrafos curtos com:
-1. Visão geral do dia (tom positivo e realista)
+1. Visão geral do dia (tom positivo e realista, compare com a média da empresa se disponível)
 2. Destaques positivos (valorize volume de leads e orçamentos)
 3. Alertas e pontos de atenção (apenas se realmente relevantes)
 4. Sugestões de próximos passos para o time (foco em nutrição e relacionamento)`;
