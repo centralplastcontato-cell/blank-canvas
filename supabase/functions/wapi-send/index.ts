@@ -576,6 +576,10 @@ Deno.serve(async (req) => {
 
       case 'get-status': {
         try {
+          // Track 404 responses to detect dead/expired instances
+          let notFoundCount = 0;
+          const totalEndpoints = 5;
+
           // Strategy: Try multiple endpoints in order of reliability
           // W-API Lite instances may not support all endpoints
           // Priority order:
@@ -591,6 +595,7 @@ Deno.serve(async (req) => {
           });
           
           console.log('get-status status response:', statusRes.status);
+          if (statusRes.status === 404) notFoundCount++;
           
           if (statusRes.ok) {
             const ct = statusRes.headers.get('content-type');
@@ -628,6 +633,7 @@ Deno.serve(async (req) => {
           });
           
           console.log('get-status info response:', infoRes.status);
+          if (infoRes.status === 404) notFoundCount++;
           
           if (infoRes.ok) {
             const ct = infoRes.headers.get('content-type');
@@ -666,6 +672,7 @@ Deno.serve(async (req) => {
           });
           
           console.log('get-status connection-state response:', stateRes.status);
+          if (stateRes.status === 404) notFoundCount++;
           
           if (stateRes.ok) {
             const ct = stateRes.headers.get('content-type');
@@ -696,6 +703,7 @@ Deno.serve(async (req) => {
           });
           
           console.log('get-status profile response:', profileRes.status);
+          if (profileRes.status === 404) notFoundCount++;
           
           if (profileRes.ok) {
             const ct = profileRes.headers.get('content-type');
@@ -727,6 +735,24 @@ Deno.serve(async (req) => {
           });
           
           console.log('get-status qr response:', qrRes.status);
+          if (qrRes.status === 404) notFoundCount++;
+
+          // If ALL endpoints returned 404, the instance no longer exists at W-API
+          if (notFoundCount >= totalEndpoints) {
+            console.error(`get-status: ALL ${totalEndpoints} endpoints returned 404 for instance ${instance_id}. Instance likely expired/deleted.`);
+            // Auto-update DB status to disconnected
+            await supabase
+              .from('wapi_instances')
+              .update({ status: 'disconnected' })
+              .eq('instance_id', instance_id);
+            return new Response(JSON.stringify({ 
+              status: 'instance_not_found',
+              connected: false,
+              error: 'Instância não encontrada na W-API. Verifique no painel da W-API (w-api.app) se a instância ainda existe. Caso tenha sido recriada, atualize o ID e Token nas configurações.',
+            }), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
           
           const ct = qrRes.headers.get('content-type');
           if (ct?.includes('text/html') || !qrRes.ok) {
@@ -904,6 +930,25 @@ Deno.serve(async (req) => {
           body: JSON.stringify(config),
         });
         
+        // Safe JSON parsing - handle 404/HTML responses
+        const contentType = res.headers.get('content-type');
+        if (res.status === 404 || (contentType && !contentType.includes('application/json'))) {
+          const textBody = await res.text();
+          console.error('configure-webhooks: non-JSON response:', res.status, textBody.substring(0, 200));
+          // Auto-update DB status
+          await supabase
+            .from('wapi_instances')
+            .update({ status: 'disconnected' })
+            .eq('instance_id', instance_id);
+          return new Response(JSON.stringify({ 
+            success: false, 
+            error: 'Instância não encontrada na W-API. Verifique no painel da W-API (w-api.app) se a instância ainda existe e atualize as credenciais se necessário.',
+          }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
         const data = await res.json();
         return new Response(JSON.stringify({ success: !data.error, result: data }), {
           status: res.ok ? 200 : 400,
