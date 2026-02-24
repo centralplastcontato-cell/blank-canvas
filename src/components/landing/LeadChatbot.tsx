@@ -138,7 +138,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
     if (isExplicitAboveLimit) return true;
 
     const maxGuests = extractMaxGuests(guestOption);
-    return maxGuests >= lpBotConfig.guest_limit;
+    return maxGuests > lpBotConfig.guest_limit;
   };
 
   const dynamicMonthOptions = lpBotConfig?.month_options || DEFAULT_MONTH_OPTIONS;
@@ -361,14 +361,17 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
   };
 
   // Função para enviar mensagem via W-API (sem autenticação - endpoint público via unit)
-  const sendWelcomeMessage = async (phone: string, unit: string, leadInfo: LeadData, redirectInfo?: { partnerName: string; limit: number }) => {
+  const sendWelcomeMessage = async (phone: string, unit: string, leadInfo: LeadData, redirectInfo?: { partnerName: string; limit: number; customMessage?: string | null }) => {
     try {
       const normalizedUnit = unit === "Trujilo" ? "Trujillo" : unit;
       const cleanPhone = phone.replace(/\D/g, '');
       const phoneWithCountry = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
 
+      const redirectText = redirectInfo?.customMessage
+        ? redirectInfo.customMessage
+        : `Nossa capacidade máxima é de ${redirectInfo?.limit} convidados`;
       const message = redirectInfo
-        ? `Olá! 👋✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}\n👥 Convidados: ${leadInfo.guests || ''}\n\nNossa capacidade máxima é de ${redirectInfo.limit} convidados 😊\nSeus dados foram encaminhados para o *${redirectInfo.partnerName}*, próximo de nós, que entrará em contato em breve para envio de orçamento sem compromisso!\n\nObrigado pelo interesse! 💜`
+        ? `Olá! 👋✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}\n👥 Convidados: ${leadInfo.guests || ''}\n\n${redirectText} 😊\nSeus dados foram encaminhados para o *${redirectInfo.partnerName}*, próximo de nós, que entrará em contato em breve para envio de orçamento sem compromisso!\n\nObrigado pelo interesse! 💜`
         : `Olá! 👋🏼✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}\n👥 Convidados: ${leadInfo.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n1️⃣ - 📩 Receber agora meu orçamento\n2️⃣ - 💬 Falar com um atendente`;
 
       const { error } = await supabase.functions.invoke('wapi-send', {
@@ -447,6 +450,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
         const redirectInfo = isRedirected ? {
           partnerName: lpBotConfig?.guest_limit_redirect_name || 'buffet parceiro',
           limit: lpBotConfig?.guest_limit || 0,
+          customMessage: lpBotConfig?.guest_limit_message || null,
         } : undefined;
 
         if (!isDynamic && leadData.unit === "As duas") {

@@ -2246,7 +2246,7 @@ async function processBotQualification(
         if (exceedsGuestLimit(guestAnswer, settings.guest_limit)) {
           console.log(`[Bot] 🚫 Guest limit exceeded! Answer="${guestAnswer}", limit=${settings.guest_limit}`);
           
-          const redirectMsg = settings.guest_limit_message || `Nossa capacidade máxima é de ${settings.guest_limit - 1} convidados. Infelizmente não conseguimos atender essa demanda.`;
+          const redirectMsg = settings.guest_limit_message || `Nossa capacidade máxima é de ${settings.guest_limit} convidados. Infelizmente não conseguimos atender essa demanda.`;
           const redirectName = settings.guest_limit_redirect_name || 'buffet parceiro';
           
           // Send redirect message
