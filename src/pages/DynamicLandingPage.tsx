@@ -14,6 +14,20 @@ import { DLPFloatingCTA } from "@/components/dynamic-lp/DLPFloatingCTA";
 import { LeadChatbot } from "@/components/landing/LeadChatbot";
 import type { LPHero, LPVideo, LPGallery, LPTestimonials, LPOffer, LPTheme, LPFooter, LPBenefits } from "@/types/landing-page";
 
+interface LPBotConfig {
+  welcome_message?: string;
+  month_question?: string;
+  guest_question?: string;
+  name_question?: string;
+  whatsapp_question?: string;
+  completion_message?: string;
+  month_options?: string[];
+  guest_options?: string[];
+  guest_limit?: number | null;
+  guest_limit_message?: string | null;
+  guest_limit_redirect_name?: string | null;
+}
+
 interface LPData {
   company_id: string;
   company_name: string;
@@ -30,6 +44,7 @@ interface LPData {
   benefits: LPBenefits;
   theme: LPTheme;
   footer: LPFooter;
+  lpBotConfig: LPBotConfig | null;
 }
 
 interface DynamicLandingPageProps {
@@ -65,15 +80,36 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
         const companyId = row.company_id;
         // Fetch WhatsApp from onboarding
         let whatsapp: string | null = null;
-        const { data: onb } = await supabase
-          .from('company_onboarding')
-          .select('whatsapp_numbers, multiple_units, instagram')
-          .eq('company_id', companyId)
-          .limit(1)
-          .maybeSingle();
+        const [{ data: onb }, { data: botSettings }] = await Promise.all([
+          supabase
+            .from('company_onboarding')
+            .select('whatsapp_numbers, multiple_units, instagram')
+            .eq('company_id', companyId)
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from('lp_bot_settings')
+            .select('*')
+            .eq('company_id', companyId)
+            .maybeSingle(),
+        ]);
         if (onb?.whatsapp_numbers && onb.whatsapp_numbers.length > 0) {
           whatsapp = onb.whatsapp_numbers[0];
         }
+
+        const lpBotConfig: LPBotConfig | null = botSettings ? {
+          welcome_message: botSettings.welcome_message,
+          month_question: botSettings.month_question,
+          guest_question: botSettings.guest_question,
+          name_question: botSettings.name_question,
+          whatsapp_question: botSettings.whatsapp_question,
+          completion_message: botSettings.completion_message,
+          month_options: botSettings.month_options as string[],
+          guest_options: botSettings.guest_options as string[],
+          guest_limit: botSettings.guest_limit,
+          guest_limit_message: botSettings.guest_limit_message,
+          guest_limit_redirect_name: botSettings.guest_limit_redirect_name,
+        } : null;
 
         setData({
           company_id: companyId,
@@ -91,6 +127,7 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
           benefits: row.benefits as unknown as LPBenefits || { enabled: true, title: "", subtitle: "", items: [], trust_badges: [] },
           theme: row.theme as unknown as LPTheme,
           footer: row.footer as unknown as LPFooter,
+          lpBotConfig,
         });
       }
       setLoading(false);
@@ -170,6 +207,7 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
         companyName={data.company_name}
         companyLogo={data.company_logo}
         companyWhatsApp={data.company_whatsapp || undefined}
+        lpBotConfig={data.lpBotConfig}
       />
     </div>
   );

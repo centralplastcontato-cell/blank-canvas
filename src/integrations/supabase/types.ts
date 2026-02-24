@@ -1845,6 +1845,68 @@ export type Database = {
         }
         Relationships: []
       }
+      lp_bot_settings: {
+        Row: {
+          company_id: string
+          completion_message: string | null
+          created_at: string
+          guest_limit: number | null
+          guest_limit_message: string | null
+          guest_limit_redirect_name: string | null
+          guest_options: Json | null
+          guest_question: string | null
+          id: string
+          month_options: Json | null
+          month_question: string | null
+          name_question: string | null
+          updated_at: string
+          welcome_message: string | null
+          whatsapp_question: string | null
+        }
+        Insert: {
+          company_id: string
+          completion_message?: string | null
+          created_at?: string
+          guest_limit?: number | null
+          guest_limit_message?: string | null
+          guest_limit_redirect_name?: string | null
+          guest_options?: Json | null
+          guest_question?: string | null
+          id?: string
+          month_options?: Json | null
+          month_question?: string | null
+          name_question?: string | null
+          updated_at?: string
+          welcome_message?: string | null
+          whatsapp_question?: string | null
+        }
+        Update: {
+          company_id?: string
+          completion_message?: string | null
+          created_at?: string
+          guest_limit?: number | null
+          guest_limit_message?: string | null
+          guest_limit_redirect_name?: string | null
+          guest_options?: Json | null
+          guest_question?: string | null
+          id?: string
+          month_options?: Json | null
+          month_question?: string | null
+          name_question?: string | null
+          updated_at?: string
+          welcome_message?: string | null
+          whatsapp_question?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lp_bot_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maintenance_entries: {
         Row: {
           company_id: string
@@ -2602,6 +2664,9 @@ export type Database = {
           follow_up_delay_hours: number | null
           follow_up_enabled: boolean | null
           follow_up_message: string | null
+          guest_limit: number | null
+          guest_limit_message: string | null
+          guest_limit_redirect_name: string | null
           id: string
           instance_id: string
           message_delay_seconds: number | null
@@ -2642,6 +2707,9 @@ export type Database = {
           follow_up_delay_hours?: number | null
           follow_up_enabled?: boolean | null
           follow_up_message?: string | null
+          guest_limit?: number | null
+          guest_limit_message?: string | null
+          guest_limit_redirect_name?: string | null
           id?: string
           instance_id: string
           message_delay_seconds?: number | null
@@ -2682,6 +2750,9 @@ export type Database = {
           follow_up_delay_hours?: number | null
           follow_up_enabled?: boolean | null
           follow_up_message?: string | null
+          guest_limit?: number | null
+          guest_limit_message?: string | null
+          guest_limit_redirect_name?: string | null
           id?: string
           instance_id?: string
           message_delay_seconds?: number | null

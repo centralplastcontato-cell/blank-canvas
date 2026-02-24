@@ -23,6 +23,20 @@ interface LeadData {
   whatsapp?: string;
 }
 
+interface LPBotConfig {
+  welcome_message?: string;
+  month_question?: string;
+  guest_question?: string;
+  name_question?: string;
+  whatsapp_question?: string;
+  completion_message?: string;
+  month_options?: string[];
+  guest_options?: string[];
+  guest_limit?: number | null;
+  guest_limit_message?: string | null;
+  guest_limit_redirect_name?: string | null;
+}
+
 interface LeadChatbotProps {
   isOpen: boolean;
   onClose: () => void;
@@ -30,12 +44,13 @@ interface LeadChatbotProps {
   companyName?: string;
   companyLogo?: string | null;
   companyWhatsApp?: string;
+  lpBotConfig?: LPBotConfig | null;
 }
 
 // Default month options (all months from current month forward)
 const DEFAULT_MONTH_OPTIONS = ["Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
-export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLogo, companyWhatsApp }: LeadChatbotProps) {
+export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLogo, companyWhatsApp, lpBotConfig }: LeadChatbotProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
   const [leadData, setLeadData] = useState<LeadData>({});
@@ -44,6 +59,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
   const [isComplete, setIsComplete] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showEmojis, setShowEmojis] = useState(false);
+  const [redirectAccepted, setRedirectAccepted] = useState<boolean | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Detect if we're in dynamic (multi-company) mode
@@ -94,6 +110,23 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
     ]);
   };
 
+  // Helper: extract number from guest option string like "71 a 90 pessoas" → 90
+  const extractMaxGuests = (guestOption: string): number => {
+    const numbers = guestOption.match(/\d+/g);
+    if (!numbers) return 0;
+    return Math.max(...numbers.map(Number));
+  };
+
+  // Helper: check if guest selection exceeds the limit
+  const exceedsGuestLimit = (guestOption: string): boolean => {
+    if (!lpBotConfig?.guest_limit) return false;
+    const maxGuests = extractMaxGuests(guestOption);
+    return maxGuests > lpBotConfig.guest_limit;
+  };
+
+  const dynamicMonthOptions = lpBotConfig?.month_options || DEFAULT_MONTH_OPTIONS;
+  const dynamicGuestOptions = lpBotConfig?.guest_options || campaignConfig.chatbot.guestOptions;
+
   const handleDayOfMonthSelect = (day: string) => {
     const userMessage: Message = {
       id: `user-${Date.now()}`,
@@ -104,13 +137,15 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
     setLeadData((prev) => ({ ...prev, dayOfMonth: parseInt(day) }));
 
     setTimeout(() => {
+      const guestQuestionText = (isDynamic && lpBotConfig?.guest_question) || "Para quantas pessoas será a festa?";
+      const guestOpts = isDynamic ? dynamicGuestOptions : campaignConfig.chatbot.guestOptions;
       setMessages((prev) => [
         ...prev,
         {
           id: "guests",
           type: "bot",
-          content: "Para quantas pessoas será a festa?",
-          options: campaignConfig.chatbot.guestOptions,
+          content: guestQuestionText,
+          options: guestOpts,
         },
       ]);
       // In dynamic mode without unit step, guest step is step 2
@@ -125,27 +160,30 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
 
   useEffect(() => {
     if (isOpen && messages.length === 0) {
+      const welcomeMsg = isDynamic
+        ? (lpBotConfig?.welcome_message || `Oi 👋 Que bom te ver por aqui!\n\nVou te fazer algumas perguntas rápidas para montar seu orçamento 😉`)
+        : "Oi 👋 Que bom te ver por aqui!\n\nVou te fazer algumas perguntas rápidas para montar seu orçamento com a promoção 😉";
+
       setTimeout(() => {
         setMessages([
           {
             id: "welcome",
             type: "bot",
-            content: isDynamic
-              ? `Oi 👋 Que bom te ver por aqui!\n\nVou te fazer algumas perguntas rápidas para montar seu orçamento 😉`
-              : "Oi 👋 Que bom te ver por aqui!\n\nVou te fazer algumas perguntas rápidas para montar seu orçamento com a promoção 😉",
+            content: welcomeMsg,
           },
         ]);
         setTimeout(() => {
           if (isDynamic) {
             // Dynamic mode: skip unit selection, go straight to month
             setLeadData((prev) => ({ ...prev, unit: companyName }));
+            const monthQ = lpBotConfig?.month_question || "Para qual mês você pretende realizar a festa?";
             setMessages((prev) => [
               ...prev,
               {
                 id: "month",
                 type: "bot",
-                content: "Para qual mês você pretende realizar a festa?",
-                options: DEFAULT_MONTH_OPTIONS,
+                content: monthQ,
+                options: dynamicMonthOptions,
               },
             ]);
             setCurrentStep(1); // month step
@@ -164,7 +202,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
         }, 800);
       }, 500);
     }
-  }, [isOpen, messages.length, isDynamic, companyName]);
+  }, [isOpen, messages.length, isDynamic, companyName, lpBotConfig]);
 
   const handleOptionSelect = (option: string) => {
     const userMessage: Message = {
@@ -185,17 +223,67 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
             break;
           case 2: // Guests selected
             setLeadData((prev) => ({ ...prev, guests: option }));
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: "capture",
-                type: "bot",
-                content: "Perfeito! 🎉\n\nAgora precisamos dos seus dados para te enviar o orçamento certinho 👇",
-                isInput: true,
-              },
-            ]);
-            setCurrentStep(3);
-            setInputType("name");
+            // Check guest limit for dynamic mode
+            if (exceedsGuestLimit(option)) {
+              const redirectMsg = lpBotConfig?.guest_limit_message || 
+                `Nossa capacidade máxima é de ${lpBotConfig?.guest_limit} convidados. Para melhor lhe atender, podemos direcionar seu contato para o ${lpBotConfig?.guest_limit_redirect_name || 'buffet parceiro'}, próximo de nós, para envio de orçamento sem compromisso. Deseja que a gente encaminhe?`;
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: "guest-limit-redirect",
+                  type: "bot",
+                  content: redirectMsg,
+                  options: ["Sim, pode encaminhar", "Não, quero continuar"],
+                },
+              ]);
+              setCurrentStep(2.5 as any); // intermediate redirect step
+            } else {
+              // nameQ available for future input label customization
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: "capture",
+                  type: "bot",
+                  content: "Perfeito! 🎉\n\nAgora precisamos dos seus dados para te enviar o orçamento certinho 👇",
+                  isInput: true,
+                },
+              ]);
+              setCurrentStep(3);
+              setInputType("name");
+            }
+            break;
+          case 2.5: // Guest limit redirect response
+            if (option === "Sim, pode encaminhar") {
+              // Save lead as transferred
+              setRedirectAccepted(true);
+              setLeadData((prev) => ({ ...prev }));
+              // Ask for name/whatsapp to create the transferred lead
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: "capture-redirect",
+                  type: "bot",
+                  content: `Ótimo! Vamos encaminhar você para o ${lpBotConfig?.guest_limit_redirect_name || 'buffet parceiro'}. Primeiro, precisamos dos seus dados 👇`,
+                  isInput: true,
+                },
+              ]);
+              setCurrentStep(3);
+              setInputType("name");
+            } else {
+              // Continue normal flow
+              setRedirectAccepted(false);
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: "capture",
+                  type: "bot",
+                  content: "Perfeito! 🎉\n\nAgora precisamos dos seus dados para te enviar o orçamento certinho 👇",
+                  isInput: true,
+                },
+              ]);
+              setCurrentStep(3);
+              setInputType("name");
+            }
             break;
         }
       } else {
@@ -311,22 +399,27 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
         const effectiveCampaignId = isDynamic ? "lp-lead" : campaignConfig.campaignId;
         const effectiveCampaignName = isDynamic ? `LP ${displayName}` : campaignConfig.campaignName;
 
+        const isRedirected = redirectAccepted === true;
+
         const submitLead = async (unit: string) => {
-          const { error } = await supabase.functions.invoke('submit-lead', {
-            body: {
-              name: leadData.name,
-              whatsapp: whatsappValue,
-              unit: unit,
-              month: leadData.month,
-              day_of_month: leadData.dayOfMonth,
-              guests: leadData.guests,
-              campaign_id: effectiveCampaignId,
-              campaign_name: effectiveCampaignName,
-              company_id: effectiveCompanyId,
-            },
-          });
+          const body: Record<string, any> = {
+            name: leadData.name,
+            whatsapp: whatsappValue,
+            unit: unit,
+            month: leadData.month,
+            day_of_month: leadData.dayOfMonth,
+            guests: leadData.guests,
+            campaign_id: effectiveCampaignId,
+            campaign_name: effectiveCampaignName,
+            company_id: effectiveCompanyId,
+          };
+          if (isRedirected) {
+            body.status = 'transferido';
+            body.observacoes = `Redirecionado para ${lpBotConfig?.guest_limit_redirect_name || 'buffet parceiro'} - acima de ${lpBotConfig?.guest_limit} convidados`;
+          }
+          const { error } = await supabase.functions.invoke('submit-lead', { body });
           if (error) throw error;
-          console.log(`Lead criado para ${unit}`);
+          console.log(`Lead criado para ${unit}${isRedirected ? ' (transferido)' : ''}`);
         };
         
         await submitLead(leadData.unit!);
@@ -342,8 +435,10 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
             .catch(err => console.error("Erro ao enviar mensagem automática:", err));
         }
 
-        const completionMessage = isDynamic
-          ? `Prontinho 🎉\n\nRecebemos suas informações e nossa equipe vai entrar em contato em breve para confirmar valores e disponibilidade da sua data.\n\nAcabei de te enviar uma mensagem no seu WhatsApp, dá uma olhadinha lá! 📲`
+        const completionMessage = isRedirected
+          ? `Prontinho! 🎉\n\nSeus dados foram encaminhados para o ${lpBotConfig?.guest_limit_redirect_name || 'buffet parceiro'}. Eles entrarão em contato em breve!\n\nObrigado pelo interesse! 💜`
+          : isDynamic
+          ? (lpBotConfig?.completion_message || `Prontinho 🎉\n\nRecebemos suas informações e nossa equipe vai entrar em contato em breve para confirmar valores e disponibilidade da sua data.\n\nAcabei de te enviar uma mensagem no seu WhatsApp, dá uma olhadinha lá! 📲`)
           : `Prontinho 🎉\n\nRecebemos suas informações e nossa equipe vai entrar em contato em breve para confirmar valores e disponibilidade da sua data.\n\nPromoção válida conforme regras da campanha: ${campaignConfig.campaignName}\n\nAcabei de te enviar uma mensagem no seu WhatsApp, dá uma olhadinha lá! 📲`;
 
         setMessages((prev) => [
@@ -381,6 +476,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
     setInputType(null);
     setIsComplete(false);
     setIsSaving(false);
+    setRedirectAccepted(null);
   };
 
   if (!isOpen) return null;

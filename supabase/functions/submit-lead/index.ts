@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { name, whatsapp, unit, month, day_of_month, guests, campaign_id, campaign_name, company_id } = body;
+    const { name, whatsapp, unit, month, day_of_month, guests, campaign_id, campaign_name, company_id, status: customStatus, observacoes } = body;
 
     // Validate all inputs
     const nameValidation = validateName(name);
@@ -276,8 +276,9 @@ Deno.serve(async (req) => {
           guests: guests || null,
           campaign_id: campaign_id,
           campaign_name: campaign_name || null,
-          status: 'novo',
+          status: customStatus || 'novo',
           company_id: company_id,
+          observacoes: observacoes || null,
         });
 
       if (insertError) {
