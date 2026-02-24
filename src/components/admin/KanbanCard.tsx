@@ -278,7 +278,7 @@ export function KanbanCard({
                     </TooltipContent>
                   </Tooltip>
                 )}
-                {lead.has_follow_up && !lead.has_follow_up_2 && (
+                {lead.has_follow_up && !lead.has_follow_up_2 && !lead.has_follow_up_3 && !lead.has_follow_up_4 && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div className="flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5 bg-emerald-500/15 border border-emerald-500/30 rounded-md">
@@ -291,7 +291,7 @@ export function KanbanCard({
                     </TooltipContent>
                   </Tooltip>
                 )}
-                {lead.has_follow_up_2 && (
+                {lead.has_follow_up_2 && !lead.has_follow_up_3 && !lead.has_follow_up_4 && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div className="flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/15 border border-amber-500/30 rounded-md">
@@ -301,6 +301,32 @@ export function KanbanCard({
                     </TooltipTrigger>
                     <TooltipContent side="top" className="text-xs">
                       <p>✅ Follow-up #2 enviado</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+                {lead.has_follow_up_3 && !lead.has_follow_up_4 && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5 bg-orange-500/15 border border-orange-500/30 rounded-md">
+                        <RefreshCw className="w-3 h-3 text-orange-500" />
+                        <span className="text-[10px] font-semibold text-orange-600 uppercase tracking-wide">F-Up 3</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">
+                      <p>✅ Follow-up #3 enviado</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+                {lead.has_follow_up_4 && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5 bg-red-500/15 border border-red-500/30 rounded-md">
+                        <RefreshCw className="w-3 h-3 text-red-500" />
+                        <span className="text-[10px] font-semibold text-red-600 uppercase tracking-wide">F-Up 4</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">
+                      <p>✅ Follow-up #4 enviado (último)</p>
                     </TooltipContent>
                   </Tooltip>
                 )}

@@ -313,7 +313,7 @@ export default function CentralAtendimento() {
           const leadIds = leadsData.map(l => l.id);
           
           // Parallel fetch for visit, follow-up 1 and follow-up 2 data
-          const [convResult, historyResult, historyResult2, returnResult] = await Promise.all([
+          const [convResult, historyResult, historyResult2, historyResult3, historyResult4, returnResult] = await Promise.all([
             supabase
               .from("wapi_conversations")
               .select("lead_id, has_scheduled_visit")
@@ -333,12 +333,24 @@ export default function CentralAtendimento() {
               .from("lead_history")
               .select("lead_id")
               .in("lead_id", leadIds)
+              .eq("action", "Follow-up #3 automático enviado"),
+            supabase
+              .from("lead_history")
+              .select("lead_id")
+              .in("lead_id", leadIds)
+              .eq("action", "Follow-up #4 automático enviado"),
+            supabase
+              .from("lead_history")
+              .select("lead_id")
+              .in("lead_id", leadIds)
               .eq("action", "Lead retornou pela Landing Page")
           ]);
           
           const scheduledVisitLeadIds = new Set((convResult.data || []).map(c => c.lead_id));
           const followUpLeadIds = new Set((historyResult.data || []).map(h => h.lead_id));
           const followUp2LeadIds = new Set((historyResult2.data || []).map(h => h.lead_id));
+          const followUp3LeadIds = new Set((historyResult3.data || []).map(h => h.lead_id));
+          const followUp4LeadIds = new Set((historyResult4.data || []).map(h => h.lead_id));
           const returnLeadIds = new Set((returnResult.data || []).map(h => h.lead_id));
           
           let leadsWithExtraInfo = leadsData.map(lead => ({
@@ -346,6 +358,8 @@ export default function CentralAtendimento() {
             has_scheduled_visit: scheduledVisitLeadIds.has(lead.id),
             has_follow_up: followUpLeadIds.has(lead.id),
             has_follow_up_2: followUp2LeadIds.has(lead.id),
+            has_follow_up_3: followUp3LeadIds.has(lead.id),
+            has_follow_up_4: followUp4LeadIds.has(lead.id),
             has_return: returnLeadIds.has(lead.id)
           }));
           

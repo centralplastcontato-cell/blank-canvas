@@ -2664,6 +2664,12 @@ export type Database = {
           follow_up_2_delay_hours: number | null
           follow_up_2_enabled: boolean | null
           follow_up_2_message: string | null
+          follow_up_3_delay_hours: number
+          follow_up_3_enabled: boolean
+          follow_up_3_message: string | null
+          follow_up_4_delay_hours: number
+          follow_up_4_enabled: boolean
+          follow_up_4_message: string | null
           follow_up_delay_hours: number | null
           follow_up_enabled: boolean | null
           follow_up_message: string | null
@@ -2707,6 +2713,12 @@ export type Database = {
           follow_up_2_delay_hours?: number | null
           follow_up_2_enabled?: boolean | null
           follow_up_2_message?: string | null
+          follow_up_3_delay_hours?: number
+          follow_up_3_enabled?: boolean
+          follow_up_3_message?: string | null
+          follow_up_4_delay_hours?: number
+          follow_up_4_enabled?: boolean
+          follow_up_4_message?: string | null
           follow_up_delay_hours?: number | null
           follow_up_enabled?: boolean | null
           follow_up_message?: string | null
@@ -2750,6 +2762,12 @@ export type Database = {
           follow_up_2_delay_hours?: number | null
           follow_up_2_enabled?: boolean | null
           follow_up_2_message?: string | null
+          follow_up_3_delay_hours?: number
+          follow_up_3_enabled?: boolean
+          follow_up_3_message?: string | null
+          follow_up_4_delay_hours?: number
+          follow_up_4_enabled?: boolean
+          follow_up_4_message?: string | null
           follow_up_delay_hours?: number | null
           follow_up_enabled?: boolean | null
           follow_up_message?: string | null

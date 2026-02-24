@@ -29,6 +29,12 @@ interface FollowUpSettings {
   follow_up_2_enabled: boolean;
   follow_up_2_delay_hours: number;
   follow_up_2_message: string | null;
+  follow_up_3_enabled: boolean;
+  follow_up_3_delay_hours: number;
+  follow_up_3_message: string | null;
+  follow_up_4_enabled: boolean;
+  follow_up_4_delay_hours: number;
+  follow_up_4_message: string | null;
   next_step_reminder_enabled: boolean;
   next_step_reminder_delay_minutes: number;
   next_step_reminder_message: string | null;
@@ -83,8 +89,8 @@ Deno.serve(async (req) => {
     // Fetch all bot settings with any follow-up enabled
     const { data: allSettings, error: settingsError } = await supabase
       .from("wapi_bot_settings")
-      .select("instance_id, test_mode_enabled, test_mode_number, follow_up_enabled, follow_up_delay_hours, follow_up_message, follow_up_2_enabled, follow_up_2_delay_hours, follow_up_2_message, next_step_reminder_enabled, next_step_reminder_delay_minutes, next_step_reminder_message, bot_inactive_followup_enabled, bot_inactive_followup_delay_minutes, bot_inactive_followup_message")
-      .or("follow_up_enabled.eq.true,follow_up_2_enabled.eq.true,next_step_reminder_enabled.eq.true,bot_inactive_followup_enabled.eq.true");
+      .select("instance_id, test_mode_enabled, test_mode_number, follow_up_enabled, follow_up_delay_hours, follow_up_message, follow_up_2_enabled, follow_up_2_delay_hours, follow_up_2_message, follow_up_3_enabled, follow_up_3_delay_hours, follow_up_3_message, follow_up_4_enabled, follow_up_4_delay_hours, follow_up_4_message, next_step_reminder_enabled, next_step_reminder_delay_minutes, next_step_reminder_message, bot_inactive_followup_enabled, bot_inactive_followup_delay_minutes, bot_inactive_followup_message")
+      .or("follow_up_enabled.eq.true,follow_up_2_enabled.eq.true,follow_up_3_enabled.eq.true,follow_up_4_enabled.eq.true,next_step_reminder_enabled.eq.true,bot_inactive_followup_enabled.eq.true");
 
     if (settingsError) {
       console.error("[follow-up-check] Error fetching settings:", settingsError);
@@ -162,6 +168,36 @@ Deno.serve(async (req) => {
           message: settings.follow_up_2_message || getDefaultFollowUpMessage(2),
           historyAction: "Follow-up #2 automático enviado",
           checkPreviousAction: "Follow-up automático enviado",
+        });
+        totalSuccessCount += result.successCount;
+        allErrors.push(...result.errors);
+      }
+
+      // Process third follow-up
+      if (settings.follow_up_3_enabled) {
+        const result = await processFollowUp({
+          supabase,
+          settings,
+          followUpNumber: 3,
+          delayHours: settings.follow_up_3_delay_hours || 72,
+          message: settings.follow_up_3_message || getDefaultFollowUpMessage(3),
+          historyAction: "Follow-up #3 automático enviado",
+          checkPreviousAction: "Follow-up #2 automático enviado",
+        });
+        totalSuccessCount += result.successCount;
+        allErrors.push(...result.errors);
+      }
+
+      // Process fourth follow-up
+      if (settings.follow_up_4_enabled) {
+        const result = await processFollowUp({
+          supabase,
+          settings,
+          followUpNumber: 4,
+          delayHours: settings.follow_up_4_delay_hours || 96,
+          message: settings.follow_up_4_message || getDefaultFollowUpMessage(4),
+          historyAction: "Follow-up #4 automático enviado",
+          checkPreviousAction: "Follow-up #3 automático enviado",
         });
         totalSuccessCount += result.successCount;
         allErrors.push(...result.errors);
@@ -426,8 +462,8 @@ async function processFollowUp({
     leadsNeedingFollowUp = leadsNeedingFollowUp.filter(id => receivedPrevious.has(id));
   }
 
-  // For second follow-up: also check if lead replied after first follow-up
-  if (followUpNumber === 2) {
+  // For follow-up 2+: also check if lead replied after previous follow-up
+  if (followUpNumber >= 2) {
     const { data: conversations } = await supabase
       .from("wapi_conversations")
       .select("lead_id, last_message_from_me")
@@ -438,7 +474,7 @@ async function processFollowUp({
     const repliedLeads = new Set((conversations || []).map(c => c.lead_id));
     leadsNeedingFollowUp = leadsNeedingFollowUp.filter(id => !repliedLeads.has(id));
     
-    console.log(`[follow-up-check] After filtering replied leads: ${leadsNeedingFollowUp.length} leads need follow-up #2`);
+    console.log(`[follow-up-check] After filtering replied leads: ${leadsNeedingFollowUp.length} leads need follow-up #${followUpNumber}`);
   }
 
   if (leadsNeedingFollowUp.length === 0) {
@@ -564,7 +600,7 @@ async function processFollowUp({
         message_id: sentMsgId,
         status: "sent",
         timestamp: new Date().toISOString(),
-        metadata: { source: "auto_reminder", type: followUpNumber === 1 ? "follow_up_1" : "follow_up_2" },
+        metadata: { source: "auto_reminder", type: `follow_up_${followUpNumber}` },
         company_id: instance.company_id,
       });
 
@@ -654,7 +690,7 @@ Passando para saber se teve a chance de analisar as informações que enviamos s
 Estamos à disposição para esclarecer qualquer dúvida ou agendar uma visita para conhecer pessoalmente nossos espaços. 
 
 Podemos te ajudar? 😊`;
-  } else {
+  } else if (number === 2) {
     return `Olá, {nome}! 👋
 
 Ainda não tivemos retorno sobre a festa no Castelo da Diversão! 🏰
@@ -662,6 +698,18 @@ Ainda não tivemos retorno sobre a festa no Castelo da Diversão! 🏰
 Temos pacotes especiais e datas disponíveis para {mes}. Que tal agendar uma visita para conhecer nosso espaço? 
 
 Estamos aqui para te ajudar! 😊`;
+  } else if (number === 3) {
+    return `Oi, {nome}! 😊
+
+Sei que a decisão de uma festa leva tempo, mas quero garantir que você não perca as melhores datas para {mes}! 📅
+
+Posso te ajudar com alguma dúvida ou enviar mais informações sobre nossos pacotes?`;
+  } else {
+    return `{nome}, última chamada! 🎉
+
+As datas para {mes} estão quase esgotadas! Se ainda estiver pensando na festa, esse é o momento ideal para garantir.
+
+Posso reservar um horário para você conhecer nosso espaço? 🏰`;
   }
 }
 
