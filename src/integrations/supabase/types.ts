@@ -1859,6 +1859,7 @@ export type Database = {
           month_options: Json | null
           month_question: string | null
           name_question: string | null
+          redirect_completion_message: string | null
           updated_at: string
           welcome_message: string | null
           whatsapp_question: string | null
@@ -1876,6 +1877,7 @@ export type Database = {
           month_options?: Json | null
           month_question?: string | null
           name_question?: string | null
+          redirect_completion_message?: string | null
           updated_at?: string
           welcome_message?: string | null
           whatsapp_question?: string | null
@@ -1893,6 +1895,7 @@ export type Database = {
           month_options?: Json | null
           month_question?: string | null
           name_question?: string | null
+          redirect_completion_message?: string | null
           updated_at?: string
           welcome_message?: string | null
           whatsapp_question?: string | null

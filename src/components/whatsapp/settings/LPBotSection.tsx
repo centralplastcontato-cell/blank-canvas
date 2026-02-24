@@ -24,6 +24,7 @@ interface LPBotSettings {
   guest_limit: number | null;
   guest_limit_message: string | null;
   guest_limit_redirect_name: string | null;
+  redirect_completion_message: string | null;
 }
 
 const DEFAULTS: Omit<LPBotSettings, 'company_id'> = {
@@ -38,6 +39,7 @@ const DEFAULTS: Omit<LPBotSettings, 'company_id'> = {
   guest_limit: null,
   guest_limit_message: null,
   guest_limit_redirect_name: null,
+  redirect_completion_message: null,
 };
 
 export function LPBotSection() {
@@ -77,6 +79,7 @@ export function LPBotSection() {
         guest_limit: data.guest_limit,
         guest_limit_message: data.guest_limit_message,
         guest_limit_redirect_name: data.guest_limit_redirect_name,
+        redirect_completion_message: (data as any).redirect_completion_message || null,
       });
     } else {
       setSettings({
@@ -104,6 +107,7 @@ export function LPBotSection() {
       guest_limit: settings.guest_limit || null,
       guest_limit_message: settings.guest_limit_message || null,
       guest_limit_redirect_name: settings.guest_limit_redirect_name || null,
+      redirect_completion_message: settings.redirect_completion_message || null,
     };
 
     let error;
@@ -302,6 +306,19 @@ export function LPBotSection() {
                   onChange={(e) => updateField('guest_limit_redirect_name', e.target.value)}
                   placeholder="Ex: Buffet Mega Magic"
                 />
+              </div>
+              <Separator />
+              <div className="space-y-2">
+                <Label>Mensagem de conclusão (chat da LP)</Label>
+                <Textarea
+                  value={settings.redirect_completion_message ?? ''}
+                  onChange={(e) => updateField('redirect_completion_message', e.target.value)}
+                  placeholder="Ex: Prontinho! 🎉 Seus dados foram encaminhados para o Buffet Mega Magic. Eles entrarão em contato em breve!"
+                  rows={3}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Mensagem exibida no chat quando o lead é redirecionado. Se vazio, usa um texto padrão.
+                </p>
               </div>
             </>
           )}

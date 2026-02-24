@@ -26,6 +26,7 @@ interface LPBotConfig {
   guest_limit?: number | null;
   guest_limit_message?: string | null;
   guest_limit_redirect_name?: string | null;
+  redirect_completion_message?: string | null;
 }
 
 interface LPData {
@@ -109,6 +110,7 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
           guest_limit: botSettings.guest_limit,
           guest_limit_message: botSettings.guest_limit_message,
           guest_limit_redirect_name: botSettings.guest_limit_redirect_name,
+          redirect_completion_message: (botSettings as any).redirect_completion_message || null,
         } : null;
 
         setData({
