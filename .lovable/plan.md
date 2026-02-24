@@ -1,85 +1,73 @@
 
 
-## Tornar Follow-ups Dinamicos + Nova Aba "Follow-ups" na Inteligencia
+## Contextualizar a IA para o Mercado de Buffet Infantil
 
-### O que muda
+### Problema
+O "Insight da IA" gera analises alarmistas (ex: "taxa de conversao 0%, necessidade de analise profunda") porque nao entende que buffet infantil tem um ciclo de venda naturalmente longo. Os pais pesquisam varios buffets, agendam visitas, pedem orcamentos e demoram dias/semanas para fechar. Isso e normal e nao deveria ser tratado como problema.
 
-Atualmente, os follow-ups na tela de Inteligencia aparecem agrupados por tempo fixo ("24h", "48h"). O problema e que cada buffet configura tempos diferentes (ex: 72h, 96h, 144h). A proposta e:
+### Solucao
 
-1. **Renomear para "1o Follow-up", "2o Follow-up", "3o Follow-up", "4o Follow-up"** em vez de usar horas
-2. **Criar uma nova aba "Follow-ups"** na pagina de Inteligencia com 4 colunas estilo Kanban (igual Prioridades), onde leads se movem conforme recebem cada follow-up
-3. **Atualizar metricas e labels** para usar a nomenclatura por etapa em vez de horas
+**Duas frentes complementares:**
+
+1. **Enriquecer o prompt da IA com contexto do setor** -- adicionar instrucoes fixas explicando como funciona o mercado de buffet infantil
+2. **Campo customizavel por empresa** -- permitir que cada buffet adicione seu proprio contexto (ex: "nossa taxa media de conversao e 8%", "nosso ticket medio e R$3.500")
 
 ---
 
-### Mudancas visuais
+### Mudancas tecnicas
+
+**1. Arquivo: `supabase/functions/daily-summary/index.ts` (prompt da IA, linhas ~397-417)**
+
+Substituir o prompt atual por um enriquecido com contexto do setor:
 
 ```text
-+--------------------+--------------------+--------------------+--------------------+
-| 1o Follow-up       | 2o Follow-up       | 3o Follow-up       | 4o Follow-up       |
-| (72h)  [3 leads]   | (96h)  [2 leads]   | (144h) [1 lead]    | (192h) [0 leads]   |
-+--------------------+--------------------+--------------------+--------------------+
-| Lead A             | Lead C             | Lead E             |                    |
-|   Score: 45        |   Score: 30        |   Score: 15        | Nenhum lead nesta  |
-|   Morno            |   Frio             |   Frio             | etapa              |
-|   [WhatsApp]       |   [WhatsApp]       |   [WhatsApp]       |                    |
-| Lead B             | Lead D             |                    |                    |
-+--------------------+--------------------+--------------------+--------------------+
+Antes:
+  "Voce e um assistente de vendas de buffet infantil. Analise os dados..."
+
+Depois:
+  "Voce e um consultor especialista no mercado de buffet de festas infantis.
+
+  CONTEXTO IMPORTANTE DO SETOR:
+  - O ciclo de venda de buffet infantil e naturalmente longo (dias a semanas)
+  - Os pais pesquisam varios buffets antes de decidir
+  - E normal receber muitos leads e orcamentos com poucos fechamentos no mesmo dia
+  - Uma taxa de conversao de 5-15% sobre o total de leads e considerada saudavel
+  - O volume de leads novos e orcamentos enviados sao indicadores positivos de demanda
+  - 'Quer pensar' nao e negativo -- faz parte do processo natural de decisao
+  - O foco deve ser em nutrir o relacionamento, nao pressionar
+  
+  [contexto customizado da empresa, se houver]
+
+  Analise os dados com essa perspectiva realista do setor..."
 ```
 
-- Cada coluna mostra o numero do follow-up e entre parenteses o tempo configurado pelo buffet
-- Cores: Verde (1o), Azul (2o), Laranja (3o), Vermelho (4o) -- mesmas cores dos badges existentes
-- Leads com link direto para o WhatsApp e resumo de IA inline
+**2. Novo campo `ai_context` na tabela `wapi_bot_settings`**
+
+Adicionar um campo de texto onde cada empresa pode inserir contexto proprio para a IA. Exemplos:
+- "Nossa taxa media de conversao e 10%"
+- "Temos 2 unidades e atendemos em media 80 festas/mes"
+- "Nosso ticket medio e R$4.000"
+
+O prompt da IA incluira esse texto quando disponivel.
+
+**3. Arquivo: `src/components/whatsapp/settings/AdvancedSection.tsx` (ou nova secao)**
+
+Adicionar um campo de texto nas Configuracoes do WhatsApp para o buffet preencher o contexto personalizado da IA.
 
 ---
 
-### Plano tecnico
+### Resultado esperado
 
-**1. Edge Function `daily-summary/index.ts`**
-- Buscar tambem `follow_up_3_delay_hours` e `follow_up_4_delay_hours` do `wapi_bot_settings`
-- Adicionar acoes de follow-up 3 e 4 na lista `FOLLOW_UP_ACTIONS`
-- Expandir metricas para incluir `followUp3` e `followUp4`
-- Mudar labels de "72h" para "1o Follow-up (72h)" etc.
-- Retornar `followUpLabels` com os 4 valores de delay
+**Antes (IA generica):**
+> "Taxa de conversao 0%, necessidade de analise profunda no processo de abordagem"
 
-**2. Hook `useDailySummary.ts`**
-- Expandir `DailyMetrics` para incluir `followUp3` e `followUp4`
-- Expandir `FollowUpLabels` para incluir `fu3` e `fu4`
-- Atualizar `aggregateResults` para somar os novos campos
+**Depois (IA contextualizada):**
+> "Dia forte com 25 novos leads demonstrando boa demanda. 9 orcamentos enviados e um excelente indicador -- esses leads estao no processo natural de decisao. Foco: nutrir os que pediram para pensar e agendar visitas para os mais engajados."
 
-**3. Componente `ResumoDiarioTab.tsx`**
-- Atualizar `MetricsGrid` para mostrar 4 metricas de follow-up com labels "1o FU", "2o FU", "3o FU", "4o FU" (mostrando horas entre parenteses)
-- Atualizar `FollowUpLeadsSection` para agrupar por numero de follow-up em vez de horas
-- Atualizar contagem na aba "Follow-ups" para incluir todos os 4
+### Arquivos modificados
 
-**4. Nova aba "Follow-ups" na pagina `Inteligencia.tsx`**
-- Adicionar botao "Follow-ups" no seletor de abas (entre "Prioridades" e "Funil")
-- Buscar dados de `lead_history` para identificar em qual etapa de follow-up cada lead esta
-- Passar dados para o novo componente
-
-**5. Novo componente `FollowUpsTab.tsx`**
-- Layout em 4 colunas (estilo identico ao `PrioridadesTab`)
-- Cada coluna: "1o Follow-up", "2o Follow-up", "3o Follow-up", "4o Follow-up"
-- Subtitulo mostrando o tempo configurado (ex: "72h")
-- Cores das bordas: verde, azul, laranja, vermelho
-- Cada lead mostra: nome, score, temperatura, status, ultimo contato, botao WhatsApp, resumo IA
-- Leads sao filtrados para mostrar apenas leads ativos (nao fechados/perdidos) que receberam aquele follow-up especifico mas nao responderam ainda
-
-**6. Hook de dados para a aba Follow-ups**
-- Buscar do `lead_history` as acoes de follow-up por lead
-- Buscar os delays configurados do `wapi_bot_settings` da empresa atual
-- Cruzar com dados de `lead_intelligence` para enriquecer com score/temperatura
-- Classificar cada lead na coluna do ultimo follow-up recebido
-
----
-
-### Arquivos que serao modificados
-
-| Arquivo | Tipo de mudanca |
+| Arquivo | Mudanca |
 |---|---|
-| `supabase/functions/daily-summary/index.ts` | Buscar 4 follow-ups, expandir metricas e labels |
-| `src/hooks/useDailySummary.ts` | Novos campos em DailyMetrics e FollowUpLabels |
-| `src/components/inteligencia/ResumoDiarioTab.tsx` | 4 metricas FU, labels por numero |
-| `src/components/inteligencia/FollowUpsTab.tsx` | **Novo arquivo** -- Kanban de 4 colunas |
-| `src/pages/Inteligencia.tsx` | Nova aba "Follow-ups" no seletor |
+| `supabase/functions/daily-summary/index.ts` | Prompt enriquecido + leitura do campo `ai_context` |
+| `src/components/whatsapp/settings/AdvancedSection.tsx` | Novo campo "Contexto para a IA" |
 
