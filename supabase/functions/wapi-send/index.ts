@@ -1414,44 +1414,50 @@ Deno.serve(async (req) => {
 
       case 'disconnect': {
         try {
-          // Try logout endpoint
-          const logoutRes = await fetch(
-            `${WAPI_BASE_URL}/instance/logout?instanceId=${instance_id}`,
-            { 
-              method: 'DELETE',
-              headers: { 'Authorization': `Bearer ${instance_token}` },
+          // Try multiple W-API disconnect/logout endpoints
+          const endpoints = [
+            { url: `${WAPI_BASE_URL}/instance/logout?instanceId=${instance_id}`, method: 'DELETE' },
+            { url: `${WAPI_BASE_URL}/instance/logout?instanceId=${instance_id}`, method: 'POST' },
+            { url: `${WAPI_BASE_URL}/instance/disconnect?instanceId=${instance_id}`, method: 'DELETE' },
+            { url: `${WAPI_BASE_URL}/instance/disconnect?instanceId=${instance_id}`, method: 'POST' },
+          ];
+
+          let disconnected = false;
+          for (const ep of endpoints) {
+            try {
+              const res = await fetch(ep.url, {
+                method: ep.method,
+                headers: { 'Authorization': `Bearer ${instance_token}`, 'Content-Type': 'application/json' },
+              });
+              console.log(`disconnect ${ep.method} ${ep.url.split('?')[0].split('/').pop()} response:`, res.status);
+              if (res.ok) {
+                const data = await res.json().catch(() => ({}));
+                console.log('disconnect success data:', JSON.stringify(data));
+                disconnected = true;
+                break;
+              }
+            } catch (fetchErr) {
+              console.warn(`disconnect endpoint failed:`, fetchErr);
             }
-          );
-          
-          console.log('disconnect logout response:', logoutRes.status);
-          
-          if (logoutRes.ok) {
-            const data = await logoutRes.json().catch(() => ({}));
-            console.log('disconnect logout data:', JSON.stringify(data));
-            return new Response(JSON.stringify({ success: true, message: 'Desconectado com sucesso' }), {
-              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            });
           }
-          
-          // Fallback: try POST method
-          const postRes = await fetch(
-            `${WAPI_BASE_URL}/instance/logout?instanceId=${instance_id}`,
-            { 
-              method: 'POST',
-              headers: { 'Authorization': `Bearer ${instance_token}`, 'Content-Type': 'application/json' },
-            }
-          );
-          
-          console.log('disconnect POST logout response:', postRes.status);
-          
-          if (postRes.ok) {
-            return new Response(JSON.stringify({ success: true, message: 'Desconectado com sucesso' }), {
-              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            });
+
+          // Even if W-API endpoints all fail, update local DB status so user can reconnect with new number
+          if (!disconnected) {
+            console.warn(`disconnect: all W-API endpoints returned non-OK for ${instance_id}. Forcing local disconnect.`);
           }
-          
-          return new Response(JSON.stringify({ error: 'Não foi possível desconectar a instância' }), {
-            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+
+          // Always update DB to disconnected — allows user to reconnect
+          await supabase
+            .from('wapi_instances')
+            .update({ status: 'disconnected', connected_at: null, phone_number: null })
+            .eq('instance_id', instance_id);
+
+          return new Response(JSON.stringify({ 
+            success: true, 
+            message: disconnected ? 'Desconectado com sucesso' : 'Desconectado localmente (W-API indisponível)',
+            forced: !disconnected,
+          }), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         } catch (e) {
           console.error('disconnect error:', e);

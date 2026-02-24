@@ -114,11 +114,10 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
         },
       });
       if (res.data?.success) {
-        await supabase.from("wapi_instances").update({
-          status: "disconnected",
-          connected_at: null,
-        }).eq("id", inst.id);
-        toast({ title: "Desconectado", description: `Instância ${inst.unit} desconectada com sucesso.` });
+        const msg = res.data?.forced 
+          ? `Instância ${inst.unit} desconectada localmente. Reconecte com o novo número.`
+          : `Instância ${inst.unit} desconectada com sucesso.`;
+        toast({ title: "Desconectado", description: msg });
         fetchData();
       } else {
         toast({ title: "Erro", description: res.data?.error || "Não foi possível desconectar.", variant: "destructive" });
