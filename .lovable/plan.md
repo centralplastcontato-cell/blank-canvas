@@ -1,56 +1,36 @@
 
-## Corrigir corte do lado direito na lista de conversas (mobile)
+## Resetar fluxo do chatbot da LP ao reabrir
 
-### Problema identificado
-Na tela mobile da Central de Atendimento, os itens da lista de conversas estao sendo cortados no lado direito. Isso afeta:
-- O menu de tres pontos (ConversationStatusActions)
-- O horario da ultima mensagem
-- Badges de contagem de nao lidas
-
-### Causa raiz
-O container principal do chat (linha 2910 do WhatsAppChat.tsx) usa `overflow-hidden` com `rounded-xl`, e internamente os itens de conversa tem elementos que ultrapassam o limite visivel. Especificamente:
-- O container pai tem `border` + `rounded-xl` + `overflow-hidden` que corta o conteudo nos extremos
-- Os itens de conversa usam `w-full` mas o padding interno nao compensa o espaco perdido pela borda e arredondamento
+### Problema
+Quando um lead finaliza o fluxo do chatbot na Landing Page e fecha o modal, ao reabrir o chat ele continua mostrando a conversa anterior (ultima mensagem, dados preenchidos). O lead precisa clicar manualmente em "Iniciar nova conversa" para recomecar.
 
 ### Solucao
+Chamar automaticamente o `resetChat()` quando o modal for fechado (`isOpen` mudar de `true` para `false`). Assim, ao reabrir, `messages.length === 0` e o fluxo de boas-vindas inicia normalmente.
 
-**Arquivo: `src/components/whatsapp/WhatsAppChat.tsx`**
+### Mudanca tecnica
 
-1. **Ajustar o container mobile da lista de conversas** (linha ~2910):
-   - Remover o `rounded-xl` e `border` do container principal no mobile, pois ele ja esta dentro de um layout que fornece a moldura
-   - Ou adicionar padding interno para compensar o corte
+**Arquivo: `src/components/landing/LeadChatbot.tsx`**
 
-2. **Ajustar os itens de conversa mobile** (linhas ~2948-3033):
-   - Adicionar `pr-3` ou `pr-4` ao botao de cada conversa para garantir que o lado direito tenha respiro
-   - O item atual usa `p-2.5` que pode ser insuficiente para acomodar o `ConversationStatusActions` + timestamp sem corte
+Adicionar um `useEffect` que detecta quando `isOpen` muda para `false` e reseta todo o estado:
 
-3. **Garantir que o `ConversationStatusActions`** nao ultrapasse os limites:
-   - Verificar se o componente de status/menu de tres pontos respeita o espaco disponivel
-
-### Mudancas especificas
-
-```text
-Antes (linha 2910):
-<div className="flex flex-1 border border-border/60 rounded-xl overflow-hidden ...">
-
-Depois:
-<div className="flex flex-1 border border-border/60 rounded-xl overflow-hidden md:rounded-xl ...">
-  (mobile container interno recebe padding compensatorio)
+```typescript
+useEffect(() => {
+  if (!isOpen) {
+    resetChat();
+  }
+}, [isOpen]);
 ```
 
-```text
-Antes (linha 2952-2953, item de conversa mobile):
-className="w-full p-2.5 flex items-center gap-2.5 ..."
+Isso deve ser adicionado logo apos a funcao `resetChat` (apos linha 504), garantindo que:
+- `messages` volta a `[]`
+- `currentStep` volta a `0`
+- `leadData` volta a `{}`
+- `isComplete` volta a `false`
+- `inputType` volta a `null`
+- `redirectAccepted` volta a `null`
 
-Depois:
-className="w-full px-3 py-2.5 flex items-center gap-2.5 ..."
-```
-
-E na area de status/horario (linhas 2998-3010), garantir que o container `shrink-0` nao empurre conteudo para fora:
-- Limitar o `ConversationStatusActions` para nao exceder o espaco
-- Reduzir levemente gap ou tamanho do timestamp se necessario
-
-### Resultado esperado
-- Lista de conversas mobile mostra todos os elementos visiveis (menu, horario, badges)
-- Sem corte no lado direito
-- Layout continua identico no desktop (sem regressao)
+### Resultado
+- Lead fecha o chat (X ou clicando fora) -> estado e zerado
+- Lead reabre o chat -> ve a mensagem de boas-vindas novamente
+- Nenhuma regressao no fluxo normal (o reset ja existe e funciona)
+- O botao "Iniciar nova conversa" continua funcionando para reset sem fechar
