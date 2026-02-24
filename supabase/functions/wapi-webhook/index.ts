@@ -2645,8 +2645,9 @@ async function sendQualificationMaterials(
   
   // Group materials by type
   const photoCollections = materials.filter(m => m.type === 'photo_collection');
-  const presentationVideos = materials.filter(m => m.type === 'video' && m.name?.toLowerCase().includes('apresentação'));
-  const promoVideos = materials.filter(m => m.type === 'video' && (m.name?.toLowerCase().includes('promo') || m.name?.toLowerCase().includes('carnaval')));
+  const allVideos = materials.filter(m => m.type === 'video');
+  const promoVideos = allVideos.filter(m => m.name?.toLowerCase().includes('promo') || m.name?.toLowerCase().includes('carnaval'));
+  const presentationVideos = allVideos.filter(m => !promoVideos.includes(m));
   const pdfPackages = materials.filter(m => m.type === 'pdf_package');
   
   // Extract guest count from string (e.g., "50 pessoas" -> 50)
@@ -2781,7 +2782,21 @@ async function sendQualificationMaterials(
     await new Promise(r => setTimeout(r, messageDelay));
   }
   
-  // 3. SEND PDF PACKAGE (matching guest count or universal) - Send PDF BEFORE promo video
+  // 3. SEND PROMO VIDEO
+  if (sendPromoVideo && promoVideos.length > 0) {
+    const promoVideo = promoVideos[0];
+    console.log(`[Bot Materials] Sending promo video: ${promoVideo.name}`);
+    
+    const promoCaption = captionMap['video_promo'] || captionMap['video'] || `🎬 Confira nosso vídeo! ✨`;
+    const caption = promoCaption.replace(/\{unidade\}/gi, unit);
+    
+    const msgId = await sendVideo(promoVideo.file_url, caption);
+    if (msgId) await saveMessage(msgId, 'video', caption, promoVideo.file_url);
+    
+    await new Promise(r => setTimeout(r, messageDelay * 1.5));
+  }
+  
+  // 4. SEND PDF PACKAGE (matching guest count or universal) - ALWAYS LAST material
   if (sendPdf && pdfPackages.length > 0) {
     // Separate universal (guest_count=null) from specific PDFs
     const universalPdfs = pdfPackages.filter(p => p.guest_count === null);
@@ -2790,11 +2805,9 @@ async function sendQualificationMaterials(
     let pdfsToSend: typeof pdfPackages = [];
     
     if (universalPdfs.length > 0) {
-      // Universal mode: send ALL universal PDFs
       pdfsToSend = universalPdfs;
       console.log(`[Bot Materials] Found ${universalPdfs.length} universal PDFs`);
     } else if (guestCount && specificPdfs.length > 0) {
-      // Specific mode: find matching PDF by guest count
       let matchingPdf = specificPdfs.find(p => p.guest_count === guestCount);
       if (!matchingPdf) {
         const sortedPackages = specificPdfs.sort((a, b) => (a.guest_count || 0) - (b.guest_count || 0));
@@ -2807,7 +2820,6 @@ async function sendQualificationMaterials(
       const firstPdf = pdfsToSend[0];
       console.log(`[Bot Materials] Sending ${pdfsToSend.length} PDF(s): ${firstPdf.name}`);
       
-      // Send intro message for PDF
       const firstName = (botData.nome || '').split(' ')[0] || 'você';
       const pdfIntroText = pdfIntro
         .replace(/\{nome\}/gi, firstName)
@@ -2818,7 +2830,6 @@ async function sendQualificationMaterials(
       
       await new Promise(r => setTimeout(r, messageDelay / 4));
       
-      // Send all PDFs (or images if file is an image)
       for (const pdf of pdfsToSend) {
         const fileExt = pdf.file_url.split('?')[0].split('.').pop()?.toLowerCase() || '';
         const isPkgImage = ['jpg', 'jpeg', 'png', 'webp'].includes(fileExt);
@@ -2836,21 +2847,6 @@ async function sendQualificationMaterials(
       
       await new Promise(r => setTimeout(r, messageDelay));
     }
-  }
-  
-  // 4. SEND PROMO VIDEO - LAST material before next step question
-  if (sendPromoVideo && promoVideos.length > 0) {
-    const promoVideo = promoVideos[0];
-    console.log(`[Bot Materials] Sending promo video: ${promoVideo.name}`);
-    
-    const promoCaption = captionMap['video_promo'] || captionMap['video'] || `🎬 Confira nosso vídeo! ✨`;
-    const caption = promoCaption.replace(/\{unidade\}/gi, unit);
-    
-    const msgId = await sendVideo(promoVideo.file_url, caption);
-    if (msgId) await saveMessage(msgId, 'video', caption, promoVideo.file_url);
-    
-    // Wait for video to be delivered before proceeding
-    await new Promise(r => setTimeout(r, messageDelay * 1.5)); // Longer delay for video processing
   }
   
   // Update conversation last message
