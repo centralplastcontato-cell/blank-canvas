@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Brain, ShieldAlert, HelpCircle, Flame, AlertTriangle, Snowflake, Target, Thermometer, BarChart3, TrendingUp, Search, Menu } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PrioridadesTab } from "@/components/inteligencia/PrioridadesTab";
+import { FollowUpsTab } from "@/components/inteligencia/FollowUpsTab";
 import { FunilTab } from "@/components/inteligencia/FunilTab";
 import { LeadsDoDiaTab } from "@/components/inteligencia/LeadsDoDiaTab";
 import { ResumoDiarioTab } from "@/components/inteligencia/ResumoDiarioTab";
@@ -352,6 +353,7 @@ export default function Inteligencia() {
                   {[
                     { value: "resumo", label: "Resumo do Dia" },
                     { value: "prioridades", label: "Prioridades" },
+                    { value: "follow-ups", label: "Follow-ups" },
                     { value: "funil", label: "Funil" },
                     { value: "leads-dia", label: "Leads do Dia" },
                   ].map(t => (
@@ -379,6 +381,14 @@ export default function Inteligencia() {
                   <LoadingSkeleton />
                 ) : (
                   <PrioridadesTab data={filteredData} />
+                )}
+              </TabsContent>
+
+              <TabsContent value="follow-ups" className="animate-fade-up">
+                {isLoading || isLoadingUnitPerms || permLoading ? (
+                  <LoadingSkeleton />
+                ) : (
+                  <FollowUpsTab intelligenceData={filteredData} />
                 )}
               </TabsContent>
 
