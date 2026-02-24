@@ -26,7 +26,12 @@ export function useWhatsAppConnection(onConnected?: () => void) {
   const fetchQrCode = useCallback(async (instance: ConnectableInstance) => {
     setQrLoading(true);
     try {
-      const response = await supabase.functions.invoke("wapi-send", {
+      // Client-side timeout protection (12s)
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('TIMEOUT_CLIENT')), 12000)
+      );
+
+      const fetchPromise = supabase.functions.invoke("wapi-send", {
         body: {
           action: "get-qr",
           instanceId: instance.instance_id,
@@ -34,7 +39,15 @@ export function useWhatsAppConnection(onConnected?: () => void) {
         },
       });
 
+      const response = await Promise.race([fetchPromise, timeoutPromise]);
+
       if (response.error) throw new Error(response.error.message);
+
+      // Handle TIMEOUT_OR_GATEWAY from edge function
+      if (response.data?.errorType === 'TIMEOUT_OR_GATEWAY') {
+        toast({ title: "⚠️ W-API instável", description: "Tente novamente ou conecte por Telefone." });
+        return;
+      }
 
       if (response.data?.connected === true || response.data?.details?.connected === true) {
         toast({ title: "Já conectado!", description: "Esta instância já está conectada ao WhatsApp." });
@@ -61,9 +74,14 @@ export function useWhatsAppConnection(onConnected?: () => void) {
       }
     } catch (error: any) {
       console.error("Error fetching QR code:", error);
-      toast({ title: "Erro", description: error.message || "Erro ao obter QR Code.", variant: "destructive" });
+      if (error.message === 'TIMEOUT_CLIENT') {
+        toast({ title: "⚠️ W-API instável", description: "QR Code demorou demais. Tente novamente ou conecte por Telefone." });
+      } else {
+        toast({ title: "Erro", description: error.message || "Erro ao obter QR Code.", variant: "destructive" });
+      }
+    } finally {
+      setQrLoading(false);
     }
-    setQrLoading(false);
   }, [onConnected]);
 
   const pollConnectionStatus = useCallback(async (instance: ConnectableInstance) => {

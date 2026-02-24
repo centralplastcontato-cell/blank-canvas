@@ -888,10 +888,41 @@ Deno.serve(async (req) => {
 
       case 'get-qr': {
         try {
-          const res = await fetch(
-            `${WAPI_BASE_URL}/instance/qr-code?instanceId=${instance_id}&image=enable`,
-            { headers: { 'Authorization': `Bearer ${instance_token}` } }
-          );
+          console.log('wapi-send: get-qr - starting fetch for', instance_id);
+          const qrController = new AbortController();
+          const qrTimeout = setTimeout(() => qrController.abort(), 10000); // 10s timeout
+
+          let res: Response;
+          try {
+            res = await fetch(
+              `${WAPI_BASE_URL}/instance/qr-code?instanceId=${instance_id}&image=enable`,
+              { headers: { 'Authorization': `Bearer ${instance_token}` }, signal: qrController.signal }
+            );
+            clearTimeout(qrTimeout);
+          } catch (fetchErr) {
+            clearTimeout(qrTimeout);
+            const isAbort = fetchErr instanceof Error && (fetchErr.name === 'AbortError' || fetchErr.message.includes('aborted'));
+            console.warn('wapi-send: get-qr fetch error:', isAbort ? 'TIMEOUT' : (fetchErr instanceof Error ? fetchErr.message : String(fetchErr)));
+            return new Response(JSON.stringify({
+              error: 'W-API instável no momento. Tente novamente ou conecte por Telefone.',
+              errorType: 'TIMEOUT_OR_GATEWAY',
+            }), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+
+          console.log('wapi-send: get-qr - received status:', res.status);
+
+          // Gateway errors
+          if (res.status === 502 || res.status === 503 || res.status === 504) {
+            console.warn('wapi-send: get-qr gateway error:', res.status);
+            return new Response(JSON.stringify({
+              error: 'W-API instável no momento. Tente novamente ou conecte por Telefone.',
+              errorType: 'TIMEOUT_OR_GATEWAY',
+            }), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
           
           if (!res.ok) {
             return new Response(JSON.stringify({ error: `Erro: ${res.status}` }), {
@@ -933,7 +964,11 @@ Deno.serve(async (req) => {
             status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         } catch (e) {
-          return new Response(JSON.stringify({ error: e instanceof Error ? e.message : 'Erro' }), {
+          console.error('wapi-send: get-qr unexpected error:', e instanceof Error ? e.message : String(e));
+          return new Response(JSON.stringify({ 
+            error: e instanceof Error ? e.message : 'Erro',
+            errorType: 'UNKNOWN',
+          }), {
             status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
