@@ -79,33 +79,39 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const monthNameToIndex: Record<string, number> = {
+    "Janeiro": 0, "Fevereiro": 1, "Março": 2, "Abril": 3,
+    "Maio": 4, "Junho": 5, "Julho": 6, "Agosto": 7,
+    "Setembro": 8, "Outubro": 9, "Novembro": 10, "Dezembro": 11,
+  };
+
   const getDaysInMonth = (month: string): number => {
-    const monthMap: Record<string, number> = {
-      "Fevereiro": 28,
-      "Março": 31,
-      "Abril": 30,
-      "Maio": 31,
-      "Junho": 30,
-      "Julho": 31,
-      "Agosto": 31,
-      "Setembro": 30,
-      "Outubro": 31,
-      "Novembro": 30,
-      "Dezembro": 31,
-    };
-    return monthMap[month] || 31;
+    const monthIndex = monthNameToIndex[month];
+    if (monthIndex === undefined) return 31;
+    const currentYear = new Date().getFullYear();
+    // new Date(year, monthIndex+1, 0) gives last day of that month
+    return new Date(currentYear, monthIndex + 1, 0).getDate();
   };
 
   const addDayOfMonthStep = (month: string) => {
     const daysInMonth = getDaysInMonth(month);
-    const dayOptions = Array.from({ length: daysInMonth }, (_, i) => `${i + 1}`);
+    const monthIndex = monthNameToIndex[month];
+    const currentYear = new Date().getFullYear();
+    const firstDayOfWeek = monthIndex !== undefined
+      ? new Date(currentYear, monthIndex, 1).getDay()
+      : 0;
+    // Padding empty strings so day 1 falls on the correct weekday column
+    const padding = Array.from({ length: firstDayOfWeek }, () => "");
+    const days = Array.from({ length: daysInMonth }, (_, i) => `${i + 1}`);
+    const calendarGrid = [...padding, ...days];
+
     setMessages((prev) => [
       ...prev,
       {
         id: "day-of-month",
         type: "bot",
         content: `Para qual dia de ${month} você gostaria de agendar?`,
-        options: dayOptions,
+        options: calendarGrid,
       },
     ]);
   };
@@ -547,31 +553,45 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
                     {message.options && (
                       <div className={`mt-3 ${
                         message.id === "day-of-month" 
-                          ? "grid grid-cols-7 gap-1" 
+                          ? "" 
                           : "flex flex-wrap gap-2"
                       }`}>
-                        {message.options.map((option) => {
-                          const isPromoMonth = !isDynamic && message.id === "month" && campaignConfig.chatbot.promoMonths?.includes(option);
-                          return (
-                            <button
-                              key={option}
-                              onClick={() => 
-                                message.id === "day-of-month" 
-                                  ? handleDayOfMonthSelect(option) 
-                                  : handleOptionSelect(option)
-                              }
-                              className={`${
-                                message.id === "day-of-month"
-                                  ? "bg-card text-foreground w-9 h-9 rounded-lg text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm flex items-center justify-center"
-                                  : isPromoMonth
-                                    ? "bg-gradient-to-r from-primary to-festive text-primary-foreground px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-all shadow-md ring-2 ring-primary/30"
-                                    : "bg-card text-foreground px-4 py-2 rounded-full text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm"
-                              }`}
-                            >
-                              {isPromoMonth ? `🎉 ${option}` : option}
-                            </button>
-                          );
-                        })}
+                        {message.id === "day-of-month" && (
+                          <div className="grid grid-cols-7 gap-1 mb-1">
+                            {["D", "S", "T", "Q", "Q", "S", "S"].map((d, i) => (
+                              <div key={`wh-${i}`} className="w-9 h-7 flex items-center justify-center text-xs font-bold text-muted-foreground">
+                                {d}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div className={message.id === "day-of-month" ? "grid grid-cols-7 gap-1" : "contents"}>
+                          {message.options.map((option, idx) => {
+                            if (message.id === "day-of-month" && option === "") {
+                              return <div key={`empty-${idx}`} className="w-9 h-9" />;
+                            }
+                            const isPromoMonth = !isDynamic && message.id === "month" && campaignConfig.chatbot.promoMonths?.includes(option);
+                            return (
+                              <button
+                                key={option || `opt-${idx}`}
+                                onClick={() => 
+                                  message.id === "day-of-month" 
+                                    ? handleDayOfMonthSelect(option) 
+                                    : handleOptionSelect(option)
+                                }
+                                className={`${
+                                  message.id === "day-of-month"
+                                    ? "bg-card text-foreground w-9 h-9 rounded-lg text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm flex items-center justify-center"
+                                    : isPromoMonth
+                                      ? "bg-gradient-to-r from-primary to-festive text-primary-foreground px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-all shadow-md ring-2 ring-primary/30"
+                                      : "bg-card text-foreground px-4 py-2 rounded-full text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm"
+                                }`}
+                              >
+                                {isPromoMonth ? `🎉 ${option}` : option}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
                   </div>
