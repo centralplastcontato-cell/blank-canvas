@@ -2907,7 +2907,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
       {/* Chat Area - Premium Container */}
       {selectedInstance?.status === 'connected' && (
-        <div className="flex flex-1 border border-border/60 rounded-xl overflow-hidden bg-gradient-to-br from-card via-card to-muted/20 min-h-0 shadow-lg">
+        <div className="flex flex-1 border-0 md:border border-border/60 rounded-none md:rounded-xl overflow-hidden bg-gradient-to-br from-card via-card to-muted/20 min-h-0 md:shadow-lg">
           {/* Mobile: Show full width list or chat */}
           <div className={cn(
             "w-full flex flex-col overflow-hidden md:hidden",
@@ -2950,7 +2950,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                     key={conv.id}
                     onClick={() => setSelectedConversation(conv)}
                     className={cn(
-                      "w-full p-2.5 flex items-center gap-2.5 hover:bg-primary/5 transition-all text-left border-b border-border/40 group",
+                      "w-full px-3 py-2.5 flex items-center gap-2.5 hover:bg-primary/5 transition-all text-left border-b border-border/40 group",
                       selectedConversation?.id === conv.id && "bg-primary/10 border-l-2 border-l-primary",
                       conv.unread_count > 0 && "bg-gradient-to-r from-primary/10 to-transparent"
                     )}
