@@ -1437,14 +1437,14 @@ export function AutomationsSection() {
                       id="follow-up-delay"
                       type="number"
                       min={1}
-                      max={72}
+                      max={168}
                       value={botSettings?.follow_up_delay_hours || 24}
                       onChange={(e) => {
                         const value = parseInt(e.target.value) || 24;
                         setBotSettings(prev => prev ? { ...prev, follow_up_delay_hours: value } : prev);
                       }}
                       onBlur={(e) => {
-                        const value = Math.max(1, Math.min(72, parseInt(e.target.value) || 24));
+                        const value = Math.max(1, Math.min(168, parseInt(e.target.value) || 24));
                         updateBotSettings({ follow_up_delay_hours: value });
                       }}
                       className="w-24"
@@ -1515,14 +1515,14 @@ export function AutomationsSection() {
                       id="follow-up-2-delay"
                       type="number"
                       min={24}
-                      max={96}
+                      max={336}
                       value={botSettings?.follow_up_2_delay_hours || 48}
                       onChange={(e) => {
                         const value = parseInt(e.target.value) || 48;
                         setBotSettings(prev => prev ? { ...prev, follow_up_2_delay_hours: value } : prev);
                       }}
                       onBlur={(e) => {
-                        const value = Math.max(24, Math.min(96, parseInt(e.target.value) || 48));
+                        const value = Math.max(24, Math.min(336, parseInt(e.target.value) || 48));
                         updateBotSettings({ follow_up_2_delay_hours: value });
                       }}
                       className="w-24"
@@ -1591,14 +1591,14 @@ export function AutomationsSection() {
                       id="follow-up-3-delay"
                       type="number"
                       min={48}
-                      max={168}
+                      max={504}
                       value={botSettings?.follow_up_3_delay_hours || 72}
                       onChange={(e) => {
                         const value = parseInt(e.target.value) || 72;
                         setBotSettings(prev => prev ? { ...prev, follow_up_3_delay_hours: value } : prev);
                       }}
                       onBlur={(e) => {
-                        const value = Math.max(48, Math.min(168, parseInt(e.target.value) || 72));
+                        const value = Math.max(48, Math.min(504, parseInt(e.target.value) || 72));
                         updateBotSettings({ follow_up_3_delay_hours: value });
                       }}
                       className="w-24"
@@ -1667,14 +1667,14 @@ export function AutomationsSection() {
                       id="follow-up-4-delay"
                       type="number"
                       min={72}
-                      max={240}
+                      max={720}
                       value={botSettings?.follow_up_4_delay_hours || 96}
                       onChange={(e) => {
                         const value = parseInt(e.target.value) || 96;
                         setBotSettings(prev => prev ? { ...prev, follow_up_4_delay_hours: value } : prev);
                       }}
                       onBlur={(e) => {
-                        const value = Math.max(72, Math.min(240, parseInt(e.target.value) || 96));
+                        const value = Math.max(72, Math.min(720, parseInt(e.target.value) || 96));
                         updateBotSettings({ follow_up_4_delay_hours: value });
                       }}
                       className="w-24"
