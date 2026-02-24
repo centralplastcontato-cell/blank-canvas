@@ -2239,15 +2239,35 @@ async function processBotQualification(
       }
       
       // ── GUEST LIMIT CHECK ──
+      // Fallback: if wapi_bot_settings has no guest_limit, check lp_bot_settings
+      let effectiveGuestLimit = settings.guest_limit;
+      let effectiveGuestLimitMessage = settings.guest_limit_message;
+      let effectiveGuestLimitRedirectName = settings.guest_limit_redirect_name;
+
+      if (!effectiveGuestLimit) {
+        const { data: lpSettings } = await supabase
+          .from('lp_bot_settings')
+          .select('guest_limit, guest_limit_message, guest_limit_redirect_name')
+          .eq('company_id', instance.company_id)
+          .single();
+
+        if (lpSettings?.guest_limit) {
+          effectiveGuestLimit = lpSettings.guest_limit;
+          effectiveGuestLimitMessage = lpSettings.guest_limit_message;
+          effectiveGuestLimitRedirectName = lpSettings.guest_limit_redirect_name;
+          console.log(`[Bot] Using lp_bot_settings fallback for guest limit: ${effectiveGuestLimit}`);
+        }
+      }
+
       // If the last answered step was "convidados" and a guest limit is configured,
       // check if the selected option exceeds the limit and redirect if so.
-      if (nextStepKey === 'complete' && settings.guest_limit) {
+      if (nextStepKey === 'complete' && effectiveGuestLimit) {
         const guestAnswer = updated.convidados || '';
-        if (exceedsGuestLimit(guestAnswer, settings.guest_limit)) {
-          console.log(`[Bot] 🚫 Guest limit exceeded! Answer="${guestAnswer}", limit=${settings.guest_limit}`);
+        if (exceedsGuestLimit(guestAnswer, effectiveGuestLimit)) {
+          console.log(`[Bot] 🚫 Guest limit exceeded! Answer="${guestAnswer}", limit=${effectiveGuestLimit}`);
           
-          const redirectMsg = settings.guest_limit_message || `Nossa capacidade máxima é de ${settings.guest_limit} convidados. Infelizmente não conseguimos atender essa demanda.`;
-          const redirectName = settings.guest_limit_redirect_name || 'buffet parceiro';
+          const redirectMsg = effectiveGuestLimitMessage || `Nossa capacidade máxima é de ${effectiveGuestLimit} convidados. Infelizmente não conseguimos atender essa demanda.`;
+          const redirectName = effectiveGuestLimitRedirectName || 'buffet parceiro';
           
           // Send redirect message
           const redirectMsgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, redirectMsg);
@@ -2261,7 +2281,7 @@ async function processBotQualification(
           
           // Create lead with status "transferido"
           const leadName = updated.nome || contactName || contactPhone;
-          const obs = `Redirecionado para ${redirectName} - acima do limite de ${settings.guest_limit - 1} convidados (${guestAnswer})`;
+          const obs = `Redirecionado para ${redirectName} - acima do limite de ${effectiveGuestLimit - 1} convidados (${guestAnswer})`;
           
           if (conv.lead_id) {
             await supabase.from('campaign_leads').update({
