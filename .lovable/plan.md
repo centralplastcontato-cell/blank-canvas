@@ -1,48 +1,68 @@
 
-Objetivo: corrigir definitivamente a formatação dos números “azuis” (1️⃣ 2️⃣ 3️⃣) nas mensagens do WhatsApp e alinhar o que aparece em Configurações/Bot para evitar divergência.
+# Limite de Convidados no Bot do WhatsApp (Planeta Divertido)
 
-1) Diagnóstico confirmado
-- A mensagem do print (“Escolha a opção que mais te agrada… *1* / *2*”) não vem de `wapi_bot_questions`.
-- Ela é montada no frontend em `src/components/landing/LeadChatbot.tsx` dentro de:
-  - `sendWelcomeMessage(...)` (mensagem enviada via `wapi-send`)
-  - `buildWhatsAppMessage()` (mensagem usada nos botões “falar direto no WhatsApp”)
-- Hoje esses dois trechos estão hardcoded com `*1*` e `*2*`, por isso continua “sem número azul” mesmo após ajustes no Bot.
-- Também há inconsistência em Configurações/Bot por unidade: no banco, `wapi_bot_settings.next_step_question` da unidade Trujillo ainda está com `*1*/*2*/*3*`, enquanto outras partes já usam emoji.
+## Contexto
+O Planeta Divertido precisa redirecionar leads com +90 convidados para o "Buffet Mega Magic". Essa logica ja funciona no chatbot da Landing Page (frontend), mas NAO existe no bot do WhatsApp (backend). Alem disso, a tela de Configuracoes/Automacoes nao tem campos para configurar esse limite.
 
-2) Implementação proposta (código)
-- Arquivo: `src/components/landing/LeadChatbot.tsx`
-- Ajustes:
-  - Trocar no template “normal” (não redirecionado) de:
-    - `*1* - 📩 ...`
-    - `*2* - 💬 ...`
-    para:
-    - `1️⃣ - 📩 ...`
-    - `2️⃣ - 💬 ...`
-  - Aplicar a mesma troca em `buildWhatsAppMessage()`.
-  - (Melhoria de manutenção) extrair o bloco de opções para uma constante única reutilizada pelos dois pontos, evitando regressão futura.
+## O que sera feito
 
-3) Implementação proposta (dados de configuração)
-- Atualizar dados (sem migration estrutural) em `wapi_bot_settings.next_step_question` da unidade Trujillo para versão com emoji:
-  - `1️⃣ - Agendar visita`
-  - `2️⃣ - Tirar dúvidas`
-  - `3️⃣ - Analisar com calma`
-- Isso corrige o “acho que tem coisa errada em Configurações/Bot” e deixa as unidades consistentes.
+### 1. Frontend: Campos de Limite na aba "Geral" (AutomationsSection)
+Adicionar uma nova secao no card "Bot de Qualificacao" dentro da aba Geral, logo apos o delay de mensagens:
 
-4) Validação end-to-end
-- Fluxo principal:
-  - Abrir `/lp/castelo-da-diversao`
-  - Preencher chatbot e enviar lead
-  - Confirmar no WhatsApp recebido que aparece `1️⃣` e `2️⃣` (sem `*1*/*2*`)
-- Fluxo de botão final:
-  - Clicar no botão de WhatsApp após conclusão
-  - Confirmar texto pré-preenchido também com `1️⃣` e `2️⃣`
-- Fluxo de automação:
-  - Em conversa da Trujillo, validar que a pergunta “próximo passo” também está com `1️⃣ 2️⃣ 3️⃣`
+- **Toggle** "Limite de Convidados" (ativa/desativa)
+- **Campo numerico**: Limite maximo (ex: 91)
+- **Textarea**: Mensagem de redirecionamento (ex: "Nossa capacidade maxima e de 90 convidados...")
+- **Input texto**: Nome do buffet parceiro (ex: "Buffet Mega Magic")
 
-5) Riscos e observações
-- Dependendo do aparelho/versão do WhatsApp, o estilo visual do keycap pode variar levemente, mas continuará sendo emoji numérico.
-- A correção é segura e pontual: não altera lógica de redirecionamento, só padroniza formatação e consistência entre frontend e configuração do bot.
+Os campos serao salvos com debounce em `wapi_bot_settings` (que ja possui as colunas `guest_limit`, `guest_limit_message`, `guest_limit_redirect_name`).
 
-6) Resultado esperado
-- Mensagem inicial da LP chega com números bonitinhos (emoji) em todos os caminhos relevantes.
-- Configurações/Bot e mensagem real enviada ficam alinhadas, eliminando a sensação de “mudou em um lugar e no outro não”.
+A interface `BotSettings` tambem precisa ser atualizada com esses 3 campos.
+
+### 2. Backend: Logica no wapi-webhook
+No `supabase/functions/wapi-webhook/index.ts`, apos o step "convidados" ser validado e antes de entrar no bloco `nextStepKey === 'complete'`:
+
+- Carregar `guest_limit`, `guest_limit_message` e `guest_limit_redirect_name` do `wapi_bot_settings`
+- Verificar se a opcao selecionada excede o limite (mesma logica semantica do frontend: detectar "acima", "mais de", "+ de", ou extrair o numero maximo)
+- Se exceder:
+  - Enviar a mensagem de redirecionamento configurada
+  - Criar o lead com status "transferido" e observacao do redirecionamento
+  - Marcar o bot como `complete_final` (desativar bot)
+  - NAO enviar materiais nem pergunta de proximo passo
+- Se nao exceder: seguir o fluxo normal
+
+### 3. Dados: Configurar Planeta Divertido
+Atualizar o registro `wapi_bot_settings` da instancia do Planeta Divertido (id: `de1ab5b0-b867-4004-8c48-8cdd0691ea9e`) com:
+- `guest_limit`: 91
+- `guest_limit_message`: "Nossa capacidade maxima e de 90 convidados. Para melhor lhe atender, podemos direcionar seu contato para o Buffet Mega Magic, proximo de nos, para envio de orcamento sem compromisso."
+- `guest_limit_redirect_name`: "Buffet Mega Magic"
+
+---
+
+## Detalhes tecnicos
+
+### Arquivos modificados
+1. `src/components/whatsapp/settings/AutomationsSection.tsx`
+   - Adicionar `guest_limit`, `guest_limit_message`, `guest_limit_redirect_name` na interface `BotSettings`
+   - Adicionar secao de UI na aba "geral" com toggle + campos condicionais
+
+2. `supabase/functions/wapi-webhook/index.ts`
+   - Adicionar funcao `exceedsGuestLimit(guestOption, guestLimit)` que detecta semanticamente se excede
+   - No bloco antes de `nextStepKey === 'complete'`, checar o limite e desviar o fluxo
+
+3. Migration SQL para popular os dados do Planeta Divertido
+
+### Fluxo no bot apos a mudanca
+
+```text
+Lead responde "convidados"
+        |
+   Valida opcao
+        |
+   Excede limite? ---- NAO ----> Fluxo normal (materiais + proximo passo)
+        |
+       SIM
+        |
+   Envia mensagem de redirecionamento
+   Cria lead com status "transferido"
+   Desativa bot (complete_final)
+```
