@@ -1440,8 +1440,11 @@ export function AutomationsSection() {
                       max={168}
                       value={botSettings?.follow_up_delay_hours || 24}
                       onChange={(e) => {
-                        const value = parseInt(e.target.value) || 24;
-                        setBotSettings(prev => prev ? { ...prev, follow_up_delay_hours: value } : prev);
+                        const raw = e.target.value;
+                        const value = raw === '' ? 0 : parseInt(raw);
+                        if (!isNaN(value)) {
+                          setBotSettings(prev => prev ? { ...prev, follow_up_delay_hours: value } : prev);
+                        }
                       }}
                       onBlur={(e) => {
                         const value = Math.max(1, Math.min(168, parseInt(e.target.value) || 24));
@@ -1523,8 +1526,11 @@ export function AutomationsSection() {
                       max={336}
                       value={botSettings?.follow_up_2_delay_hours || 48}
                       onChange={(e) => {
-                        const value = parseInt(e.target.value) || 48;
-                        setBotSettings(prev => prev ? { ...prev, follow_up_2_delay_hours: value } : prev);
+                        const raw = e.target.value;
+                        const value = raw === '' ? 0 : parseInt(raw);
+                        if (!isNaN(value)) {
+                          setBotSettings(prev => prev ? { ...prev, follow_up_2_delay_hours: value } : prev);
+                        }
                       }}
                       onBlur={(e) => {
                         const value = Math.max(24, Math.min(336, parseInt(e.target.value) || 48));
@@ -1604,8 +1610,11 @@ export function AutomationsSection() {
                       max={504}
                       value={botSettings?.follow_up_3_delay_hours || 72}
                       onChange={(e) => {
-                        const value = parseInt(e.target.value) || 72;
-                        setBotSettings(prev => prev ? { ...prev, follow_up_3_delay_hours: value } : prev);
+                        const raw = e.target.value;
+                        const value = raw === '' ? 0 : parseInt(raw);
+                        if (!isNaN(value)) {
+                          setBotSettings(prev => prev ? { ...prev, follow_up_3_delay_hours: value } : prev);
+                        }
                       }}
                       onBlur={(e) => {
                         const value = Math.max(48, Math.min(504, parseInt(e.target.value) || 72));
@@ -1685,8 +1694,11 @@ export function AutomationsSection() {
                       max={720}
                       value={botSettings?.follow_up_4_delay_hours || 96}
                       onChange={(e) => {
-                        const value = parseInt(e.target.value) || 96;
-                        setBotSettings(prev => prev ? { ...prev, follow_up_4_delay_hours: value } : prev);
+                        const raw = e.target.value;
+                        const value = raw === '' ? 0 : parseInt(raw);
+                        if (!isNaN(value)) {
+                          setBotSettings(prev => prev ? { ...prev, follow_up_4_delay_hours: value } : prev);
+                        }
                       }}
                       onBlur={(e) => {
                         const value = Math.max(72, Math.min(720, parseInt(e.target.value) || 96));
