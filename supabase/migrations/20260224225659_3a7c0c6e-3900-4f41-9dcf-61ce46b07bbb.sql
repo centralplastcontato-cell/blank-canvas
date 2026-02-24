@@ -1,0 +1,1 @@
+ALTER TABLE public.wapi_bot_settings ADD COLUMN IF NOT EXISTS ai_context text;
