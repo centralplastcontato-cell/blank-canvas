@@ -72,6 +72,7 @@ interface BotSettings {
   guest_limit: number | null;
   guest_limit_message: string | null;
   guest_limit_redirect_name: string | null;
+  redirect_completion_message?: string | null;
   follow_up_enabled: boolean;
   follow_up_delay_hours: number;
   follow_up_message: string | null;
@@ -739,7 +740,7 @@ export function AutomationsSection() {
                     if (checked) {
                       updateBotSettings({ guest_limit: 91 });
                     } else {
-                      updateBotSettings({ guest_limit: null, guest_limit_message: null, guest_limit_redirect_name: null });
+                      updateBotSettings({ guest_limit: null, guest_limit_message: null, guest_limit_redirect_name: null, redirect_completion_message: null });
                     }
                   }}
                   disabled={isSaving}
@@ -784,6 +785,19 @@ export function AutomationsSection() {
                       onBlur={() => botSettings && debouncedUpdateBotSettings('guest_limit_redirect_name', { guest_limit_redirect_name: botSettings.guest_limit_redirect_name }, 300)}
                       placeholder="Ex: Buffet Mega Magic"
                       className="text-base"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Mensagem de conclusão</Label>
+                    <p className="text-xs text-muted-foreground mb-1">
+                      Mensagem final enviada ao lead após o redirecionamento
+                    </p>
+                    <Textarea
+                      value={botSettings.redirect_completion_message || ''}
+                      onChange={(e) => setBotSettings(prev => prev ? { ...prev, redirect_completion_message: e.target.value } : null)}
+                      onBlur={() => botSettings && debouncedUpdateBotSettings('redirect_completion_message', { redirect_completion_message: botSettings.redirect_completion_message }, 300)}
+                      placeholder="Ex: Prontinho! Seus dados foram encaminhados para o Buffet Mega Magic. Eles entrarão em contato em breve!"
+                      className="min-h-[80px] text-base"
                     />
                   </div>
                 </div>
