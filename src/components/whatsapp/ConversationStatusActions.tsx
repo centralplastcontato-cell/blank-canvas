@@ -106,6 +106,13 @@ const STATUS_CONFIG = [
     color: 'text-indigo-500',
     bgColor: 'bg-indigo-500/10'
   },
+  { 
+    value: 'cliente_retorno', 
+    label: 'Cliente Retorno', 
+    icon: ArrowRightLeft, 
+    color: 'text-pink-500',
+    bgColor: 'bg-pink-500/10'
+  },
 ];
 
 export function ConversationStatusActions({
@@ -140,10 +147,11 @@ export function ConversationStatusActions({
         perdido: 'Perdido',
         transferido: 'Transferência',
         fornecedor: 'Fornecedor',
+        cliente_retorno: 'Cliente Retorno',
       };
 
       // Update the lead status - cast to valid status type
-      const validStatus = newStatus as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido" | "transferido" | "trabalhe_conosco" | "fornecedor";
+      const validStatus = newStatus as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido" | "transferido" | "trabalhe_conosco" | "fornecedor" | "cliente_retorno";
       const { error: updateError } = await supabase
         .from("campaign_leads")
         .update({ status: validStatus })

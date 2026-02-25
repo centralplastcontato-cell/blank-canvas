@@ -47,6 +47,7 @@ export function LeadsKanban({
     "fechado",
     "perdido",
     "transferido",
+    "cliente_retorno",
     "trabalhe_conosco",
     "fornecedor",
   ];

@@ -75,6 +75,7 @@ const statusOptions = [
   { value: 'perdido', label: 'Perdido', color: 'bg-red-500' },
   { value: 'transferido', label: 'Transferência', color: 'bg-cyan-500' },
   { value: 'fornecedor', label: 'Fornecedor', color: 'bg-indigo-500' },
+  { value: 'cliente_retorno', label: 'Cliente Retorno', color: 'bg-pink-500' },
 ];
 
 const getStatusBadgeClass = (status: string) => {
@@ -88,6 +89,7 @@ const getStatusBadgeClass = (status: string) => {
     case 'perdido': return 'bg-red-500';
     case 'transferido': return 'bg-cyan-500';
     case 'fornecedor': return 'bg-indigo-500';
+    case 'cliente_retorno': return 'bg-pink-500';
     default: return '';
   }
 };
@@ -103,6 +105,7 @@ const getStatusLabel = (status: string) => {
     case 'perdido': return 'Perdido';
     case 'transferido': return 'Transferência';
     case 'fornecedor': return 'Fornecedor';
+    case 'cliente_retorno': return 'Cliente Retorno';
     default: return status;
   }
 };
