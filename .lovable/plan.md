@@ -1,95 +1,44 @@
 
 
-## Painel de Gerenciamento de Consumo de IA no Hub
+## Corrigir carregamento lento do modulo Inteligencia
 
-### Objetivo
-Criar uma nova pagina no Hub (`/hub/consumo-ia`) que permite ao admin global visualizar o consumo de chamadas de IA por empresa, funcao e periodo, com possibilidade de ativar/desativar IA por empresa.
+### Problema
+A pagina de Inteligencia exibe uma tela em branco por varios segundos antes de mostrar qualquer conteudo. Isso acontece por causa de uma cascata de chamadas assincronas sequenciais e pela falta de feedback visual durante o carregamento.
 
-### Arquitetura
+### Causas identificadas
 
-```text
-+-------------------+       +---------------------+       +-------------------+
-| Edge Functions    | --->  | ai_usage_logs       | <---  | HubAIUsage page   |
-| (4 funcoes com IA)|       | (nova tabela)       |       | (nova pagina Hub) |
-+-------------------+       +---------------------+       +-------------------+
-```
+1. **Tela em branco quando a empresa ainda nao carregou**: O hook `useDailySummary` retorna silenciosamente quando `currentCompany` e `null`, sem ativar nenhum estado de loading. Resultado: a tela fica completamente vazia.
 
-**Funcoes que usam IA (todas com gpt-4o-mini):**
-1. `lead-summary` - Resumos de conversas
-2. `daily-summary` - Resumos diarios automaticos
-3. `fix-text` - Correcao de texto
-4. `wapi-webhook` - Qualificacao no Flow Builder
+2. **Cascata de chamadas sequenciais**: Primeiro o `CompanyContext` carrega (auth + queries), depois a pagina `Inteligencia` faz sua propria verificacao de auth (4 queries), e so entao o `ResumoDiarioTab` chama a Edge Function `daily-summary` que faz mais 5+ queries.
 
-### Mudancas
+3. **Sem skeleton no ResumoDiarioTab enquanto a empresa carrega**: O componente nao verifica o `isLoading` do contexto da empresa.
 
-#### 1. Nova tabela: `ai_usage_logs`
-Tabela para registrar cada chamada de IA com:
-- `id` (uuid, PK)
-- `company_id` (uuid, FK companies)
-- `function_name` (text) - ex: "lead-summary", "fix-text"
-- `model` (text) - ex: "gpt-4o-mini"
-- `prompt_tokens` (integer)
-- `completion_tokens` (integer)
-- `total_tokens` (integer)
-- `estimated_cost_usd` (numeric) - calculado com base nos tokens
-- `created_at` (timestamptz)
-- RLS: somente admins globais podem ler
+### Solucao
 
-#### 2. Atualizar 4 Edge Functions para logar uso
-Cada funcao que chama a OpenAI API vai inserir um registro na `ai_usage_logs` apos receber a resposta, usando os dados de `usage` que a OpenAI retorna (prompt_tokens, completion_tokens).
+#### 1. Mostrar skeleton imediatamente no ResumoDiarioTab
+- Verificar `CompanyContext.isLoading` no componente e mostrar skeleton enquanto a empresa carrega
+- Isso elimina a tela em branco
 
-**Funcoes a atualizar:**
-- `supabase/functions/lead-summary/index.ts`
-- `supabase/functions/daily-summary/index.ts`
-- `supabase/functions/fix-text/index.ts`
-- `supabase/functions/wapi-webhook/index.ts`
+#### 2. Iniciar loading automaticamente no useDailySummary
+- Iniciar `isLoading=true` por padrao (em vez de `false`) para que o skeleton apareca desde o primeiro render
+- Quando `currentCompany` ainda nao esta disponivel, manter o estado de loading ativo
 
-Em cada uma, apos o `fetch` a OpenAI:
-```text
-const aiData = await aiResp.json();
-// Inserir log de uso
-await supabase.from('ai_usage_logs').insert({
-  company_id,
-  function_name: 'lead-summary',
-  model: 'gpt-4o-mini',
-  prompt_tokens: aiData.usage?.prompt_tokens,
-  completion_tokens: aiData.usage?.completion_tokens,
-  total_tokens: aiData.usage?.total_tokens,
-  estimated_cost_usd: calculateCost(aiData.usage)
-});
-```
+#### 3. Mostrar skeleton na pagina Inteligencia durante carregamento de permissoes
+- Adicionar skeleton no componente pai enquanto `permLoading` e `CompanyContext.isLoading` estao ativos
 
-#### 3. Nova pagina: `src/pages/HubAIUsage.tsx`
-Pagina no Hub com:
-- **Cards de KPI**: Total de chamadas, tokens consumidos, custo estimado (periodo selecionado)
-- **Filtros**: Periodo (7d, 30d, 90d), empresa especifica ou todas
-- **Tabela por empresa**: Nome, total chamadas, tokens, custo estimado, ultima chamada
-- **Grafico de barras**: Consumo por funcao (lead-summary vs fix-text vs daily-summary vs webhook)
-- **Toggle por empresa**: Ativar/desativar IA (usando campo `ai_enabled` no settings da empresa)
+### Detalhes tecnicos
 
-#### 4. Modulo `ai_enabled` no settings da empresa
-Adicionar um campo `ai_enabled` no `companies.settings` (default true). As edge functions verificam esse campo antes de chamar a OpenAI - se desabilitado, pulam a chamada e retornam resposta padrao.
+**Arquivo: `src/hooks/useDailySummary.ts`**
+- Mudar `useState(false)` para `useState(true)` no `isLoading` inicial
+- Quando `currentCompany?.id` nao esta disponivel, nao resetar `isLoading` para `false` prematuramente
 
-#### 5. Rota e navegacao
-- Adicionar rota `/hub/consumo-ia` no `App.tsx`
-- Adicionar item "Consumo IA" no `HubSidebar.tsx` e `HubMobileMenu.tsx` com icone `Brain`
+**Arquivo: `src/components/inteligencia/ResumoDiarioTab.tsx`**
+- Importar `useCompany` e verificar `isLoading` do contexto
+- Mostrar skeleton quando `companyIsLoading || (isLoading && !data)`
 
-### Arquivos novos
-1. `src/pages/HubAIUsage.tsx` - Pagina principal do painel
+**Arquivo: `src/pages/Inteligencia.tsx`**
+- Verificar `CompanyContext.isLoading` e mostrar skeleton geral enquanto carrega
 
-### Arquivos modificados
-1. `src/App.tsx` - Nova rota `/hub/consumo-ia`
-2. `src/components/hub/HubSidebar.tsx` - Novo item de menu
-3. `src/components/hub/HubMobileMenu.tsx` - Novo item de menu mobile
-4. `supabase/functions/lead-summary/index.ts` - Log de uso apos chamada OpenAI
-5. `supabase/functions/daily-summary/index.ts` - Log de uso apos chamada OpenAI
-6. `supabase/functions/fix-text/index.ts` - Log de uso apos chamada OpenAI
-7. `supabase/functions/wapi-webhook/index.ts` - Log de uso apos chamada OpenAI (2 pontos de chamada)
+### Resultado esperado
+O usuario vera skeletons animados imediatamente ao abrir a pagina, em vez de uma tela completamente em branco. A percepcao de velocidade melhora significativamente mesmo que o tempo total de carregamento seja o mesmo.
 
-### Custo estimado por chamada (gpt-4o-mini)
-- Input: $0.15 / 1M tokens
-- Output: $0.60 / 1M tokens
-- Esses valores serao usados para calcular o `estimated_cost_usd` automaticamente
-
-### Nota
-O tracking comeca a partir do momento da implantacao - nao ha dados historicos. O painel mostrara dados apenas de chamadas futuras.
