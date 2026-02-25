@@ -2817,7 +2817,7 @@ async function sendQualificationMaterials(
         const msgId = await sendImage(photos[i], '');
         if (msgId) await saveMessage(msgId, 'image', '📷', photos[i]);
         if (i < photos.length - 1) {
-          await new Promise(r => setTimeout(r, 3000));
+          await new Promise(r => setTimeout(r, 800));
         }
       }
       
