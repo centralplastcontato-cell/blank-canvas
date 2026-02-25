@@ -85,43 +85,26 @@ export function DLPHero({ hero, theme, companyName, companyLogo, onCtaClick, mul
         );
       }
 
-      // Multiple units: split 50/50 desktop + crossfade mobile
+      // Multiple units: full-width crossfade (one image at a time)
       return (
         <>
-          {/* Desktop: split 50/50 */}
-          <div className="absolute inset-0 hidden md:flex">
-            {images.slice(0, 2).map((src, i) => (
-              <div key={i} className="w-1/2 h-full">
-                <img
-                  src={src}
-                  alt={`${companyName} unidade ${i + 1}`}
-                  className="w-full h-full object-cover"
-                  loading="eager"
-                  fetchPriority="high"
-                />
-              </div>
-            ))}
-          </div>
-
-          {/* Mobile: crossfade */}
-          <div className="absolute inset-0 md:hidden">
+          <div className="absolute inset-0">
             <AnimatePresence initial={false}>
               {images.map((src, i) => (
                 <motion.img
                   key={src}
                   src={src}
-                  alt={`${companyName} unidade ${i + 1}`}
+                  alt={`${companyName} - Foto ${i + 1}`}
                   className="absolute inset-0 w-full h-full object-cover"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: activeImage === i ? 1 : 0 }}
                   transition={{ duration: 1 }}
                   loading="eager"
+                  fetchPriority={i === 0 ? "high" : undefined}
                 />
               ))}
             </AnimatePresence>
           </div>
-
-          {/* Gradient overlay */}
           <div
             className="absolute inset-0"
             style={{
