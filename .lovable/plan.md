@@ -1,19 +1,34 @@
 
-## Unificar LP: Trocar "Esquenta de Carnaval" pela LP Dinâmica
+## Rotação Automática de Meses (Cron Mensal)
 
-### Problema atual
-- O preview (lovable.app / localhost) carrega `LandingPage` (estática, hardcoded com "Esquenta de Carnaval")
-- Os domínios `.com.br` e `.online` já carregam a `DynamicLandingPage` do banco de dados
+### O que faz
+No dia 1 de cada mês, uma Edge Function roda automaticamente e, para cada empresa:
+1. Remove o mês que acabou de passar da lista
+2. Adiciona um novo mês futuro no final da lista
+3. Atualiza tanto o **Bot LP** quanto o **Bot WhatsApp**
 
-### Solução
-Alterar o `RootPage.tsx` para que o preview também carregue a `DynamicLandingPage` com o domínio `castelodadiversao.com.br`, igualando o comportamento de todos os domínios.
+### Exemplo prático (executando em 1 de Março de 2026)
+- **Remove**: "Fevereiro" (ou "Fevereiro/26")
+- **Adiciona**: o próximo mês futuro que ainda não existe na lista (ex: "Abril/27")
+- Lista antes: `[Fevereiro, Março, Abril, ..., Dezembro, Janeiro/27, Fevereiro/27, Março/27]`
+- Lista depois: `[Março, Abril, ..., Dezembro, Janeiro/27, Fevereiro/27, Março/27, Abril/27]`
 
-### Alteracao
+### Componentes
 
-**Arquivo: `src/pages/RootPage.tsx`**
-- Trocar o bloco `isPreviewDomain()` que retorna `<LandingPage />` para retornar `<DynamicLandingPage domain="castelodadiversao.com.br" />`
-- Remover o import de `LandingPage` (fica sem uso)
+**1. Nova Edge Function: `rotate-months`**
+- Busca todos os registros de `lp_bot_settings` e atualiza `month_options` (JSON array)
+- Busca todos os registros de `wapi_bot_questions` com `step = 'mes'` e reescreve o `question_text` com os meses atualizados (mantendo o texto introdutório e o formato de emojis numericos)
+- Logica: identifica o mês atual, remove qualquer variante do mês anterior (com ou sem ano), calcula o proximo mês a adicionar baseado no ultimo da lista
 
-Resultado: preview, `.online` e `.com.br` vao mostrar a mesma LP dinâmica do banco de dados.
+**2. Cron Job via pg_cron**
+- Agenda: `0 3 1 * *` (todo dia 1, as 3h da manha)
+- Chama a Edge Function `rotate-months` via `net.http_post`
 
-Nota: O arquivo `LandingPage.tsx` e seus componentes (HeroSection, OfferSection, etc.) e o `campaignConfig.ts` continuam existindo no código caso sejam necessários no futuro, mas não serão mais carregados na rota `/`.
+### Detalhes tecnicos
+
+A funcao precisa lidar com formatos variados de meses:
+- Simples: "Fevereiro", "Marco"
+- Com ano: "Fevereiro/27", "Marco/2027"
+- Opcao especial "Ainda nao decidi" sera preservada
+
+Para o Bot WhatsApp, a funcao reconstroi o bloco de opcoes numeradas com emojis, mantendo o texto introdutorio original de cada empresa.
