@@ -1542,7 +1542,10 @@ function recoveryValidateAnswer(step: string, input: string, questionText?: stri
 function recoveryReplaceVariables(text: string, data: Record<string, string>): string {
   let result = text;
   for (const [key, value] of Object.entries(data)) {
-    result = result.replace(new RegExp(`\\{${key}\\}`, 'gi'), value);
+    const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Support {{key}}, {{ key }}, and {key}
+    result = result.replace(new RegExp(`\\{\\{\\s*${escaped}\\s*\\}\\}`, 'gi'), value);
+    result = result.replace(new RegExp(`\\{${escaped}\\}`, 'gi'), value);
   }
   return result;
 }
@@ -1638,6 +1641,20 @@ async function processStuckBotRecovery({
         continue;
       }
 
+      // Fetch company name for variable injection
+      let companyName = '';
+      if (instance.company_id) {
+        const { data: companyRow } = await supabase
+          .from('companies')
+          .select('name')
+          .eq('id', instance.company_id)
+          .single();
+        companyName = companyRow?.name || '';
+      }
+      if (!companyName) {
+        console.log(`[follow-up-check] 🔄 Warning: no company name found for instance ${instance.id}`);
+      }
+
       // Get bot questions for this instance
       const { data: botQuestionsData } = await supabase
         .from('wapi_bot_questions')
@@ -1667,6 +1684,14 @@ async function processStuckBotRecovery({
       const updated = { ...botData };
       delete (updated as Record<string, unknown>)._inactive_reminded;
 
+      // Inject company aliases into variable map
+      if (companyName) {
+        updated['empresa'] = companyName;
+        updated['buffet'] = companyName;
+        updated['nome_empresa'] = companyName;
+        updated['nome-empresa'] = companyName;
+      }
+
       // Get bot settings for messages
       const { data: settings } = await supabase
         .from('wapi_bot_settings')
@@ -1679,7 +1704,12 @@ async function processStuckBotRecovery({
         const questionSteps = Object.keys(questions);
         const firstStep = questionSteps[0] || 'nome';
         const firstQ = questions[firstStep];
-        const welcomeMsg = (settings?.welcome_message || 'Olá! 👋') + '\n\n' + (firstQ?.question || 'Para começar, me conta: qual é o seu nome? 👑');
+        const rawWelcome = settings?.welcome_message || 'Olá! 👋';
+        const renderedWelcome = recoveryReplaceVariables(rawWelcome, updated);
+        // Avoid duplicating name question if welcome already contains it
+        const firstQuestion = firstQ?.question || 'Para começar, me conta: qual é o seu nome? 👑';
+        const welcomeAlreadyAsksName = /qual\s+(?:é\s+)?(?:o\s+)?seu\s+nome/i.test(rawWelcome);
+        const welcomeMsg = welcomeAlreadyAsksName ? renderedWelcome : renderedWelcome + '\n\n' + firstQuestion;
 
         const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
         const res = await fetch(`https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`, {
