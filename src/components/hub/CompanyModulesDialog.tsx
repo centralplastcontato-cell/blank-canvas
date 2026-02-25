@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Loader2, Settings2, Gamepad2 } from "lucide-react";
+import { Loader2, Settings2, Gamepad2, Brain } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Json } from "@/integrations/supabase/types";
 import { Separator } from "@/components/ui/separator";
@@ -21,12 +21,15 @@ interface CompanyModulesDialogProps {
 export function CompanyModulesDialog({ open, onOpenChange, company, onSuccess }: CompanyModulesDialogProps) {
   const [modules, setModules] = useState<CompanyModules>(parseModules(null));
   const [partyModules, setPartyModules] = useState<PartyControlModules>(parsePartyControlModules(null));
+  const [aiEnabled, setAiEnabled] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (company) {
       setModules(parseModules(company.settings as Json | null));
       setPartyModules(parsePartyControlModules(company.settings as Json | null));
+      const settings = company.settings as Record<string, unknown> | null;
+      setAiEnabled(settings?.ai_enabled !== false);
     }
   }, [company]);
 
@@ -50,6 +53,7 @@ export function CompanyModulesDialog({ open, onOpenChange, company, onSuccess }:
         ...currentSettings,
         enabled_modules: modules as unknown as Json,
         party_control_modules: partyModules as unknown as Json,
+        ai_enabled: aiEnabled as unknown as Json,
       };
 
       const { error } = await supabase
@@ -106,6 +110,27 @@ export function CompanyModulesDialog({ open, onOpenChange, company, onSuccess }:
               />
             </div>
           ))}
+
+          <Separator className="my-2" />
+
+          {/* AI toggle */}
+          <div className="flex items-center gap-2 px-1">
+            <Brain className="h-3.5 w-3.5 text-primary" />
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Inteligência Artificial</p>
+          </div>
+          <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors">
+            <div className="space-y-0.5">
+              <Label htmlFor="module-ai" className="text-sm font-medium cursor-pointer">
+                IA Ativa
+              </Label>
+              <p className="text-xs text-muted-foreground">Resumos de leads, qualificação automática e correção de texto</p>
+            </div>
+            <Switch
+              id="module-ai"
+              checked={aiEnabled}
+              onCheckedChange={setAiEnabled}
+            />
+          </div>
 
           <Separator className="my-2" />
 
