@@ -474,8 +474,8 @@ async function processFollowUp({
     leadsNeedingFollowUp = leadsNeedingFollowUp.filter(id => receivedPrevious.has(id));
   }
 
-  // For follow-up 2+: also check if lead replied after previous follow-up
-  if (followUpNumber >= 2) {
+  // Check if lead replied (last message is from contact) - skip follow-up if they did
+  {
     const { data: conversations } = await supabase
       .from("wapi_conversations")
       .select("lead_id, last_message_from_me")
