@@ -2740,6 +2740,7 @@ export type Database = {
           next_step_reminder_message: string | null
           next_step_visit_response: string | null
           qualified_lead_message: string | null
+          redirect_completion_message: string | null
           test_mode_enabled: boolean
           test_mode_number: string | null
           transfer_message: string | null
@@ -2792,6 +2793,7 @@ export type Database = {
           next_step_reminder_message?: string | null
           next_step_visit_response?: string | null
           qualified_lead_message?: string | null
+          redirect_completion_message?: string | null
           test_mode_enabled?: boolean
           test_mode_number?: string | null
           transfer_message?: string | null
@@ -2844,6 +2846,7 @@ export type Database = {
           next_step_reminder_message?: string | null
           next_step_visit_response?: string | null
           qualified_lead_message?: string | null
+          redirect_completion_message?: string | null
           test_mode_enabled?: boolean
           test_mode_number?: string | null
           transfer_message?: string | null

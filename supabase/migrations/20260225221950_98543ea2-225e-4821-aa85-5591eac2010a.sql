@@ -1,0 +1,1 @@
+ALTER TABLE public.wapi_bot_settings ADD COLUMN redirect_completion_message text DEFAULT NULL;
