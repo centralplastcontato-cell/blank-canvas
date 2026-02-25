@@ -133,56 +133,61 @@ export function CompanyDataSection() {
         </CardContent>
       </Card>
 
-      {/* Name */}
-      <div className="space-y-2">
-        <Label htmlFor="company-name">Nome da Empresa</Label>
-        <Input
-          id="company-name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Nome da empresa"
-        />
-      </div>
+      {/* Dados da Empresa */}
+      <Card>
+        <CardContent className="pt-6 space-y-5">
+          {/* Name */}
+          <div className="space-y-2">
+            <Label htmlFor="company-name">Nome da Empresa</Label>
+            <Input
+              id="company-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Nome da empresa"
+            />
+          </div>
 
-      {/* Endereço da Página (read-only) */}
-      <div className="space-y-2">
-        <Label htmlFor="company-slug">Endereço da Página</Label>
-        <Input
-          id="company-slug"
-          value={currentCompany.slug}
-          disabled
-          className="bg-muted"
-        />
-        <p className="text-xs text-muted-foreground">
-          Esse é o nome usado no link da sua página.
-        </p>
-        {currentCompany.custom_domain ? (
-          <>
-            <p className="text-xs font-medium text-primary/80">
-              <span className="font-bold">{currentCompany.custom_domain}</span>
-            </p>
+          {/* Endereço da Página (read-only) */}
+          <div className="space-y-2">
+            <Label htmlFor="company-slug">Endereço da Página</Label>
+            <Input
+              id="company-slug"
+              value={currentCompany.slug}
+              disabled
+              className="bg-muted"
+            />
             <p className="text-xs text-muted-foreground">
-              Também acessível via celebrei.com/<span className="font-semibold">{currentCompany.slug}</span>
+              Esse é o nome usado no link da sua página.
             </p>
-          </>
-        ) : (
-          <p className="text-xs font-medium text-primary/80">
-            celebrei.com/<span className="font-bold">{currentCompany.slug}</span>
-          </p>
-        )}
-      </div>
+            {currentCompany.custom_domain ? (
+              <>
+                <p className="text-xs font-medium text-primary/80">
+                  <span className="font-bold">{currentCompany.custom_domain}</span>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Também acessível via celebrei.com/<span className="font-semibold">{currentCompany.slug}</span>
+                </p>
+              </>
+            ) : (
+              <p className="text-xs font-medium text-primary/80">
+                celebrei.com/<span className="font-bold">{currentCompany.slug}</span>
+              </p>
+            )}
+          </div>
 
-      {/* Custom Domain */}
-      <div className="space-y-2">
-        <Label htmlFor="company-domain">Domínio Customizado</Label>
-        <Input
-          id="company-domain"
-          value={customDomain}
-          onChange={(e) => setCustomDomain(e.target.value)}
-          placeholder="exemplo.com.br"
-        />
-        <p className="text-xs text-muted-foreground">Domínio personalizado para a landing page.</p>
-      </div>
+          {/* Custom Domain */}
+          <div className="space-y-2">
+            <Label htmlFor="company-domain">Domínio Customizado</Label>
+            <Input
+              id="company-domain"
+              value={customDomain}
+              onChange={(e) => setCustomDomain(e.target.value)}
+              placeholder="exemplo.com.br"
+            />
+            <p className="text-xs text-muted-foreground">Domínio personalizado para a landing page.</p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Save */}
       <Button onClick={handleSave} disabled={isSaving} className="w-full sm:w-auto">
