@@ -140,7 +140,7 @@ function aggregateResults(results: DailySummaryData[]): DailySummaryData {
 export function useDailySummary() {
   const { currentCompany } = useCompany();
   const [data, setData] = useState<DailySummaryData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchSummary = useCallback(async (selectedDate?: Date, forceRefresh?: boolean) => {
