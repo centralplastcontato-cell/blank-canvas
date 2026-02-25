@@ -154,6 +154,23 @@ Responda APENAS o JSON, sem markdown, sem explicações.`
     const data = await response.json();
     const raw = data.choices?.[0]?.message?.content?.trim() || '';
 
+    // Log AI usage
+    if (data.usage) {
+      try {
+        const promptTokens = data.usage.prompt_tokens || 0;
+        const completionTokens = data.usage.completion_tokens || 0;
+        await supabase.from('ai_usage_logs').insert({
+          company_id,
+          function_name: 'lead-summary',
+          model: 'gpt-4o-mini',
+          prompt_tokens: promptTokens,
+          completion_tokens: completionTokens,
+          total_tokens: data.usage.total_tokens || 0,
+          estimated_cost_usd: (promptTokens * 0.15 + completionTokens * 0.6) / 1_000_000,
+        });
+      } catch (e) { console.error('AI usage log error:', e); }
+    }
+
     // Parse JSON response from AI
     let summary = 'Não foi possível gerar o resumo.';
     let nextAction = 'Tente novamente.';

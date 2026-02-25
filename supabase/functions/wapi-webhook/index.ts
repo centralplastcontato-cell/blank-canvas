@@ -723,6 +723,22 @@ Se não conseguir classificar com certeza, retorne a opção mais próxima.`;
             const aiData = await aiRes.json();
             const aiValue = aiData.choices?.[0]?.message?.content?.trim().toLowerCase();
             console.log(`[FlowBuilder] 🧠 OpenAI classify result: "${aiValue}"`);
+
+            // Log AI usage
+            if (aiData.usage) {
+              try {
+                const pt = aiData.usage.prompt_tokens || 0;
+                const ct = aiData.usage.completion_tokens || 0;
+                await supabase.from('ai_usage_logs').insert({
+                  company_id: companyId,
+                  function_name: 'wapi-webhook',
+                  model: 'gpt-4o-mini',
+                  prompt_tokens: pt, completion_tokens: ct,
+                  total_tokens: aiData.usage.total_tokens || 0,
+                  estimated_cost_usd: (pt * 0.15 + ct * 0.6) / 1_000_000,
+                });
+              } catch (logErr) { console.error('AI usage log error:', logErr); }
+            }
             
             if (aiValue) {
               // Find matching option by value
@@ -944,6 +960,22 @@ Se não conseguir classificar com certeza, retorne a opção mais próxima.`;
                 const aiData = await aiRes.json();
                 const aiValue = aiData.choices?.[0]?.message?.content?.trim().toLowerCase();
                 console.log(`[FlowBuilder] 🧠 AI interpretation result: "${aiValue}"`);
+
+                // Log AI usage
+                if (aiData.usage) {
+                  try {
+                    const pt = aiData.usage.prompt_tokens || 0;
+                    const ct = aiData.usage.completion_tokens || 0;
+                    await supabase.from('ai_usage_logs').insert({
+                      company_id: instance.company_id,
+                      function_name: 'wapi-webhook',
+                      model: 'gpt-4o-mini',
+                      prompt_tokens: pt, completion_tokens: ct,
+                      total_tokens: aiData.usage.total_tokens || 0,
+                      estimated_cost_usd: (pt * 0.15 + ct * 0.6) / 1_000_000,
+                    });
+                  } catch (logErr) { console.error('AI usage log error:', logErr); }
+                }
                 if (aiValue) {
                   const matchedOpt = nodeOptions.find((o: any) => o.value.toLowerCase() === aiValue || aiValue.includes(o.value.toLowerCase()));
                   if (matchedOpt) {

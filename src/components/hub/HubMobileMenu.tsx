@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { BarChart3, Building2, Users, LogOut, Smartphone, ClipboardList, Presentation } from "lucide-react";
+import { BarChart3, Building2, Users, LogOut, Smartphone, ClipboardList, Presentation, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -15,7 +15,7 @@ interface HubMobileMenuProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   trigger: React.ReactNode;
-  currentPage: "hub" | "empresas" | "users" | "whatsapp" | "onboarding" | "prospeccao" | "comercial-b2b";
+  currentPage: "hub" | "empresas" | "users" | "whatsapp" | "onboarding" | "prospeccao" | "comercial-b2b" | "consumo-ia";
   userName: string;
   userEmail: string;
   userAvatar?: string | null;
@@ -33,6 +33,7 @@ const menuItems = [
   { id: "whatsapp", label: "WhatsApp", icon: Smartphone, path: "/hub/whatsapp" },
   { id: "users", label: "Usuários", icon: Users, path: "/hub/users" },
   { id: "onboarding", label: "Onboarding", icon: ClipboardList, path: "/hub/onboarding" },
+  { id: "consumo-ia", label: "Consumo IA", icon: Brain, path: "/hub/consumo-ia" },
 ];
 
 export function HubMobileMenu({
