@@ -1,62 +1,37 @@
 
+## Corrigir tempos dos Follow-ups na aba Inteligencia
 
-## Auto-Perdido apos 4o Follow-up
+### Problema
+A aba Follow-ups na pagina de Inteligencia mostra tempos fixos (ex: 24h, 48h, 72h, 96h) que nao correspondem aos tempos configurados pelo buffet (ex: 72h, 144h, 216h, 288h).
 
-### Resumo
-Adicionar funcionalidade para mover automaticamente leads para status "perdido" quando passarem pelo 4o follow-up sem responder, com periodo de espera configuravel.
+**Causa raiz**: A empresa tem 2 instancias WhatsApp (Trujillo e Manchester) com configuracoes diferentes. A query atual busca `wapi_bot_settings` filtrada por `company_id` com `.maybeSingle()`, que retorna a primeira linha encontrada -- que pode ser da instancia errada.
 
-### Mudancas necessarias
+- Instancia Trujillo: 24h / 48h / 72h / 96h
+- Instancia Manchester: 72h / 144h / 216h / 288h
 
-#### 1. Banco de dados - Nova coluna em `wapi_bot_settings`
-Adicionar duas colunas:
-- `auto_lost_enabled` (boolean, default false) - ativa/desativa o auto-perdido
-- `auto_lost_delay_hours` (integer, default 48) - horas apos o 4o follow-up para marcar como perdido
+O sistema esta pegando os valores da Trujillo e mostrando nos cards, mas os leads circulados na imagem sao da Manchester.
 
-#### 2. Edge Function `follow-up-check/index.ts`
-Adicionar nova funcao `processAutoLost` que:
-- Busca leads que ja receberam o 4o follow-up (`lead_history.action = "Follow-up #4 automatico enviado"`)
-- Verifica se o tempo desde o 4o follow-up excedeu `auto_lost_delay_hours`
-- Confirma que o lead nao respondeu (`last_message_from_me = true` na conversa)
-- Confirma que o lead ainda esta em `aguardando_resposta`
-- Atualiza o status do lead para `perdido`
-- Registra no `lead_history` com action "Lead movido para perdido automaticamente"
-- Envia notificacao para o responsavel
+### Solucao
+Alterar o `FollowUpsTab` para buscar os settings de **todas** as instancias da empresa e agrupar os leads por instancia, mostrando o delay correto de cada uma.
 
-Chamar `processAutoLost` no loop principal, apos o processamento do 4o follow-up, para cada instancia que tenha `auto_lost_enabled = true`.
+### Mudancas tecnicas
 
-Atualizar o `FollowUpSettings` interface para incluir `auto_lost_enabled` e `auto_lost_delay_hours`.
+**Arquivo: `src/components/inteligencia/FollowUpsTab.tsx`**
 
-Atualizar a query de fetch dos settings para incluir as novas colunas.
+1. Alterar a query de `wapi_bot_settings` para buscar **todas** as linhas da empresa (remover `.maybeSingle()`, usar `.select()` normal)
+2. Buscar tambem as `wapi_instances` da empresa para mapear `instance_id` -> `unit`
+3. Cruzar os leads do `lead_history` com o `instance_id` da conversa (`wapi_conversations`) para saber de qual instancia cada lead pertence
+4. Para cada coluna de follow-up, mostrar o delay correspondente a instancia do lead (ou se todas as instancias tiverem o mesmo delay, mostrar um unico valor)
+5. Caso as instancias tenham delays diferentes, mostrar o delay mais comum ou agrupar visualmente
 
-#### 3. UI - `AutomationsSection.tsx`
-Na aba de follow-ups, apos o card do 4o follow-up, adicionar um novo card "Auto-Perdido":
-- Switch para ativar/desativar
-- Input de horas para configurar o delay apos o 4o follow-up (default 48h, min 24h, max 720h)
-- Label dinamica mostrando a conversao em dias
-- Texto explicativo: "Leads que nao responderam apos o 4o follow-up serao movidos automaticamente para Perdido"
+**Abordagem simplificada (recomendada)**: Como a aba de Inteligencia ja filtra por unidade (o usuario pode selecionar a unidade), buscar o `wapi_bot_settings` da instancia correspondente a unidade selecionada. Se nenhuma unidade estiver selecionada, usar os valores da primeira instancia encontrada ou calcular a media.
 
-Atualizar a interface `BotSettings` para incluir os novos campos.
+**Alternativa mais robusta**: Cruzar cada lead com sua instancia via `wapi_conversations.instance_id` e mostrar o delay correto por instancia nos cards.
 
-### Detalhes tecnicos
+### Implementacao detalhada
 
-```text
-Fluxo do auto-perdido:
-
-Lead escolhe "Analisar com calma"
-    |
-[Follow-ups 1-4 enviados sem resposta]
-    |
-[4o Follow-up enviado] --> lead_history registra timestamp
-    |
-[Espera auto_lost_delay_hours (ex: 48h)]
-    |
-Lead NAO respondeu?
-    |-- SIM --> Status = "perdido" + registro no historico
-    |-- NAO --> Nada acontece (lead respondeu, sequencia ja parou)
-```
-
-### Arquivos modificados
-1. **Migration SQL** - Adicionar colunas `auto_lost_enabled` e `auto_lost_delay_hours` na tabela `wapi_bot_settings`
-2. **`supabase/functions/follow-up-check/index.ts`** - Nova funcao `processAutoLost` + integracao no loop principal
-3. **`src/components/whatsapp/settings/AutomationsSection.tsx`** - Novo card de configuracao na aba followups + campos no interface BotSettings
-
+1. Na funcao `loadFollowUpData`, buscar todos os bot_settings da empresa (sem `.maybeSingle()`)
+2. Buscar as instancias da empresa para mapear instance_id -> unit
+3. Buscar as conversas dos leads para saber qual instancia cada lead usa
+4. Nos headers dos cards, mostrar o delay da instancia correspondente ou, se houver multiplas instancias com delays diferentes, mostrar um range ou o delay mais frequente
+5. Manter compatibilidade com empresas que tem apenas 1 instancia (comportamento atual)
