@@ -1,26 +1,55 @@
 
 
-## Adicionar Toggle "Rotação Automática de Meses" nas Configurações do Bot WhatsApp
+## Adicionar Campo Editável para Mensagem de WhatsApp do Lead (pós-LP)
 
-### Problema
-O toggle para ativar a rotação automática de meses (apagar mês anterior e adicionar novo mês no final) só aparece nas configurações do bot da Landing Page (`LPBotSection`). No bot do WhatsApp (`AutomationsSection`), esse toggle não existe, embora a função `rotate-months` já processe as perguntas do WhatsApp (`wapi_bot_questions`) quando a flag está ativa.
+### Contexto
+Quando um lead finaliza o chatbot da Landing Page, o sistema envia automaticamente uma mensagem no WhatsApp com os dados coletados (nome, unidade, data, convidados). Essa mensagem está fixa no código e não pode ser editada pela interface.
 
 ### Solução
-Adicionar um toggle na aba "Perguntas" do bot WhatsApp (`AutomationsSection.tsx`) que lê e grava o campo `auto_rotate_months` da tabela `lp_bot_settings` (mesma flag usada pela Edge Function `rotate-months`).
+Adicionar um campo editável nas configurações do Bot LP (`LPBotSection.tsx`) para personalizar o template dessa mensagem, e usar esse template no `LeadChatbot.tsx` ao enviar.
 
 ### Alterações
 
-**Arquivo: `src/components/whatsapp/settings/AutomationsSection.tsx`**
+**1. Arquivo: `src/components/whatsapp/settings/LPBotSection.tsx`**
+- Adicionar novo campo "Mensagem de WhatsApp (pós-formulário)" na seção "Mensagens Principais"
+- O campo será um `Textarea` para o template da mensagem
+- Incluir variáveis disponíveis como dica: `{nome}`, `{unidade}`, `{data}`, `{convidados}`, `{empresa}`
+- Salvar no campo `whatsapp_welcome_template` da tabela `lp_bot_settings`
 
-1. Adicionar estado `autoRotateMonths` (boolean) e carregar o valor de `lp_bot_settings` ao selecionar uma instância
-2. Na aba "Perguntas", após o header e antes da lista de perguntas, inserir um card com:
-   - Icone `RefreshCw` (já importado)
-   - Titulo: "Rotação Automática de Meses"
-   - Descrição: "Remove o mês anterior e adiciona um novo mês no final da lista automaticamente, todo dia 1o de cada mês"
-   - Toggle Switch que atualiza `lp_bot_settings.auto_rotate_months`
-3. Ao toggle mudar, fazer upsert em `lp_bot_settings` para a `company_id` atual
+**2. Arquivo: `src/components/landing/LeadChatbot.tsx`**
+- Receber o template via `lpBotConfig`
+- Se existir template customizado, substituir as variáveis pelos dados do lead
+- Se não existir, usar a mensagem padrão atual (hardcoded)
+- Aplicar tanto no `sendWelcomeMessage` quanto no `buildWhatsAppMessage`
+
+**3. Banco de dados**
+- Será necessário adicionar a coluna `whatsapp_welcome_template` (text, nullable) na tabela `lp_bot_settings` via migration
+
+**4. Arquivo: `src/pages/DynamicLandingPage.tsx`**
+- Incluir o novo campo `whatsapp_welcome_template` ao carregar `lp_bot_settings` e repassar ao `LeadChatbot`
+
+### Template Padrão (referência)
+```text
+Olá! 👋🏼✨
+
+Vim pelo site do *{empresa}* e gostaria de saber mais!
+
+📋 *Meus dados:*
+👤 Nome: {nome}
+📍 Unidade: {unidade}
+📅 Data: {data}
+👥 Convidados: {convidados}
+
+Vou dar continuidade no seu atendimento!! 🚀
+
+Escolha a opção que mais te agrada 👇
+
+1️⃣ - 📩 Receber agora meu orçamento
+2️⃣ - 💬 Falar com um atendente
+```
 
 ### Resultado
-- O toggle aparece na configuração do bot WhatsApp, na aba de Perguntas
-- Usa a mesma flag do banco (`lp_bot_settings.auto_rotate_months`) que a Edge Function já consulta
-- Funciona para ambos: perguntas do bot WhatsApp e opções de meses da LP
+- Administradores podem personalizar a mensagem de WhatsApp enviada após o lead preencher o chatbot da LP
+- Variáveis são substituídas automaticamente pelos dados do lead
+- Empresas sem template customizado continuam usando a mensagem padrão atual
+
