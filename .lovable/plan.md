@@ -1,37 +1,30 @@
 
-## Corrigir tempos dos Follow-ups na aba Inteligencia
+
+## Adicionar modulo "Bot Festa" ao painel de modulos do Hub
 
 ### Problema
-A aba Follow-ups na pagina de Inteligencia mostra tempos fixos (ex: 24h, 48h, 72h, 96h) que nao correspondem aos tempos configurados pelo buffet (ex: 72h, 144h, 216h, 288h).
-
-**Causa raiz**: A empresa tem 2 instancias WhatsApp (Trujillo e Manchester) com configuracoes diferentes. A query atual busca `wapi_bot_settings` filtrada por `company_id` com `.maybeSingle()`, que retorna a primeira linha encontrada -- que pode ser da instancia errada.
-
-- Instancia Trujillo: 24h / 48h / 72h / 96h
-- Instancia Manchester: 72h / 144h / 216h / 288h
-
-O sistema esta pegando os valores da Trujillo e mostrando nos cards, mas os leads circulados na imagem sao da Manchester.
+O "Bot Festa" (mensagens automaticas para convidados durante festas) nao possui um toggle no dialog de modulos do Hub, impossibilitando o admin do Hub de desativar essa funcionalidade para empresas especificas.
 
 ### Solucao
-Alterar o `FollowUpsTab` para buscar os settings de **todas** as instancias da empresa e agrupar os leads por instancia, mostrando o delay correto de cada uma.
+Adicionar `bot_festa` como um novo modulo no sistema de modulos da empresa, com toggle no Hub e filtragem na aba de Automacoes.
 
-### Mudancas tecnicas
+### Mudancas
 
-**Arquivo: `src/components/inteligencia/FollowUpsTab.tsx`**
+#### 1. `src/hooks/useCompanyModules.ts`
+- Adicionar `bot_festa: boolean` na interface `CompanyModules`
+- Default: `false` (opt-in, igual flow_builder/inteligencia/agenda)
+- Adicionar no `parseModules`: `bot_festa: modules.bot_festa === true`
+- Adicionar no `MODULE_LABELS`: label "Bot Festa", descricao "Mensagens automaticas para convidados em festas"
 
-1. Alterar a query de `wapi_bot_settings` para buscar **todas** as linhas da empresa (remover `.maybeSingle()`, usar `.select()` normal)
-2. Buscar tambem as `wapi_instances` da empresa para mapear `instance_id` -> `unit`
-3. Cruzar os leads do `lead_history` com o `instance_id` da conversa (`wapi_conversations`) para saber de qual instancia cada lead pertence
-4. Para cada coluna de follow-up, mostrar o delay correspondente a instancia do lead (ou se todas as instancias tiverem o mesmo delay, mostrar um unico valor)
-5. Caso as instancias tenham delays diferentes, mostrar o delay mais comum ou agrupar visualmente
+#### 2. `src/components/hub/CompanyModulesDialog.tsx`
+- Nenhuma mudanca necessaria - o dialog ja itera sobre `MODULE_LABELS` automaticamente, entao o novo modulo aparecera automaticamente.
 
-**Abordagem simplificada (recomendada)**: Como a aba de Inteligencia ja filtra por unidade (o usuario pode selecionar a unidade), buscar o `wapi_bot_settings` da instancia correspondente a unidade selecionada. Se nenhuma unidade estiver selecionada, usar os valores da primeira instancia encontrada ou calcular a media.
+#### 3. `src/components/whatsapp/settings/AutomationsSection.tsx`
+- Importar `useCompanyModules` (ja importado)
+- Condicionar a exibicao da tab "Bot Festa" ao modulo `bot_festa` estar habilitado
+- Se desabilitado, ocultar a tab e seu conteudo
 
-**Alternativa mais robusta**: Cruzar cada lead com sua instancia via `wapi_conversations.instance_id` e mostrar o delay correto por instancia nos cards.
+### Arquivos modificados
+1. `src/hooks/useCompanyModules.ts` - Nova chave `bot_festa` na interface, defaults e labels
+2. `src/components/whatsapp/settings/AutomationsSection.tsx` - Condicionar tab "Bot Festa" ao modulo habilitado
 
-### Implementacao detalhada
-
-1. Na funcao `loadFollowUpData`, buscar todos os bot_settings da empresa (sem `.maybeSingle()`)
-2. Buscar as instancias da empresa para mapear instance_id -> unit
-3. Buscar as conversas dos leads para saber qual instancia cada lead usa
-4. Nos headers dos cards, mostrar o delay da instancia correspondente ou, se houver multiplas instancias com delays diferentes, mostrar um range ou o delay mais frequente
-5. Manter compatibilidade com empresas que tem apenas 1 instancia (comportamento atual)
