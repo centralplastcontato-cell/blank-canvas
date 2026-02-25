@@ -1,34 +1,80 @@
 
-## Rotação Automática de Meses (Cron Mensal)
 
-### O que faz
-No dia 1 de cada mês, uma Edge Function roda automaticamente e, para cada empresa:
-1. Remove o mês que acabou de passar da lista
-2. Adiciona um novo mês futuro no final da lista
-3. Atualiza tanto o **Bot LP** quanto o **Bot WhatsApp**
+## Novo Status "Cliente Retorno" para Leads que Ja Sao Clientes
 
-### Exemplo prático (executando em 1 de Março de 2026)
-- **Remove**: "Fevereiro" (ou "Fevereiro/26")
-- **Adiciona**: o próximo mês futuro que ainda não existe na lista (ex: "Abril/27")
-- Lista antes: `[Fevereiro, Março, Abril, ..., Dezembro, Janeiro/27, Fevereiro/27, Março/27]`
-- Lista depois: `[Março, Abril, ..., Dezembro, Janeiro/27, Fevereiro/27, Março/27, Abril/27]`
+### Resumo
+Criar um novo status `cliente_retorno` no enum `lead_status` do banco de dados e atualizar todos os componentes do frontend e a Edge Function do webhook para suportar esse status. Quando um contato selecionar "Ja sou cliente" no bot, sera criado um lead com esse status automaticamente.
 
-### Componentes
+### 1. Migracao do Banco de Dados
 
-**1. Nova Edge Function: `rotate-months`**
-- Busca todos os registros de `lp_bot_settings` e atualiza `month_options` (JSON array)
-- Busca todos os registros de `wapi_bot_questions` com `step = 'mes'` e reescreve o `question_text` com os meses atualizados (mantendo o texto introdutório e o formato de emojis numericos)
-- Logica: identifica o mês atual, remove qualquer variante do mês anterior (com ou sem ano), calcula o proximo mês a adicionar baseado no ultimo da lista
+Adicionar o valor `cliente_retorno` ao enum `lead_status`:
 
-**2. Cron Job via pg_cron**
-- Agenda: `0 3 1 * *` (todo dia 1, as 3h da manha)
-- Chama a Edge Function `rotate-months` via `net.http_post`
+```sql
+ALTER TYPE lead_status ADD VALUE 'cliente_retorno';
+```
 
-### Detalhes tecnicos
+### 2. Tipos e Constantes do Frontend
 
-A funcao precisa lidar com formatos variados de meses:
-- Simples: "Fevereiro", "Marco"
-- Com ano: "Fevereiro/27", "Marco/2027"
-- Opcao especial "Ainda nao decidi" sera preservada
+**Arquivo: `src/types/crm.ts`**
+- Adicionar `'cliente_retorno'` ao type `LeadStatus`
+- Adicionar label: `cliente_retorno: 'Cliente Retorno'` em `LEAD_STATUS_LABELS`
+- Adicionar cor: `cliente_retorno: 'bg-pink-500'` em `LEAD_STATUS_COLORS` (rosa para diferenciar visualmente)
 
-Para o Bot WhatsApp, a funcao reconstroi o bloco de opcoes numeradas com emojis, mantendo o texto introdutorio original de cada empresa.
+### 3. Kanban e Colunas
+
+**Arquivo: `src/components/admin/LeadsKanban.tsx`**
+- Adicionar `"cliente_retorno"` ao array `columns` (posicionar apos `transferido`, antes de `trabalhe_conosco`)
+
+### 4. Componentes WhatsApp (status pickers)
+
+Adicionar `cliente_retorno` em todos os locais que listam opcoes de status:
+
+- **`src/components/whatsapp/ConversationStatusActions.tsx`** - Adicionar item no array `STATUS_CONFIG`
+- **`src/components/whatsapp/LeadInfoPopover.tsx`** - Adicionar em `statusOptions` e no `getStatusBadgeClass`
+- **`src/components/whatsapp/WhatsAppChat.tsx`** - Adicionar em todas as ~5 listas de status inline (status pills, classificacao de contato, etc.)
+
+### 5. Funil de Vendas (Hub)
+
+**Arquivo: `src/components/hub/HubSalesFunnel.tsx`**
+- Adicionar `cliente_retorno` ao rodape junto com "Perdidos" e "Transferidos" (nao faz parte do funil de vendas tradicional, mas deve ser contabilizado)
+
+### 6. Edge Function: Criar Lead ao Dizer "Ja sou cliente"
+
+**Arquivo: `supabase/functions/wapi-webhook/index.ts`**
+No bloco `isAlreadyClient` (~linhas 2140-2207), apos enviar a mensagem de transferencia e antes de desativar o bot:
+
+```typescript
+// Criar lead com status "cliente_retorno"
+const leadName = updated.nome || contactName || contactPhone;
+const { data: newLead } = await supabase.from('campaign_leads').insert({
+  name: leadName,
+  whatsapp: n,
+  unit: instance.unit,
+  campaign_id: 'whatsapp-bot-cliente',
+  campaign_name: 'WhatsApp (Bot) - Cliente',
+  status: 'cliente_retorno',
+  company_id: instance.company_id,
+  observacoes: 'Cliente existente - retornou pelo WhatsApp',
+}).select('id').single();
+
+if (newLead) {
+  // Vincular lead a conversa
+  await supabase.from('wapi_conversations').update({
+    lead_id: newLead.id,
+    contact_name: leadName,
+  }).eq('id', conv.id);
+}
+```
+
+Tambem atualizar a notificacao para incluir `lead_id` nos dados.
+
+### 7. Constants Runtime (types.ts)
+
+O arquivo `src/integrations/supabase/types.ts` sera atualizado automaticamente apos a migracao do enum.
+
+### Resultado esperado
+- Clientes que dizem "Ja sou cliente" geram um lead com status **Cliente Retorno** (rosa no Kanban)
+- A conversa fica vinculada ao lead (visivel na Central de Atendimento)
+- O status aparece em todos os seletores, filtros e visualizacoes
+- Nao interfere nos fluxos existentes de "Quero orcamento" ou "Trabalhe Conosco"
+
