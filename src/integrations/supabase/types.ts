@@ -1897,6 +1897,7 @@ export type Database = {
       }
       lp_bot_settings: {
         Row: {
+          auto_rotate_months: boolean
           company_id: string
           completion_message: string | null
           created_at: string
@@ -1915,6 +1916,7 @@ export type Database = {
           whatsapp_question: string | null
         }
         Insert: {
+          auto_rotate_months?: boolean
           company_id: string
           completion_message?: string | null
           created_at?: string
@@ -1933,6 +1935,7 @@ export type Database = {
           whatsapp_question?: string | null
         }
         Update: {
+          auto_rotate_months?: boolean
           company_id?: string
           completion_message?: string | null
           created_at?: string

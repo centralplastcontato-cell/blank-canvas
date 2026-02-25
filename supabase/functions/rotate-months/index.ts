@@ -173,11 +173,14 @@ Deno.serve(async (req) => {
     const now = new Date();
     console.log(`[rotate-months] Running at ${now.toISOString()}, month=${now.getMonth()}, year=${now.getFullYear()}`);
 
-    // 1. Update lp_bot_settings
+    // 1. Update lp_bot_settings (only companies with auto_rotate_months enabled)
     const { data: lpSettings, error: lpErr } = await supabase
       .from("lp_bot_settings")
-      .select("id, company_id, month_options");
+      .select("id, company_id, month_options")
+      .eq("auto_rotate_months", true);
     if (lpErr) throw lpErr;
+
+    const companyIds = (lpSettings || []).map((s: any) => s.company_id).filter(Boolean);
 
     let lpUpdated = 0;
     for (const setting of lpSettings || []) {
@@ -197,12 +200,17 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 2. Update wapi_bot_questions (step = 'mes') using REST API directly
-    const { data: wapiQuestions, error: wapiErr } = await supabase
-      .from("wapi_bot_questions")
-      .select("id, company_id, question_text")
-      .eq("step", "mes");
-    if (wapiErr) throw wapiErr;
+    // 2. Update wapi_bot_questions (step = 'mes') only for companies with auto_rotate enabled
+    let wapiQuestions: any[] = [];
+    if (companyIds.length > 0) {
+      const { data, error: wapiErr } = await supabase
+        .from("wapi_bot_questions")
+        .select("id, company_id, question_text")
+        .eq("step", "mes")
+        .in("company_id", companyIds);
+      if (wapiErr) throw wapiErr;
+      wapiQuestions = data || [];
+    }
 
     let wapiUpdated = 0;
     for (const q of wapiQuestions || []) {

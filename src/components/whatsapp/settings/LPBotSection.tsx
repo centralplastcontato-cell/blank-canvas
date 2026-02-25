@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Save, Plus, X, AlertTriangle } from "lucide-react";
+import { Loader2, Save, Plus, X, AlertTriangle, RefreshCw } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 
 interface LPBotSettings {
   id?: string;
@@ -25,6 +26,7 @@ interface LPBotSettings {
   guest_limit_message: string | null;
   guest_limit_redirect_name: string | null;
   redirect_completion_message: string | null;
+  auto_rotate_months: boolean;
 }
 
 const DEFAULTS: Omit<LPBotSettings, 'company_id'> = {
@@ -40,6 +42,7 @@ const DEFAULTS: Omit<LPBotSettings, 'company_id'> = {
   guest_limit_message: null,
   guest_limit_redirect_name: null,
   redirect_completion_message: null,
+  auto_rotate_months: false,
 };
 
 export function LPBotSection() {
@@ -80,6 +83,7 @@ export function LPBotSection() {
         guest_limit_message: data.guest_limit_message,
         guest_limit_redirect_name: data.guest_limit_redirect_name,
         redirect_completion_message: (data as any).redirect_completion_message || null,
+        auto_rotate_months: (data as any).auto_rotate_months ?? false,
       });
     } else {
       setSettings({
@@ -108,6 +112,7 @@ export function LPBotSection() {
       guest_limit_message: settings.guest_limit_message || null,
       guest_limit_redirect_name: settings.guest_limit_redirect_name || null,
       redirect_completion_message: settings.redirect_completion_message || null,
+      auto_rotate_months: settings.auto_rotate_months,
     };
 
     let error;
@@ -212,7 +217,23 @@ export function LPBotSection() {
           <CardTitle className="text-base">Opções de Meses</CardTitle>
           <CardDescription>Meses disponíveis para seleção no chatbot</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <div className="space-y-0.5">
+              <Label className="flex items-center gap-2">
+                <RefreshCw className="w-4 h-4" />
+                Rotação automática de meses
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                No dia 1 de cada mês, remove o mês que passou e adiciona um novo mês futuro automaticamente
+              </p>
+            </div>
+            <Switch
+              checked={settings.auto_rotate_months}
+              onCheckedChange={(checked) => updateField('auto_rotate_months', checked)}
+            />
+          </div>
+          <Separator />
           <div className="flex flex-wrap gap-2">
             {settings.month_options.map((opt, i) => (
               <span key={i} className="inline-flex items-center gap-1 bg-muted px-3 py-1.5 rounded-full text-sm">
