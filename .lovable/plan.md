@@ -1,80 +1,43 @@
 
 
-## Novo Status "Cliente Retorno" para Leads que Ja Sao Clientes
+## Corrigir Calendario do Chatbot para Meses com Ano (ex: "Marco/27")
 
-### Resumo
-Criar um novo status `cliente_retorno` no enum `lead_status` do banco de dados e atualizar todos os componentes do frontend e a Edge Function do webhook para suportar esse status. Quando um contato selecionar "Ja sou cliente" no bot, sera criado um lead com esse status automaticamente.
+### Problema
+Quando o usuario seleciona um mes com ano (como "Marco/27"), o sistema nao reconhece o nome no `monthNameToIndex` porque ele procura por "Marco/27" em vez de "Marco". Resultado:
+- `getDaysInMonth` retorna 31 (fallback generico) -- pode estar errado em meses como Fevereiro
+- `firstDayOfWeek` retorna 0 (Domingo) -- ignora o ano real, gerando o calendario com os dias nas colunas erradas
 
-### 1. Migracao do Banco de Dados
+### Solucao
+Criar uma funcao auxiliar que extrai o nome do mes e o ano de strings como "Marco/27", "Janeiro/2027", ou simplesmente "Marco":
 
-Adicionar o valor `cliente_retorno` ao enum `lead_status`:
-
-```sql
-ALTER TYPE lead_status ADD VALUE 'cliente_retorno';
+```text
+"Marco/27"   -> { monthName: "Marco", year: 2027 }
+"Janeiro/2027" -> { monthName: "Janeiro", year: 2027 }
+"Abril"      -> { monthName: "Abril", year: 2026 }
 ```
 
-### 2. Tipos e Constantes do Frontend
+### Alteracoes
 
-**Arquivo: `src/types/crm.ts`**
-- Adicionar `'cliente_retorno'` ao type `LeadStatus`
-- Adicionar label: `cliente_retorno: 'Cliente Retorno'` em `LEAD_STATUS_LABELS`
-- Adicionar cor: `cliente_retorno: 'bg-pink-500'` em `LEAD_STATUS_COLORS` (rosa para diferenciar visualmente)
+**Arquivo: `src/components/landing/LeadChatbot.tsx`**
 
-### 3. Kanban e Colunas
+1. **Nova funcao `parseMonthOption`** (antes de `getDaysInMonth`):
+   - Recebe a string do mes selecionado
+   - Usa regex para separar nome e ano (ex: `/27` ou `/2027`)
+   - Anos de 2 digitos sao convertidos para 4 digitos (27 -> 2027)
+   - Retorna `{ monthName, year }`
 
-**Arquivo: `src/components/admin/LeadsKanban.tsx`**
-- Adicionar `"cliente_retorno"` ao array `columns` (posicionar apos `transferido`, antes de `trabalhe_conosco`)
+2. **Atualizar `getDaysInMonth`**:
+   - Receber a string original (ex: "Marco/27")
+   - Usar `parseMonthOption` para extrair mes e ano
+   - Calcular dias com o ano correto em vez de `new Date().getFullYear()`
 
-### 4. Componentes WhatsApp (status pickers)
+3. **Atualizar `addDayOfMonthStep`**:
+   - Usar `parseMonthOption` para extrair mes e ano
+   - Usar o ano extraido para calcular `firstDayOfWeek` corretamente
+   - O label da mensagem continua usando a string original do usuario
 
-Adicionar `cliente_retorno` em todos os locais que listam opcoes de status:
-
-- **`src/components/whatsapp/ConversationStatusActions.tsx`** - Adicionar item no array `STATUS_CONFIG`
-- **`src/components/whatsapp/LeadInfoPopover.tsx`** - Adicionar em `statusOptions` e no `getStatusBadgeClass`
-- **`src/components/whatsapp/WhatsAppChat.tsx`** - Adicionar em todas as ~5 listas de status inline (status pills, classificacao de contato, etc.)
-
-### 5. Funil de Vendas (Hub)
-
-**Arquivo: `src/components/hub/HubSalesFunnel.tsx`**
-- Adicionar `cliente_retorno` ao rodape junto com "Perdidos" e "Transferidos" (nao faz parte do funil de vendas tradicional, mas deve ser contabilizado)
-
-### 6. Edge Function: Criar Lead ao Dizer "Ja sou cliente"
-
-**Arquivo: `supabase/functions/wapi-webhook/index.ts`**
-No bloco `isAlreadyClient` (~linhas 2140-2207), apos enviar a mensagem de transferencia e antes de desativar o bot:
-
-```typescript
-// Criar lead com status "cliente_retorno"
-const leadName = updated.nome || contactName || contactPhone;
-const { data: newLead } = await supabase.from('campaign_leads').insert({
-  name: leadName,
-  whatsapp: n,
-  unit: instance.unit,
-  campaign_id: 'whatsapp-bot-cliente',
-  campaign_name: 'WhatsApp (Bot) - Cliente',
-  status: 'cliente_retorno',
-  company_id: instance.company_id,
-  observacoes: 'Cliente existente - retornou pelo WhatsApp',
-}).select('id').single();
-
-if (newLead) {
-  // Vincular lead a conversa
-  await supabase.from('wapi_conversations').update({
-    lead_id: newLead.id,
-    contact_name: leadName,
-  }).eq('id', conv.id);
-}
-```
-
-Tambem atualizar a notificacao para incluir `lead_id` nos dados.
-
-### 7. Constants Runtime (types.ts)
-
-O arquivo `src/integrations/supabase/types.ts` sera atualizado automaticamente apos a migracao do enum.
-
-### Resultado esperado
-- Clientes que dizem "Ja sou cliente" geram um lead com status **Cliente Retorno** (rosa no Kanban)
-- A conversa fica vinculada ao lead (visivel na Central de Atendimento)
-- O status aparece em todos os seletores, filtros e visualizacoes
-- Nao interfere nos fluxos existentes de "Quero orcamento" ou "Trabalhe Conosco"
+### Resultado
+- Marco/27: dia 1 cai na Segunda (coluna S) -- correto
+- Fevereiro/28: mostra 28 dias (2028 nao e bissexto)
+- Meses sem ano (ex: "Abril") continuam funcionando com o ano atual
 
