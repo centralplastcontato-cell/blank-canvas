@@ -1,64 +1,36 @@
 
 
-## Deixar o site da Aventura Kids mais vibrante e impactante
+## Trocar a LP do castelodadiversao.online para Dynamic Landing Page
 
-### Problema
-O site esta usando fundo branco puro (#FFFFFF), cards simples sem profundidade, sem elementos decorativos, e os componentes DLP (Dynamic Landing Page) sao muito "corporativos" para um buffet infantil. Falta energia visual.
+Atualmente, o dominio `castelodadiversao.online` serve a LP estatica com a campanha de Carnaval. O dominio `castelodadiversao.com.br` ja serve a LP dinamica (puxando dados do banco). O objetivo e fazer os dois dominios usarem a mesma LP dinamica.
 
-### Melhorias propostas
+### O que muda
 
-**1. DLPHero - Mais impacto visual**
-- Adicionar particulas/confetes animados (mesmo estilo do HeroSection do Castelo)
-- Melhorar o overlay do gradiente para ser mais vibrante e menos "lavado"
-- Adicionar glassmorphism no bloco de titulo para contraste com a imagem de fundo
-- Scroll indicator animado no final
+1. **`src/hooks/useDomainDetection.ts`** -- Adicionar `castelodadiversao.online` no mapa `KNOWN_BUFFET_DOMAINS`, apontando para o mesmo dominio usado na busca do banco.
 
-**2. DLPSocialProof - Cards com mais personalidade**
-- Adicionar borda colorida com gradiente sutil nos cards
-- Icones decorativos nos cards (estrela, coracao, festa)
-- Fundo com gradiente sutil ao inves de branco puro
-- Separador visual entre social proof e o resto da pagina
+2. **`src/pages/RootPage.tsx`** -- Remover o bloco especial que trata `castelodadiversao.online` como LP estatica. Com o dominio agora mapeado em `KNOWN_BUFFET_DOMAINS`, ele sera resolvido automaticamente como `DynamicLandingPage`.
 
-**3. DLPBenefits - Cards mais vivos**
-- Hover com gradiente de fundo mais visivel (de 5% para 10-15%)
-- Adicionar borda com cor primaria sutil nos cards
-- Background da secao com gradiente mais marcante
-- Icones dos trust badges preenchidos (fill) para dar mais destaque
-
-**4. DLPGallery - Grid mais impactante**
-- Hover com zoom mais pronunciado e sombra elevada
-- Badge com contagem de fotos
-- Fundo da secao com gradiente mais visivel
-
-**5. DLPOffer - Mais urgencia e destaque**
-- Glassmorphism cards com gradiente de fundo usando cores do tema (mais forte)
-- Animacao de pulso mais intensa no botao CTA
-- Badge "OFERTA ESPECIAL" maior e mais chamativo
-- Borda com glow sutil
-
-**6. DLPHowItWorks (novo componente a revisar)**
-- Linha conectora entre passos mais visivel
-- Icones com background mais vibrante
-
-**7. DLPFooter - Mais presenca**
-- Background com gradiente escuro mais rico
-
-### Arquivos a editar
-
-| Arquivo | Mudanca |
-|---|---|
-| `src/components/dynamic-lp/DLPHero.tsx` | Confetes animados, glassmorphism no titulo, scroll indicator, overlay mais vibrante |
-| `src/components/dynamic-lp/DLPSocialProof.tsx` | Cards com borda gradiente, icones decorativos, fundo mais marcante |
-| `src/components/dynamic-lp/DLPBenefits.tsx` | Hover mais visivel, bordas coloridas, trust badges preenchidos |
-| `src/components/dynamic-lp/DLPGallery.tsx` | Hover mais impactante, fundo com gradiente |
-| `src/components/dynamic-lp/DLPOffer.tsx` | Glassmorphism mais forte, CTA com pulso, borda glow |
-| `src/components/dynamic-lp/DLPHowItWorks.tsx` | Linha conectora visivel, icones mais vibrantes |
-| `src/components/dynamic-lp/DLPVideo.tsx` | Card com sombra mais forte, badge decorativo |
+3. **`index.html`** -- Verificar se o bloco de meta tags dinamicas ja cobre o dominio `.online` (atualmente cobre `.com.br`). Ajustar o mapeamento de branding para incluir `.online` tambem.
 
 ### Detalhes tecnicos
 
-Todas as mudancas usam as cores do `theme` (primary_color, secondary_color), entao funcionam para qualquer buffet, nao apenas Aventura Kids.
+**useDomainDetection.ts** -- Adicionar entrada:
+```
+"castelodadiversao.online": "castelodadiversao.com.br"
+```
+Isso faz o `.online` usar o mesmo registro de LP do `.com.br` no banco.
 
-Os confetes no Hero usam o mesmo padrao do `HeroSection.tsx` do Castelo: `motion.div` com animacao de `y` e `rotate` em loop infinito, cores derivadas do tema.
+**RootPage.tsx** -- Remover as linhas:
+```
+if (canonical === "castelodadiversao.online") {
+  return <LandingPage />;
+}
+```
+O dominio agora sera capturado pelo bloco `getKnownBuffetDomain()` logo abaixo.
 
-Nao ha mudancas de banco de dados -- tudo e visual nos componentes React.
+**index.html** -- Adicionar `castelodadiversao.online` ao mesmo bloco de branding do Castelo para que as meta tags OG sejam corretas.
+
+### Resultado
+
+Os dois dominios (`.online` e `.com.br`) vao exibir exatamente a mesma LP dinamica, com conteudo gerenciado pelo banco de dados -- sem mais campanha de Carnaval.
+
