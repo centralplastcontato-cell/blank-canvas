@@ -30,11 +30,6 @@ export default function RootPage() {
     return <LandingPage />;
   }
 
-  // Castelo da Diversão — .online = campaign LP, .com.br = institutional DLP
-  if (canonical === "castelodadiversao.online") {
-    return <LandingPage />;
-  }
-
   // Known buffet domains — explicitly mapped, prevents LP crossover
   const buffetDomain = getKnownBuffetDomain();
   if (buffetDomain) {
