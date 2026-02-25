@@ -2163,7 +2163,7 @@ async function processBotQualification(
             });
           }
           
-          // Mark as transferred and disable bot - DO NOT create lead
+          // Mark as transferred and disable bot
           await supabase.from('wapi_conversations').update({
             bot_step: 'transferred',
             bot_data: updated,
@@ -2172,6 +2172,36 @@ async function processBotQualification(
             last_message_content: msg.substring(0, 100),
             last_message_from_me: true
           }).eq('id', conv.id);
+          
+          // Create lead with status "cliente_retorno" for existing clients
+          const leadName = updated.nome || contactName || contactPhone;
+          let newLeadId: string | null = null;
+          try {
+            const { data: newLead, error: leadErr } = await supabase.from('campaign_leads').insert({
+              name: leadName,
+              whatsapp: n,
+              unit: instance.unit,
+              campaign_id: 'whatsapp-bot-cliente',
+              campaign_name: 'WhatsApp (Bot) - Cliente',
+              status: 'cliente_retorno',
+              company_id: instance.company_id,
+              observacoes: 'Cliente existente - retornou pelo WhatsApp',
+            }).select('id').single();
+
+            if (!leadErr && newLead) {
+              newLeadId = newLead.id;
+              console.log(`[Bot] Existing client lead created: ${newLead.id}`);
+              // Link lead to conversation
+              await supabase.from('wapi_conversations').update({
+                lead_id: newLead.id,
+                contact_name: leadName,
+              }).eq('id', conv.id);
+            } else if (leadErr) {
+              console.error('[Bot] Error creating client return lead:', leadErr);
+            }
+          } catch (leadCreateErr) {
+            console.error('[Bot] Exception creating client return lead:', leadCreateErr);
+          }
           
           // Create notifications for users with permission for this unit (scoped to company)
           try {
@@ -2190,7 +2220,8 @@ async function processBotQualification(
                 conversation_id: conv.id,
                 contact_name: updated.nome || contactName || contactPhone,
                 contact_phone: contactPhone,
-                unit: instance.unit || 'Unknown'
+                unit: instance.unit || 'Unknown',
+                lead_id: newLeadId,
               },
               read: false
             }));
@@ -2203,7 +2234,7 @@ async function processBotQualification(
             console.error('[Bot] Error creating client notifications:', notifErr);
           }
           
-          console.log(`[Bot] Conversation transferred. Bot disabled. No lead created.`);
+          console.log(`[Bot] Conversation transferred. Bot disabled. Lead created with status cliente_retorno.`);
           return; // Exit early - don't continue with normal flow
         }
         // Check if wants to work here (option 3)

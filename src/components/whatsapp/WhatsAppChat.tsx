@@ -481,6 +481,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         fechado: 'Fechado',
         perdido: 'Perdido',
         fornecedor: 'Fornecedor',
+        cliente_retorno: 'Cliente Retorno',
       };
 
       await supabase.from("notifications").insert({
@@ -1648,6 +1649,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         fechado: 'Fechado',
         perdido: 'Perdido',
         fornecedor: 'Fornecedor',
+        cliente_retorno: 'Cliente Retorno',
       };
 
       supabase.from('lead_history').insert({
@@ -3295,6 +3297,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                 transferido: 'Transf.',
                                 trabalhe_conosco: 'Trab.',
                                 fornecedor: 'Fornec.',
+                                cliente_retorno: 'Retorno',
                               } as Record<string, string>)[linkedLead.status] ?? linkedLead.status}
                             </Badge>
                           </div>
@@ -3346,9 +3349,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                             orcamento_enviado: 'Orçamento Enviado',
                             aguardando_resposta: 'Negociando',
                             fechado: 'Fechado',
-                            perdido: 'Perdido',
-                            fornecedor: 'Fornecedor',
-                          };
+            perdido: 'Perdido',
+            fornecedor: 'Fornecedor',
+            cliente_retorno: 'Cliente Retorno',
+          };
                           
                           const { error } = await supabase
                             .from('campaign_leads')
@@ -3469,6 +3473,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                           { value: 'perdido', label: 'Perdido', color: 'bg-red-500', textColor: 'text-red-700', bgActive: 'bg-red-500/15' },
                           { value: 'transferido', label: 'Transf.', color: 'bg-cyan-500', textColor: 'text-cyan-700', bgActive: 'bg-cyan-500/15' },
                           { value: 'fornecedor', label: 'Fornec.', color: 'bg-indigo-500', textColor: 'text-indigo-700', bgActive: 'bg-indigo-500/15' },
+                          { value: 'cliente_retorno', label: 'Retorno', color: 'bg-pink-500', textColor: 'text-pink-700', bgActive: 'bg-pink-500/15' },
                         ].map((statusOption, index, arr) => {
                           const isActive = linkedLead.status === statusOption.value;
                           return (
@@ -3482,7 +3487,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                 )}
                                 onClick={async () => {
                                   const oldStatus = linkedLead.status;
-                                  const newStatus = statusOption.value as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido" | "trabalhe_conosco" | "transferido" | "fornecedor";
+                                  const newStatus = statusOption.value as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido" | "trabalhe_conosco" | "transferido" | "fornecedor" | "cliente_retorno";
                                   
                                   if (oldStatus === newStatus) return;
                                   
@@ -3509,6 +3514,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                     perdido: 'Perdido',
                                     transferido: 'Transferência',
                                     fornecedor: 'Fornecedor',
+                                    cliente_retorno: 'Cliente Retorno',
                                   };
                                   
                                   await supabase.from('lead_history').insert({
@@ -3553,6 +3559,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                           { value: 'perdido', label: 'Perdido', color: 'bg-red-500' },
                           { value: 'transferido', label: 'Transferência', color: 'bg-cyan-500' },
                           { value: 'fornecedor', label: 'Fornecedor', color: 'bg-indigo-500' },
+                          { value: 'cliente_retorno', label: 'Cliente Retorno', color: 'bg-pink-500' },
                         ].map((statusOption) => (
                           <Button
                             key={statusOption.value}
@@ -4367,12 +4374,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                           linkedLead.status === 'perdido' ? 'bg-red-500/20 text-red-700' :
                           linkedLead.status === 'transferido' ? 'bg-cyan-500/20 text-cyan-700' :
                           linkedLead.status === 'fornecedor' ? 'bg-indigo-500/20 text-indigo-700' :
+                          linkedLead.status === 'cliente_retorno' ? 'bg-pink-500/20 text-pink-700' :
                           'bg-muted text-muted-foreground'
                         )}>
                           {({
                             novo: 'Novo', trabalhe_conosco: 'Trab.', em_contato: 'Visita',
                             orcamento_enviado: 'Orçamento', aguardando_resposta: 'Negoc.',
-                            fechado: 'Fechado', perdido: 'Perdido', transferido: 'Transf.', fornecedor: 'Fornec.'
+                            fechado: 'Fechado', perdido: 'Perdido', transferido: 'Transf.', fornecedor: 'Fornec.', cliente_retorno: 'Retorno'
                           } as Record<string, string>)[linkedLead.status] || linkedLead.status}
                         </span>
                       )}
@@ -4394,6 +4402,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                             { value: 'perdido', label: 'Perdido', color: 'bg-red-500' },
                             { value: 'transferido', label: 'Transf.', color: 'bg-cyan-500' },
                             { value: 'fornecedor', label: 'Fornec.', color: 'bg-indigo-500' },
+                            { value: 'cliente_retorno', label: 'Retorno', color: 'bg-pink-500' },
                           ].map((statusOption) => (
                             <Button
                               key={statusOption.value}
@@ -4405,7 +4414,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                               )}
                               onClick={async () => {
                                 const oldStatus = linkedLead.status;
-                                const newStatus = statusOption.value as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido" | "trabalhe_conosco" | "transferido" | "fornecedor";
+                                const newStatus = statusOption.value as "novo" | "em_contato" | "orcamento_enviado" | "aguardando_resposta" | "fechado" | "perdido" | "trabalhe_conosco" | "transferido" | "fornecedor" | "cliente_retorno";
                                 
                                 if (oldStatus === newStatus) return;
                                 
@@ -4433,6 +4442,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                   perdido: 'Perdido',
                                   transferido: 'Transferência',
                                   fornecedor: 'Fornecedor',
+                                  cliente_retorno: 'Cliente Retorno',
                                 };
                                 
                                 await supabase.from('lead_history').insert({
@@ -4468,6 +4478,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                             { value: 'perdido', label: 'Perdido', color: 'bg-red-500' },
                             { value: 'transferido', label: 'Transf.', color: 'bg-cyan-500' },
                             { value: 'fornecedor', label: 'Fornec.', color: 'bg-indigo-500' },
+                            { value: 'cliente_retorno', label: 'Retorno', color: 'bg-pink-500' },
                           ].map((statusOption) => (
                             <Button
                               key={statusOption.value}

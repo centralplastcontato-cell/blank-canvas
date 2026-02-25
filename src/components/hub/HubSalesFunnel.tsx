@@ -61,6 +61,7 @@ export function HubSalesFunnel({ leads }: HubSalesFunnelProps) {
         })}
         <div className="pt-2 border-t flex items-center justify-between text-xs text-muted-foreground">
           <span>Perdidos: {leads.filter(l => l.status === "perdido").length}</span>
+          <span>Retorno: {leads.filter(l => l.status === "cliente_retorno").length}</span>
           <span>Transferidos: {leads.filter(l => l.status === "transferido").length}</span>
         </div>
       </CardContent>
