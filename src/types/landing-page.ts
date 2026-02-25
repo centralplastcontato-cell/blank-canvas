@@ -4,6 +4,31 @@ export interface LPHero {
   cta_text: string;
   background_image_url: string | null;
   background_images?: string[];
+  secondary_cta_text?: string;
+  secondary_cta_url?: string;
+}
+
+export interface LPSocialProofItem {
+  value: string;
+  label: string;
+}
+
+export interface LPSocialProof {
+  enabled: boolean;
+  items: LPSocialProofItem[];
+  text: string;
+}
+
+export interface LPHowItWorksStep {
+  title: string;
+  description: string;
+  icon: string;
+}
+
+export interface LPHowItWorks {
+  enabled: boolean;
+  title: string;
+  steps: LPHowItWorksStep[];
 }
 
 export interface LPVideoUnit {

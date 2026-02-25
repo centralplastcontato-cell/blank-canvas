@@ -478,9 +478,11 @@ export type Database = {
           footer: Json
           gallery: Json
           hero: Json
+          how_it_works: Json | null
           id: string
           is_published: boolean
           offer: Json
+          social_proof: Json | null
           testimonials: Json
           theme: Json
           updated_at: string
@@ -493,9 +495,11 @@ export type Database = {
           footer?: Json
           gallery?: Json
           hero?: Json
+          how_it_works?: Json | null
           id?: string
           is_published?: boolean
           offer?: Json
+          social_proof?: Json | null
           testimonials?: Json
           theme?: Json
           updated_at?: string
@@ -508,9 +512,11 @@ export type Database = {
           footer?: Json
           gallery?: Json
           hero?: Json
+          how_it_works?: Json | null
           id?: string
           is_published?: boolean
           offer?: Json
+          social_proof?: Json | null
           testimonials?: Json
           theme?: Json
           updated_at?: string
@@ -3319,7 +3325,9 @@ export type Database = {
           footer: Json
           gallery: Json
           hero: Json
+          how_it_works: Json
           offer: Json
+          social_proof: Json
           testimonials: Json
           theme: Json
           video: Json
@@ -3336,7 +3344,9 @@ export type Database = {
           footer: Json
           gallery: Json
           hero: Json
+          how_it_works: Json
           offer: Json
+          social_proof: Json
           testimonials: Json
           theme: Json
           video: Json

@@ -4,15 +4,17 @@ import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 import { DLPHero } from "@/components/dynamic-lp/DLPHero";
+import { DLPSocialProof } from "@/components/dynamic-lp/DLPSocialProof";
 import { DLPBenefits } from "@/components/dynamic-lp/DLPBenefits";
 import { DLPTestimonials } from "@/components/dynamic-lp/DLPTestimonials";
 import { DLPVideo } from "@/components/dynamic-lp/DLPVideo";
 import { DLPGallery } from "@/components/dynamic-lp/DLPGallery";
 import { DLPOffer } from "@/components/dynamic-lp/DLPOffer";
+import { DLPHowItWorks } from "@/components/dynamic-lp/DLPHowItWorks";
 import { DLPFooter } from "@/components/dynamic-lp/DLPFooter";
 import { DLPFloatingCTA } from "@/components/dynamic-lp/DLPFloatingCTA";
 import { LeadChatbot } from "@/components/landing/LeadChatbot";
-import type { LPHero, LPVideo, LPGallery, LPTestimonials, LPOffer, LPTheme, LPFooter, LPBenefits } from "@/types/landing-page";
+import type { LPHero, LPVideo, LPGallery, LPTestimonials, LPOffer, LPTheme, LPFooter, LPBenefits, LPSocialProof, LPHowItWorks } from "@/types/landing-page";
 
 interface LPBotConfig {
   welcome_message?: string;
@@ -45,6 +47,8 @@ interface LPData {
   benefits: LPBenefits;
   theme: LPTheme;
   footer: LPFooter;
+  social_proof: LPSocialProof;
+  how_it_works: LPHowItWorks;
   lpBotConfig: LPBotConfig | null;
 }
 
@@ -79,7 +83,6 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
       } else {
         const row = Array.isArray(result.data) ? result.data[0] : result.data;
         const companyId = row.company_id;
-        // Fetch WhatsApp from onboarding
         let whatsapp: string | null = null;
         const [{ data: onb }, { data: botSettings }] = await Promise.all([
           supabase
@@ -113,6 +116,9 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
           redirect_completion_message: (botSettings as any).redirect_completion_message || null,
         } : null;
 
+        const defaultSocialProof: LPSocialProof = { enabled: false, items: [], text: "" };
+        const defaultHowItWorks: LPHowItWorks = { enabled: false, title: "", steps: [] };
+
         setData({
           company_id: companyId,
           multipleUnits: onb?.multiple_units === true,
@@ -129,6 +135,8 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
           benefits: row.benefits as unknown as LPBenefits || { enabled: true, title: "", subtitle: "", items: [], trust_badges: [] },
           theme: row.theme as unknown as LPTheme,
           footer: row.footer as unknown as LPFooter,
+          social_proof: (row as any).social_proof as LPSocialProof || defaultSocialProof,
+          how_it_works: (row as any).how_it_works as LPHowItWorks || defaultHowItWorks,
           lpBotConfig,
         });
       }
@@ -185,7 +193,7 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
         {data.company_logo && <meta name="twitter:image" content={data.company_logo} />}
       </Helmet>
 
-      {/* Section order: Hero → Benefits → Testimonials → Video → Gallery → Offer → Footer */}
+      {/* Section order: Hero → Social Proof → Benefits → Gallery → Video → How It Works → Testimonials → Offer → Footer */}
       <DLPHero
         hero={data.hero}
         theme={data.theme}
@@ -194,10 +202,12 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
         onCtaClick={openChat}
         multipleUnits={data.multipleUnits}
       />
+      <DLPSocialProof socialProof={data.social_proof} theme={data.theme} />
       <DLPBenefits theme={data.theme} companyName={data.company_name} benefits={data.benefits} />
-      <DLPTestimonials testimonials={data.testimonials} theme={data.theme} />
-      <DLPVideo video={data.video} theme={data.theme} companyName={data.company_name} />
       <DLPGallery gallery={data.gallery} theme={data.theme} companyName={data.company_name} />
+      <DLPVideo video={data.video} theme={data.theme} companyName={data.company_name} />
+      <DLPHowItWorks howItWorks={data.how_it_works} theme={data.theme} />
+      <DLPTestimonials testimonials={data.testimonials} theme={data.theme} />
       <DLPOffer offer={data.offer} theme={data.theme} onCtaClick={openChat} />
       <DLPFooter footer={data.footer} theme={data.theme} companyName={data.company_name} companyLogo={data.company_logo} instagramHandle={data.company_instagram} whatsappNumber={data.company_whatsapp} />
 
