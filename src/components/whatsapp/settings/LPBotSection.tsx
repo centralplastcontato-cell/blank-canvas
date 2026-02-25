@@ -86,7 +86,7 @@ export function LPBotSection() {
         guest_limit_redirect_name: data.guest_limit_redirect_name,
         redirect_completion_message: (data as any).redirect_completion_message || null,
         auto_rotate_months: (data as any).auto_rotate_months ?? false,
-        whatsapp_welcome_template: (data as any).whatsapp_welcome_template || null,
+        whatsapp_welcome_template: (data as any).whatsapp_welcome_template || DEFAULTS.whatsapp_welcome_template,
       });
     } else {
       setSettings({
