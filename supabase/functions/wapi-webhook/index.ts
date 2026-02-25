@@ -2714,6 +2714,21 @@ async function sendQualificationMaterials(
   
   // Promo video is now controlled solely by the auto_send_promo_video flag
   
+  // Normalize Supabase Storage URLs to use the render/image endpoint
+  // which automatically applies EXIF orientation (fixes rotated photos)
+  const normalizeImageUrl = (url: string): string => {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    if (!supabaseUrl || !url.includes(supabaseUrl)) return url;
+    // Already using render endpoint
+    if (url.includes('/render/image/')) return url;
+    // Convert /storage/v1/object/public/... to /storage/v1/render/image/public/...
+    const transformed = url.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/');
+    if (transformed === url) return url;
+    // Add width param to trigger transformation (keeps aspect ratio)
+    const separator = transformed.includes('?') ? '&' : '?';
+    return `${transformed}${separator}width=1200&quality=85`;
+  };
+
   // Helper to send via W-API
   const sendImage = async (url: string, caption: string) => {
     try {
@@ -2814,7 +2829,8 @@ async function sendQualificationMaterials(
       
       // Send photos sequentially with delay to avoid W-API rate limits
       for (let i = 0; i < photos.length; i++) {
-        const msgId = await sendImage(photos[i], '');
+        const normalizedUrl = normalizeImageUrl(photos[i]);
+        const msgId = await sendImage(normalizedUrl, '');
         if (msgId) await saveMessage(msgId, 'image', '📷', photos[i]);
         if (i < photos.length - 1) {
           await new Promise(r => setTimeout(r, 800));
