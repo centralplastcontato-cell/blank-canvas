@@ -1799,9 +1799,6 @@ async function processBotQualification(
   conv: { id: string; remote_jid: string; bot_enabled: boolean | null; bot_step: string | null; bot_data: Record<string, unknown> | null; lead_id: string | null },
   content: string, contactPhone: string, contactName: string | null
 ) {
-  const settings = await getBotSettings(supabase, instance.id);
-  if (!settings) return;
-
   // ── SANDBOX: número-piloto sempre vai para o Flow Builder V2 ─────
   const PILOT_PHONE = '15981121710';
   const cleanPhoneCheck = contactPhone.replace(/\D/g, '').replace(/^55/, '');
@@ -1812,6 +1809,9 @@ async function processBotQualification(
     return;
   }
   // ─────────────────────────────────────────────────────────────────
+
+  const settings = await getBotSettings(supabase, instance.id);
+  if (!settings) return;
 
   // ── Test mode guard (applies to ALL bot modes including Flow Builder) ──
   const n = normalizePhone(contactPhone);
