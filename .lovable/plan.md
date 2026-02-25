@@ -1,74 +1,57 @@
 
-Objetivo: corrigir definitivamente o placeholder `{{empresa}}` para aparecer como **Planeta Divertido** quando a resposta vier pelo fluxo de recuperação (`stuck_bot_recovery`), que foi exatamente o caminho usado na sua conversa.
+# Corrigir lentidao do bot - Planeta Divertido
 
-Diagnóstico confirmado
-- A mensagem que chegou com `{{empresa}}` literal foi enviada pelo **follow-up-check** (metadata `source: "stuck_bot_recovery"`), não pelo fluxo principal do `wapi-webhook`.
-- No `follow-up-check`, o passo `welcome` monta a mensagem assim:
-  - `welcomeMsg = settings.welcome_message + firstQuestion`
-  - sem aplicar replace de variáveis no `welcome_message`.
-- Além disso, o helper `recoveryReplaceVariables` hoje só substitui `{chave}` (chave simples), não `{{chave}}` (chave dupla).
-- E o fluxo de recovery não injeta aliases de empresa (`empresa`, `buffet`, `nome_empresa`, `nome-empresa`) antes de renderizar templates.
-- Resultado: quando recovery dispara, `{{empresa}}` permanece bruto.
+## Problema identificado
 
-Plano de implementação
-1) Corrigir interpolação no `follow-up-check` (ponto principal)
-- Arquivo: `supabase/functions/follow-up-check/index.ts`
-- Ajustar `recoveryReplaceVariables` para:
-  - suportar `{{key}}` e `{key}`;
-  - aceitar espaços internos (`{{ empresa }}` também funcionar);
-  - escapar chave no regex para evitar edge-cases.
-- Isso padroniza comportamento com o webhook principal.
+O bot demora ~4 minutos para responder porque a mensagem nao esta sendo processada pelo webhook principal. O que acontece:
 
-2) Injetar variáveis de empresa no recovery
-- No `processStuckBotRecovery`, antes de compor mensagens:
-  - buscar `companies.name` via `instance.company_id`;
-  - adicionar ao mapa de variáveis:
-    - `empresa`
-    - `buffet`
-    - `nome_empresa`
-    - `nome-empresa`
-- Assim qualquer template com esses placeholders renderiza corretamente no recovery.
+1. Mensagem chega no `wapi-webhook`
+2. O numero piloto (`15981121710`) e detectado e forcado para o **Flow Builder** (sandbox bypass na linha 1806)
+3. O Flow Builder busca um `conversation_flows` para a empresa Planeta Divertido
+4. **Nao existe nenhum fluxo cadastrado** para essa empresa - processamento para silenciosamente
+5. O `follow-up-check` detecta a conversa "presa" 2-4 minutos depois e envia a resposta pelo **recovery**
 
-3) Aplicar replace também no welcome do recovery
-- No bloco `if (step === 'welcome')`, trocar construção de mensagem para:
-  - renderizar `settings.welcome_message` com `recoveryReplaceVariables(...)`;
-  - depois concatenar primeira pergunta.
-- Isso elimina o bug específico que você reportou.
+Alem disso, o `bot_enabled` voltou a `false` e o `use_flow_builder` esta `false`, confirmando que essa instancia usa o fluxo de qualificacao **legado** (nao Flow Builder).
 
-4) Blindagem opcional para não duplicar pergunta inicial
-- Se o `welcome_message` já contém a pergunta de nome, evitar anexar a pergunta padrão de novo.
-- Implementação simples:
-  - checar por marcador semântico (ex.: “qual é o seu nome”);
-  - se já existir, não concatenar `firstQ.question`.
-- Não bloqueia a correção principal, mas melhora UX imediata (na sua captura já apareceu duplicado).
+## Solucao
 
-5) Ajuste de consistência de configuração (DB)
-- Estado atual encontrado: `wapi_bot_settings` da instância está com `company_id = null` e `bot_enabled = false`.
-- Mesmo em modo teste funcionando, isso é inconsistente e pode gerar comportamento imprevisível.
-- Aplicar update para:
-  - `company_id = '6bc204ae-1311-4c67-bb6b-9ab55dae9d11'`
-  - `bot_enabled = true`
-- Mantém o vínculo correto da configuração com Planeta Divertido.
+### 1. Remover o PILOT_PHONE sandbox do webhook
 
-Validação após implementação
-- Teste principal (E2E):
-  1. Enviar “Olá” do número de teste.
-  2. Confirmar que a resposta vem com “Planeta Divertido” no lugar de `{{empresa}}`.
-  3. Confirmar que a mensagem foi salva em `wapi_messages` sem placeholder.
-- Teste recovery:
-  1. Simular conversa “presa” para acionar `stuck_bot_recovery`.
-  2. Confirmar que no recovery também substitui `{{empresa}}`.
-- Verificação de banco:
-  - `wapi_bot_settings` com `company_id` correto e `bot_enabled = true`.
-- Verificação de logs:
-  - sem placeholders brutos enviados.
+O bypass do numero piloto foi criado para testes internos de outra empresa, mas esta interferindo no funcionamento de todas as instancias. A solucao e condicionar o bypass apenas quando a empresa realmente tem um fluxo V2 configurado. Se nao tiver, deixar seguir o fluxo normal.
 
-Riscos e mitigação
-- Risco: alterar regex e afetar variáveis antigas.
-  - Mitigação: manter compatibilidade com `{chave}` e apenas expandir para `{{chave}}`.
-- Risco: empresa não encontrada por algum dado legado.
-  - Mitigação: fallback seguro para string vazia e log explícito.
+**Arquivo**: `supabase/functions/wapi-webhook/index.ts`
 
-Resultado esperado
-- Em qualquer caminho (webhook normal ou recovery), a variável `{{empresa}}` passa a renderizar corretamente como **Planeta Divertido**.
-- A resposta deixa de exibir placeholder bruto e o fluxo fica consistente entre funções.
+- Na funcao `processBotQualification` (linha ~1802): em vez de forcar o Flow Builder incondicionalmente para o PILOT_PHONE, verificar primeiro se existe um fluxo para a empresa. Se nao existir, continuar o processamento normal (bot legado).
+- Alterar de:
+  ```
+  if (isPilotPhone) {
+    processFlowBuilderMessage(...);
+    return;  // <-- para aqui mesmo sem fluxo
+  }
+  ```
+  Para:
+  ```
+  if (isPilotPhone) {
+    // Verificar se existe fluxo antes de forcar
+    const hasFlow = await checkCompanyHasFlow(supabase, instance.company_id);
+    if (hasFlow) {
+      processFlowBuilderMessage(...);
+      return;
+    }
+    // Se nao tem fluxo, continuar no bot legado
+  }
+  ```
+
+### 2. Corrigir bot_enabled via migracao
+
+Atualizar `wapi_bot_settings` para manter `bot_enabled = true` para a instancia da Planeta Divertido, evitando que o bot pare de funcionar.
+
+### 3. Resetar conversa de teste
+
+Resetar a conversa para o passo `welcome` com `bot_data` limpo para testar do zero.
+
+## Resultado esperado
+
+- Mensagem "Ola" processada instantaneamente pelo webhook (< 2 segundos)
+- Sem depender do recovery do follow-up-check
+- Resposta com "Planeta Divertido" substituido corretamente
