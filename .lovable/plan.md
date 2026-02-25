@@ -1,44 +1,122 @@
 
 
-## Corrigir carregamento lento do modulo Inteligencia
+## LP Aventura Kids -- Implementacao via DLP
 
-### Problema
-A pagina de Inteligencia exibe uma tela em branco por varios segundos antes de mostrar qualquer conteudo. Isso acontece por causa de uma cascata de chamadas assincronas sequenciais e pela falta de feedback visual durante o carregamento.
+### Resumo
 
-### Causas identificadas
+Criar a Landing Page da Aventura Kids utilizando a infraestrutura DLP existente. O chatbot (LeadChatbot) permanece intacto -- ele ja recebe `companyId`, `companyName`, `companyLogo` e `lpBotConfig` automaticamente. Precisamos criar **2 novos componentes genericos** (Social Proof e Como Funciona), ajustar o Hero para suportar botao secundario WhatsApp, e inserir os dados JSONB no banco.
 
-1. **Tela em branco quando a empresa ainda nao carregou**: O hook `useDailySummary` retorna silenciosamente quando `currentCompany` e `null`, sem ativar nenhum estado de loading. Resultado: a tela fica completamente vazia.
+### O que NAO muda
 
-2. **Cascata de chamadas sequenciais**: Primeiro o `CompanyContext` carrega (auth + queries), depois a pagina `Inteligencia` faz sua propria verificacao de auth (4 queries), e so entao o `ResumoDiarioTab` chama a Edge Function `daily-summary` que faz mais 5+ queries.
+- **LeadChatbot**: continua identico, recebendo logo e nome da empresa via props
+- **Roteamento**: `aventurakids.online` ja esta mapeado em `useDomainDetection.ts`
+- **RPCs**: `get_landing_page_by_domain` ja funciona
 
-3. **Sem skeleton no ResumoDiarioTab enquanto a empresa carrega**: O componente nao verifica o `isLoading` do contexto da empresa.
+### Novos componentes
 
-### Solucao
+#### 1. `src/components/dynamic-lp/DLPSocialProof.tsx`
+Secao de prova social com contadores animados e texto de credibilidade.
 
-#### 1. Mostrar skeleton imediatamente no ResumoDiarioTab
-- Verificar `CompanyContext.isLoading` no componente e mostrar skeleton enquanto a empresa carrega
-- Isso elimina a tela em branco
+- Recebe novo tipo `LPSocialProof` com `enabled`, `items: { value, label }[]`, `text`
+- Visual: numeros grandes animados ao entrar na viewport, cards com sombra suave
+- Fundo branco com leve contraste azul (via theme)
+- Dados: "+300 festas realizadas", "+2.500 familias atendidas", "Experiencia e dedicacao em cada detalhe"
 
-#### 2. Iniciar loading automaticamente no useDailySummary
-- Iniciar `isLoading=true` por padrao (em vez de `false`) para que o skeleton apareca desde o primeiro render
-- Quando `currentCompany` ainda nao esta disponivel, manter o estado de loading ativo
+#### 2. `src/components/dynamic-lp/DLPHowItWorks.tsx`
+Secao "Como Funciona" com 4 passos visuais numerados.
 
-#### 3. Mostrar skeleton na pagina Inteligencia durante carregamento de permissoes
-- Adicionar skeleton no componente pai enquanto `permLoading` e `CompanyContext.isLoading` estao ativos
+- Recebe novo tipo `LPHowItWorks` com `enabled`, `title`, `steps: { title, description, icon }[]`
+- Visual: cards numerados (1-4) com icones Lucide, linha conectora sutil
+- Layout: 2 colunas mobile, 4 colunas desktop
+- Dados: "Escolha a data", "Defina o pacote ideal", "Personalize o tema", "Aproveite a festa"
 
-### Detalhes tecnicos
+### Ajustes em componentes existentes
 
-**Arquivo: `src/hooks/useDailySummary.ts`**
-- Mudar `useState(false)` para `useState(true)` no `isLoading` inicial
-- Quando `currentCompany?.id` nao esta disponivel, nao resetar `isLoading` para `false` prematuramente
+#### `src/components/dynamic-lp/DLPHero.tsx`
+- Adicionar suporte a `hero.secondary_cta_text` e `hero.secondary_cta_url`
+- Renderizar botao secundario com estilo WhatsApp (verde, icone MessageCircle) abaixo do CTA principal
+- Se `secondary_cta_url` existir, abre link direto; senao, chama `onCtaClick`
 
-**Arquivo: `src/components/inteligencia/ResumoDiarioTab.tsx`**
-- Importar `useCompany` e verificar `isLoading` do contexto
-- Mostrar skeleton quando `companyIsLoading || (isLoading && !data)`
+### Tipos (`src/types/landing-page.ts`)
 
-**Arquivo: `src/pages/Inteligencia.tsx`**
-- Verificar `CompanyContext.isLoading` e mostrar skeleton geral enquanto carrega
+Adicionar:
 
-### Resultado esperado
-O usuario vera skeletons animados imediatamente ao abrir a pagina, em vez de uma tela completamente em branco. A percepcao de velocidade melhora significativamente mesmo que o tempo total de carregamento seja o mesmo.
+```text
+LPSocialProof {
+  enabled: boolean
+  items: { value: string; label: string }[]
+  text: string
+}
 
+LPHowItWorks {
+  enabled: boolean
+  title: string
+  steps: { title: string; description: string; icon: string }[]
+}
+```
+
+Estender `LPHero` com campos opcionais: `secondary_cta_text`, `secondary_cta_url`.
+
+### Pagina `DynamicLandingPage.tsx`
+
+- Importar e renderizar `DLPSocialProof` e `DLPHowItWorks`
+- Adicionar campos `social_proof` e `how_it_works` ao tipo `LPData`
+- Parsear esses campos do JSONB retornado pela RPC (com fallback seguro `{ enabled: false }`)
+- Nova ordem das secoes:
+  1. Hero
+  2. Social Proof (novo)
+  3. Benefits (Diferenciais)
+  4. Gallery (Nosso Espaco + Galeria de Momentos)
+  5. Video
+  6. How It Works (novo)
+  7. Testimonials
+  8. Offer (CTA Final)
+  9. Footer
+
+### Migracao SQL
+
+#### 1. Adicionar colunas na tabela `company_landing_pages`
+
+```text
+ALTER TABLE company_landing_pages
+ADD COLUMN IF NOT EXISTS social_proof jsonb DEFAULT '{"enabled": false, "items": [], "text": ""}'::jsonb,
+ADD COLUMN IF NOT EXISTS how_it_works jsonb DEFAULT '{"enabled": false, "title": "", "steps": []}'::jsonb;
+```
+
+#### 2. Atualizar RPCs para retornar os novos campos
+
+Recriar `get_landing_page_by_slug` e `get_landing_page_by_domain` incluindo `social_proof` e `how_it_works` no SELECT e no RETURNS TABLE.
+
+#### 3. Inserir dados da Aventura Kids
+
+Configurar `domain_canonical` na tabela `companies` e inserir registro em `company_landing_pages` com:
+
+- **Hero**: titulo "Transformamos cada celebracao em uma aventura inesquecivel", subtitulo com Sao Gotardo/MG, CTA "Solicitar Orcamento Agora", botao secundario WhatsApp, imagem de fundo da primeira foto do onboarding
+- **Social Proof**: +300 festas, +2.500 familias, texto de credibilidade
+- **Benefits**: 6 diferenciais (atendimento rapido, espaco seguro, equipe preparada, organizacao profissional, pacotes personalizaveis, cardapio completo)
+- **Gallery**: 10 fotos do onboarding distribuidas
+- **Video**: 1 video do onboarding com poster da logo
+- **How It Works**: 4 passos (escolha data, defina pacote, personalize tema, aproveite festa)
+- **Testimonials**: desabilitado inicialmente (sem depoimentos reais ainda)
+- **Offer**: CTA final "Garanta sua data antes que ela seja reservada"
+- **Theme**: fundo branco (#FFFFFF), primary azul (#4A90D9), secondary verde WhatsApp (#25D366), texto escuro (#1a1a2e), fontes Nunito/Fredoka, button_style pill
+- **Footer**: nome completo, cidade, WhatsApp, Instagram
+
+#### 4. Criar `lp_bot_settings` para Aventura Kids
+
+Inserir configuracao do bot com mensagens personalizadas para o nome "Aventura Kids", opcoes de meses e convidados adaptadas.
+
+### Arquivos a criar/modificar
+
+| Arquivo | Acao |
+|---|---|
+| `src/components/dynamic-lp/DLPSocialProof.tsx` | Criar |
+| `src/components/dynamic-lp/DLPHowItWorks.tsx` | Criar |
+| `src/types/landing-page.ts` | Adicionar tipos |
+| `src/pages/DynamicLandingPage.tsx` | Adicionar secoes e parsear novos campos |
+| `src/components/dynamic-lp/DLPHero.tsx` | Botao secundario WhatsApp |
+| Nova migracao SQL | Colunas + RPCs + seed dados |
+
+### Resultado
+
+Ao acessar `aventurakids.online`, a LP sera renderizada com visual clean (fundo branco, azul/verde), todas as 8 secoes do prompt, fotos e video reais do onboarding, chatbot funcional com logo da Aventura Kids, e qualificacao de leads integrada a plataforma.
