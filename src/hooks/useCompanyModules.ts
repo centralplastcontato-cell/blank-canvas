@@ -16,6 +16,7 @@ export interface CompanyModules {
   inteligencia: boolean;
   agenda: boolean;
   operacoes: boolean;
+  bot_festa: boolean;
 }
 
 export interface PartyControlModules {
@@ -92,6 +93,7 @@ const DEFAULT_MODULES: CompanyModules = {
   inteligencia: false,
   agenda: false,
   operacoes: true,
+  bot_festa: false,
 };
 
 export function parseModules(settings: Json | null | undefined): CompanyModules {
@@ -119,6 +121,7 @@ export function parseModules(settings: Json | null | undefined): CompanyModules 
     inteligencia: modules.inteligencia === true,
     agenda: modules.agenda === true,
     operacoes: modules.operacoes !== false,
+    bot_festa: modules.bot_festa === true,
   };
 }
 
@@ -142,4 +145,5 @@ export const MODULE_LABELS: Record<keyof CompanyModules, { label: string; descri
   inteligencia: { label: 'Inteligência', description: 'Score de leads, priorização e análise de funil' },
   agenda: { label: 'Agenda', description: 'Calendário de festas e eventos' },
   operacoes: { label: 'Operações', description: 'Formulários, checklists, pacotes e freelancers' },
+  bot_festa: { label: 'Bot Festa', description: 'Mensagens automáticas para convidados em festas' },
 };

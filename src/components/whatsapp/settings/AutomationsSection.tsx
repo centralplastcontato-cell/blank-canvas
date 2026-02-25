@@ -546,10 +546,12 @@ export function AutomationsSection() {
             <Shield className="w-3.5 h-3.5" />
             <span>VIP</span>
           </TabsTrigger>
-          <TabsTrigger value="festa" className="flex items-center gap-1.5 text-xs sm:text-sm">
-            <Send className="w-3.5 h-3.5" />
-            <span>Bot Festa</span>
-          </TabsTrigger>
+          {modules.bot_festa && (
+            <TabsTrigger value="festa" className="flex items-center gap-1.5 text-xs sm:text-sm">
+              <Send className="w-3.5 h-3.5" />
+              <span>Bot Festa</span>
+            </TabsTrigger>
+          )}
           <TabsTrigger value="jornada" className="flex items-center gap-1.5 text-xs sm:text-sm">
             <Map className="w-3.5 h-3.5" />
             <span>Jornada</span>
@@ -1988,9 +1990,11 @@ export function AutomationsSection() {
         </TabsContent>
 
         {/* ============ TAB: BOT FESTA ============ */}
-        <TabsContent value="festa" className="mt-4">
-          <PartyBotMessagesCard />
-        </TabsContent>
+        {modules.bot_festa && (
+          <TabsContent value="festa" className="mt-4">
+            <PartyBotMessagesCard />
+          </TabsContent>
+        )}
 
         {/* ============ TAB: FLUXOS ============ */}
         {modules.flow_builder && (
