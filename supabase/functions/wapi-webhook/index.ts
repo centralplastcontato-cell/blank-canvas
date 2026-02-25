@@ -1804,9 +1804,19 @@ async function processBotQualification(
   const cleanPhoneCheck = contactPhone.replace(/\D/g, '').replace(/^55/, '');
   const isPilotPhone = cleanPhoneCheck === PILOT_PHONE || contactPhone.replace(/\D/g, '').endsWith(PILOT_PHONE);
   if (isPilotPhone) {
-    console.log(`[Bot] 🧪 SANDBOX: número-piloto (${contactPhone}) → forçando Flow Builder V2`);
-    await processFlowBuilderMessage(supabase, instance, conv, content, contactPhone, contactName);
-    return;
+    // Only force Flow Builder if the company actually has an active flow
+    const { data: pilotFlows } = await supabase
+      .from('conversation_flows')
+      .select('id')
+      .eq('company_id', instance.company_id)
+      .eq('is_active', true)
+      .limit(1);
+    if (pilotFlows && pilotFlows.length > 0) {
+      console.log(`[Bot] 🧪 SANDBOX: número-piloto (${contactPhone}) → forçando Flow Builder V2`);
+      await processFlowBuilderMessage(supabase, instance, conv, content, contactPhone, contactName);
+      return;
+    }
+    console.log(`[Bot] 🧪 SANDBOX: número-piloto (${contactPhone}) → sem fluxo ativo, seguindo bot legado`);
   }
   // ─────────────────────────────────────────────────────────────────
 
