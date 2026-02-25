@@ -388,7 +388,7 @@ export default function Inteligencia() {
                 {isLoading || isLoadingUnitPerms || permLoading ? (
                   <LoadingSkeleton />
                 ) : (
-                  <FollowUpsTab intelligenceData={filteredData} />
+                  <FollowUpsTab intelligenceData={filteredData} selectedUnit={selectedUnit} />
                 )}
               </TabsContent>
 

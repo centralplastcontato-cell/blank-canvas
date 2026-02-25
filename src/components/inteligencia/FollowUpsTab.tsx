@@ -21,11 +21,18 @@ interface FollowUpLead {
   temperature: string;
   status: string;
   lastCustomerMessageAt: string | null;
-  fuNumber: number; // 1-4
+  fuNumber: number;
+  instanceUnit: string | null;
 }
 
 interface FollowUpsTabProps {
   intelligenceData: LeadIntelligence[];
+  selectedUnit?: string;
+}
+
+interface InstanceDelays {
+  unit: string;
+  delays: Record<number, number>;
 }
 
 const COLUMN_CONFIG = [
@@ -40,12 +47,17 @@ function timeAgo(date: string | null) {
   return formatDistanceToNow(new Date(date), { addSuffix: true, locale: ptBR });
 }
 
-export function FollowUpsTab({ intelligenceData }: FollowUpsTabProps) {
+function formatDelayLabel(hours: number): string {
+  if (hours >= 24 && hours % 24 === 0) return `${hours / 24}d`;
+  return `${hours}h`;
+}
+
+export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabProps) {
   const navigate = useNavigate();
   const { currentCompany } = useCompany();
   const [isLoading, setIsLoading] = useState(true);
   const [followUpLeads, setFollowUpLeads] = useState<FollowUpLead[]>([]);
-  const [delayLabels, setDelayLabels] = useState<Record<number, string>>({ 1: "24h", 2: "48h", 3: "72h", 4: "96h" });
+  const [instanceDelaysMap, setInstanceDelaysMap] = useState<Map<string, InstanceDelays>>(new Map());
 
   useEffect(() => {
     if (!currentCompany?.id) return;
@@ -57,22 +69,41 @@ export function FollowUpsTab({ intelligenceData }: FollowUpsTabProps) {
     setIsLoading(true);
 
     try {
-      // Fetch bot settings for delay labels
-      const { data: botSettings } = await supabase
+      // Fetch ALL bot settings + instances for this company
+      const { data: allSettings } = await supabase
         .from("wapi_bot_settings" as any)
-        .select("follow_up_delay_hours, follow_up_2_delay_hours, follow_up_3_delay_hours, follow_up_4_delay_hours")
-        .eq("company_id", currentCompany.id)
-        .limit(1)
-        .maybeSingle();
+        .select("instance_id, follow_up_delay_hours, follow_up_2_delay_hours, follow_up_3_delay_hours, follow_up_4_delay_hours")
+        .eq("company_id", currentCompany.id);
 
-      if (botSettings) {
-        setDelayLabels({
-          1: `${(botSettings as any).follow_up_delay_hours ?? 24}h`,
-          2: `${(botSettings as any).follow_up_2_delay_hours ?? 48}h`,
-          3: `${(botSettings as any).follow_up_3_delay_hours ?? 72}h`,
-          4: `${(botSettings as any).follow_up_4_delay_hours ?? 96}h`,
-        });
+      const { data: instances } = await supabase
+        .from("wapi_instances" as any)
+        .select("id, unit")
+        .eq("company_id", currentCompany.id);
+
+      // Build instance -> delays map
+      const instMap = new Map<string, string>();
+      if (instances) {
+        for (const inst of instances) {
+          instMap.set((inst as any).id, (inst as any).unit);
+        }
       }
+
+      const delaysMap = new Map<string, InstanceDelays>();
+      if (allSettings) {
+        for (const s of allSettings as any[]) {
+          const unit = instMap.get(s.instance_id) || "unknown";
+          delaysMap.set(s.instance_id, {
+            unit,
+            delays: {
+              1: s.follow_up_delay_hours ?? 24,
+              2: s.follow_up_2_delay_hours ?? 48,
+              3: s.follow_up_3_delay_hours ?? 72,
+              4: s.follow_up_4_delay_hours ?? 96,
+            },
+          });
+        }
+      }
+      setInstanceDelaysMap(delaysMap);
 
       // Fetch follow-up history events
       const followUpActions = [
@@ -95,25 +126,35 @@ export function FollowUpsTab({ intelligenceData }: FollowUpsTabProps) {
         return;
       }
 
-      // For each lead, find the highest follow-up number received
+      // For each lead, find the highest follow-up number
       const leadMaxFu = new Map<string, number>();
       for (const ev of historyEvents) {
         let fuNum = 1;
         if (ev.action.includes("#2")) fuNum = 2;
         else if (ev.action.includes("#3")) fuNum = 3;
         else if (ev.action.includes("#4")) fuNum = 4;
-
         const current = leadMaxFu.get(ev.lead_id) || 0;
         if (fuNum > current) leadMaxFu.set(ev.lead_id, fuNum);
       }
 
-      // Get lead details
       const leadIds = [...leadMaxFu.keys()];
-      const { data: leads } = await supabase
-        .from("campaign_leads")
-        .select("id, name, whatsapp, status")
-        .in("id", leadIds)
-        .not("status", "in", '("fechado","perdido")');
+      
+      // Fetch leads and their conversations (for instance_id) in parallel
+      const [leadsResult, conversationsResult] = await Promise.all([
+        supabase
+          .from("campaign_leads")
+          .select("id, name, whatsapp, status")
+          .in("id", leadIds)
+          .not("status", "in", '("fechado","perdido")'),
+        supabase
+          .from("wapi_conversations" as any)
+          .select("lead_id, instance_id")
+          .eq("company_id", currentCompany.id)
+          .in("lead_id", leadIds),
+      ]);
+
+      const leads = leadsResult.data;
+      const conversations = conversationsResult.data as any[] | null;
 
       if (!leads || leads.length === 0) {
         setFollowUpLeads([]);
@@ -121,11 +162,20 @@ export function FollowUpsTab({ intelligenceData }: FollowUpsTabProps) {
         return;
       }
 
-      // Build intelligence map
+      // Build lead -> instance_id map
+      const leadInstanceMap = new Map<string, string>();
+      if (conversations) {
+        for (const conv of conversations) {
+          leadInstanceMap.set(conv.lead_id, conv.instance_id);
+        }
+      }
+
       const intelMap = new Map(intelligenceData.map(i => [i.lead_id, i]));
 
       const result: FollowUpLead[] = leads.map(lead => {
         const intel = intelMap.get(lead.id);
+        const instanceId = leadInstanceMap.get(lead.id);
+        const instanceUnit = instanceId ? instMap.get(instanceId) || null : null;
         return {
           leadId: lead.id,
           leadName: lead.name,
@@ -135,10 +185,10 @@ export function FollowUpsTab({ intelligenceData }: FollowUpsTabProps) {
           status: lead.status,
           lastCustomerMessageAt: intel?.last_customer_message_at ?? null,
           fuNumber: leadMaxFu.get(lead.id) || 1,
+          instanceUnit,
         };
       });
 
-      // Sort by score descending within each group
       result.sort((a, b) => b.score - a.score);
       setFollowUpLeads(result);
     } catch (e) {
@@ -146,6 +196,34 @@ export function FollowUpsTab({ intelligenceData }: FollowUpsTabProps) {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  // Compute delay labels for each column based on selected unit or all instances
+  function getDelayLabel(fuNumber: number): string {
+    if (instanceDelaysMap.size === 0) {
+      return `${fuNumber * 24}h`;
+    }
+
+    // If a unit is selected, find the matching instance
+    if (selectedUnit && selectedUnit !== "all") {
+      for (const [, data] of instanceDelaysMap) {
+        if (data.unit === selectedUnit) {
+          return formatDelayLabel(data.delays[fuNumber]);
+        }
+      }
+    }
+
+    // If only one instance or all have same delay, show single value
+    const allDelays = [...instanceDelaysMap.values()].map(d => d.delays[fuNumber]);
+    const unique = [...new Set(allDelays)];
+    if (unique.length === 1) {
+      return formatDelayLabel(unique[0]);
+    }
+
+    // Multiple different delays: show range
+    const min = Math.min(...unique);
+    const max = Math.max(...unique);
+    return `${formatDelayLabel(min)}–${formatDelayLabel(max)}`;
   }
 
   if (isLoading) {
@@ -171,7 +249,7 @@ export function FollowUpsTab({ intelligenceData }: FollowUpsTabProps) {
                 </div>
                 <div className="flex flex-col">
                   <span>{col.label}</span>
-                  <span className="text-xs font-normal text-muted-foreground">({delayLabels[col.fuNumber]})</span>
+                  <span className="text-xs font-normal text-muted-foreground">({getDelayLabel(col.fuNumber)})</span>
                 </div>
                 <span className="ml-auto text-sm font-normal text-muted-foreground">
                   {columnLeads.length}
