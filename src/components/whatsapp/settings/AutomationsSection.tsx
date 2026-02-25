@@ -141,6 +141,8 @@ export function AutomationsSection() {
   const [newVipName, setNewVipName] = useState("");
   const [newVipReason, setNewVipReason] = useState("");
   const [isAddingVip, setIsAddingVip] = useState(false);
+  const [autoRotateMonths, setAutoRotateMonths] = useState(false);
+  const [isTogglingRotate, setIsTogglingRotate] = useState(false);
   const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
 
   const debouncedUpdateBotSettings = (key: string, updates: Partial<BotSettings>, delay = 1000) => {
@@ -159,8 +161,51 @@ export function AutomationsSection() {
       fetchBotSettings();
       fetchVipNumbers();
       fetchBotQuestions();
+      fetchAutoRotate();
     }
   }, [selectedInstance]);
+
+  const fetchAutoRotate = async () => {
+    if (!currentCompanyId) return;
+    const { data } = await supabase
+      .from('lp_bot_settings')
+      .select('auto_rotate_months')
+      .eq('company_id', currentCompanyId)
+      .maybeSingle();
+    setAutoRotateMonths((data as any)?.auto_rotate_months ?? false);
+  };
+
+  const toggleAutoRotate = async (checked: boolean) => {
+    if (!currentCompanyId) return;
+    setIsTogglingRotate(true);
+    setAutoRotateMonths(checked);
+
+    const { data: existing } = await supabase
+      .from('lp_bot_settings')
+      .select('id')
+      .eq('company_id', currentCompanyId)
+      .maybeSingle();
+
+    let error;
+    if (existing) {
+      ({ error } = await supabase
+        .from('lp_bot_settings')
+        .update({ auto_rotate_months: checked } as any)
+        .eq('company_id', currentCompanyId));
+    } else {
+      ({ error } = await supabase
+        .from('lp_bot_settings')
+        .insert({ company_id: currentCompanyId, auto_rotate_months: checked } as any));
+    }
+
+    if (error) {
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+      setAutoRotateMonths(!checked);
+    } else {
+      toast({ title: checked ? "Rotação ativada" : "Rotação desativada" });
+    }
+    setIsTogglingRotate(false);
+  };
 
   const fetchInstances = async () => {
     let query = supabase
@@ -886,7 +931,25 @@ export function AutomationsSection() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              {/* Auto Rotate Months Toggle */}
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <Label className="flex items-center gap-2 text-sm font-medium">
+                    <RefreshCw className="w-4 h-4" />
+                    Rotação Automática de Meses
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    No dia 1º de cada mês, remove o mês que passou e adiciona um novo mês futuro automaticamente
+                  </p>
+                </div>
+                <Switch
+                  checked={autoRotateMonths}
+                  onCheckedChange={toggleAutoRotate}
+                  disabled={isTogglingRotate}
+                />
+              </div>
+
               {botQuestions.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <MessageSquare className="w-10 h-10 mx-auto mb-3 opacity-50" />
