@@ -1,18 +1,19 @@
 
-## Adicionar "Mensagem de conclusão" na aba Automações
+## Unificar LP: Trocar "Esquenta de Carnaval" pela LP Dinâmica
 
-O campo "Mensagem de conclusão (chat da LP)" existe na configuração do Bot LP mas nao existe na seção de Limite de Convidados da aba Automações. Vamos adicionar.
+### Problema atual
+- O preview (lovable.app / localhost) carrega `LandingPage` (estática, hardcoded com "Esquenta de Carnaval")
+- Os domínios `.com.br` e `.online` já carregam a `DynamicLandingPage` do banco de dados
 
-### O que sera feito
+### Solução
+Alterar o `RootPage.tsx` para que o preview também carregue a `DynamicLandingPage` com o domínio `castelodadiversao.com.br`, igualando o comportamento de todos os domínios.
 
-1. **Adicionar campo `redirect_completion_message` no tipo `BotSettings`** (`AutomationsSection.tsx`, linha ~74) -- incluir a propriedade no interface.
+### Alteracao
 
-2. **Adicionar o campo de textarea na UI** (apos o campo "Nome do buffet parceiro", linha ~788) -- um novo campo "Mensagem de conclusão" com Textarea, onChange e onBlur com debounce, seguindo o mesmo padrao dos campos existentes.
+**Arquivo: `src/pages/RootPage.tsx`**
+- Trocar o bloco `isPreviewDomain()` que retorna `<LandingPage />` para retornar `<DynamicLandingPage domain="castelodadiversao.com.br" />`
+- Remover o import de `LandingPage` (fica sem uso)
 
-3. **Incluir o campo no reset do switch** (linha ~742) -- ao desativar o limite, limpar tambem `redirect_completion_message: null`.
+Resultado: preview, `.online` e `.com.br` vao mostrar a mesma LP dinâmica do banco de dados.
 
-### Detalhes tecnicos
-
-- O campo ja existe na tabela `wapi_bot_settings` do Supabase (usado pelo webhook com fallback para `lp_bot_settings`).
-- O padrao de persistencia sera identico aos outros campos: `onChange` atualiza state local, `onBlur` chama `debouncedUpdateBotSettings`.
-- Placeholder: "Ex: Prontinho! Seus dados foram encaminhados para o Buffet Mega Magic. Eles entrarao em contato em breve!"
+Nota: O arquivo `LandingPage.tsx` e seus componentes (HeroSection, OfferSection, etc.) e o `campaignConfig.ts` continuam existindo no código caso sejam necessários no futuro, mas não serão mais carregados na rota `/`.
