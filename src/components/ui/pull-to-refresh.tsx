@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, ReactNode } from "react";
+import { useState, useRef, useCallback, useEffect, ReactNode } from "react";
 import { RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,12 +23,52 @@ export function PullToRefresh({
   const containerRef = useRef<HTMLDivElement>(null);
   const startY = useRef(0);
   const currentY = useRef(0);
+  const isPullingRef = useRef(false);
+  const isRefreshingRef = useRef(false);
+
+  // Safety timeout: reset isRefreshing after 10s
+  useEffect(() => {
+    if (!isRefreshing) return;
+    isRefreshingRef.current = true;
+    const timer = setTimeout(() => {
+      setIsRefreshing(false);
+      setPullDistance(0);
+      isRefreshingRef.current = false;
+    }, 10000);
+    return () => {
+      clearTimeout(timer);
+      isRefreshingRef.current = false;
+    };
+  }, [isRefreshing]);
+
+  // Global touchend listener when pulling
+  useEffect(() => {
+    if (!isPulling) return;
+    isPullingRef.current = true;
+
+    const globalTouchEnd = () => {
+      if (isPullingRef.current) {
+        isPullingRef.current = false;
+        setIsPulling(false);
+        if (!isRefreshingRef.current) {
+          setPullDistance(0);
+        }
+      }
+    };
+
+    document.addEventListener("touchend", globalTouchEnd, { passive: true });
+    document.addEventListener("touchcancel", globalTouchEnd, { passive: true });
+    return () => {
+      isPullingRef.current = false;
+      document.removeEventListener("touchend", globalTouchEnd);
+      document.removeEventListener("touchcancel", globalTouchEnd);
+    };
+  }, [isPulling]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     const container = containerRef.current;
     if (!container || isRefreshing) return;
     
-    // Only enable pull-to-refresh when scrolled to top
     if (container.scrollTop <= 0) {
       startY.current = e.touches[0].clientY;
       setIsPulling(true);
@@ -49,12 +89,10 @@ export function PullToRefresh({
     const diff = currentY.current - startY.current;
     
     if (diff > 0) {
-      // Apply resistance - the further you pull, the harder it gets
       const resistance = 0.5;
       const distance = Math.min(diff * resistance, maxPull);
       setPullDistance(distance);
       
-      // Only prevent default scroll when clearly pulling to refresh
       if (distance > 20 && diff > 30) {
         try { e.preventDefault(); } catch (_) { /* passive listener */ }
       }
@@ -68,7 +106,7 @@ export function PullToRefresh({
     
     if (pullDistance >= threshold && !isRefreshing) {
       setIsRefreshing(true);
-      setPullDistance(threshold); // Keep indicator visible during refresh
+      setPullDistance(threshold);
       
       try {
         await onRefresh();
