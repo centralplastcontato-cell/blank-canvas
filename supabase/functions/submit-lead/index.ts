@@ -91,7 +91,9 @@ function validateMonth(month: string | null): { valid: boolean; error?: string }
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
   ];
-  if (!validMonths.includes(month)) {
+  // Support month with year suffix like "Março/27" or "Março/2027"
+  const monthName = month.split('/')[0].trim();
+  if (!validMonths.includes(monthName)) {
     return { valid: false, error: 'Mês inválido' };
   }
   return { valid: true };
