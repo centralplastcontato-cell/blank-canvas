@@ -183,13 +183,13 @@ export function HubOnboardingContent() {
         }
       >
         {selectedRecord && (
-          <ScrollArea className={isMobile ? "h-[calc(100vh-80px)]" : "max-h-[75vh]"}>
-            {isEditing ? (
-              <OnboardingEditForm record={selectedRecord} onSave={handleRecordUpdated} onCancel={() => setIsEditing(false)} />
-            ) : (
+          isEditing ? (
+            <OnboardingEditForm record={selectedRecord} onSave={handleRecordUpdated} onCancel={() => setIsEditing(false)} />
+          ) : (
+            <ScrollArea className={isMobile ? "h-[calc(100vh-80px)]" : "max-h-[75vh]"}>
               <OnboardingDetail record={selectedRecord} company={companies[selectedRecord.company_id]} />
-            )}
-          </ScrollArea>
+            </ScrollArea>
+          )
         )}
       </ResponsiveDetailPanel>
 
@@ -558,154 +558,156 @@ function OnboardingEditForm({ record, onSave, onCancel }: { record: OnboardingRe
   );
 
   return (
-    <div className="p-4 space-y-3">
-      <Accordion type="multiple" defaultValue={["identidade", "contato", "marca"]} className="space-y-3">
-        <AccordionSection value="identidade" emoji="🏰" title="Identidade">
-          <Field label="Nome do Buffet" field="buffet_name" />
-          <Field label="Cidade" field="city" />
-          <Field label="Estado" field="state" />
-          <Field label="Endereço completo" field="full_address" />
-          <Field label="Instagram" field="instagram" />
-          <Field label="Site" field="website" />
-        </AccordionSection>
+    <div className="flex flex-col h-full max-h-[calc(100vh-80px)]">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <Accordion type="multiple" defaultValue={["identidade", "contato", "marca"]} className="space-y-3">
+          <AccordionSection value="identidade" emoji="🏰" title="Identidade">
+            <Field label="Nome do Buffet" field="buffet_name" />
+            <Field label="Cidade" field="city" />
+            <Field label="Estado" field="state" />
+            <Field label="Endereço completo" field="full_address" />
+            <Field label="Instagram" field="instagram" />
+            <Field label="Site" field="website" />
+          </AccordionSection>
 
-        <AccordionSection value="contato" emoji="👤" title="Contato">
-          <Field label="Nome" field="contact_name" />
-          <Field label="Cargo" field="contact_role" />
-          <Field label="Telefone" field="contact_phone" />
-          <Field label="E-mail" field="contact_email" type="email" />
-          <Field label="Contato secundário" field="secondary_contact" />
-        </AccordionSection>
+          <AccordionSection value="contato" emoji="👤" title="Contato">
+            <Field label="Nome" field="contact_name" />
+            <Field label="Cargo" field="contact_role" />
+            <Field label="Telefone" field="contact_phone" />
+            <Field label="E-mail" field="contact_email" type="email" />
+            <Field label="Contato secundário" field="secondary_contact" />
+          </AccordionSection>
 
-        <AccordionSection value="operacao" emoji="📊" title="Operação">
-          <Field label="Volume de leads" field="lead_volume" />
-          <ArrayField label="Fontes de leads" field="lead_sources" />
-          <Field label="Método de atendimento" field="current_service_method" />
-        </AccordionSection>
+          <AccordionSection value="operacao" emoji="📊" title="Operação">
+            <Field label="Volume de leads" field="lead_volume" />
+            <ArrayField label="Fontes de leads" field="lead_sources" />
+            <Field label="Método de atendimento" field="current_service_method" />
+          </AccordionSection>
 
-        <AccordionSection value="trafego" emoji="📢" title="Tráfego Pago">
-          <SwitchField label="Investe em tráfego pago?" field="uses_paid_traffic" />
-          <Field label="Investimento mensal" field="monthly_investment" />
-          <Field label="Custo por lead" field="cost_per_lead" />
-          <Field label="Agência" field="current_agency" />
-        </AccordionSection>
+          <AccordionSection value="trafego" emoji="📢" title="Tráfego Pago">
+            <SwitchField label="Investe em tráfego pago?" field="uses_paid_traffic" />
+            <Field label="Investimento mensal" field="monthly_investment" />
+            <Field label="Custo por lead" field="cost_per_lead" />
+            <Field label="Agência" field="current_agency" />
+          </AccordionSection>
 
-        <AccordionSection value="whatsapp" emoji="💬" title="WhatsApp">
-          <ArrayField label="Números de WhatsApp" field="whatsapp_numbers" />
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Atendentes</Label>
-            <Input
-              type="number"
-              value={form.attendants_count ?? ""}
-              onChange={(e) => update("attendants_count", e.target.value ? parseInt(e.target.value) : null)}
-              className="h-9 text-sm"
-            />
-          </div>
-          <Field label="Horário de atendimento" field="service_hours" />
-          <SwitchField label="Múltiplas unidades?" field="multiple_units" />
-        </AccordionSection>
+          <AccordionSection value="whatsapp" emoji="💬" title="WhatsApp">
+            <ArrayField label="Números de WhatsApp" field="whatsapp_numbers" />
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Atendentes</Label>
+              <Input
+                type="number"
+                value={form.attendants_count ?? ""}
+                onChange={(e) => update("attendants_count", e.target.value ? parseInt(e.target.value) : null)}
+                className="h-9 text-sm"
+              />
+            </div>
+            <Field label="Horário de atendimento" field="service_hours" />
+            <SwitchField label="Múltiplas unidades?" field="multiple_units" />
+          </AccordionSection>
 
-        <AccordionSection value="marca" emoji="🎨" title="Marca e Mídia">
-          <TextareaField label="Observações visuais" field="brand_notes" />
+          <AccordionSection value="marca" emoji="🎨" title="Marca e Mídia">
+            <TextareaField label="Observações visuais" field="brand_notes" />
 
-          {/* Logo upload */}
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Logo</Label>
-            {form.logo_url ? (
-              <div className="flex items-center gap-3">
-                <img src={form.logo_url} alt="Logo" className="h-16 w-16 rounded-xl object-contain bg-muted border border-border" />
-                <div className="flex flex-col gap-1">
-                  <label className="cursor-pointer">
-                    <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
-                    <span className="text-xs text-primary hover:underline">Trocar</span>
-                  </label>
-                  <button className="text-xs text-destructive hover:underline text-left" onClick={() => update("logo_url", null)}>Remover</button>
+            {/* Logo upload */}
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Logo</Label>
+              {form.logo_url ? (
+                <div className="flex items-center gap-3">
+                  <img src={form.logo_url} alt="Logo" className="h-16 w-16 rounded-xl object-contain bg-muted border border-border" />
+                  <div className="flex flex-col gap-1">
+                    <label className="cursor-pointer">
+                      <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                      <span className="text-xs text-primary hover:underline">Trocar</span>
+                    </label>
+                    <button className="text-xs text-destructive hover:underline text-left" onClick={() => update("logo_url", null)}>Remover</button>
+                  </div>
+                  {uploadingLogo && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
                 </div>
-                {uploadingLogo && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-              </div>
-            ) : (
-              <label className="flex items-center gap-2 cursor-pointer p-3 rounded-lg border border-dashed border-border hover:border-primary/50 transition-colors">
-                <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
-                {uploadingLogo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4 text-muted-foreground" />}
-                <span className="text-sm text-muted-foreground">Enviar logo</span>
-              </label>
-            )}
-          </div>
-
-          {/* Photos upload */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs text-muted-foreground">Fotos ({(form.photo_urls || []).length}/10)</Label>
-              {(form.photo_urls || []).length < 10 && (
-                <label className="cursor-pointer">
-                  <input type="file" accept="image/*" multiple className="hidden" onChange={handlePhotosUpload} />
-                  <span className="text-xs text-primary hover:underline flex items-center gap-1">
-                    {uploadingPhotos ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
-                    Adicionar fotos
-                  </span>
+              ) : (
+                <label className="flex items-center gap-2 cursor-pointer p-3 rounded-lg border border-dashed border-border hover:border-primary/50 transition-colors">
+                  <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                  {uploadingLogo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4 text-muted-foreground" />}
+                  <span className="text-sm text-muted-foreground">Enviar logo</span>
                 </label>
               )}
             </div>
-            {(form.photo_urls || []).length > 0 && (
-              <div className="grid grid-cols-4 gap-2">
-                {(form.photo_urls || []).map((url, i) => (
-                  <div key={i} className="relative aspect-square">
-                    <img src={url} alt={`Foto ${i + 1}`} className="w-full h-full rounded-lg object-cover bg-muted" />
-                    <button
-                      className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground"
-                      onClick={() => update("photo_urls", (form.photo_urls || []).filter((_, j) => j !== i))}
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
 
-          {/* Videos upload */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs text-muted-foreground">Vídeos ({(form.video_urls || []).length}/2)</Label>
-              {(form.video_urls || []).length < 2 && (
-                <label className="cursor-pointer">
-                  <input type="file" accept="video/*" multiple className="hidden" onChange={handleVideosUpload} />
-                  <span className="text-xs text-primary hover:underline flex items-center gap-1">
-                    {uploadingVideos ? <Loader2 className="h-3 w-3 animate-spin" /> : <Video className="h-3 w-3" />}
-                    Adicionar vídeos
-                  </span>
-                </label>
+            {/* Photos upload */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-muted-foreground">Fotos ({(form.photo_urls || []).length}/10)</Label>
+                {(form.photo_urls || []).length < 10 && (
+                  <label className="cursor-pointer">
+                    <input type="file" accept="image/*" multiple className="hidden" onChange={handlePhotosUpload} />
+                    <span className="text-xs text-primary hover:underline flex items-center gap-1">
+                      {uploadingPhotos ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
+                      Adicionar fotos
+                    </span>
+                  </label>
+                )}
+              </div>
+              {(form.photo_urls || []).length > 0 && (
+                <div className="grid grid-cols-4 gap-2">
+                  {(form.photo_urls || []).map((url, i) => (
+                    <div key={i} className="relative aspect-square">
+                      <img src={url} alt={`Foto ${i + 1}`} className="w-full h-full rounded-lg object-cover bg-muted" />
+                      <button
+                        className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground"
+                        onClick={() => update("photo_urls", (form.photo_urls || []).filter((_, j) => j !== i))}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
-            {(form.video_urls || []).length > 0 && (
-              <div className="space-y-2">
-                {(form.video_urls || []).map((url, i) => (
-                  <div key={i} className="flex items-center gap-2 p-2 rounded-lg border border-border bg-muted/30">
-                    <Video className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="text-xs text-foreground truncate flex-1">Vídeo {i + 1}</span>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => window.open(url, "_blank")}>
-                      <ExternalLink className="h-3 w-3" />
-                    </Button>
-                    <button
-                      className="h-5 w-5 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground shrink-0"
-                      onClick={() => update("video_urls", (form.video_urls || []).filter((_, j) => j !== i))}
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
+
+            {/* Videos upload */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-muted-foreground">Vídeos ({(form.video_urls || []).length}/2)</Label>
+                {(form.video_urls || []).length < 2 && (
+                  <label className="cursor-pointer">
+                    <input type="file" accept="video/*" multiple className="hidden" onChange={handleVideosUpload} />
+                    <span className="text-xs text-primary hover:underline flex items-center gap-1">
+                      {uploadingVideos ? <Loader2 className="h-3 w-3 animate-spin" /> : <Video className="h-3 w-3" />}
+                      Adicionar vídeos
+                    </span>
+                  </label>
+                )}
               </div>
-            )}
-          </div>
-        </AccordionSection>
+              {(form.video_urls || []).length > 0 && (
+                <div className="space-y-2">
+                  {(form.video_urls || []).map((url, i) => (
+                    <div key={i} className="flex items-center gap-2 p-2 rounded-lg border border-border bg-muted/30">
+                      <Video className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="text-xs text-foreground truncate flex-1">Vídeo {i + 1}</span>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => window.open(url, "_blank")}>
+                        <ExternalLink className="h-3 w-3" />
+                      </Button>
+                      <button
+                        className="h-5 w-5 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground shrink-0"
+                        onClick={() => update("video_urls", (form.video_urls || []).filter((_, j) => j !== i))}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </AccordionSection>
 
-        <AccordionSection value="objetivos" emoji="🎯" title="Objetivos">
-          <Field label="Principal objetivo" field="main_goal" />
-          <TextareaField label="Observações gerais" field="additional_notes" />
-        </AccordionSection>
-      </Accordion>
+          <AccordionSection value="objetivos" emoji="🎯" title="Objetivos">
+            <Field label="Principal objetivo" field="main_goal" />
+            <TextareaField label="Observações gerais" field="additional_notes" />
+          </AccordionSection>
+        </Accordion>
+      </div>
 
-      <div className="flex gap-2 pt-4 pb-8 sticky bottom-0 bg-background">
+      <div className="flex gap-2 p-4 border-t border-border bg-background shrink-0">
         <Button className="flex-1" onClick={handleSave} disabled={isSaving}>
           {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
           Salvar alterações
