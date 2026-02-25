@@ -1,0 +1,1 @@
+ALTER TABLE public.lp_bot_settings ADD COLUMN IF NOT EXISTS whatsapp_welcome_template text;

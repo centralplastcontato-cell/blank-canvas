@@ -1914,6 +1914,7 @@ export type Database = {
           updated_at: string
           welcome_message: string | null
           whatsapp_question: string | null
+          whatsapp_welcome_template: string | null
         }
         Insert: {
           auto_rotate_months?: boolean
@@ -1933,6 +1934,7 @@ export type Database = {
           updated_at?: string
           welcome_message?: string | null
           whatsapp_question?: string | null
+          whatsapp_welcome_template?: string | null
         }
         Update: {
           auto_rotate_months?: boolean
@@ -1952,6 +1954,7 @@ export type Database = {
           updated_at?: string
           welcome_message?: string | null
           whatsapp_question?: string | null
+          whatsapp_welcome_template?: string | null
         }
         Relationships: [
           {

@@ -27,6 +27,7 @@ interface LPBotSettings {
   guest_limit_redirect_name: string | null;
   redirect_completion_message: string | null;
   auto_rotate_months: boolean;
+  whatsapp_welcome_template: string | null;
 }
 
 const DEFAULTS: Omit<LPBotSettings, 'company_id'> = {
@@ -43,6 +44,7 @@ const DEFAULTS: Omit<LPBotSettings, 'company_id'> = {
   guest_limit_redirect_name: null,
   redirect_completion_message: null,
   auto_rotate_months: false,
+  whatsapp_welcome_template: null,
 };
 
 export function LPBotSection() {
@@ -84,6 +86,7 @@ export function LPBotSection() {
         guest_limit_redirect_name: data.guest_limit_redirect_name,
         redirect_completion_message: (data as any).redirect_completion_message || null,
         auto_rotate_months: (data as any).auto_rotate_months ?? false,
+        whatsapp_welcome_template: (data as any).whatsapp_welcome_template || null,
       });
     } else {
       setSettings({
@@ -113,6 +116,7 @@ export function LPBotSection() {
       guest_limit_redirect_name: settings.guest_limit_redirect_name || null,
       redirect_completion_message: settings.redirect_completion_message || null,
       auto_rotate_months: settings.auto_rotate_months,
+      whatsapp_welcome_template: settings.whatsapp_welcome_template || null,
     };
 
     let error;
@@ -181,6 +185,19 @@ export function LPBotSection() {
               onChange={(e) => updateField('completion_message', e.target.value)}
               rows={3}
             />
+          </div>
+          <Separator />
+          <div className="space-y-2">
+            <Label>Mensagem de WhatsApp (pós-formulário)</Label>
+            <Textarea
+              value={settings.whatsapp_welcome_template ?? ''}
+              onChange={(e) => updateField('whatsapp_welcome_template', e.target.value || null)}
+              rows={6}
+              placeholder={`Olá! 👋🏼✨\n\nVim pelo site do *{empresa}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: {nome}\n📍 Unidade: {unidade}\n📅 Data: {data}\n👥 Convidados: {convidados}`}
+            />
+            <p className="text-xs text-muted-foreground">
+              Variáveis disponíveis: <code>{'{nome}'}</code>, <code>{'{unidade}'}</code>, <code>{'{data}'}</code>, <code>{'{convidados}'}</code>, <code>{'{empresa}'}</code>. Deixe vazio para usar a mensagem padrão.
+            </p>
           </div>
         </CardContent>
       </Card>
