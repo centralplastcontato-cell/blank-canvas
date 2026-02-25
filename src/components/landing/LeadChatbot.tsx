@@ -86,20 +86,30 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
     "Setembro": 8, "Outubro": 9, "Novembro": 10, "Dezembro": 11,
   };
 
+  const parseMonthOption = (option: string): { monthName: string; year: number } => {
+    const parts = option.split('/');
+    const monthName = parts[0].trim();
+    let year = new Date().getFullYear();
+    if (parts[1]) {
+      const yearPart = parts[1].trim();
+      year = yearPart.length <= 2 ? 2000 + parseInt(yearPart) : parseInt(yearPart);
+    }
+    return { monthName, year };
+  };
+
   const getDaysInMonth = (month: string): number => {
-    const monthIndex = monthNameToIndex[month];
+    const { monthName, year } = parseMonthOption(month);
+    const monthIndex = monthNameToIndex[monthName];
     if (monthIndex === undefined) return 31;
-    const currentYear = new Date().getFullYear();
-    // new Date(year, monthIndex+1, 0) gives last day of that month
-    return new Date(currentYear, monthIndex + 1, 0).getDate();
+    return new Date(year, monthIndex + 1, 0).getDate();
   };
 
   const addDayOfMonthStep = (month: string) => {
     const daysInMonth = getDaysInMonth(month);
-    const monthIndex = monthNameToIndex[month];
-    const currentYear = new Date().getFullYear();
+    const { monthName, year } = parseMonthOption(month);
+    const monthIndex = monthNameToIndex[monthName];
     const firstDayOfWeek = monthIndex !== undefined
-      ? new Date(currentYear, monthIndex, 1).getDay()
+      ? new Date(year, monthIndex, 1).getDay()
       : 0;
     // Padding empty strings so day 1 falls on the correct weekday column
     const padding = Array.from({ length: firstDayOfWeek }, () => "");
