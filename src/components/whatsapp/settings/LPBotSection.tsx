@@ -44,7 +44,7 @@ const DEFAULTS: Omit<LPBotSettings, 'company_id'> = {
   guest_limit_redirect_name: null,
   redirect_completion_message: null,
   auto_rotate_months: false,
-  whatsapp_welcome_template: null,
+  whatsapp_welcome_template: 'Olá! 👋🏼✨\n\nVim pelo site do *{empresa}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: {nome}\n📍 Unidade: {unidade}\n📅 Data: {data}\n👥 Convidados: {convidados}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n1️⃣ - 📩 Receber agora meu orçamento\n2️⃣ - 💬 Falar com um atendente',
 };
 
 export function LPBotSection() {
