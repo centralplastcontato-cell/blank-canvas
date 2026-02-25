@@ -1,0 +1,1 @@
+UPDATE company_landing_pages SET benefits = jsonb_set(benefits, '{items,1}', '{"icon":"Heart","title":"Atendimento Personalizado","description":"Nossa equipe cuida de cada detalhe da sua festa com carinho e dedicação"}') WHERE id = '19e28a5f-bb86-4e48-89a2-d48fde9ae8ad';
