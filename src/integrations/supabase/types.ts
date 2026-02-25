@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_usage_logs: {
+        Row: {
+          company_id: string
+          completion_tokens: number | null
+          created_at: string
+          estimated_cost_usd: number | null
+          function_name: string
+          id: string
+          model: string
+          prompt_tokens: number | null
+          total_tokens: number | null
+        }
+        Insert: {
+          company_id: string
+          completion_tokens?: number | null
+          created_at?: string
+          estimated_cost_usd?: number | null
+          function_name: string
+          id?: string
+          model?: string
+          prompt_tokens?: number | null
+          total_tokens?: number | null
+        }
+        Update: {
+          company_id?: string
+          completion_tokens?: number | null
+          created_at?: string
+          estimated_cost_usd?: number | null
+          function_name?: string
+          id?: string
+          model?: string
+          prompt_tokens?: number | null
+          total_tokens?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_entries: {
         Row: {
           company_id: string

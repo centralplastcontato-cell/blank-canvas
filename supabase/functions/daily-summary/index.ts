@@ -485,6 +485,23 @@ Gere um resumo de 3-5 parágrafos curtos com:
         const aiData = await aiResp.json();
         aiSummary = aiData.choices?.[0]?.message?.content || null;
         aiGeneratedAt = new Date().toISOString();
+
+        // Log AI usage
+        if (aiData.usage) {
+          try {
+            const promptTokens = aiData.usage.prompt_tokens || 0;
+            const completionTokens = aiData.usage.completion_tokens || 0;
+            await supabaseAdmin.from('ai_usage_logs').insert({
+              company_id,
+              function_name: 'daily-summary',
+              model: 'gpt-4o-mini',
+              prompt_tokens: promptTokens,
+              completion_tokens: completionTokens,
+              total_tokens: aiData.usage.total_tokens || 0,
+              estimated_cost_usd: (promptTokens * 0.15 + completionTokens * 0.6) / 1_000_000,
+            });
+          } catch (logErr) { console.error('AI usage log error:', logErr); }
+        }
       } catch (e) {
         console.error("AI summary error:", e);
         // Fall back to existing

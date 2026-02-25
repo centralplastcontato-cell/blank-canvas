@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { text } = await req.json();
+    const { text, company_id } = await req.json();
 
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
       return new Response(JSON.stringify({ error: 'Texto é obrigatório' }), {
@@ -81,6 +82,24 @@ Regras:
     const data = await response.json();
     const corrected = data.choices?.[0]?.message?.content?.trim() || text;
     const hasChanges = corrected !== text;
+
+    // Log AI usage
+    if (company_id && data.usage) {
+      try {
+        const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+        const promptTokens = data.usage.prompt_tokens || 0;
+        const completionTokens = data.usage.completion_tokens || 0;
+        await supabase.from('ai_usage_logs').insert({
+          company_id,
+          function_name: 'fix-text',
+          model: 'gpt-4o-mini',
+          prompt_tokens: promptTokens,
+          completion_tokens: completionTokens,
+          total_tokens: data.usage.total_tokens || 0,
+          estimated_cost_usd: (promptTokens * 0.15 + completionTokens * 0.6) / 1_000_000,
+        });
+      } catch (e) { console.error('AI usage log error:', e); }
+    }
 
     return new Response(JSON.stringify({ corrected, hasChanges }), {
       status: 200,
