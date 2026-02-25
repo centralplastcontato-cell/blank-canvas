@@ -1,30 +1,51 @@
 
 
-## Adicionar modulo "Bot Festa" ao painel de modulos do Hub
+## Corrigir indicador "Atualizando..." travado no PullToRefresh
 
 ### Problema
-O "Bot Festa" (mensagens automaticas para convidados durante festas) nao possui um toggle no dialog de modulos do Hub, impossibilitando o admin do Hub de desativar essa funcionalidade para empresas especificas.
+O indicador "Atualizando..." (componente PullToRefresh) fica travado na tela, especialmente no iOS/Safari mobile. Isso acontece porque o evento `touchend` pode nao disparar corretamente em certas condicoes de scroll no iOS, deixando o estado `isRefreshing = true` indefinidamente.
+
+### Causa raiz
+No `src/components/ui/pull-to-refresh.tsx`, o fluxo depende de:
+1. `handleTouchStart` -> seta `isPulling = true`
+2. `handleTouchMove` -> atualiza `pullDistance`
+3. `handleTouchEnd` -> seta `isRefreshing = true`, chama `onRefresh()`, e no `finally` seta `isRefreshing = false`
+
+Se o `touchend` nao disparar (comportamento documentado do iOS Safari com rubber-banding), `isRefreshing` fica `true` para sempre.
+
+Alem disso, se `handleTouchMove` detectar `container.scrollTop > 0`, ele reseta `isPulling = false`. Quando `handleTouchEnd` finalmente dispara, ele ve `!isPulling` e retorna sem limpar o estado, mas `pullDistance` pode ainda estar > 10, mantendo o indicador visivel.
 
 ### Solucao
-Adicionar `bot_festa` como um novo modulo no sistema de modulos da empresa, com toggle no Hub e filtragem na aba de Automacoes.
+Aplicar 3 protecoes no componente `PullToRefresh`:
 
-### Mudancas
+1. **Timeout de seguranca**: Se `isRefreshing` ficar `true` por mais de 10 segundos, resetar automaticamente para `false` e zerar `pullDistance`.
 
-#### 1. `src/hooks/useCompanyModules.ts`
-- Adicionar `bot_festa: boolean` na interface `CompanyModules`
-- Default: `false` (opt-in, igual flow_builder/inteligencia/agenda)
-- Adicionar no `parseModules`: `bot_festa: modules.bot_festa === true`
-- Adicionar no `MODULE_LABELS`: label "Bot Festa", descricao "Mensagens automaticas para convidados em festas"
+2. **Cleanup no touchMove**: Quando `isPulling` for resetado no `handleTouchMove`, tambem zerar `pullDistance` para que o indicador desapareca.
 
-#### 2. `src/components/hub/CompanyModulesDialog.tsx`
-- Nenhuma mudanca necessaria - o dialog ja itera sobre `MODULE_LABELS` automaticamente, entao o novo modulo aparecera automaticamente.
+3. **Listener global de touchend**: Adicionar um listener no `document` para capturar `touchend` mesmo que o toque saia do container, garantindo que o estado sempre seja limpo.
 
-#### 3. `src/components/whatsapp/settings/AutomationsSection.tsx`
-- Importar `useCompanyModules` (ja importado)
-- Condicionar a exibicao da tab "Bot Festa" ao modulo `bot_festa` estar habilitado
-- Se desabilitado, ocultar a tab e seu conteudo
+### Arquivo modificado
+**`src/components/ui/pull-to-refresh.tsx`**:
+- Adicionar `useEffect` com timeout de 10s que reseta `isRefreshing` automaticamente
+- Adicionar listener global de `touchend` no document quando `isPulling` estiver ativo
+- Garantir que `pullDistance` seja zerado quando `isPulling` for resetado no move handler
 
-### Arquivos modificados
-1. `src/hooks/useCompanyModules.ts` - Nova chave `bot_festa` na interface, defaults e labels
-2. `src/components/whatsapp/settings/AutomationsSection.tsx` - Condicionar tab "Bot Festa" ao modulo habilitado
+### Detalhes tecnicos
+
+```text
+Estado atual (bugado):
+  touchstart -> isPulling=true
+  touchmove  -> pullDistance aumenta
+  [iOS perde touchend]
+  -> isRefreshing fica true OU pullDistance fica > 0
+  -> indicador "Atualizando..." travado
+
+Apos fix:
+  touchstart -> isPulling=true + listener global touchend
+  touchmove  -> pullDistance aumenta  
+  [iOS perde touchend no container]
+  -> listener global captura touchend -> cleanup
+  -> OU timeout de 10s reseta automaticamente
+  -> indicador desaparece
+```
 
