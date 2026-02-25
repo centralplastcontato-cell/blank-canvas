@@ -57,8 +57,8 @@ export default function Admin() {
     status: "all",
     responsavel: "all",
     month: "all",
-    startDate: undefined,
-    endDate: undefined,
+    startDate: (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })(),
+    endDate: (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })(),
     search: "",
     hasScheduledVisit: false,
   });
