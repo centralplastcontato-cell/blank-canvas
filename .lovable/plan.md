@@ -1,41 +1,64 @@
 
 
-## Corrigir: Som tocando mesmo com "Mudo" ativado
+## Deixar o site da Aventura Kids mais vibrante e impactante
 
 ### Problema
-O botao "Mudo" controla o estado em `useChatNotificationToggle`, mas dois hooks **ignoram completamente** esse estado e tocam som sempre:
+O site esta usando fundo branco puro (#FFFFFF), cards simples sem profundidade, sem elementos decorativos, e os componentes DLP (Dynamic Landing Page) sao muito "corporativos" para um buffet infantil. Falta energia visual.
 
-1. **`useAppNotifications.ts`** -- toca som para toda notificacao nova (lead, visita, cliente, etc.) sem verificar se esta no mudo
-2. **`useLeadNotifications.ts`** -- toca som para todo novo lead inserido sem verificar se esta no mudo
+### Melhorias propostas
 
-Os banners (ClientAlert, VisitAlert, QuestionsAlert) ja respeitam o mudo corretamente.
+**1. DLPHero - Mais impacto visual**
+- Adicionar particulas/confetes animados (mesmo estilo do HeroSection do Castelo)
+- Melhorar o overlay do gradiente para ser mais vibrante e menos "lavado"
+- Adicionar glassmorphism no bloco de titulo para contraste com a imagem de fundo
+- Scroll indicator animado no final
 
-### Solucao
+**2. DLPSocialProof - Cards com mais personalidade**
+- Adicionar borda colorida com gradiente sutil nos cards
+- Icones decorativos nos cards (estrela, coracao, festa)
+- Fundo com gradiente sutil ao inves de branco puro
+- Separador visual entre social proof e o resto da pagina
 
-**Arquivo 1: `src/hooks/useAppNotifications.ts`**
-- Importar `useChatNotificationToggle`
-- Criar um `ref` para manter o valor atual de `notificationsEnabled` acessivel dentro do callback do realtime
-- Envolver os `playSound()` (linhas 147-161) com `if (notificationsEnabledRef.current)` 
-- Fazer o mesmo para `showBrowserNotification` (linhas 164-168)
+**3. DLPBenefits - Cards mais vivos**
+- Hover com gradiente de fundo mais visivel (de 5% para 10-15%)
+- Adicionar borda com cor primaria sutil nos cards
+- Background da secao com gradiente mais marcante
+- Icones dos trust badges preenchidos (fill) para dar mais destaque
 
-**Arquivo 2: `src/hooks/useLeadNotifications.ts`**
-- Importar `useChatNotificationToggle`
-- Criar um `ref` para o estado do mudo
-- Envolver o `playLeadSound()` (linha 29) com `if (notificationsEnabledRef.current)`
+**4. DLPGallery - Grid mais impactante**
+- Hover com zoom mais pronunciado e sombra elevada
+- Badge com contagem de fotos
+- Fundo da secao com gradiente mais visivel
+
+**5. DLPOffer - Mais urgencia e destaque**
+- Glassmorphism cards com gradiente de fundo usando cores do tema (mais forte)
+- Animacao de pulso mais intensa no botao CTA
+- Badge "OFERTA ESPECIAL" maior e mais chamativo
+- Borda com glow sutil
+
+**6. DLPHowItWorks (novo componente a revisar)**
+- Linha conectora entre passos mais visivel
+- Icones com background mais vibrante
+
+**7. DLPFooter - Mais presenca**
+- Background com gradiente escuro mais rico
+
+### Arquivos a editar
+
+| Arquivo | Mudanca |
+|---|---|
+| `src/components/dynamic-lp/DLPHero.tsx` | Confetes animados, glassmorphism no titulo, scroll indicator, overlay mais vibrante |
+| `src/components/dynamic-lp/DLPSocialProof.tsx` | Cards com borda gradiente, icones decorativos, fundo mais marcante |
+| `src/components/dynamic-lp/DLPBenefits.tsx` | Hover mais visivel, bordas coloridas, trust badges preenchidos |
+| `src/components/dynamic-lp/DLPGallery.tsx` | Hover mais impactante, fundo com gradiente |
+| `src/components/dynamic-lp/DLPOffer.tsx` | Glassmorphism mais forte, CTA com pulso, borda glow |
+| `src/components/dynamic-lp/DLPHowItWorks.tsx` | Linha conectora visivel, icones mais vibrantes |
+| `src/components/dynamic-lp/DLPVideo.tsx` | Card com sombra mais forte, badge decorativo |
 
 ### Detalhes tecnicos
 
-Ambos os hooks usam callbacks em subscricoes realtime, entao precisam de um `useRef` para manter o valor atualizado do toggle (mesmo padrao ja usado nos banners de alerta). O fluxo:
+Todas as mudancas usam as cores do `theme` (primary_color, secondary_color), entao funcionam para qualquer buffet, nao apenas Aventura Kids.
 
-```text
-useChatNotificationToggle() -> notificationsEnabled (state)
-        |
-        v
-useEffect -> notificationsEnabledRef.current = notificationsEnabled
-        |
-        v
-Realtime callback -> if (notificationsEnabledRef.current) { playSound() }
-```
+Os confetes no Hero usam o mesmo padrao do `HeroSection.tsx` do Castelo: `motion.div` com animacao de `y` e `rotate` em loop infinito, cores derivadas do tema.
 
-Nenhuma mudanca de UI necessaria -- o botao "Mudo" ja existe e funciona; apenas os sons serao silenciados corretamente.
-
+Nao ha mudancas de banco de dados -- tudo e visual nos componentes React.
