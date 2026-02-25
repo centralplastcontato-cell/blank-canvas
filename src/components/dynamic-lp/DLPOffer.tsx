@@ -18,7 +18,6 @@ export function DLPOffer({ offer, theme, onCtaClick }: DLPOfferProps) {
       ? "rounded-none"
       : "rounded-xl";
 
-  // Institutional tone: use offer title or fallback
   const sectionTitle = offer.title || "Por que nos escolher?";
   const hasPromotion = !!offer.highlight_text;
 
@@ -28,8 +27,8 @@ export function DLPOffer({ offer, theme, onCtaClick }: DLPOfferProps) {
         className="absolute inset-0"
         style={{
           background: `
-            radial-gradient(ellipse at 20% 50%, ${theme.primary_color}15, transparent 50%),
-            radial-gradient(ellipse at 80% 50%, ${theme.secondary_color}15, transparent 50%),
+            radial-gradient(ellipse at 20% 50%, ${theme.primary_color}20, transparent 50%),
+            radial-gradient(ellipse at 80% 50%, ${theme.secondary_color}20, transparent 50%),
             ${theme.background_color}
           `,
         }}
@@ -43,17 +42,20 @@ export function DLPOffer({ offer, theme, onCtaClick }: DLPOfferProps) {
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
         >
-          <span
+          <motion.span
+            animate={{ scale: [1, 1.05, 1] }}
+            transition={{ duration: 2, repeat: Infinity }}
             className="inline-flex items-center gap-2 px-6 py-2 rounded-full text-sm font-bold mb-4 shadow-lg"
             style={{
               backgroundColor: theme.secondary_color,
               color: "#fff",
               fontFamily: theme.font_body,
+              boxShadow: `0 4px 20px ${theme.secondary_color}44`,
             }}
           >
             <Heart className="w-4 h-4" />
-            {hasPromotion ? "OFERTA ESPECIAL" : "FAÇA SUA FESTA"}
-          </span>
+            {hasPromotion ? "🔥 OFERTA ESPECIAL 🔥" : "FAÇA SUA FESTA"}
+          </motion.span>
           <h2
             className="text-4xl md:text-5xl font-bold mb-4"
             style={{ color: theme.text_color, fontFamily: theme.font_heading }}
@@ -72,23 +74,23 @@ export function DLPOffer({ offer, theme, onCtaClick }: DLPOfferProps) {
 
         {/* Two-column layout */}
         <div className="grid md:grid-cols-2 gap-8">
-          {/* Benefits Card - Glassmorphism */}
+          {/* Benefits Card */}
           <motion.div
             initial={{ opacity: 0, x: -30 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="relative p-8 rounded-3xl overflow-hidden border shadow-2xl"
+            className="relative p-8 rounded-3xl overflow-hidden border-2 shadow-2xl"
             style={{
-              backgroundColor: theme.text_color + "08",
-              borderColor: theme.text_color + "20",
+              backgroundColor: theme.primary_color + "10",
+              borderColor: theme.primary_color + "30",
               backdropFilter: "blur(20px)",
             }}
           >
             <div
               className="absolute inset-0"
               style={{
-                background: `linear-gradient(135deg, ${theme.text_color}10, transparent, ${theme.text_color}05)`,
+                background: `linear-gradient(135deg, ${theme.primary_color}15, transparent, ${theme.secondary_color}08)`,
               }}
             />
             <div
@@ -142,23 +144,23 @@ export function DLPOffer({ offer, theme, onCtaClick }: DLPOfferProps) {
             </div>
           </motion.div>
 
-          {/* CTA Card - Glassmorphism */}
+          {/* CTA Card */}
           <motion.div
             initial={{ opacity: 0, x: 30 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.4 }}
-            className="relative p-8 rounded-3xl overflow-hidden border shadow-xl"
+            className="relative p-8 rounded-3xl overflow-hidden border-2 shadow-xl"
             style={{
-              backgroundColor: theme.text_color + "08",
-              borderColor: theme.text_color + "20",
+              backgroundColor: theme.secondary_color + "10",
+              borderColor: theme.secondary_color + "30",
               backdropFilter: "blur(20px)",
             }}
           >
             <div
               className="absolute inset-0"
               style={{
-                background: `linear-gradient(135deg, ${theme.text_color}10, transparent, ${theme.text_color}05)`,
+                background: `linear-gradient(135deg, ${theme.secondary_color}15, transparent, ${theme.primary_color}08)`,
               }}
             />
             <div
@@ -172,11 +174,12 @@ export function DLPOffer({ offer, theme, onCtaClick }: DLPOfferProps) {
 
             <div className="relative z-10 text-center">
               <motion.div
-                animate={{ scale: [1, 1.05, 1] }}
+                animate={{ scale: [1, 1.1, 1] }}
                 transition={{ duration: 2, repeat: Infinity }}
-                className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg"
+                className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl"
                 style={{
                   background: `linear-gradient(135deg, ${theme.primary_color}, ${theme.secondary_color})`,
+                  boxShadow: `0 8px 30px ${theme.primary_color}40`,
                 }}
               >
                 <Heart className="w-10 h-10" style={{ color: "#fff" }} />
@@ -196,18 +199,20 @@ export function DLPOffer({ offer, theme, onCtaClick }: DLPOfferProps) {
                 As vagas são limitadas! Não perca essa oportunidade 🎉
               </p>
 
-              <button
+              <motion.button
                 onClick={onCtaClick}
-                className={`w-full py-4 px-10 text-lg font-bold shadow-xl hover:scale-105 transition-all duration-300 ${btnClass}`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className={`w-full py-4 px-10 text-lg font-bold shadow-xl transition-all duration-300 ${btnClass}`}
                 style={{
                   backgroundColor: theme.secondary_color,
                   color: "#fff",
                   fontFamily: theme.font_body,
-                  boxShadow: `0 10px 30px ${theme.secondary_color}44`,
+                  boxShadow: `0 10px 35px ${theme.secondary_color}55`,
                 }}
               >
                 {offer.cta_text || "Quero fazer minha festa!"} 🎉
-              </button>
+              </motion.button>
 
               {hasPromotion && (
                 <div

@@ -22,7 +22,9 @@ export function DLPFooter({ footer, theme, companyName, companyLogo, instagramHa
     <footer
       className="py-12"
       style={{
-        backgroundColor: theme.text_color === "#ffffff" ? "#111" : theme.text_color,
+        background: theme.text_color === "#ffffff"
+          ? `linear-gradient(180deg, #1a1a2e, #0f0f1a)`
+          : `linear-gradient(180deg, ${theme.text_color}, ${theme.text_color}dd)`,
         color: theme.text_color === "#ffffff" ? "#fff" : theme.background_color,
       }}
     >
