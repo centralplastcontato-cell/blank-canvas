@@ -2648,6 +2648,8 @@ export type Database = {
       wapi_bot_settings: {
         Row: {
           ai_context: string | null
+          auto_lost_delay_hours: number
+          auto_lost_enabled: boolean
           auto_send_materials: boolean | null
           auto_send_pdf: boolean | null
           auto_send_pdf_intro: string | null
@@ -2698,6 +2700,8 @@ export type Database = {
         }
         Insert: {
           ai_context?: string | null
+          auto_lost_delay_hours?: number
+          auto_lost_enabled?: boolean
           auto_send_materials?: boolean | null
           auto_send_pdf?: boolean | null
           auto_send_pdf_intro?: string | null
@@ -2748,6 +2752,8 @@ export type Database = {
         }
         Update: {
           ai_context?: string | null
+          auto_lost_delay_hours?: number
+          auto_lost_enabled?: boolean
           auto_send_materials?: boolean | null
           auto_send_pdf?: boolean | null
           auto_send_pdf_intro?: string | null

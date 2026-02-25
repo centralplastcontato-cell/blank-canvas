@@ -35,6 +35,8 @@ interface FollowUpSettings {
   follow_up_4_enabled: boolean;
   follow_up_4_delay_hours: number;
   follow_up_4_message: string | null;
+  auto_lost_enabled: boolean;
+  auto_lost_delay_hours: number;
   next_step_reminder_enabled: boolean;
   next_step_reminder_delay_minutes: number;
   next_step_reminder_message: string | null;
@@ -89,8 +91,8 @@ Deno.serve(async (req) => {
     // Fetch all bot settings with any follow-up enabled
     const { data: allSettings, error: settingsError } = await supabase
       .from("wapi_bot_settings")
-      .select("instance_id, test_mode_enabled, test_mode_number, follow_up_enabled, follow_up_delay_hours, follow_up_message, follow_up_2_enabled, follow_up_2_delay_hours, follow_up_2_message, follow_up_3_enabled, follow_up_3_delay_hours, follow_up_3_message, follow_up_4_enabled, follow_up_4_delay_hours, follow_up_4_message, next_step_reminder_enabled, next_step_reminder_delay_minutes, next_step_reminder_message, bot_inactive_followup_enabled, bot_inactive_followup_delay_minutes, bot_inactive_followup_message")
-      .or("follow_up_enabled.eq.true,follow_up_2_enabled.eq.true,follow_up_3_enabled.eq.true,follow_up_4_enabled.eq.true,next_step_reminder_enabled.eq.true,bot_inactive_followup_enabled.eq.true");
+      .select("instance_id, test_mode_enabled, test_mode_number, follow_up_enabled, follow_up_delay_hours, follow_up_message, follow_up_2_enabled, follow_up_2_delay_hours, follow_up_2_message, follow_up_3_enabled, follow_up_3_delay_hours, follow_up_3_message, follow_up_4_enabled, follow_up_4_delay_hours, follow_up_4_message, auto_lost_enabled, auto_lost_delay_hours, next_step_reminder_enabled, next_step_reminder_delay_minutes, next_step_reminder_message, bot_inactive_followup_enabled, bot_inactive_followup_delay_minutes, bot_inactive_followup_message")
+      .or("follow_up_enabled.eq.true,follow_up_2_enabled.eq.true,follow_up_3_enabled.eq.true,follow_up_4_enabled.eq.true,next_step_reminder_enabled.eq.true,bot_inactive_followup_enabled.eq.true,auto_lost_enabled.eq.true");
 
     if (settingsError) {
       console.error("[follow-up-check] Error fetching settings:", settingsError);
@@ -198,6 +200,16 @@ Deno.serve(async (req) => {
           message: settings.follow_up_4_message || getDefaultFollowUpMessage(4),
           historyAction: "Follow-up #4 automático enviado",
           checkPreviousAction: "Follow-up #3 automático enviado",
+        });
+        totalSuccessCount += result.successCount;
+        allErrors.push(...result.errors);
+      }
+
+      // Process auto-lost after 4th follow-up
+      if (settings.auto_lost_enabled) {
+        const result = await processAutoLost({
+          supabase,
+          settings,
         });
         totalSuccessCount += result.successCount;
         allErrors.push(...result.errors);
@@ -909,6 +921,154 @@ Podemos continuar de onde paramos?`;
     } catch (err) {
       console.error(`[follow-up-check] Error processing bot-inactive follow-up for conv ${conv.id}:`, err);
       errors.push(`Error with conv ${conv.id}: ${String(err)}`);
+    }
+  }
+
+  return { successCount, errors };
+}
+
+// ============= AUTO-LOST AFTER 4TH FOLLOW-UP =============
+
+interface ProcessAutoLostParams {
+  supabase: ReturnType<typeof createClient>;
+  settings: FollowUpSettings;
+}
+
+async function processAutoLost({
+  supabase,
+  settings,
+}: ProcessAutoLostParams): Promise<{ successCount: number; errors: string[] }> {
+  const errors: string[] = [];
+  let successCount = 0;
+  const delayHours = settings.auto_lost_delay_hours || 48;
+
+  console.log(`[follow-up-check] Processing auto-lost for instance ${settings.instance_id} with ${delayHours}h delay after 4th follow-up`);
+
+  const now = new Date();
+  const cutoffTime = new Date(now.getTime() - delayHours * 60 * 60 * 1000);
+
+  // Find leads that received the 4th follow-up before the cutoff
+  const { data: fourthFollowUps, error: histError } = await supabase
+    .from("lead_history")
+    .select("lead_id, created_at")
+    .eq("action", "Follow-up #4 automático enviado")
+    .lte("created_at", cutoffTime.toISOString());
+
+  if (histError) {
+    console.error(`[follow-up-check] Error fetching 4th follow-up history:`, histError);
+    return { successCount: 0, errors: [String(histError)] };
+  }
+
+  if (!fourthFollowUps || fourthFollowUps.length === 0) {
+    console.log(`[follow-up-check] No leads eligible for auto-lost for instance ${settings.instance_id}`);
+    return { successCount: 0, errors: [] };
+  }
+
+  const leadIds = fourthFollowUps.map(f => f.lead_id);
+
+  // Check which leads already have been auto-lost
+  const { data: alreadyLost } = await supabase
+    .from("lead_history")
+    .select("lead_id")
+    .in("lead_id", leadIds)
+    .eq("action", "Lead movido para perdido automaticamente");
+
+  const alreadyLostSet = new Set((alreadyLost || []).map(l => l.lead_id));
+  const eligibleLeadIds = leadIds.filter(id => !alreadyLostSet.has(id));
+
+  if (eligibleLeadIds.length === 0) {
+    console.log(`[follow-up-check] All leads already processed for auto-lost`);
+    return { successCount: 0, errors: [] };
+  }
+
+  // Get leads that are still in aguardando_resposta
+  const { data: activeLeads, error: leadsError } = await supabase
+    .from("campaign_leads")
+    .select("id, name, whatsapp, responsavel_id")
+    .in("id", eligibleLeadIds)
+    .eq("status", "aguardando_resposta");
+
+  if (leadsError) {
+    console.error(`[follow-up-check] Error fetching active leads:`, leadsError);
+    return { successCount: 0, errors: [String(leadsError)] };
+  }
+
+  if (!activeLeads || activeLeads.length === 0) {
+    console.log(`[follow-up-check] No active leads in aguardando_resposta for auto-lost`);
+    return { successCount: 0, errors: [] };
+  }
+
+  // Filter: only leads whose conversation belongs to this instance AND last_message_from_me = true (no reply)
+  const activeLeadIds = activeLeads.map(l => l.id);
+  const { data: conversations } = await supabase
+    .from("wapi_conversations")
+    .select("lead_id")
+    .in("lead_id", activeLeadIds)
+    .eq("instance_id", settings.instance_id)
+    .eq("last_message_from_me", true)
+    .not("remote_jid", "like", "%@g.us%");
+
+  const leadsInInstance = new Set((conversations || []).map((c: { lead_id: string }) => c.lead_id));
+  const leadsToMark = activeLeads.filter(l => leadsInInstance.has(l.id));
+
+  console.log(`[follow-up-check] ${leadsToMark.length} leads will be marked as perdido (auto-lost)`);
+
+  for (const lead of leadsToMark) {
+    try {
+      // Test mode guard
+      if (shouldSkipTestMode(settings.test_mode_enabled, settings.test_mode_number, lead.whatsapp)) {
+        console.log(`[follow-up-check] 🧪 Test mode — skipping auto-lost for ${lead.whatsapp}`);
+        continue;
+      }
+
+      // Update lead status to perdido
+      const { error: updateError } = await supabase
+        .from("campaign_leads")
+        .update({ status: "perdido" })
+        .eq("id", lead.id);
+
+      if (updateError) {
+        console.error(`[follow-up-check] Error updating lead ${lead.id} to perdido:`, updateError);
+        errors.push(`Error updating lead ${lead.id}: ${String(updateError)}`);
+        continue;
+      }
+
+      // Register in lead_history
+      await supabase.from("lead_history").insert({
+        lead_id: lead.id,
+        user_id: null,
+        user_name: "Sistema",
+        action: "Lead movido para perdido automaticamente",
+        old_value: "aguardando_resposta",
+        new_value: "perdido",
+      });
+
+      // Send notification to responsavel if exists
+      if (lead.responsavel_id) {
+        // Get instance company_id for notification
+        const { data: instance } = await supabase
+          .from("wapi_instances")
+          .select("company_id")
+          .eq("id", settings.instance_id)
+          .single();
+
+        if (instance) {
+          await supabase.from("notifications").insert({
+            user_id: lead.responsavel_id,
+            company_id: instance.company_id,
+            type: "lead_lost",
+            title: "Lead movido para Perdido",
+            message: `O lead ${lead.name} foi movido automaticamente para Perdido após não responder ao 4º follow-up.`,
+            metadata: { lead_id: lead.id, lead_name: lead.name },
+          });
+        }
+      }
+
+      console.log(`[follow-up-check] ✅ Lead ${lead.name} (${lead.id}) marked as perdido (auto-lost)`);
+      successCount++;
+    } catch (err) {
+      console.error(`[follow-up-check] Error processing auto-lost for lead ${lead.id}:`, err);
+      errors.push(`Error with lead ${lead.id}: ${String(err)}`);
     }
   }
 
