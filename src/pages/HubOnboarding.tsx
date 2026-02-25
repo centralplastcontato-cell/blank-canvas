@@ -757,9 +757,9 @@ function OnboardingDetail({ record }: { record: OnboardingRecord; company?: Comp
   const InfoRow = ({ label, value }: { label: string; value: string | null | undefined }) => {
     if (!value) return null;
     return (
-      <div className="flex items-start gap-3 px-4 py-2.5">
-        <span className="text-xs text-muted-foreground w-32 shrink-0 pt-0.5">{label}</span>
-        <span className="text-sm text-foreground font-medium flex-1 text-right">{value}</span>
+      <div className="flex items-start gap-2 px-3 py-2.5 sm:px-4 sm:gap-3">
+        <span className="text-xs text-muted-foreground w-24 sm:w-32 shrink-0 pt-0.5">{label}</span>
+        <span className="text-sm text-foreground font-medium flex-1 text-right break-words min-w-0">{value}</span>
       </div>
     );
   };
