@@ -412,9 +412,10 @@ async function getBotQuestions(supabase: SupabaseClient, instanceId: string): Pr
 function replaceVariables(text: string, data: Record<string, string>): string {
   let result = text;
   for (const [key, value] of Object.entries(data)) {
-    // Primeiro tenta {{key}} (chaves duplas), depois {key} (chave simples)
-    result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'gi'), value);
-    result = result.replace(new RegExp(`\\{${key}\\}`, 'gi'), value);
+    const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Suporta {{ key }}, {{key}} e {key} (com espaços opcionais)
+    result = result.replace(new RegExp(`\\{\\{\\s*${escaped}\\s*\\}\\}`, 'gi'), value);
+    result = result.replace(new RegExp(`\\{${escaped}\\}`, 'gi'), value);
   }
   return result;
 }
@@ -1946,11 +1947,26 @@ async function processBotQualification(
           const qualifiedTemplate = settings.qualified_lead_message || defaultQualifiedMsg;
           
           const dayDisplay = existingLead.day_of_month ? `Dia ${existingLead.day_of_month}` : (existingLead.day_preference || '');
+          // Buscar nome da empresa para variáveis de template (leads qualificados da LP)
+          let lpCompanyName = '';
+          try {
+            const { data: lpCompanyData } = await supabase
+              .from('companies')
+              .select('name')
+              .eq('id', instance.company_id)
+              .single();
+            lpCompanyName = lpCompanyData?.name || '';
+          } catch (_) { /* ignore */ }
+
           const leadData: Record<string, string> = {
             nome: existingLead.name,
             mes: existingLead.month || '',
             dia: dayDisplay,
             convidados: existingLead.guests || '',
+            empresa: lpCompanyName,
+            buffet: lpCompanyName,
+            'nome-empresa': lpCompanyName,
+            'nome_empresa': lpCompanyName,
           };
           
           const welcomeMsg = replaceVariables(qualifiedTemplate, leadData);
@@ -2478,7 +2494,7 @@ async function processBotQualification(
         }
         
         if (nextStep === 'complete_final') {
-          msg = responseMsg;
+          msg = replaceVariables(responseMsg, updated);
           
           // Update conversation flags
           await supabase.from('wapi_conversations').update({
