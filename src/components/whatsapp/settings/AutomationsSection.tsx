@@ -84,6 +84,8 @@ interface BotSettings {
   follow_up_4_enabled: boolean;
   follow_up_4_delay_hours: number;
   follow_up_4_message: string | null;
+  auto_lost_enabled: boolean;
+  auto_lost_delay_hours: number;
   next_step_reminder_enabled: boolean;
   next_step_reminder_delay_minutes: number;
   next_step_reminder_message: string | null;
@@ -1757,6 +1759,93 @@ export function AutomationsSection() {
                     Variáveis: {"{nome}"}, {"{unidade}"}, {"{mes}"}, {"{convidados}"}
                   </p>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Auto-Perdido Card */}
+          <Card className="border-destructive/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Power className="w-5 h-5 text-destructive" />
+                Auto-Perdido
+              </CardTitle>
+              <CardDescription>
+                Move automaticamente para "Perdido" os leads que não responderam após o 4º follow-up
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg border-destructive/30">
+                <div className="flex items-start sm:items-center gap-3 min-w-0">
+                  <div className={`p-2 rounded-full shrink-0 ${botSettings?.auto_lost_enabled ? "bg-red-100 text-red-600" : "bg-muted text-muted-foreground"}`}>
+                    <Power className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="font-medium text-sm sm:text-base">Auto-Perdido ativo</h4>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      Leads sem resposta após o 4º follow-up serão movidos para Perdido
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={botSettings?.auto_lost_enabled || false}
+                  onCheckedChange={(checked) => updateBotSettings({ auto_lost_enabled: checked })}
+                  disabled={isSaving || !botSettings?.follow_up_4_enabled}
+                  className="shrink-0 self-end sm:self-auto"
+                />
+              </div>
+
+              {!botSettings?.follow_up_4_enabled && (
+                <p className="text-xs text-amber-600 bg-amber-50 rounded-lg p-3">
+                  ⚠️ O 4º follow-up precisa estar ativo para usar o Auto-Perdido.
+                </p>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="auto-lost-delay">Tempo de espera após o 4º follow-up</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="auto-lost-delay"
+                    type="number"
+                    min={24}
+                    max={720}
+                    value={(botSettings?.auto_lost_delay_hours ?? 48) || ''}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (raw === '') {
+                        setBotSettings(prev => prev ? { ...prev, auto_lost_delay_hours: 0 } : prev);
+                        return;
+                      }
+                      const value = parseInt(raw);
+                      if (!isNaN(value)) {
+                        setBotSettings(prev => prev ? { ...prev, auto_lost_delay_hours: value } : prev);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const value = Math.max(24, Math.min(720, parseInt(e.target.value) || 48));
+                      updateBotSettings({ auto_lost_delay_hours: value });
+                    }}
+                    className="w-24"
+                    disabled={isSaving || !botSettings?.auto_lost_enabled}
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    horas
+                    {(botSettings?.auto_lost_delay_hours || 48) >= 24 && (
+                      <span className="ml-1 text-xs">({Math.floor((botSettings?.auto_lost_delay_hours || 48) / 24)} {Math.floor((botSettings?.auto_lost_delay_hours || 48) / 24) === 1 ? 'dia' : 'dias'}{(botSettings?.auto_lost_delay_hours || 48) % 24 > 0 ? ` e ${(botSettings?.auto_lost_delay_hours || 48) % 24}h` : ''})</span>
+                    )}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Tempo após o envio do 4º follow-up para marcar como perdido. Recomendado: 48h.
+                </p>
+              </div>
+
+              <div className="bg-destructive/10 rounded-lg p-3">
+                <p className="text-xs text-destructive font-medium mb-1">📋 Como funciona</p>
+                <p className="text-xs text-destructive/80">
+                  Após o 4º follow-up ser enviado, o sistema aguarda o tempo configurado. Se o lead não responder nesse período, 
+                  o status é atualizado para "Perdido" automaticamente e um registro é criado no histórico do lead.
+                </p>
               </div>
             </CardContent>
           </Card>
