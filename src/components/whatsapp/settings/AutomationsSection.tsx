@@ -850,43 +850,6 @@ export function AutomationsSection() {
             </CardContent>
           </Card>
 
-          {/* Coming Soon Features */}
-          <div className="space-y-4 opacity-60">
-            <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              Em Desenvolvimento
-            </h3>
-            
-            <Card className="opacity-75">
-              <CardHeader className="py-4">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Clock className="w-4 h-4" />
-                    Respostas Fora do Horário
-                  </CardTitle>
-                  <Badge variant="secondary">Em breve</Badge>
-                </div>
-                <CardDescription className="text-xs">
-                  Envie mensagens automáticas fora do expediente
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="opacity-75">
-              <CardHeader className="py-4">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Forward className="w-4 h-4" />
-                    Encaminhamento Automático
-                  </CardTitle>
-                  <Badge variant="secondary">Em breve</Badge>
-                </div>
-                <CardDescription className="text-xs">
-                  Direcione conversas automaticamente para o responsável correto
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          </div>
         </TabsContent>
 
         {/* ============ TAB: PERGUNTAS ============ */}
