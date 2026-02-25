@@ -88,7 +88,23 @@ export default function Inteligencia() {
     check();
   }, [navigate]);
 
-  if (!permLoading && !modules.inteligencia && !isAdmin) {
+  if (permLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="space-y-4 w-full max-w-2xl px-4 animate-pulse">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-16 rounded-xl" />
+            ))}
+          </div>
+          <Skeleton className="h-32 rounded-xl" />
+          <Skeleton className="h-48 rounded-xl" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!modules.inteligencia && !isAdmin) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center space-y-3">
@@ -99,7 +115,7 @@ export default function Inteligencia() {
     );
   }
 
-  if (!permLoading && !hasView) {
+  if (!hasView) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center space-y-3">
