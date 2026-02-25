@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Camera, Sparkles, MapPin } from "lucide-react";
+import { ImageLightbox } from "@/components/ui/image-lightbox";
 import type { LPGallery, LPTheme } from "@/types/landing-page";
 
 interface DLPGalleryProps {
@@ -16,6 +17,7 @@ interface GalleryUnit {
 
 export function DLPGallery({ gallery, theme, companyName }: DLPGalleryProps) {
   const [activeUnit, setActiveUnit] = useState(0);
+  const [selectedImage, setSelectedImage] = useState<number | null>(null);
 
   if (!gallery.enabled) return null;
 
@@ -121,7 +123,8 @@ export function DLPGallery({ gallery, theme, companyName }: DLPGalleryProps) {
             {units[activeUnit].photos.map((src, index) => (
               <motion.div
                 key={src}
-                className="group relative rounded-xl overflow-hidden shadow-lg aspect-square"
+                className="group relative rounded-xl overflow-hidden shadow-lg aspect-square cursor-pointer"
+                onClick={() => setSelectedImage(index)}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.3, delay: index * 0.05 }}
@@ -145,6 +148,15 @@ export function DLPGallery({ gallery, theme, companyName }: DLPGalleryProps) {
             ))}
           </motion.div>
         </AnimatePresence>
+
+        {selectedImage !== null && (
+          <ImageLightbox
+            images={units[activeUnit].photos}
+            currentIndex={selectedImage}
+            onClose={() => setSelectedImage(null)}
+            onNavigate={setSelectedImage}
+          />
+        )}
       </div>
     </section>
   );

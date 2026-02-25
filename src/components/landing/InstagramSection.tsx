@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Instagram, Sparkles, MapPin } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ImageLightbox } from "@/components/ui/image-lightbox";
 
 const manchesterPhotos = [
   "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/manchester/collections/1770337337388_0.jpeg",
@@ -35,7 +36,7 @@ const units = [
 
 export const InstagramSection = () => {
   const [activeUnit, setActiveUnit] = useState(0);
-
+  const [selectedImage, setSelectedImage] = useState<number | null>(null);
   return (
     <section className="py-20 relative overflow-hidden bg-gradient-to-br from-primary/5 via-background to-secondary/10">
       <div className="absolute inset-0 pointer-events-none">
@@ -102,7 +103,8 @@ export const InstagramSection = () => {
             {units[activeUnit].photos.map((src, index) => (
               <motion.div
                 key={src}
-                className="group relative rounded-xl overflow-hidden shadow-lg aspect-square"
+                className="group relative rounded-xl overflow-hidden shadow-lg aspect-square cursor-pointer"
+                onClick={() => setSelectedImage(index)}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.3, delay: index * 0.05 }}
@@ -118,6 +120,15 @@ export const InstagramSection = () => {
             ))}
           </motion.div>
         </AnimatePresence>
+
+        {selectedImage !== null && (
+          <ImageLightbox
+            images={units[activeUnit].photos}
+            currentIndex={selectedImage}
+            onClose={() => setSelectedImage(null)}
+            onNavigate={setSelectedImage}
+          />
+        )}
 
         {/* Instagram CTA */}
         <motion.div
