@@ -2715,7 +2715,7 @@ async function sendQualificationMaterials(
   // Promo video is now controlled solely by the auto_send_promo_video flag
   
   // Normalize Supabase Storage URLs to use the render/image endpoint
-  // which automatically applies EXIF orientation (fixes rotated photos)
+  // and force re-encoding to remove EXIF orientation metadata reliably
   const normalizeImageUrl = (url: string): string => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     if (!supabaseUrl || !url.includes(supabaseUrl)) return url;
@@ -2724,9 +2724,9 @@ async function sendQualificationMaterials(
     // Convert /storage/v1/object/public/... to /storage/v1/render/image/public/...
     const transformed = url.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/');
     if (transformed === url) return url;
-    // Add width param to trigger transformation (keeps aspect ratio)
+    // Force transform + re-encode (removes EXIF dependency that rotates images on WhatsApp)
     const separator = transformed.includes('?') ? '&' : '?';
-    return `${transformed}${separator}width=1200&quality=85`;
+    return `${transformed}${separator}width=1080&height=1080&resize=contain&quality=85&format=jpeg`;
   };
 
   // Helper to send via W-API
