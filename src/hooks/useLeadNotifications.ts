@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNotificationSounds } from "./useNotificationSounds";
+import { useChatNotificationToggle } from "./useChatNotificationToggle";
 
 /**
  * Hook that listens for new leads and plays a notification sound
@@ -8,7 +9,13 @@ import { useNotificationSounds } from "./useNotificationSounds";
  */
 export function useLeadNotifications() {
   const { playLeadSound } = useNotificationSounds();
+  const { notificationsEnabled } = useChatNotificationToggle();
   const isSubscribedRef = useRef(false);
+  const notificationsEnabledRef = useRef(notificationsEnabled);
+
+  useEffect(() => {
+    notificationsEnabledRef.current = notificationsEnabled;
+  }, [notificationsEnabled]);
 
   useEffect(() => {
     if (isSubscribedRef.current) return;
@@ -25,8 +32,10 @@ export function useLeadNotifications() {
         },
         (payload) => {
           console.log("Novo lead recebido:", payload.new);
-          // Play the lead notification sound
-          playLeadSound();
+          // Play the lead notification sound (respects mute toggle)
+          if (notificationsEnabledRef.current) {
+            playLeadSound();
+          }
         }
       )
       .subscribe();
