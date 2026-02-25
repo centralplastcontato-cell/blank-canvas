@@ -1,59 +1,74 @@
 
+Objetivo: corrigir definitivamente o placeholder `{{empresa}}` para aparecer como **Planeta Divertido** quando a resposta vier pelo fluxo de recuperação (`stuck_bot_recovery`), que foi exatamente o caminho usado na sua conversa.
 
-## Corrigir bot do Planeta Divertido que não inicia
+Diagnóstico confirmado
+- A mensagem que chegou com `{{empresa}}` literal foi enviada pelo **follow-up-check** (metadata `source: "stuck_bot_recovery"`), não pelo fluxo principal do `wapi-webhook`.
+- No `follow-up-check`, o passo `welcome` monta a mensagem assim:
+  - `welcomeMsg = settings.welcome_message + firstQuestion`
+  - sem aplicar replace de variáveis no `welcome_message`.
+- Além disso, o helper `recoveryReplaceVariables` hoje só substitui `{chave}` (chave simples), não `{{chave}}` (chave dupla).
+- E o fluxo de recovery não injeta aliases de empresa (`empresa`, `buffet`, `nome_empresa`, `nome-empresa`) antes de renderizar templates.
+- Resultado: quando recovery dispara, `{{empresa}}` permanece bruto.
 
-### Problema diagnosticado
-O bot não responde mensagens do número de teste porque:
+Plano de implementação
+1) Corrigir interpolação no `follow-up-check` (ponto principal)
+- Arquivo: `supabase/functions/follow-up-check/index.ts`
+- Ajustar `recoveryReplaceVariables` para:
+  - suportar `{{key}}` e `{key}`;
+  - aceitar espaços internos (`{{ empresa }}` também funcionar);
+  - escapar chave no regex para evitar edge-cases.
+- Isso padroniza comportamento com o webhook principal.
 
-1. **Tabela `wapi_bot_settings` vazia** para a instancia do Planeta Divertido (ID: `ac422826-d1a9-40a6-8ce2-acc5a0c1cb64`). O webhook faz `if (!settings) return;` na linha 1803 e abandona o processamento.
-2. O **SANDBOX hardcoded** para o numero piloto (`15981121710`) fica nas linhas 1806-1813, **depois** desse return, entao nunca e alcancado.
-3. **Nao existe nenhum `conversation_flow`** cadastrado para a empresa, impossibilitando o uso do Flow Builder.
+2) Injetar variáveis de empresa no recovery
+- No `processStuckBotRecovery`, antes de compor mensagens:
+  - buscar `companies.name` via `instance.company_id`;
+  - adicionar ao mapa de variáveis:
+    - `empresa`
+    - `buffet`
+    - `nome_empresa`
+    - `nome-empresa`
+- Assim qualquer template com esses placeholders renderiza corretamente no recovery.
 
-### Solucao
+3) Aplicar replace também no welcome do recovery
+- No bloco `if (step === 'welcome')`, trocar construção de mensagem para:
+  - renderizar `settings.welcome_message` com `recoveryReplaceVariables(...)`;
+  - depois concatenar primeira pergunta.
+- Isso elimina o bug específico que você reportou.
 
-**1. Criar registro de `wapi_bot_settings` (migration SQL)**
+4) Blindagem opcional para não duplicar pergunta inicial
+- Se o `welcome_message` já contém a pergunta de nome, evitar anexar a pergunta padrão de novo.
+- Implementação simples:
+  - checar por marcador semântico (ex.: “qual é o seu nome”);
+  - se já existir, não concatenar `firstQ.question`.
+- Não bloqueia a correção principal, mas melhora UX imediata (na sua captura já apareceu duplicado).
 
-Inserir configuracoes iniciais para a instancia do Planeta Divertido, habilitando o modo de teste com o numero do usuario:
+5) Ajuste de consistência de configuração (DB)
+- Estado atual encontrado: `wapi_bot_settings` da instância está com `company_id = null` e `bot_enabled = false`.
+- Mesmo em modo teste funcionando, isso é inconsistente e pode gerar comportamento imprevisível.
+- Aplicar update para:
+  - `company_id = '6bc204ae-1311-4c67-bb6b-9ab55dae9d11'`
+  - `bot_enabled = true`
+- Mantém o vínculo correto da configuração com Planeta Divertido.
 
-```sql
-INSERT INTO wapi_bot_settings (instance_id, company_id, bot_enabled, test_mode_enabled, test_mode_number, message_delay)
-VALUES (
-  'ac422826-d1a9-40a6-8ce2-acc5a0c1cb64',
-  '6bc204ae-1311-4c67-bb6b-9ab55dae9d11',
-  true,
-  true,
-  '5515981121710',
-  3
-);
-```
+Validação após implementação
+- Teste principal (E2E):
+  1. Enviar “Olá” do número de teste.
+  2. Confirmar que a resposta vem com “Planeta Divertido” no lugar de `{{empresa}}`.
+  3. Confirmar que a mensagem foi salva em `wapi_messages` sem placeholder.
+- Teste recovery:
+  1. Simular conversa “presa” para acionar `stuck_bot_recovery`.
+  2. Confirmar que no recovery também substitui `{{empresa}}`.
+- Verificação de banco:
+  - `wapi_bot_settings` com `company_id` correto e `bot_enabled = true`.
+- Verificação de logs:
+  - sem placeholders brutos enviados.
 
-Isso garante que:
-- O bot esta habilitado (`bot_enabled: true`)
-- Modo de teste ativo para proteger clientes reais (`test_mode_enabled: true`)
-- Apenas o numero de teste recebe as mensagens do bot
+Riscos e mitigação
+- Risco: alterar regex e afetar variáveis antigas.
+  - Mitigação: manter compatibilidade com `{chave}` e apenas expandir para `{{chave}}`.
+- Risco: empresa não encontrada por algum dado legado.
+  - Mitigação: fallback seguro para string vazia e log explícito.
 
-**2. (Opcional) Mover o SANDBOX antes do check de settings no `wapi-webhook`**
-
-Reordenar as linhas 1802-1814 no `wapi-webhook/index.ts` para que a verificacao do numero piloto aconteca **antes** do `if (!settings) return;`. Isso evita que o SANDBOX dependa de ter um registro em `wapi_bot_settings`.
-
-Mudanca no codigo:
-- Mover o bloco SANDBOX (linhas 1806-1813) para **antes** da linha 1802 (`const settings = await getBotSettings(...)`)
-- Assim o numero piloto sempre sera processado, independente da existencia de bot_settings
-
-**3. Resetar a conversa para re-testar**
-
-Apos aplicar, sera necessario resetar o `bot_step` da conversa do Vitor para que o bot reinicie:
-
-```sql
-UPDATE wapi_conversations 
-SET bot_step = NULL, bot_data = '{}', bot_enabled = true 
-WHERE id = '9e13379a-34eb-4cdd-859b-b36576e2afd2';
-```
-
-### Arquivos afetados
-- Nova migration SQL (inserir `wapi_bot_settings`)
-- `supabase/functions/wapi-webhook/index.ts` (reordenar bloco SANDBOX - opcional)
-
-### Resultado esperado
-Ao enviar "Ola" do numero de teste, o bot respondera com a mensagem de boas-vindas e iniciara o fluxo de qualificacao (Nome, Tipo, Mes, Dia, Convidados) utilizando as perguntas ja cadastradas em `wapi_bot_questions`.
-
+Resultado esperado
+- Em qualquer caminho (webhook normal ou recovery), a variável `{{empresa}}` passa a renderizar corretamente como **Planeta Divertido**.
+- A resposta deixa de exibir placeholder bruto e o fluxo fica consistente entre funções.
