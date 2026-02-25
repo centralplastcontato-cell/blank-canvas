@@ -123,7 +123,6 @@ export default function HubAIUsage() {
   function isAIEnabled(companyId: string): boolean {
     const company = companyMap.get(companyId);
     const settings = company?.settings as Record<string, unknown> | null;
-    return (settings as any)?.ai_enabled !== false; // default true
     return settings?.ai_enabled !== false; // default true
   }
 
