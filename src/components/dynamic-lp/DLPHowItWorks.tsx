@@ -32,10 +32,12 @@ export function DLPHowItWorks({ howItWorks, theme }: DLPHowItWorksProps) {
         )}
 
         <div className="relative">
-          {/* Connector line (desktop) */}
+          {/* Connector line (desktop) - more visible */}
           <div
-            className="hidden md:block absolute top-16 left-[10%] right-[10%] h-0.5 opacity-20"
-            style={{ backgroundColor: theme.primary_color }}
+            className="hidden md:block absolute top-[2rem] left-[10%] right-[10%] h-1 rounded-full"
+            style={{
+              background: `linear-gradient(90deg, transparent, ${theme.primary_color}40, ${theme.secondary_color}40, transparent)`,
+            }}
           />
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
@@ -51,8 +53,11 @@ export function DLPHowItWorks({ howItWorks, theme }: DLPHowItWorksProps) {
                   className="text-center relative"
                 >
                   <div
-                    className="w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-md relative z-10"
-                    style={{ backgroundColor: theme.primary_color }}
+                    className="w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-xl relative z-10"
+                    style={{
+                      background: `linear-gradient(135deg, ${theme.primary_color}, ${theme.secondary_color})`,
+                      boxShadow: `0 8px 20px ${theme.primary_color}40`,
+                    }}
                   >
                     <Icon className="w-6 h-6 md:w-7 md:h-7 text-white" />
                   </div>

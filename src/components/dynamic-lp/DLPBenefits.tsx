@@ -69,8 +69,19 @@ export function DLPBenefits({ theme, companyName, benefits }: DLPBenefitsProps) 
   const subtitle = benefits?.subtitle || "Há mais de 10 anos transformando sonhos em realidade com festas inesquecíveis";
 
   return (
-    <section className="py-20" style={{ backgroundColor: theme.primary_color + "0a" }}>
-      <div className="max-w-6xl mx-auto px-4">
+    <section
+      className="py-20 relative overflow-hidden"
+      style={{
+        background: `linear-gradient(180deg, ${theme.primary_color}12 0%, ${theme.primary_color}08 50%, ${theme.secondary_color}08 100%)`,
+      }}
+    >
+      {/* Decorative background blurs */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-20 -left-20 w-72 h-72 rounded-full blur-3xl" style={{ backgroundColor: theme.primary_color + "12" }} />
+        <div className="absolute bottom-20 -right-20 w-72 h-72 rounded-full blur-3xl" style={{ backgroundColor: theme.secondary_color + "12" }} />
+      </div>
+
+      <div className="max-w-6xl mx-auto px-4 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -98,10 +109,10 @@ export function DLPBenefits({ theme, companyName, benefits }: DLPBenefitsProps) 
                 key={index}
                 variants={cardVariants}
                 whileHover={{ y: -8, scale: 1.02 }}
-                className="relative p-6 text-center group cursor-default overflow-hidden rounded-2xl border shadow-lg"
-                style={{ backgroundColor: theme.background_color, borderColor: theme.text_color + "15" }}
+                className="relative p-6 text-center group cursor-default overflow-hidden rounded-2xl border-2 shadow-lg hover:shadow-2xl transition-shadow duration-300"
+                style={{ backgroundColor: theme.background_color, borderColor: theme.primary_color + "20" }}
               >
-                <div className={`absolute inset-0 bg-gradient-to-br ${color} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
+                <div className={`absolute inset-0 bg-gradient-to-br ${color} opacity-0 group-hover:opacity-[0.12] transition-opacity duration-300`} />
                 <motion.div
                   whileHover={{ scale: 1.1, rotate: 5 }}
                   transition={{ type: "spring", stiffness: 300 }}
@@ -134,7 +145,7 @@ export function DLPBenefits({ theme, companyName, benefits }: DLPBenefitsProps) 
                 className="flex items-center gap-3 px-6 py-3 rounded-full shadow-md border"
                 style={{ backgroundColor: badgeColor + "15", borderColor: badgeColor + "30" }}
               >
-                <BadgeIcon className="w-6 h-6" style={{ color: badgeColor, fill: i === 0 || i === 2 ? badgeColor : undefined }} />
+                <BadgeIcon className="w-6 h-6" style={{ color: badgeColor, fill: badgeColor }} />
                 <span className="font-bold" style={{ color: theme.text_color, fontFamily: theme.font_body }}>{badge.text}</span>
               </motion.div>
             );

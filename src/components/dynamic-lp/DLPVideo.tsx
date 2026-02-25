@@ -35,7 +35,6 @@ interface VideoItem {
 export function DLPVideo({ video, theme, companyName }: DLPVideoProps) {
   if (!video.enabled) return null;
 
-  // Build video items array: new format (videos[]) or legacy (single video_url)
   let items: VideoItem[] = [];
 
   if (video.videos && video.videos.length > 0) {
@@ -122,10 +121,11 @@ export function DLPVideo({ video, theme, companyName }: DLPVideoProps) {
                 viewport={{ once: true }}
               >
                 <div
-                  className="relative rounded-2xl overflow-hidden shadow-xl border-2"
+                  className="relative rounded-2xl overflow-hidden shadow-2xl border-2"
                   style={{
-                    borderColor: theme.primary_color + "20",
+                    borderColor: theme.primary_color + "30",
                     backgroundColor: theme.background_color,
+                    boxShadow: `0 20px 50px ${theme.primary_color}15`,
                   }}
                 >
                   {embedUrl ? (

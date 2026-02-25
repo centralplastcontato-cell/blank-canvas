@@ -123,7 +123,7 @@ export function DLPGallery({ gallery, theme, companyName }: DLPGalleryProps) {
             {units[activeUnit].photos.map((src, index) => (
               <motion.div
                 key={src}
-                className="group relative rounded-xl overflow-hidden shadow-lg aspect-square cursor-pointer"
+                className="group relative rounded-xl overflow-hidden shadow-lg hover:shadow-2xl aspect-square cursor-pointer transition-shadow duration-300"
                 onClick={() => setSelectedImage(index)}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -132,7 +132,7 @@ export function DLPGallery({ gallery, theme, companyName }: DLPGalleryProps) {
                 <img
                   src={src}
                   alt={`${units[activeUnit].name} - Foto ${index + 1}`}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  className="w-full h-full object-cover group-hover:scale-[1.15] transition-transform duration-500"
                   loading="lazy"
                 />
                 <div
