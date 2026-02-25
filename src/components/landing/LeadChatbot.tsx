@@ -36,6 +36,7 @@ interface LPBotConfig {
   guest_limit_message?: string | null;
   guest_limit_redirect_name?: string | null;
   redirect_completion_message?: string | null;
+  whatsapp_welcome_template?: string | null;
 }
 
 interface LeadChatbotProps {
@@ -381,9 +382,21 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
       const redirectText = (redirectInfo?.customMessage && redirectInfo.customMessage.trim())
         || `Nossa capacidade máxima é de ${redirectInfo?.limit || 0} convidados.`;
 
+      const dateStr = `${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}`;
+      const defaultNormalMsg = `Olá! 👋🏼✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n1️⃣ - 📩 Receber agora meu orçamento\n2️⃣ - 💬 Falar com um atendente`;
+      
+      const applyTemplate = (template: string) => template
+        .replace(/\{nome\}/g, leadInfo.name || '')
+        .replace(/\{unidade\}/g, unit)
+        .replace(/\{data\}/g, dateStr)
+        .replace(/\{convidados\}/g, leadInfo.guests || '')
+        .replace(/\{empresa\}/g, displayName);
+
       const message = redirectInfo
-        ? `Olá! 👋✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}\n👥 Convidados: ${leadInfo.guests || ''}\n\n${redirectText}\n\nObrigado pelo interesse! 💜`
-        : `Olá! 👋🏼✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}\n👥 Convidados: ${leadInfo.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n1️⃣ - 📩 Receber agora meu orçamento\n2️⃣ - 💬 Falar com um atendente`;
+        ? `Olá! 👋✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\n${redirectText}\n\nObrigado pelo interesse! 💜`
+        : lpBotConfig?.whatsapp_welcome_template
+          ? applyTemplate(lpBotConfig.whatsapp_welcome_template)
+          : defaultNormalMsg;
 
       const { error } = await supabase.functions.invoke('wapi-send', {
         body: {
