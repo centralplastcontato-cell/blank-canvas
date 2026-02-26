@@ -64,6 +64,7 @@ function ConfettiParticles({ color1, color2 }: { color1: string; color2: string 
 export function DLPHero({ hero, theme, companyName, companyLogo, onCtaClick, multipleUnits }: DLPHeroProps) {
   const [activeImage, setActiveImage] = useState(0);
   const [imagesLoaded, setImagesLoaded] = useState(false);
+  const [logoFailed, setLogoFailed] = useState(false);
   const hasMultipleImages = hero.background_images && hero.background_images.length >= 2;
 
   // Preload all background images before starting crossfade
@@ -184,7 +185,7 @@ export function DLPHero({ hero, theme, companyName, companyLogo, onCtaClick, mul
           />
 
           <div className="relative z-10">
-            {companyLogo && (
+            {companyLogo && !logoFailed && (
               <motion.img
                 src={companyLogo}
                 alt={companyName}
@@ -192,6 +193,7 @@ export function DLPHero({ hero, theme, companyName, companyLogo, onCtaClick, mul
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.2, duration: 0.5 }}
                 className="w-48 md:w-64 lg:w-80 mx-auto drop-shadow-2xl mb-6"
+                onError={() => setLogoFailed(true)}
               />
             )}
 
