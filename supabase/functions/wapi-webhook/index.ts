@@ -496,12 +496,19 @@ async function sendTextViaWapiWithFallback(
 
       const payload = await res.json();
       const msgId = payload?.messageId || payload?.data?.messageId || payload?.id || payload?.data?.id || null;
+      // PHASE 2: Log response body for delivery diagnostics
+      if (!msgId) {
+        console.warn(`[Bot] send-text OK but NO msgId [${attempt.name}]. Response:`, JSON.stringify(payload).substring(0, 300));
+      } else {
+        console.log(`[Bot] send-text OK [${attempt.name}] msgId=${msgId}. Response:`, JSON.stringify(payload).substring(0, 200));
+      }
       return { messageId: msgId, attempt: attempt.name };
     } catch (e) {
       console.warn(`[Bot] send-text exception [${attempt.name}]:`, e);
     }
   }
 
+  console.error(`[Bot] send-text ALL attempts failed for ${remoteJid}`);
   return { messageId: null, attempt: null };
 }
 

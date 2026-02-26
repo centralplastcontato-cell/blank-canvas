@@ -139,10 +139,11 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
           const wapiPhone = response.data?.phoneNumber || response.data?.phone;
           const errorType = response.data?.errorType;
 
-          // DEGRADED/TIMEOUT: keep previous status, don't update DB
-          if (wapiStatus === 'degraded' || errorType === 'TIMEOUT_OR_GATEWAY') {
-            console.log(`Sync: ${instance.unit} returned degraded/timeout, keeping previous status`);
-            return instance;
+          // DEGRADED/TIMEOUT/SESSION_INCOMPLETE: keep previous status, don't update DB
+          if (wapiStatus === 'degraded' || errorType === 'TIMEOUT_OR_GATEWAY' || errorType === 'SESSION_INCOMPLETE') {
+            console.log(`Sync: ${instance.unit} returned ${wapiStatus}/${errorType}, keeping previous status`);
+            // Store the degraded info so we can show alerts in UI
+            return { ...instance, _degradedError: response.data?.error, _degradedType: errorType } as WapiInstance & { _degradedError?: string; _degradedType?: string };
           }
 
           if (wapiStatus && wapiStatus !== instance.status) {
@@ -1354,6 +1355,16 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                             <p className="text-sm text-muted-foreground">
                               📞 {instance.phone_number}
                             </p>
+                          )}
+                          {/* PHASE 4: Degraded instance alert */}
+                          {(instance as any)._degradedError && (
+                            <div className="mt-2 p-2 rounded-md bg-destructive/10 border border-destructive/30">
+                              <p className="text-xs font-medium text-destructive">
+                                ⚠️ {(instance as any)._degradedType === 'SESSION_INCOMPLETE' 
+                                  ? 'Sessão incompleta — mensagens podem ficar como "Aguardando". Recomenda-se desconectar e reconectar.'
+                                  : 'Comunicação instável com a W-API. Mensagens podem não ser entregues.'}
+                              </p>
+                            </div>
                           )}
                         </div>
                       </div>

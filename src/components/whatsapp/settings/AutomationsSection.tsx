@@ -477,12 +477,48 @@ export function AutomationsSection() {
         description: "Não foi possível atualizar as configurações.",
         variant: "destructive",
       });
-    } else {
-      setBotSettings({ ...botSettings, ...updates });
+      setIsSaving(false);
+      return;
+    }
+
+    // PHASE 3: Read-after-write verification — confirm the DB actually persisted the change
+    const { data: verified, error: readError } = await supabase
+      .from("wapi_bot_settings")
+      .select("*")
+      .eq("id", botSettings.id)
+      .single();
+
+    if (readError || !verified) {
+      console.error("Read-after-write failed:", readError);
       toast({
-        title: "Configurações salvas",
-        description: "As alterações foram aplicadas com sucesso.",
+        title: "⚠️ Salvo com ressalva",
+        description: "A alteração foi enviada, mas não foi possível confirmar a persistência. Recarregue a página para verificar.",
+        variant: "destructive",
       });
+      setBotSettings({ ...botSettings, ...updates });
+    } else {
+      // Use the verified data from DB, not the optimistic update
+      setBotSettings(verified);
+      
+      // Check if the critical fields actually match what we sent
+      const criticalKeys = ['bot_enabled', 'test_mode_enabled', 'test_mode_number'] as const;
+      const mismatches = criticalKeys.filter(key => 
+        key in updates && (verified as any)[key] !== (updates as any)[key]
+      );
+      
+      if (mismatches.length > 0) {
+        console.error("Read-after-write MISMATCH:", mismatches.map(k => `${k}: sent=${(updates as any)[k]} got=${(verified as any)[k]}`));
+        toast({
+          title: "⚠️ Inconsistência detectada",
+          description: `Os campos ${mismatches.join(', ')} não foram salvos corretamente. Tente novamente.`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "✅ Configurações salvas",
+          description: "Verificado: as alterações foram persistidas com sucesso.",
+        });
+      }
     }
 
     setIsSaving(false);
