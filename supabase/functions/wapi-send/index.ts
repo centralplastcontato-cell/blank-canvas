@@ -126,10 +126,17 @@ async function sendTextWithFallback(instanceId: string, token: string, rawPhone:
   for (const attempt of attempts) {
     const res = await wapiRequest(endpoint, token, 'POST', attempt.body);
     if (res.ok) {
+      const msgId = extractWapiMessageId(res.data);
+      // PHASE 1+2: Validate we got a real messageId back, log response for diagnostics
+      if (!msgId) {
+        console.warn(`[send-text] W-API returned ok but NO messageId [${attempt.name}]. Response:`, JSON.stringify(res.data).substring(0, 300));
+        // Still return ok (provider accepted), but log the anomaly
+      }
+      console.log(`[send-text] Success [${attempt.name}] msgId=${msgId || 'NONE'}. Response:`, JSON.stringify(res.data).substring(0, 200));
       return { ok: true, data: res.data, attempt: attempt.name };
     }
     lastError = res.error || lastError;
-    console.warn(`send-text fallback failed [${attempt.name}]:`, lastError);
+    console.warn(`[send-text] Failed [${attempt.name}]: ${lastError}`);
   }
 
   return { ok: false, error: lastError };
@@ -860,10 +867,25 @@ Deno.serve(async (req) => {
             const data = await qrRes.json();
             console.log('get-status qr data:', JSON.stringify(data));
             
-            if (data.connected === true) {
+          if (data.connected === true) {
+              const qrPhone = data.phone || data.phoneNumber || data.me?.id?.split('@')[0] || null;
+              // PHASE 1: Require phone number to confirm real connection.
+              // QR endpoint returning connected=true WITHOUT a phone means the session
+              // may be partially initialized (keys not synced) → "Aguardando mensagem" symptom.
+              if (!qrPhone) {
+                console.warn(`get-status: QR says connected but NO phone number for ${instance_id}. Returning degraded (session may be incomplete).`);
+                return new Response(JSON.stringify({ 
+                  status: 'degraded',
+                  connected: false,
+                  error: 'Instância parece conectada mas sem número vinculado. Sessão pode estar incompleta — tente desconectar e reconectar.',
+                  errorType: 'SESSION_INCOMPLETE',
+                }), {
+                  status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                });
+              }
               return new Response(JSON.stringify({ 
                 status: 'connected',
-                phoneNumber: data.phone || data.phoneNumber || null,
+                phoneNumber: qrPhone,
                 connected: true,
               }), {
                 status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
