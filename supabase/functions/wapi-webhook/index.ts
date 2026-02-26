@@ -2670,18 +2670,17 @@ async function processBotQualification(
   // Send the text message
   const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, msg);
   
-  if (msgId) {
-    await supabase.from('wapi_messages').insert({
-      conversation_id: conv.id,
-      message_id: msgId,
-      from_me: true,
-      message_type: 'text',
-      content: msg,
-      status: 'sent',
-      timestamp: new Date().toISOString(),
-      company_id: instance.company_id,
-    });
-  }
+  // Always save bot message to DB so it appears in chat, even if W-API delivery failed
+  await supabase.from('wapi_messages').insert({
+    conversation_id: conv.id,
+    message_id: msgId || `bot_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    from_me: true,
+    message_type: 'text',
+    content: msg,
+    status: msgId ? 'sent' : 'failed',
+    timestamp: new Date().toISOString(),
+    company_id: instance.company_id,
+  });
   
   await supabase.from('wapi_conversations').update({
     bot_step: nextStep,
