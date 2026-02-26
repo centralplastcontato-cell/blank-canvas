@@ -8,7 +8,7 @@ interface HubCTAProps {
 
 export default function HubCTA({ onOpenWizard }: HubCTAProps) {
   return (
-    <section className="py-24 sm:py-32 relative overflow-hidden">
+    <section className="py-16 sm:py-24 relative overflow-hidden bg-gradient-to-b from-background to-muted/30">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-primary/5 blur-3xl" />
       </div>
@@ -40,9 +40,9 @@ export default function HubCTA({ onOpenWizard }: HubCTAProps) {
             <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </div>
-        <p className="mt-5 text-xs text-muted-foreground tracking-wide">
-          Sem compromisso · Setup em 48h · Suporte dedicado
-        </p>
+        <div className="mt-5 inline-flex items-center gap-2 bg-primary/5 text-primary text-xs font-medium px-4 py-2 rounded-full border border-primary/10">
+          ✓ Sem compromisso · ✓ Setup em 48h · ✓ Suporte dedicado
+        </div>
       </motion.div>
     </section>
   );

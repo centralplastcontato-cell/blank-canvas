@@ -22,7 +22,6 @@ export default function HubHero({ onOpenWizard }: HubHeroProps) {
           transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
           className="absolute -bottom-1/4 -left-1/4 w-[600px] h-[600px] rounded-full bg-[radial-gradient(circle,hsl(42_95%_55%/0.08),transparent_70%)]"
         />
-        {/* Grid pattern overlay */}
         <div
           className="absolute inset-0 opacity-[0.03]"
           style={{
@@ -32,8 +31,8 @@ export default function HubHero({ onOpenWizard }: HubHeroProps) {
         />
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-24 pb-16 sm:pt-32 sm:pb-24 relative z-10 w-full">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-32 sm:pb-24 relative z-10 w-full">
+        <div className="grid lg:grid-cols-2 gap-10 lg:gap-20 items-center">
           {/* Left - Copy */}
           <motion.div
             initial={{ opacity: 0, y: 40 }}
@@ -44,13 +43,13 @@ export default function HubHero({ onOpenWizard }: HubHeroProps) {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.2, duration: 0.5 }}
-              className="inline-flex items-center gap-2 bg-white/5 backdrop-blur-sm text-white/80 text-sm font-medium px-4 py-2 rounded-full mb-8 border border-white/10"
+              className="inline-flex items-center gap-2 bg-white/5 backdrop-blur-sm text-white/80 text-xs sm:text-sm font-medium px-3 sm:px-4 py-1.5 sm:py-2 rounded-full mb-6 sm:mb-8 border border-white/10"
             >
               <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
               A melhor plataforma para buffets infantis
             </motion.div>
 
-            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-[1.08] tracking-tight">
+            <h1 className="font-display text-3xl sm:text-5xl lg:text-6xl font-bold text-white leading-[1.08] tracking-tight">
               Transforme leads em{" "}
               <span className="relative inline-block">
                 <span className="relative z-10 bg-gradient-to-r from-secondary via-secondary to-festive bg-clip-text text-transparent">
@@ -65,56 +64,58 @@ export default function HubHero({ onOpenWizard }: HubHeroProps) {
               </span>
             </h1>
 
-            <p className="mt-6 text-lg sm:text-xl text-white/60 leading-relaxed max-w-lg">
+            <p className="mt-5 sm:mt-6 text-base sm:text-xl text-white/60 leading-relaxed max-w-lg">
               CRM + WhatsApp automatizado que atende, qualifica e converte.{" "}
               <span className="text-white/80 font-medium">Sem aumentar sua equipe.</span>
             </p>
 
-            <div className="mt-10 flex flex-col sm:flex-row gap-4">
+            <div className="mt-8 sm:mt-10 flex flex-row gap-3 sm:gap-4">
               <Button
                 size="lg"
-                className="text-base px-8 py-6 rounded-full font-bold shadow-lg bg-white text-[hsl(225_35%_10%)] hover:bg-white/90 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_20px_40px_-10px_rgba(255,255,255,0.2)]"
+                className="text-sm sm:text-base px-6 sm:px-8 py-5 sm:py-6 rounded-full font-bold shadow-lg bg-white text-[hsl(225_35%_10%)] hover:bg-white/90 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_20px_40px_-10px_rgba(255,255,255,0.2)]"
                 onClick={onOpenWizard}
               >
-                Agendar uma conversa
-                <ArrowRight className="ml-2 h-5 w-5" />
+                Agendar conversa
+                <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
               <Button
                 variant="ghost"
                 size="lg"
-                className="text-base px-8 py-6 rounded-full border border-white/20 text-white/80 hover:bg-white/5 hover:text-white"
+                className="text-sm sm:text-base px-5 sm:px-8 py-5 sm:py-6 rounded-full border border-white/20 text-white/80 hover:bg-white/5 hover:text-white"
                 onClick={onOpenWizard}
               >
                 <Play className="mr-2 h-4 w-4" />
-                Ver demonstração
+                Demo
               </Button>
             </div>
 
-            {/* Social proof - minimal */}
-            <div className="mt-12 flex items-center gap-4 pt-8 border-t border-white/10">
-              <div className="flex -space-x-2">
-                {["C", "M", "B", "R"].map((letter, i) => (
-                  <div
-                    key={i}
-                    className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center text-xs font-bold text-white/80"
-                  >
-                    {letter}
-                  </div>
-                ))}
-              </div>
-              <div>
-                <p className="text-sm font-medium text-white/80">Buffets conectados</p>
-                <p className="text-xs text-white/40">Atendendo milhares de leads automaticamente</p>
+            {/* Social proof - data-driven */}
+            <div className="mt-10 sm:mt-12 flex items-center gap-5 pt-6 sm:pt-8 border-t border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="text-center">
+                  <p className="text-2xl font-display font-bold text-white">10+</p>
+                  <p className="text-[10px] text-white/40 uppercase tracking-wider">Buffets</p>
+                </div>
+                <div className="w-px h-8 bg-white/10" />
+                <div className="text-center">
+                  <p className="text-2xl font-display font-bold text-secondary">5k+</p>
+                  <p className="text-[10px] text-white/40 uppercase tracking-wider">Leads</p>
+                </div>
+                <div className="w-px h-8 bg-white/10" />
+                <div className="text-center">
+                  <p className="text-2xl font-display font-bold text-accent">24/7</p>
+                  <p className="text-[10px] text-white/40 uppercase tracking-wider">Ativo</p>
+                </div>
               </div>
             </div>
           </motion.div>
 
-          {/* Right - Hero image with premium frame */}
+          {/* Right - Hero image */}
           <motion.div
             initial={{ opacity: 0, y: 60 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, delay: 0.3, ease: "easeOut" }}
-            className="relative"
+            className="relative hidden sm:block"
           >
             <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.5)]">
               <img
@@ -126,7 +127,6 @@ export default function HubHero({ onOpenWizard }: HubHeroProps) {
               <div className="absolute inset-0 bg-gradient-to-t from-[hsl(225_35%_10%/0.4)] to-transparent" />
             </div>
 
-            {/* Floating metric cards */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -149,7 +149,6 @@ export default function HubHero({ onOpenWizard }: HubHeroProps) {
         </div>
       </div>
 
-      {/* Bottom fade to light */}
       <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent" />
     </section>
   );
