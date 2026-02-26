@@ -8,7 +8,8 @@ import {
   Building2,
   Brain,
   CalendarDays,
-  FolderOpen
+  FolderOpen,
+  GraduationCap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,7 +28,7 @@ interface MobileMenuProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   trigger: React.ReactNode;
-  currentPage: "atendimento" | "configuracoes" | "users" | "whatsapp" | "inteligencia" | "agenda" | "avaliacoes" | "prefesta" | "formularios" | "perfil";
+  currentPage: "atendimento" | "configuracoes" | "users" | "whatsapp" | "inteligencia" | "agenda" | "avaliacoes" | "prefesta" | "formularios" | "perfil" | "treinamento";
   userName: string;
   userEmail: string;
   userAvatar?: string | null;
@@ -111,6 +112,13 @@ export function MobileMenu({
       icon: Building2,
       path: "/hub/empresas",
       show: !!isAdmin,
+    },
+    {
+      id: "treinamento",
+      label: "Treinamento",
+      icon: GraduationCap,
+      path: "/treinamento",
+      show: true,
     },
   ];
 
