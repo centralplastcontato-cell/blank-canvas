@@ -1,50 +1,63 @@
 
-## Sincronizar Alteração de Email com Supabase Auth
 
-### Problema
-Quando um administrador edita o email de um usuário, apenas a tabela `profiles` é atualizada. A tabela `auth.users` (usada para login) permanece com o email antigo, impedindo o login com o email corrigido.
+## Problema: Bot enviando mensagem duplicada quando cliente manda mais de uma mensagem rápida
 
-### Alterações Necessárias
+### O que está acontecendo
 
-#### 1. Edge Function `manage-user` (Backend)
-**Arquivo:** `supabase/functions/manage-user/index.ts`
+Quando um cliente envia 2 mensagens rapidamente (ex: "Boa tarde" + "Boa tarde"), o webhook do WhatsApp recebe cada mensagem como uma chamada independente. As duas chamadas leem o estado `bot_step: 'welcome'` ao **mesmo tempo**, antes que qualquer uma delas atualize o banco. Resultado: as duas processam o step `welcome` e enviam a mensagem de boas-vindas duas vezes.
 
-Dentro da ação `update` (linhas 198-242), adicionar tratamento para o campo `email`:
-- Quando `email` for fornecido no body da requisição:
-  - Atualizar `auth.users` via `supabaseAdmin.auth.admin.updateUserById(user_id, { email })`
-  - Atualizar `profiles.email` na mesma operação
-- Isso garante que ambas as tabelas fiquem sincronizadas
+Isso é uma **condição de corrida** (race condition) clássica.
 
-#### 2. Interface Hub - Edição de Email (Desktop)
-**Arquivo:** `src/components/hub/HubUserCompanySection.tsx`
+### Solução
 
-- Expandir o modo de edição inline (que hoje edita apenas o nome) para incluir um campo de email
-- Adicionar estado `editEmail` junto com `editName`
-- Chamar um novo callback `onUpdateEmail` ao salvar
+Adicionar uma **trava de deduplicação** no início da função `processBotQualification` que impede o processamento simultâneo do mesmo step para a mesma conversa.
 
-#### 3. Página HubUsers - Nova Função
-**Arquivo:** `src/pages/HubUsers.tsx`
+### Alterações
 
-- Adicionar função `handleUpdateEmail` que chama `manage-user` com `action: "update"` e o campo `email`
-- Passar a função como prop para `HubUserCompanySection`
+**Arquivo:** `supabase/functions/wapi-webhook/index.ts`
 
-#### 4. Interface Mobile - Edição de Email
-**Arquivo:** `src/components/admin/UserCard.tsx`
+1. **Trava atômica no banco (UPDATE condicional):** No início de `processBotQualification`, antes de processar qualquer step, fazer um `UPDATE ... SET bot_data = { ...bot_data, _processing: true }` com condição `WHERE bot_data->>'_processing' IS NULL` (ou similar). Se o UPDATE retorna 0 linhas afetadas, significa que outra chamada já está processando - nesse caso, ignorar silenciosamente.
 
-- Adicionar campo de email no dialog de edição existente (que hoje edita apenas o nome)
-- Chamar o callback de atualização de email junto com o nome
+2. **Abordagem mais simples e robusta:** Usar o `bot_step` como a própria trava. Antes de enviar a mensagem de boas-vindas, avançar o `bot_step` para o próximo passo **primeiro** (de forma atômica com WHERE `bot_step = 'welcome'`). Se o UPDATE retorna 0 linhas, outra chamada já avançou o step -- abortar sem enviar nada.
 
----
+```text
+Fluxo atual (com bug):
+  Msg1 -> lê bot_step='welcome' -> envia boas-vindas -> atualiza step
+  Msg2 -> lê bot_step='welcome' -> envia boas-vindas -> atualiza step (duplicado!)
+
+Fluxo corrigido:
+  Msg1 -> UPDATE bot_step='nome' WHERE bot_step='welcome' (1 row) -> envia boas-vindas
+  Msg2 -> UPDATE bot_step='nome' WHERE bot_step='welcome' (0 rows) -> SKIP (nao envia nada)
+```
+
+3. **Aplicar para TODOS os steps, nao so welcome:** A mesma lógica de "claim atômico" será aplicada para todos os steps do bot. Antes de processar qualquer resposta, o webhook faz um UPDATE condicional com WHERE `bot_step = <step_atual>`. Se outra chamada já avançou o step, a mensagem é ignorada pelo bot (mas continua sendo salva normalmente no histórico).
+
+4. **Limpar flag de processamento:** Ao final do processamento (envio da mensagem + update do step), o bot já terá atualizado o `bot_step` para o próximo, então não há flag residual.
 
 ### Detalhes Técnicos
 
-Lógica de atualização de email na edge function:
+No início da função `processBotQualification`, logo antes de processar o step:
+
 ```text
-if (body.email) {
-  1. supabaseAdmin.auth.admin.updateUserById(user_id, { email })  -> atualiza auth.users
-  2. profiles.update({ email })                                    -> atualiza tabela profiles
+// Atomic claim: try to "lock" this step for processing
+const currentStep = conv.bot_step || 'welcome';
+const { data: claimed } = await supabase
+  .from('wapi_conversations')
+  .update({ bot_data: { ...botData, _processing_step: currentStep } })
+  .eq('id', conv.id)
+  .eq('bot_step', currentStep)
+  .select('id')
+  .single();
+
+if (!claimed) {
+  // Another webhook call already advanced this step - skip
+  console.log(`[Bot] Step "${currentStep}" already claimed for conv ${conv.id}, skipping duplicate`);
+  return;
 }
 ```
 
-### Correção Imediata
-Após implementar, o email da Fernanda (`fernandaplanetadivertido@gmail.com`) já estará corrigido no `profiles`, e poderemos atualizar via a nova funcionalidade ou diretamente no banco para sincronizar com `auth.users`.
+Isso resolve o problema para:
+- Mensagens de boas-vindas duplicadas
+- Qualquer step do bot que receba mensagens simultâneas
+- Funciona globalmente para todas as empresas da plataforma
+
