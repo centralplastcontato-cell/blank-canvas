@@ -49,6 +49,7 @@ interface UserCardProps {
   onToggleActive: (userId: string, currentStatus: boolean) => void;
   onUpdateRole: (userId: string, newRole: AppRole) => void;
   onUpdateName: (userId: string, newName: string) => Promise<void>;
+  onUpdateEmail: (userId: string, newEmail: string) => Promise<void>;
   onDelete: (userId: string) => Promise<void>;
   onResetPassword: (userId: string, newPassword: string) => Promise<void>;
 }
@@ -59,6 +60,7 @@ export function UserCard({
   onToggleActive, 
   onUpdateRole,
   onUpdateName,
+  onUpdateEmail,
   onDelete,
   onResetPassword,
 }: UserCardProps) {
@@ -67,14 +69,16 @@ export function UserCard({
   const [isPasswordOpen, setIsPasswordOpen] = useState(false);
   const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
   const [editName, setEditName] = useState(user.full_name);
+  const [editEmail, setEditEmail] = useState(user.email);
   const [newPassword, setNewPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSaveName = async () => {
+  const handleSave = async () => {
     if (!editName.trim()) return;
     setIsSubmitting(true);
     try {
-      await onUpdateName(user.user_id, editName.trim());
+      if (editName.trim() !== user.full_name) await onUpdateName(user.user_id, editName.trim());
+      if (editEmail.trim() !== user.email) await onUpdateEmail(user.user_id, editEmail.trim());
       setIsEditOpen(false);
     } finally {
       setIsSubmitting(false);
@@ -159,9 +163,9 @@ export function UserCard({
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Editar Usuário</DialogTitle>
+                <DialogTitle>Editar Usuário</DialogTitle>
                   <DialogDescription>
-                    Altere o nome do usuário.
+                    Altere o nome e email do usuário.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
@@ -174,12 +178,22 @@ export function UserCard({
                       placeholder="Nome do usuário"
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-email">Email</Label>
+                    <Input
+                      id="edit-email"
+                      type="email"
+                      value={editEmail}
+                      onChange={(e) => setEditEmail(e.target.value)}
+                      placeholder="Email do usuário"
+                    />
+                  </div>
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setIsEditOpen(false)}>
                     Cancelar
                   </Button>
-                  <Button onClick={handleSaveName} disabled={isSubmitting || !editName.trim()}>
+                  <Button onClick={handleSave} disabled={isSubmitting || !editName.trim() || !editEmail.trim()}>
                     {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                     Salvar
                   </Button>

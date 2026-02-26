@@ -98,6 +98,14 @@ export function HubUsersContent({ currentUserId }: { currentUserId: string }) {
     } catch (err: any) { toast({ title: "Erro", description: err.message, variant: "destructive" }); }
   };
 
+  const handleUpdateEmail = async (userId: string, newEmail: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-user", { body: { action: "update", user_id: userId, email: newEmail } });
+      if (error) throw error; if (data?.error) throw new Error(data.error);
+      toast({ title: "Email atualizado" }); fetchData();
+    } catch (err: any) { toast({ title: "Erro", description: err.message, variant: "destructive" }); }
+  };
+
   const handleDeleteUser = async (userId: string) => {
     try {
       const { data, error } = await supabase.functions.invoke("manage-user", { body: { action: "delete", user_id: userId } });
@@ -150,6 +158,7 @@ export function HubUsersContent({ currentUserId }: { currentUserId: string }) {
               onToggleActive={handleToggleActive}
               onUpdateRole={handleUpdateRole}
               onUpdateName={handleUpdateName}
+              onUpdateEmail={handleUpdateEmail}
               onDelete={handleDeleteUser}
               onResetPassword={handleResetPassword}
             />
@@ -164,6 +173,7 @@ export function HubUsersContent({ currentUserId }: { currentUserId: string }) {
             onToggleActive={handleToggleActive}
             onUpdateRole={handleUpdateRole}
             onUpdateName={handleUpdateName}
+            onUpdateEmail={handleUpdateEmail}
             onDelete={handleDeleteUser}
             onResetPassword={handleResetPassword}
           />
