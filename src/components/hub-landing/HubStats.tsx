@@ -91,7 +91,7 @@ export default function HubStats({ onOpenWizard }: { onOpenWizard: () => void })
               className="mt-10 rounded-full px-8 py-6 font-bold text-base bg-white text-[hsl(225_35%_10%)] hover:bg-white/90 transition-all hover:scale-[1.02] shadow-[0_20px_40px_-10px_rgba(255,255,255,0.15)]"
               onClick={onOpenWizard}
             >
-              Falar com consultor
+              Agendar conversa
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </motion.div>
