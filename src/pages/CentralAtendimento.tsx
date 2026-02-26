@@ -34,7 +34,7 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/s
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
-import { LayoutList, Columns, Menu, Bell, BellOff, MessageSquare, BarChart3, Filter, ChevronDown, Building2, Brain } from "lucide-react";
+import { LayoutList, Columns, Menu, Bell, BellOff, MessageSquare, BarChart3, Filter, ChevronDown, ChevronLeft, ChevronRight, Building2, Brain } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useCompany } from "@/contexts/CompanyContext";
 
@@ -80,7 +80,7 @@ export default function CentralAtendimento() {
   const [isLoadingLeads, setIsLoadingLeads] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 50;
+  const pageSize = 20;
   const [leadMetrics, setLeadMetrics] = useState<LeadMetrics>({ total: 0, today: 0, novo: 0, em_contato: 0, fechado: 0, perdido: 0 });
   const [responsaveis, setResponsaveis] = useState<UserWithRole[]>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -241,12 +241,7 @@ export default function CentralAtendimento() {
         .select("*", { count: "exact" })
         .order("created_at", { ascending: false });
 
-      // Only apply pagination when NOT in Kanban view — Kanban needs all leads
-      if (viewMode !== "kanban") {
-        query = query.range(from, to);
-      } else {
-        query = query.limit(2000);
-      }
+      query = query.range(from, to);
 
       // Apply unit permission filter (before user-selected filters)
       if (!canViewAll && allowedUnits.length > 0 && !allowedUnits.includes('all')) {
@@ -957,6 +952,24 @@ export default function CentralAtendimento() {
                     canViewContact={canViewContact}
                   />
                 )}
+
+                {/* Pagination controls for Kanban */}
+                {viewMode === "kanban" && totalCount > pageSize && (
+                  <div className="flex items-center justify-between pt-3 px-1">
+                    <p className="text-sm text-muted-foreground">
+                      Página {currentPage} de {Math.ceil(totalCount / pageSize)}
+                      {" · "}{totalCount} leads
+                    </p>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage <= 1}>
+                        <ChevronLeft className="h-4 w-4 mr-1" /> Anterior
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => p + 1)} disabled={currentPage >= Math.ceil(totalCount / pageSize)}>
+                        Próximo <ChevronRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </PullToRefresh>
             </TabsContent>
 
@@ -1325,6 +1338,24 @@ export default function CentralAtendimento() {
                     onDelete={canDeleteLeads ? handleDeleteLead : undefined}
                     canViewContact={canViewContact}
                   />
+                )}
+
+                {/* Pagination controls for Kanban */}
+                {viewMode === "kanban" && totalCount > pageSize && (
+                  <div className="flex items-center justify-between pt-3 px-1">
+                    <p className="text-sm text-muted-foreground">
+                      Página {currentPage} de {Math.ceil(totalCount / pageSize)}
+                      {" · "}{totalCount} leads
+                    </p>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage <= 1}>
+                        <ChevronLeft className="h-4 w-4 mr-1" /> Anterior
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => p + 1)} disabled={currentPage >= Math.ceil(totalCount / pageSize)}>
+                        Próximo <ChevronRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    </div>
+                  </div>
                 )}
                 </div>
               </TabsContent>
