@@ -1,39 +1,69 @@
 
 
-## Permitir Edição de Nome em Contatos Não Qualificados
+## Adicionar Novas Perguntas ao Onboarding
 
-### Problema
-Atualmente, o botão de editar nome (lápis) só aparece para leads já qualificados. Contatos não qualificados mostram o nome vindo do WhatsApp mas sem opção de alteração.
-
-### Solução
-Adicionar a funcionalidade de edição de nome também na view de "Contato não qualificado" do popover de informações.
+### Objetivo
+Coletar informações operacionais do novo cliente para facilitar o setup da plataforma: sistema de automacao anterior, formato de envio de orcamento (com anexo), e prints do atendimento atual.
 
 ### Alterações
 
-**Arquivo:** `src/components/whatsapp/LeadInfoPopover.tsx`
+#### 1. Novos campos no `OnboardingData` (interface + initialData)
+**Arquivo:** `src/pages/Onboarding.tsx`
 
-1. Na seção "Contato não qualificado" (unqualified view), adicionar o mesmo mecanismo de edição inline que já existe para leads qualificados
-2. No header, onde hoje mostra apenas "Contato não qualificado", adicionar o nome do contato com o botão de lápis ao lado
-3. Ao salvar, atualizar o campo `contact_name` na tabela `wapi_conversations` (já que não existe registro em `campaign_leads`)
-4. Chamar o callback `onLeadNameChange` para atualizar a UI em tempo real
+Adicionar 4 novos campos:
+- `has_automation_system`: boolean (ja usou sistema automatico?)
+- `automation_system_name`: string (qual sistema?)
+- `budget_format`: string (como envia orcamento - "pdf", "imagem", "whatsapp_texto", "outro")
+- `budget_file_urls`: string[] (anexos do orcamento - PDF ou imagem)
+- `service_screenshots`: string[] (prints do atendimento atual)
 
-### Detalhes Técnicos
+#### 2. Novos campos na tabela `company_onboarding` (migracao SQL)
+Adicionar as 5 colunas correspondentes na tabela do banco de dados.
 
-Na view de contato não qualificado, transformar a seção de "Dados do Contato" para incluir edição inline:
+#### 3. Step 3 - Expandir "Operacao Atual"
+**Arquivo:** `src/pages/Onboarding.tsx` - funcao `Step3`
 
+Apos a pergunta "Forma atual de atendimento", adicionar:
+
+**Secao "Sistema de automacao":**
+- Switch: "Ja utiliza ou utilizou algum sistema de atendimento automatico?"
+- Se sim: campo de texto "Qual sistema?" (ex: "ManyChat", "Botconversa", etc.)
+
+**Secao "Envio de orcamento":**
+- Select: "Como voce envia o orcamento para o cliente?" (opcoes: PDF, Imagem, Texto no WhatsApp, Outro)
+- Upload: area para anexar o PDF ou imagem do orcamento (reutilizando a logica de upload existente com o bucket `onboarding-uploads`)
+
+**Secao "Prints do atendimento":**
+- Upload multiplo de imagens: "Envie prints de como voce atende um lead novo" (ate 5 prints)
+- Texto explicativo: "Isso nos ajuda a estruturar melhor as respostas do bot"
+
+#### 4. Upload handlers
+**Arquivo:** `src/pages/Onboarding.tsx`
+
+Adicionar 2 novos handlers (seguindo o padrao existente de `handlePhotosUpload`):
+- `handleBudgetUpload`: upload de PDF ou imagem do orcamento (aceita `image/*,.pdf`)
+- `handleScreenshotsUpload`: upload de prints do atendimento (aceita `image/*`, max 5)
+
+Adicionar estados: `uploadingBudget`, `uploadingScreenshots`
+
+#### 5. Persistencia
+Atualizar `saveProgress` e `handleSubmit` para incluir os novos campos. Atualizar o carregamento de dados existentes no `useEffect` para popular os novos campos.
+
+#### 6. HubOnboarding - Exibicao dos novos dados
+**Arquivo:** `src/pages/HubOnboarding.tsx`
+
+Atualizar a tela de detalhes do onboarding no Hub para exibir os novos campos (sistema de automacao, formato de orcamento com preview dos anexos, e prints do atendimento com opcao de download).
+
+### Detalhes Tecnicos
+
+Migracao SQL:
 ```text
-Antes:
-  [icone erro] Contato não qualificado
-               Clique em um status para classificar
-  DADOS DO CONTATO
-    Barbara (texto estático)
-
-Depois:
-  [icone erro] Contato não qualificado
-               Clique em um status para classificar
-  DADOS DO CONTATO
-    Barbara [lápis]  (clicável para editar inline)
+ALTER TABLE company_onboarding ADD COLUMN has_automation_system boolean DEFAULT false;
+ALTER TABLE company_onboarding ADD COLUMN automation_system_name text;
+ALTER TABLE company_onboarding ADD COLUMN budget_format text;
+ALTER TABLE company_onboarding ADD COLUMN budget_file_urls text[] DEFAULT '{}';
+ALTER TABLE company_onboarding ADD COLUMN service_screenshots text[] DEFAULT '{}';
 ```
 
-A lógica de salvar será semelhante à existente, mas atualizando apenas `wapi_conversations.contact_name` (sem tocar em `campaign_leads`, que não existe ainda).
+Os uploads usarao o bucket `onboarding-uploads` ja existente, com pastas `budget/` e `screenshots/` dentro do diretorio do `companyId`.
 
