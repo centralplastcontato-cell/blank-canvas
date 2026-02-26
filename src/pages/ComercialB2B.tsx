@@ -23,6 +23,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { ProposalGenerator } from "@/components/admin/ProposalGenerator";
+import { B2BLeadsManager } from "@/components/admin/B2BLeadsManager";
 
 import { HubLayout } from "@/components/hub/HubLayout";
 
@@ -60,48 +61,58 @@ const ComercialB2B = () => {
   return (
     <HubLayout currentPage="comercial-b2b" header={header}>
       {() => (
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto px-1 sm:px-0">
  
              {/* Tabs */}
-              <Tabs defaultValue="pitch" className="space-y-6">
-                <TabsList className="grid w-full grid-cols-7 h-auto p-1">
-                  <TabsTrigger value="pitch" className="flex items-center gap-2 py-3">
-                    <Target className="h-4 w-4" />
-                    <span className="hidden sm:inline">Pitch de Vendas</span>
-                    <span className="sm:hidden">Pitch</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="features" className="flex items-center gap-2 py-3">
-                    <Zap className="h-4 w-4" />
-                    <span className="hidden sm:inline">Funcionalidades</span>
-                    <span className="sm:hidden">Features</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="pricing" className="flex items-center gap-2 py-3">
-                    <DollarSign className="h-4 w-4" />
-                    <span className="hidden sm:inline">Precificação</span>
-                    <span className="sm:hidden">Preços</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="scripts" className="flex items-center gap-2 py-3">
-                    <Phone className="h-4 w-4" />
-                    <span className="hidden sm:inline">Scripts</span>
-                    <span className="sm:hidden">Scripts</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="proposals" className="flex items-center gap-2 py-3">
-                    <FileText className="h-4 w-4" />
-                    <span className="hidden sm:inline">Propostas</span>
-                    <span className="sm:hidden">PDF</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="objections" className="flex items-center gap-2 py-3">
-                    <MessageSquare className="h-4 w-4" />
-                    <span className="hidden sm:inline">Objeções</span>
-                    <span className="sm:hidden">FAQ</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="landing" className="flex items-center gap-2 py-3">
-                    <Smartphone className="h-4 w-4" />
-                    <span className="hidden sm:inline">Landing Page</span>
-                    <span className="sm:hidden">LP</span>
-                  </TabsTrigger>
-                </TabsList>
+              <Tabs defaultValue="leads" className="space-y-4 sm:space-y-6">
+                <div className="w-full overflow-x-auto pb-1">
+                  <TabsList className="inline-flex h-auto w-max min-w-full p-1 gap-1">
+                    <TabsTrigger value="leads" className="flex items-center gap-2 py-3 px-3 shrink-0">
+                      <Users className="h-4 w-4" />
+                      <span>Leads</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="pitch" className="flex items-center gap-2 py-3 px-3 shrink-0">
+                      <Target className="h-4 w-4" />
+                      <span className="hidden sm:inline">Pitch de Vendas</span>
+                      <span className="sm:hidden">Pitch</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="features" className="flex items-center gap-2 py-3 px-3 shrink-0">
+                      <Zap className="h-4 w-4" />
+                      <span className="hidden sm:inline">Funcionalidades</span>
+                      <span className="sm:hidden">Features</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="pricing" className="flex items-center gap-2 py-3 px-3 shrink-0">
+                      <DollarSign className="h-4 w-4" />
+                      <span className="hidden sm:inline">Precificação</span>
+                      <span className="sm:hidden">Preços</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="scripts" className="flex items-center gap-2 py-3 px-3 shrink-0">
+                      <Phone className="h-4 w-4" />
+                      <span>Scripts</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="proposals" className="flex items-center gap-2 py-3 px-3 shrink-0">
+                      <FileText className="h-4 w-4" />
+                      <span className="hidden sm:inline">Propostas</span>
+                      <span className="sm:hidden">PDF</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="objections" className="flex items-center gap-2 py-3 px-3 shrink-0">
+                      <MessageSquare className="h-4 w-4" />
+                      <span className="hidden sm:inline">Objeções</span>
+                      <span className="sm:hidden">FAQ</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="landing" className="flex items-center gap-2 py-3 px-3 shrink-0">
+                      <Smartphone className="h-4 w-4" />
+                      <span className="hidden sm:inline">Landing Page</span>
+                      <span className="sm:hidden">LP</span>
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
  
+               {/* Leads Tab */}
+               <TabsContent value="leads" className="space-y-4 sm:space-y-6">
+                 <B2BLeadsManager />
+               </TabsContent>
+
                {/* Pitch Tab */}
                <TabsContent value="pitch" className="space-y-6">
                  {/* Headline */}
@@ -904,10 +915,10 @@ Deixe o prospect falar. Anote objeções.
                     </CardHeader>
                     <CardContent className="p-4">
                       <div 
-                        className={`mx-auto transition-all duration-300 border rounded-lg overflow-hidden bg-muted shadow-lg ${
+                        className={`mx-auto transition-all duration-300 border rounded-lg overflow-hidden bg-muted shadow-lg w-full ${
                           lpViewMode === 'mobile' 
-                            ? 'w-[375px] h-[700px]' 
-                            : 'w-full h-[700px]'
+                            ? 'max-w-[375px] h-[620px] sm:h-[700px]' 
+                            : 'h-[520px] sm:h-[700px]'
                         }`}
                       >
                         <iframe
