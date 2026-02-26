@@ -582,6 +582,11 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
     });
   };
 
+  const isImageFile = (url: string) => {
+    const lower = url.toLowerCase();
+    return /\.(jpg|jpeg|png|webp|gif)/.test(lower);
+  };
+
   const getTypeIcon = (type: string) => {
     switch (type) {
       case "pdf_package":
@@ -709,7 +714,11 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                       key={material.id} 
                       className={`flex items-center gap-2 p-2 border rounded-lg ${!material.is_active ? 'opacity-50' : ''}`}
                     >
-                      {getTypeIcon(material.type)}
+                      {material.type === "pdf_package" && material.file_url && isImageFile(material.file_url) ? (
+                        <img src={material.file_url} alt={material.name} className="w-8 h-8 object-cover rounded border shrink-0" />
+                      ) : (
+                        getTypeIcon(material.type)
+                      )}
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{material.name}</p>
                         {material.type === "photo_collection" && material.photo_urls && (
@@ -1006,8 +1015,16 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
               <div className="space-y-2">
                 <Label>Arquivo *</Label>
                 {formData.file_url ? (
-                  <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-                    {getTypeIcon(formData.type)}
+                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                    {isImageFile(formData.file_url) ? (
+                      <img 
+                        src={formData.file_url} 
+                        alt="Preview" 
+                        className="w-16 h-16 object-cover rounded-md border shrink-0"
+                      />
+                    ) : (
+                      getTypeIcon(formData.type)
+                    )}
                     <span className="flex-1 truncate text-sm">
                       {formData.file_path?.split("/").pop() || "Arquivo selecionado"}
                     </span>
