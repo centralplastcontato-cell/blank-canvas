@@ -1,58 +1,50 @@
 
-
-## Miniatura de imagem no upload de Pacote de Precos (PDF)
+## Sincronizar Alteração de Email com Supabase Auth
 
 ### Problema
-Quando o usuario faz upload de uma imagem como "Pacote de Precos" (tipo `pdf_package`), o dialog mostra apenas o icone generico de arquivo e o nome do arquivo. Ja nas colecoes de fotos, aparece a miniatura real da imagem. O usuario quer ver a miniatura tambem para pacotes.
+Quando um administrador edita o email de um usuário, apenas a tabela `profiles` é atualizada. A tabela `auth.users` (usada para login) permanece com o email antigo, impedindo o login com o email corrigido.
 
-### Solucao
+### Alterações Necessárias
 
-Editar `src/components/whatsapp/settings/SalesMaterialsSection.tsx`, na secao de "Single file upload" (linhas 1004-1055).
+#### 1. Edge Function `manage-user` (Backend)
+**Arquivo:** `supabase/functions/manage-user/index.ts`
 
-Quando `formData.file_url` existe e a URL e de uma imagem (terminando em `.jpg`, `.jpeg`, `.png`, `.webp` ou contendo esses formatos), exibir uma miniatura da imagem ao inves do icone generico.
+Dentro da ação `update` (linhas 198-242), adicionar tratamento para o campo `email`:
+- Quando `email` for fornecido no body da requisição:
+  - Atualizar `auth.users` via `supabaseAdmin.auth.admin.updateUserById(user_id, { email })`
+  - Atualizar `profiles.email` na mesma operação
+- Isso garante que ambas as tabelas fiquem sincronizadas
 
-### Mudanca especifica
+#### 2. Interface Hub - Edição de Email (Desktop)
+**Arquivo:** `src/components/hub/HubUserCompanySection.tsx`
 
-No bloco que exibe o arquivo ja enviado (linhas 1008-1021), substituir o layout atual por:
+- Expandir o modo de edição inline (que hoje edita apenas o nome) para incluir um campo de email
+- Adicionar estado `editEmail` junto com `editName`
+- Chamar um novo callback `onUpdateEmail` ao salvar
 
-1. Verificar se `formData.file_url` e uma imagem usando uma funcao helper (checar extensao da URL)
-2. Se for imagem: exibir um thumbnail (img tag) com `object-cover` em um container de ~64x64px, ao lado do nome e botao "Trocar"
-3. Se nao for imagem (PDF real, video): manter o layout atual com icone
+#### 3. Página HubUsers - Nova Função
+**Arquivo:** `src/pages/HubUsers.tsx`
 
-### Codigo aproximado
+- Adicionar função `handleUpdateEmail` que chama `manage-user` com `action: "update"` e o campo `email`
+- Passar a função como prop para `HubUserCompanySection`
 
-```typescript
-const isImageFile = (url: string) => {
-  const lower = url.toLowerCase();
-  return /\.(jpg|jpeg|png|webp|gif)/.test(lower);
-};
+#### 4. Interface Mobile - Edição de Email
+**Arquivo:** `src/components/admin/UserCard.tsx`
+
+- Adicionar campo de email no dialog de edição existente (que hoje edita apenas o nome)
+- Chamar o callback de atualização de email junto com o nome
+
+---
+
+### Detalhes Técnicos
+
+Lógica de atualização de email na edge function:
+```text
+if (body.email) {
+  1. supabaseAdmin.auth.admin.updateUserById(user_id, { email })  -> atualiza auth.users
+  2. profiles.update({ email })                                    -> atualiza tabela profiles
+}
 ```
 
-No bloco de exibicao do arquivo:
-```tsx
-{formData.file_url ? (
-  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-    {isImageFile(formData.file_url) ? (
-      <img 
-        src={formData.file_url} 
-        alt="Preview" 
-        className="w-16 h-16 object-cover rounded-md border"
-      />
-    ) : (
-      getTypeIcon(formData.type)
-    )}
-    <span className="flex-1 truncate text-sm">
-      {formData.file_path?.split("/").pop() || "Arquivo selecionado"}
-    </span>
-    <Button variant="ghost" size="sm" onClick={...}>
-      Trocar
-    </Button>
-  </div>
-) : ( ... )}
-```
-
-Tambem aplicar a mesma logica na **lista de materiais** (linhas 706-752): quando o material for `pdf_package` e a `file_url` for imagem, mostrar miniatura pequena (32x32) ao inves do icone generico de FileText.
-
-### Arquivos a editar
-- `src/components/whatsapp/settings/SalesMaterialsSection.tsx`
-
+### Correção Imediata
+Após implementar, o email da Fernanda (`fernandaplanetadivertido@gmail.com`) já estará corrigido no `profiles`, e poderemos atualizar via a nova funcionalidade ou diretamente no banco para sincronizar com `auth.users`.
