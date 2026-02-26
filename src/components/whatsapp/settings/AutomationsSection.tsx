@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bot, Clock, Forward, Zap, Plus, Trash2, Phone, Shield, Beaker, Power, Loader2, MessageSquare, Save, RotateCcw, Images, Video, FileText, Send, RefreshCw, GitBranch, Map } from "lucide-react";
+import { Bot, Clock, Forward, Zap, Plus, Trash2, Phone, Shield, Beaker, Power, Loader2, MessageSquare, Save, RotateCcw, Images, Video, FileText, Send, RefreshCw, GitBranch, Map, GripVertical } from "lucide-react";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { FlowListManager } from "@/components/flowbuilder/FlowListManager";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -16,6 +16,23 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { BotJourneyDiagram } from "./BotJourneyDiagram";
 import { PartyBotMessagesCard } from "./PartyBotMessagesCard";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   Dialog,
   DialogContent,
@@ -124,6 +141,95 @@ const DEFAULT_QUESTIONS = [
 
 const SELECTED_INSTANCE_KEY = 'selected_automation_instance_id';
 
+interface SortableQuestionItemProps {
+  question: BotQuestion;
+  index: number;
+  getStepLabel: (step: string) => string;
+  updateQuestion: (index: number, field: keyof BotQuestion, value: string | boolean | null) => void;
+}
+
+function SortableQuestionItem({ question, index, getStepLabel, updateQuestion }: SortableQuestionItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: question.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    position: 'relative' as const,
+    zIndex: isDragging ? 10 : undefined,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <AccordionItem value={question.id}>
+        <AccordionTrigger className="hover:no-underline">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted text-muted-foreground touch-none"
+              {...attributes}
+              {...listeners}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <GripVertical className="w-4 h-4" />
+            </button>
+            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${question.is_active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+              {index + 1}
+            </span>
+            <span className={question.is_active ? '' : 'text-muted-foreground line-through'}>
+              {getStepLabel(question.step)}
+            </span>
+            {!question.is_active && (
+              <Badge variant="secondary" className="text-xs">Desativada</Badge>
+            )}
+          </div>
+        </AccordionTrigger>
+        <AccordionContent className="space-y-4 pt-4">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm">Pergunta ativa</Label>
+            <Switch
+              checked={question.is_active}
+              onCheckedChange={(checked) => updateQuestion(index, 'is_active', checked)}
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label className="text-sm">Pergunta</Label>
+            <Textarea
+              value={question.question_text}
+              onChange={(e) => updateQuestion(index, 'question_text', e.target.value)}
+              className="min-h-[200px] text-base"
+              placeholder="Digite a pergunta..."
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm">
+              Confirmação <span className="text-muted-foreground">(opcional)</span>
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Mensagem exibida após a resposta. Use {`{${question.step}}`} para incluir a resposta.
+            </p>
+            <Input
+              value={question.confirmation_text || ""}
+              onChange={(e) => updateQuestion(index, 'confirmation_text', e.target.value || null)}
+              placeholder={`Ex: Muito prazer, {${question.step}}! 👑`}
+              className="text-base"
+            />
+          </div>
+        </AccordionContent>
+      </AccordionItem>
+    </div>
+  );
+}
+
 export function AutomationsSection() {
   const modules = useCompanyModules();
   const { currentCompanyId } = useCompany();
@@ -144,6 +250,25 @@ export function AutomationsSection() {
   const [autoRotateMonths, setAutoRotateMonths] = useState(false);
   const [isTogglingRotate, setIsTogglingRotate] = useState(false);
   const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = botQuestions.findIndex(q => q.id === active.id);
+    const newIndex = botQuestions.findIndex(q => q.id === over.id);
+    
+    const reordered = arrayMove(botQuestions, oldIndex, newIndex).map((q, i) => ({
+      ...q,
+      sort_order: i + 1,
+    }));
+    setBotQuestions(reordered);
+  };
 
   const debouncedUpdateBotSettings = (key: string, updates: Partial<BotSettings>, delay = 1000) => {
     if (debounceTimers.current[key]) clearTimeout(debounceTimers.current[key]);
@@ -381,6 +506,7 @@ export function AutomationsSection() {
             question_text: question.question_text,
             confirmation_text: question.confirmation_text,
             is_active: question.is_active,
+            sort_order: question.sort_order,
           })
           .eq("id", question.id);
 
@@ -945,59 +1071,21 @@ export function AutomationsSection() {
                   </div>
 
                   {/* Questions */}
-                  <Accordion type="multiple" className="w-full">
-                    {botQuestions.map((question, index) => (
-                      <AccordionItem key={question.id} value={question.id}>
-                        <AccordionTrigger className="hover:no-underline">
-                          <div className="flex items-center gap-3">
-                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${question.is_active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-                              {index + 1}
-                            </span>
-                            <span className={question.is_active ? '' : 'text-muted-foreground line-through'}>
-                              {getStepLabel(question.step)}
-                            </span>
-                            {!question.is_active && (
-                              <Badge variant="secondary" className="text-xs">Desativada</Badge>
-                            )}
-                          </div>
-                        </AccordionTrigger>
-                        <AccordionContent className="space-y-4 pt-4">
-                          <div className="flex items-center justify-between">
-                            <Label className="text-sm">Pergunta ativa</Label>
-                            <Switch
-                              checked={question.is_active}
-                              onCheckedChange={(checked) => updateQuestion(index, 'is_active', checked)}
-                            />
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <Label className="text-sm">Pergunta</Label>
-                            <Textarea
-                              value={question.question_text}
-                              onChange={(e) => updateQuestion(index, 'question_text', e.target.value)}
-                              className="min-h-[200px] text-base"
-                              placeholder="Digite a pergunta..."
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label className="text-sm">
-                              Confirmação <span className="text-muted-foreground">(opcional)</span>
-                            </Label>
-                            <p className="text-xs text-muted-foreground">
-                              Mensagem exibida após a resposta. Use {`{${question.step}}`} para incluir a resposta.
-                            </p>
-                            <Input
-                              value={question.confirmation_text || ""}
-                              onChange={(e) => updateQuestion(index, 'confirmation_text', e.target.value || null)}
-                              placeholder={`Ex: Muito prazer, {${question.step}}! 👑`}
-                              className="text-base"
-                            />
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    ))}
-                  </Accordion>
+                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                    <SortableContext items={botQuestions.map(q => q.id)} strategy={verticalListSortingStrategy}>
+                      <Accordion type="multiple" className="w-full">
+                        {botQuestions.map((question, index) => (
+                          <SortableQuestionItem
+                            key={question.id}
+                            question={question}
+                            index={index}
+                            getStepLabel={getStepLabel}
+                            updateQuestion={updateQuestion}
+                          />
+                        ))}
+                      </Accordion>
+                    </SortableContext>
+                  </DndContext>
 
                   {/* Transfer Message (for existing clients) */}
                   <div className="p-4 border rounded-lg bg-cyan-50/50 dark:bg-cyan-950/10 border-cyan-500/30">
