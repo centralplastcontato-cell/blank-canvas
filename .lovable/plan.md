@@ -1,69 +1,68 @@
 
 
-## Adicionar Novas Perguntas ao Onboarding
+## Atualizar e Melhorar o Visual da Landing Page do Hub
 
-### Objetivo
-Coletar informações operacionais do novo cliente para facilitar o setup da plataforma: sistema de automacao anterior, formato de envio de orcamento (com anexo), e prints do atendimento atual.
+### Problemas Identificados (via screenshots mobile)
 
-### Alterações
+1. **Espacamento excessivo** entre secoes - gaps enormes entre Features e AI, e entre AI e Stats
+2. **Cards de funcionalidades** ocupam muito espaco vertical no mobile (1 coluna) - poderiam ser 2 colunas compactas
+3. **Header** poderia ter mais destaque com efeito glassmorphism mais refinado
+4. **Hero** tem bom layout mas os botoes ficam muito largos no mobile (full-width)
+5. **Secao de AI** tem muito padding vertical desnecessario
+6. **Footer** muito simples e sem links uteis
+7. **Falta secao de depoimentos/prova social** - apenas os circulos "C M B R" que sao genericos
 
-#### 1. Novos campos no `OnboardingData` (interface + initialData)
-**Arquivo:** `src/pages/Onboarding.tsx`
+### Melhorias Planejadas
 
-Adicionar 4 novos campos:
-- `has_automation_system`: boolean (ja usou sistema automatico?)
-- `automation_system_name`: string (qual sistema?)
-- `budget_format`: string (como envia orcamento - "pdf", "imagem", "whatsapp_texto", "outro")
-- `budget_file_urls`: string[] (anexos do orcamento - PDF ou imagem)
-- `service_screenshots`: string[] (prints do atendimento atual)
+#### 1. HubHeader - Header mais premium
+- Adicionar efeito de blur mais forte e borda mais sutil
+- Botao "Comecar agora" com destaque visual (gradiente ou glow sutil)
+- Esconder "Saiba mais" no mobile para ganhar espaco
 
-#### 2. Novos campos na tabela `company_onboarding` (migracao SQL)
-Adicionar as 5 colunas correspondentes na tabela do banco de dados.
+#### 2. HubHero - Hero mais impactante
+- Reduzir padding no mobile (pt-20 em vez de pt-24)
+- Melhorar o social proof: trocar circulos genericos "C M B R" por dados mais convincentes (ex: "10+ buffets", "milhares de leads")
+- Adicionar badge animado com pulso mais visivel
 
-#### 3. Step 3 - Expandir "Operacao Atual"
-**Arquivo:** `src/pages/Onboarding.tsx` - funcao `Step3`
+#### 3. HubFeatures - Cards mais compactos e visualmente ricos
+- **Mobile**: grid de 2 colunas para os 6 cards de funcionalidades (em vez de 1 coluna)
+- Reduzir padding dos cards no mobile (p-5 em vez de p-8)
+- Reduzir gap entre secao Features e secao AI (py-16 em vez de py-24 no mobile)
+- Adicionar hover com gradiente sutil no background dos cards
 
-Apos a pergunta "Forma atual de atendimento", adicionar:
+#### 4. AI Features - Secao mais compacta
+- Mobile: 2 colunas para os AI cards tambem
+- Reduzir padding vertical geral (py-16 mobile, py-24 desktop)
+- Cards mais compactos com texto menor
 
-**Secao "Sistema de automacao":**
-- Switch: "Ja utiliza ou utilizou algum sistema de atendimento automatico?"
-- Se sim: campo de texto "Qual sistema?" (ex: "ManyChat", "Botconversa", etc.)
+#### 5. HubStats - Reducao de espaco
+- Reduzir padding vertical no mobile
+- Cards de metricas mais compactos
 
-**Secao "Envio de orcamento":**
-- Select: "Como voce envia o orcamento para o cliente?" (opcoes: PDF, Imagem, Texto no WhatsApp, Outro)
-- Upload: area para anexar o PDF ou imagem do orcamento (reutilizando a logica de upload existente com o bucket `onboarding-uploads`)
+#### 6. HubCTA - Secao final mais forte
+- Adicionar gradiente de fundo mais vibrante
+- Badge de "Sem compromisso" mais destacado
 
-**Secao "Prints do atendimento":**
-- Upload multiplo de imagens: "Envie prints de como voce atende um lead novo" (ate 5 prints)
-- Texto explicativo: "Isso nos ajuda a estruturar melhor as respostas do bot"
+#### 7. HubFooter - Footer mais completo
+- Adicionar links para Instagram da Celebrei
+- Texto de valor ("Plataforma #1 para buffets infantis")
 
-#### 4. Upload handlers
-**Arquivo:** `src/pages/Onboarding.tsx`
+### Arquivos a Editar
 
-Adicionar 2 novos handlers (seguindo o padrao existente de `handlePhotosUpload`):
-- `handleBudgetUpload`: upload de PDF ou imagem do orcamento (aceita `image/*,.pdf`)
-- `handleScreenshotsUpload`: upload de prints do atendimento (aceita `image/*`, max 5)
-
-Adicionar estados: `uploadingBudget`, `uploadingScreenshots`
-
-#### 5. Persistencia
-Atualizar `saveProgress` e `handleSubmit` para incluir os novos campos. Atualizar o carregamento de dados existentes no `useEffect` para popular os novos campos.
-
-#### 6. HubOnboarding - Exibicao dos novos dados
-**Arquivo:** `src/pages/HubOnboarding.tsx`
-
-Atualizar a tela de detalhes do onboarding no Hub para exibir os novos campos (sistema de automacao, formato de orcamento com preview dos anexos, e prints do atendimento com opcao de download).
+1. `src/components/hub-landing/HubHeader.tsx` - Header mais polido
+2. `src/components/hub-landing/HubHero.tsx` - Hero otimizado para mobile
+3. `src/components/hub-landing/HubFeatures.tsx` - Cards em grid 2-col mobile, padding reduzido
+4. `src/components/hub-landing/HubStats.tsx` - Padding ajustado
+5. `src/components/hub-landing/HubCTA.tsx` - CTA mais impactante
+6. `src/components/hub-landing/HubFooter.tsx` - Footer mais completo
 
 ### Detalhes Tecnicos
 
-Migracao SQL:
-```text
-ALTER TABLE company_onboarding ADD COLUMN has_automation_system boolean DEFAULT false;
-ALTER TABLE company_onboarding ADD COLUMN automation_system_name text;
-ALTER TABLE company_onboarding ADD COLUMN budget_format text;
-ALTER TABLE company_onboarding ADD COLUMN budget_file_urls text[] DEFAULT '{}';
-ALTER TABLE company_onboarding ADD COLUMN service_screenshots text[] DEFAULT '{}';
-```
-
-Os uploads usarao o bucket `onboarding-uploads` ja existente, com pastas `budget/` e `screenshots/` dentro do diretorio do `companyId`.
+Principais ajustes CSS/Tailwind:
+- Features cards: `grid-cols-2` no mobile (sem prefixo sm), `lg:grid-cols-3` desktop
+- Padding de secoes: `py-16 sm:py-24` em vez de `py-24 sm:py-32`
+- Cards mobile: `p-4 sm:p-8` para compactar
+- AI cards: mesma logica de 2 colunas
+- Reducao de `mb-20` para `mb-12` nos headers de secao no mobile
+- Textos menores no mobile: `text-xs` para descricoes em grid 2-col
 
