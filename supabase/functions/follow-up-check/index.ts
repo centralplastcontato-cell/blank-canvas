@@ -61,12 +61,24 @@ function shouldSkipTestMode(
   const normalizedTest = testNum.replace(/^55/, '').replace(/^0+/, '');
   const normalizedConv = convPhone.replace(/^55/, '').replace(/^0+/, '');
 
-  const isTestNumber = (
-    normalizedConv === normalizedTest ||
-    normalizedConv.endsWith(normalizedTest) ||
-    normalizedTest.endsWith(normalizedConv) ||
-    normalizedConv.slice(-11) === normalizedTest.slice(-11) ||
-    normalizedConv.slice(-10) === normalizedTest.slice(-10)
+  const withOrWithoutNinth = (num: string): string[] => {
+    const variants = new Set<string>([num]);
+    if (num.length === 11 && num[2] === '9') variants.add(`${num.slice(0, 2)}${num.slice(3)}`);
+    if (num.length === 10) variants.add(`${num.slice(0, 2)}9${num.slice(2)}`);
+    return Array.from(variants);
+  };
+
+  const convVariants = withOrWithoutNinth(normalizedConv);
+  const testVariants = withOrWithoutNinth(normalizedTest);
+
+  const isTestNumber = convVariants.some((a) =>
+    testVariants.some((b) =>
+      a === b ||
+      a.endsWith(b) ||
+      b.endsWith(a) ||
+      a.slice(-11) === b.slice(-11) ||
+      a.slice(-10) === b.slice(-10)
+    )
   );
 
   if (isTestNumber) return false; // this IS the test number, don't skip

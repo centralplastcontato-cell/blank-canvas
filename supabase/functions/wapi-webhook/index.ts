@@ -372,20 +372,48 @@ function exceedsGuestLimit(guestOption: string, limit: number): boolean {
 
 const normalizePhone = (phone: string) => phone.replace(/\D/g, '');
 const normalizePhoneForTestMatch = (phone: string) => normalizePhone(phone).replace(/^55/, '').replace(/^0+/, '');
-const getLocalTail = (phone: string, digits: number) => normalizePhoneForTestMatch(phone).slice(-digits);
+
 
 function isSameTestPhone(incomingPhone: string, testPhone: string): boolean {
   const incoming = normalizePhoneForTestMatch(incomingPhone);
   const configured = normalizePhoneForTestMatch(testPhone);
   if (!incoming || !configured) return false;
 
-  return (
-    incoming === configured ||
-    incoming.endsWith(configured) ||
-    configured.endsWith(incoming) ||
-    getLocalTail(incomingPhone, 11) === getLocalTail(testPhone, 11) ||
-    getLocalTail(incomingPhone, 10) === getLocalTail(testPhone, 10)
-  );
+  const withOrWithoutNinth = (num: string): string[] => {
+    const variants = new Set<string>([num]);
+
+    // BR celular: DDD + 9 + número (11 dígitos). Alguns provedores retornam sem o 9.
+    if (num.length === 11 && num[2] === '9') {
+      variants.add(`${num.slice(0, 2)}${num.slice(3)}`); // remove 9º dígito
+    }
+
+    // Se vier sem 9 e parecer celular BR, também tenta versão com 9.
+    if (num.length === 10) {
+      variants.add(`${num.slice(0, 2)}9${num.slice(2)}`);
+    }
+
+    return Array.from(variants);
+  };
+
+  const incomingVariants = withOrWithoutNinth(incoming);
+  const configuredVariants = withOrWithoutNinth(configured);
+
+  for (const a of incomingVariants) {
+    for (const b of configuredVariants) {
+      if (!a || !b) continue;
+      if (
+        a === b ||
+        a.endsWith(b) ||
+        b.endsWith(a) ||
+        a.slice(-11) === b.slice(-11) ||
+        a.slice(-10) === b.slice(-10)
+      ) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 async function isVipNumber(supabase: SupabaseClient, instanceId: string, phone: string): Promise<boolean> {
