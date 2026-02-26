@@ -73,6 +73,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
   const [guestSelectionTouched, setGuestSelectionTouched] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const photoGridRef = useRef<HTMLDivElement>(null);
   const touchStartPos = useRef<{ x: number; y: number } | null>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
@@ -723,7 +724,12 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                       className={`flex items-center gap-2 p-2 border rounded-lg ${!material.is_active ? 'opacity-50' : ''}`}
                     >
                       {material.type === "pdf_package" && material.file_url && isImageFile(material.file_url, material.file_path) ? (
-                        <img src={material.file_url} alt={material.name} className="w-8 h-8 object-cover rounded border shrink-0" />
+                        <img 
+                          src={material.file_url} 
+                          alt={material.name} 
+                          className="w-8 h-8 object-cover rounded border shrink-0 cursor-pointer hover:ring-2 hover:ring-primary transition-all" 
+                          onClick={(e) => { e.stopPropagation(); setPreviewImageUrl(material.file_url); }}
+                        />
                       ) : (
                         getTypeIcon(material.type)
                       )}
@@ -1105,6 +1111,20 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Image Preview Lightbox */}
+      <Dialog open={!!previewImageUrl} onOpenChange={() => setPreviewImageUrl(null)}>
+        <DialogContent className="max-w-2xl p-2 bg-black/95 border-none">
+          <DialogTitle className="sr-only">Visualizar material</DialogTitle>
+          {previewImageUrl && (
+            <img
+              src={previewImageUrl}
+              alt="Preview do material"
+              className="w-full h-auto max-h-[80vh] object-contain rounded"
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>
