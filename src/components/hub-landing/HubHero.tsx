@@ -75,7 +75,7 @@ export default function HubHero({ onOpenWizard }: HubHeroProps) {
                 className="text-sm sm:text-base px-6 sm:px-8 py-5 sm:py-6 rounded-full font-bold shadow-lg bg-white text-[hsl(225_35%_10%)] hover:bg-white/90 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_20px_40px_-10px_rgba(255,255,255,0.2)]"
                 onClick={onOpenWizard}
               >
-                Agendar conversa
+                Quero fechar mais festas
                 <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
             </div>
