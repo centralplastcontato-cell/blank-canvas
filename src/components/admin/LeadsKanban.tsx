@@ -73,23 +73,15 @@ export function LeadsKanban({
     e.preventDefault();
     const leadId = e.dataTransfer.getData("leadId");
     if (leadId && canEdit) {
-      // Block reverting to "novo" - leads that left this status cannot return
-      const droppedLead = leads.find(l => l.id === leadId);
-      if (status === "novo" && droppedLead && droppedLead.status !== "novo") {
-        return;
-      }
       onStatusChange(leadId, status);
     }
   };
 
   const getPreviousStatus = (currentStatus: LeadStatus): LeadStatus | null => {
     const currentIndex = columns.indexOf(currentStatus);
-    // Block reverting to "novo" - only allow if currently at index 1 (em_contato) is not enough
-    // Actually, block going back to "novo" entirely (index 0)
-    if (currentIndex > 1) {
+    if (currentIndex > 0) {
       return columns[currentIndex - 1];
     }
-    // If at index 1 (em_contato), don't allow going back to novo
     return null;
   };
 
