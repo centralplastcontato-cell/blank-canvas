@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.rotate-months]
 verify_jwt = false
+
+[functions.migrate-aventura-images]
+verify_jwt = false

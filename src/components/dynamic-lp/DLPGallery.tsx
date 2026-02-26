@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Camera, Sparkles, MapPin } from "lucide-react";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
@@ -18,6 +18,11 @@ interface GalleryUnit {
 export function DLPGallery({ gallery, theme, companyName }: DLPGalleryProps) {
   const [activeUnit, setActiveUnit] = useState(0);
   const [selectedImage, setSelectedImage] = useState<number | null>(null);
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
+
+  const handleImageError = useCallback((src: string) => {
+    setFailedImages((prev) => new Set(prev).add(src));
+  }, []);
 
   if (!gallery.enabled) return null;
 
@@ -120,7 +125,9 @@ export function DLPGallery({ gallery, theme, companyName }: DLPGalleryProps) {
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.4 }}
           >
-            {units[activeUnit].photos.map((src, index) => (
+            {units[activeUnit].photos
+              .filter((src) => !failedImages.has(src))
+              .map((src, index) => (
               <motion.div
                 key={src}
                 className="group relative rounded-xl overflow-hidden shadow-lg hover:shadow-2xl aspect-square cursor-pointer transition-shadow duration-300"
@@ -134,6 +141,7 @@ export function DLPGallery({ gallery, theme, companyName }: DLPGalleryProps) {
                   alt={`${units[activeUnit].name} - Foto ${index + 1}`}
                   className="w-full h-full object-cover group-hover:scale-[1.15] transition-transform duration-500"
                   loading="lazy"
+                  onError={() => handleImageError(src)}
                 />
                 <div
                   className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
@@ -151,7 +159,7 @@ export function DLPGallery({ gallery, theme, companyName }: DLPGalleryProps) {
 
         {selectedImage !== null && (
           <ImageLightbox
-            images={units[activeUnit].photos}
+            images={units[activeUnit].photos.filter((src) => !failedImages.has(src))}
             currentIndex={selectedImage}
             onClose={() => setSelectedImage(null)}
             onNavigate={setSelectedImage}
