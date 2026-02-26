@@ -69,7 +69,7 @@ export default function HubHero({ onOpenWizard }: HubHeroProps) {
               <span className="text-white/80 font-medium">Sem aumentar sua equipe.</span>
             </p>
 
-            <div className="mt-8 sm:mt-10 flex flex-row gap-3 sm:gap-4">
+            <div className="mt-8 sm:mt-10">
               <Button
                 size="lg"
                 className="text-sm sm:text-base px-6 sm:px-8 py-5 sm:py-6 rounded-full font-bold shadow-lg bg-white text-[hsl(225_35%_10%)] hover:bg-white/90 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_20px_40px_-10px_rgba(255,255,255,0.2)]"
@@ -77,15 +77,6 @@ export default function HubHero({ onOpenWizard }: HubHeroProps) {
               >
                 Agendar conversa
                 <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="lg"
-                className="text-sm sm:text-base px-5 sm:px-8 py-5 sm:py-6 rounded-full border border-white/20 text-white/80 hover:bg-white/5 hover:text-white"
-                onClick={onOpenWizard}
-              >
-                <Play className="mr-2 h-4 w-4" />
-                Demo
               </Button>
             </div>
 
