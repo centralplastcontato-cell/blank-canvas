@@ -17,6 +17,7 @@ export interface CompanyModules {
   agenda: boolean;
   operacoes: boolean;
   bot_festa: boolean;
+  treinamento: boolean;
 }
 
 export interface PartyControlModules {
@@ -94,6 +95,7 @@ const DEFAULT_MODULES: CompanyModules = {
   agenda: false,
   operacoes: true,
   bot_festa: false,
+  treinamento: true,
 };
 
 export function parseModules(settings: Json | null | undefined): CompanyModules {
@@ -122,6 +124,7 @@ export function parseModules(settings: Json | null | undefined): CompanyModules 
     agenda: modules.agenda === true,
     operacoes: modules.operacoes !== false,
     bot_festa: modules.bot_festa === true,
+    treinamento: modules.treinamento !== false,
   };
 }
 
@@ -146,4 +149,5 @@ export const MODULE_LABELS: Record<keyof CompanyModules, { label: string; descri
   agenda: { label: 'Agenda', description: 'Calendário de festas e eventos' },
   operacoes: { label: 'Operações', description: 'Formulários, checklists, pacotes e freelancers' },
   bot_festa: { label: 'Bot Festa', description: 'Mensagens automáticas para convidados em festas' },
+  treinamento: { label: 'Treinamento', description: 'Videoaulas de treinamento da plataforma' },
 };

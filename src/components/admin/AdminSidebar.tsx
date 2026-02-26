@@ -56,7 +56,7 @@ export function AdminSidebar({
     ...(modules.operacoes ? [{ title: "Operações", url: "/formularios", icon: FolderOpen }] : []),
     ...(canManageUsers ? [{ title: "Gerenciar Usuários", url: "/users", icon: Users }] : []),
     ...(isAdmin ? [{ title: "Empresas", url: "/hub/empresas", icon: Building2 }] : []),
-    { title: "Treinamento", url: "/treinamento", icon: GraduationCap },
+    ...(modules.treinamento ? [{ title: "Treinamento", url: "/treinamento", icon: GraduationCap }] : []),
   ];
 
   // Handle hover expand/collapse only when not pinned

@@ -118,7 +118,7 @@ export function MobileMenu({
       label: "Treinamento",
       icon: GraduationCap,
       path: "/treinamento",
-      show: true,
+      show: !!modules.treinamento,
     },
   ];
 
