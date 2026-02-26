@@ -503,19 +503,23 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
           .remove([material.file_path]);
       }
 
-      const { error } = await supabase
+      const { data: deletedRows, error } = await supabase
         .from("sales_materials")
         .delete()
-        .eq("id", material.id);
+        .eq("id", material.id)
+        .select("id");
 
       if (error) throw error;
+      if (!deletedRows || deletedRows.length === 0) {
+        throw new Error("Não foi possível excluir este material. Verifique suas permissões.");
+      }
+
+      setMaterials(prev => prev.filter(m => m.id !== material.id));
 
       toast({
         title: "Sucesso",
         description: "Material excluído com sucesso.",
       });
-
-      fetchMaterials();
     } catch (error: unknown) {
       toast({
         title: "Erro",
