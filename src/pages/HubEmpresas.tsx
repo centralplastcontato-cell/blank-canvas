@@ -137,11 +137,11 @@ function HubEmpresasContent() {
 
   const handleCreate = async (data: { name: string; slug: string; is_active: boolean; logo_url: string; custom_domain: string }) => {
     const hubCompany = companies.find(c => !c.parent_id);
-    const { error } = await supabase.from("companies").insert({
+    const { data: newCompany, error } = await supabase.from("companies").insert({
       name: data.name, slug: data.slug, is_active: data.is_active, logo_url: data.logo_url || null,
       custom_domain: normalizeDomain(data.custom_domain),
       parent_id: hubCompany?.id || null,
-    });
+    }).select().single();
     if (error) {
       const isSlugDuplicate = error.message.includes("companies_slug_key") || error.message.includes("duplicate key");
       toast({
@@ -152,6 +152,20 @@ function HubEmpresasContent() {
         variant: "destructive",
       });
       throw error;
+    }
+    // Criar unidade padrão automaticamente
+    if (newCompany) {
+      const { error: unitError } = await supabase.from("company_units").insert({
+        company_id: newCompany.id,
+        name: data.name,
+        slug: data.slug,
+        sort_order: 1,
+        is_active: true,
+        color: '#3b82f6',
+      });
+      if (unitError) {
+        console.error('[HubEmpresas] Erro ao criar unidade padrão:', unitError);
+      }
     }
     toast({ title: "Empresa criada" }); fetchCompanies();
   };
