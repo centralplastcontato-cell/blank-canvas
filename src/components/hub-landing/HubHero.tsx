@@ -50,10 +50,10 @@ export default function HubHero({ onOpenWizard }: HubHeroProps) {
             </motion.div>
 
             <h1 className="font-display text-3xl sm:text-5xl lg:text-6xl font-bold text-white leading-[1.08] tracking-tight">
-              Transforme leads em{" "}
+              Pare de perder festas por{" "}
               <span className="relative inline-block">
                 <span className="relative z-10 bg-gradient-to-r from-secondary via-secondary to-festive bg-clip-text text-transparent">
-                  festas fechadas
+                  falta de atendimento
                 </span>
                 <motion.span
                   initial={{ width: 0 }}
@@ -65,7 +65,7 @@ export default function HubHero({ onOpenWizard }: HubHeroProps) {
             </h1>
 
             <p className="mt-5 sm:mt-6 text-base sm:text-xl text-white/60 leading-relaxed max-w-lg">
-              CRM + WhatsApp automatizado que atende, qualifica e converte.{" "}
+              Transforme leads em festas fechadas com CRM + WhatsApp automatizado que atende, qualifica e converte.{" "}
               <span className="text-white/80 font-medium">Sem aumentar sua equipe.</span>
             </p>
 
