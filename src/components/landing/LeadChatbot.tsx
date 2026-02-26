@@ -383,7 +383,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
         || `Nossa capacidade máxima é de ${redirectInfo?.limit || 0} convidados.`;
 
       const dateStr = `${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}`;
-      const defaultNormalMsg = `Olá! 👋🏼✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n1️⃣ - 📩 Receber agora meu orçamento\n2️⃣ - 💬 Falar com um atendente`;
+      const defaultNormalMsg = `Olá! 👋🏼✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n1️⃣ - 📩 Receber agora o orçamento\n2️⃣ - 💬 Falar com um atendente`;
       
       const applyTemplate = (template: string) => template
         .replace(/\{nome\}/g, leadInfo.name || '')
@@ -392,8 +392,10 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
         .replace(/\{convidados\}/g, leadInfo.guests || '')
         .replace(/\{empresa\}/g, displayName);
 
+      const redirectDefaultMsg = `Olá! 👋✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\n${redirectText}\n\nObrigado pelo interesse! 💜`;
+
       const message = redirectInfo
-        ? `Olá! 👋✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\n${redirectText}\n\nObrigado pelo interesse! 💜`
+        ? redirectDefaultMsg
         : lpBotConfig?.whatsapp_welcome_template
           ? applyTemplate(lpBotConfig.whatsapp_welcome_template)
           : defaultNormalMsg;
