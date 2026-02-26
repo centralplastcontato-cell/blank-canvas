@@ -3372,12 +3372,21 @@ async function processWebhookEvent(body: Record<string, unknown>) {
           last_message_from_me: fromMe 
         };
         if (!fromMe && ex.is_closed) upd.is_closed = false;
-        // Only disable bot for manual (human) outgoing messages, not bot-sent messages
-        // Bot steps that are part of the active flow should NOT trigger bot disable
-        const activeBotSteps = ['welcome', 'tipo', 'nome', 'mes', 'dia', 'convidados', 'sending_materials', 'proximo_passo', 'proximo_passo_reminded'];
-        const isFlowBuilderStep = (ex.bot_step || '').startsWith('flow_');
-        const isBotActiveStep = activeBotSteps.includes(ex.bot_step || '') || isFlowBuilderStep;
-        if (fromMe && ex.bot_step && ex.bot_step !== 'complete' && !isBotActiveStep) upd.bot_enabled = false;
+        // Disable bot when a HUMAN sends a message from the phone directly.
+        // Bot-sent and UI-sent messages are already saved in wapi_messages before the webhook fires.
+        // Phone-sent messages are NOT in the DB yet → if msgId is absent from wapi_messages, it's human.
+        if (fromMe && ex.bot_enabled === true && msgId) {
+          const { data: existingMsg } = await supabase.from('wapi_messages')
+            .select('id')
+            .eq('message_id', msgId)
+            .maybeSingle();
+          if (!existingMsg) {
+            // Message not in DB → sent from phone by human → disable bot
+            console.log(`[Bot] Human phone message detected (msgId ${msgId}), disabling bot for conv ${ex.id}`);
+            upd.bot_enabled = false;
+            upd.bot_step = null;
+          }
+        }
         if (isGrp) { 
           const gn = (msg as Record<string, unknown>).chat?.name || (msg as Record<string, unknown>).groupName || (msg as Record<string, unknown>).subject; 
           if (gn && gn !== ex.contact_name) upd.contact_name = gn; 
@@ -3541,11 +3550,21 @@ async function processWebhookEvent(body: Record<string, unknown>) {
               
               let cv;
               if (ec) {
-                // Check if bot is in an active step - don't disable it during qualification flow
-                const statusActiveBotSteps = ['welcome', 'tipo', 'nome', 'mes', 'dia', 'convidados', 'sending_materials', 'proximo_passo', 'proximo_passo_reminded'];
-                const statusIsFlowStep = (ec.bot_step || '').startsWith('flow_');
-                const statusIsBotActive = statusActiveBotSteps.includes(ec.bot_step || '') || statusIsFlowStep;
-                cv = ec; await supabase.from('wapi_conversations').update({ last_message_at: new Date().toISOString(), last_message_content: pv.substring(0, 100), last_message_from_me: true, ...(ec.bot_step && ec.bot_step !== 'complete' && !statusIsBotActive ? { bot_enabled: false } : {}) }).eq('id', ec.id);
+                // Check if this outgoing message was sent by a human from the phone
+                // by checking if message_id already exists in wapi_messages
+                const statusMsgId = (sd as Record<string, unknown>)?.key?.id || (body as Record<string, unknown>)?.key?.id;
+                let shouldDisableBot = false;
+                if (ec.bot_enabled === true && statusMsgId) {
+                  const { data: existingStatusMsg } = await supabase.from('wapi_messages')
+                    .select('id')
+                    .eq('message_id', statusMsgId)
+                    .maybeSingle();
+                  if (!existingStatusMsg) {
+                    shouldDisableBot = true;
+                    console.log(`[Bot] Human phone message detected in status handler (msgId ${statusMsgId}), disabling bot for conv ${ec.id}`);
+                  }
+                }
+                cv = ec; await supabase.from('wapi_conversations').update({ last_message_at: new Date().toISOString(), last_message_content: pv.substring(0, 100), last_message_from_me: true, ...(shouldDisableBot ? { bot_enabled: false, bot_step: null } : {}) }).eq('id', ec.id);
               }
               else { const { data: nc } = await supabase.from('wapi_conversations').insert({ instance_id: instance.id, remote_jid: rj, contact_phone: p, contact_name: (body?.chat as Record<string, unknown>)?.name || p, last_message_at: new Date().toISOString(), last_message_content: pv.substring(0, 100), last_message_from_me: true, bot_enabled: false, company_id: instance.company_id }).select().single(); cv = nc; }
               
