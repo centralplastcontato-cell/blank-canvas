@@ -582,9 +582,13 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
     });
   };
 
-  const isImageFile = (url: string) => {
-    const lower = url.toLowerCase();
-    return /\.(jpg|jpeg|png|webp|gif)/.test(lower);
+  const isImageFile = (url: string, filePath?: string | null) => {
+    if (!url && !filePath) return false;
+    const check = (s: string) => {
+      const pathOnly = s.toLowerCase().split('?')[0];
+      return /\.(jpg|jpeg|png|webp|gif)/.test(pathOnly);
+    };
+    return check(url || '') || (filePath ? check(filePath) : false);
   };
 
   const getTypeIcon = (type: string) => {
@@ -714,7 +718,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                       key={material.id} 
                       className={`flex items-center gap-2 p-2 border rounded-lg ${!material.is_active ? 'opacity-50' : ''}`}
                     >
-                      {material.type === "pdf_package" && material.file_url && isImageFile(material.file_url) ? (
+                      {material.type === "pdf_package" && material.file_url && isImageFile(material.file_url, material.file_path) ? (
                         <img src={material.file_url} alt={material.name} className="w-8 h-8 object-cover rounded border shrink-0" />
                       ) : (
                         getTypeIcon(material.type)
@@ -1016,7 +1020,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                 <Label>Arquivo *</Label>
                 {formData.file_url ? (
                   <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                    {isImageFile(formData.file_url) ? (
+                    {isImageFile(formData.file_url, formData.file_path) ? (
                       <img 
                         src={formData.file_url} 
                         alt="Preview" 
