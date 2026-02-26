@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { ClipboardList, Eye, Loader2, Copy, Building2, CheckCircle2, Clock, AlertCircle, Download, Pencil, Save, X, ExternalLink, Upload, Camera, Video } from "lucide-react";
+import { ClipboardList, Eye, Loader2, Copy, Building2, CheckCircle2, Clock, AlertCircle, Download, Pencil, Save, X, ExternalLink, Upload, Camera, Video, FileText, MessageSquare } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import {
   Sheet,
@@ -62,6 +62,11 @@ interface OnboardingRecord {
   multiple_units: boolean | null;
   brand_notes: string | null;
   additional_notes: string | null;
+  has_automation_system: boolean | null;
+  automation_system_name: string | null;
+  budget_format: string | null;
+  budget_file_urls: string[] | null;
+  service_screenshots: string[] | null;
 }
 
 interface CompanyInfo {
@@ -322,6 +327,10 @@ function exportToPDF(record: OnboardingRecord, company?: CompanyInfo) {
   addRow("Volume de leads", record.lead_volume);
   addRow("Fontes", record.lead_sources?.join(", "));
   addRow("Atendimento", record.current_service_method);
+  addRow("Sistema automático", record.has_automation_system ? `Sim - ${record.automation_system_name || "não informado"}` : "Não");
+  addRow("Formato orçamento", record.budget_format);
+  if (record.budget_file_urls?.length) addRow("Arquivos orçamento", `${record.budget_file_urls.length} enviado(s)`);
+  if (record.service_screenshots?.length) addRow("Prints atendimento", `${record.service_screenshots.length} enviado(s)`);
   y += 4;
 
   addTitle("Tráfego Pago");
@@ -491,6 +500,11 @@ function OnboardingEditForm({ record, onSave, onCancel }: { record: OnboardingRe
         logo_url: form.logo_url,
         photo_urls: form.photo_urls,
         video_urls: form.video_urls,
+        has_automation_system: form.has_automation_system,
+        automation_system_name: form.automation_system_name,
+        budget_format: form.budget_format,
+        budget_file_urls: form.budget_file_urls,
+        service_screenshots: form.service_screenshots,
       })
       .eq("id", record.id);
 
@@ -582,6 +596,11 @@ function OnboardingEditForm({ record, onSave, onCancel }: { record: OnboardingRe
             <Field label="Volume de leads" field="lead_volume" />
             <ArrayField label="Fontes de leads" field="lead_sources" />
             <Field label="Método de atendimento" field="current_service_method" />
+            <SwitchField label="Já usou sistema automático?" field="has_automation_system" />
+            {form.has_automation_system && (
+              <Field label="Qual sistema?" field="automation_system_name" />
+            )}
+            <Field label="Formato de orçamento" field="budget_format" />
           </AccordionSection>
 
           <AccordionSection value="trafego" emoji="📢" title="Tráfego Pago">
@@ -795,6 +814,51 @@ function OnboardingDetail({ record }: { record: OnboardingRecord; company?: Comp
         <InfoRow label="Volume de leads" value={record.lead_volume} />
         <InfoRow label="Fontes" value={record.lead_sources?.join(", ")} />
         <InfoRow label="Atendimento" value={record.current_service_method} />
+        <InfoRow label="Sistema automático" value={record.has_automation_system ? `✅ Sim${record.automation_system_name ? ` — ${record.automation_system_name}` : ""}` : "❌ Não"} />
+        <InfoRow label="Formato orçamento" value={record.budget_format} />
+        {record.budget_file_urls && record.budget_file_urls.length > 0 && (
+          <div className="px-4 py-3">
+            <p className="text-xs text-muted-foreground mb-2">Arquivos de orçamento ({record.budget_file_urls.length})</p>
+            <div className="space-y-2">
+              {record.budget_file_urls.map((url, i) => (
+                <div key={i} className="flex items-center gap-2 p-2 rounded-lg border border-border bg-muted/30">
+                  <FileText className="h-4 w-4 text-primary shrink-0" />
+                  <span className="text-sm truncate flex-1">Arquivo {i + 1}</span>
+                  <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => window.open(url, "_blank")} title="Abrir">
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => downloadFile(url, `${buffetName}-orcamento-${i + 1}`)} title="Baixar">
+                    <Download className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {record.service_screenshots && record.service_screenshots.length > 0 && (
+          <div className="px-4 py-3">
+            <p className="text-xs text-muted-foreground mb-2">Prints do atendimento ({record.service_screenshots.length})</p>
+            <div className="grid grid-cols-3 gap-2">
+              {record.service_screenshots.map((url, i) => (
+                <div key={i} className="relative" style={{ paddingBottom: "100%" }}>
+                  <img
+                    src={url}
+                    alt={`Print ${i + 1}`}
+                    className="absolute inset-0 w-full h-full rounded-xl object-cover bg-muted cursor-pointer"
+                    onClick={() => window.open(url, "_blank")}
+                  />
+                  <button
+                    className="absolute bottom-1.5 right-1.5 h-7 w-7 flex items-center justify-center rounded-lg bg-black/60 backdrop-blur-sm border border-white/20"
+                    onClick={(e) => { e.stopPropagation(); downloadFile(url, `${buffetName}-print-${i + 1}.jpg`); }}
+                    title="Baixar print"
+                  >
+                    <Download className="h-3.5 w-3.5 text-white" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </Section>
 
       {/* Tráfego Pago */}
