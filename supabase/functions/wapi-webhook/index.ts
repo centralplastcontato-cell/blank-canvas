@@ -371,6 +371,22 @@ function exceedsGuestLimit(guestOption: string, limit: number): boolean {
 }
 
 const normalizePhone = (phone: string) => phone.replace(/\D/g, '');
+const normalizePhoneForTestMatch = (phone: string) => normalizePhone(phone).replace(/^55/, '').replace(/^0+/, '');
+const getLocalTail = (phone: string, digits: number) => normalizePhoneForTestMatch(phone).slice(-digits);
+
+function isSameTestPhone(incomingPhone: string, testPhone: string): boolean {
+  const incoming = normalizePhoneForTestMatch(incomingPhone);
+  const configured = normalizePhoneForTestMatch(testPhone);
+  if (!incoming || !configured) return false;
+
+  return (
+    incoming === configured ||
+    incoming.endsWith(configured) ||
+    configured.endsWith(incoming) ||
+    getLocalTail(incomingPhone, 11) === getLocalTail(testPhone, 11) ||
+    getLocalTail(incomingPhone, 10) === getLocalTail(testPhone, 10)
+  );
+}
 
 async function isVipNumber(supabase: SupabaseClient, instanceId: string, phone: string): Promise<boolean> {
   const n = normalizePhone(phone);
@@ -1826,8 +1842,7 @@ async function processBotQualification(
 
   // ── Test mode guard (applies to ALL bot modes including Flow Builder) ──
   const n = normalizePhone(contactPhone);
-  const tn = settings.test_mode_number ? normalizePhone(settings.test_mode_number) : null;
-  const isTest = tn && n.includes(tn.replace(/^55/, '').replace(/^0+/, ''));
+  const isTest = Boolean(settings.test_mode_number) && isSameTestPhone(contactPhone, settings.test_mode_number);
 
   // If test mode is on, only allow the test number through
   if (settings.test_mode_enabled && !isTest) {
