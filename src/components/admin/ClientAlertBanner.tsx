@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentCompanyId } from "@/lib/supabase-helpers";
 import { Crown, X, MessageSquare } from "lucide-react";
+import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { useNotificationSounds } from "@/hooks/useNotificationSounds";
 import { useChatNotificationToggle } from "@/hooks/useChatNotificationToggle";
@@ -32,6 +33,8 @@ export function ClientAlertBanner({ userId, onOpenConversation }: ClientAlertBan
   const [alerts, setAlerts] = useState<ClientNotification[]>([]);
   const { playClientSound } = useNotificationSounds();
   const { notificationsEnabled } = useChatNotificationToggle();
+  const { userCompanies } = useCompany();
+  const isMultiCompany = userCompanies.length > 1;
   const notificationsEnabledRef = useRef(notificationsEnabled);
   
   // Keep ref in sync with state for use in realtime callback
@@ -171,9 +174,11 @@ export function ClientAlertBanner({ userId, onOpenConversation }: ClientAlertBan
               <span className="font-bold text-white">
                 {latestAlert.data.contact_name || latestAlert.data.contact_phone}
               </span>
-              <span className="text-yellow-100 font-semibold ml-1">
-                ({latestAlert.data.unit})
-              </span>
+              {isMultiCompany && latestAlert.data.unit && (
+                <span className="text-yellow-100 font-semibold ml-1">
+                  ({latestAlert.data.unit})
+                </span>
+              )}
               {remainingCount > 0 && (
                 <span className="ml-1 font-medium text-amber-100">
                   e mais {remainingCount} {remainingCount === 1 ? "cliente" : "clientes"}
