@@ -9,19 +9,18 @@
  import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
  import { Textarea } from "@/components/ui/textarea";
  import { Label } from "@/components/ui/label";
- import { 
-   Search, 
-   Building2, 
-   Mail, 
-   Phone, 
-   MapPin, 
-   Calendar, 
-   Eye, 
-   Trash2,
-   RefreshCw,
-   PartyPopper,
-   MessageSquare
- } from "lucide-react";
+import { 
+  Search, 
+  Building2, 
+  Mail, 
+  Phone, 
+  MapPin, 
+  Eye, 
+  Trash2,
+  RefreshCw,
+  PartyPopper,
+  MessageSquare
+} from "lucide-react";
  import { toast } from "sonner";
  import { format } from "date-fns";
  import { ptBR } from "date-fns/locale";
@@ -364,205 +363,225 @@ interface B2BLead {
          </CardContent>
        </Card>
  
-       {/* Detail Dialog */}
-       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-           {selectedLead && (
-             <>
-               <DialogHeader>
-                 <DialogTitle className="flex items-center gap-2">
-                   <Building2 className="h-5 w-5" />
-                   {selectedLead.company_name}
-                 </DialogTitle>
-                 <DialogDescription>
-                   Lead capturado em {format(new Date(selectedLead.created_at), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })}
-                 </DialogDescription>
-               </DialogHeader>
- 
-               <div className="space-y-6">
-                 {/* Contact Info */}
-                 <div className="grid sm:grid-cols-2 gap-4">
-                   <div className="space-y-1">
-                     <Label className="text-muted-foreground">Responsável</Label>
-                     <p className="font-medium">{selectedLead.contact_name}</p>
-                   </div>
-                   <div className="space-y-1">
-                     <Label className="text-muted-foreground">Email</Label>
-                     <p className="font-medium flex items-center gap-2">
-                       <Mail className="h-4 w-4" />
-                       <a href={`mailto:${selectedLead.email}`} className="text-primary hover:underline">
-                         {selectedLead.email}
-                       </a>
-                     </p>
-                   </div>
-                   {selectedLead.phone && (
-                     <div className="space-y-1">
-                       <Label className="text-muted-foreground">Telefone</Label>
-                       <p className="font-medium flex items-center gap-2">
-                         <Phone className="h-4 w-4" />
-                         <a href={`tel:${selectedLead.phone}`} className="text-primary hover:underline">
-                           {selectedLead.phone}
-                         </a>
-                       </p>
-                     </div>
-                   )}
-                   {(selectedLead.city || selectedLead.state) && (
-                     <div className="space-y-1">
-                       <Label className="text-muted-foreground">Localização</Label>
-                       <p className="font-medium flex items-center gap-2">
-                         <MapPin className="h-4 w-4" />
-                         {[selectedLead.city, selectedLead.state].filter(Boolean).join(", ")}
-                       </p>
-                     </div>
-                   )}
-                 </div>
- 
-                 {/* Business Info */}
-                 <div className="grid sm:grid-cols-2 gap-4 pt-4 border-t">
-                   {selectedLead.instagram && (
-                     <div className="space-y-1">
-                       <Label className="text-muted-foreground">Instagram</Label>
-                       <p className="font-medium">
-                         <a href={`https://instagram.com/${selectedLead.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                           {selectedLead.instagram}
-                         </a>
-                       </p>
-                     </div>
-                   )}
-                   {selectedLead.monthly_parties && (
-                     <div className="space-y-1">
-                       <Label className="text-muted-foreground">Festas por mês</Label>
-                       <p className="font-medium flex items-center gap-2">
-                         <PartyPopper className="h-4 w-4" />
-                         {selectedLead.monthly_parties}
-                       </p>
-                     </div>
-                   )}
-                   {selectedLead.monthly_leads && (
-                     <div className="space-y-1">
-                       <Label className="text-muted-foreground">Leads por mês</Label>
-                       <p className="font-medium">{selectedLead.monthly_leads}</p>
-                     </div>
-                   )}
-                   {selectedLead.lead_cost && (
-                     <div className="space-y-1">
-                       <Label className="text-muted-foreground">Custo por lead</Label>
-                       <p className="font-medium">{selectedLead.lead_cost}</p>
-                     </div>
-                   )}
-                   {selectedLead.has_lead_clarity !== null && (
-                     <div className="space-y-1">
-                       <Label className="text-muted-foreground">Clareza dos leads</Label>
-                       <p className="font-medium">{selectedLead.has_lead_clarity ? "Sim, tem controle" : "Não tem clareza"}</p>
-                     </div>
-                   )}
-                   {selectedLead.lead_organization && (
-                     <div className="space-y-1">
-                       <Label className="text-muted-foreground">Organização atual</Label>
-                       <p className="font-medium">{selectedLead.lead_organization}</p>
-                     </div>
-                   )}
-                   {selectedLead.current_tools && (
-                     <div className="space-y-1">
-                       <Label className="text-muted-foreground">Ferramentas atuais</Label>
-                       <p className="font-medium">{selectedLead.current_tools}</p>
-                     </div>
-                   )}
-                   {selectedLead.how_found_us && (
-                     <div className="space-y-1">
-                       <Label className="text-muted-foreground">Como nos encontrou</Label>
-                       <p className="font-medium">
-                         {howFoundUsLabels[selectedLead.how_found_us] || selectedLead.how_found_us}
-                       </p>
-                     </div>
-                   )}
-                   {selectedLead.source && (
-                     <div className="space-y-1">
-                       <Label className="text-muted-foreground">Origem</Label>
-                       <Badge variant="outline">{selectedLead.source}</Badge>
-                     </div>
-                   )}
-                 </div>
- 
-                 {/* Challenges */}
-                 {selectedLead.main_challenges && (
-                   <div className="pt-4 border-t">
-                     <Label className="text-muted-foreground">Principal desafio</Label>
-                     <div className="mt-2 p-3 bg-muted rounded-lg">
-                       <p className="text-sm flex items-start gap-2">
-                         <MessageSquare className="h-4 w-4 shrink-0 mt-0.5" />
-                         {selectedLead.main_challenges}
-                       </p>
-                     </div>
-                   </div>
-                 )}
- 
-                 {/* Status */}
-                 <div className="pt-4 border-t">
-                   <Label className="text-muted-foreground">Status</Label>
-                   <Select
-                     value={selectedLead.status}
-                     onValueChange={(value) => {
-                       updateLeadStatus(selectedLead.id, value);
-                       setSelectedLead(prev => prev ? { ...prev, status: value } : null);
-                     }}
-                   >
-                     <SelectTrigger className="w-48 mt-2">
-                       <SelectValue>{getStatusBadge(selectedLead.status)}</SelectValue>
-                     </SelectTrigger>
-                     <SelectContent>
-                       {statusOptions.map(status => (
-                         <SelectItem key={status.value} value={status.value}>
-                           <div className="flex items-center gap-2">
-                             <span className={`w-2 h-2 rounded-full ${status.color}`} />
-                             {status.label}
-                           </div>
-                         </SelectItem>
-                       ))}
-                     </SelectContent>
-                   </Select>
-                 </div>
- 
-                 {/* Notes */}
-                 <div className="pt-4 border-t">
-                   <Label htmlFor="notes">Anotações internas</Label>
-                   <Textarea
-                     id="notes"
-                     placeholder="Adicione observações sobre este lead..."
-                     className="mt-2"
-                     rows={4}
-                     value={notes}
-                     onChange={(e) => setNotes(e.target.value)}
-                   />
-                   <Button 
-                     className="mt-2" 
-                     size="sm"
-                     onClick={saveNotes}
-                     disabled={isSaving}
-                   >
-                     {isSaving ? "Salvando..." : "Salvar Anotações"}
-                   </Button>
-                 </div>
- 
-                 {/* Actions */}
-                 <div className="flex justify-between pt-4 border-t">
-                   <Button
-                     variant="destructive"
-                     size="sm"
-                     onClick={() => deleteLead(selectedLead.id)}
-                   >
-                     <Trash2 className="h-4 w-4 mr-2" />
-                     Excluir Lead
-                   </Button>
-                   <Button variant="outline" onClick={() => setIsDetailOpen(false)}>
-                     Fechar
-                   </Button>
-                 </div>
-               </div>
-             </>
-           )}
-         </DialogContent>
-       </Dialog>
+        {/* Detail Dialog */}
+        <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0">
+            {selectedLead && (
+              <>
+                {/* Header com gradiente */}
+                <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-6 pt-6 pb-4 border-b">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-primary/15 flex items-center justify-center">
+                        <Building2 className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <DialogTitle className="text-xl font-bold">
+                          {selectedLead.company_name}
+                        </DialogTitle>
+                        <DialogDescription className="mt-0.5">
+                          Capturado em {format(new Date(selectedLead.created_at), "dd MMM yyyy 'às' HH:mm", { locale: ptBR })}
+                        </DialogDescription>
+                      </div>
+                    </div>
+                    <Select
+                      value={selectedLead.status}
+                      onValueChange={(value) => {
+                        updateLeadStatus(selectedLead.id, value);
+                        setSelectedLead(prev => prev ? { ...prev, status: value } : null);
+                      }}
+                    >
+                      <SelectTrigger className="w-40 h-9">
+                        <SelectValue>{getStatusBadge(selectedLead.status)}</SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statusOptions.map(status => (
+                          <SelectItem key={status.value} value={status.value}>
+                            <div className="flex items-center gap-2">
+                              <span className={`w-2 h-2 rounded-full ${status.color}`} />
+                              {status.label}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <DialogHeader className="sr-only">
+                  <DialogTitle>{selectedLead.company_name}</DialogTitle>
+                </DialogHeader>
+
+                <div className="px-6 pb-6 space-y-5">
+                  {/* Contato - cards compactos */}
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
+                      <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <Mail className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs text-muted-foreground">Responsável</p>
+                        <p className="font-medium text-sm truncate">{selectedLead.contact_name}</p>
+                        <a href={`mailto:${selectedLead.email}`} className="text-xs text-primary hover:underline truncate block">
+                          {selectedLead.email}
+                        </a>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
+                      <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <Phone className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs text-muted-foreground">Telefone</p>
+                        {selectedLead.phone ? (
+                          <a href={`tel:${selectedLead.phone}`} className="font-medium text-sm text-primary hover:underline">
+                            {selectedLead.phone}
+                          </a>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">—</p>
+                        )}
+                      </div>
+                    </div>
+                    {(selectedLead.city || selectedLead.state) && (
+                      <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
+                        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                          <MapPin className="h-4 w-4 text-primary" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs text-muted-foreground">Localização</p>
+                          <p className="font-medium text-sm">{[selectedLead.city, selectedLead.state].filter(Boolean).join(", ")}</p>
+                        </div>
+                      </div>
+                    )}
+                    {selectedLead.instagram && (
+                      <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
+                        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                          <Building2 className="h-4 w-4 text-primary" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs text-muted-foreground">Instagram</p>
+                          <a href={`https://instagram.com/${selectedLead.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="font-medium text-sm text-primary hover:underline">
+                            {selectedLead.instagram}
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Dados do Negócio */}
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Perfil do Negócio</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {selectedLead.monthly_leads && (
+                        <div className="p-3 rounded-xl border bg-card text-center">
+                          <p className="text-lg font-bold text-foreground">{selectedLead.monthly_leads}</p>
+                          <p className="text-xs text-muted-foreground">Leads/mês</p>
+                        </div>
+                      )}
+                      {selectedLead.monthly_parties && (
+                        <div className="p-3 rounded-xl border bg-card text-center">
+                          <p className="text-lg font-bold text-foreground flex items-center justify-center gap-1">
+                            <PartyPopper className="h-4 w-4 text-primary" />
+                            {selectedLead.monthly_parties}
+                          </p>
+                          <p className="text-xs text-muted-foreground">Festas/mês</p>
+                        </div>
+                      )}
+                      {selectedLead.lead_cost && (
+                        <div className="p-3 rounded-xl border bg-card text-center">
+                          <p className="text-lg font-bold text-foreground">{selectedLead.lead_cost}</p>
+                          <p className="text-xs text-muted-foreground">Custo/lead</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Info detalhada em lista */}
+                  {(selectedLead.has_lead_clarity !== null || selectedLead.lead_organization || selectedLead.how_found_us || selectedLead.source) && (
+                    <div>
+                      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Detalhes</h4>
+                      <div className="space-y-2">
+                        {selectedLead.has_lead_clarity !== null && (
+                          <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/30">
+                            <span className="text-sm text-muted-foreground">Clareza dos leads</span>
+                            <Badge variant={selectedLead.has_lead_clarity ? "default" : "secondary"} className="text-xs">
+                              {selectedLead.has_lead_clarity ? "Sim, tem controle" : "Sem clareza"}
+                            </Badge>
+                          </div>
+                        )}
+                        {selectedLead.lead_organization && (
+                          <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/30">
+                            <span className="text-sm text-muted-foreground">Organização</span>
+                            <span className="text-sm font-medium">{selectedLead.lead_organization}</span>
+                          </div>
+                        )}
+                        {selectedLead.how_found_us && (
+                          <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/30">
+                            <span className="text-sm text-muted-foreground">Como nos encontrou</span>
+                            <span className="text-sm font-medium">{howFoundUsLabels[selectedLead.how_found_us] || selectedLead.how_found_us}</span>
+                          </div>
+                        )}
+                        {selectedLead.source && (
+                          <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/30">
+                            <span className="text-sm text-muted-foreground">Origem</span>
+                            <Badge variant="outline" className="text-xs">{selectedLead.source}</Badge>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Desafios */}
+                  {selectedLead.main_challenges && (
+                    <div>
+                      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Principal Desafio</h4>
+                      <div className="p-4 rounded-xl bg-accent/50 border border-accent">
+                        <p className="text-sm flex items-start gap-2.5">
+                          <MessageSquare className="h-4 w-4 shrink-0 mt-0.5 text-primary" />
+                          {selectedLead.main_challenges}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Anotações */}
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Anotações Internas</h4>
+                    <Textarea
+                      placeholder="Adicione observações sobre este lead..."
+                      className="min-h-[100px] resize-none"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                    />
+                    <Button 
+                      className="mt-2" 
+                      size="sm"
+                      onClick={saveNotes}
+                      disabled={isSaving}
+                    >
+                      {isSaving ? "Salvando..." : "Salvar Anotações"}
+                    </Button>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="flex justify-between pt-3 border-t">
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => deleteLead(selectedLead.id)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Excluir Lead
+                    </Button>
+                    <Button variant="outline" onClick={() => setIsDetailOpen(false)}>
+                      Fechar
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
      </div>
    );
  }
