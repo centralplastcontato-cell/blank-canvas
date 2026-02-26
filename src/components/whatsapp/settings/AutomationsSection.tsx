@@ -1082,7 +1082,7 @@ export function AutomationsSection() {
                           value={botSettings?.next_step_visit_response || "Ótima escolha! 🏰✨\n\nNossa equipe vai entrar em contato para agendar sua visita ao Castelo da Diversão!\n\nAguarde um momento que já vamos te chamar! 👑"}
                           onChange={(e) => setBotSettings(prev => prev ? { ...prev, next_step_visit_response: e.target.value } : null)}
                           onBlur={() => botSettings && updateBotSettings({ next_step_visit_response: botSettings.next_step_visit_response })}
-                          className="min-h-[80px] text-sm mt-1"
+                          className="min-h-[120px] text-sm mt-1"
                         />
                       </div>
                       <div>
@@ -1091,7 +1091,7 @@ export function AutomationsSection() {
                           value={botSettings?.next_step_questions_response || "Claro! 💬\n\nPode mandar sua dúvida aqui que nossa equipe vai te responder rapidinho!\n\nEstamos à disposição! 👑"}
                           onChange={(e) => setBotSettings(prev => prev ? { ...prev, next_step_questions_response: e.target.value } : null)}
                           onBlur={() => botSettings && updateBotSettings({ next_step_questions_response: botSettings.next_step_questions_response })}
-                          className="min-h-[80px] text-sm mt-1"
+                          className="min-h-[120px] text-sm mt-1"
                         />
                       </div>
                       <div>
@@ -1100,7 +1100,7 @@ export function AutomationsSection() {
                           value={botSettings?.next_step_analyze_response || "Sem problemas! 📋\n\nVou enviar nossos materiais para você analisar com calma. Quando estiver pronto, é só chamar aqui!\n\nEstamos à disposição! 👑✨"}
                           onChange={(e) => setBotSettings(prev => prev ? { ...prev, next_step_analyze_response: e.target.value } : null)}
                           onBlur={() => botSettings && updateBotSettings({ next_step_analyze_response: botSettings.next_step_analyze_response })}
-                          className="min-h-[80px] text-sm mt-1"
+                          className="min-h-[120px] text-sm mt-1"
                         />
                       </div>
                     </div>
