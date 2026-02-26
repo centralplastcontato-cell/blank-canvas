@@ -2045,11 +2045,31 @@ async function processBotQualification(
 
   const step = conv.bot_step || 'welcome';
   const botData = (conv.bot_data || {}) as Record<string, string>;
+
+  // ── ATOMIC CLAIM: prevent duplicate processing when multiple messages arrive simultaneously ──
+  // Try to "lock" this step by doing a conditional UPDATE that only succeeds if bot_step hasn't changed.
+  // If another webhook call already claimed this step, we skip silently.
+  const { data: claimed } = await supabase
+    .from('wapi_conversations')
+    .update({ bot_data: { ...botData, _claimed_step: step, _claimed_at: new Date().toISOString() } })
+    .eq('id', conv.id)
+    .eq('bot_step', step)
+    .select('id')
+    .maybeSingle();
+
+  if (!claimed) {
+    console.log(`[Bot] Step "${step}" already claimed for conv ${conv.id}, skipping duplicate`);
+    return;
+  }
+  // ── END ATOMIC CLAIM ──
+
   let nextStep: string;
   let msg: string = '';
   const updated = { ...botData };
   // Clear inactive reminder flag so follow-up can re-trigger if lead stops again at next step
   delete (updated as Record<string, unknown>)._inactive_reminded;
+  delete (updated as Record<string, unknown>)._claimed_step;
+  delete (updated as Record<string, unknown>)._claimed_at;
 
   // Buscar nome da empresa para variáveis de template
   let companyName = '';
