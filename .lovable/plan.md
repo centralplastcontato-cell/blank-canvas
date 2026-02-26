@@ -1,25 +1,29 @@
 
 
-## Filtro "Hoje" ativado por padrão no CRM
+## Corrigir template de WhatsApp ignorando a configuração do Bot LP
 
-### O que muda
-Ao entrar na aba de Leads/CRM na Central de Atendimento, o filtro "Hoje" ja vai estar ativado automaticamente, mostrando apenas os leads do dia. Para ver todos os leads, basta clicar no botao "Hoje" para desativar.
+### Problema identificado
+Quando voce edita o template de WhatsApp nas configurações do Bot LP (removendo a palavra "meu", por exemplo), a mensagem enviada continua usando o texto antigo. Isso acontece porque existem **duas mensagens hardcoded** no codigo que nao respeitam a configuração:
 
-### Alteracoes tecnicas
+1. **Linha 386 do `LeadChatbot.tsx`** - O `defaultNormalMsg` e uma mensagem fixa com "Meus dados" e "meu orcamento" que e usada quando o template customizado nao esta disponivel
+2. **Linha 396 do `LeadChatbot.tsx`** - A mensagem de redirecionamento tambem e hardcoded e nunca usa o template
 
-**1. `src/pages/CentralAtendimento.tsx`**
-- Alterar o estado inicial dos filtros para que `startDate` e `endDate` comecem com a data de hoje (em vez de `undefined`)
-- Mesma logica: `const today = new Date(); today.setHours(0,0,0,0);` e inicializar `startDate: today, endDate: today`
+### Causa raiz
+Na `DynamicLandingPage.tsx` (linha 118), o `whatsapp_welcome_template` do banco e passado para o `LeadChatbot`. Porem, se o valor vier como `null` ou vazio (por causa do `|| null` na linha 119), o chatbot cai no fallback hardcoded da linha 386, que tem o texto antigo com "meu".
 
-**2. `src/pages/Admin.tsx`**
-- Aplicar a mesma alteracao no estado inicial dos filtros, para manter consistencia caso a pagina Admin tambem seja usada
+### Solucao
 
-**3. `src/components/admin/LeadsFilters.tsx`**
-- Nenhuma alteracao necessaria -- o componente ja detecta automaticamente se as datas correspondem a "hoje" e destaca o botao. A logica de toggle (clicar para desativar) tambem ja existe.
+**Arquivo: `src/components/landing/LeadChatbot.tsx`**
+- Atualizar o `defaultNormalMsg` (linha 386) para remover "Meus" e "meu", alinhando com o template padrao que voce editou
+- Mais importante: garantir que quando o `lpBotConfig` existe mas o `whatsapp_welcome_template` esta vazio/null, o sistema use o template padrao atualizado em vez do hardcoded antigo
+
+**Arquivo: `src/pages/DynamicLandingPage.tsx`**
+- Linha 118: Mudar de `(botSettings as any).whatsapp_welcome_template || null` para preservar o valor do banco corretamente
+
+### Detalhes tecnicos
+- No `LeadChatbot.tsx`, o `defaultNormalMsg` na linha 386 sera atualizado para refletir o mesmo texto do template padrao configuravel
+- A logica de fallback (linhas 395-399) sera simplificada para sempre aplicar o template quando disponivel, caindo no default atualizado apenas quando nenhuma configuracao existir
 
 ### Resultado
-- Ao abrir o CRM, apenas leads criados hoje aparecem
-- O botao "Hoje" aparece ativo (amarelo) por padrao
-- Clicar nele desativa o filtro e mostra todos os leads
-- Comportamento identico ao atual, apenas com o estado inicial invertido
+Qualquer alteracao feita no campo "Mensagem de WhatsApp" nas configuracoes do Bot LP sera refletida imediatamente na mensagem enviada ao lead.
 
