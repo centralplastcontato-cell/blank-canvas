@@ -11,7 +11,7 @@ const features = [
   },
   {
     icon: BarChart3,
-    title: "CRM Kanban",
+    title: "CRM",
     description: "Funil visual de vendas com drag & drop, histórico completo e métricas de conversão em tempo real.",
     gradient: "from-accent/20 to-accent/5",
     iconColor: "text-accent",
