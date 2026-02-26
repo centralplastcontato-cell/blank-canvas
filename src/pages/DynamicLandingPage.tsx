@@ -115,7 +115,7 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
           guest_limit_message: botSettings.guest_limit_message,
           guest_limit_redirect_name: botSettings.guest_limit_redirect_name,
           redirect_completion_message: (botSettings as any).redirect_completion_message || null,
-          whatsapp_welcome_template: (botSettings as any).whatsapp_welcome_template || null,
+          whatsapp_welcome_template: (botSettings as any).whatsapp_welcome_template ?? null,
         } : null;
 
         const defaultSocialProof: LPSocialProof = { enabled: false, items: [], text: "" };
