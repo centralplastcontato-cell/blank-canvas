@@ -58,7 +58,7 @@ function shouldSkipTestMode(
   const testNum = testModeNumber.replace(/\D/g, '');
   const convPhone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, '');
   // Compare last digits to handle country code variations
-  const shortTest = testNum.replace(/^55/, '');
+  const shortTest = testNum.replace(/^55/, '').replace(/^0+/, '');
   if (convPhone.includes(shortTest)) return false; // this IS the test number, don't skip
   return true; // skip — not the test number
 }

@@ -1827,7 +1827,7 @@ async function processBotQualification(
   // ── Test mode guard (applies to ALL bot modes including Flow Builder) ──
   const n = normalizePhone(contactPhone);
   const tn = settings.test_mode_number ? normalizePhone(settings.test_mode_number) : null;
-  const isTest = tn && n.includes(tn.replace(/^55/, ''));
+  const isTest = tn && n.includes(tn.replace(/^55/, '').replace(/^0+/, ''));
 
   // If test mode is on, only allow the test number through
   if (settings.test_mode_enabled && !isTest) {
