@@ -20,7 +20,7 @@ const benefits = [
 
 export default function HubStats({ onOpenWizard }: { onOpenWizard: () => void }) {
   return (
-    <section className="py-24 sm:py-32 relative overflow-hidden">
+    <section className="py-16 sm:py-24 relative overflow-hidden">
       {/* Dark section */}
       <div className="absolute inset-0 bg-[hsl(225_35%_10%)]" />
       <div
@@ -48,7 +48,7 @@ export default function HubStats({ onOpenWizard }: { onOpenWizard: () => void })
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.1, duration: 0.4 }}
-                  className="relative p-6 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 text-center group hover:bg-white/8 transition-all duration-300"
+                  className="relative p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 text-center group hover:bg-white/8 transition-all duration-300"
                 >
                   <stat.icon className="h-5 w-5 text-white/40 mx-auto mb-3 group-hover:text-secondary transition-colors" />
                   <p className="font-display text-3xl sm:text-4xl font-bold text-white">{stat.value}</p>
