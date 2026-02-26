@@ -1,35 +1,45 @@
 
 
-## Paginacao no Kanban + Reduzir para 20 leads por pagina
+## Corrigir Modo de Teste do Bot (numero nao reconhecido)
 
-### O que muda
+### Problema identificado
 
-1. **Kanban passa a ser paginado** - Em vez de carregar 2.000 leads de uma vez, carrega apenas 20 por pagina (igual ao modo lista)
-2. **Page size reduzido de 50 para 20** - Afeta tanto o modo lista quanto o Kanban, reduzindo o consumo em 99%
+O bot nao reconhece o numero de teste porque a comparacao de telefone falha. O numero salvo e `034991935048` (com zero na frente do DDD), mas o WhatsApp envia `553491935048` (codigo do pais 55 + DDD sem zero).
 
-### Impacto nos dados
+A logica atual faz:
+```text
+tn = "034991935048"
+tn.replace(/^55/, '') = "034991935048"  (nao comeca com 55, nada muda)
+n = "553491935048"
+n.includes("034991935048") = FALSE  (nao contem essa sequencia)
+```
 
-| Cenario | Antes | Depois |
-|---------|-------|--------|
-| Abrir Kanban | 2.000 leads | 20 leads |
-| Abrir Lista | 50 leads | 20 leads |
-| Reducao total | - | **99%** |
+### Solucao
 
-Na pratica, com o filtro "Hoje" ativo (5-15 leads por dia), tudo vai caber em 1 pagina na maioria dos dias.
+Ajustar a normalizacao do numero de teste na linha 1830 do webhook para tambem remover o zero inicial (padrao brasileiro de discagem local), alem do prefixo `55`.
 
-### Alteracoes
+**Arquivo: `supabase/functions/wapi-webhook/index.ts`**
 
-**Arquivo: `src/pages/CentralAtendimento.tsx`**
-- Linha 83: Mudar `pageSize = 50` para `pageSize = 20`
-- Linhas 244-249: Remover o bloco que aplica `limit(2000)` no Kanban, usar `.range(from, to)` sempre
-- Adicionar controles de paginacao (Anterior/Proximo) abaixo do Kanban nos layouts mobile (~linha 958) e desktop (~linha 1327)
+Alterar a linha 1830 de:
+```js
+const isTest = tn && n.includes(tn.replace(/^55/, ''));
+```
+Para:
+```js
+const isTest = tn && n.includes(tn.replace(/^55/, '').replace(/^0+/, ''));
+```
 
-**Arquivo: `src/pages/Admin.tsx`**
-- Linha 70: Mudar `pageSize = 50` para `pageSize = 20`
+Isso faz `"034991935048"` virar `"34991935048"`, e a comparacao `"553491935048".includes("34991935048")` retorna `true`.
+
+Tambem aplicar a mesma correcao na funcao `shouldSkipTestMode` do `follow-up-check`, que usa logica similar, para manter consistencia.
+
+**Arquivo: `supabase/functions/follow-up-check/index.ts`**
+
+Verificar e aplicar a mesma normalizacao na comparacao de numero de teste.
 
 ### O que NAO muda
-- Filtros continuam funcionando normalmente
-- As 10 colunas do Kanban continuam existindo
-- O filtro "Hoje" continua ativo por padrao
-- Modo lista continua igual (so com 20 em vez de 50)
+- A logica de `botSettingsAllow` ja esta correta (permite test mode sem bot global)
+- O fluxo de conversa continua igual
+- Nenhuma tabela precisa ser alterada
+- O numero salvo no banco nao precisa ser editado
 
