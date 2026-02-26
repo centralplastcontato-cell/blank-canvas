@@ -57,9 +57,19 @@ function shouldSkipTestMode(
   if (!testModeEnabled || !testModeNumber) return false;
   const testNum = testModeNumber.replace(/\D/g, '');
   const convPhone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, '');
-  // Compare last digits to handle country code variations
-  const shortTest = testNum.replace(/^55/, '').replace(/^0+/, '');
-  if (convPhone.includes(shortTest)) return false; // this IS the test number, don't skip
+
+  const normalizedTest = testNum.replace(/^55/, '').replace(/^0+/, '');
+  const normalizedConv = convPhone.replace(/^55/, '').replace(/^0+/, '');
+
+  const isTestNumber = (
+    normalizedConv === normalizedTest ||
+    normalizedConv.endsWith(normalizedTest) ||
+    normalizedTest.endsWith(normalizedConv) ||
+    normalizedConv.slice(-11) === normalizedTest.slice(-11) ||
+    normalizedConv.slice(-10) === normalizedTest.slice(-10)
+  );
+
+  if (isTestNumber) return false; // this IS the test number, don't skip
   return true; // skip — not the test number
 }
 
