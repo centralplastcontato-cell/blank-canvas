@@ -35,18 +35,20 @@ interface HubUserCompanySectionProps {
   onToggleActive: (userId: string, current: boolean) => void;
   onUpdateRole: (userId: string, newRole: AppRole) => void;
   onUpdateName: (userId: string, newName: string) => Promise<void>;
+  onUpdateEmail: (userId: string, newEmail: string) => Promise<void>;
   onDelete: (userId: string) => Promise<void>;
   onResetPassword: (userId: string, newPassword: string) => Promise<void>;
 }
 
 export function HubUserCompanySection({
   company, users, currentUserId,
-  onToggleActive, onUpdateRole, onUpdateName, onDelete, onResetPassword,
+  onToggleActive, onUpdateRole, onUpdateName, onUpdateEmail, onDelete, onResetPassword,
 }: HubUserCompanySectionProps) {
   const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState(true);
   const [editingUser, setEditingUser] = useState<UserWithRole | null>(null);
   const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
   const [resetPasswordUser, setResetPasswordUser] = useState<UserWithRole | null>(null);
   const [desktopNewPassword, setDesktopNewPassword] = useState("");
   const [permissionsUser, setPermissionsUser] = useState<UserWithRole | null>(null);
@@ -120,6 +122,7 @@ export function HubUserCompanySection({
                   onToggleActive={onToggleActive}
                   onUpdateRole={onUpdateRole}
                   onUpdateName={onUpdateName}
+                  onUpdateEmail={onUpdateEmail}
                   onDelete={onDelete}
                   onResetPassword={onResetPassword}
                 />
@@ -143,8 +146,13 @@ export function HubUserCompanySection({
                       <TableCell>
                         {editingUser?.id === u.id ? (
                           <div className="flex items-center gap-2">
-                            <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-8 w-40" />
-                            <Button size="sm" variant="ghost" onClick={() => { onUpdateName(u.user_id, editName); setEditingUser(null); }}>✓</Button>
+                            <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-8 w-40" placeholder="Nome" />
+                            <Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="h-8 w-48" placeholder="Email" type="email" />
+                            <Button size="sm" variant="ghost" onClick={() => {
+                              if (editName !== u.full_name) onUpdateName(u.user_id, editName);
+                              if (editEmail !== u.email) onUpdateEmail(u.user_id, editEmail);
+                              setEditingUser(null);
+                            }}>✓</Button>
                             <Button size="sm" variant="ghost" onClick={() => setEditingUser(null)}>✗</Button>
                           </div>
                         ) : (
@@ -170,7 +178,7 @@ export function HubUserCompanySection({
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button size="icon" variant="ghost" onClick={() => { setEditingUser(u); setEditName(u.full_name); }}><Pencil className="h-4 w-4" /></Button>
+                          <Button size="icon" variant="ghost" onClick={() => { setEditingUser(u); setEditName(u.full_name); setEditEmail(u.email); }}><Pencil className="h-4 w-4" /></Button>
                           <Button size="icon" variant="ghost" onClick={() => setPermissionsUser(u)}><Shield className="h-4 w-4" /></Button>
                           <Button size="icon" variant="ghost" onClick={() => { setResetPasswordUser(u); setDesktopNewPassword(""); }}><KeyRound className="h-4 w-4" /></Button>
                           {u.user_id !== currentUserId && (

@@ -392,6 +392,20 @@ export default function UsersPage() {
     }
   };
 
+  const handleUpdateEmail = async (userId: string, newEmail: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-user", {
+        body: { action: "update", user_id: userId, email: newEmail },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "Email atualizado", description: "O email foi alterado com sucesso." });
+      fetchUsers();
+    } catch (error: any) {
+      toast({ title: "Erro ao atualizar email", description: error.message, variant: "destructive" });
+    }
+  };
+
   const handleDeleteUser = async (userId: string) => {
     try {
       const { data, error } = await supabase.functions.invoke("manage-user", {
@@ -574,6 +588,7 @@ export default function UsersPage() {
               onToggleActive={handleToggleActive}
               onUpdateRole={handleUpdateRole}
               onUpdateName={handleUpdateName}
+              onUpdateEmail={handleUpdateEmail}
               onDelete={handleDeleteUser}
               onResetPassword={handleResetPassword}
             />

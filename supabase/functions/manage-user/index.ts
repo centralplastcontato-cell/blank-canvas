@@ -203,6 +203,35 @@ Deno.serve(async (req) => {
         )
       }
 
+      // Update email in auth.users AND profiles if provided
+      if (body.email) {
+        const { error: authEmailError } = await supabaseAdmin.auth.admin.updateUserById(
+          body.user_id,
+          { email: body.email, email_confirm: true }
+        )
+        if (authEmailError) {
+          console.error('Auth email update error:', authEmailError)
+          return new Response(
+            JSON.stringify({ error: 'Erro ao atualizar email no auth: ' + authEmailError.message }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        const { error: profileEmailError } = await supabaseAdmin
+          .from('profiles')
+          .update({ email: body.email })
+          .eq('user_id', body.user_id)
+
+        if (profileEmailError) {
+          console.error('Profile email update error:', profileEmailError)
+          return new Response(
+            JSON.stringify({ error: 'Erro ao atualizar email no perfil: ' + profileEmailError.message }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+        console.log('Email updated for user:', body.user_id, 'to:', body.email)
+      }
+
       // Update profile if name provided
       if (body.full_name) {
         const { error: profileError } = await supabaseAdmin
