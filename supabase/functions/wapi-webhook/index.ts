@@ -463,24 +463,57 @@ function replaceVariables(text: string, data: Record<string, string>): string {
   }
   return result;
 }
+async function sendTextViaWapiWithFallback(
+  instanceId: string,
+  instanceToken: string,
+  remoteJid: string,
+  message: string,
+  delayTyping = 1
+): Promise<{ messageId: string | null; attempt: string | null }> {
+  const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, '');
+  const attempts: Array<{ name: string; body: Record<string, unknown> }> = [
+    { name: 'phone+message', body: { phone, message, delayTyping } },
+    { name: 'phone+text', body: { phone, text: message, delayTyping } },
+    { name: 'phoneNumber+message', body: { phoneNumber: phone, message, delayTyping } },
+    { name: 'phoneNumber+text', body: { phoneNumber: phone, text: message, delayTyping } },
+    { name: 'chatId+message', body: { chatId: `${phone}@s.whatsapp.net`, message, delayTyping } },
+    { name: 'chatId+text', body: { chatId: `${phone}@s.whatsapp.net`, text: message, delayTyping } },
+  ];
+
+  for (const attempt of attempts) {
+    try {
+      const res = await fetch(`${WAPI_BASE_URL}/message/send-text?instanceId=${instanceId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instanceToken}` },
+        body: JSON.stringify(attempt.body),
+      });
+
+      if (!res.ok) {
+        const errBody = await res.text();
+        console.warn(`[Bot] send-text failed [${attempt.name}]: ${res.status} ${errBody}`);
+        continue;
+      }
+
+      const payload = await res.json();
+      const msgId = payload?.messageId || payload?.data?.messageId || payload?.id || payload?.data?.id || null;
+      return { messageId: msgId, attempt: attempt.name };
+    } catch (e) {
+      console.warn(`[Bot] send-text exception [${attempt.name}]:`, e);
+    }
+  }
+
+  return { messageId: null, attempt: null };
+}
+
 async function sendBotMessage(instanceId: string, instanceToken: string, remoteJid: string, message: string): Promise<string | null> {
   try {
-    const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '');
+    const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, '');
     console.log(`[Bot] Sending message to ${phone} via instance ${instanceId}`);
-    const res = await fetch(`${WAPI_BASE_URL}/message/send-text?instanceId=${instanceId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instanceToken}` },
-      body: JSON.stringify({ phone, message, delayTyping: 1 }),
-    });
-    if (!res.ok) {
-      const errBody = await res.text();
-      console.error(`[Bot] send-text failed: ${res.status} ${errBody}`);
-      return null;
-    }
-    const r = await res.json();
-    const msgId = r.messageId || r.data?.messageId || r.id || null;
-    console.log(`[Bot] send-text response: msgId=${msgId}`);
-    return msgId;
+
+    const { messageId, attempt } = await sendTextViaWapiWithFallback(instanceId, instanceToken, remoteJid, message, 1);
+    console.log(`[Bot] send-text response: msgId=${messageId}, attempt=${attempt}`);
+
+    return messageId;
   } catch (e) {
     console.error(`[Bot] send-text exception:`, e);
     return null;
@@ -2863,15 +2896,16 @@ async function sendQualificationMaterials(
   
   const sendText = async (message: string) => {
     try {
-      const res = await fetch(`${WAPI_BASE_URL}/message/send-text?instanceId=${instance.instance_id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-        body: JSON.stringify({ phone, message, delayTyping: 1 })
-      });
-      
-      if (!res.ok) return null;
-      const r = await res.json();
-      return r.messageId || null;
+      const { messageId, attempt } = await sendTextViaWapiWithFallback(
+        instance.instance_id,
+        instance.instance_token,
+        conv.remote_jid,
+        message,
+        1
+      );
+
+      console.log(`[Bot Materials] send-text attempt=${attempt} msgId=${messageId}`);
+      return messageId;
     } catch (e) {
       console.error('[Bot Materials] Error sending text:', e);
       return null;
@@ -3043,17 +3077,15 @@ async function sendQualificationMaterialsThenQuestion(
     // Now send the next step question
     console.log(`[Bot] Sending next step question to ${phone}`);
     
-    const res = await fetch(`${WAPI_BASE_URL}/message/send-text?instanceId=${instance.instance_id}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-      body: JSON.stringify({ phone, message: nextStepQuestion, delayTyping: 2 })
-    });
-    
-    let msgId = null;
-    if (res.ok) {
-      const r = await res.json();
-      msgId = r.messageId || null;
-    }
+    const { messageId: msgId, attempt } = await sendTextViaWapiWithFallback(
+      instance.instance_id,
+      instance.instance_token,
+      conv.remote_jid,
+      nextStepQuestion,
+      2
+    );
+
+    console.log(`[Bot] Next step send attempt=${attempt} msgId=${msgId}`);
     
     if (msgId) {
       await supabase.from('wapi_messages').insert({

@@ -85,12 +85,12 @@ async function wapiRequest(url: string, token: string, method: string, body?: un
       },
       body: body ? JSON.stringify(body) : undefined,
     });
-    
+
     const contentType = res.headers.get('content-type');
     if (contentType?.includes('text/html')) {
       return { ok: false, error: 'Instância W-API indisponível' };
     }
-    
+
     const data = await res.json();
     if (!res.ok || data.error) {
       return { ok: false, error: data.message || 'Erro na W-API' };
@@ -99,6 +99,40 @@ async function wapiRequest(url: string, token: string, method: string, body?: un
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'Erro de comunicação' };
   }
+}
+
+function extractWapiMessageId(payload: unknown): string | null {
+  const data = payload as Record<string, unknown> | undefined;
+  const nested = (data?.data as Record<string, unknown> | undefined) || {};
+  const id = data?.messageId || nested.messageId || data?.id || nested.id;
+  return typeof id === 'string' && id.length > 0 ? id : null;
+}
+
+async function sendTextWithFallback(instanceId: string, token: string, rawPhone: string, message: string) {
+  const phone = String(rawPhone || '').replace(/\D/g, '');
+  const endpoint = `${WAPI_BASE_URL}/message/send-text?instanceId=${instanceId}`;
+
+  const attempts: Array<{ name: string; body: Record<string, unknown> }> = [
+    { name: 'phone+message', body: { phone, message, delayTyping: 1 } },
+    { name: 'phone+text', body: { phone, text: message, delayTyping: 1 } },
+    { name: 'phoneNumber+message', body: { phoneNumber: phone, message, delayTyping: 1 } },
+    { name: 'phoneNumber+text', body: { phoneNumber: phone, text: message, delayTyping: 1 } },
+    { name: 'chatId+message', body: { chatId: `${phone}@s.whatsapp.net`, message, delayTyping: 1 } },
+    { name: 'chatId+text', body: { chatId: `${phone}@s.whatsapp.net`, text: message, delayTyping: 1 } },
+  ];
+
+  let lastError = 'Falha ao enviar mensagem (W-API)';
+
+  for (const attempt of attempts) {
+    const res = await wapiRequest(endpoint, token, 'POST', attempt.body);
+    if (res.ok) {
+      return { ok: true, data: res.data, attempt: attempt.name };
+    }
+    lastError = res.error || lastError;
+    console.warn(`send-text fallback failed [${attempt.name}]:`, lastError);
+  }
+
+  return { ok: false, error: lastError };
 }
 
 // Helper to find or create a conversation for LP/bot outbound messages
@@ -234,29 +268,24 @@ Deno.serve(async (req) => {
     switch (action) {
       case 'send-text': {
         console.log('send-text: sending message to', phone);
-        const res = await wapiRequest(
-          `${WAPI_BASE_URL}/message/send-text?instanceId=${instance_id}`,
-          instance_token,
-          'POST',
-          { phone, message }
-        );
-        
-        console.log('send-text response:', JSON.stringify(res));
-        
-        if (!res.ok) {
-          console.error('send-text failed:', res.error);
-          return new Response(JSON.stringify({ error: res.error }), {
+        const sendResult = await sendTextWithFallback(instance_id, instance_token, phone, message);
+
+        console.log('send-text response:', JSON.stringify(sendResult));
+
+        if (!sendResult.ok) {
+          console.error('send-text failed:', sendResult.error);
+          return new Response(JSON.stringify({ error: sendResult.error }), {
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
 
-        const messageId = (res.data as { messageId?: string })?.messageId;
-        
+        const messageId = extractWapiMessageId(sendResult.data) || `manual_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
         // Resolve or create conversation for DB tracking
         let resolvedConvId = conversationId;
         let resolvedCompanyId = companyId;
-        
+
         if (!resolvedConvId && phone) {
           // Auto-find or create conversation (LP/bot outbound flow)
           const convResult = await findOrCreateConversation(supabase, phone, instance_id, body.lpMode, body.contactName);
@@ -265,7 +294,7 @@ Deno.serve(async (req) => {
             resolvedCompanyId = convResult.companyId;
           }
         }
-        
+
         if (resolvedConvId) {
           await supabase.from('wapi_messages').insert({
             conversation_id: resolvedConvId,
@@ -277,14 +306,14 @@ Deno.serve(async (req) => {
             timestamp: new Date().toISOString(),
             company_id: resolvedCompanyId,
           });
-          await supabase.from('wapi_conversations').update({ 
+          await supabase.from('wapi_conversations').update({
             last_message_at: new Date().toISOString(),
             last_message_content: message.substring(0, 100),
             last_message_from_me: true,
           }).eq('id', resolvedConvId);
         }
 
-        return new Response(JSON.stringify({ success: true, messageId, conversationId: resolvedConvId }), {
+        return new Response(JSON.stringify({ success: true, messageId, conversationId: resolvedConvId, providerAttempt: (sendResult as { attempt?: string }).attempt }), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
