@@ -162,8 +162,10 @@ export function LeadInfoPopover({
   const startEditingName = () => {
     if (linkedLead) {
       setEditedName(linkedLead.name);
-      setIsEditingName(true);
+    } else {
+      setEditedName(selectedConversation.contact_name || "");
     }
+    setIsEditingName(true);
   };
 
   const cancelEditingName = () => {
@@ -172,57 +174,96 @@ export function LeadInfoPopover({
   };
 
   const saveLeadName = async () => {
-    if (!linkedLead || !editedName.trim()) return;
+    if (!editedName.trim()) return;
     
     const trimmedName = editedName.trim();
-    if (trimmedName === linkedLead.name) {
-      cancelEditingName();
-      return;
-    }
+    
+    if (linkedLead) {
+      // Qualified lead: update campaign_leads + wapi_conversations
+      if (trimmedName === linkedLead.name) {
+        cancelEditingName();
+        return;
+      }
 
-    setIsSavingName(true);
+      setIsSavingName(true);
 
-    try {
-      const { error: leadError } = await supabase
-        .from("campaign_leads")
-        .update({ name: trimmedName })
-        .eq("id", linkedLead.id);
+      try {
+        const { error: leadError } = await supabase
+          .from("campaign_leads")
+          .update({ name: trimmedName })
+          .eq("id", linkedLead.id);
 
-      if (leadError) throw leadError;
+        if (leadError) throw leadError;
 
-      const { error: convError } = await supabase
-        .from("wapi_conversations")
-        .update({ contact_name: trimmedName })
-        .eq("id", selectedConversation.id);
+        const { error: convError } = await supabase
+          .from("wapi_conversations")
+          .update({ contact_name: trimmedName })
+          .eq("id", selectedConversation.id);
 
-      if (convError) throw convError;
+        if (convError) throw convError;
 
-      await supabase.from("lead_history").insert({
-        lead_id: linkedLead.id,
-        user_id: userId,
-        user_name: currentUserName,
-        action: "Alteração de nome",
-        old_value: linkedLead.name,
-        new_value: trimmedName,
-      });
+        await supabase.from("lead_history").insert({
+          lead_id: linkedLead.id,
+          user_id: userId,
+          user_name: currentUserName,
+          action: "Alteração de nome",
+          old_value: linkedLead.name,
+          new_value: trimmedName,
+        });
 
-      onLeadNameChange(trimmedName);
-      setIsEditingName(false);
-      setEditedName("");
+        onLeadNameChange(trimmedName);
+        setIsEditingName(false);
+        setEditedName("");
 
-      toast({
-        title: "Nome atualizado",
-        description: "O nome do lead foi alterado com sucesso.",
-      });
-    } catch (error: unknown) {
-      console.error("Error updating lead name:", error);
-      toast({
-        title: "Erro ao atualizar nome",
-        description: error instanceof Error ? error.message : "Tente novamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSavingName(false);
+        toast({
+          title: "Nome atualizado",
+          description: "O nome do lead foi alterado com sucesso.",
+        });
+      } catch (error: unknown) {
+        console.error("Error updating lead name:", error);
+        toast({
+          title: "Erro ao atualizar nome",
+          description: error instanceof Error ? error.message : "Tente novamente.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsSavingName(false);
+      }
+    } else {
+      // Unqualified contact: update only wapi_conversations.contact_name
+      if (trimmedName === (selectedConversation.contact_name || "")) {
+        cancelEditingName();
+        return;
+      }
+
+      setIsSavingName(true);
+
+      try {
+        const { error } = await supabase
+          .from("wapi_conversations")
+          .update({ contact_name: trimmedName })
+          .eq("id", selectedConversation.id);
+
+        if (error) throw error;
+
+        onLeadNameChange(trimmedName);
+        setIsEditingName(false);
+        setEditedName("");
+
+        toast({
+          title: "Nome atualizado",
+          description: "O nome do contato foi alterado com sucesso.",
+        });
+      } catch (error: unknown) {
+        console.error("Error updating contact name:", error);
+        toast({
+          title: "Erro ao atualizar nome",
+          description: error instanceof Error ? error.message : "Tente novamente.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsSavingName(false);
+      }
     }
   };
 
@@ -478,7 +519,38 @@ export function LeadInfoPopover({
                 <div className="space-y-1.5">
                   <InfoRow icon={MessageSquare}>{selectedConversation.contact_phone}</InfoRow>
                   {selectedConversation.contact_name && (
-                    <InfoRow icon={Users}>{selectedConversation.contact_name}</InfoRow>
+                    <div className="flex items-center gap-1">
+                      {isEditingName ? (
+                        <div className="flex items-center gap-1 flex-1">
+                          <Input
+                            value={editedName}
+                            onChange={(e) => setEditedName(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            className="h-7 text-xs rounded-lg"
+                            autoFocus
+                            disabled={isSavingName}
+                          />
+                          <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 rounded-md" onClick={saveLeadName} disabled={isSavingName}>
+                            {isSavingName ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3 text-green-600" />}
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 rounded-md" onClick={cancelEditingName} disabled={isSavingName}>
+                            <X className="w-3 h-3 text-destructive" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
+                            <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-muted/50 shrink-0">
+                              <Users className="w-3.5 h-3.5" />
+                            </div>
+                            <span className="truncate">{selectedConversation.contact_name}</span>
+                          </div>
+                          <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 rounded-md" onClick={startEditingName} title="Editar nome">
+                            <Pencil className="w-2.5 h-2.5 text-muted-foreground hover:text-foreground" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   )}
                   {selectedInstance?.unit && (
                     <InfoRow icon={MapPin}>{selectedInstance.unit}</InfoRow>
