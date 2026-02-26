@@ -536,7 +536,10 @@ export type Database = {
         Row: {
           additional_notes: string | null
           attendants_count: number | null
+          automation_system_name: string | null
           brand_notes: string | null
+          budget_file_urls: string[] | null
+          budget_format: string | null
           buffet_name: string | null
           city: string | null
           company_id: string
@@ -550,6 +553,7 @@ export type Database = {
           current_service_method: string | null
           current_step: number
           full_address: string | null
+          has_automation_system: boolean | null
           id: string
           instagram: string | null
           lead_sources: string[] | null
@@ -561,6 +565,7 @@ export type Database = {
           photo_urls: string[] | null
           secondary_contact: string | null
           service_hours: string | null
+          service_screenshots: string[] | null
           state: string | null
           status: string
           updated_at: string
@@ -572,7 +577,10 @@ export type Database = {
         Insert: {
           additional_notes?: string | null
           attendants_count?: number | null
+          automation_system_name?: string | null
           brand_notes?: string | null
+          budget_file_urls?: string[] | null
+          budget_format?: string | null
           buffet_name?: string | null
           city?: string | null
           company_id: string
@@ -586,6 +594,7 @@ export type Database = {
           current_service_method?: string | null
           current_step?: number
           full_address?: string | null
+          has_automation_system?: boolean | null
           id?: string
           instagram?: string | null
           lead_sources?: string[] | null
@@ -597,6 +606,7 @@ export type Database = {
           photo_urls?: string[] | null
           secondary_contact?: string | null
           service_hours?: string | null
+          service_screenshots?: string[] | null
           state?: string | null
           status?: string
           updated_at?: string
@@ -608,7 +618,10 @@ export type Database = {
         Update: {
           additional_notes?: string | null
           attendants_count?: number | null
+          automation_system_name?: string | null
           brand_notes?: string | null
+          budget_file_urls?: string[] | null
+          budget_format?: string | null
           buffet_name?: string | null
           city?: string | null
           company_id?: string
@@ -622,6 +635,7 @@ export type Database = {
           current_service_method?: string | null
           current_step?: number
           full_address?: string | null
+          has_automation_system?: boolean | null
           id?: string
           instagram?: string | null
           lead_sources?: string[] | null
@@ -633,6 +647,7 @@ export type Database = {
           photo_urls?: string[] | null
           secondary_contact?: string | null
           service_hours?: string | null
+          service_screenshots?: string[] | null
           state?: string | null
           status?: string
           updated_at?: string

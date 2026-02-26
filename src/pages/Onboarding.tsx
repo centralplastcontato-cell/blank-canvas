@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, ArrowRight, Upload, X, CheckCircle2, PartyPopper, Camera, Video } from "lucide-react";
+import { Loader2, ArrowLeft, ArrowRight, Upload, X, CheckCircle2, PartyPopper, Camera, Video, FileText, MessageSquare, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TOTAL_STEPS = 7;
@@ -38,6 +38,11 @@ interface OnboardingData {
   lead_volume: string;
   lead_sources: string[];
   current_service_method: string;
+  has_automation_system: boolean;
+  automation_system_name: string;
+  budget_format: string;
+  budget_file_urls: string[];
+  service_screenshots: string[];
   uses_paid_traffic: boolean;
   monthly_investment: string;
   cost_per_lead: string;
@@ -58,6 +63,8 @@ const initialData: OnboardingData = {
   buffet_name: "", city: "", state: "", full_address: "", instagram: "", website: "",
   contact_name: "", contact_role: "", contact_phone: "", contact_email: "", secondary_contact: "",
   lead_volume: "", lead_sources: [], current_service_method: "",
+  has_automation_system: false, automation_system_name: "", budget_format: "",
+  budget_file_urls: [], service_screenshots: [],
   uses_paid_traffic: false, monthly_investment: "", cost_per_lead: "", current_agency: "",
   whatsapp_numbers: [""], attendants_count: 1, service_hours: "", multiple_units: false,
   logo_url: "", photo_urls: [], video_urls: [], brand_notes: "",
@@ -79,6 +86,8 @@ export default function Onboarding() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [uploadingVideos, setUploadingVideos] = useState(false);
+  const [uploadingBudget, setUploadingBudget] = useState(false);
+  const [uploadingScreenshots, setUploadingScreenshots] = useState(false);
 
   useEffect(() => {
     const fetchCompany = async () => {
@@ -112,6 +121,11 @@ export default function Onboarding() {
               secondary_contact: e.secondary_contact || "",
               lead_volume: e.lead_volume || "", lead_sources: e.lead_sources || [],
               current_service_method: e.current_service_method || "",
+              has_automation_system: e.has_automation_system || false,
+              automation_system_name: e.automation_system_name || "",
+              budget_format: e.budget_format || "",
+              budget_file_urls: e.budget_file_urls || [],
+              service_screenshots: e.service_screenshots || [],
               uses_paid_traffic: e.uses_paid_traffic || false, monthly_investment: e.monthly_investment || "",
               cost_per_lead: e.cost_per_lead || "", current_agency: e.current_agency || "",
               whatsapp_numbers: e.whatsapp_numbers?.length ? e.whatsapp_numbers : [""],
@@ -137,7 +151,6 @@ export default function Onboarding() {
     const payload: any = { ...data, company_id: companyId, current_step: nextStep, status: wasCompleted ? 'completo' : 'em_andamento' };
     delete payload.photo_urls_files;
 
-    // Usa onboardingId se disponível, senão busca o registro existente da empresa
     let targetId = onboardingId;
     if (!targetId) {
       const { data: existing } = await supabase
@@ -164,7 +177,7 @@ export default function Onboarding() {
     const nextStep = step + 1;
     setStep(nextStep);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    saveProgress(nextStep); // fire-and-forget, sem bloquear UI
+    saveProgress(nextStep);
   };
 
   const handleBack = () => {
@@ -179,7 +192,6 @@ export default function Onboarding() {
       const payload: any = { ...data, company_id: companyId, current_step: TOTAL_STEPS, status: 'completo' };
       delete payload.photo_urls_files;
 
-      // Busca o registro mais recente desta empresa (segurança extra caso onboardingId não esteja setado)
       let targetId = onboardingId;
       if (!targetId) {
         const { data: existing } = await supabase
@@ -277,12 +289,52 @@ export default function Onboarding() {
     setUploadingVideos(false);
   };
 
+  const handleBudgetUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length + data.budget_file_urls.length > 3) {
+      toast({ title: "Limite excedido", description: "Máximo de 3 arquivos de orçamento", variant: "destructive" });
+      return;
+    }
+    setUploadingBudget(true);
+    const urls: string[] = [];
+    for (const file of files) {
+      const url = await uploadFile(file, "budget");
+      if (url) urls.push(url);
+    }
+    update("budget_file_urls", [...data.budget_file_urls, ...urls]);
+    setUploadingBudget(false);
+  };
+
+  const handleScreenshotsUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length + data.service_screenshots.length > 5) {
+      toast({ title: "Limite excedido", description: "Máximo de 5 prints", variant: "destructive" });
+      return;
+    }
+    setUploadingScreenshots(true);
+    const urls: string[] = [];
+    for (const file of files) {
+      const url = await uploadFile(file, "screenshots");
+      if (url) urls.push(url);
+    }
+    update("service_screenshots", [...data.service_screenshots, ...urls]);
+    setUploadingScreenshots(false);
+  };
+
   const removePhoto = (index: number) => {
     update("photo_urls", data.photo_urls.filter((_, i) => i !== index));
   };
 
   const removeVideo = (index: number) => {
     update("video_urls", data.video_urls.filter((_, i) => i !== index));
+  };
+
+  const removeBudgetFile = (index: number) => {
+    update("budget_file_urls", data.budget_file_urls.filter((_, i) => i !== index));
+  };
+
+  const removeScreenshot = (index: number) => {
+    update("service_screenshots", data.service_screenshots.filter((_, i) => i !== index));
   };
 
   if (loading) {
@@ -313,7 +365,7 @@ export default function Onboarding() {
           </div>
           <h1 className="text-2xl font-bold text-foreground">Onboarding concluído! 🎉</h1>
           <p className="text-muted-foreground">
-            Obrigado por preencher todas as informações do <strong>{companyName}</strong>. 
+            Obrigado por preencher todas as informações do <strong>{companyName}</strong>.{" "}
             Nossa equipe vai analisar os dados e entrar em contato em breve para o setup da plataforma.
           </p>
           <div className="p-4 rounded-xl bg-accent/5 border border-accent/20">
@@ -368,7 +420,13 @@ export default function Onboarding() {
         )}
         {step === 1 && <Step1 data={data} update={update} />}
         {step === 2 && <Step2 data={data} update={update} />}
-        {step === 3 && <Step3 data={data} update={update} />}
+        {step === 3 && (
+          <Step3
+            data={data} update={update}
+            onBudgetUpload={handleBudgetUpload} uploadingBudget={uploadingBudget} removeBudgetFile={removeBudgetFile}
+            onScreenshotsUpload={handleScreenshotsUpload} uploadingScreenshots={uploadingScreenshots} removeScreenshot={removeScreenshot}
+          />
+        )}
         {step === 4 && <Step4 data={data} update={update} />}
         {step === 5 && <Step5 data={data} update={update} />}
         {step === 6 && (
@@ -528,7 +586,16 @@ function Step2({ data, update }: StepProps) {
   );
 }
 
-function Step3({ data, update }: StepProps) {
+interface Step3Props extends StepProps {
+  onBudgetUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  uploadingBudget: boolean;
+  removeBudgetFile: (i: number) => void;
+  onScreenshotsUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  uploadingScreenshots: boolean;
+  removeScreenshot: (i: number) => void;
+}
+
+function Step3({ data, update, onBudgetUpload, uploadingBudget, removeBudgetFile, onScreenshotsUpload, uploadingScreenshots, removeScreenshot }: Step3Props) {
   return (
     <>
       <StepHeader emoji="📊" title="Operação Atual" subtitle="Como funciona o atendimento hoje?" />
@@ -583,6 +650,85 @@ function Step3({ data, update }: StepProps) {
                 <SelectItem value="crm">CRM externo</SelectItem>
               </SelectContent>
             </Select>
+          </Field>
+        </FieldSection>
+
+        <FieldSection title="Sistema de automação">
+          <Field label="Já utiliza ou utilizou algum sistema de atendimento automático?">
+            <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/30">
+              <Switch checked={data.has_automation_system} onCheckedChange={v => update("has_automation_system", v)} />
+              <span className="text-sm font-medium">{data.has_automation_system ? "Sim, já utilizei/utilizo" : "Não"}</span>
+            </div>
+          </Field>
+          {data.has_automation_system && (
+            <Field label="Qual sistema?">
+              <Input value={data.automation_system_name} onChange={e => update("automation_system_name", e.target.value)} placeholder="Ex: ManyChat, Botconversa, Leadster..." />
+            </Field>
+          )}
+        </FieldSection>
+
+        <FieldSection title="Envio de orçamento">
+          <Field label="Como você envia o orçamento para o cliente?">
+            <Select value={data.budget_format} onValueChange={v => update("budget_format", v)}>
+              <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pdf">PDF</SelectItem>
+                <SelectItem value="imagem">Imagem</SelectItem>
+                <SelectItem value="whatsapp_texto">Texto no WhatsApp</SelectItem>
+                <SelectItem value="outro">Outro</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Anexe um modelo do seu orçamento (PDF ou imagem)">
+            <div className="space-y-2">
+              {data.budget_file_urls.map((url, i) => (
+                <div key={i} className="flex items-center gap-2 p-2 rounded-lg border border-border bg-muted/30">
+                  <FileText className="h-5 w-5 text-primary shrink-0" />
+                  <span className="text-sm truncate flex-1">Arquivo {i + 1}</span>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => window.open(url, "_blank")}>
+                    <Eye className="h-3 w-3" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeBudgetFile(i)}>
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+              {data.budget_file_urls.length < 3 && (
+                <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-primary/40 transition-colors bg-muted/20">
+                  {uploadingBudget ? <Loader2 className="h-6 w-6 animate-spin text-primary" /> : <Upload className="h-6 w-6 text-muted-foreground" />}
+                  <span className="text-xs text-muted-foreground mt-1">{uploadingBudget ? "Enviando..." : "Clique para enviar PDF ou imagem"}</span>
+                  <input type="file" accept="image/*,.pdf" onChange={onBudgetUpload} className="hidden" />
+                </label>
+              )}
+            </div>
+          </Field>
+        </FieldSection>
+
+        <FieldSection title="Prints do atendimento">
+          <Field label="Envie prints de como você atende um lead novo">
+            <p className="text-xs text-muted-foreground -mt-1 mb-2">
+              Isso nos ajuda a estruturar melhor as respostas do bot (até 5 prints)
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {data.service_screenshots.map((url, i) => (
+                <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-muted group">
+                  <img src={url} alt={`Print ${i + 1}`} className="w-full h-full object-cover" />
+                  <button
+                    onClick={() => removeScreenshot(i)}
+                    className="absolute top-1 right-1 h-6 w-6 rounded-full bg-destructive/90 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+              {data.service_screenshots.length < 5 && (
+                <label className="aspect-square rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center cursor-pointer hover:border-primary/40 transition-colors bg-muted/20">
+                  {uploadingScreenshots ? <Loader2 className="h-5 w-5 animate-spin text-primary" /> : <MessageSquare className="h-5 w-5 text-muted-foreground" />}
+                  <span className="text-xs text-muted-foreground mt-1">{uploadingScreenshots ? "..." : "Adicionar"}</span>
+                  <input type="file" accept="image/*" multiple onChange={onScreenshotsUpload} className="hidden" />
+                </label>
+              )}
+            </div>
           </Field>
         </FieldSection>
       </FieldGroup>
