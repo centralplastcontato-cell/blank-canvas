@@ -114,7 +114,6 @@ export function DLPOffer({ offer, theme, onCtaClick }: DLPOfferProps) {
                 {(offer.benefits_list?.length ? offer.benefits_list : [
                   "Espaço completo e climatizado",
                   "Equipe de monitores profissionais",
-                  "Decoração temática inclusa",
                   "Buffet completo para crianças e adultos",
                   "Brinquedos e diversão garantida",
                 ]).map((benefit, index) => (
