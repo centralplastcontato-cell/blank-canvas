@@ -3674,7 +3674,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                     ) : (
                       // Show classification buttons directly - no lead linked yet
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs font-medium text-destructive shrink-0">⚠ Não classificado:</span>
+                        <span className="text-xs font-medium text-destructive shrink-0">⚠ Não qualificado:</span>
                         {[
                           { value: 'novo', label: 'Novo', color: 'bg-blue-500' },
                           { value: 'trabalhe_conosco', label: 'Trab. Conosco', color: 'bg-teal-500' },
@@ -4510,7 +4510,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                           } as Record<string, string>)[linkedLead.status] || linkedLead.status}
                         </span>
                       )}
-                      {!linkedLead && <span className="text-[10px] text-destructive">⚠ Não classificado</span>}
+                      {!linkedLead && <span className="text-[10px] text-destructive">⚠ Não qualificado</span>}
                     </span>
                     <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", mobileStatusExpanded && "rotate-180")} />
                   </button>
