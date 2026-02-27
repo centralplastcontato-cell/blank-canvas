@@ -1,75 +1,42 @@
 
 
-## Corrigir Chatbot da LP + Resgatar 36 Leads Orfaos
+## Problema: Nome do lead sumindo na lista de conversas
 
-### Resumo
+### Diagnóstico
 
-O chatbot da Landing Page dinamica pula a pergunta de unidade e salva `unit = "Castelo da Diversao"` (nome da empresa). Isso impede o envio da mensagem de boas-vindas via WhatsApp, pois nao existe instancia vinculada a esse nome. 36 leads ficaram orfaos. A correcao envolve 3 partes:
+O lead **Nycolly** tem o nome correto na tabela `campaign_leads`, mas a conversa vinculada em `wapi_conversations` tem `contact_name = "."`. A lista de conversas exibe apenas `contact_name`, ignorando o nome do lead vinculado.
 
-1. Corrigir o chatbot para perguntar a unidade quando a empresa tem multiplas
-2. Criar edge function para resgatar os 36 leads orfaos (todos para Trujillo)
-3. Corrigir dados no banco (`company_onboarding.multiple_units`)
+Existem **5 conversas** com esse problema no banco (contact_name = ".", null, ou vazio).
 
----
+### Causa raiz (dois problemas)
 
-### Parte 1: Corrigir o Chatbot
+1. **Display**: A lista de conversas usa `conv.contact_name || conv.contact_phone` em vez de priorizar o nome do lead vinculado (`conversationLeadsMap`). Como `"."` e é truthy, exibe o ponto ao invés do nome real.
 
-**`src/pages/DynamicLandingPage.tsx`**
-- Adicionar fetch de `company_units` (ativas, excluindo unidades internas como "Trabalhe Conosco") em paralelo com onboarding e bot settings
-- Adicionar campo `unitNames: string[]` ao estado `LPData`
-- Passar `unitOptions={data.unitNames}` como nova prop ao `LeadChatbot`
+2. **Sanitização**: Quando o bot salva nomes como `"."`, `"-"` ou `""`, o sistema não limpa esses valores placeholder.
 
-**`src/components/landing/LeadChatbot.tsx`**
-- Adicionar prop `unitOptions?: string[]` na interface `LeadChatbotProps`
-- No `useEffect` inicial (modo dinamico): se `unitOptions` tiver 2+ itens, mostrar pergunta de unidade (com "As duas" no final) como step 0, em vez de pular direto para o mes
-- Se `unitOptions` tiver 0-1 itens, manter comportamento atual (pula unidade, usa `companyName`)
-- Adicionar `case 0` no `handleOptionSelect` do modo dinamico para tratar selecao de unidade e avancar para o mes
-- No `sendWelcomeMessage`: quando unidade = "As duas" no modo dinamico, enviar para todas as unidades (igual ao modo Castelo default, iterando sobre `unitOptions`)
+### Correção
 
-O fluxo dinamico passara de:
-```text
-welcome -> month(step 1) -> day -> guests(step 2) -> capture(step 3)
+**1. Priorizar nome do lead na lista de conversas** (WhatsAppChat.tsx)
+
+Criar uma helper function que resolve o nome na ordem correta:
 ```
-Para (quando ha multiplas unidades):
-```text
-welcome -> unit(step 0) -> month(step 1) -> day -> guests(step 2) -> capture(step 3)
+leadName (do conversationLeadsMap) > contact_name (se válido) > contact_phone
 ```
 
----
+Aplicar em todos os pontos de exibição do nome na lista:
+- Linha 3086 (avatar fallback - desktop)
+- Linha 3109 (nome na lista - desktop)  
+- Linha 3219 (avatar fallback - mobile)
+- Linha 3242 (nome na lista - mobile)
 
-### Parte 2: Edge Function de Resgate
+**2. Sanitizar contact_name com placeholders inválidos**
 
-**`supabase/functions/rescue-orphan-leads/index.ts`** (novo arquivo)
-- Endpoint POST protegido por autenticacao (verifica admin via `is_admin`)
-- Busca leads com filtros rigorosos:
-  - `company_id = 'a0000000-0000-0000-0000-000000000001'`
-  - `unit = 'Castelo da Diversao'`
-  - Sem `wapi_conversations` vinculada (`NOT EXISTS`)
-- Para cada lead orfao:
-  - Atualiza `campaign_leads.unit` para `'Trujillo'`
-  - Envia mensagem de boas-vindas via `wapi-send` (action: `send-text`, unit: `Trujillo`, lpMode: true)
-  - Registra em `lead_history` a acao de resgate
-- Retorna relatorio JSON com total resgatado e eventuais erros
+Na função que carrega conversas, limpar `contact_name` quando for `"."`, `"-"`, `""` ou espaço em branco.
 
-**`supabase/config.toml`**
-- Adicionar `[functions.rescue-orphan-leads]` com `verify_jwt = false`
+**3. Corrigir dados existentes no banco**
 
----
+Atualizar as 5 conversas com `contact_name` inválido para usar o nome do lead vinculado (quando existir).
 
-### Parte 3: Correcao de Dados
-
-Usando o insert tool (nao migracao):
-- `UPDATE company_onboarding SET multiple_units = true WHERE company_id = 'a0000000-0000-0000-0000-000000000001'`
-
----
-
-### Sequencia de Execucao
-
-1. Editar `LeadChatbot.tsx` (adicionar prop `unitOptions` e logica de step 0)
-2. Editar `DynamicLandingPage.tsx` (fetch de `company_units` e passar prop)
-3. Criar edge function `rescue-orphan-leads`
-4. Atualizar `config.toml`
-5. Deploy da edge function
-6. Corrigir `company_onboarding.multiple_units` via insert tool
-7. Executar a edge function para resgatar os 36 leads
-
+### Impacto
+- A Nycolly e outros leads com nomes "sujos" passarão a exibir o nome correto imediatamente
+- Futuros leads com placeholders inválidos serão tratados automaticamente
