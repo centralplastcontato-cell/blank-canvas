@@ -1,0 +1,1 @@
+UPDATE wapi_instances SET status = 'degraded' WHERE instance_id = 'LITE-4IW93E-MGVYDW' AND phone_number IS NULL AND status = 'connected';
