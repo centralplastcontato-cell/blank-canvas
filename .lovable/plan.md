@@ -1,52 +1,77 @@
 
 
-## Adicionar log de redefinicoes de senha no Hub
+## Nova pagina "Leads" no Hub
 
-### Resumo
-Criar um sistema de auditoria que registra toda redefinicao de senha feita por administradores, mostrando quando e por quem foi feita, visivel no painel do Hub.
+Criar uma pagina dedicada no portal Hub para visualizar os leads de todos os buffets em uma unica interface, com filtros inteligentes e paginacao.
+
+### Visao geral
+
+Uma nova rota `/hub/leads` acessivel pela sidebar do Hub, onde o administrador pode consultar leads de qualquer empresa filha, com busca, filtros por empresa/status/periodo e paginacao server-side.
 
 ### Etapas
 
-#### 1. Criar tabela `password_reset_logs`
+#### 1. Criar pagina `src/pages/HubLeads.tsx`
 
-Nova tabela no banco para registrar cada redefinicao:
+Nova pagina usando `HubLayout` que:
+- Busca leads paginados de `campaign_leads` para todas empresas filhas (child companies)
+- Filtros: empresa, status, busca por nome/telefone, periodo (date range)
+- Paginacao server-side (50 leads por pagina) com contagem total
+- Tabela responsiva mostrando: nome, telefone, empresa, status, unidade, data de criacao, responsavel
+- Badge colorido por status usando os mesmos `LEAD_STATUS_LABELS` e `LEAD_STATUS_COLORS` do CRM
+- No mobile, exibe cards em vez de tabela (similar ao LeadCard existente)
 
+#### 2. Adicionar rota no `App.tsx`
+
+Nova rota:
 ```text
-password_reset_logs
-- id (uuid, PK)
-- target_user_id (uuid, NOT NULL) -- usuario que teve a senha redefinida
-- target_user_name (text) -- nome do usuario alvo
-- target_user_email (text) -- email do usuario alvo
-- reset_by_user_id (uuid, NOT NULL) -- admin que fez o reset
-- reset_by_user_name (text) -- nome do admin
-- company_id (uuid, nullable) -- empresa contexto
-- created_at (timestamptz, default now())
+/hub/leads -> HubLeads
 ```
 
-Com RLS habilitado e politica permitindo leitura para admins/gestores.
+#### 3. Adicionar item na sidebar do Hub
 
-#### 2. Atualizar edge function `manage-user`
+Novo item no menu `HubSidebar.tsx`:
+```text
+{ title: "Leads", url: "/hub/leads", icon: Users }
+```
 
-No bloco `reset_password` (~linha 366-399), apos o reset bem-sucedido:
-- Buscar o nome/email do usuario alvo (profiles)
-- Buscar o nome do admin que executou (requester profile)
-- Inserir registro na tabela `password_reset_logs`
+Posicionado logo apos "Painel Hub".
 
-#### 3. Exibir historico no Hub (pagina HubUsers)
+#### 4. Adicionar item no menu mobile do Hub
 
-Adicionar um botao/icone de "Historico de senhas" que abre um dialog/sheet listando os registros de `password_reset_logs`, mostrando:
-- Nome do usuario que teve a senha redefinida
-- Nome do admin que redefiniu
-- Data/hora da redefinicao
-
-Ordenado do mais recente para o mais antigo.
+Atualizar `HubMobileMenu.tsx` com o mesmo item "Leads".
 
 ### Detalhes tecnicos
 
-**Arquivos alterados:**
-1. Nova migration SQL (criar tabela + RLS)
-2. `supabase/functions/manage-user/index.ts` (inserir log apos reset)
-3. `src/pages/HubUsers.tsx` (adicionar botao e dialog de historico)
+**Busca de dados:**
+- Query paginada em `campaign_leads` com `.in("company_id", companyIds)` e `.range(from, to)`
+- Join com `companies` para nome da empresa (ou lookup em mapa pre-carregado)
+- Join com `profiles` via `responsavel_id` para nome do responsavel
+- Filtros aplicados server-side via `.eq()`, `.ilike()`, `.gte()/.lte()` no Supabase
+- Contagem total via `{ count: "exact", head: true }` para a paginacao
 
-**Nenhuma dependencia nova necessaria.**
+**Componentes reutilizados:**
+- `LEAD_STATUS_LABELS`, `LEAD_STATUS_COLORS` de `src/types/crm.ts`
+- `HubDashboardFilters` como referencia de estilo (mas filtros proprios para esta pagina)
+- `Badge` para status
+- `Table` components do shadcn
+
+**Paginacao:**
+- 50 registros por pagina
+- Componente de paginacao com primeira/anterior/proxima/ultima
+- Exibicao "Mostrando X-Y de Z leads"
+
+**Filtros da pagina:**
+- Busca por nome/telefone (debounced)
+- Select de empresa (todas ou especifica)
+- Select de status (todos ou especifico)
+- Date range picker (periodo de criacao)
+- Botao limpar filtros
+
+**Arquivos criados/alterados:**
+1. `src/pages/HubLeads.tsx` (novo)
+2. `src/App.tsx` (nova rota)
+3. `src/components/hub/HubSidebar.tsx` (novo item menu)
+4. `src/components/hub/HubMobileMenu.tsx` (novo item menu)
+
+Nenhuma alteracao no banco de dados necessaria - os dados ja existem em `campaign_leads`.
 
