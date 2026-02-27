@@ -261,18 +261,18 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
       <Card>
         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-lg sm:text-2xl">
               <MessageSquare className="w-5 h-5" />
-              Templates de Resposta Rápida
+              Templates<span className="hidden sm:inline"> de Resposta Rápida</span>
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="hidden sm:block">
               Crie mensagens pré-definidas para agilizar o atendimento
             </CardDescription>
           </div>
           {canManage && (
-            <Button onClick={() => handleOpenDialog()} className="w-full sm:w-auto">
-              <Plus className="w-4 h-4 mr-2" />
-              Novo Template
+            <Button onClick={() => handleOpenDialog()} size="sm" className="w-full sm:w-auto sm:size-default">
+              <Plus className="w-4 h-4 sm:mr-2" />
+              <span className="sm:inline hidden">Novo Template</span>
             </Button>
           )}
         </CardHeader>
@@ -308,42 +308,51 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
               {templates.map((template) => (
                 <div 
                   key={template.id} 
-                  className={`flex items-start gap-3 p-4 border rounded-lg ${!template.is_active ? 'opacity-60' : ''}`}
+                  className={`p-3 sm:p-4 border rounded-lg ${!template.is_active ? 'opacity-60' : ''}`}
                 >
-                  <div className="text-muted-foreground cursor-grab">
-                    <GripVertical className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="font-medium">{template.name}</p>
-                      {!template.is_active && (
-                        <span className="text-xs bg-muted px-2 py-0.5 rounded">Inativo</span>
-                      )}
+                  <div className="flex items-start gap-2 sm:gap-3">
+                    <div className="text-muted-foreground cursor-grab hidden sm:block">
+                      <GripVertical className="w-5 h-5" />
                     </div>
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {template.template}
-                    </p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-medium text-sm sm:text-base">{template.name}</p>
+                        {!template.is_active && (
+                          <span className="text-xs bg-muted px-2 py-0.5 rounded">Inativo</span>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground line-clamp-1 sm:line-clamp-2">
+                        {template.template}
+                      </p>
+                    </div>
+                    {/* Desktop: actions inline */}
+                    {canManage && (
+                      <div className="hidden sm:flex items-center gap-2 shrink-0">
+                        <Switch
+                          checked={template.is_active}
+                          onCheckedChange={() => handleToggleActive(template)}
+                        />
+                        <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(template)}>
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteTemplate(template)} className="text-destructive hover:text-destructive">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
+                  {/* Mobile: actions below */}
                   {canManage && (
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex sm:hidden items-center justify-end gap-1.5 mt-2 pt-2 border-t">
                       <Switch
                         checked={template.is_active}
                         onCheckedChange={() => handleToggleActive(template)}
                       />
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => handleOpenDialog(template)}
-                      >
-                        <Pencil className="w-4 h-4" />
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleOpenDialog(template)}>
+                        <Pencil className="w-3.5 h-3.5" />
                       </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => handleDeleteTemplate(template)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4" />
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => handleDeleteTemplate(template)}>
+                        <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </div>
                   )}
@@ -366,7 +375,7 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
+          <div className="grid grid-cols-3 gap-2 text-xs sm:text-sm">
             <code className="bg-muted px-2 py-1 rounded">{"{{nome}}"}</code>
             <code className="bg-muted px-2 py-1 rounded">{"{{telefone}}"}</code>
             <code className="bg-muted px-2 py-1 rounded">{"{{unidade}}"}</code>
