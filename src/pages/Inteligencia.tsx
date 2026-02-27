@@ -303,11 +303,22 @@ export default function Inteligencia() {
                         </div>
                       </div>
 
+                      {/* Resumo do Dia */}
+                      <div className="space-y-1.5">
+                        <h3 className="font-semibold flex items-center gap-2">
+                          <Brain className="h-4 w-4 text-primary" />
+                          Resumo do Dia
+                        </h3>
+                        <p className="text-muted-foreground">
+                          Painel diário com métricas de leads (novos, atendidos, fechados, perdidos), timeline de eventos importantes e insights gerados pela IA. Você pode selecionar períodos de até 31 dias para análise comparativa. Administradores podem personalizar o <strong>Contexto da IA</strong> com dados do buffet (ticket médio, número de unidades, diferenciais) para que os insights sejam mais precisos e relevantes.
+                        </p>
+                      </div>
+
                       {/* Prioridades */}
                       <div className="space-y-2">
                         <h3 className="font-semibold flex items-center gap-2">
                           <Target className="h-4 w-4 text-primary" />
-                          Cards de Prioridade
+                          Prioridades
                         </h3>
                         <div className="space-y-2 pl-1">
                           <div className="flex items-start gap-2">
@@ -325,6 +336,17 @@ export default function Inteligencia() {
                         </div>
                       </div>
 
+                      {/* Follow-ups */}
+                      <div className="space-y-1.5">
+                        <h3 className="font-semibold flex items-center gap-2">
+                          <Search className="h-4 w-4 text-primary" />
+                          Follow-ups
+                        </h3>
+                        <p className="text-muted-foreground">
+                          Painel Kanban com 4 colunas (1º ao 4º Follow-up) que organiza os leads automaticamente com base na última ação de follow-up registrada. Os intervalos entre cada coluna respeitam os delays configurados nas automações do WhatsApp de cada unidade, exibindo o tempo correto (ex: 24h, 48h, 72h). Cada card permite enviar mensagem diretamente pelo WhatsApp.
+                        </p>
+                      </div>
+
                       {/* Funil */}
                       <div className="space-y-1.5">
                         <h3 className="font-semibold flex items-center gap-2">
@@ -333,6 +355,28 @@ export default function Inteligencia() {
                         </h3>
                         <p className="text-muted-foreground">
                           Mostra a distribuição dos leads por etapa do CRM (Novo → Visita → Orçamento → Negociando → Fechado/Perdido). O percentual indica quanto cada etapa representa do total de leads. O ícone de relógio mostra o tempo médio que os leads ficam em cada etapa.
+                        </p>
+                      </div>
+
+                      {/* Leads do Dia */}
+                      <div className="space-y-1.5">
+                        <h3 className="font-semibold flex items-center gap-2">
+                          <TrendingUp className="h-4 w-4 text-primary" />
+                          Leads do Dia
+                        </h3>
+                        <p className="text-muted-foreground">
+                          Lista todos os leads criados no dia atual com score, temperatura e status. Permite busca rápida por nome ou telefone e exportação dos dados para análise externa (disponível para usuários com permissão de exportação).
+                        </p>
+                      </div>
+
+                      {/* Resumo IA */}
+                      <div className="space-y-1.5">
+                        <h3 className="font-semibold flex items-center gap-2">
+                          <Brain className="h-4 w-4 text-primary" />
+                          Resumo IA por Lead
+                        </h3>
+                        <p className="text-muted-foreground">
+                          Disponível em cada card de lead, o botão "Resumo IA" gera um resumo inteligente da conversa, sugere a próxima ação recomendada e cria uma mensagem pronta para enviar. O texto pode ser copiado com um clique para agilizar o atendimento.
                         </p>
                       </div>
 
