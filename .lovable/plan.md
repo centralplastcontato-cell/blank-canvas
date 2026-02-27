@@ -1,24 +1,41 @@
 
 
-## Adicionar "Outros" nos badges de status do chat (WhatsAppChat.tsx)
+## Corrigir auto-lost para disparar apos o ultimo follow-up ativo
 
 ### Problema
-O status "Outros" foi adicionado no popover de informacoes do lead e no dropdown de 3 pontos, mas faltou adicionar nos **badges de classificacao rapida** que aparecem diretamente no topo da conversa -- tanto na versao desktop quanto mobile. Sao 4 arrays hardcoded no `WhatsAppChat.tsx` que nao incluem "outros".
+A funcao `processAutoLost` em `supabase/functions/follow-up-check/index.ts` busca fixamente pela acao `"Follow-up #4 automatico enviado"` no historico. Se o buffet desativa o 3o e 4o follow-ups, o auto-lost nunca dispara.
 
-### O que sera feito
+### Solucao
 
-**Arquivo: `src/components/whatsapp/WhatsAppChat.tsx`** -- 4 alteracoes no mesmo arquivo:
+**Arquivo unico: `supabase/functions/follow-up-check/index.ts`** (linhas ~959-1098)
 
-1. **Desktop - Lead vinculado (linha ~3761)**: Adicionar `{ value: 'outros', label: 'Outros', color: 'bg-gray-500', textColor: 'text-gray-700', bgActive: 'bg-gray-500/15' }` ao array do stepper de classificacao
+Substituir a logica fixa por uma dinamica que identifica o ultimo follow-up habilitado:
 
-2. **Desktop - Contato nao qualificado (linha ~3847)**: Adicionar `{ value: 'outros', label: 'Outros', color: 'bg-gray-500' }` ao array de botoes de classificacao inicial
+1. **Determinar a acao do ultimo follow-up ativo** (verificando flags na ordem reversa):
+   - `follow_up_4_enabled` -> `"Follow-up #4 automatico enviado"`
+   - `follow_up_3_enabled` -> `"Follow-up #3 automatico enviado"`
+   - `follow_up_2_enabled` -> `"Follow-up #2 automatico enviado"`
+   - `follow_up_enabled` -> `"Follow-up automatico enviado"`
+   - Se nenhum habilitado -> retorna sem processar
 
-3. **Mobile - Lead vinculado (linha ~4693)**: Adicionar `{ value: 'outros', label: 'Outros', color: 'bg-gray-500' }` e incluir `"outros"` no type cast da linha 4705
+2. **Usar essa acao na query** ao `lead_history` (linha 976), substituindo o valor fixo `"Follow-up #4 automatico enviado"` pela variavel determinada
 
-4. **Mobile - Contato nao qualificado (linha ~4769)**: Adicionar `{ value: 'outros', label: 'Outros', color: 'bg-gray-500' }` ao array de botoes
+3. **Atualizar a mensagem de notificacao** (linha 1083) para refletir o numero correto do follow-up, ex: "apos nao responder ao 2o follow-up" em vez de fixo "4o follow-up"
 
-Tambem atualizar o objeto `statusLabels` (linha ~4723) adicionando `outros: 'Outros'`.
+4. **Atualizar o log** (linha 967) para mostrar qual follow-up esta sendo usado como referencia
 
-### Resultado
-O botao "Outros" (com bolinha cinza) aparecera em todos os locais de classificacao rapida, tanto para leads ja vinculados quanto para contatos nao qualificados, em desktop e mobile.
+```text
+Exemplo de fluxo:
 
+Buffet com FU1 + FU2 ativos (FU3 e FU4 desativados):
+  FU1 enviado -> FU2 enviado -> [espera auto_lost_delay_hours] -> PERDIDO
+
+Buffet com todos os 4 ativos (comportamento atual mantido):
+  FU1 -> FU2 -> FU3 -> FU4 -> [espera auto_lost_delay_hours] -> PERDIDO
+```
+
+### Impacto
+- Apenas 1 arquivo alterado (edge function)
+- Nenhuma alteracao no banco de dados ou frontend
+- Retrocompativel: buffets com 4 follow-ups continuam funcionando igual
+- Deploy automatico da edge function
