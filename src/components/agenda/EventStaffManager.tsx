@@ -175,8 +175,10 @@ export function EventStaffManager() {
   };
 
   const handleDelete = async (id: string) => {
+    // Delete child freelancer_evaluations first to avoid FK constraint
+    await supabase.from("freelancer_evaluations").delete().eq("event_staff_entry_id", id);
     const { error } = await supabase.from("event_staff_entries").delete().eq("id", id);
-    if (error) toast({ title: "Erro ao excluir", variant: "destructive" });
+    if (error) toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
     else { toast({ title: "Excluído!" }); fetchData(); }
   };
 
