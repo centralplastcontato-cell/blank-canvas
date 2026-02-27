@@ -161,7 +161,7 @@ function VideoWithPoster({ item, theme }: { item: VideoItem; theme: LPTheme }) {
       <video
         src={item.video_url}
         controls
-        className="w-full h-full object-cover"
+        className="w-full h-full object-contain bg-black"
         preload="none"
         playsInline
         aria-label={`Vídeo da ${item.name}`}
