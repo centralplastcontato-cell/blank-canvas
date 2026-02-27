@@ -1,41 +1,52 @@
 
 
-## Corrigir auto-lost para disparar apos o ultimo follow-up ativo
+## Adicionar log de redefinicoes de senha no Hub
 
-### Problema
-A funcao `processAutoLost` em `supabase/functions/follow-up-check/index.ts` busca fixamente pela acao `"Follow-up #4 automatico enviado"` no historico. Se o buffet desativa o 3o e 4o follow-ups, o auto-lost nunca dispara.
+### Resumo
+Criar um sistema de auditoria que registra toda redefinicao de senha feita por administradores, mostrando quando e por quem foi feita, visivel no painel do Hub.
 
-### Solucao
+### Etapas
 
-**Arquivo unico: `supabase/functions/follow-up-check/index.ts`** (linhas ~959-1098)
+#### 1. Criar tabela `password_reset_logs`
 
-Substituir a logica fixa por uma dinamica que identifica o ultimo follow-up habilitado:
-
-1. **Determinar a acao do ultimo follow-up ativo** (verificando flags na ordem reversa):
-   - `follow_up_4_enabled` -> `"Follow-up #4 automatico enviado"`
-   - `follow_up_3_enabled` -> `"Follow-up #3 automatico enviado"`
-   - `follow_up_2_enabled` -> `"Follow-up #2 automatico enviado"`
-   - `follow_up_enabled` -> `"Follow-up automatico enviado"`
-   - Se nenhum habilitado -> retorna sem processar
-
-2. **Usar essa acao na query** ao `lead_history` (linha 976), substituindo o valor fixo `"Follow-up #4 automatico enviado"` pela variavel determinada
-
-3. **Atualizar a mensagem de notificacao** (linha 1083) para refletir o numero correto do follow-up, ex: "apos nao responder ao 2o follow-up" em vez de fixo "4o follow-up"
-
-4. **Atualizar o log** (linha 967) para mostrar qual follow-up esta sendo usado como referencia
+Nova tabela no banco para registrar cada redefinicao:
 
 ```text
-Exemplo de fluxo:
-
-Buffet com FU1 + FU2 ativos (FU3 e FU4 desativados):
-  FU1 enviado -> FU2 enviado -> [espera auto_lost_delay_hours] -> PERDIDO
-
-Buffet com todos os 4 ativos (comportamento atual mantido):
-  FU1 -> FU2 -> FU3 -> FU4 -> [espera auto_lost_delay_hours] -> PERDIDO
+password_reset_logs
+- id (uuid, PK)
+- target_user_id (uuid, NOT NULL) -- usuario que teve a senha redefinida
+- target_user_name (text) -- nome do usuario alvo
+- target_user_email (text) -- email do usuario alvo
+- reset_by_user_id (uuid, NOT NULL) -- admin que fez o reset
+- reset_by_user_name (text) -- nome do admin
+- company_id (uuid, nullable) -- empresa contexto
+- created_at (timestamptz, default now())
 ```
 
-### Impacto
-- Apenas 1 arquivo alterado (edge function)
-- Nenhuma alteracao no banco de dados ou frontend
-- Retrocompativel: buffets com 4 follow-ups continuam funcionando igual
-- Deploy automatico da edge function
+Com RLS habilitado e politica permitindo leitura para admins/gestores.
+
+#### 2. Atualizar edge function `manage-user`
+
+No bloco `reset_password` (~linha 366-399), apos o reset bem-sucedido:
+- Buscar o nome/email do usuario alvo (profiles)
+- Buscar o nome do admin que executou (requester profile)
+- Inserir registro na tabela `password_reset_logs`
+
+#### 3. Exibir historico no Hub (pagina HubUsers)
+
+Adicionar um botao/icone de "Historico de senhas" que abre um dialog/sheet listando os registros de `password_reset_logs`, mostrando:
+- Nome do usuario que teve a senha redefinida
+- Nome do admin que redefiniu
+- Data/hora da redefinicao
+
+Ordenado do mais recente para o mais antigo.
+
+### Detalhes tecnicos
+
+**Arquivos alterados:**
+1. Nova migration SQL (criar tabela + RLS)
+2. `supabase/functions/manage-user/index.ts` (inserir log apos reset)
+3. `src/pages/HubUsers.tsx` (adicionar botao e dialog de historico)
+
+**Nenhuma dependencia nova necessaria.**
+
