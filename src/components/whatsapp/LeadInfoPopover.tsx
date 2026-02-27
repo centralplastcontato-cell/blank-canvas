@@ -2,6 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
   Popover,
@@ -62,6 +63,7 @@ interface LeadInfoPopoverProps {
   onReactivateBot: (conv: Conversation) => void;
   onToggleFavorite: (conv: Conversation) => void;
   onLeadNameChange: (newName: string) => void;
+  onLeadObsChange?: (newObs: string) => void;
   mobile?: boolean;
 }
 
@@ -151,11 +153,15 @@ export function LeadInfoPopover({
   onReactivateBot,
   onToggleFavorite,
   onLeadNameChange,
+  onLeadObsChange,
   mobile = false,
 }: LeadInfoPopoverProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState("");
   const [isSavingName, setIsSavingName] = useState(false);
+  const [isEditingObs, setIsEditingObs] = useState(false);
+  const [editedObs, setEditedObs] = useState("");
+  const [isSavingObs, setIsSavingObs] = useState(false);
 
   const isGroup = selectedConversation.remote_jid.includes('@g.us');
 
@@ -446,15 +452,108 @@ export function LeadInfoPopover({
             )}
 
             {/* Observações */}
-            {linkedLead.observacoes && (
-              <div className="p-4 py-3">
-                <PopoverSection title="Observações">
-                  <p className="text-xs text-muted-foreground italic leading-relaxed line-clamp-3">
-                    {linkedLead.observacoes}
+            <div className="p-4 py-3">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h5 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">Observações</h5>
+                  {!isEditingObs && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 rounded-md"
+                      onClick={() => {
+                        setEditedObs(linkedLead.observacoes || "");
+                        setIsEditingObs(true);
+                      }}
+                      title="Editar observações"
+                    >
+                      <Pencil className="w-3 h-3 text-muted-foreground hover:text-foreground" />
+                    </Button>
+                  )}
+                </div>
+                {isEditingObs ? (
+                  <div className="space-y-2">
+                    <Textarea
+                      value={editedObs}
+                      onChange={(e) => setEditedObs(e.target.value)}
+                      placeholder="Adicione observações sobre este lead..."
+                      className="min-h-[80px] text-xs rounded-lg resize-none"
+                      autoFocus
+                      disabled={isSavingObs}
+                    />
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 rounded-lg"
+                        onClick={() => setIsEditingObs(false)}
+                        disabled={isSavingObs}
+                      >
+                        <X className="w-3.5 h-3.5 text-destructive" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 rounded-lg"
+                        disabled={isSavingObs}
+                        onClick={async () => {
+                          const trimmed = editedObs.trim();
+                          if (trimmed === (linkedLead.observacoes || "")) {
+                            setIsEditingObs(false);
+                            return;
+                          }
+                          setIsSavingObs(true);
+                          try {
+                            const { error } = await supabase
+                              .from("campaign_leads")
+                              .update({ observacoes: trimmed || null })
+                              .eq("id", linkedLead.id);
+                            if (error) throw error;
+
+                            await supabase.from("lead_history").insert({
+                              lead_id: linkedLead.id,
+                              user_id: userId,
+                              user_name: currentUserName,
+                              action: "Alteração de observações",
+                              old_value: linkedLead.observacoes || null,
+                              new_value: trimmed || null,
+                            });
+
+                            onLeadObsChange?.(trimmed);
+                            setIsEditingObs(false);
+                            toast({ title: "Observações salvas" });
+                          } catch (err: unknown) {
+                            console.error("Error saving obs:", err);
+                            toast({
+                              title: "Erro ao salvar",
+                              description: err instanceof Error ? err.message : "Tente novamente.",
+                              variant: "destructive",
+                            });
+                          } finally {
+                            setIsSavingObs(false);
+                          }
+                        }}
+                      >
+                        {isSavingObs ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5 text-green-600" />}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <p
+                    className={cn(
+                      "text-xs leading-relaxed line-clamp-4 cursor-pointer rounded-lg px-2 py-1.5 -mx-2 hover:bg-muted/50 transition-colors",
+                      linkedLead.observacoes ? "text-muted-foreground italic" : "text-muted-foreground/50"
+                    )}
+                    onClick={() => {
+                      setEditedObs(linkedLead.observacoes || "");
+                      setIsEditingObs(true);
+                    }}
+                  >
+                    {linkedLead.observacoes || "Adicione observações sobre este lead..."}
                   </p>
-                </PopoverSection>
+                )}
               </div>
-            )}
+            </div>
 
             {/* Ações */}
             <div className="p-4 pt-3 space-y-2">

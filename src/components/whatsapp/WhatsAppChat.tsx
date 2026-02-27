@@ -3458,6 +3458,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                             c.id === selectedConversation.id ? { ...c, contact_name: newName } : c
                           ));
                         }}
+                        onLeadObsChange={(newObs) => {
+                          setLinkedLead(prev => prev ? { ...prev, observacoes: newObs || null } : null);
+                        }}
                       />
                       {/* O.E. (Orçamento Enviado) button - always visible, disabled without lead */}
                       <Button
@@ -4353,6 +4356,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                           setConversations(prevConvs => prevConvs.map(c => 
                             c.id === selectedConversation.id ? { ...c, contact_name: newName } : c
                           ));
+                        }}
+                        onLeadObsChange={(newObs) => {
+                          setLinkedLead(prev => prev ? { ...prev, observacoes: newObs || null } : null);
                         }}
                         mobile
                       />
