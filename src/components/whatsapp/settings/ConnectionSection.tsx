@@ -142,6 +142,14 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
           // DEGRADED/TIMEOUT/SESSION_INCOMPLETE: keep previous status, don't update DB
           if (wapiStatus === 'degraded' || errorType === 'TIMEOUT_OR_GATEWAY' || errorType === 'SESSION_INCOMPLETE') {
             console.log(`Sync: ${instance.unit} returned ${wapiStatus}/${errorType}, keeping previous status`);
+            // For SESSION_INCOMPLETE, update DB status to degraded so it's visible
+            if (errorType === 'SESSION_INCOMPLETE') {
+              await supabase
+                .from("wapi_instances")
+                .update({ status: 'degraded' })
+                .eq("id", instance.id);
+              return { ...instance, status: 'degraded', _degradedError: response.data?.error, _degradedType: errorType } as WapiInstance & { _degradedError?: string; _degradedType?: string };
+            }
             // Store the degraded info so we can show alerts in UI
             return { ...instance, _degradedError: response.data?.error, _degradedType: errorType } as WapiInstance & { _degradedError?: string; _degradedType?: string };
           }
@@ -521,13 +529,27 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
       const wapiStatus = response.data?.status;
       const errorType = response.data?.errorType;
 
-      // DEGRADED: don't update DB, show warning
-      if (wapiStatus === 'degraded' || errorType === 'TIMEOUT_OR_GATEWAY') {
+      // DEGRADED or SESSION_INCOMPLETE: don't update DB, show specific warning
+      if (wapiStatus === 'degraded' || errorType === 'TIMEOUT_OR_GATEWAY' || errorType === 'SESSION_INCOMPLETE') {
+        const description = errorType === 'SESSION_INCOMPLETE'
+          ? 'Instância conectada sem sessão válida. Desconecte e reconecte o WhatsApp.'
+          : (response.data?.error || 'Comunicação instável. Status anterior mantido.');
+        
+        // For SESSION_INCOMPLETE, update DB to degraded
+        if (errorType === 'SESSION_INCOMPLETE') {
+          await supabase
+            .from("wapi_instances")
+            .update({ status: 'degraded' })
+            .eq("id", instance.id);
+        }
+        
         toast({
-          title: "⚠️ Instabilidade na W-API",
-          description: response.data?.error || "Comunicação instável. Status anterior mantido.",
+          title: errorType === 'SESSION_INCOMPLETE' ? "⚠️ Sessão incompleta" : "⚠️ Instabilidade na W-API",
+          description,
+          variant: "destructive",
         });
         setIsRefreshing(false);
+        await fetchInstances();
         return;
       }
 
@@ -608,7 +630,15 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
           const wapiStatus = response.data?.status;
           const errorType = response.data?.errorType;
 
-          // Skip DB update for degraded/timeout
+          // Skip DB update for degraded/timeout, but update for SESSION_INCOMPLETE
+          if (errorType === 'SESSION_INCOMPLETE') {
+            await supabase
+              .from("wapi_instances")
+              .update({ status: 'degraded' })
+              .eq("id", instance.id);
+            degradedCount++;
+            continue;
+          }
           if (wapiStatus === 'degraded' || errorType === 'TIMEOUT_OR_GATEWAY') {
             degradedCount++;
             continue;

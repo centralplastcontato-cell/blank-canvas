@@ -242,6 +242,61 @@ async function findOrCreateConversation(
   }
 }
 
+// === PHASE 1: Session health preflight ===
+// Checks if the instance session is healthy enough to send messages.
+// Returns null if healthy, or a Response with error if blocked.
+async function checkSessionHealth(
+  instanceExternalId: string,
+  instanceToken: string,
+  supabase: ReturnType<typeof createClient>,
+  action: string,
+  conversationId?: string,
+  companyId?: string | null,
+  messageContent?: string,
+): Promise<Response | null> {
+  // Only block send actions, not status/config actions
+  const sendActions = ['send-text', 'send-image', 'send-audio', 'send-video', 'send-document', 'send-contact'];
+  if (!sendActions.includes(action)) return null;
+
+  // Check DB first: if phone_number is null but status is 'connected', session is incomplete
+  const { data: dbInstance } = await supabase
+    .from('wapi_instances')
+    .select('id, status, phone_number')
+    .eq('instance_id', instanceExternalId)
+    .single();
+
+  if (dbInstance && dbInstance.status === 'connected' && !dbInstance.phone_number) {
+    console.warn(`[Preflight] BLOCKED ${action}: instance ${instanceExternalId} is connected but has no phone_number (SESSION_INCOMPLETE)`);
+    
+    // Persist message as failed if we have conversation context
+    if (conversationId && messageContent) {
+      const failedMsgId = `blocked_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      await supabase.from('wapi_messages').insert({
+        conversation_id: conversationId,
+        message_id: failedMsgId,
+        from_me: true,
+        message_type: 'text',
+        content: messageContent,
+        status: 'failed',
+        timestamp: new Date().toISOString(),
+        company_id: companyId,
+        metadata: { blocked_reason: 'SESSION_INCOMPLETE' },
+      });
+    }
+
+    return new Response(JSON.stringify({ 
+      error: 'Sessão do WhatsApp incompleta. Reconecte a instância.',
+      errorType: 'SESSION_INCOMPLETE',
+      blocked: true,
+    }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -271,6 +326,10 @@ Deno.serve(async (req) => {
         .single();
       companyId = convData?.company_id || null;
     }
+
+    // === PHASE 1: Preflight session health check for all send actions ===
+    const preflightResult = await checkSessionHealth(instance_id, instance_token, supabase, action, conversationId, companyId, message);
+    if (preflightResult) return preflightResult;
 
     switch (action) {
       case 'send-text': {
