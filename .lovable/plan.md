@@ -1,75 +1,31 @@
 
-## Restart de Instancia W-API para Corrigir Sessao Corrompida
 
-### Problema Real
+## Otimizar Templates de Mensagem para Mobile
 
-O reparo anterior corrigiu o estado no banco de dados, mas a sessao criptografica do WhatsApp continua corrompida no provedor. A W-API aceita o envio (retorna `messageId`), mas o WhatsApp mostra "Aguardando mensagem" porque as chaves de criptografia estao invalidas. Precisamos de um **restart da instancia** no provedor para refrescar a sessao sem exigir novo QR code.
+### Problema
+Na tela de Configuracoes > Conteudo > Templates, os cards de template ficam grandes demais no mobile. O nome e o texto da mensagem ocupam muito espaco, e os botoes de acao (switch, editar, excluir) ficam apertados ao lado.
 
-### Solucao
+### Mudancas
 
-Adicionar uma acao `restart-instance` no edge function que tenta reiniciar a instancia na W-API, e um botao na UI para o usuario acionar isso.
+**Arquivo: `src/components/whatsapp/settings/MessagesSection.tsx`**
 
-### Arquivos e Mudancas
+1. **Layout do card de template no mobile**: Mudar de layout horizontal (tudo numa linha) para layout empilhado no mobile:
+   - Nome do template + badge "Inativo" no topo
+   - Texto da mensagem truncado com `line-clamp-1` no mobile (em vez de `line-clamp-2`)
+   - Botoes de acao (switch, editar, excluir) numa linha separada embaixo, alinhados a direita
+   - No desktop (sm+), manter o layout atual lado a lado
 
-**1. `supabase/functions/wapi-send/index.ts`** - Nova acao `restart-instance`
+2. **Reducao de padding e gaps no mobile**:
+   - Card padding: `p-3` no mobile, `sm:p-4` no desktop
+   - Remover o icone `GripVertical` no mobile (ocupa espaco sem funcionalidade real de drag)
+   - Botoes de acao menores no mobile: `size="sm"` com `h-7 w-7`
 
-- Tenta multiplos endpoints de restart da W-API (a API pode ter variantes):
-  - `POST /instance/restart?instanceId=X`
-  - `PUT /instance/restart?instanceId=X`
-  - `POST /instance/reboot?instanceId=X`
-  - `GET /instance/reboot?instanceId=X`
-- Se algum retornar sucesso, aguarda 3 segundos e verifica status com `get-qr` (que ja sabemos retorna 200)
-- Atualiza `wapi_instances` conforme resultado
-- Se nenhum endpoint funcionar, retorna erro sugerindo desconectar/reconectar manualmente
-- Logs estruturados: `[restart-instance] attempted for {instanceId}, endpoint: {url}, result: {success|failed}`
+3. **Titulo do card header mais compacto no mobile**:
+   - Titulo "Templates de Resposta Rapida" reduzido para "Templates" no mobile via classe `hidden sm:inline` no texto complementar
+   - Botao "Novo Template" compacto: apenas icone `+` no mobile, texto completo no desktop
 
-**2. `src/components/whatsapp/settings/ConnectionSection.tsx`** - Botao "Reiniciar Instancia"
+4. **Card de variaveis disponiveis**: Grid de 3 colunas no mobile em vez de 2, com font menor (`text-xs`)
 
-- Para instancias `degraded` ou `connected`: adicionar botao "Reiniciar" (icone de refresh) que chama `restart-instance`
-- Mostra loading durante o processo
-- Toast de sucesso ou erro conforme resultado
-- Se o restart falhar, sugere desconectar e reconectar
+### Resultado esperado
+Cards de template compactos no mobile com nome visivel, texto truncado em 1 linha, e acoes acessiveis numa segunda linha. Mantendo o layout completo no desktop.
 
-**3. `src/components/whatsapp/WhatsAppChat.tsx`** - Atualizar banner degraded
-
-- No banner de sessao degradada, adicionar botao "Reiniciar" alem do "Reparar"
-- O fluxo seria: primeiro tenta "Reiniciar" (restart da sessao no provedor), se falhar tenta "Reparar" (corrigir phone no banco)
-
-### Fluxo
-
-```text
-Usuario clica "Reiniciar Instancia"
-        |
-        v
-wapi-send action=restart-instance
-        |
-        v
-Tenta POST /instance/restart
-        |
-   Funcionou?
-   /       \
-  Sim       Nao
-   |         |
-   v         v
-Aguarda    Tenta endpoints
-3s e       alternativos
-verifica   (reboot, etc)
-status     |
-   |    Funcionou?
-   |    /       \
-   |  Sim      Nao
-   |   |        |
-   v   v        v
-Sessao       Sugere
-restaurada   desconectar
-toast ok     e reconectar
-```
-
-### Por que isso resolve
-
-O "Aguardando mensagem" acontece porque as chaves de criptografia end-to-end da sessao ficaram invalidas. Um restart da instancia forca o provedor a re-negociar as chaves com o servidor do WhatsApp, restaurando a capacidade de entrega sem precisar de novo QR code. E o equivalente a "reiniciar o WhatsApp Web" quando ele trava.
-
-### Risco
-
-- **Baixo**: o restart e uma operacao padrao dos provedores WhatsApp. No pior caso, se o restart forcar logout, o usuario precisara reconectar via QR (mesmo resultado que teria sem essa feature)
-- O sistema continua bloqueando envios se a instancia estiver degraded
