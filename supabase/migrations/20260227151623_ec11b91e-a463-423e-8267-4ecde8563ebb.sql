@@ -1,0 +1,1 @@
+UPDATE company_onboarding SET multiple_units = true WHERE company_id = 'a0000000-0000-0000-0000-000000000001';
