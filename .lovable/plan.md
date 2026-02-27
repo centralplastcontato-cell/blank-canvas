@@ -1,89 +1,75 @@
 
+## Restart de Instancia W-API para Corrigir Sessao Corrompida
 
-## Reparo Automatico de Sessao Incompleta (sem reconexao manual)
+### Problema Real
 
-### Diagnostico Confirmado
+O reparo anterior corrigiu o estado no banco de dados, mas a sessao criptografica do WhatsApp continua corrompida no provedor. A W-API aceita o envio (retorna `messageId`), mas o WhatsApp mostra "Aguardando mensagem" porque as chaves de criptografia estao invalidas. Precisamos de um **restart da instancia** no provedor para refrescar a sessao sem exigir novo QR code.
 
-A instancia `LITE-4IW93E-MGVYDW` esta neste estado agora:
+### Solucao
 
-```text
-Endpoints W-API:
-  /instance/status         -> 404
-  /instance/info           -> 404
-  /instance/connection-state -> 404
-  /instance/profile        -> 404
-  /instance/qr-code        -> 200 {"connected": true}  (SEM phone)
-```
+Adicionar uma acao `restart-instance` no edge function que tenta reiniciar a instancia na W-API, e um botao na UI para o usuario acionar isso.
 
-O painel da W-API mostra o numero `553497310669` vinculado. Ou seja, a conexao esta valida no provedor, mas a API nao retorna o telefone nos endpoints que nosso sistema consulta. Provavelmente e uma limitacao do plano LITE.
+### Arquivos e Mudancas
 
-### Solucao: Acao "repair-session" + botao "Reparar Sessao"
+**1. `supabase/functions/wapi-send/index.ts`** - Nova acao `restart-instance`
 
-Em vez de exigir desconectar/reconectar, vamos criar um mecanismo de reparo que:
+- Tenta multiplos endpoints de restart da W-API (a API pode ter variantes):
+  - `POST /instance/restart?instanceId=X`
+  - `PUT /instance/restart?instanceId=X`
+  - `POST /instance/reboot?instanceId=X`
+  - `GET /instance/reboot?instanceId=X`
+- Se algum retornar sucesso, aguarda 3 segundos e verifica status com `get-qr` (que ja sabemos retorna 200)
+- Atualiza `wapi_instances` conforme resultado
+- Se nenhum endpoint funcionar, retorna erro sugerindo desconectar/reconectar manualmente
+- Logs estruturados: `[restart-instance] attempted for {instanceId}, endpoint: {url}, result: {success|failed}`
 
-1. Tenta extrair o telefone de endpoints alternativos da W-API
-2. Se nao conseguir, permite que o usuario informe manualmente o numero (visivel no painel W-API)
-3. Atualiza o banco com o telefone e marca como `connected`, desbloqueando os envios
+**2. `src/components/whatsapp/settings/ConnectionSection.tsx`** - Botao "Reiniciar Instancia"
 
-### Arquivos e mudancas
+- Para instancias `degraded` ou `connected`: adicionar botao "Reiniciar" (icone de refresh) que chama `restart-instance`
+- Mostra loading durante o processo
+- Toast de sucesso ou erro conforme resultado
+- Se o restart falhar, sugere desconectar e reconectar
 
-**1. `supabase/functions/wapi-send/index.ts`** - Nova acao `repair-session`
+**3. `src/components/whatsapp/WhatsAppChat.tsx`** - Atualizar banner degraded
 
-- Recebe `instanceId`, `instanceToken`, e opcionalmente `manualPhone`
-- Tenta extrair telefone de:
-  - `/instance/qr-code` (campo `phone`, `me.id`, variacoes)
-  - `/instance/me` (endpoint alternativo)
-  - `/instance/status` com query params diferentes
-- Se `manualPhone` fornecido pelo usuario, valida formato e usa diretamente
-- Se encontrar telefone (automatico ou manual), atualiza `wapi_instances` com `status: 'connected'` e `phone_number`
-- Retorna `{ repaired: true, phoneNumber }` ou `{ repaired: false, reason }` explicando o que aconteceu
+- No banner de sessao degradada, adicionar botao "Reiniciar" alem do "Reparar"
+- O fluxo seria: primeiro tenta "Reiniciar" (restart da sessao no provedor), se falhar tenta "Reparar" (corrigir phone no banco)
 
-**2. `src/components/whatsapp/settings/ConnectionSection.tsx`** - Botao "Reparar Sessao"
-
-- Quando instancia esta `degraded`, mostrar botao amarelo "Reparar Sessao" ao lado de "Conectar"
-- Ao clicar: chama `repair-session` sem telefone manual (tentativa automatica)
-- Se falhar: abre mini-dialog pedindo o numero (com instrucao: "Copie o numero do painel W-API")
-- Se reparar: atualiza lista, mostra toast de sucesso
-
-**3. `src/components/whatsapp/WhatsAppChat.tsx`** - Banner de sessao degradada
-
-- Quando a instancia selecionada esta com `status: 'degraded'`, mostrar banner no topo do chat com:
-  - "Sessao incompleta - mensagens nao serao entregues"
-  - Botao "Reparar" que chama a mesma logica de reparo
-
-### Fluxo do reparo
+### Fluxo
 
 ```text
-Usuario clica "Reparar Sessao"
+Usuario clica "Reiniciar Instancia"
         |
         v
-wapi-send action=repair-session
+wapi-send action=restart-instance
         |
         v
-Tenta endpoints alternativos para pegar telefone
+Tenta POST /instance/restart
         |
-   Encontrou?
+   Funcionou?
    /       \
   Sim       Nao
    |         |
    v         v
-Atualiza    Pede telefone
-DB como     manual ao
-connected   usuario
-   |         |
-   v         v
-Desbloqueia Atualiza DB
-envios      e desbloqueia
+Aguarda    Tenta endpoints
+3s e       alternativos
+verifica   (reboot, etc)
+status     |
+   |    Funcionou?
+   |    /       \
+   |  Sim      Nao
+   |   |        |
+   v   v        v
+Sessao       Sugere
+restaurada   desconectar
+toast ok     e reconectar
 ```
 
-### Detalhes tecnicos
+### Por que isso resolve
 
-- A acao `repair-session` nao altera nenhuma logica de preflight existente - apenas corrige o estado no banco
-- O preflight continua bloqueando envios se `phone_number` for null, garantindo seguranca
-- A validacao do telefone manual aceita formatos `55XXXXXXXXXX` (11-13 digitos)
-- Logs estruturados: `[repair-session] attempted for {instanceId}, result: {repaired|failed}, source: {auto|manual}`
+O "Aguardando mensagem" acontece porque as chaves de criptografia end-to-end da sessao ficaram invalidas. Um restart da instancia forca o provedor a re-negociar as chaves com o servidor do WhatsApp, restaurando a capacidade de entrega sem precisar de novo QR code. E o equivalente a "reiniciar o WhatsApp Web" quando ele trava.
 
 ### Risco
 
-- **Baixo**: se o reparo manual usar um telefone errado, o pior caso e que as mensagens vao para o numero errado no provedor (mas o provedor ja tem o numero certo, entao isso nao deveria acontecer)
-- O sistema continua bloqueando envios ate que o telefone seja preenchido - nenhum "falso enviado" possivel
+- **Baixo**: o restart e uma operacao padrao dos provedores WhatsApp. No pior caso, se o restart forcar logout, o usuario precisara reconectar via QR (mesmo resultado que teria sem essa feature)
+- O sistema continua bloqueando envios se a instancia estiver degraded
