@@ -1,63 +1,24 @@
 
 
-## Adicionar status "Outros" para classificacao de leads
+## Adicionar "Outros" nos badges de status do chat (WhatsAppChat.tsx)
 
-### O que muda
-Um novo status **"Outros"** sera adicionado ao enum `lead_status` no banco de dados e em todos os pontos da interface que exibem ou permitem alterar o status de um lead. Leads classificados como "Outros" **nao terao coluna propria no Kanban** -- ficarao acessiveis apenas pela tabela (lista) e pelos filtros.
+### Problema
+O status "Outros" foi adicionado no popover de informacoes do lead e no dropdown de 3 pontos, mas faltou adicionar nos **badges de classificacao rapida** que aparecem diretamente no topo da conversa -- tanto na versao desktop quanto mobile. Sao 4 arrays hardcoded no `WhatsAppChat.tsx` que nao incluem "outros".
 
-### Onde o status aparecera
-- Dropdown de status no chat (menu de tres pontos na conversa)
-- Popover de informacoes do lead no WhatsApp
-- Select de status no card do lead (LeadCard)
-- Sheet de detalhes do lead (LeadDetailSheet)
-- Filtro de status nos filtros de leads (LeadsFilters)
+### O que sera feito
 
-### Onde NAO aparecera
-- **Kanban**: nenhuma coluna nova sera criada. O array `columns` em `LeadsKanban.tsx` permanece inalterado.
+**Arquivo: `src/components/whatsapp/WhatsAppChat.tsx`** -- 4 alteracoes no mesmo arquivo:
 
-### Detalhes tecnicos
+1. **Desktop - Lead vinculado (linha ~3761)**: Adicionar `{ value: 'outros', label: 'Outros', color: 'bg-gray-500', textColor: 'text-gray-700', bgActive: 'bg-gray-500/15' }` ao array do stepper de classificacao
 
-**1. Migration SQL (novo arquivo)**
-```sql
-ALTER TYPE public.lead_status ADD VALUE IF NOT EXISTS 'outros';
-```
+2. **Desktop - Contato nao qualificado (linha ~3847)**: Adicionar `{ value: 'outros', label: 'Outros', color: 'bg-gray-500' }` ao array de botoes de classificacao inicial
 
-**2. `src/types/crm.ts`**
-- Adicionar `'outros'` ao tipo `LeadStatus`
-- Adicionar entrada em `LEAD_STATUS_LABELS`: `outros: 'Outros'`
-- Adicionar entrada em `LEAD_STATUS_COLORS`: `outros: 'bg-gray-500'`
+3. **Mobile - Lead vinculado (linha ~4693)**: Adicionar `{ value: 'outros', label: 'Outros', color: 'bg-gray-500' }` e incluir `"outros"` no type cast da linha 4705
 
-**3. `src/integrations/supabase/types.ts`**
-- Adicionar `"outros"` ao array `Constants.public.Enums.lead_status`
-- Adicionar `"outros"` ao tipo union `Database.public.Enums.lead_status`
+4. **Mobile - Contato nao qualificado (linha ~4769)**: Adicionar `{ value: 'outros', label: 'Outros', color: 'bg-gray-500' }` ao array de botoes
 
-**4. `src/components/whatsapp/ConversationStatusActions.tsx`**
-- Adicionar entrada no array `STATUS_CONFIG` com valor `'outros'`, label `'Outros'`, icone `HelpCircle` (ou similar), cor cinza
-- Adicionar entrada no objeto `statusLabels` dentro de `handleStatusChange`
+Tambem atualizar o objeto `statusLabels` (linha ~4723) adicionando `outros: 'Outros'`.
 
-**5. `src/components/whatsapp/LeadInfoPopover.tsx`**
-- Adicionar `{ value: 'outros', label: 'Outros', color: 'gray' }` ao array `statusOptions`
-
-**6. `src/components/admin/LeadCard.tsx`**
-- O select de status ja itera sobre `LEAD_STATUS_LABELS`, entao sera automatico
-
-**7. `src/components/admin/LeadDetailSheet.tsx`**
-- O select de status ja itera sobre `LEAD_STATUS_LABELS`, entao sera automatico
-
-**8. `src/components/admin/LeadsFilters.tsx`**
-- O filtro de status ja itera sobre `LEAD_STATUS_LABELS`, entao sera automatico
-
-**9. `src/components/admin/LeadsKanban.tsx`**
-- Nenhuma alteracao. O array `columns` nao incluira `'outros'`.
-
-### Resumo de arquivos alterados
-| Arquivo | Alteracao |
-|---|---|
-| Migration SQL | `ALTER TYPE lead_status ADD VALUE 'outros'` |
-| `src/types/crm.ts` | Adicionar ao tipo, labels e cores |
-| `src/integrations/supabase/types.ts` | Adicionar ao enum e constants |
-| `ConversationStatusActions.tsx` | Nova entrada no STATUS_CONFIG |
-| `LeadInfoPopover.tsx` | Nova entrada no statusOptions |
-
-Os demais componentes (LeadCard, LeadDetailSheet, LeadsFilters, LeadsTable) ja iteram sobre `LEAD_STATUS_LABELS` e serao atualizados automaticamente.
+### Resultado
+O botao "Outros" (com bolinha cinza) aparecera em todos os locais de classificacao rapida, tanto para leads ja vinculados quanto para contatos nao qualificados, em desktop e mobile.
 
