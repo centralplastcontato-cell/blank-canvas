@@ -42,25 +42,18 @@ export default function PublicEventInfo() {
       setItems(data.items as unknown as InfoBlock[]);
       setNotes(data.notes || "");
 
-      // Fetch company info
-      const { data: company } = await supabase
-        .from("companies")
-        .select("name, logo_url")
-        .eq("id", data.company_id)
-        .single();
-
+      // Fetch company info via RPC (security: no direct anon access to companies table)
+      const { data: companyArr } = await supabase.rpc("get_company_public_info", { _company_id: data.company_id });
+      const company = companyArr && (companyArr as any[])[0];
       if (company) {
         setCompanyName(company.name);
         setCompanyLogo(company.logo_url || "");
       }
 
-      // Fetch event + lead info
+      // Fetch event + lead info via RPC
       if (data.event_id) {
-        const { data: ev } = await supabase
-          .from("company_events")
-          .select("title, event_date, lead_id")
-          .eq("id", data.event_id)
-          .single();
+        const { data: evArr } = await supabase.rpc("get_event_public_info", { _event_id: data.event_id });
+        const ev = evArr && (evArr as any[])[0];
 
         if (ev) {
           setEventTitle(ev.title);

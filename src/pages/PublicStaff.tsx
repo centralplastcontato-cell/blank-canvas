@@ -87,28 +87,18 @@ export default function PublicStaff() {
       if (data.event_id) {
         setHasEventId(true);
         setEventId(data.event_id);
-        // Fetch event info
-        const { data: ev } = await supabase
-          .from("company_events")
-          .select("title, event_date")
-          .eq("id", data.event_id)
-          .single();
-
+        // Fetch event info via RPC
+        const { data: evArr } = await supabase.rpc("get_event_public_info", { _event_id: data.event_id });
+        const ev = evArr && (evArr as any[])[0];
         if (ev) {
           setEventTitle(ev.title);
           setEventDate(ev.event_date);
         }
       } else {
         setHasEventId(false);
-        // Fetch company events for the picker
-        const { data: events } = await supabase
-          .from("company_events")
-          .select("id, title, event_date")
-          .eq("company_id", data.company_id)
-          .neq("status", "cancelado")
-          .order("event_date", { ascending: true });
-
-        setCompanyEvents(events || []);
+        // Fetch company events via RPC
+        const { data: events } = await supabase.rpc("get_events_public_list", { _company_id: data.company_id });
+        setCompanyEvents((events as any[]) || []);
       }
 
       setLoading(false);

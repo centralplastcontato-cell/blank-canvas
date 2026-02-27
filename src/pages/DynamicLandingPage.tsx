@@ -87,12 +87,7 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
         const companyId = row.company_id;
         let whatsapp: string | null = null;
         const [{ data: onb }, { data: botSettings }, { data: unitsData }] = await Promise.all([
-          supabase
-            .from('company_onboarding')
-            .select('whatsapp_numbers, multiple_units, instagram')
-            .eq('company_id', companyId)
-            .limit(1)
-            .maybeSingle(),
+          supabase.rpc('get_onboarding_public_fields', { _company_id: companyId }),
           supabase
             .from('lp_bot_settings')
             .select('*')
@@ -106,8 +101,9 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
             .not('name', 'ilike', '%trabalhe conosco%')
             .order('sort_order'),
         ]);
-        if (onb?.whatsapp_numbers && onb.whatsapp_numbers.length > 0) {
-          whatsapp = onb.whatsapp_numbers[0];
+        const onbRow = onb && Array.isArray(onb) ? (onb as any[])[0] : onb;
+        if (onbRow?.whatsapp_numbers && onbRow.whatsapp_numbers.length > 0) {
+          whatsapp = onbRow.whatsapp_numbers[0];
         }
 
         const lpBotConfig: LPBotConfig | null = botSettings ? {
@@ -133,13 +129,13 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
 
         setData({
           company_id: companyId,
-          multipleUnits: onb?.multiple_units === true,
+          multipleUnits: onbRow?.multiple_units === true,
           unitNames,
           company_name: row.company_name,
           company_logo: row.company_logo,
           company_slug: row.company_slug,
           company_whatsapp: whatsapp,
-          company_instagram: onb?.instagram || null,
+          company_instagram: onbRow?.instagram || null,
           hero: row.hero as unknown as LPHero,
           video: row.video as unknown as LPVideo,
           gallery: row.gallery as unknown as LPGallery,

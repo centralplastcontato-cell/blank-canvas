@@ -65,12 +65,9 @@ export default function PublicFreelancerSchedule() {
       if (scheduleId) {
         query = query.eq("id", scheduleId);
       } else if (companySlug && scheduleSlug) {
-        // Resolve company by slug first
-        const { data: companyData } = await supabase
-          .from("companies")
-          .select("id")
-          .eq("slug", companySlug)
-          .single();
+        // Resolve company by slug via RPC
+        const companyId = await supabase.rpc("get_company_id_by_slug", { _slug: companySlug });
+        const companyData = companyId.data ? { id: companyId.data } : null;
         if (!companyData) { setNotFound(true); setLoading(false); return; }
         query = query.eq("company_id", companyData.id).eq("slug", scheduleSlug);
       }
@@ -79,12 +76,9 @@ export default function PublicFreelancerSchedule() {
 
       if (schedError || !schedData) { setNotFound(true); setLoading(false); return; }
 
-      // Get company info
-      const { data: compData } = await supabase
-        .from("companies")
-        .select("name, logo_url, slug")
-        .eq("id", (schedData as any).company_id)
-        .single();
+      // Get company info via RPC
+      const { data: compArr } = await supabase.rpc("get_company_public_info", { _company_id: (schedData as any).company_id });
+      const compData = compArr && (compArr as any[])[0];
 
       const sd = schedData as any;
       setSchedule({
@@ -101,11 +95,14 @@ export default function PublicFreelancerSchedule() {
 
       // Fetch events
       if (sd.event_ids && sd.event_ids.length > 0) {
-        const { data: evData } = await supabase
-          .from("company_events")
-          .select("id, title, event_date, start_time, end_time, package_name, event_type")
-          .in("id", sd.event_ids)
-          .order("event_date", { ascending: true });
+        // Fetch events individually via RPC (no bulk RPC available)
+        const evResults = await Promise.all(
+          sd.event_ids.map((eid: string) => supabase.rpc("get_event_public_info", { _event_id: eid }))
+        );
+        const evData = evResults
+          .map(r => r.data && (r.data as any[])[0])
+          .filter(Boolean)
+          .sort((a: any, b: any) => a.event_date.localeCompare(b.event_date));
         setEvents(evData || []);
       }
 
