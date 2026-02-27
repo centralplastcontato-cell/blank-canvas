@@ -245,6 +245,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [contactPhone, setContactPhone] = useState("");
   const [isSendingContact, setIsSendingContact] = useState(false);
   
+  // Create new contact state
+  const [showCreateContactDialog, setShowCreateContactDialog] = useState(false);
+  const [newContactName, setNewContactName] = useState("");
+  const [newContactPhone, setNewContactPhone] = useState("");
+  const [isCreatingContact, setIsCreatingContact] = useState(false);
+  
   // Edit message state
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState("");
@@ -2845,6 +2851,132 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     });
   };
 
+  // Handle creating a new contact manually
+  const handleCreateContact = async () => {
+    if (!selectedInstance || !currentCompany) return;
+    if (newContactName.trim().length < 2) {
+      toast({ title: "Nome inválido", description: "O nome deve ter pelo menos 2 caracteres.", variant: "destructive" });
+      return;
+    }
+    const digits = newContactPhone.replace(/\D/g, '');
+    if (digits.length < 10 || digits.length > 13) {
+      toast({ title: "Telefone inválido", description: "Informe um telefone válido com DDD.", variant: "destructive" });
+      return;
+    }
+    // Ensure country code
+    const phone = digits.startsWith('55') ? digits : `55${digits}`;
+
+    setIsCreatingContact(true);
+    try {
+      // Check if conversation already exists for this phone on this instance
+      const { data: existing } = await supabase
+        .from('wapi_conversations')
+        .select('id, contact_name, contact_phone')
+        .eq('instance_id', selectedInstance.id)
+        .eq('contact_phone', phone)
+        .limit(1)
+        .maybeSingle();
+
+      if (existing) {
+        // Select existing conversation
+        const conv = conversations.find(c => c.id === existing.id);
+        if (conv) setSelectedConversation(conv);
+        toast({ title: "Contato já existe", description: `Já existe uma conversa com ${phone}.` });
+        setShowCreateContactDialog(false);
+        setNewContactName("");
+        setNewContactPhone("");
+        setIsCreatingContact(false);
+        return;
+      }
+
+      // Create lead
+      const { data: leadData, error: leadError } = await insertSingleWithCompany('campaign_leads', {
+        name: newContactName.trim(),
+        whatsapp: phone,
+        unit: selectedInstance.unit || null,
+        status: 'novo',
+        campaign_id: 'manual',
+        campaign_name: 'Criado Manualmente',
+      }) as { data: any; error: any };
+
+      if (leadError) throw leadError;
+
+      const leadId = leadData?.id;
+
+      // Create conversation
+      const remoteJid = `${phone}@s.whatsapp.net`;
+      const { data: convData, error: convError } = await supabase
+        .from('wapi_conversations')
+        .insert({
+          instance_id: selectedInstance.id,
+          remote_jid: remoteJid,
+          contact_phone: phone,
+          contact_name: newContactName.trim(),
+          lead_id: leadId || null,
+          company_id: currentCompany.id,
+          bot_enabled: false,
+          unread_count: 0,
+          is_favorite: false,
+          is_closed: false,
+          has_scheduled_visit: false,
+          is_freelancer: false,
+          is_equipe: false,
+        } as any)
+        .select()
+        .single();
+
+      if (convError) throw convError;
+
+      // Log in lead_history
+      if (leadId) {
+        await insertWithCompany('lead_history', {
+          lead_id: leadId,
+          action: 'Lead criado manualmente',
+          details: `Contato ${newContactName.trim()} (${phone}) criado manualmente via chat`,
+          performed_by: userId,
+        });
+      }
+
+      // Add to local state and select
+      if (convData) {
+        const newConv: Conversation = {
+          id: convData.id,
+          instance_id: convData.instance_id,
+          lead_id: convData.lead_id,
+          remote_jid: convData.remote_jid,
+          contact_name: convData.contact_name,
+          contact_phone: convData.contact_phone,
+          contact_picture: null,
+          last_message_at: convData.created_at || new Date().toISOString(),
+          unread_count: 0,
+          is_favorite: false,
+          is_closed: false,
+          has_scheduled_visit: false,
+          is_freelancer: false,
+          is_equipe: false,
+          last_message_content: null,
+          last_message_from_me: false,
+          bot_enabled: false,
+          bot_step: null,
+          pinned_message_id: null,
+        };
+        setConversations(prev => [newConv, ...prev]);
+        setSelectedConversation(newConv);
+        setMessages([]);
+      }
+
+      toast({ title: "Contato criado", description: `${newContactName.trim()} foi adicionado à lista de conversas.` });
+      setShowCreateContactDialog(false);
+      setNewContactName("");
+      setNewContactPhone("");
+    } catch (error: any) {
+      console.error('Error creating contact:', error);
+      toast({ title: "Erro ao criar contato", description: error.message || "Tente novamente.", variant: "destructive" });
+    } finally {
+      setIsCreatingContact(false);
+    }
+  };
+
   const handleInstanceChange = (instanceId: string) => {
     const instance = instances.find(i => i.id === instanceId);
     if (instance) {
@@ -3054,14 +3186,25 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             selectedConversation && "hidden"
           )}>
             <div className="p-3 border-b border-border/60 space-y-2 bg-card/80 backdrop-blur-sm">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar conversa..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 bg-background/80 border-border/60 focus:border-primary/50 focus:ring-primary/20"
-                />
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar conversa..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 bg-background/80 border-border/60 focus:border-primary/50 focus:ring-primary/20"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0 h-10 w-10"
+                  onClick={() => setShowCreateContactDialog(true)}
+                  title="Novo Contato"
+                >
+                  <Users className="w-4 h-4" />
+                </Button>
               </div>
               <ConversationFilters
                 filter={filter}
@@ -3187,14 +3330,25 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             >
               <div className="flex flex-col h-full bg-card rounded-2xl shadow-card m-1.5 mr-0 overflow-hidden">
                 <div className="p-4 border-b border-border/40 space-y-3">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Buscar conversa..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9 bg-muted/50 border-border/40 rounded-xl focus:border-primary/50 focus:ring-primary/20"
-                    />
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar conversa..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-9 bg-muted/50 border-border/40 rounded-xl focus:border-primary/50 focus:ring-primary/20"
+                      />
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0 h-10 w-10 rounded-xl"
+                      onClick={() => setShowCreateContactDialog(true)}
+                      title="Novo Contato"
+                    >
+                      <Users className="w-4 h-4" />
+                    </Button>
                   </div>
                   <ConversationFilters
                     filter={filter}
@@ -5396,6 +5550,65 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Create New Contact Dialog */}
+      <Dialog open={showCreateContactDialog} onOpenChange={(open) => {
+        setShowCreateContactDialog(open);
+        if (!open) { setNewContactName(""); setNewContactPhone(""); }
+      }}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Novo Contato
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label htmlFor="new-contact-name">Nome *</Label>
+              <Input
+                id="new-contact-name"
+                placeholder="Nome do contato"
+                value={newContactName}
+                onChange={(e) => setNewContactName(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-contact-phone">Telefone (WhatsApp) *</Label>
+              <Input
+                id="new-contact-phone"
+                placeholder="11999999999"
+                value={newContactPhone}
+                onChange={(e) => setNewContactPhone(e.target.value.replace(/[^\d]/g, ''))}
+                inputMode="tel"
+              />
+              <p className="text-xs text-muted-foreground">Apenas números. O código 55 será adicionado automaticamente.</p>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setShowCreateContactDialog(false)} disabled={isCreatingContact}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleCreateContact}
+                disabled={newContactName.trim().length < 2 || newContactPhone.replace(/\D/g, '').length < 10 || isCreatingContact}
+              >
+                {isCreatingContact ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Criando...
+                  </>
+                ) : (
+                  <>
+                    <Users className="w-4 h-4 mr-2" />
+                    Criar Contato
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
