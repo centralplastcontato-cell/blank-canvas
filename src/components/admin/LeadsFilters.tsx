@@ -21,6 +21,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { LeadFilters } from "@/pages/Admin";
 import { LEAD_STATUS_LABELS, UserWithRole } from "@/types/crm";
+import { useCompany } from "@/contexts/CompanyContext";
+import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 
 interface LeadsFiltersProps {
   filters: LeadFilters;
@@ -36,32 +38,32 @@ export function LeadsFilters({
   onExport,
 }: LeadsFiltersProps) {
   const [campaigns, setCampaigns] = useState<string[]>([]);
-  const [units, setUnits] = useState<string[]>([]);
   const [months, setMonths] = useState<string[]>([]);
+  const { currentCompanyId } = useCompany();
+  const { unitNames } = useCompanyUnits(currentCompanyId || undefined);
 
   useEffect(() => {
     const fetchFiltersData = async () => {
+      if (!currentCompanyId) return;
+
       const { data } = await supabase
         .from("campaign_leads")
-        .select("campaign_id, unit, month")
+        .select("campaign_id, month")
+        .eq("company_id", currentCompanyId)
         .order("campaign_id");
 
       if (data) {
         const uniqueCampaigns = [...new Set(data.map((d) => d.campaign_id))];
-        const uniqueUnits = [
-          ...new Set(data.map((d) => d.unit).filter(Boolean)),
-        ] as string[];
         const uniqueMonths = [
           ...new Set(data.map((d) => d.month).filter(Boolean)),
         ] as string[];
         setCampaigns(uniqueCampaigns);
-        setUnits(uniqueUnits);
         setMonths(uniqueMonths);
       }
     };
 
     fetchFiltersData();
-  }, []);
+  }, [currentCompanyId]);
 
   const clearFilters = () => {
     onFiltersChange({
@@ -223,7 +225,7 @@ export function LeadsFilters({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas unidades</SelectItem>
-              {units.map((unit) => (
+              {unitNames.map((unit) => (
                 <SelectItem key={unit} value={unit}>
                   {unit}
                 </SelectItem>
