@@ -3329,6 +3329,25 @@ export type Database = {
         }[]
       }
       get_company_id_by_slug: { Args: { _slug: string }; Returns: string }
+      get_company_public_info: {
+        Args: { _company_id: string }
+        Returns: {
+          id: string
+          logo_url: string
+          name: string
+          slug: string
+        }[]
+      }
+      get_company_public_with_settings: {
+        Args: { _company_id: string }
+        Returns: {
+          id: string
+          logo_url: string
+          name: string
+          settings: Json
+          slug: string
+        }[]
+      }
       get_contrato_template_by_slugs: {
         Args: { _company_slug: string; _template_slug: string }
         Returns: {
@@ -3383,6 +3402,35 @@ export type Database = {
           questions: Json
           template_name: string
           thank_you_message: string
+        }[]
+      }
+      get_event_public_info: {
+        Args: { _event_id: string }
+        Returns: {
+          company_id: string
+          end_time: string
+          event_date: string
+          event_type: string
+          guest_count: number
+          id: string
+          lead_id: string
+          package_name: string
+          start_time: string
+          status: string
+          title: string
+          unit: string
+        }[]
+      }
+      get_events_public_list: {
+        Args: { _company_id: string }
+        Returns: {
+          end_time: string
+          event_date: string
+          event_type: string
+          id: string
+          package_name: string
+          start_time: string
+          title: string
         }[]
       }
       get_freelancer_template_by_slugs: {
@@ -3449,6 +3497,14 @@ export type Database = {
           testimonials: Json
           theme: Json
           video: Json
+        }[]
+      }
+      get_onboarding_public_fields: {
+        Args: { _company_id: string }
+        Returns: {
+          instagram: string
+          multiple_units: boolean
+          whatsapp_numbers: string[]
         }[]
       }
       get_prefesta_template_by_slugs: {
