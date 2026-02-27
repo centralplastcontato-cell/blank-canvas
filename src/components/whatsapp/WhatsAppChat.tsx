@@ -1752,6 +1752,21 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         throw new Error(response.error.message);
       }
 
+      // === PHASE 3: Check for SESSION_INCOMPLETE error from preflight ===
+      if (response.data?.errorType === 'SESSION_INCOMPLETE' || response.data?.blocked) {
+        // Mark optimistic message as failed (not sent)
+        setMessages(prev => prev.map(m => 
+          m.id === optimisticId ? { ...m, status: 'failed' } : m
+        ));
+        toast({
+          title: "⚠️ Sessão incompleta",
+          description: "A instância está conectada sem sessão válida. Vá em Configurações > Conexão e reconecte.",
+          variant: "destructive",
+        });
+        setIsSending(false);
+        return;
+      }
+
       // Update optimistic message to sent status
       setMessages(prev => prev.map(m => 
         m.id === optimisticId ? { ...m, status: 'sent' } : m

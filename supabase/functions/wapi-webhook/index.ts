@@ -3385,10 +3385,44 @@ async function processWebhookEvent(body: Record<string, unknown>) {
     }
   }
 
+  // === PHASE 2: Route status-like events without 'event' field ===
+  // Events with { instanceId, connectedPhone, chat, status, moment } but no event field
+  if (!evt && (body.connectedPhone || body.connectedLid)) {
+    const connPhone = body.connectedPhone || null;
+    console.log(`[Webhook] Status-like event detected for instance ${instanceId}. connectedPhone=${connPhone}, status=${body.status}, chat=${JSON.stringify(body.chat)?.substring(0, 100)}`);
+    
+    // If connectedPhone present, treat as connection confirmation
+    if (connPhone) {
+      await supabase.from('wapi_instances').update({ 
+        status: 'connected', 
+        phone_number: connPhone, 
+        connected_at: new Date().toISOString() 
+      }).eq('id', instance.id);
+      console.log(`[Webhook] Updated instance ${instanceId} as connected with phone ${connPhone}`);
+    }
+    // Don't break - let it fall through to log if needed
+    return;
+  }
+
   switch (evt) {
     case 'connection': case 'webhookConnected': {
       const c = (data as Record<string, unknown>)?.connected ?? body.connected ?? false;
-      await supabase.from('wapi_instances').update({ status: c ? 'connected' : 'disconnected', phone_number: (data as Record<string, unknown>)?.phone || body.connectedPhone || null, connected_at: c ? new Date().toISOString() : null }).eq('id', instance.id);
+      const connPhone = (data as Record<string, unknown>)?.phone || body.connectedPhone || null;
+      
+      // === PHASE 2: Don't mark as 'connected' without a phone number ===
+      if (c && !connPhone) {
+        console.warn(`[Webhook] Connection event for ${instanceId} says connected but NO phone number. Marking as degraded.`);
+        await supabase.from('wapi_instances').update({ 
+          status: 'degraded',
+          connected_at: new Date().toISOString(),
+        }).eq('id', instance.id);
+      } else {
+        await supabase.from('wapi_instances').update({ 
+          status: c ? 'connected' : 'disconnected', 
+          phone_number: connPhone, 
+          connected_at: c ? new Date().toISOString() : null 
+        }).eq('id', instance.id);
+      }
       break;
     }
     case 'disconnection': case 'webhookDisconnected':
