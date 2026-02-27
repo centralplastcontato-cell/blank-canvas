@@ -160,7 +160,9 @@ export function LeadInfoPopover({
   const isGroup = selectedConversation.remote_jid.includes('@g.us');
 
   const startEditingName = () => {
-    if (linkedLead) {
+    if (isGroup) {
+      setEditedName(selectedConversation.contact_name || "");
+    } else if (linkedLead) {
       setEditedName(linkedLead.name);
     } else {
       setEditedName(selectedConversation.contact_name || "");
@@ -302,18 +304,42 @@ export function LeadInfoPopover({
           /* ── GROUP VIEW ── */
           <div className="p-4 space-y-4">
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex items-center gap-2.5 min-w-0 flex-1">
                 <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-muted/60 shrink-0">
                   <UsersRound className="w-4 h-4 text-muted-foreground" />
                 </div>
-                <div className="min-w-0">
-                  <h4 className="font-semibold text-sm truncate">
-                    {selectedConversation.contact_name || "Grupo"}
-                  </h4>
-                  <span className="text-[11px] text-muted-foreground truncate block">
-                    {selectedConversation.contact_phone}
-                  </span>
-                </div>
+                {isEditingName ? (
+                  <div className="flex items-center gap-1 flex-1 min-w-0">
+                    <Input
+                      value={editedName}
+                      onChange={(e) => setEditedName(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      className="h-8 text-sm rounded-lg"
+                      autoFocus
+                      disabled={isSavingName}
+                    />
+                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 rounded-lg" onClick={saveLeadName} disabled={isSavingName}>
+                      {isSavingName ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5 text-green-600" />}
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 rounded-lg" onClick={cancelEditingName} disabled={isSavingName}>
+                      <X className="w-3.5 h-3.5 text-destructive" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="font-semibold text-sm truncate">
+                        {selectedConversation.contact_name || "Grupo"}
+                      </h4>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 rounded-md" onClick={startEditingName} title="Renomear grupo">
+                        <Pencil className="w-3 h-3 text-muted-foreground hover:text-foreground" />
+                      </Button>
+                    </div>
+                    <span className="text-[11px] text-muted-foreground truncate block">
+                      {selectedConversation.contact_phone}
+                    </span>
+                  </div>
+                )}
               </div>
               <Button
                 variant="ghost"
