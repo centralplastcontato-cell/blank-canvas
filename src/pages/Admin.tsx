@@ -132,32 +132,46 @@ export default function Admin() {
     }
   }, [user]);
 
-  // Fetch responsaveis (users who can be assigned)
+  // Fetch responsaveis (users who can be assigned) filtered by current company
   useEffect(() => {
     const fetchResponsaveis = async () => {
+      if (!currentCompany?.id) return;
+
+      // Get user IDs that belong to this company
+      const { data: companyUsers } = await supabase
+        .from("user_companies")
+        .select("user_id, role")
+        .eq("company_id", currentCompany.id);
+
+      if (!companyUsers || companyUsers.length === 0) {
+        setResponsaveis([]);
+        return;
+      }
+
+      const userIds = companyUsers.map((cu) => cu.user_id);
+
       const { data: profiles } = await supabase
         .from("profiles")
         .select("*")
-        .eq("is_active", true);
-
-      const { data: roles } = await supabase.from("user_roles").select("*");
+        .eq("is_active", true)
+        .in("user_id", userIds);
 
       if (profiles) {
         const usersWithRoles: UserWithRole[] = profiles.map((profile) => {
-          const userRole = roles?.find((r) => r.user_id === profile.user_id);
+          const companyUser = companyUsers.find((cu) => cu.user_id === profile.user_id);
           return {
             ...profile,
-            role: userRole?.role as AppRole | undefined,
+            role: companyUser?.role as AppRole | undefined,
           };
         });
         setResponsaveis(usersWithRoles);
       }
     };
 
-    if (role) {
+    if (role && currentCompany?.id) {
       fetchResponsaveis();
     }
-  }, [role]);
+  }, [role, currentCompany?.id]);
 
   // Reset page when filters change
   useEffect(() => {
