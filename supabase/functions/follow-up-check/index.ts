@@ -964,29 +964,52 @@ async function processAutoLost({
   let successCount = 0;
   const delayHours = settings.auto_lost_delay_hours || 48;
 
-  console.log(`[follow-up-check] Processing auto-lost for instance ${settings.instance_id} with ${delayHours}h delay after 4th follow-up`);
+  // Determine the last enabled follow-up action dynamically
+  let lastFollowUpAction: string | null = null;
+  let lastFollowUpLabel: string = "";
+
+  if (settings.follow_up_4_enabled) {
+    lastFollowUpAction = "Follow-up #4 automático enviado";
+    lastFollowUpLabel = "4º follow-up";
+  } else if (settings.follow_up_3_enabled) {
+    lastFollowUpAction = "Follow-up #3 automático enviado";
+    lastFollowUpLabel = "3º follow-up";
+  } else if (settings.follow_up_2_enabled) {
+    lastFollowUpAction = "Follow-up #2 automático enviado";
+    lastFollowUpLabel = "2º follow-up";
+  } else if (settings.follow_up_enabled) {
+    lastFollowUpAction = "Follow-up automático enviado";
+    lastFollowUpLabel = "1º follow-up";
+  }
+
+  if (!lastFollowUpAction) {
+    console.log(`[follow-up-check] No follow-ups enabled for instance ${settings.instance_id}, skipping auto-lost`);
+    return { successCount: 0, errors: [] };
+  }
+
+  console.log(`[follow-up-check] Processing auto-lost for instance ${settings.instance_id} with ${delayHours}h delay after "${lastFollowUpAction}"`);
 
   const now = new Date();
   const cutoffTime = new Date(now.getTime() - delayHours * 60 * 60 * 1000);
 
-  // Find leads that received the 4th follow-up before the cutoff
-  const { data: fourthFollowUps, error: histError } = await supabase
+  // Find leads that received the last enabled follow-up before the cutoff
+  const { data: lastFollowUps, error: histError } = await supabase
     .from("lead_history")
     .select("lead_id, created_at")
-    .eq("action", "Follow-up #4 automático enviado")
+    .eq("action", lastFollowUpAction)
     .lte("created_at", cutoffTime.toISOString());
 
   if (histError) {
-    console.error(`[follow-up-check] Error fetching 4th follow-up history:`, histError);
+    console.error(`[follow-up-check] Error fetching follow-up history:`, histError);
     return { successCount: 0, errors: [String(histError)] };
   }
 
-  if (!fourthFollowUps || fourthFollowUps.length === 0) {
+  if (!lastFollowUps || lastFollowUps.length === 0) {
     console.log(`[follow-up-check] No leads eligible for auto-lost for instance ${settings.instance_id}`);
     return { successCount: 0, errors: [] };
   }
 
-  const leadIds = fourthFollowUps.map(f => f.lead_id);
+  const leadIds = lastFollowUps.map(f => f.lead_id);
 
   // Check which leads already have been auto-lost
   const { data: alreadyLost } = await supabase
@@ -1080,7 +1103,7 @@ async function processAutoLost({
             company_id: instance.company_id,
             type: "lead_lost",
             title: "Lead movido para Perdido",
-            message: `O lead ${lead.name} foi movido automaticamente para Perdido após não responder ao 4º follow-up.`,
+            message: `O lead ${lead.name} foi movido automaticamente para Perdido após não responder ao ${lastFollowUpLabel}.`,
             metadata: { lead_id: lead.id, lead_name: lead.name },
           });
         }
