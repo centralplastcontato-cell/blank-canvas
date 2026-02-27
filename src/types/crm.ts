@@ -2,7 +2,7 @@
 
 export type AppRole = 'admin' | 'gestor' | 'comercial' | 'visualizacao';
 
-export type LeadStatus = 'novo' | 'em_contato' | 'orcamento_enviado' | 'aguardando_resposta' | 'fechado' | 'perdido' | 'transferido' | 'trabalhe_conosco' | 'fornecedor' | 'cliente_retorno';
+export type LeadStatus = 'novo' | 'em_contato' | 'orcamento_enviado' | 'aguardando_resposta' | 'fechado' | 'perdido' | 'transferido' | 'trabalhe_conosco' | 'fornecedor' | 'cliente_retorno' | 'outros';
 
 export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
   novo: 'Novo',
@@ -15,6 +15,7 @@ export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
   trabalhe_conosco: 'Trabalhe Conosco',
   fornecedor: 'Fornecedor',
   cliente_retorno: 'Cliente Retorno',
+  outros: 'Outros',
 };
 
 export const LEAD_STATUS_COLORS: Record<LeadStatus, string> = {
@@ -28,6 +29,7 @@ export const LEAD_STATUS_COLORS: Record<LeadStatus, string> = {
   trabalhe_conosco: 'bg-teal-500',
   fornecedor: 'bg-indigo-500',
   cliente_retorno: 'bg-pink-500',
+  outros: 'bg-gray-500',
 };
 
 export const ROLE_LABELS: Record<AppRole, string> = {
