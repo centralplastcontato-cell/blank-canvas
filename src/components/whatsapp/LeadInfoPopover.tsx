@@ -78,6 +78,7 @@ const statusOptions = [
   { value: 'transferido', label: 'Transferência', color: 'bg-cyan-500' },
   { value: 'fornecedor', label: 'Fornecedor', color: 'bg-indigo-500' },
   { value: 'cliente_retorno', label: 'Cliente Retorno', color: 'bg-pink-500' },
+  { value: 'outros', label: 'Outros', color: 'bg-gray-500' },
 ];
 
 const getStatusBadgeClass = (status: string) => {
