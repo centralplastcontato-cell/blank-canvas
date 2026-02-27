@@ -1,77 +1,36 @@
 
+## Atualizar o Guia de Inteligencia
 
-## Nova pagina "Leads" no Hub
+O guia atual cobre apenas Score, Temperatura, Cards de Prioridade, Funil e Alertas. Faltam secoes importantes sobre as abas e funcionalidades adicionadas desde sua criacao.
 
-Criar uma pagina dedicada no portal Hub para visualizar os leads de todos os buffets em uma unica interface, com filtros inteligentes e paginacao.
+### O que esta faltando
 
-### Visao geral
+1. **Resumo do Dia** -- aba principal com metricas diarias, timeline de eventos, insights da IA e contexto personalizavel
+2. **Follow-ups** -- Kanban de 4 colunas com delays dinamicos por unidade
+3. **Leads do Dia** -- lista de leads criados hoje com score e acoes rapidas
+4. **Resumo IA por lead** -- botao "Resumo IA" em cada lead que gera resumo, proxima acao e mensagem sugerida via gpt-4o-mini
+5. **Contexto da IA** -- campo editavel pelo admin para personalizar os insights com dados do buffet (ticket medio, unidades, etc.)
 
-Uma nova rota `/hub/leads` acessivel pela sidebar do Hub, onde o administrador pode consultar leads de qualquer empresa filha, com busca, filtros por empresa/status/periodo e paginacao server-side.
+### O que sera feito
 
-### Etapas
+Atualizar o conteudo do Dialog em `src/pages/Inteligencia.tsx` (linhas 268-349) para incluir todas as secoes, reorganizando na ordem das abas:
 
-#### 1. Criar pagina `src/pages/HubLeads.tsx`
-
-Nova pagina usando `HubLayout` que:
-- Busca leads paginados de `campaign_leads` para todas empresas filhas (child companies)
-- Filtros: empresa, status, busca por nome/telefone, periodo (date range)
-- Paginacao server-side (50 leads por pagina) com contagem total
-- Tabela responsiva mostrando: nome, telefone, empresa, status, unidade, data de criacao, responsavel
-- Badge colorido por status usando os mesmos `LEAD_STATUS_LABELS` e `LEAD_STATUS_COLORS` do CRM
-- No mobile, exibe cards em vez de tabela (similar ao LeadCard existente)
-
-#### 2. Adicionar rota no `App.tsx`
-
-Nova rota:
 ```text
-/hub/leads -> HubLeads
+1. Score (0-100)          -- manter como esta
+2. Temperatura            -- manter como esta
+3. Resumo do Dia (NOVO)   -- metricas, timeline, insights IA, contexto personalizavel, selecao de periodo
+4. Prioridades            -- renomear de "Cards de Prioridade", manter conteudo
+5. Follow-ups (NOVO)      -- Kanban 4 colunas, delays dinamicos, botao WhatsApp
+6. Funil de Conversao     -- manter como esta
+7. Leads do Dia (NOVO)    -- leads criados hoje, exportacao
+8. Resumo IA (NOVO)       -- resumo individual por lead, proxima acao, mensagem sugerida, copiar
+9. Alertas em Tempo Real  -- manter como esta
 ```
-
-#### 3. Adicionar item na sidebar do Hub
-
-Novo item no menu `HubSidebar.tsx`:
-```text
-{ title: "Leads", url: "/hub/leads", icon: Users }
-```
-
-Posicionado logo apos "Painel Hub".
-
-#### 4. Adicionar item no menu mobile do Hub
-
-Atualizar `HubMobileMenu.tsx` com o mesmo item "Leads".
 
 ### Detalhes tecnicos
 
-**Busca de dados:**
-- Query paginada em `campaign_leads` com `.in("company_id", companyIds)` e `.range(from, to)`
-- Join com `companies` para nome da empresa (ou lookup em mapa pre-carregado)
-- Join com `profiles` via `responsavel_id` para nome do responsavel
-- Filtros aplicados server-side via `.eq()`, `.ilike()`, `.gte()/.lte()` no Supabase
-- Contagem total via `{ count: "exact", head: true }` para a paginacao
+**Arquivo editado:** `src/pages/Inteligencia.tsx` (somente o conteudo dentro do `<DialogContent>`, linhas 268-349)
 
-**Componentes reutilizados:**
-- `LEAD_STATUS_LABELS`, `LEAD_STATUS_COLORS` de `src/types/crm.ts`
-- `HubDashboardFilters` como referencia de estilo (mas filtros proprios para esta pagina)
-- `Badge` para status
-- `Table` components do shadcn
+Nenhum arquivo novo, nenhuma dependencia adicional. Apenas atualizacao de texto e adicao de novos blocos de JSX seguindo o mesmo padrao visual (icone + titulo + descricao) ja utilizado nas secoes existentes.
 
-**Paginacao:**
-- 50 registros por pagina
-- Componente de paginacao com primeira/anterior/proxima/ultima
-- Exibicao "Mostrando X-Y de Z leads"
-
-**Filtros da pagina:**
-- Busca por nome/telefone (debounced)
-- Select de empresa (todas ou especifica)
-- Select de status (todos ou especifico)
-- Date range picker (periodo de criacao)
-- Botao limpar filtros
-
-**Arquivos criados/alterados:**
-1. `src/pages/HubLeads.tsx` (novo)
-2. `src/App.tsx` (nova rota)
-3. `src/components/hub/HubSidebar.tsx` (novo item menu)
-4. `src/components/hub/HubMobileMenu.tsx` (novo item menu)
-
-Nenhuma alteracao no banco de dados necessaria - os dados ja existem em `campaign_leads`.
-
+Icones adicionais que ja estao importados no arquivo: `BarChart3`, `Clock`, `MessageCircle`, `Sparkles`, `Brain`.
