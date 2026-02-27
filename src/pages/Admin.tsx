@@ -181,7 +181,7 @@ export default function Admin() {
   // Fetch leads
   useEffect(() => {
     const fetchLeads = async () => {
-      if (!role || isLoadingUnitPerms) return;
+      if (!role || isLoadingUnitPerms || !currentCompany?.id) return;
 
       setIsLoadingLeads(true);
 
@@ -191,6 +191,7 @@ export default function Admin() {
       let query = supabase
         .from("campaign_leads")
         .select("*", { count: "exact" })
+        .eq("company_id", currentCompany.id)
         .order("created_at", { ascending: false })
         .range(from, to);
 
@@ -326,19 +327,19 @@ export default function Admin() {
     };
 
     fetchLeads();
-  }, [filters, refreshKey, role, canViewAll, allowedUnits, isLoadingUnitPerms, currentPage]);
+  }, [filters, refreshKey, role, canViewAll, allowedUnits, isLoadingUnitPerms, currentPage, currentCompany?.id]);
 
   // Fetch server-side metrics (independent of pagination)
   useEffect(() => {
     const fetchMetrics = async () => {
-      if (!role || isLoadingUnitPerms) return;
+      if (!role || isLoadingUnitPerms || !currentCompany?.id) return;
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayISO = today.toISOString();
 
       const buildQuery = (statusFilter?: string, dateFilter?: string) => {
-        let q = supabase.from("campaign_leads").select("id", { count: "exact", head: true });
+        let q = supabase.from("campaign_leads").select("id", { count: "exact", head: true }).eq("company_id", currentCompany.id);
         if (!canViewAll && allowedUnits.length > 0 && !allowedUnits.includes('all')) {
           const unitsFilter = [...allowedUnits, "As duas"];
           q = q.in("unit", unitsFilter);
@@ -368,7 +369,7 @@ export default function Admin() {
     };
 
     fetchMetrics();
-  }, [role, canViewAll, allowedUnits, isLoadingUnitPerms, refreshKey]);
+  }, [role, canViewAll, allowedUnits, isLoadingUnitPerms, refreshKey, currentCompany?.id]);
 
 
   useEffect(() => {
