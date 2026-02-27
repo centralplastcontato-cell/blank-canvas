@@ -97,7 +97,8 @@ export default function Onboarding() {
         setCompanyName(branding[0].name);
         setCompanyLogo(branding[0].logo_url);
       }
-      const { data: company } = await supabase.from("companies").select("id").eq("slug", slug).single();
+      const companyIdResult = await supabase.rpc("get_company_id_by_slug", { _slug: slug });
+      const company = companyIdResult.data ? { id: companyIdResult.data } : null;
       if (company) {
         setCompanyId(company.id);
         const { data: existing } = await supabase

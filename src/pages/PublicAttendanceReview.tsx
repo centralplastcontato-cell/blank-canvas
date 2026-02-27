@@ -41,22 +41,16 @@ export default function PublicAttendanceReview() {
 
       setGuests((data.guests || []) as unknown as Guest[]);
 
-      const { data: company } = await supabase
-        .from("companies")
-        .select("name, logo_url")
-        .eq("id", data.company_id)
-        .single();
+      const { data: companyArr } = await supabase.rpc("get_company_public_info", { _company_id: data.company_id });
+      const company = companyArr && (companyArr as any[])[0];
       if (company) {
         setCompanyName(company.name || "");
         setCompanyLogo(company.logo_url || "");
       }
 
       if (data.event_id) {
-        const { data: ev } = await supabase
-          .from("company_events")
-          .select("id, title, event_date")
-          .eq("id", data.event_id)
-          .single();
+        const { data: evArr } = await supabase.rpc("get_event_public_info", { _event_id: data.event_id });
+        const ev = evArr && (evArr as any[])[0];
         if (ev) {
           setEventTitle(ev.title);
           setEventDate(ev.event_date);

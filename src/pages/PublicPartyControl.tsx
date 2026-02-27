@@ -135,23 +135,28 @@ export default function PublicPartyControl() {
     let companyIdRef: string | null = null;
 
     const initialLoad = async () => {
-      const { data: evData, error: evErr } = await supabase.from("company_events").select("*").eq("id", eventId).single();
-      if (evErr || !evData) { setNotFound(true); setLoading(false); return; }
+      // Use RPCs instead of direct table access
+      const { data: evArr } = await supabase.rpc("get_event_public_info", { _event_id: eventId });
+      const evData = evArr && (evArr as any[])[0];
+      if (!evData) { setNotFound(true); setLoading(false); return; }
       setEvent(evData as PartyEvent);
       companyIdRef = evData.company_id;
 
       const [companyRes, evalTmplRes, prefestTmplRes, cardapioTmplRes] = await Promise.all([
-        supabase.from("companies").select("name, logo_url, slug, settings").eq("id", companyIdRef).single(),
+        supabase.rpc("get_company_public_with_settings", { _company_id: companyIdRef }),
         supabase.from("evaluation_templates").select("id, name, slug").eq("company_id", companyIdRef).eq("is_active", true),
         (supabase as any).from("pre_festa_templates").select("id, name, slug").eq("company_id", companyIdRef).eq("is_active", true),
         supabase.from("cardapio_templates").select("id, name, slug").eq("company_id", companyIdRef).eq("is_active", true),
       ]);
 
       if (companyRes.data) {
-        const c = companyRes.data;
-        const settings = (c.settings && typeof c.settings === "object" && !Array.isArray(c.settings)) ? c.settings as Record<string, unknown> : null;
-        setCompany({ name: c.name, logo_url: c.logo_url, slug: c.slug, settings });
-        setModules(parsePartyControlModules(settings));
+        const cArr = companyRes.data as any[];
+        const c = cArr[0];
+        if (c) {
+          const settings = (c.settings && typeof c.settings === "object" && !Array.isArray(c.settings)) ? c.settings as Record<string, unknown> : null;
+          setCompany({ name: c.name, logo_url: c.logo_url, slug: c.slug, settings });
+          setModules(parsePartyControlModules(settings));
+        }
       }
 
       setEvalTemplates(evalTmplRes.data || []);
