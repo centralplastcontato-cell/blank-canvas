@@ -18,7 +18,7 @@ import {
   Send, Search, MessageSquare, Check, CheckCheck, Clock, WifiOff, RefreshCw, 
   ArrowLeft, Building2, Star, StarOff, Link2, FileText, Smile,
   Image as ImageIcon, Mic, Paperclip, Loader2, Square, X, Pause, Play,
-  Users, ArrowRightLeft, Trash2,
+  Users, ArrowRightLeft, Trash2, Eraser,
   CalendarCheck, Briefcase, FileCheck, ArrowDown, Video,
   Pencil, Copy, ChevronDown, Download, Pin, PinOff, Reply
 } from "lucide-react";
@@ -2942,6 +2942,47 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           <Button
             size="sm"
             variant="outline"
+            className="text-blue-700 border-blue-400 hover:bg-blue-100 dark:text-blue-300 dark:border-blue-600 dark:hover:bg-blue-900/30"
+            onClick={async () => {
+              if (!selectedInstance) return;
+              try {
+                const response = await supabase.functions.invoke("wapi-send", {
+                  body: {
+                    action: "restart-instance",
+                    instanceId: selectedInstance.instance_id,
+                    instanceToken: selectedInstance.instance_token,
+                  },
+                });
+                if (response.data?.restarted) {
+                  toast({
+                    title: response.data.connected ? "✅ Instância reiniciada!" : "🔄 Restart enviado",
+                    description: response.data.connected 
+                      ? "Sessão restaurada. Mensagens devem ser entregues agora."
+                      : "Restart aceito. Aguarde alguns segundos e atualize.",
+                  });
+                  fetchInstances();
+                } else {
+                  toast({
+                    title: "⚠️ Restart não disponível",
+                    description: response.data?.reason || "Tente desconectar e reconectar.",
+                    variant: "destructive",
+                  });
+                }
+              } catch {
+                toast({
+                  title: "Erro",
+                  description: "Não foi possível reiniciar. Tente em Configurações > Conexão.",
+                  variant: "destructive",
+                });
+              }
+            }}
+          >
+            <RefreshCw className="w-3 h-3 mr-1" />
+            Reiniciar
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
             className="text-amber-700 border-amber-400 hover:bg-amber-100 dark:text-amber-300 dark:border-amber-600 dark:hover:bg-amber-900/30"
             onClick={async () => {
               if (!selectedInstance) return;
@@ -2975,7 +3016,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
               }
             }}
           >
-            <RefreshCw className="w-3 h-3 mr-1" />
+            <Eraser className="w-3 h-3 mr-1" />
             Reparar
           </Button>
         </div>
