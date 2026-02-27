@@ -8,13 +8,14 @@ import { MobileMenu } from "@/components/admin/MobileMenu";
 import { NotificationBell } from "@/components/admin/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { FolderOpen, Menu, Loader2, ClipboardCheck, PartyPopper, FileSignature, UtensilsCrossed, ListChecks, FileText, Package, Users, Wrench, HardHat, ShieldAlert, CalendarClock } from "lucide-react";
+import { FolderOpen, Menu, Loader2, ClipboardCheck, PartyPopper, FileSignature, UtensilsCrossed, ListChecks, FileText, Package, Users, Wrench, HardHat, ShieldAlert, CalendarClock, LayoutTemplate } from "lucide-react";
 import { useCompany } from "@/contexts/CompanyContext";
 import { AvaliacoesContent } from "./Avaliacoes";
 import { PreFestaContent } from "./PreFesta";
 import { ContratoContent } from "./Contrato";
 import { CardapioContent } from "./Cardapio";
 import { EventStaffManager } from "@/components/agenda/EventStaffManager";
+import { ChecklistTemplateManager } from "@/components/agenda/ChecklistTemplateManager";
 import { PackagesManager } from "@/components/admin/PackagesManager";
 import { MaintenanceManager } from "@/components/agenda/MaintenanceManager";
 import { PartyMonitoringManager } from "@/components/agenda/PartyMonitoringManager";
@@ -275,6 +276,7 @@ export default function Formularios() {
                           { value: "acompanhamento", icon: ClipboardCheck, label: "Acompanhamento" },
                           { value: "presenca", icon: Users, label: "Presença" },
                           { value: "informacoes", icon: FileText, label: "Informações" },
+                          { value: "templates", icon: LayoutTemplate, label: "Templates" },
                         ].map(t => (
                           <TabsTrigger key={t.value} value={t.value} className={`gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/25 data-[state=active]:shadow-sm data-[state=inactive]:bg-muted/60 data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted data-[state=inactive]:hover:text-foreground`}>
                             <t.icon className="h-4 w-4" />
@@ -297,6 +299,9 @@ export default function Formularios() {
                     </TabsContent>
                     <TabsContent value="informacoes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
                       <EventInfoManager />
+                    </TabsContent>
+                    <TabsContent value="templates" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
+                      <ChecklistTemplateManager />
                     </TabsContent>
                   </Tabs>
                 </TabsContent>

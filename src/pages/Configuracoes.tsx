@@ -11,7 +11,7 @@ import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
 import { WhatsAppConfig } from "@/components/whatsapp/WhatsAppConfig";
 import { PartyControlConfig } from "@/components/admin/PartyControlConfig";
-import { ChecklistTemplateManager } from "@/components/agenda/ChecklistTemplateManager";
+
 import { ProfileContent } from "@/components/admin/ProfileContent";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -187,9 +187,6 @@ export default function Configuracoes() {
             {showOperacoes && (
               <TabsContent value="festa" className="mt-4 space-y-6">
                 <PartyControlConfig />
-                <div className="pt-2">
-                  <ChecklistTemplateManager />
-                </div>
               </TabsContent>
             )}
           </Tabs>
@@ -253,9 +250,6 @@ export default function Configuracoes() {
                 {showOperacoes && (
                   <TabsContent value="festa" className="mt-4 space-y-6">
                     <PartyControlConfig />
-                    <div className="pt-2">
-                      <ChecklistTemplateManager />
-                    </div>
                   </TabsContent>
                 )}
               </Tabs>
