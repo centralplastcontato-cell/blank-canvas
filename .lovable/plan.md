@@ -1,51 +1,63 @@
 
 
-## Criar Lead Manualmente pelo Chat do WhatsApp
+## Adicionar status "Outros" para classificacao de leads
 
-### O que sera feito
-Um botao "Novo Contato" na interface do chat que permite o usuario criar um lead do zero, informando nome e telefone. O contato aparecera na lista de conversas como qualquer outro, porem sem mensagens. Todas as funcionalidades ficam disponiveis: enviar mensagem, ativar bot, classificar status, etc.
+### O que muda
+Um novo status **"Outros"** sera adicionado ao enum `lead_status` no banco de dados e em todos os pontos da interface que exibem ou permitem alterar o status de um lead. Leads classificados como "Outros" **nao terao coluna propria no Kanban** -- ficarao acessiveis apenas pela tabela (lista) e pelos filtros.
 
-### Fluxo do usuario
-1. Na lista de conversas, o usuario clica no botao "+" ou "Novo Contato"
-2. Abre um dialog pedindo: **Nome** e **Telefone (WhatsApp)**
-3. Ao confirmar, o sistema:
-   - Verifica se ja existe conversa com esse telefone na instancia selecionada
-   - Cria o registro em `campaign_leads` (status "novo", campaign_id "manual")
-   - Cria o registro em `wapi_conversations` vinculado ao lead
-   - O contato aparece no topo da lista de conversas
-   - O usuario pode iniciar conversa, ativar bot, etc.
+### Onde o status aparecera
+- Dropdown de status no chat (menu de tres pontos na conversa)
+- Popover de informacoes do lead no WhatsApp
+- Select de status no card do lead (LeadCard)
+- Sheet de detalhes do lead (LeadDetailSheet)
+- Filtro de status nos filtros de leads (LeadsFilters)
+
+### Onde NAO aparecera
+- **Kanban**: nenhuma coluna nova sera criada. O array `columns` em `LeadsKanban.tsx` permanece inalterado.
 
 ### Detalhes tecnicos
 
-**Arquivo: `src/components/whatsapp/WhatsAppChat.tsx`**
+**1. Migration SQL (novo arquivo)**
+```sql
+ALTER TYPE public.lead_status ADD VALUE IF NOT EXISTS 'outros';
+```
 
-1. **Novos estados** (~linha 246):
-   - `showCreateContactDialog: boolean`
-   - `newContactName: string`
-   - `newContactPhone: string`
-   - `isCreatingContact: boolean`
+**2. `src/types/crm.ts`**
+- Adicionar `'outros'` ao tipo `LeadStatus`
+- Adicionar entrada em `LEAD_STATUS_LABELS`: `outros: 'Outros'`
+- Adicionar entrada em `LEAD_STATUS_COLORS`: `outros: 'bg-gray-500'`
 
-2. **Funcao `handleCreateContact`**:
-   - Normaliza o telefone (remove caracteres nao-numericos)
-   - Verifica duplicata: busca `wapi_conversations` pela instancia + `contact_phone`
-   - Se ja existe, mostra toast informando e seleciona a conversa existente
-   - Se nao existe:
-     - Insere em `campaign_leads` via `insertSingleWithCompany` (name, whatsapp, unit, status: "novo", campaign_id: "manual", campaign_name: "Criado Manualmente")
-     - Insere em `wapi_conversations` (instance_id, remote_jid: `{phone}@s.whatsapp.net`, contact_phone, contact_name, lead_id, company_id, bot_enabled: false)
-     - Registra em `lead_history` (action: "Lead criado manualmente")
-     - Adiciona a conversa ao estado local e a seleciona automaticamente
-   - Fecha o dialog e limpa os campos
+**3. `src/integrations/supabase/types.ts`**
+- Adicionar `"outros"` ao array `Constants.public.Enums.lead_status`
+- Adicionar `"outros"` ao tipo union `Database.public.Enums.lead_status`
 
-3. **Botao na UI** - Adicionar um botao "+" ao lado da barra de busca na lista de conversas (tanto mobile quanto desktop), que abre o dialog
+**4. `src/components/whatsapp/ConversationStatusActions.tsx`**
+- Adicionar entrada no array `STATUS_CONFIG` com valor `'outros'`, label `'Outros'`, icone `HelpCircle` (ou similar), cor cinza
+- Adicionar entrada no objeto `statusLabels` dentro de `handleStatusChange`
 
-4. **Dialog de criacao** - Um `Dialog` simples com:
-   - Input para Nome (obrigatorio, min 2 caracteres)
-   - Input para Telefone com mascara (obrigatorio, formato brasileiro)
-   - Botoes Cancelar e Criar
-   - Validacao basica antes de submeter
+**5. `src/components/whatsapp/LeadInfoPopover.tsx`**
+- Adicionar `{ value: 'outros', label: 'Outros', color: 'gray' }` ao array `statusOptions`
 
-### O que NAO muda
-- Nenhuma migration necessaria (usa tabelas existentes `campaign_leads` e `wapi_conversations`)
-- Nenhuma edge function nova
-- O contato criado funciona identicamente a qualquer outro: pode receber mensagens, ter bot ativado, ser transferido, etc.
+**6. `src/components/admin/LeadCard.tsx`**
+- O select de status ja itera sobre `LEAD_STATUS_LABELS`, entao sera automatico
+
+**7. `src/components/admin/LeadDetailSheet.tsx`**
+- O select de status ja itera sobre `LEAD_STATUS_LABELS`, entao sera automatico
+
+**8. `src/components/admin/LeadsFilters.tsx`**
+- O filtro de status ja itera sobre `LEAD_STATUS_LABELS`, entao sera automatico
+
+**9. `src/components/admin/LeadsKanban.tsx`**
+- Nenhuma alteracao. O array `columns` nao incluira `'outros'`.
+
+### Resumo de arquivos alterados
+| Arquivo | Alteracao |
+|---|---|
+| Migration SQL | `ALTER TYPE lead_status ADD VALUE 'outros'` |
+| `src/types/crm.ts` | Adicionar ao tipo, labels e cores |
+| `src/integrations/supabase/types.ts` | Adicionar ao enum e constants |
+| `ConversationStatusActions.tsx` | Nova entrada no STATUS_CONFIG |
+| `LeadInfoPopover.tsx` | Nova entrada no statusOptions |
+
+Os demais componentes (LeadCard, LeadDetailSheet, LeadsFilters, LeadsTable) ja iteram sobre `LEAD_STATUS_LABELS` e serao atualizados automaticamente.
 
