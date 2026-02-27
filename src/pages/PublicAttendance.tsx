@@ -294,15 +294,15 @@ export default function PublicAttendance() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-b from-primary/5 via-background to-background">
       {/* Header */}
-      <header className="bg-card border-b border-border sticky top-0 z-10">
-        <div className="max-w-lg mx-auto px-4 py-3">
+      <header className="bg-card/90 backdrop-blur-md border-b border-border/50 sticky top-0 z-10 shadow-sm">
+        <div className="max-w-lg mx-auto px-4 py-4">
           <div className="flex items-center gap-3">
-            {companyLogo && <img src={companyLogo} alt="" className="h-10 w-10 rounded-lg object-cover" />}
+            {companyLogo && <img src={companyLogo} alt="" className="h-11 w-11 rounded-xl object-cover ring-2 ring-primary/10 shadow-sm" />}
             <div className="min-w-0">
-              <h1 className="font-bold text-foreground truncate">{companyName || "Lista de Presença"}</h1>
-              <p className="text-xs text-muted-foreground truncate">
+              <h1 className="font-bold text-lg text-foreground truncate">{companyName || "Lista de Presença"}</h1>
+              <p className="text-xs text-primary font-medium truncate">
                 {eventTitle || "Lista de Presença"}
                 {entry.guests.length > 0 && ` · ${entry.guests.length} convidado${entry.guests.length !== 1 ? "s" : ""}`}
               </p>
@@ -311,7 +311,7 @@ export default function PublicAttendance() {
         </div>
       </header>
 
-      <div className="max-w-lg mx-auto px-4 py-4 space-y-4 pb-24">
+      <div className="max-w-lg mx-auto px-4 py-5 space-y-5 pb-24">
         {/* Finalized banner */}
         {entry.finalized_at && (
           <div className="space-y-3">
@@ -339,57 +339,61 @@ export default function PublicAttendance() {
 
         {/* Receptionist name */}
         {!entry.finalized_at && (
-          <div>
-            <Label className="mb-1.5 block text-sm font-medium">Nome da Recepcionista</Label>
-            <Input
-              placeholder="Seu nome..."
-              value={receptionistName}
-              onChange={e => setReceptionistName(e.target.value)}
-              onBlur={handleReceptionistBlur}
-              className="h-12"
-            />
-          </div>
+          <Card className="shadow-sm border-border/50">
+            <CardContent className="p-4 space-y-2">
+              <Label className="text-sm font-semibold text-foreground">Nome da Recepcionista</Label>
+              <Input
+                placeholder="Seu nome..."
+                value={receptionistName}
+                onChange={e => setReceptionistName(e.target.value)}
+                onBlur={handleReceptionistBlur}
+                className="h-12 bg-background"
+              />
+            </CardContent>
+          </Card>
         )}
 
         {/* Event selector (if not pre-linked) */}
         {!entry.finalized_at && !entry.event_id && events.length > 0 && (
-          <div>
-            <Label className="mb-1.5 block text-sm font-medium">Festa</Label>
-            <Select value={selectedEventId} onValueChange={handleEventChange}>
-              <SelectTrigger className="h-12">
-                <SelectValue placeholder="Selecione a festa..." />
-              </SelectTrigger>
-              <SelectContent>
-                {events.map(ev => (
-                  <SelectItem key={ev.id} value={ev.id}>
-                    {ev.title} — {format(new Date(ev.event_date + "T12:00:00"), "dd/MM/yyyy")}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <Card className="shadow-sm border-border/50">
+            <CardContent className="p-4 space-y-2">
+              <Label className="text-sm font-semibold text-foreground">Festa</Label>
+              <Select value={selectedEventId} onValueChange={handleEventChange}>
+                <SelectTrigger className="h-12 bg-background">
+                  <SelectValue placeholder="Selecione a festa..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {events.map(ev => (
+                    <SelectItem key={ev.id} value={ev.id}>
+                      {ev.title} — {format(new Date(ev.event_date + "T12:00:00"), "dd/MM/yyyy")}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </CardContent>
+          </Card>
         )}
 
         <Separator />
 
         {/* Age stats */}
         {ageStats && ageStats.total > 0 && (
-          <Card className="bg-muted/30">
-            <CardContent className="py-3 px-3">
-              <p className="text-xs font-semibold text-muted-foreground mb-2">Estatísticas por Faixa Etária</p>
+          <Card className="shadow-sm border-border/50 overflow-hidden">
+            <CardContent className="py-4 px-4">
+              <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Faixa Etária</p>
               <div className="grid grid-cols-3 gap-2 text-center">
                 {[
-                  { label: "Total", value: ageStats.total },
-                  { label: "0-4 anos", value: ageStats["0-4"] },
-                  { label: "5-10 anos", value: ageStats["5-10"] },
-                  { label: "11-16 anos", value: ageStats["11-16"] },
-                  { label: "17-18 anos", value: ageStats["17-18"] },
-                  { label: "18+ anos", value: ageStats["18+"] },
-                  ...(ageStats.na > 0 ? [{ label: "Sem idade", value: ageStats.na }] : []),
-                ].map((item) => (
-                  <div key={item.label} className="rounded-lg bg-background border border-border p-2">
-                    <p className="text-lg font-bold text-foreground">{item.value}</p>
-                    <p className="text-[10px] text-muted-foreground leading-tight">{item.label}</p>
+                  { label: "Total", value: ageStats.total, highlight: true },
+                  { label: "0-4", value: ageStats["0-4"] },
+                  { label: "5-10", value: ageStats["5-10"] },
+                  { label: "11-16", value: ageStats["11-16"] },
+                  { label: "17-18", value: ageStats["17-18"] },
+                  { label: "18+", value: ageStats["18+"] },
+                  ...(ageStats.na > 0 ? [{ label: "S/ idade", value: ageStats.na }] : []),
+                ].map((item: any) => (
+                  <div key={item.label} className={`rounded-xl p-2.5 ${item.highlight ? 'bg-primary/10 ring-1 ring-primary/20' : 'bg-muted/50'}`}>
+                    <p className={`text-xl font-bold ${item.highlight ? 'text-primary' : 'text-foreground'}`}>{item.value}</p>
+                    <p className="text-[10px] text-muted-foreground leading-tight font-medium">{item.label}</p>
                   </div>
                 ))}
               </div>
@@ -438,7 +442,7 @@ export default function PublicAttendance() {
               </div>
             </div>
             {entry.guests.map((guest, i) => (
-              <Card key={i} className="bg-muted/50">
+              <Card key={i} className="shadow-sm border-border/40 hover:shadow-md transition-shadow">
                 <CardContent className="py-2 px-3">
                   {!entry.finalized_at && editingGuestIdx === i && editGuest ? (
                     <div className="space-y-2">
@@ -508,88 +512,70 @@ export default function PublicAttendance() {
 
         {/* Add guest form - only when not finalized */}
         {!entry.finalized_at && (
-          <div className="space-y-3">
-            <Label className="text-sm font-semibold flex items-center gap-1.5">
-              <UserPlus className="h-4 w-4" /> Adicionar Convidado
-            </Label>
+          <Card className="shadow-sm border-border/50 border-l-4 border-l-primary/40">
+            <CardContent className="p-4 space-y-3.5">
+              <Label className="text-sm font-bold flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-primary/10">
+                  <UserPlus className="h-4 w-4 text-primary" />
+                </div>
+                Adicionar Convidado
+              </Label>
 
-            <Input
-              placeholder="Nome do convidado *"
-              value={guestName}
-              onChange={e => setGuestName(e.target.value)}
-              className="h-12"
-            />
-
-            <div className="grid grid-cols-2 gap-2">
               <Input
-                placeholder="Idade"
-                value={guestAge}
-                onChange={e => setGuestAge(e.target.value)}
-                className="h-12"
+                placeholder="Nome do convidado *"
+                value={guestName}
+                onChange={e => setGuestName(e.target.value)}
+                className="h-12 bg-background"
               />
-              <Input
-                placeholder="Telefone"
-                value={guestPhone}
-                onChange={e => setGuestPhone(e.target.value)}
-                className="h-12"
-              />
-            </div>
 
-            {/* Child only toggle */}
-            <div className="flex items-center justify-between rounded-lg border border-border p-3">
-              <div>
-                <p className="text-sm font-medium">Criança desacompanhada</p>
-                <p className="text-xs text-muted-foreground">Pais deixaram a criança na festa</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Input placeholder="Idade" value={guestAge} onChange={e => setGuestAge(e.target.value)} className="h-12 bg-background" />
+                <Input placeholder="Telefone" value={guestPhone} onChange={e => setGuestPhone(e.target.value)} className="h-12 bg-background" />
               </div>
-              <Switch checked={isChildOnly} onCheckedChange={setIsChildOnly} />
-            </div>
 
-            {isChildOnly && (
-              <div className="grid grid-cols-2 gap-2 pl-2 border-l-2 border-primary/30">
-                <Input
-                  placeholder="Nome do responsável *"
-                  value={guardianName}
-                  onChange={e => setGuardianName(e.target.value)}
-                  className="h-12"
-                />
-                <Input
-                  placeholder="Tel. responsável *"
-                  value={guardianPhone}
-                  onChange={e => setGuardianPhone(e.target.value)}
-                  className="h-12"
-                />
+              <div className="flex items-center justify-between rounded-xl border border-border/50 bg-muted/30 p-3.5">
+                <div>
+                  <p className="text-sm font-medium">Criança desacompanhada</p>
+                  <p className="text-xs text-muted-foreground">Pais deixaram a criança na festa</p>
+                </div>
+                <Switch checked={isChildOnly} onCheckedChange={setIsChildOnly} />
               </div>
-            )}
 
-            {/* Wants info toggle */}
-            <div className="flex items-center justify-between rounded-lg border border-border p-3">
-              <div>
-                <p className="text-sm font-medium">Deseja receber informações</p>
-                <p className="text-xs text-muted-foreground">Sobre o buffet e eventos</p>
+              {isChildOnly && (
+                <div className="grid grid-cols-2 gap-2 pl-3 border-l-2 border-primary/30">
+                  <Input placeholder="Nome do responsável *" value={guardianName} onChange={e => setGuardianName(e.target.value)} className="h-12 bg-background" />
+                  <Input placeholder="Tel. responsável *" value={guardianPhone} onChange={e => setGuardianPhone(e.target.value)} className="h-12 bg-background" />
+                </div>
+              )}
+
+              <div className="flex items-center justify-between rounded-xl border border-border/50 bg-muted/30 p-3.5">
+                <div>
+                  <p className="text-sm font-medium">Deseja receber informações</p>
+                  <p className="text-xs text-muted-foreground">Sobre o buffet e eventos</p>
+                </div>
+                <Switch checked={wantsInfo} onCheckedChange={setWantsInfo} />
               </div>
-              <Switch checked={wantsInfo} onCheckedChange={setWantsInfo} />
-            </div>
 
-            <Button
-              onClick={handleAddGuest}
-              disabled={saving || !guestName.trim()}
-              className="w-full h-12 gap-2"
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
-              Adicionar Convidado
-            </Button>
-          </div>
+              <Button
+                onClick={handleAddGuest}
+                disabled={saving || !guestName.trim()}
+                className="w-full h-12 gap-2 rounded-xl text-base font-semibold shadow-md"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+                Adicionar Convidado
+              </Button>
+            </CardContent>
+          </Card>
         )}
 
         {/* Finalize button */}
         {!entry.finalized_at && entry.guests.length > 0 && (
           <>
-            <Separator />
             <Button
               onClick={handleFinalize}
               disabled={saving}
               variant="default"
-              className="w-full h-14 gap-2 text-base bg-green-600 hover:bg-green-700"
+              className="w-full h-14 gap-2 text-base font-semibold rounded-xl shadow-lg bg-green-600 hover:bg-green-700"
             >
               {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5" />}
               Finalizar Lista de Presença
@@ -599,11 +585,13 @@ export default function PublicAttendance() {
       </div>
 
       {/* Fixed footer with count */}
-      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border py-3 px-4 z-10">
-        <div className="max-w-lg mx-auto flex items-center justify-center gap-2">
-          <Users className="h-5 w-5 text-primary" />
-          <span className="font-bold text-lg">{entry.guests.length}</span>
-          <span className="text-muted-foreground">convidado{entry.guests.length !== 1 ? "s" : ""} registrado{entry.guests.length !== 1 ? "s" : ""}</span>
+      <div className="fixed bottom-0 left-0 right-0 bg-card/90 backdrop-blur-md border-t border-border/50 py-3.5 px-4 z-10 shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.1)]">
+        <div className="max-w-lg mx-auto flex items-center justify-center gap-2.5">
+          <div className="p-1.5 rounded-lg bg-primary/10">
+            <Users className="h-5 w-5 text-primary" />
+          </div>
+          <span className="font-bold text-xl text-foreground">{entry.guests.length}</span>
+          <span className="text-muted-foreground font-medium">convidado{entry.guests.length !== 1 ? "s" : ""}</span>
         </div>
       </div>
     </div>
