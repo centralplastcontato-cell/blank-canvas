@@ -1,36 +1,61 @@
 
-## Atualizar o Guia de Inteligencia
 
-O guia atual cobre apenas Score, Temperatura, Cards de Prioridade, Funil e Alertas. Faltam secoes importantes sobre as abas e funcionalidades adicionadas desde sua criacao.
+## Melhorar NotificationBell com abas por tipo
 
-### O que esta faltando
+Adicionar abas no popover do sino para organizar as notificacoes por categoria, alem de adicionar icones especificos para todos os 10 tipos.
 
-1. **Resumo do Dia** -- aba principal com metricas diarias, timeline de eventos, insights da IA e contexto personalizavel
-2. **Follow-ups** -- Kanban de 4 colunas com delays dinamicos por unidade
-3. **Leads do Dia** -- lista de leads criados hoje com score e acoes rapidas
-4. **Resumo IA por lead** -- botao "Resumo IA" em cada lead que gera resumo, proxima acao e mensagem sugerida via gpt-4o-mini
-5. **Contexto da IA** -- campo editavel pelo admin para personalizar os insights com dados do buffet (ticket medio, unidades, etc.)
-
-### O que sera feito
-
-Atualizar o conteudo do Dialog em `src/pages/Inteligencia.tsx` (linhas 268-349) para incluir todas as secoes, reorganizando na ordem das abas:
+### Layout proposto
 
 ```text
-1. Score (0-100)          -- manter como esta
-2. Temperatura            -- manter como esta
-3. Resumo do Dia (NOVO)   -- metricas, timeline, insights IA, contexto personalizavel, selecao de periodo
-4. Prioridades            -- renomear de "Cards de Prioridade", manter conteudo
-5. Follow-ups (NOVO)      -- Kanban 4 colunas, delays dinamicos, botao WhatsApp
-6. Funil de Conversao     -- manter como esta
-7. Leads do Dia (NOVO)    -- leads criados hoje, exportacao
-8. Resumo IA (NOVO)       -- resumo individual por lead, proxima acao, mensagem sugerida, copiar
-9. Alertas em Tempo Real  -- manter como esta
++-----------------------------------------------+
+|  Notificacoes                    Marcar lidas  |
++-----------------------------------------------+
+| Todos | Visitas | Clientes | Transf. | Outros |
++-----------------------------------------------+
+|  [lista filtrada pela aba selecionada]         |
++-----------------------------------------------+
 ```
+
+### Abas
+
+| Aba | Tipos incluidos | Icone |
+|---|---|---|
+| Todos | todos os tipos | -- |
+| Visitas | `visit_scheduled` | CalendarCheck |
+| Clientes | `existing_client` | Crown |
+| Transferencias | `lead_transfer`, `lead_assigned` | ArrowRightLeft |
+| Outros | `lead_questions`, `lead_analyzing`, `follow_up_sent`, `lead_lost`, `stale_reminded`, `lead_risk` | Bell |
+
+Cada aba mostra o contador de nao-lidas daquele grupo (badge pequeno no tab).
+
+### Icones especificos para todos os tipos
+
+Atualizar o `getNotificationIcon` para cobrir todos os 10 tipos:
+
+| Tipo | Icone | Cor |
+|---|---|---|
+| `lead_transfer` | ArrowRightLeft | primary |
+| `lead_assigned` | UserPlus | green |
+| `existing_client` | Crown | amber |
+| `visit_scheduled` | CalendarCheck | blue |
+| `lead_questions` | MessageCircle | orange |
+| `lead_analyzing` | Search | purple |
+| `follow_up_sent` | Send | teal |
+| `lead_lost` | UserX | red |
+| `stale_reminded` | Clock | gray |
+| `lead_risk` | AlertTriangle | red |
 
 ### Detalhes tecnicos
 
-**Arquivo editado:** `src/pages/Inteligencia.tsx` (somente o conteudo dentro do `<DialogContent>`, linhas 268-349)
+**Arquivo editado:** `src/components/admin/NotificationBell.tsx`
 
-Nenhum arquivo novo, nenhuma dependencia adicional. Apenas atualizacao de texto e adicao de novos blocos de JSX seguindo o mesmo padrao visual (icone + titulo + descricao) ja utilizado nas secoes existentes.
+- Adicionar estado `activeTab` (default "todos")
+- Usar componente `Tabs`/`TabsList`/`TabsTrigger` do shadcn (ja existe em `src/components/ui/tabs.tsx`)
+- Filtrar `notifications` pelo tab ativo antes de renderizar a lista
+- Calcular contadores por grupo para os badges das abas
+- Importar icones adicionais do lucide-react: `MessageCircle`, `Search`, `Send`, `UserX`, `Clock`, `AlertTriangle`
+- As abas usam scroll horizontal no mobile para caber na tela
+- O badge de cada aba so aparece se houver nao-lidas naquele grupo
 
-Icones adicionais que ja estao importados no arquivo: `BarChart3`, `Clock`, `MessageCircle`, `Sparkles`, `Brain`.
+Nenhum arquivo novo, nenhuma dependencia adicional.
+
