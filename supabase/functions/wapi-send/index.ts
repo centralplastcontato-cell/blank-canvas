@@ -1654,6 +1654,147 @@ Deno.serve(async (req) => {
         });
       }
 
+      case 'repair-session': {
+        // Repair a degraded instance by trying to extract phone from alternative endpoints
+        // or accepting a manual phone number from the user
+        const { manualPhone } = body;
+        
+        console.log(`[repair-session] Attempting repair for instance ${instance_id}, manualPhone=${manualPhone || 'none'}`);
+
+        let extractedPhone: string | null = null;
+        let source = 'none';
+
+        // If manual phone provided, validate and use it
+        if (manualPhone) {
+          const cleaned = String(manualPhone).replace(/\D/g, '');
+          if (cleaned.length >= 11 && cleaned.length <= 13) {
+            extractedPhone = cleaned;
+            source = 'manual';
+            console.log(`[repair-session] Using manual phone: ${extractedPhone}`);
+          } else {
+            console.warn(`[repair-session] Invalid manual phone format: ${manualPhone}`);
+            return new Response(JSON.stringify({ 
+              repaired: false, 
+              reason: 'Formato inválido. Use o número completo com DDI+DDD (ex: 5534991234567).' 
+            }), {
+              status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        }
+
+        // If no manual phone, try alternative endpoints
+        if (!extractedPhone) {
+          const safeFetch = async (url: string) => {
+            try {
+              const controller = new AbortController();
+              const timeout = setTimeout(() => controller.abort(), 8000);
+              const res = await fetch(url, {
+                headers: { 'Authorization': `Bearer ${instance_token}` },
+                signal: controller.signal,
+              });
+              clearTimeout(timeout);
+              return res;
+            } catch {
+              return null;
+            }
+          };
+
+          // Try /instance/me (sometimes available on LITE)
+          const meRes = await safeFetch(`${WAPI_BASE_URL}/instance/me?instanceId=${instance_id}`);
+          if (meRes?.ok) {
+            try {
+              const meData = await meRes.json();
+              console.log(`[repair-session] /instance/me data:`, JSON.stringify(meData).substring(0, 300));
+              extractedPhone = meData.id?.split('@')[0] || meData.phone || meData.phoneNumber || meData.wid?.user || null;
+              if (extractedPhone) source = 'auto:me';
+            } catch {}
+          }
+
+          // Try /instance/qr-code for phone field
+          if (!extractedPhone) {
+            const qrRes = await safeFetch(`${WAPI_BASE_URL}/instance/qr-code?instanceId=${instance_id}`);
+            if (qrRes?.ok) {
+              try {
+                const qrData = await qrRes.json();
+                console.log(`[repair-session] /instance/qr-code data:`, JSON.stringify(qrData).substring(0, 300));
+                extractedPhone = qrData.phone || qrData.phoneNumber || qrData.me?.id?.split('@')[0] || null;
+                if (extractedPhone) source = 'auto:qr';
+              } catch {}
+            }
+          }
+
+          // Try /instance/status
+          if (!extractedPhone) {
+            const statusRes = await safeFetch(`${WAPI_BASE_URL}/instance/status?instanceId=${instance_id}`);
+            if (statusRes?.ok) {
+              try {
+                const statusData = await statusRes.json();
+                console.log(`[repair-session] /instance/status data:`, JSON.stringify(statusData).substring(0, 300));
+                extractedPhone = statusData.me?.id?.split('@')[0] || statusData.phoneNumber || statusData.phone || null;
+                if (extractedPhone) source = 'auto:status';
+              } catch {}
+            }
+          }
+
+          // Try /instance/profile
+          if (!extractedPhone) {
+            const profileRes = await safeFetch(`${WAPI_BASE_URL}/instance/profile?instanceId=${instance_id}`);
+            if (profileRes?.ok) {
+              try {
+                const profileData = await profileRes.json();
+                console.log(`[repair-session] /instance/profile data:`, JSON.stringify(profileData).substring(0, 300));
+                extractedPhone = profileData.id?.split('@')[0] || profileData.phone || profileData.wid?.user || null;
+                if (extractedPhone) source = 'auto:profile';
+              } catch {}
+            }
+          }
+        }
+
+        if (extractedPhone) {
+          // Clean the phone number
+          const cleanPhone = extractedPhone.replace(/\D/g, '');
+          
+          // Update DB: set status to connected and fill phone_number
+          const { error: updateError } = await supabase
+            .from('wapi_instances')
+            .update({ 
+              status: 'connected', 
+              phone_number: cleanPhone,
+              connected_at: new Date().toISOString(),
+            })
+            .eq('instance_id', instance_id);
+
+          if (updateError) {
+            console.error(`[repair-session] DB update failed:`, updateError);
+            return new Response(JSON.stringify({ 
+              repaired: false, 
+              reason: 'Erro ao atualizar banco de dados.' 
+            }), {
+              status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+
+          console.log(`[repair-session] SUCCESS for ${instance_id}, phone=${cleanPhone}, source=${source}`);
+          return new Response(JSON.stringify({ 
+            repaired: true, 
+            phoneNumber: cleanPhone,
+            source,
+          }), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        // Could not extract phone automatically
+        console.log(`[repair-session] FAILED for ${instance_id}, no phone found from any endpoint`);
+        return new Response(JSON.stringify({ 
+          repaired: false, 
+          reason: 'Não foi possível extrair o número automaticamente. Informe o número manualmente (visível no painel W-API).',
+          needsManualPhone: true,
+        }), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       case 'send-reaction': {
         const { messageId: reactionMsgId, emoji } = body;
         

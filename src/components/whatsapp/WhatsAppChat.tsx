@@ -15,7 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { 
-  Send, Search, MessageSquare, Check, CheckCheck, Clock, WifiOff, 
+  Send, Search, MessageSquare, Check, CheckCheck, Clock, WifiOff, RefreshCw, 
   ArrowLeft, Building2, Star, StarOff, Link2, FileText, Smile,
   Image as ImageIcon, Mic, Paperclip, Loader2, Square, X, Pause, Play,
   Users, ArrowRightLeft, Trash2,
@@ -2863,8 +2863,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     );
   }
 
-  const connectedInstances = instances.filter(i => i.status === 'connected');
-  const hasDisconnectedInstances = instances.some(i => i.status !== 'connected');
+  const connectedInstances = instances.filter(i => i.status === 'connected' || i.status === 'degraded');
+  const hasDisconnectedInstances = instances.some(i => i.status !== 'connected' && i.status !== 'degraded');
 
   if (connectedInstances.length === 0) {
     return (
@@ -2904,12 +2904,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                   <TabsTrigger 
                     key={instance.id} 
                     value={instance.id}
-                    disabled={instance.status !== 'connected'}
+                    disabled={instance.status !== 'connected' && instance.status !== 'degraded'}
                     className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                   >
                     <Building2 className="w-4 h-4" />
                     {instance.unit}
-                    {instance.status !== 'connected' && (
+                    {instance.status === 'degraded' && (
+                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                    )}
+                    {instance.status !== 'connected' && instance.status !== 'degraded' && (
                       <WifiOff className="w-3 h-3 text-destructive" />
                     )}
                   </TabsTrigger>
@@ -2923,15 +2926,63 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       )}
 
       {/* Disconnected warning - Premium styled */}
-      {hasDisconnectedInstances && selectedInstance?.status !== 'connected' && (
+      {hasDisconnectedInstances && selectedInstance?.status !== 'connected' && selectedInstance?.status !== 'degraded' && (
         <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-3 mb-3 text-sm text-center shrink-0 shadow-sm backdrop-blur-sm">
           <WifiOff className="w-4 h-4 inline mr-2" />
           Esta unidade está desconectada. Selecione outra ou aguarde o administrador.
         </div>
       )}
 
+      {/* Degraded session banner */}
+      {selectedInstance?.status === 'degraded' && (
+        <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-700 rounded-xl p-3 mb-3 text-sm text-center shrink-0 shadow-sm backdrop-blur-sm flex items-center justify-center gap-3 flex-wrap">
+          <span className="text-amber-800 dark:text-amber-200">
+            ⚠️ Sessão incompleta — mensagens não serão entregues
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-amber-700 border-amber-400 hover:bg-amber-100 dark:text-amber-300 dark:border-amber-600 dark:hover:bg-amber-900/30"
+            onClick={async () => {
+              if (!selectedInstance) return;
+              try {
+                const response = await supabase.functions.invoke("wapi-send", {
+                  body: {
+                    action: "repair-session",
+                    instanceId: selectedInstance.instance_id,
+                    instanceToken: selectedInstance.instance_token,
+                  },
+                });
+                if (response.data?.repaired) {
+                  toast({
+                    title: "✅ Sessão reparada!",
+                    description: `Número ${response.data.phoneNumber} vinculado. Envios desbloqueados.`,
+                  });
+                  fetchInstances();
+                } else {
+                  toast({
+                    title: "⚠️ Reparo manual necessário",
+                    description: response.data?.reason || "Vá em Configurações > Conexão e use 'Reparar Sessão'.",
+                    variant: "destructive",
+                  });
+                }
+              } catch {
+                toast({
+                  title: "Erro",
+                  description: "Não foi possível reparar. Tente em Configurações > Conexão.",
+                  variant: "destructive",
+                });
+              }
+            }}
+          >
+            <RefreshCw className="w-3 h-3 mr-1" />
+            Reparar
+          </Button>
+        </div>
+      )}
+
       {/* Chat Area - Premium Container */}
-      {selectedInstance?.status === 'connected' && (
+      {(selectedInstance?.status === 'connected' || selectedInstance?.status === 'degraded') && (
         <div className="flex flex-1 border-0 md:border border-border/60 rounded-none md:rounded-xl overflow-hidden bg-gradient-to-br from-card via-card to-muted/20 min-h-0 md:shadow-lg">
           {/* Mobile: Show full width list or chat */}
           <div className={cn(
