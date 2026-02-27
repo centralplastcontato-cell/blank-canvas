@@ -957,6 +957,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     } else {
       setLinkedLead(null);
     }
+    // Track current conversation ID to prevent unnecessary resets
+    prevConversationIdRef.current = selectedConversation?.id || null;
   }, [selectedConversation?.id]);
 
   // Scroll to bottom - only on initial load or new messages from me
