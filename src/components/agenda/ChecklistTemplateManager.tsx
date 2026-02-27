@@ -10,6 +10,52 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Plus, Trash2, Pencil, ListChecks, X, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const PRESET_CHECKLISTS: Record<string, string[]> = {
+  "Festa Infantil": [
+    "Contrato assinado",
+    "Pagamento confirmado",
+    "Decoração definida",
+    "Tema da festa confirmado",
+    "Bolo encomendado",
+    "Cardápio definido",
+    "Lista de convidados recebida",
+    "Equipe escalada",
+    "Brinquedos/recreação confirmados",
+    "Fotógrafo confirmado",
+    "Lembrancinhas prontas",
+    "Conferência final do espaço",
+    "Som/iluminação verificados",
+  ],
+  "Debutante": [
+    "Contrato assinado",
+    "Pagamento confirmado",
+    "Decoração definida",
+    "Cerimonial confirmado",
+    "DJ / banda confirmados",
+    "Buffet confirmado",
+    "Fotógrafo e vídeo confirmados",
+    "Vestido da debutante ok",
+    "Coreografia ensaiada",
+    "Lista de convidados finalizada",
+    "Convites enviados",
+    "Bolo encomendado",
+    "Equipe escalada",
+    "Conferência final do espaço",
+  ],
+  "Corporativo": [
+    "Contrato assinado",
+    "Pagamento confirmado",
+    "Espaço reservado",
+    "Equipamento audiovisual confirmado",
+    "Catering/coffee break definido",
+    "Equipe escalada",
+    "Recepção/credenciamento organizado",
+    "Material de apoio preparado",
+    "Conferência final do espaço",
+  ],
+};
 
 interface Template {
   id: string;
@@ -177,6 +223,28 @@ export function ChecklistTemplateManager() {
               <Label>Nome do template</Label>
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Festa Infantil" />
             </div>
+
+            {!editing && (
+              <div>
+                <Label>Carregar modelo pronto</Label>
+                <Select onValueChange={(v) => {
+                  const preset = PRESET_CHECKLISTS[v];
+                  if (preset) {
+                    setItems([...preset]);
+                    if (!name.trim()) setName(v);
+                  }
+                }}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="Selecione um modelo..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.keys(PRESET_CHECKLISTS).map((key) => (
+                      <SelectItem key={key} value={key}>{key} ({PRESET_CHECKLISTS[key].length} itens)</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div>
               <Label>Itens do checklist ({items.length})</Label>
