@@ -1,77 +1,87 @@
 
-Objetivo: investigar por que a mensagem aparece na plataforma, mas no WhatsApp fica como “Aguardando mensagem”.
+Objetivo imediato
+- Eliminar o falso cenário de “enviado na plataforma” quando a sessão da instância está incompleta no provedor, e impedir novos envios enquanto o WhatsApp estiver no estado que gera “Aguardando mensagem”.
 
-Diagnóstico que encontrei (com evidências)
+Diagnóstico confirmado agora (com evidências recentes)
+1) A instância problemática continua em sessão incompleta após reconexão
+- `wapi-send get-status` segue retornando `degraded` + `SESSION_INCOMPLETE`.
+- Logs mostram repetidamente: “QR says connected but NO phone number”.
+- No banco, a instância `LITE-4IW93E-MGVYDW` está `status=connected`, porém `phone_number = null`.
 
-1) O bot está processando e tentando enviar normalmente
-- Logs do `wapi-webhook` mostram envio real:
-  - `[Bot] Sending message to 5515981121710 via instance LITE-4IW93E-MGVYDW`
-  - `[Bot] send-text response: msgId=CSOVIF3H7VRGU1OO1Y9X0W, attempt=phone+message`
-- No banco, a mensagem foi persistida em `wapi_messages` com `from_me=true` e `status='sent'` para a conversa do número `5515981121710`.
+2) O envio continua ocorrendo mesmo nesse estado degradado
+- `send-text` retorna `messageId` (ex.: `KPGJ...`, `GOJN...`) e a UI trata como sucesso.
+- Esses IDs permanecem em `wapi_messages.status = 'sent'`, sem evolução para `delivered/read`.
 
-2) O problema não está no match do número de teste
-- O número `15981121710` está sendo reconhecido no sandbox em logs recentes.
-- A normalização de telefone com/sem 9º dígito está ativa no código (`isSameTestPhone`).
+3) Há eventos webhook não roteados que podem conter sinal útil de estado
+- Logs recorrentes: `Unhandled event: undefined` com body keys `[instanceId, connectedPhone, connectedLid, chat, status, moment]`.
+- Hoje esses eventos são descartados (“Unroutable”), reduzindo nossa observabilidade.
 
-3) Há inconsistência de configuração ativa do bot no banco
-- Em `wapi_bot_settings` da instância `LITE-4IW93E-MGVYDW`:
-  - `bot_enabled = false`
-  - `test_mode_enabled = true`
-  - `test_mode_number = 15981121710`
-- Isso contradiz “desativei teste e ativei global”, indicando possível falha de persistência no salvamento da tela de automações (ou alteração não salva/aplicada).
+4) Há inconsistência de estado operacional
+- A camada de status detecta sessão incompleta, mas a camada de envio não bloqueia.
+- Resultado: usuário continua vendo “enviado” no sistema, e no WhatsApp fica “Aguardando mensagem”.
 
-4) A instância problemática está com sinais de instabilidade do provedor
-- `wapi-send get-status` para `LITE-4IW93E-MGVYDW` retornou:
-  - `status: degraded`
-  - `errorType: TIMEOUT_OR_GATEWAY`
-- Logs mostram:
-  - timeouts/abort (`The signal has been aborted`)
-  - mistura de `404` + timeout nos endpoints de status
-- Para a instância boa (`LITE-I2660D-A8QLPN`), o mesmo número recebeu mensagens com status `delivered/read` no banco.
+Plano de implementação (próxima execução aprovada)
 
-5) O sintoma “Aguardando mensagem” no WhatsApp é típico de camada de entrega/criptografia
-- Esse aviso aparece quando o WhatsApp não consegue decodificar/baixar a mensagem naquele momento (problema de sessão/chave/estado da conexão do lado WhatsApp/provedor), não por erro de renderização do nosso chat.
+Fase 1 — Bloqueio de envio em sessão incompleta (prioridade máxima)
+1. Adicionar preflight obrigatório no `wapi-send` para ações de envio (`send-text`, `send-image`, `send-audio`, `send-video`, `send-document`, etc.):
+   - Antes de enviar, validar “saúde da sessão” da instância.
+   - Se `SESSION_INCOMPLETE` ou `degraded/TIMEOUT_OR_GATEWAY`, retornar erro explícito para frontend (sem “success: true”).
 
-Do I know what the issue is?
-Sim. O problema principal está no estado da instância/provedor (degradação de comunicação e/ou sessão inconsistente), com um problema secundário de configuração não refletida no banco (`test_mode_enabled` ainda true, `bot_enabled` false). Não há evidência de falha no matching do número de teste neste momento.
+2. Fortalecer regra de “conectado válido”:
+   - Considerar conectado somente com sinal mínimo forte (ex.: `phoneNumber`/`me.id` presente).
+   - Se conectado sem telefone, tratar como `SESSION_INCOMPLETE` em todo caminho, não só no endpoint de status.
 
-Plano de correção (implementação proposta)
+3. Evitar gravação enganosa como `sent` quando envio não está saudável:
+   - Se preflight falhar, persistir mensagem como `failed` com motivo técnico (ex.: `SESSION_INCOMPLETE`) em vez de `sent`.
 
-Fase 1 — Evitar “falso conectado/falso enviado” (backend resiliente)
-1. Ajustar `wapi-send` (`get-status`) para NÃO considerar “connected” apenas por fallback de QR com resposta parcial.
-2. Exigir sinais mínimos de sessão válida para “connected” (ex.: `me.id`/`wid.user`/state confiável), senão retornar `degraded`.
-3. Em `sendTextWithFallback` e `sendTextViaWapiWithFallback`, validar payload de sucesso de forma mais rígida:
-   - status HTTP + ausência de erro + presença de identificadores consistentes.
-4. Se instância estiver `degraded`, retornar erro explícito para UI (não marcar como enviado normal).
+Fase 2 — Correção de estado falso de conexão no webhook
+4. Ajustar `wapi-webhook` no handler de conexão:
+   - Não gravar `wapi_instances.status='connected'` quando `connectedPhone` estiver ausente.
+   - Nessa condição, marcar `status='degraded'` (ou manter anterior + flag) e salvar motivo de sessão incompleta.
+   - Isso evita a tela exibir “Online” quando a sessão não está pronta para entrega real.
 
-Fase 2 — Observabilidade para fechar causa raiz com precisão
-5. Logar (sanitizado) o corpo de resposta da W-API por tentativa quando envio falhar ou vier sem confirmação robusta.
-6. Logar mapeamento de status webhook por `messageId` para detectar divergência entre ID de envio e ID de delivery.
+5. Tratar eventos “sem event” com shape de status:
+   - Roteamento adicional para payloads com `{ chat, status, moment }` mesmo sem `messageId`.
+   - Ao menos registrar telemetria estruturada por instância/conversa para diagnóstico.
 
-Fase 3 — Consistência de configuração do bot
-7. Auditar fluxo de salvamento de `AutomationsSection` para garantir persistência real de:
-   - `test_mode_enabled`
-   - `test_mode_number`
-   - `bot_enabled`
-8. Adicionar feedback visual de “salvo no banco” com leitura de volta (read-after-write) para evitar “liguei/desliguei mas não aplicou”.
+Fase 3 — UX/Produto para evitar nova frustração
+6. `WhatsAppChat`:
+   - Quando backend retornar `SESSION_INCOMPLETE`, mostrar toast claro (“Instância conectada sem sessão válida. Reconecte por código de pareamento/telefone.”).
+   - Não deixar a bolha otimista finalizar como “sent”; manter como erro com opção “tentar novamente”.
 
-Fase 4 — Playbook de recuperação da instância Aventura
-9. Criar rotina guiada de recuperação (sem apagar histórico):
-   - revalidar webhook,
-   - forçar refresh de status,
-   - se continuar `degraded`, ciclo controlado de desconectar/reconectar.
-10. Enquanto `degraded`, exibir alerta no painel para impedir diagnóstico confuso (“mensagem aparece no sistema, mas não entrega”).
+7. `ConnectionSection`:
+   - Unificar tratamento de `SESSION_INCOMPLETE` em todos os fluxos (refresh individual e sync geral), não apenas timeout.
+   - Exibir estado visual explícito (ex.: “Sessão incompleta”) no card da instância.
 
-Validação após implementação
-- Teste 1: enviar para `15981121710` com instância Aventura e confirmar evolução de status (`sent -> delivered/read`) no banco.
-- Teste 2: comparar com envio direto no painel W-API (que você ainda não testou) para separar problema de plataforma vs sessão do provedor.
-- Teste 3: confirmar que alternar “modo teste/global” altera de fato os campos no banco imediatamente.
+Fase 4 — Observabilidade e validação final
+8. Log estruturado por tentativa de envio:
+   - `instance_id`, `attempt`, `messageId`, `sessionHealth`, `blockedReason`.
+9. Log de transição de status por mensagem:
+   - Quando `message_id` ficar preso em `sent` por janela definida, registrar alerta operacional.
+10. Validação end-to-end pós-implementação:
+   - Enviar teste para `15981121710` com instância Aventura.
+   - Critério de sucesso: evolução para `delivered/read` ou bloqueio explícito antes do envio (sem falso “sent”).
+   - Conferir que UI não mostra “enviado” quando a sessão estiver incompleta.
 
-Arquivos alvo previstos
-- `supabase/functions/wapi-send/index.ts` (status e validação de envio)
-- `supabase/functions/wapi-webhook/index.ts` (validação e logs de envio/status)
-- `src/components/whatsapp/settings/AutomationsSection.tsx` (persistência e confirmação visual de config)
+Arquivos-alvo da implementação
+- `supabase/functions/wapi-send/index.ts`
+  - Preflight de saúde por ação de envio
+  - Regras mais rígidas de sessão válida
+  - Persistência de falha com motivo técnico
+- `supabase/functions/wapi-webhook/index.ts`
+  - Correção de status “connected” sem telefone
+  - Roteamento/telemetria para eventos sem `event` com `status/chat/moment`
+- `src/components/whatsapp/WhatsAppChat.tsx`
+  - Tratamento de erro `SESSION_INCOMPLETE` no envio otimista
+- `src/components/whatsapp/settings/ConnectionSection.tsx`
+  - Tratamento e sinalização consistente de `SESSION_INCOMPLETE`
 
 Risco e impacto
-- Baixo risco estrutural (sem mudanças de schema).
-- Alto ganho de confiabilidade operacional: reduz falsos positivos de envio e acelera diagnóstico quando o provedor degrada.
+- Risco técnico: baixo/médio (sem mudança de schema obrigatória).
+- Impacto: alto em confiabilidade e transparência operacional.
+- Benefício principal: para de “mascarar” falha de entrega como sucesso, que é exatamente a dor atual.
+
+Resultado esperado para você (prático)
+- Se a sessão estiver quebrada, o sistema vai te avisar claramente e bloquear envio (em vez de “fingir que enviou”).
+- Se a sessão estiver boa, as mensagens voltarão a evoluir para `delivered/read`.
+- Isso encerra o ciclo frustrante de “aparece no chat da plataforma, mas no WhatsApp fica aguardando”.
