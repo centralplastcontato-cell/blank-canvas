@@ -1795,6 +1795,118 @@ Deno.serve(async (req) => {
         });
       }
 
+      case 'restart-instance': {
+        // Restart the W-API instance to refresh the cryptographic session
+        // This fixes "Aguardando mensagem" caused by stale E2E encryption keys
+        console.log(`[restart-instance] Attempting restart for instance ${instance_id}`);
+
+        const restartEndpoints = [
+          { url: `${WAPI_BASE_URL}/instance/restart?instanceId=${instance_id}`, method: 'POST' },
+          { url: `${WAPI_BASE_URL}/instance/restart?instanceId=${instance_id}`, method: 'PUT' },
+          { url: `${WAPI_BASE_URL}/instance/reboot?instanceId=${instance_id}`, method: 'POST' },
+          { url: `${WAPI_BASE_URL}/instance/reboot?instanceId=${instance_id}`, method: 'GET' },
+          { url: `${WAPI_BASE_URL}/instance/restart?instanceId=${instance_id}`, method: 'GET' },
+        ];
+
+        let restartSuccess = false;
+        let restartEndpointUsed = '';
+
+        for (const ep of restartEndpoints) {
+          try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 10000);
+            const res = await fetch(ep.url, {
+              method: ep.method,
+              headers: {
+                'Authorization': `Bearer ${instance_token}`,
+                'Content-Type': 'application/json',
+              },
+              signal: controller.signal,
+            });
+            clearTimeout(timeout);
+
+            const contentType = res.headers.get('content-type');
+            let resBody = '';
+            if (contentType?.includes('application/json')) {
+              const json = await res.json();
+              resBody = JSON.stringify(json).substring(0, 300);
+            } else {
+              resBody = await res.text().then(t => t.substring(0, 200));
+            }
+
+            console.log(`[restart-instance] ${ep.method} ${ep.url.split('?')[0].split('/').pop()} => status=${res.status}, body=${resBody}`);
+
+            if (res.ok) {
+              restartSuccess = true;
+              restartEndpointUsed = `${ep.method} ${ep.url.split('?')[0].split('/').pop()}`;
+              break;
+            }
+          } catch (e) {
+            console.warn(`[restart-instance] ${ep.method} ${ep.url.split('?')[0].split('/').pop()} failed:`, e instanceof Error ? e.message : e);
+          }
+        }
+
+        if (restartSuccess) {
+          console.log(`[restart-instance] SUCCESS via ${restartEndpointUsed}. Waiting 3s before verifying...`);
+          
+          // Wait 3 seconds for the instance to restart
+          await new Promise(resolve => setTimeout(resolve, 3000));
+
+          // Verify status after restart
+          let verifiedConnected = false;
+          let verifiedPhone: string | null = null;
+
+          try {
+            const verifyRes = await fetch(`${WAPI_BASE_URL}/instance/qr-code?instanceId=${instance_id}`, {
+              headers: { 'Authorization': `Bearer ${instance_token}` },
+            });
+            if (verifyRes.ok) {
+              const verifyData = await verifyRes.json();
+              console.log(`[restart-instance] Post-restart verify:`, JSON.stringify(verifyData).substring(0, 300));
+              verifiedConnected = verifyData.connected === true;
+              verifiedPhone = verifyData.phone || verifyData.phoneNumber || verifyData.me?.id?.split('@')[0] || null;
+            }
+          } catch (e) {
+            console.warn(`[restart-instance] Post-restart verify failed:`, e);
+          }
+
+          // Update DB
+          if (verifiedConnected) {
+            const updateData: Record<string, unknown> = { 
+              status: 'connected', 
+              connected_at: new Date().toISOString() 
+            };
+            if (verifiedPhone) {
+              updateData.phone_number = verifiedPhone.replace(/\D/g, '');
+            }
+            await supabase
+              .from('wapi_instances')
+              .update(updateData)
+              .eq('instance_id', instance_id);
+          }
+
+          return new Response(JSON.stringify({ 
+            success: true, 
+            restarted: true,
+            connected: verifiedConnected,
+            phoneNumber: verifiedPhone,
+            endpoint: restartEndpointUsed,
+          }), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        // All restart endpoints failed
+        console.log(`[restart-instance] FAILED for ${instance_id}, no endpoint worked`);
+        return new Response(JSON.stringify({ 
+          success: false, 
+          restarted: false,
+          reason: 'Nenhum endpoint de restart respondeu. Desconecte e reconecte a instância manualmente.',
+        }), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       case 'send-reaction': {
         const { messageId: reactionMsgId, emoji } = body;
         

@@ -957,6 +957,47 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
     return () => clearInterval(interval);
   }, [qrDialogOpen, qrInstance, qrPolling, connectionMode, fetchQrCode]);
 
+  // === Restart Instance Handler ===
+  const [isRestarting, setIsRestarting] = useState<string | null>(null);
+
+  const handleRestartInstance = async (instance: WapiInstance) => {
+    setIsRestarting(instance.id);
+    try {
+      const response = await supabase.functions.invoke("wapi-send", {
+        body: {
+          action: "restart-instance",
+          instanceId: instance.instance_id,
+          instanceToken: instance.instance_token,
+        },
+      });
+
+      if (response.error) throw new Error(response.error.message);
+
+      if (response.data?.restarted) {
+        toast({
+          title: response.data.connected ? "✅ Instância reiniciada!" : "🔄 Restart enviado",
+          description: response.data.connected 
+            ? "Sessão restaurada. As mensagens devem ser entregues normalmente agora."
+            : "O restart foi aceito pelo provedor. Aguarde alguns segundos e atualize o status.",
+        });
+        await fetchInstances();
+      } else {
+        toast({
+          title: "⚠️ Restart não disponível",
+          description: response.data?.reason || "Desconecte e reconecte a instância manualmente.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao reiniciar instância.",
+        variant: "destructive",
+      });
+    }
+    setIsRestarting(null);
+  };
+
   // === Repair Session Handler ===
   const handleRepairSession = async (instance: WapiInstance, manualPhone?: string) => {
     setIsRepairing(instance.id);
@@ -1523,6 +1564,23 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                       </div>
                       
                       <div className="flex items-center gap-2 sm:shrink-0 flex-wrap">
+                        {/* Restart button for connected/degraded instances */}
+                        {(instance.status === 'connected' || instance.status === 'degraded') && (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleRestartInstance(instance)}
+                            disabled={isRestarting === instance.id}
+                            className="text-blue-600 border-blue-300 hover:bg-blue-50 dark:text-blue-400 dark:border-blue-700 dark:hover:bg-blue-950/20"
+                          >
+                            {isRestarting === instance.id ? (
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                              <RefreshCw className="w-4 h-4 mr-2" />
+                            )}
+                            Reiniciar
+                          </Button>
+                        )}
                         {/* Repair button for degraded instances */}
                         {(instance.status === 'degraded' || ((instance as any)._degradedType === 'SESSION_INCOMPLETE')) && (
                           <Button 
@@ -1535,7 +1593,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                             {isRepairing === instance.id ? (
                               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                             ) : (
-                              <RefreshCw className="w-4 h-4 mr-2" />
+                              <Eraser className="w-4 h-4 mr-2" />
                             )}
                             Reparar Sessão
                           </Button>
