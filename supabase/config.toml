@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.migrate-aventura-images]
 verify_jwt = false
+
+[functions.rescue-orphan-leads]
+verify_jwt = false

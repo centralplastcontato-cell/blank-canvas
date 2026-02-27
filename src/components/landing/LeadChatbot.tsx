@@ -47,12 +47,13 @@ interface LeadChatbotProps {
   companyLogo?: string | null;
   companyWhatsApp?: string;
   lpBotConfig?: LPBotConfig | null;
+  unitOptions?: string[];
 }
 
 // Default month options (all months from current month forward)
 const DEFAULT_MONTH_OPTIONS = ["Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
-export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLogo, companyWhatsApp, lpBotConfig }: LeadChatbotProps) {
+export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLogo, companyWhatsApp, lpBotConfig, unitOptions }: LeadChatbotProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
   const [leadData, setLeadData] = useState<LeadData>({});
@@ -203,19 +204,34 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
         ]);
         setTimeout(() => {
           if (isDynamic) {
-            // Dynamic mode: skip unit selection, go straight to month
-            setLeadData((prev) => ({ ...prev, unit: companyName }));
-            const monthQ = lpBotConfig?.month_question || "Para qual mês você pretende realizar a festa?";
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: "month",
-                type: "bot",
-                content: monthQ,
-                options: dynamicMonthOptions,
-              },
-            ]);
-            setCurrentStep(1); // month step
+            // Dynamic mode: check if multiple units exist
+            if (unitOptions && unitOptions.length >= 2) {
+              // Ask unit selection as step 0
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: "unit",
+                  type: "bot",
+                  content: "Em qual unidade você deseja fazer sua festa?",
+                  options: [...unitOptions, "As duas"],
+                },
+              ]);
+              setCurrentStep(0); // unit step
+            } else {
+              // Single unit or no units: skip unit selection
+              setLeadData((prev) => ({ ...prev, unit: (unitOptions && unitOptions.length === 1) ? unitOptions[0] : companyName }));
+              const monthQ = lpBotConfig?.month_question || "Para qual mês você pretende realizar a festa?";
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: "month",
+                  type: "bot",
+                  content: monthQ,
+                  options: dynamicMonthOptions,
+                },
+              ]);
+              setCurrentStep(1); // month step
+            }
           } else {
             // Default Castelo mode: ask unit first
             setMessages((prev) => [
@@ -231,7 +247,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
         }, 800);
       }, 500);
     }
-  }, [isOpen, messages.length, isDynamic, companyName, lpBotConfig]);
+  }, [isOpen, messages.length, isDynamic, companyName, lpBotConfig, unitOptions]);
 
   const handleOptionSelect = (option: string) => {
     const userMessage: Message = {
@@ -243,8 +259,24 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
 
     setTimeout(() => {
       if (isDynamic) {
-        // Dynamic mode flow: month(1) -> day(day-of-month) -> guests(2) -> capture(3)
+        // Dynamic mode flow: unit(0) -> month(1) -> day(day-of-month) -> guests(2) -> capture(3)
         switch (currentStep) {
+          case 0: // Unit selected (dynamic multi-unit)
+            setLeadData((prev) => ({ ...prev, unit: option }));
+            {
+              const monthQ = lpBotConfig?.month_question || "Para qual mês você pretende realizar a festa?";
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: "month",
+                  type: "bot",
+                  content: monthQ,
+                  options: dynamicMonthOptions,
+                },
+              ]);
+              setCurrentStep(1);
+            }
+            break;
           case 1: // Month selected
             setLeadData((prev) => ({ ...prev, month: option }));
             addDayOfMonthStep(option);
@@ -479,11 +511,12 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
           customMessage: (lpBotConfig?.guest_limit_message && lpBotConfig.guest_limit_message.trim()) || null,
         } : undefined;
 
-        if (!isDynamic && leadData.unit === "As duas") {
-          Promise.all([
-            sendWelcomeMessage(whatsappValue, "Manchester", finalLeadData, redirectInfo),
-            sendWelcomeMessage(whatsappValue, "Trujillo", finalLeadData, redirectInfo),
-          ]).catch(err => console.error("Erro ao enviar mensagem automática:", err));
+        if (leadData.unit === "As duas") {
+          // Send to all units (dynamic or default)
+          const allUnits = isDynamic && unitOptions?.length ? unitOptions : ["Manchester", "Trujillo"];
+          Promise.all(
+            allUnits.map(u => sendWelcomeMessage(whatsappValue, u, finalLeadData, redirectInfo))
+          ).catch(err => console.error("Erro ao enviar mensagem automática:", err));
         } else if (leadData.unit) {
           sendWelcomeMessage(whatsappValue, leadData.unit, finalLeadData, redirectInfo)
             .catch(err => console.error("Erro ao enviar mensagem automática:", err));

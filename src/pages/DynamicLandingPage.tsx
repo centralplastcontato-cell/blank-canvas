@@ -40,6 +40,7 @@ interface LPData {
   company_whatsapp: string | null;
   company_instagram: string | null;
   multipleUnits: boolean;
+  unitNames: string[];
   hero: LPHero;
   video: LPVideo;
   gallery: LPGallery;
@@ -85,7 +86,7 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
         const row = Array.isArray(result.data) ? result.data[0] : result.data;
         const companyId = row.company_id;
         let whatsapp: string | null = null;
-        const [{ data: onb }, { data: botSettings }] = await Promise.all([
+        const [{ data: onb }, { data: botSettings }, { data: unitsData }] = await Promise.all([
           supabase
             .from('company_onboarding')
             .select('whatsapp_numbers, multiple_units, instagram')
@@ -97,6 +98,13 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
             .select('*')
             .eq('company_id', companyId)
             .maybeSingle(),
+          supabase
+            .from('company_units')
+            .select('name')
+            .eq('company_id', companyId)
+            .eq('is_active', true)
+            .not('name', 'ilike', '%trabalhe conosco%')
+            .order('sort_order'),
         ]);
         if (onb?.whatsapp_numbers && onb.whatsapp_numbers.length > 0) {
           whatsapp = onb.whatsapp_numbers[0];
@@ -121,9 +129,12 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
         const defaultSocialProof: LPSocialProof = { enabled: false, items: [], text: "" };
         const defaultHowItWorks: LPHowItWorks = { enabled: false, title: "", steps: [] };
 
+        const unitNames = (unitsData || []).map((u: any) => u.name as string);
+
         setData({
           company_id: companyId,
           multipleUnits: onb?.multiple_units === true,
+          unitNames,
           company_name: row.company_name,
           company_logo: row.company_logo,
           company_slug: row.company_slug,
@@ -222,6 +233,7 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
         companyLogo={data.company_logo}
         companyWhatsApp={data.company_whatsapp || undefined}
         lpBotConfig={data.lpBotConfig}
+        unitOptions={data.unitNames}
       />
     </div>
   );
