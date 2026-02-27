@@ -4,10 +4,14 @@ import { HubLayout } from "@/components/hub/HubLayout";
 import { UserWithRole, AppRole } from "@/types/crm";
 import { Company } from "@/types/company";
 import { Button } from "@/components/ui/button";
-import { Plus, Loader2, Users } from "lucide-react";
+import { Plus, Loader2, Users, History } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { HubUserCreateDialog } from "@/components/hub/HubUserCreateDialog";
 import { HubUserCompanySection } from "@/components/hub/HubUserCompanySection";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface UserWithCompanies extends UserWithRole {
   company_ids: string[];
@@ -144,7 +148,10 @@ export function HubUsersContent({ currentUserId }: { currentUserId: string }) {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <p className="text-sm text-muted-foreground">{users.length} usuário{users.length !== 1 ? "s" : ""} no total</p>
-          <Button onClick={() => setIsDialogOpen(true)} size="sm"><Plus className="mr-2 h-4 w-4" /> Novo Usuário</Button>
+          <div className="flex gap-2">
+            <PasswordResetHistoryDialog />
+            <Button onClick={() => setIsDialogOpen(true)} size="sm"><Plus className="mr-2 h-4 w-4" /> Novo Usuário</Button>
+          </div>
         </div>
 
         {childCompanies.map((company) => {
@@ -179,6 +186,85 @@ export function HubUsersContent({ currentUserId }: { currentUserId: string }) {
           />
         )}
       </div>
+    </>
+  );
+}
+
+interface PasswordResetLog {
+  id: string;
+  target_user_name: string | null;
+  target_user_email: string | null;
+  reset_by_user_name: string | null;
+  created_at: string;
+}
+
+function PasswordResetHistoryDialog() {
+  const [open, setOpen] = useState(false);
+  const [logs, setLogs] = useState<PasswordResetLog[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchLogs = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("password_reset_logs" as any)
+      .select("id, target_user_name, target_user_email, reset_by_user_name, created_at")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    setLogs((data as any as PasswordResetLog[]) || []);
+    setLoading(false);
+  };
+
+  const handleOpen = () => {
+    setOpen(true);
+    fetchLogs();
+  };
+
+  return (
+    <>
+      <Button variant="outline" size="sm" onClick={handleOpen}>
+        <History className="mr-2 h-4 w-4" /> Histórico de Senhas
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Histórico de Redefinições de Senha</DialogTitle>
+            <DialogDescription>Registro de todas as senhas redefinidas por administradores.</DialogDescription>
+          </DialogHeader>
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : logs.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">Nenhuma redefinição de senha registrada.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Usuário</TableHead>
+                  <TableHead>Redefinido por</TableHead>
+                  <TableHead>Data</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {logs.map((log) => (
+                  <TableRow key={log.id}>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium text-sm">{log.target_user_name || "—"}</p>
+                        <p className="text-xs text-muted-foreground">{log.target_user_email || "—"}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm">{log.reset_by_user_name || "—"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {format(new Date(log.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

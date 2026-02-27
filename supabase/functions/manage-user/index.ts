@@ -393,6 +393,25 @@ Deno.serve(async (req) => {
 
       console.log('Password reset successfully for user:', body.user_id)
 
+      // Log the password reset for audit
+      try {
+        const [targetProfile, requesterProfile] = await Promise.all([
+          supabaseAdmin.from('profiles').select('full_name, email').eq('user_id', body.user_id).single(),
+          supabaseAdmin.from('profiles').select('full_name').eq('user_id', requestingUser.id).single(),
+        ])
+
+        await supabaseAdmin.from('password_reset_logs').insert({
+          target_user_id: body.user_id,
+          target_user_name: targetProfile.data?.full_name || null,
+          target_user_email: targetProfile.data?.email || null,
+          reset_by_user_id: requestingUser.id,
+          reset_by_user_name: requesterProfile.data?.full_name || null,
+          company_id: body.company_id || null,
+        })
+      } catch (logErr) {
+        console.error('Failed to log password reset (non-blocking):', logErr)
+      }
+
       return new Response(
         JSON.stringify({ success: true, message: 'Senha alterada com sucesso' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

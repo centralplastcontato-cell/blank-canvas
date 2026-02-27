@@ -2162,6 +2162,39 @@ export type Database = {
           },
         ]
       }
+      password_reset_logs: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          id: string
+          reset_by_user_id: string
+          reset_by_user_name: string | null
+          target_user_email: string | null
+          target_user_id: string
+          target_user_name: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          reset_by_user_id: string
+          reset_by_user_name?: string | null
+          target_user_email?: string | null
+          target_user_id: string
+          target_user_name?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          reset_by_user_id?: string
+          reset_by_user_name?: string | null
+          target_user_email?: string | null
+          target_user_id?: string
+          target_user_name?: string | null
+        }
+        Relationships: []
+      }
       permission_definitions: {
         Row: {
           category: string
