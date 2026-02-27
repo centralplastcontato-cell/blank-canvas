@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { BarChart3, Building2, Users, LogOut, Smartphone, ClipboardList, Presentation, Brain, GraduationCap } from "lucide-react";
+import { BarChart3, Building2, Users, LogOut, Smartphone, ClipboardList, Presentation, Brain, GraduationCap, Contact } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -15,7 +15,7 @@ interface HubMobileMenuProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   trigger: React.ReactNode;
-  currentPage: "hub" | "empresas" | "users" | "whatsapp" | "onboarding" | "prospeccao" | "comercial-b2b" | "consumo-ia" | "treinamento";
+  currentPage: "hub" | "empresas" | "users" | "whatsapp" | "onboarding" | "prospeccao" | "comercial-b2b" | "consumo-ia" | "treinamento" | "leads";
   userName: string;
   userEmail: string;
   userAvatar?: string | null;
@@ -28,6 +28,7 @@ const getInitials = (name: string) => {
 
 const menuItems = [
   { id: "hub", label: "Painel Hub", icon: BarChart3, path: "/hub" },
+  { id: "leads", label: "Leads", icon: Contact, path: "/hub/leads" },
   { id: "empresas", label: "Empresas", icon: Building2, path: "/hub/empresas" },
   { id: "comercial-b2b", label: "Comercial B2B", icon: Presentation, path: "/hub/comercial-b2b" },
   { id: "whatsapp", label: "WhatsApp", icon: Smartphone, path: "/hub/whatsapp" },
