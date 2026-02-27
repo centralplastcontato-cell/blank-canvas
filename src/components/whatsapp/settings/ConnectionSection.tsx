@@ -76,6 +76,12 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
   const [qrInstance, setQrInstance] = useState<WapiInstance | null>(null);
   const [qrPolling, setQrPolling] = useState(false);
 
+  // Repair session states
+  const [isRepairing, setIsRepairing] = useState<string | null>(null);
+  const [repairPhoneDialogOpen, setRepairPhoneDialogOpen] = useState(false);
+  const [repairPhoneInstance, setRepairPhoneInstance] = useState<WapiInstance | null>(null);
+  const [repairManualPhone, setRepairManualPhone] = useState('');
+
   // Phone pairing states
   const [connectionMode, setConnectionMode] = useState<'qr' | 'phone'>('qr');
   const [_phoneNumber, setPhoneNumber] = useState('');
@@ -951,6 +957,53 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
     return () => clearInterval(interval);
   }, [qrDialogOpen, qrInstance, qrPolling, connectionMode, fetchQrCode]);
 
+  // === Repair Session Handler ===
+  const handleRepairSession = async (instance: WapiInstance, manualPhone?: string) => {
+    setIsRepairing(instance.id);
+    
+    try {
+      const response = await supabase.functions.invoke("wapi-send", {
+        body: {
+          action: "repair-session",
+          instanceId: instance.instance_id,
+          instanceToken: instance.instance_token,
+          ...(manualPhone ? { manualPhone } : {}),
+        },
+      });
+
+      if (response.error) throw new Error(response.error.message);
+
+      if (response.data?.repaired) {
+        toast({
+          title: "✅ Sessão reparada!",
+          description: `Número ${response.data.phoneNumber} vinculado com sucesso. Envios desbloqueados.`,
+        });
+        setRepairPhoneDialogOpen(false);
+        setRepairManualPhone('');
+        await fetchInstances();
+      } else if (response.data?.needsManualPhone && !manualPhone) {
+        // Auto-repair failed, open manual phone dialog
+        setRepairPhoneInstance(instance);
+        setRepairManualPhone('');
+        setRepairPhoneDialogOpen(true);
+      } else {
+        toast({
+          title: "⚠️ Reparo não concluído",
+          description: response.data?.reason || "Não foi possível reparar a sessão.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao reparar sessão.",
+        variant: "destructive",
+      });
+    }
+
+    setIsRepairing(null);
+  };
+
   const handleCopy = (text: string, field: string) => {
     navigator.clipboard.writeText(text);
     setCopiedField(field);
@@ -996,6 +1049,74 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
       </div>
     );
   }
+
+  // Dialog for manual phone repair
+  const repairPhoneDialogJsx = (
+    <Dialog open={repairPhoneDialogOpen} onOpenChange={(open) => {
+      setRepairPhoneDialogOpen(open);
+      if (!open) {
+        setRepairManualPhone('');
+        setRepairPhoneInstance(null);
+      }
+    }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-amber-600">
+            <Phone className="w-5 h-5" />
+            Informar Número Manualmente
+          </DialogTitle>
+          <DialogDescription>
+            O reparo automático não encontrou o número. Copie o número exibido no painel da W-API.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+            <p className="text-xs text-amber-700 dark:text-amber-300">
+              Acesse <strong>w-api.app</strong> → sua instância → copie o número exibido (com DDI, ex: 5534991234567)
+            </p>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="repairPhone">Número do WhatsApp (com DDI)</Label>
+            <Input
+              id="repairPhone"
+              placeholder="5534991234567"
+              value={repairManualPhone}
+              onChange={(e) => setRepairManualPhone(e.target.value.replace(/\D/g, ''))}
+              maxLength={13}
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setRepairPhoneDialogOpen(false)}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={() => {
+              if (repairPhoneInstance) {
+                handleRepairSession(repairPhoneInstance, repairManualPhone);
+              }
+            }}
+            disabled={repairManualPhone.length < 11 || isRepairing !== null}
+          >
+            {isRepairing ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Reparando...
+              </>
+            ) : (
+              <>
+                <Check className="w-4 h-4 mr-2" />
+                Reparar Sessão
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 
   // Dialog for number change detection - offers to clean non-imported conversations
   const numberChangeDialogJsx = (
@@ -1231,6 +1352,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
       <div className="space-y-4">
         {connectionDialogJsx}
         {numberChangeDialogJsx}
+        {repairPhoneDialogJsx}
         <Card>
           <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
@@ -1309,6 +1431,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
     <div className="space-y-6">
       {connectionDialogJsx}
       {numberChangeDialogJsx}
+      {repairPhoneDialogJsx}
       
       {/* Instances Management */}
       <Card>
@@ -1391,7 +1514,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                             <div className="mt-2 p-2 rounded-md bg-destructive/10 border border-destructive/30">
                               <p className="text-xs font-medium text-destructive">
                                 ⚠️ {(instance as any)._degradedType === 'SESSION_INCOMPLETE' 
-                                  ? 'Sessão incompleta — mensagens podem ficar como "Aguardando". Recomenda-se desconectar e reconectar.'
+                                  ? 'Sessão incompleta — use o botão "Reparar Sessão" para corrigir sem reconectar.'
                                   : 'Comunicação instável com a W-API. Mensagens podem não ser entregues.'}
                               </p>
                             </div>
@@ -1399,7 +1522,24 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-2 sm:shrink-0">
+                      <div className="flex items-center gap-2 sm:shrink-0 flex-wrap">
+                        {/* Repair button for degraded instances */}
+                        {(instance.status === 'degraded' || ((instance as any)._degradedType === 'SESSION_INCOMPLETE')) && (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleRepairSession(instance)}
+                            disabled={isRepairing === instance.id}
+                            className="text-amber-600 border-amber-300 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-700 dark:hover:bg-amber-950/20"
+                          >
+                            {isRepairing === instance.id ? (
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                              <RefreshCw className="w-4 h-4 mr-2" />
+                            )}
+                            Reparar Sessão
+                          </Button>
+                        )}
                         {instance.status !== 'connected' && (
                           <Button 
                             size="sm" 
