@@ -1,42 +1,33 @@
 
+## Permitir renomear grupos no chat WhatsApp
 
-## Problema: Nome do lead sumindo na lista de conversas
+### Problema
+Grupos aparecem com nomes como "Grupo 120363424482346954" (o ID do grupo) e nao tem opcao de renomear. O popover do grupo so mostra favoritar e excluir.
 
-### Diagnóstico
+### Solucao
+Adicionar funcionalidade de edicao de nome no popover de grupo, reutilizando a mesma logica que ja existe para contatos nao qualificados (salvar em `wapi_conversations.contact_name`).
 
-O lead **Nycolly** tem o nome correto na tabela `campaign_leads`, mas a conversa vinculada em `wapi_conversations` tem `contact_name = "."`. A lista de conversas exibe apenas `contact_name`, ignorando o nome do lead vinculado.
+### Alteracoes em `src/components/whatsapp/LeadInfoPopover.tsx`
 
-Existem **5 conversas** com esse problema no banco (contact_name = ".", null, ou vazio).
+**1. Adicionar botao de edicao no GROUP VIEW (linhas 301-340)**
 
-### Causa raiz (dois problemas)
+Substituir o nome fixo do grupo por um campo editavel, igual ao que ja existe para leads/contatos:
+- Ao lado do nome do grupo, adicionar um botao de editar (icone Pencil)
+- Ao clicar, trocar para um Input com botoes de confirmar/cancelar
+- Ao salvar, atualizar `wapi_conversations.contact_name` e chamar `onLeadNameChange`
 
-1. **Display**: A lista de conversas usa `conv.contact_name || conv.contact_phone` em vez de priorizar o nome do lead vinculado (`conversationLeadsMap`). Como `"."` e é truthy, exibe o ponto ao invés do nome real.
+**2. Atualizar a funcao `saveLeadName`**
 
-2. **Sanitização**: Quando o bot salva nomes como `"."`, `"-"` ou `""`, o sistema não limpa esses valores placeholder.
+A funcao ja trata o caso de contato nao qualificado (linhas 232-267) que faz `update({ contact_name })` em `wapi_conversations`. Esse mesmo caminho sera usado para grupos, sem necessidade de mudanca na logica de save - apenas garantir que o fluxo de edicao do grupo chame `saveLeadName()`.
 
-### Correção
+**3. Atualizar `startEditingName`**
 
-**1. Priorizar nome do lead na lista de conversas** (WhatsAppChat.tsx)
+Ajustar para tambem funcionar com grupos, inicializando `editedName` com o `contact_name` atual do grupo.
 
-Criar uma helper function que resolve o nome na ordem correta:
-```
-leadName (do conversationLeadsMap) > contact_name (se válido) > contact_phone
-```
+### Detalhes tecnicos
 
-Aplicar em todos os pontos de exibição do nome na lista:
-- Linha 3086 (avatar fallback - desktop)
-- Linha 3109 (nome na lista - desktop)  
-- Linha 3219 (avatar fallback - mobile)
-- Linha 3242 (nome na lista - mobile)
-
-**2. Sanitizar contact_name com placeholders inválidos**
-
-Na função que carrega conversas, limpar `contact_name` quando for `"."`, `"-"`, `""` ou espaço em branco.
-
-**3. Corrigir dados existentes no banco**
-
-Atualizar as 5 conversas com `contact_name` inválido para usar o nome do lead vinculado (quando existir).
-
-### Impacto
-- A Nycolly e outros leads com nomes "sujos" passarão a exibir o nome correto imediatamente
-- Futuros leads com placeholders inválidos serão tratados automaticamente
+O GROUP VIEW (linhas 301-345) sera atualizado para:
+- Mostrar o nome atual com um botao Pencil ao lado
+- No modo edicao: Input + botoes Check/X (mesmo padrao visual dos outros modos)
+- A logica de save ja existe no bloco `else` da funcao `saveLeadName` (linha 232) que atualiza apenas `wapi_conversations.contact_name`
+- `handleKeyDown` (Enter/Escape) ja esta implementado e sera reutilizado
