@@ -106,6 +106,27 @@ interface Conversation {
   pinned_message_id: string | null;
 }
 
+// Helper: check if a contact_name is a valid display name (not a placeholder)
+const isValidContactName = (name: string | null | undefined): name is string => {
+  if (!name) return false;
+  const trimmed = name.trim();
+  return trimmed.length > 0 && trimmed !== '.' && trimmed !== '-' && trimmed !== '...' && trimmed !== '--';
+};
+
+// Helper: resolve the best display name for a conversation
+const getConversationDisplayName = (
+  conv: { contact_name: string; contact_phone: string; id: string },
+  leadsMap: Record<string, Lead | undefined>
+): string => {
+  // 1. Prioritize linked lead name
+  const leadName = leadsMap[conv.id]?.name;
+  if (leadName && leadName.trim().length > 0) return leadName;
+  // 2. Use contact_name if valid
+  if (isValidContactName(conv.contact_name)) return conv.contact_name;
+  // 3. Fallback to phone
+  return conv.contact_phone;
+};
+
 interface Lead {
   id: string;
   name: string;
@@ -1591,7 +1612,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     setIsCreatingLead(true);
 
     try {
-      const contactName = selectedConversation.contact_name || selectedConversation.contact_phone;
+      const contactName = getConversationDisplayName(selectedConversation, conversationLeadsMap);
       const cleanPhone = selectedConversation.contact_phone.replace(/\D/g, '');
 
       // Check if a lead already exists for this whatsapp number to prevent duplicates
@@ -3076,14 +3097,14 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                       <Avatar className="h-10 w-10 ring-2 ring-border/50 shadow-sm">
                         <AvatarImage 
                           src={conv.contact_picture || undefined} 
-                          alt={conv.contact_name || conv.contact_phone}
+                          alt={getConversationDisplayName(conv, conversationLeadsMap)}
                           referrerPolicy="no-referrer"
                         />
                         <AvatarFallback className={cn(
                           "text-primary text-sm font-semibold bg-gradient-to-br",
                           conv.unread_count > 0 ? "from-primary/30 to-primary/10" : "from-primary/15 to-primary/5"
                         )}>
-                          {(conv.contact_name || conv.contact_phone).charAt(0).toUpperCase()}
+                          {getConversationDisplayName(conv, conversationLeadsMap).charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       {conv.is_favorite && (
@@ -3106,7 +3127,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                             "truncate text-sm",
                             conv.unread_count > 0 ? "font-bold" : "font-medium"
                           )}>
-                            {conv.contact_name || conv.contact_phone}
+                            {getConversationDisplayName(conv, conversationLeadsMap)}
                           </p>
                           {conv.lead_id && (
                             <Link2 className="w-3 h-3 text-primary shrink-0" />
@@ -3209,14 +3230,14 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         <Avatar className="h-10 w-10 ring-2 ring-border/50 shadow-sm">
                           <AvatarImage 
                             src={conv.contact_picture || undefined} 
-                            alt={conv.contact_name || conv.contact_phone}
+                            alt={getConversationDisplayName(conv, conversationLeadsMap)}
                             referrerPolicy="no-referrer"
                           />
                           <AvatarFallback className={cn(
                             "text-primary text-sm font-semibold bg-gradient-to-br",
                             conv.unread_count > 0 ? "from-primary/30 to-primary/10" : "from-primary/15 to-primary/5"
                           )}>
-                            {(conv.contact_name || conv.contact_phone).charAt(0).toUpperCase()}
+                            {getConversationDisplayName(conv, conversationLeadsMap).charAt(0).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                           {conv.is_favorite && (
@@ -3239,7 +3260,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                 "truncate text-sm",
                                 conv.unread_count > 0 ? "font-bold" : "font-medium"
                               )}>
-                                {conv.contact_name || conv.contact_phone}
+                                {getConversationDisplayName(conv, conversationLeadsMap)}
                               </p>
                               {conv.lead_id && (
                                 <Link2 className="w-3 h-3 text-primary shrink-0" />
@@ -3364,19 +3385,17 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                     <Avatar className="h-9 w-9 shrink-0 ring-2 ring-primary/20 shadow-md">
                       <AvatarImage 
                         src={selectedConversation.contact_picture || undefined} 
-                        alt={selectedConversation.contact_name || selectedConversation.contact_phone}
+                        alt={getConversationDisplayName(selectedConversation, conversationLeadsMap)}
                         referrerPolicy="no-referrer"
                       />
                       <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary text-sm font-semibold">
-                        {(selectedConversation.contact_name || selectedConversation.contact_phone)
-                          .charAt(0)
-                          .toUpperCase()}
+                        {getConversationDisplayName(selectedConversation, conversationLeadsMap).charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1">
                         <p className="font-medium truncate text-sm sm:text-base">
-                          {selectedConversation.contact_name || selectedConversation.contact_phone}
+                          {getConversationDisplayName(selectedConversation, conversationLeadsMap)}
                         </p>
                         {linkedLead && (
                           <div className="flex items-center gap-1">
