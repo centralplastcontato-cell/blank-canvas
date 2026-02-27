@@ -91,8 +91,8 @@ const EMPTY: EventFormData = {
 
 function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
   return (
-    <div className="flex items-center gap-2.5 text-xs uppercase tracking-[0.15em] font-semibold text-foreground/70 mb-5 pb-3 border-b border-border/50">
-      <div className="p-1.5 rounded-lg bg-primary/10">
+    <div className="flex items-center gap-2.5 text-[11px] uppercase tracking-[0.18em] font-semibold text-muted-foreground mb-4 pb-2.5 border-b border-border/40">
+      <div className="p-1.5 rounded-md bg-primary/8 ring-1 ring-primary/15">
         <Icon className="h-3.5 w-3.5 text-primary" />
       </div>
       {label}
@@ -206,17 +206,17 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[740px] max-h-[90vh] p-0 gap-0 overflow-hidden [&>button]:top-6 [&>button]:right-6">
+      <DialogContent className="max-w-[720px] max-h-[90vh] p-0 gap-0 overflow-hidden rounded-2xl [&>button]:top-5 [&>button]:right-5">
         {/* Header */}
-        <DialogHeader className="px-8 pt-8 pb-5 border-b border-border/30">
-          <DialogTitle className="text-xl font-bold tracking-tight">{isEdit ? "Editar Festa" : "Nova Festa"}</DialogTitle>
-          <p className="text-sm text-muted-foreground mt-1.5">Preencha os dados do evento</p>
+        <DialogHeader className="px-7 pt-7 pb-4 border-b border-border/40 bg-muted/30">
+          <DialogTitle className="text-lg font-bold tracking-tight">{isEdit ? "Editar Festa" : "Nova Festa"}</DialogTitle>
+          <p className="text-[13px] text-muted-foreground mt-1">Preencha os dados do evento</p>
         </DialogHeader>
 
         {/* Scrollable body */}
-        <form id="event-form" onSubmit={handleSubmit} className="overflow-y-auto px-8 py-7 space-y-8" style={{ maxHeight: "calc(90vh - 190px)" }}>
+        <form id="event-form" onSubmit={handleSubmit} className="overflow-y-auto px-7 py-6 space-y-5" style={{ maxHeight: "calc(90vh - 180px)" }}>
           {/* Section 1 – Dados do Cliente */}
-          <div className="rounded-xl border border-border/50 bg-muted/20 p-6">
+          <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
             <SectionHeader icon={User} label="Dados do Cliente" />
             <div className="space-y-5">
               <div className="space-y-2.5">
@@ -265,7 +265,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           </div>
 
           {/* Section 2 – Data e Horário */}
-          <div className="rounded-xl border border-border/50 bg-muted/20 p-6">
+          <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
             <SectionHeader icon={CalendarDays} label="Data e Horário" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5">
               <div className="space-y-2.5 md:pr-6">
@@ -292,7 +292,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 </div>
               </div>
 
-              <div className="space-y-2.5 md:pl-6 md:border-l-2 md:border-foreground/20">
+              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
                 <Label className="text-sm font-medium text-foreground/70">Status</Label>
                 <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -311,7 +311,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 </Select>
               </div>
 
-              <div className="space-y-2.5 md:pl-6 md:border-l-2 md:border-foreground/20">
+              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
                 <Label className="text-sm font-medium text-foreground/70">Horário fim</Label>
                 <Select value={form.end_time} onValueChange={(v) => setForm({ ...form, end_time: v === "none" ? "" : v })}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -325,7 +325,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           </div>
 
           {/* Section 3 – Informações da Festa */}
-          <div className="rounded-xl border border-border/50 bg-muted/20 p-6">
+          <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
             <SectionHeader icon={PartyPopper} label="Informações da Festa" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5">
               <div className="space-y-2.5 md:pr-6">
@@ -336,7 +336,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 </Select>
               </div>
 
-              <div className="space-y-2.5 md:pl-6 md:border-l-2 md:border-foreground/20">
+              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
                 <Label className="text-sm font-medium text-foreground/70">Convidados</Label>
                 <Input type="number" value={form.guest_count ?? ""} onChange={(e) => setForm({ ...form, guest_count: e.target.value ? Number(e.target.value) : null })} />
               </div>
@@ -353,7 +353,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 )}
               </div>
 
-              <div className="space-y-2.5 md:pl-6 md:border-l-2 md:border-foreground/20">
+              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
                 <Label className="text-sm font-medium text-foreground/70">Pacote</Label>
                 {packages.length > 0 ? (
                   <Select value={form.package_name} onValueChange={(v) => setForm({ ...form, package_name: v === "none" ? "" : v })}>
@@ -398,9 +398,9 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         </form>
 
         {/* Fixed footer */}
-        <div className="flex justify-end gap-3 px-8 py-5 border-t border-border/30 bg-muted/15">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button type="submit" form="event-form" disabled={saving} className="px-8">
+        <div className="flex justify-end gap-3 px-7 py-4 border-t border-border/40 bg-muted/20">
+          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button type="submit" form="event-form" disabled={saving} className="px-8 rounded-lg shadow-sm">
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
             {isEdit ? "Salvar" : "Criar Festa"}
           </Button>
