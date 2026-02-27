@@ -1,87 +1,89 @@
 
-Objetivo imediato
-- Eliminar o falso cenário de “enviado na plataforma” quando a sessão da instância está incompleta no provedor, e impedir novos envios enquanto o WhatsApp estiver no estado que gera “Aguardando mensagem”.
 
-Diagnóstico confirmado agora (com evidências recentes)
-1) A instância problemática continua em sessão incompleta após reconexão
-- `wapi-send get-status` segue retornando `degraded` + `SESSION_INCOMPLETE`.
-- Logs mostram repetidamente: “QR says connected but NO phone number”.
-- No banco, a instância `LITE-4IW93E-MGVYDW` está `status=connected`, porém `phone_number = null`.
+## Reparo Automatico de Sessao Incompleta (sem reconexao manual)
 
-2) O envio continua ocorrendo mesmo nesse estado degradado
-- `send-text` retorna `messageId` (ex.: `KPGJ...`, `GOJN...`) e a UI trata como sucesso.
-- Esses IDs permanecem em `wapi_messages.status = 'sent'`, sem evolução para `delivered/read`.
+### Diagnostico Confirmado
 
-3) Há eventos webhook não roteados que podem conter sinal útil de estado
-- Logs recorrentes: `Unhandled event: undefined` com body keys `[instanceId, connectedPhone, connectedLid, chat, status, moment]`.
-- Hoje esses eventos são descartados (“Unroutable”), reduzindo nossa observabilidade.
+A instancia `LITE-4IW93E-MGVYDW` esta neste estado agora:
 
-4) Há inconsistência de estado operacional
-- A camada de status detecta sessão incompleta, mas a camada de envio não bloqueia.
-- Resultado: usuário continua vendo “enviado” no sistema, e no WhatsApp fica “Aguardando mensagem”.
+```text
+Endpoints W-API:
+  /instance/status         -> 404
+  /instance/info           -> 404
+  /instance/connection-state -> 404
+  /instance/profile        -> 404
+  /instance/qr-code        -> 200 {"connected": true}  (SEM phone)
+```
 
-Plano de implementação (próxima execução aprovada)
+O painel da W-API mostra o numero `553497310669` vinculado. Ou seja, a conexao esta valida no provedor, mas a API nao retorna o telefone nos endpoints que nosso sistema consulta. Provavelmente e uma limitacao do plano LITE.
 
-Fase 1 — Bloqueio de envio em sessão incompleta (prioridade máxima)
-1. Adicionar preflight obrigatório no `wapi-send` para ações de envio (`send-text`, `send-image`, `send-audio`, `send-video`, `send-document`, etc.):
-   - Antes de enviar, validar “saúde da sessão” da instância.
-   - Se `SESSION_INCOMPLETE` ou `degraded/TIMEOUT_OR_GATEWAY`, retornar erro explícito para frontend (sem “success: true”).
+### Solucao: Acao "repair-session" + botao "Reparar Sessao"
 
-2. Fortalecer regra de “conectado válido”:
-   - Considerar conectado somente com sinal mínimo forte (ex.: `phoneNumber`/`me.id` presente).
-   - Se conectado sem telefone, tratar como `SESSION_INCOMPLETE` em todo caminho, não só no endpoint de status.
+Em vez de exigir desconectar/reconectar, vamos criar um mecanismo de reparo que:
 
-3. Evitar gravação enganosa como `sent` quando envio não está saudável:
-   - Se preflight falhar, persistir mensagem como `failed` com motivo técnico (ex.: `SESSION_INCOMPLETE`) em vez de `sent`.
+1. Tenta extrair o telefone de endpoints alternativos da W-API
+2. Se nao conseguir, permite que o usuario informe manualmente o numero (visivel no painel W-API)
+3. Atualiza o banco com o telefone e marca como `connected`, desbloqueando os envios
 
-Fase 2 — Correção de estado falso de conexão no webhook
-4. Ajustar `wapi-webhook` no handler de conexão:
-   - Não gravar `wapi_instances.status='connected'` quando `connectedPhone` estiver ausente.
-   - Nessa condição, marcar `status='degraded'` (ou manter anterior + flag) e salvar motivo de sessão incompleta.
-   - Isso evita a tela exibir “Online” quando a sessão não está pronta para entrega real.
+### Arquivos e mudancas
 
-5. Tratar eventos “sem event” com shape de status:
-   - Roteamento adicional para payloads com `{ chat, status, moment }` mesmo sem `messageId`.
-   - Ao menos registrar telemetria estruturada por instância/conversa para diagnóstico.
+**1. `supabase/functions/wapi-send/index.ts`** - Nova acao `repair-session`
 
-Fase 3 — UX/Produto para evitar nova frustração
-6. `WhatsAppChat`:
-   - Quando backend retornar `SESSION_INCOMPLETE`, mostrar toast claro (“Instância conectada sem sessão válida. Reconecte por código de pareamento/telefone.”).
-   - Não deixar a bolha otimista finalizar como “sent”; manter como erro com opção “tentar novamente”.
+- Recebe `instanceId`, `instanceToken`, e opcionalmente `manualPhone`
+- Tenta extrair telefone de:
+  - `/instance/qr-code` (campo `phone`, `me.id`, variacoes)
+  - `/instance/me` (endpoint alternativo)
+  - `/instance/status` com query params diferentes
+- Se `manualPhone` fornecido pelo usuario, valida formato e usa diretamente
+- Se encontrar telefone (automatico ou manual), atualiza `wapi_instances` com `status: 'connected'` e `phone_number`
+- Retorna `{ repaired: true, phoneNumber }` ou `{ repaired: false, reason }` explicando o que aconteceu
 
-7. `ConnectionSection`:
-   - Unificar tratamento de `SESSION_INCOMPLETE` em todos os fluxos (refresh individual e sync geral), não apenas timeout.
-   - Exibir estado visual explícito (ex.: “Sessão incompleta”) no card da instância.
+**2. `src/components/whatsapp/settings/ConnectionSection.tsx`** - Botao "Reparar Sessao"
 
-Fase 4 — Observabilidade e validação final
-8. Log estruturado por tentativa de envio:
-   - `instance_id`, `attempt`, `messageId`, `sessionHealth`, `blockedReason`.
-9. Log de transição de status por mensagem:
-   - Quando `message_id` ficar preso em `sent` por janela definida, registrar alerta operacional.
-10. Validação end-to-end pós-implementação:
-   - Enviar teste para `15981121710` com instância Aventura.
-   - Critério de sucesso: evolução para `delivered/read` ou bloqueio explícito antes do envio (sem falso “sent”).
-   - Conferir que UI não mostra “enviado” quando a sessão estiver incompleta.
+- Quando instancia esta `degraded`, mostrar botao amarelo "Reparar Sessao" ao lado de "Conectar"
+- Ao clicar: chama `repair-session` sem telefone manual (tentativa automatica)
+- Se falhar: abre mini-dialog pedindo o numero (com instrucao: "Copie o numero do painel W-API")
+- Se reparar: atualiza lista, mostra toast de sucesso
 
-Arquivos-alvo da implementação
-- `supabase/functions/wapi-send/index.ts`
-  - Preflight de saúde por ação de envio
-  - Regras mais rígidas de sessão válida
-  - Persistência de falha com motivo técnico
-- `supabase/functions/wapi-webhook/index.ts`
-  - Correção de status “connected” sem telefone
-  - Roteamento/telemetria para eventos sem `event` com `status/chat/moment`
-- `src/components/whatsapp/WhatsAppChat.tsx`
-  - Tratamento de erro `SESSION_INCOMPLETE` no envio otimista
-- `src/components/whatsapp/settings/ConnectionSection.tsx`
-  - Tratamento e sinalização consistente de `SESSION_INCOMPLETE`
+**3. `src/components/whatsapp/WhatsAppChat.tsx`** - Banner de sessao degradada
 
-Risco e impacto
-- Risco técnico: baixo/médio (sem mudança de schema obrigatória).
-- Impacto: alto em confiabilidade e transparência operacional.
-- Benefício principal: para de “mascarar” falha de entrega como sucesso, que é exatamente a dor atual.
+- Quando a instancia selecionada esta com `status: 'degraded'`, mostrar banner no topo do chat com:
+  - "Sessao incompleta - mensagens nao serao entregues"
+  - Botao "Reparar" que chama a mesma logica de reparo
 
-Resultado esperado para você (prático)
-- Se a sessão estiver quebrada, o sistema vai te avisar claramente e bloquear envio (em vez de “fingir que enviou”).
-- Se a sessão estiver boa, as mensagens voltarão a evoluir para `delivered/read`.
-- Isso encerra o ciclo frustrante de “aparece no chat da plataforma, mas no WhatsApp fica aguardando”.
+### Fluxo do reparo
+
+```text
+Usuario clica "Reparar Sessao"
+        |
+        v
+wapi-send action=repair-session
+        |
+        v
+Tenta endpoints alternativos para pegar telefone
+        |
+   Encontrou?
+   /       \
+  Sim       Nao
+   |         |
+   v         v
+Atualiza    Pede telefone
+DB como     manual ao
+connected   usuario
+   |         |
+   v         v
+Desbloqueia Atualiza DB
+envios      e desbloqueia
+```
+
+### Detalhes tecnicos
+
+- A acao `repair-session` nao altera nenhuma logica de preflight existente - apenas corrige o estado no banco
+- O preflight continua bloqueando envios se `phone_number` for null, garantindo seguranca
+- A validacao do telefone manual aceita formatos `55XXXXXXXXXX` (11-13 digitos)
+- Logs estruturados: `[repair-session] attempted for {instanceId}, result: {repaired|failed}, source: {auto|manual}`
+
+### Risco
+
+- **Baixo**: se o reparo manual usar um telefone errado, o pior caso e que as mensagens vao para o numero errado no provedor (mas o provedor ja tem o numero certo, entao isso nao deveria acontecer)
+- O sistema continua bloqueando envios ate que o telefone seja preenchido - nenhum "falso enviado" possivel
