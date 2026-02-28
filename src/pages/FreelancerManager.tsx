@@ -610,7 +610,9 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
           const phone = String(phoneRaw).replace(/\D/g, "");
           if (phone.length >= 10) {
             await resolveInstanceAndSend("approval", response, phone, freelancerName);
-            return; // resolveInstanceAndSend handles cleanup via handleUnitSelected or directly
+            // For direct send (0 or 1 instance), cleanup here; dialog path cleans up in handleUnitSelected
+            if (!unitDialogOpen) { setUpdatingApproval(null); onDeleted?.(); }
+            return;
           } else {
             toast({ title: "Freelancer aprovado! ✅", description: "Telefone inválido — mensagem não enviada." });
           }
