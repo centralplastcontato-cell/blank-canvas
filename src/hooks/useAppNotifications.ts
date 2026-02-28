@@ -160,6 +160,8 @@ export function useAppNotifications() {
                 playLeadSound();
               } else if (newNotification.type === "lead_questions" || newNotification.type === "lead_analyzing") {
                 playLeadSound();
+              } else if (newNotification.type === "instance_disconnected") {
+                playClientSound(); // Urgent alert sound for disconnection
               } else {
                 playMessageSound();
               }

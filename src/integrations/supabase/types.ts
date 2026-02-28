@@ -3084,6 +3084,7 @@ export type Database = {
       wapi_instances: {
         Row: {
           addon_valid_until: string | null
+          auto_recovery_attempts: number | null
           company_id: string
           connected_at: string | null
           created_at: string
@@ -3091,6 +3092,7 @@ export type Database = {
           id: string
           instance_id: string
           instance_token: string
+          last_health_check: string | null
           messages_count: number | null
           phone_number: string | null
           status: string | null
@@ -3100,6 +3102,7 @@ export type Database = {
         }
         Insert: {
           addon_valid_until?: string | null
+          auto_recovery_attempts?: number | null
           company_id: string
           connected_at?: string | null
           created_at?: string
@@ -3107,6 +3110,7 @@ export type Database = {
           id?: string
           instance_id: string
           instance_token: string
+          last_health_check?: string | null
           messages_count?: number | null
           phone_number?: string | null
           status?: string | null
@@ -3116,6 +3120,7 @@ export type Database = {
         }
         Update: {
           addon_valid_until?: string | null
+          auto_recovery_attempts?: number | null
           company_id?: string
           connected_at?: string | null
           created_at?: string
@@ -3123,6 +3128,7 @@ export type Database = {
           id?: string
           instance_id?: string
           instance_token?: string
+          last_health_check?: string | null
           messages_count?: number | null
           phone_number?: string | null
           status?: string | null

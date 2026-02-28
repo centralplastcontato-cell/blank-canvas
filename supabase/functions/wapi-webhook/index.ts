@@ -3427,6 +3427,28 @@ async function processWebhookEvent(body: Record<string, unknown>) {
     }
     case 'disconnection': case 'webhookDisconnected':
       await supabase.from('wapi_instances').update({ status: 'disconnected', connected_at: null }).eq('id', instance.id);
+      // === Notify company users about disconnection ===
+      try {
+        const unitName = instance.unit || instance.instance_id || 'WhatsApp';
+        const { data: companyUsers } = await supabase
+          .from('user_companies')
+          .select('user_id')
+          .eq('company_id', instance.company_id);
+        if (companyUsers && companyUsers.length > 0) {
+          const notifications = companyUsers.map((u: any) => ({
+            user_id: u.user_id,
+            company_id: instance.company_id,
+            type: 'instance_disconnected',
+            title: '⚠️ WhatsApp desconectado',
+            message: `WhatsApp da unidade ${unitName} perdeu conexão. Reconecte via QR Code em Configurações.`,
+            data: { instance_id: instance.id, instance_name: unitName },
+          }));
+          await supabase.from('notifications').insert(notifications);
+          console.log(`[Webhook] Disconnect notification sent to ${companyUsers.length} users for instance ${instance.id}`);
+        }
+      } catch (notifErr) {
+        console.error(`[Webhook] Error sending disconnect notification:`, notifErr);
+      }
       break;
     case 'call': case 'webhookCall': case 'call_offer': case 'call_reject': case 'call_timeout': break;
     case 'message': case 'message-received': case 'messages.upsert': case 'webhookReceived': {
