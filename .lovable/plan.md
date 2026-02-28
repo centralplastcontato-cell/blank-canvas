@@ -1,99 +1,68 @@
 
+## Correcao do Health Check que Desconectou Instancias
 
-## Plano: Sistema de Auto-Recuperacao de Instancias WhatsApp
+### Causa Raiz
 
-### Problema Identificado
+O `processInstanceHealthCheck()` no `follow-up-check/index.ts` chama diretamente `https://api.w-api.app/v1/instance/get-status`, que retorna 404 para as instancias. Porem, o endpoint `/qr` retorna `connected: true`. A logica do `wapi-send` (que a UI usa) ja tem fallback para multiplos endpoints e interpreta corretamente como `degraded`. O health check nao tem essa logica e interpretou 404 como "desconectado", marcando tudo como `disconnected`.
 
-Quando a W-API perde a sessao silenciosamente (endpoints retornam 404 mas o painel visual mostra "conectado"), a plataforma para de receber mensagens sem que ninguem perceba. Hoje, a deteccao so acontece quando um usuario abre a tela de chat.
+### Correcao
 
-### Solucao em 3 Frentes
+**1. Usar `wapi-send` ao inves de chamar W-API diretamente**
 
----
+O health check vai chamar o proprio edge function `wapi-send` com `action: "get-status"` (que ja tem a logica de fallback completa) em vez de chamar a API diretamente. Isso garante que o health check use exatamente a mesma logica de deteccao de status que a UI.
 
-### 1. Auto-Verificacao Periodica no `follow-up-check`
+**2. Respeitar status `degraded` sem desconectar**
 
-O `follow-up-check` ja roda a cada poucos minutos. Vamos adicionar uma verificacao automatica de saude das instancias:
+Se o `wapi-send` retornar `degraded`, o health check vai:
+- Manter o status como `degraded` (nao marcar como disconnected)
+- Enviar notificacao apenas uma vez (usando flag ou verificando se ja existe notificacao recente)
+- Nao tentar restart (porque restart tambem falha com 404 nesses casos)
 
-- **Para cada instancia com status "connected"**: chamar `get-status` na W-API
-- Se retornar **desconectado/degraded**: tentar automaticamente um `restart-instance`
-- Se o restart **falhar**: marcar como `disconnected` no banco e **criar uma notificacao** para os usuarios da empresa
-- Se o restart **funcionar**: manter como `connected` e logar a recuperacao
-- Limitar a **1 tentativa de auto-recovery a cada 30 minutos** por instancia (campo `last_health_check` na tabela)
+Apenas marcar como `disconnected` quando o `wapi-send` retornar explicitamente `disconnected` ou `instance_not_found`.
 
-**Arquivo**: `supabase/functions/follow-up-check/index.ts`
+**3. Restaurar instancias afetadas**
 
----
-
-### 2. Coluna `last_health_check` na tabela `wapi_instances`
-
-Adicionar uma coluna para rastrear a ultima verificacao automatica e evitar loops de restart:
-
-```sql
-ALTER TABLE wapi_instances 
-ADD COLUMN last_health_check timestamptz,
-ADD COLUMN auto_recovery_attempts integer DEFAULT 0;
-```
-
----
-
-### 3. Notificacao Imediata quando Instancia Cai
-
-Quando o sistema detectar uma instancia desconectada (seja via follow-up-check ou via webhook):
-
-- Inserir uma notificacao na tabela `notifications` para todos os usuarios da empresa
-- Tipo: `instance_disconnected`
-- Mensagem: "WhatsApp da unidade X perdeu conexao. Reconecte via QR Code em Configuracoes."
-
-Isso garante que o sino de notificacao do admin toque imediatamente.
-
-**Arquivo**: `supabase/functions/follow-up-check/index.ts` (notificacao automatica)
-**Arquivo**: `supabase/functions/wapi-webhook/index.ts` (notificacao no evento de desconexao)
-
----
-
-### Fluxo de Auto-Recuperacao
-
-```text
-follow-up-check roda (a cada ~5min)
-        |
-        v
-Para cada instancia "connected":
-  chamar get-status na W-API
-        |
-        +-- Conectado? --> OK, atualizar last_health_check
-        |
-        +-- Desconectado/Degraded?
-              |
-              +-- Ja tentou recovery < 30min atras? --> Pular
-              |
-              +-- Tentar restart-instance
-                    |
-                    +-- Sucesso? --> Logar, manter connected
-                    |
-                    +-- Falha? --> Marcar disconnected
-                                   Enviar notificacao
-                                   Zerar auto_recovery_attempts
-```
-
----
+Reverter as instancias que estavam funcionando de volta para seu status correto:
+- Manchester: ja estava com QR desconectado (QR retorna qrcode image, nao connected) -- manter disconnected
+- Trujillo e Planeta Divertido: verificar status real
+- Aventura Kids: ja esta `degraded` (correto)
 
 ### Detalhes Tecnicos
 
-**Alteracoes em `follow-up-check/index.ts`:**
-- Nova funcao `processInstanceHealthCheck()` executada no inicio do loop
-- Faz `get-status` para cada instancia connected
-- Se falhar, tenta `restart-instance` via chamada HTTP interna ao `wapi-send`
-- Cria notificacao se nao conseguir recuperar
+**Arquivo: `supabase/functions/follow-up-check/index.ts`**
 
-**Alteracoes em `wapi-webhook/index.ts`:**
-- No case `disconnection`/`webhookDisconnected`: alem de marcar como disconnected, inserir notificacao para usuarios da empresa
+Reescrever `processInstanceHealthCheck()`:
 
-**Nova migracao SQL:**
-- Adicionar `last_health_check` e `auto_recovery_attempts` a `wapi_instances`
+```text
+Para cada instancia connected/degraded:
+  |
+  +-- Cooldown 30min? --> Pular
+  |
+  +-- Chamar wapi-send (edge function) com action: "get-status"
+        |
+        +-- status === "connected" --> OK, resetar recovery_attempts
+        |
+        +-- status === "degraded" --> Manter degraded, notificar 1x (se nao notificou)
+        |
+        +-- status === "disconnected" ou "instance_not_found"
+              |
+              +-- Era "connected"? --> Tentar restart via wapi-send
+              |     |
+              |     +-- Sucesso? --> Logar, incrementar attempts
+              |     +-- Falha? --> Marcar disconnected, notificar
+              |
+              +-- Era "degraded"? --> Apenas manter degraded (nao desconectar)
+```
 
-**Arquivos modificados:**
-1. `supabase/functions/follow-up-check/index.ts` - adicionar health check automatico
-2. `supabase/functions/wapi-webhook/index.ts` - adicionar notificacao de desconexao
-3. Nova migracao SQL para colunas extras
-4. `src/integrations/supabase/types.ts` sera atualizado automaticamente
+A chamada ao `wapi-send` sera feita via fetch interno ao Supabase:
+```
+fetch(`${SUPABASE_URL}/functions/v1/wapi-send`, {
+  method: "POST",
+  headers: { Authorization: `Bearer ${SERVICE_ROLE_KEY}`, "Content-Type": "application/json" },
+  body: JSON.stringify({ action: "get-status", instanceId: inst.instance_id, instanceToken: inst.instance_token })
+})
+```
 
+### Arquivos Modificados
+
+1. `supabase/functions/follow-up-check/index.ts` - reescrever processInstanceHealthCheck para usar wapi-send e respeitar degraded
