@@ -68,6 +68,20 @@ export default function Auth() {
             setCompanyName(data.name);
             setCompanyLogo(data.logo_url);
           }
+        } else {
+          // Preview domain: try loading from last selected company
+          const savedCompanyId = localStorage.getItem("selected_company_id");
+          if (savedCompanyId) {
+            const { data } = await supabase
+              .from("companies")
+              .select("name, logo_url")
+              .eq("id", savedCompanyId)
+              .maybeSingle();
+            if (data) {
+              setCompanyName(data.name);
+              setCompanyLogo(data.logo_url);
+            }
+          }
         }
       } catch {
         // silently fallback to default branding
