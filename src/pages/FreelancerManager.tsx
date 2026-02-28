@@ -157,17 +157,19 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
     })
   )).sort();
 
-  const filteredResponses = responses.filter((r) => {
-    const name = (r.respondent_name || "").toLowerCase();
-    const answersArr = Array.isArray(r.answers) ? r.answers : [];
-    const funcao = answersArr.find((a: any) => a.questionId === "funcao")?.value;
-    const funcaoArr: string[] = Array.isArray(funcao) ? funcao : funcao ? [String(funcao)] : [];
+  const filteredResponses = responses
+    .filter((r) => {
+      const name = (r.respondent_name || "").toLowerCase();
+      const answersArr = Array.isArray(r.answers) ? r.answers : [];
+      const funcao = answersArr.find((a: any) => a.questionId === "funcao")?.value;
+      const funcaoArr: string[] = Array.isArray(funcao) ? funcao : funcao ? [String(funcao)] : [];
 
-    const matchesName = !searchQuery.trim() || name.includes(searchQuery.toLowerCase().trim());
-    const matchesFuncao = !selectedFuncao || funcaoArr.some(f => f.toLowerCase() === selectedFuncao.toLowerCase());
+      const matchesName = !searchQuery.trim() || name.includes(searchQuery.toLowerCase().trim());
+      const matchesFuncao = !selectedFuncao || funcaoArr.some(f => f.toLowerCase() === selectedFuncao.toLowerCase());
 
-    return matchesName && matchesFuncao;
-  });
+      return matchesName && matchesFuncao;
+    })
+    .sort((a, b) => (a.respondent_name || "").localeCompare(b.respondent_name || "", "pt-BR", { sensitivity: "base" }));
 
   const totalPages = Math.ceil(filteredResponses.length / PAGE_SIZE);
   const paginatedResponses = filteredResponses.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
