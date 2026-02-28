@@ -49,6 +49,12 @@ export function useWhatsAppConnection(onConnected?: () => void) {
         return;
       }
 
+      // Handle RESTARTING — instance was auto-restarted
+      if (response.data?.errorType === 'RESTARTING' || response.data?.errorType === 'INSTANCE_ERROR') {
+        toast({ title: "🔄 Reiniciando instância", description: "Aguarde alguns segundos e tente novamente." });
+        return;
+      }
+
       if (response.data?.connected === true || response.data?.details?.connected === true) {
         toast({ title: "Já conectado!", description: "Esta instância já está conectada ao WhatsApp." });
         await supabase

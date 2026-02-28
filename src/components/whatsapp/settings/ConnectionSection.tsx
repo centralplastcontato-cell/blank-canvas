@@ -728,6 +728,15 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
         return;
       }
 
+      // Handle RESTARTING — instance was auto-restarted, retry shortly
+      if (response.data?.errorType === 'RESTARTING' || response.data?.errorType === 'INSTANCE_ERROR') {
+        toast({
+          title: "🔄 Reiniciando instância",
+          description: "Aguarde alguns segundos e clique em 'Tentar novamente'.",
+        });
+        return;
+      }
+
       if (response.data?.connected === true || response.data?.details?.connected === true) {
         toast({
           title: "Já conectado!",
