@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "@/hooks/use-toast";
 import { Users, Plus, Trash2, ChevronDown, ChevronRight, Pencil, Loader2, Share2, ExternalLink } from "lucide-react";
@@ -187,44 +187,43 @@ export function AttendanceManager() {
 
             return (
               <Collapsible key={record.id} open={isOpen} onOpenChange={() => toggleCard(record.id)}>
-                <Card>
-                  <CollapsibleTrigger asChild>
-                    <CardHeader className="cursor-pointer py-3 px-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 min-w-0">
-                          {isOpen ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
-                          <div className="min-w-0">
-                            <CardTitle className="text-sm font-medium truncate">
-                              {record.event?.title || (record.event_id ? "Festa" : "Sem festa vinculada")}
-                            </CardTitle>
-                            <p className="text-xs text-muted-foreground">
-                              {record.event?.event_date
-                                ? format(new Date(record.event.event_date + "T12:00:00"), "dd/MM/yyyy")
-                                : !record.event_id ? "Aguardando vincular" : ""}
-                              {" · "}
-                              {guestCount} convidado{guestCount !== 1 ? "s" : ""}
-                              {wantsInfoCount > 0 && ` · ${wantsInfoCount} quer info`}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <SendBotButton guests={record.guests} recordId={record.id} onSent={fetchData} />
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); const baseUrl = currentCompany?.custom_domain ? `https://${currentCompany.custom_domain}` : window.location.origin; window.open(`${baseUrl}/lista-presenca/${record.id}`, '_blank'); }}>
-                            <ExternalLink className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); const domain = currentCompany?.custom_domain || ''; const link = domain ? `${domain}/lista-presenca/${record.id}` : `${window.location.origin}/lista-presenca/${record.id}`; navigator.clipboard.writeText(link); toast({ title: "Link copiado!" }); }}>
-                            <Share2 className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); openEdit(record); }}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={e => { e.stopPropagation(); handleDelete(record.id); }}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                <Card className="bg-card border-border">
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold truncate">
+                          {record.event?.title || (record.event_id ? "Festa" : "Sem festa vinculada")}
+                        </h3>
+                        <p className="text-sm text-muted-foreground line-clamp-1">
+                          {record.event?.event_date
+                            ? format(new Date(record.event.event_date + "T12:00:00"), "dd/MM/yyyy")
+                            : !record.event_id ? "Aguardando vincular" : ""}
+                          {" · "}
+                          {guestCount} convidado{guestCount !== 1 ? "s" : ""}
+                          {wantsInfoCount > 0 && ` · ${wantsInfoCount} quer info`}
+                        </p>
                       </div>
-                    </CardHeader>
-                  </CollapsibleTrigger>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap border-t border-border/50 pt-3">
+                      <CollapsibleTrigger asChild>
+                        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs rounded-full px-3.5 bg-muted/30 border-border/60 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all">
+                          {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />} Detalhes
+                        </Button>
+                      </CollapsibleTrigger>
+                      <SendBotButton guests={record.guests} recordId={record.id} onSent={fetchData} />
+                      <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs rounded-full px-3.5 bg-muted/30 border-border/60 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all" onClick={() => { const baseUrl = currentCompany?.custom_domain ? `https://${currentCompany.custom_domain}` : window.location.origin; window.open(`${baseUrl}/lista-presenca/${record.id}`, '_blank'); }}>
+                        <ExternalLink className="h-3.5 w-3.5" /> Abrir
+                      </Button>
+                      <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs rounded-full px-3.5 bg-muted/30 border-border/60 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all" onClick={() => { const domain = currentCompany?.custom_domain || ''; const link = domain ? `${domain}/lista-presenca/${record.id}` : `${window.location.origin}/lista-presenca/${record.id}`; navigator.clipboard.writeText(link); toast({ title: "Link copiado!" }); }}>
+                        <Share2 className="h-3.5 w-3.5" /> Link
+                      </Button>
+                      <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs rounded-full px-3.5 bg-muted/30 border-border/60 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all" onClick={() => openEdit(record)}>
+                        <Pencil className="h-3.5 w-3.5" /> Editar
+                      </Button>
+                      <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs rounded-full px-3.5 ml-auto border-destructive/30 text-destructive hover:bg-destructive/10 hover:border-destructive/50 transition-all" onClick={() => handleDelete(record.id)}>
+                        <Trash2 className="h-3.5 w-3.5" /> Excluir
+                      </Button>
+                    </div>
                   <CollapsibleContent>
                     <CardContent className="pt-0 pb-4 px-4 space-y-2">
                       {record.receptionist_name && (
@@ -254,6 +253,7 @@ export function AttendanceManager() {
                       )}
                     </CardContent>
                   </CollapsibleContent>
+                  </CardContent>
                 </Card>
               </Collapsible>
             );
