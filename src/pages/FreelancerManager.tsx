@@ -11,7 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
-import { HardHat, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, ChevronDown, ChevronRight, MessageCircle, ShieldAlert, Search, X, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { HardHat, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, ChevronDown, ChevronRight, MessageCircle, ShieldAlert, Search, X, CheckCircle2, XCircle, Clock, RefreshCw, AlertTriangle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -474,57 +475,79 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
     instance: { instance_id: string },
     phone: string,
     freelancerName: string,
+    responseId?: string,
   ) => {
-    // Load custom message template (fallback to default)
-    const { DEFAULT_FREELANCER_APPROVAL_MESSAGE } = await import("@/components/whatsapp/settings/FreelancerApprovalMessageCard");
-    let messageTemplate = DEFAULT_FREELANCER_APPROVAL_MESSAGE;
+    try {
+      // Load custom message template (fallback to default)
+      const { DEFAULT_FREELANCER_APPROVAL_MESSAGE } = await import("@/components/whatsapp/settings/FreelancerApprovalMessageCard");
+      let messageTemplate = DEFAULT_FREELANCER_APPROVAL_MESSAGE;
 
-    const { data: companyData } = await supabase
-      .from("companies")
-      .select("settings")
-      .eq("id", companyId)
-      .single();
+      const { data: companyData } = await supabase
+        .from("companies")
+        .select("settings")
+        .eq("id", companyId)
+        .single();
 
-    const settings = companyData?.settings as Record<string, any> | null;
-    if (settings?.freelancer_approval_message) {
-      messageTemplate = settings.freelancer_approval_message;
-    }
-
-    const message = messageTemplate.replace(/\{nome\}/g, freelancerName);
-
-    await supabase.functions.invoke("wapi-send", {
-      body: {
-        action: "send-text",
-        phone,
-        message,
-        instanceId: instance.instance_id,
-      },
-    });
-
-    // Update conversation: tag as freelancer+equipe, disable bot
-    const { data: convData } = await (supabase as any)
-      .from("wapi_conversations")
-      .select("id, lead_id")
-      .eq("company_id", companyId)
-      .eq("contact_phone", phone)
-      .limit(1)
-      .maybeSingle();
-
-    if (convData) {
-      await (supabase as any)
-        .from("wapi_conversations")
-        .update({ is_freelancer: true, is_equipe: true, bot_enabled: false, bot_step: null })
-        .eq("id", convData.id);
-
-      if (convData.lead_id) {
-        await supabase
-          .from("campaign_leads")
-          .update({ status: "trabalhe_conosco" })
-          .eq("id", convData.lead_id);
+      const settings = companyData?.settings as Record<string, any> | null;
+      if (settings?.freelancer_approval_message) {
+        messageTemplate = settings.freelancer_approval_message;
       }
-    }
 
-    toast({ title: "Freelancer aprovado! ✅", description: "Mensagem enviada via WhatsApp." });
+      const message = messageTemplate.replace(/\{nome\}/g, freelancerName);
+
+      const { error: sendError } = await supabase.functions.invoke("wapi-send", {
+        body: {
+          action: "send-text",
+          phone,
+          message,
+          instanceId: instance.instance_id,
+        },
+      });
+
+      if (sendError) throw sendError;
+
+      // Record success
+      if (responseId) {
+        await supabase
+          .from("freelancer_responses")
+          .update({ whatsapp_sent_at: new Date().toISOString(), whatsapp_send_error: null } as any)
+          .eq("id", responseId);
+      }
+
+      // Update conversation: tag as freelancer+equipe, disable bot
+      const { data: convData } = await (supabase as any)
+        .from("wapi_conversations")
+        .select("id, lead_id")
+        .eq("company_id", companyId)
+        .eq("contact_phone", phone)
+        .limit(1)
+        .maybeSingle();
+
+      if (convData) {
+        await (supabase as any)
+          .from("wapi_conversations")
+          .update({ is_freelancer: true, is_equipe: true, bot_enabled: false, bot_step: null })
+          .eq("id", convData.id);
+
+        if (convData.lead_id) {
+          await supabase
+            .from("campaign_leads")
+            .update({ status: "trabalhe_conosco" })
+            .eq("id", convData.lead_id);
+        }
+      }
+
+      toast({ title: "Freelancer aprovado! ✅", description: "Mensagem enviada via WhatsApp." });
+    } catch (err: any) {
+      // Record error
+      if (responseId) {
+        await supabase
+          .from("freelancer_responses")
+          .update({ whatsapp_send_error: err?.message || "Erro desconhecido", whatsapp_sent_at: null } as any)
+          .eq("id", responseId);
+      }
+      throw err;
+    }
   };
 
   // Helper: send photo request via a specific instance
@@ -532,13 +555,34 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
     instance: { instance_id: string },
     phone: string,
     name: string,
+    responseId?: string,
   ) => {
-    const message = `Olá ${name}! 📸\n\nPrecisamos da sua foto para completar seu cadastro na equipe. Pode nos enviar uma foto sua por aqui?\n\nObrigado!`;
-    const { error } = await supabase.functions.invoke("wapi-send", {
-      body: { action: "send-text", phone, message, instanceId: instance.instance_id },
-    });
-    if (error) throw error;
-    toast({ title: "Solicitação enviada!", description: `Mensagem enviada para ${name}.` });
+    try {
+      const message = `Olá ${name}! 📸\n\nPrecisamos da sua foto para completar seu cadastro na equipe. Pode nos enviar uma foto sua por aqui?\n\nObrigado!`;
+      const { error } = await supabase.functions.invoke("wapi-send", {
+        body: { action: "send-text", phone, message, instanceId: instance.instance_id },
+      });
+      if (error) throw error;
+
+      // Record success
+      if (responseId) {
+        await supabase
+          .from("freelancer_responses")
+          .update({ whatsapp_sent_at: new Date().toISOString(), whatsapp_send_error: null } as any)
+          .eq("id", responseId);
+      }
+
+      toast({ title: "Solicitação enviada!", description: `Mensagem enviada para ${name}.` });
+    } catch (err: any) {
+      // Record error
+      if (responseId) {
+        await supabase
+          .from("freelancer_responses")
+          .update({ whatsapp_send_error: err?.message || "Erro desconhecido", whatsapp_sent_at: null } as any)
+          .eq("id", responseId);
+      }
+      throw err;
+    }
   };
 
   // Resolves which instance to use (direct or via dialog)
@@ -561,10 +605,11 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
 
     if (instances.length === 1) {
       if (actionType === "approval") {
-        await sendApprovalMessage(instances[0], phone, name);
+        await sendApprovalMessage(instances[0], phone, name, response.id);
       } else {
-        await sendPhotoRequest(instances[0], phone, name);
+        await sendPhotoRequest(instances[0], phone, name, response.id);
       }
+      onDeleted?.(); // refresh to show updated status
       return;
     }
 
@@ -578,9 +623,9 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
     if (!pendingUnitAction) return;
     try {
       if (pendingUnitAction.type === "approval") {
-        await sendApprovalMessage(instance, pendingUnitAction.phone, pendingUnitAction.name);
+        await sendApprovalMessage(instance, pendingUnitAction.phone, pendingUnitAction.name, pendingUnitAction.response.id);
       } else {
-        await sendPhotoRequest(instance, pendingUnitAction.phone, pendingUnitAction.name);
+        await sendPhotoRequest(instance, pendingUnitAction.phone, pendingUnitAction.name, pendingUnitAction.response.id);
       }
     } catch (err: any) {
       console.error("Error sending via selected unit:", err);
@@ -742,12 +787,58 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
                   </div>
                 )}
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="font-semibold text-sm truncate">
                       {r.respondent_name || "Sem nome"}
                     </span>
                     <FreelancerAvgBadge freelancerName={r.respondent_name || ""} companyId={companyId} />
                     <ApprovalBadge status={(r as any).approval_status || "pendente"} />
+                    {(r as any).whatsapp_sent_at && !(r as any).whatsapp_send_error && (
+                      <TooltipProvider delayDuration={200}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex items-center shrink-0">
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs">
+                            Mensagem enviada em {format(new Date((r as any).whatsapp_sent_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                    {(r as any).whatsapp_send_error && (
+                      <TooltipProvider delayDuration={200}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex items-center gap-1 shrink-0">
+                              <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs max-w-[200px]">
+                            {(r as any).whatsapp_send_error}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                    {(r as any).whatsapp_send_error && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const answersArr2 = Array.isArray(r.answers) ? r.answers : [];
+                          const phoneRaw2 = answersArr2.find((a: any) => a.questionId === "telefone")?.value;
+                          if (!phoneRaw2) return;
+                          const phone2 = String(phoneRaw2).replace(/\D/g, "");
+                          if (phone2.length < 10) return;
+                          resolveInstanceAndSend("approval", r, phone2, r.respondent_name || "freelancer");
+                        }}
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+                      >
+                        <RefreshCw className="h-3 w-3" />
+                        Reenviar
+                      </button>
+                    )}
                   </div>
                   <span className="text-xs text-muted-foreground">
                     {format(new Date(r.created_at), "dd/MM/yyyy", { locale: ptBR })}

@@ -1620,6 +1620,8 @@ export type Database = {
           pix_type: string | null
           respondent_name: string | null
           template_id: string
+          whatsapp_send_error: string | null
+          whatsapp_sent_at: string | null
         }
         Insert: {
           answers?: Json
@@ -1634,6 +1636,8 @@ export type Database = {
           pix_type?: string | null
           respondent_name?: string | null
           template_id: string
+          whatsapp_send_error?: string | null
+          whatsapp_sent_at?: string | null
         }
         Update: {
           answers?: Json
@@ -1648,6 +1652,8 @@ export type Database = {
           pix_type?: string | null
           respondent_name?: string | null
           template_id?: string
+          whatsapp_send_error?: string | null
+          whatsapp_sent_at?: string | null
         }
         Relationships: [
           {
