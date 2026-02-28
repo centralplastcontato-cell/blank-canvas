@@ -79,7 +79,6 @@ import {
 interface WapiInstance {
   id: string;
   instance_id: string;
-  instance_token: string;
   status: string;
   unit: string | null;
 }
@@ -1145,7 +1144,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     const companyId = localStorage.getItem('selected_company_id') || 'a0000000-0000-0000-0000-000000000001';
     let query = supabase
       .from("wapi_instances")
-      .select("id, instance_id, instance_token, status, unit")
+      .select("id, instance_id, status, unit")
       .eq("company_id", companyId);
 
     // Filter by allowed units - if empty, show nothing (user has no unit access)
@@ -1208,7 +1207,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           body: {
             action: "get-status",
             instanceId: instance.instance_id,
-            instanceToken: instance.instance_token,
           },
         });
 
@@ -1762,7 +1760,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     const convId = selectedConversation.id;
     const convPhone = selectedConversation.contact_phone;
     const instId = selectedInstance.instance_id;
-    const instToken = selectedInstance.instance_token;
 
     // Send message immediately (no undo delay)
     try {
@@ -1773,7 +1770,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           message: messageToSend,
           conversationId: convId,
           instanceId: instId,
-          instanceToken: instToken,
         },
       });
 
@@ -1850,8 +1846,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           contactName: contactName.trim(),
           contactPhone: contactPhone.trim(),
           conversationId: selectedConversation.id,
-          instanceId: selectedInstance.instance_id,
-          instanceToken: selectedInstance.instance_token,
+           instanceId: selectedInstance.instance_id,
         },
       });
 
@@ -1893,7 +1888,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             newContent: trimmedContent,
             conversationId: selectedConversation.id,
             instanceId: selectedInstance.instance_id,
-            instanceToken: selectedInstance.instance_token,
           },
         });
 
@@ -1937,7 +1931,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         body: {
           action: "send-reaction",
           instanceId: selectedInstance.instance_id,
-          instanceToken: selectedInstance.instance_token,
           messageId: msg.message_id,
           emoji,
         },
@@ -2030,7 +2023,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         message: message,
         conversationId: selectedConversation.id,
         instanceId: selectedInstance.instance_id,
-        instanceToken: selectedInstance.instance_token,
       },
     });
 
@@ -2320,7 +2312,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           phone: selectedConversation.contact_phone,
           conversationId: selectedConversation.id,
           instanceId: selectedInstance.instance_id,
-          instanceToken: selectedInstance.instance_token,
           mediaUrl,
         },
       });
@@ -2489,7 +2480,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             phone: selectedConversation.contact_phone,
             conversationId: selectedConversation.id,
             instanceId: selectedInstance.instance_id,
-            instanceToken: selectedInstance.instance_token,
             base64: base64Data,
             caption: captionToSend,
             mediaUrl: mediaUrl,
@@ -2531,7 +2521,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             phone: selectedConversation.contact_phone,
             conversationId: selectedConversation.id,
             instanceId: selectedInstance.instance_id,
-            instanceToken: selectedInstance.instance_token,
             mediaUrl,
             fileName: file.name,
           },
@@ -2574,7 +2563,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             phone: selectedConversation.contact_phone,
             conversationId: selectedConversation.id,
             instanceId: selectedInstance.instance_id,
-            instanceToken: selectedInstance.instance_token,
             mediaUrl,
             caption: captionToSend,
           },
@@ -2630,7 +2618,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           phone: selectedConversation.contact_phone,
           conversationId: selectedConversation.id,
           instanceId: selectedInstance.instance_id,
-          instanceToken: selectedInstance.instance_token,
           mediaUrl: url,
           caption: caption || undefined,
           fileName: finalFileName,
@@ -3105,7 +3092,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                   body: {
                     action: "restart-instance",
                     instanceId: selectedInstance.instance_id,
-                    instanceToken: selectedInstance.instance_token,
                   },
                 });
                 if (response.data?.restarted) {
@@ -3146,7 +3132,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                   body: {
                     action: "repair-session",
                     instanceId: selectedInstance.instance_id,
-                    instanceToken: selectedInstance.instance_token,
                   },
                 });
                 if (response.data?.repaired) {
@@ -3962,7 +3947,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                       content={msg.content}
                                       fromMe={msg.from_me}
                                       instanceId={selectedInstance?.instance_id}
-                                      instanceToken={selectedInstance?.instance_token}
                                       onMediaUrlUpdate={(url) => {
                                         setMessages(prev => prev.map(m => 
                                           m.id === msg.id ? { ...m, media_url: url } : m
@@ -4871,7 +4855,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                   content={msg.content}
                                   fromMe={msg.from_me}
                                   instanceId={selectedInstance?.instance_id}
-                                  instanceToken={selectedInstance?.instance_token}
                                   onMediaUrlUpdate={(url) => {
                                     setMessages(prev => prev.map(m => 
                                       m.id === msg.id ? { ...m, media_url: url } : m

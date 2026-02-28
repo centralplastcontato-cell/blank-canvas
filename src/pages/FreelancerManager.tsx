@@ -341,8 +341,8 @@ function UnitSelectDialog({
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  instances: { instance_id: string; instance_token: string; unit: string | null; phone_number: string | null }[];
-  onSelect: (instance: { instance_id: string; instance_token: string; unit: string | null; phone_number: string | null }) => void;
+  instances: { instance_id: string; unit: string | null; phone_number: string | null }[];
+  onSelect: (instance: { instance_id: string; unit: string | null; phone_number: string | null }) => void;
   title?: string;
 }) {
   const [sending, setSending] = useState<string | null>(null);
@@ -406,7 +406,7 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
 
   // Unit selection dialog state
   const [unitDialogOpen, setUnitDialogOpen] = useState(false);
-  const [connectedInstances, setConnectedInstances] = useState<{ instance_id: string; instance_token: string; unit: string | null; phone_number: string | null }[]>([]);
+  const [connectedInstances, setConnectedInstances] = useState<{ instance_id: string; unit: string | null; phone_number: string | null }[]>([]);
   const [pendingUnitAction, setPendingUnitAction] = useState<{ type: "approval" | "photo"; response: any; phone: string; name: string } | null>(null);
 
   // Extract all unique functions from responses + template options
@@ -463,15 +463,15 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
   const fetchConnectedInstances = async () => {
     const { data } = await supabase
       .from("wapi_instances")
-      .select("instance_id, instance_token, unit, phone_number")
+      .select("instance_id, unit, phone_number")
       .eq("company_id", companyId)
       .in("status", ["connected", "degraded"]);
-    return (data || []) as { instance_id: string; instance_token: string; unit: string | null; phone_number: string | null }[];
+    return (data || []) as { instance_id: string; unit: string | null; phone_number: string | null }[];
   };
 
   // Helper: send approval message via a specific instance
   const sendApprovalMessage = async (
-    instance: { instance_id: string; instance_token: string },
+    instance: { instance_id: string },
     phone: string,
     freelancerName: string,
   ) => {
@@ -498,7 +498,6 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
         phone,
         message,
         instanceId: instance.instance_id,
-        instanceToken: instance.instance_token,
       },
     });
 
@@ -530,13 +529,13 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
 
   // Helper: send photo request via a specific instance
   const sendPhotoRequest = async (
-    instance: { instance_id: string; instance_token: string },
+    instance: { instance_id: string },
     phone: string,
     name: string,
   ) => {
     const message = `Olá ${name}! 📸\n\nPrecisamos da sua foto para completar seu cadastro na equipe. Pode nos enviar uma foto sua por aqui?\n\nObrigado!`;
     const { error } = await supabase.functions.invoke("wapi-send", {
-      body: { action: "send-text", phone, message, instanceId: instance.instance_id, instanceToken: instance.instance_token },
+      body: { action: "send-text", phone, message, instanceId: instance.instance_id },
     });
     if (error) throw error;
     toast({ title: "Solicitação enviada!", description: `Mensagem enviada para ${name}.` });
@@ -575,7 +574,7 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
     setUnitDialogOpen(true);
   };
 
-  const handleUnitSelected = async (instance: { instance_id: string; instance_token: string; unit: string | null; phone_number: string | null }) => {
+  const handleUnitSelected = async (instance: { instance_id: string; unit: string | null; phone_number: string | null }) => {
     if (!pendingUnitAction) return;
     try {
       if (pendingUnitAction.type === "approval") {
