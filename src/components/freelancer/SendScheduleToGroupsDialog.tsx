@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,8 +15,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { toast } from "@/hooks/use-toast";
-import { Search, UsersRound, Loader2, Send } from "lucide-react";
+
+import { Search, UsersRound, Loader2, Send, Minus, CheckCircle2, XCircle } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { DEFAULT_SCHEDULE_GROUP_MESSAGE } from "@/components/whatsapp/settings/ScheduleGroupMessageCard";
@@ -75,8 +76,12 @@ export function SendScheduleToGroupsDialog({
   const [sending, setSending] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number; waiting: boolean } | null>(null);
   const [delaySeconds, setDelaySeconds] = useState(60);
+  const [minimized, setMinimized] = useState(false);
+  const [sendResult, setSendResult] = useState<{ success: number; errors: number } | null>(null);
 
-  // Build the public link for this schedule
+  // Keep component mounted while sending even if parent tries to close
+  const isSendingRef = useRef(false);
+
   const publicLink = useMemo(() => {
     const domain = customDomain || window.location.origin;
     const slug = schedule.slug || schedule.id;
@@ -84,11 +89,9 @@ export function SendScheduleToGroupsDialog({
     return `${domain}${path}`;
   }, [schedule, companySlug, customDomain]);
 
-  // Build message from template
   const buildMessage = (template: string) => {
     const startStr = format(parseISO(schedule.start_date), "dd/MM", { locale: ptBR });
     const endStr = format(parseISO(schedule.end_date), "dd/MM", { locale: ptBR });
-
     return template
       .replace(/\{titulo\}/g, schedule.title)
       .replace(/\{periodo\}/g, `${startStr} a ${endStr}`)
@@ -103,13 +106,13 @@ export function SendScheduleToGroupsDialog({
     setSearchQuery("");
     setSending(false);
     setProgress(null);
+    setMinimized(false);
+    setSendResult(null);
     loadData();
   }, [open]);
 
   const loadData = async () => {
     setLoading(true);
-
-    // Fetch connected instances (READ-ONLY)
     const { data: instData } = await supabase
       .from("wapi_instances")
       .select("id, instance_id, phone_number, unit")
@@ -126,7 +129,6 @@ export function SendScheduleToGroupsDialog({
       return;
     }
 
-    // Fetch group conversations (READ-ONLY)
     const instanceIds = insts.map((i) => i.id);
     const { data: convData } = await supabase
       .from("wapi_conversations")
@@ -136,7 +138,6 @@ export function SendScheduleToGroupsDialog({
 
     setGroups((convData as Group[]) || []);
 
-    // Fetch template from company settings
     const { data: compData } = await supabase
       .from("companies")
       .select("settings")
@@ -191,7 +192,9 @@ export function SendScheduleToGroupsDialog({
 
     const selectedGroups = groups.filter((g) => selectedGroupIds.has(g.id));
     setSending(true);
+    isSendingRef.current = true;
     setProgress({ current: 0, total: selectedGroups.length, waiting: false });
+    setSendResult(null);
 
     let successCount = 0;
     let errorCount = 0;
@@ -234,150 +237,232 @@ export function SendScheduleToGroupsDialog({
       }
     }
 
-    if (successCount > 0) {
-      toast({
-        title: `Enviado para ${successCount} grupo${successCount > 1 ? "s" : ""}!`,
-        description: errorCount > 0 ? `${errorCount} falha(s).` : undefined,
-      });
-    } else {
-      toast({
-        title: "Erro ao enviar",
-        description: "Nenhuma mensagem foi enviada com sucesso.",
-        variant: "destructive",
-      });
-    }
-
+    // Store result and finish
+    const result = { success: successCount, errors: errorCount };
+    setSendResult(result);
     setSending(false);
+    isSendingRef.current = false;
     setProgress(null);
+
+    // If minimized, auto-maximize to show result
+    setMinimized(false);
+  };
+
+  const handleCloseResult = () => {
+    setSendResult(null);
     onOpenChange(false);
+  };
+
+  const handleDialogOpenChange = (newOpen: boolean) => {
+    // Don't allow closing while sending (unless minimizing)
+    if (sending) return;
+    if (!newOpen && sendResult) {
+      // Allow closing result screen
+      setSendResult(null);
+    }
+    onOpenChange(newOpen);
   };
 
   const progressPercent = progress
     ? Math.round((progress.current / progress.total) * 100)
     : 0;
 
-  return (
-    <Dialog open={open} onOpenChange={sending ? undefined : onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90dvh] flex flex-col overflow-hidden p-4 sm:p-6">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <UsersRound className="w-5 h-5 text-primary" />
-            Enviar Escala para Grupos
-          </DialogTitle>
-          <DialogDescription>
-            Selecione os grupos e envie a escala "{schedule.title}" via WhatsApp.
-          </DialogDescription>
-        </DialogHeader>
+  // Determine if dialog should be visually open
+  const dialogVisible = open && !minimized;
 
-        {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : sending ? (
-          <div className="space-y-4 py-4">
-            <p className="text-sm font-medium">
+  // Floating banner portal (visible when minimized and sending)
+  const floatingBanner = minimized && (sending || sendResult) ? createPortal(
+    <div
+      onClick={() => setMinimized(false)}
+      className="fixed bottom-4 right-4 z-[100] flex items-center gap-3 rounded-lg border bg-background px-4 py-3 shadow-lg cursor-pointer hover:shadow-xl transition-shadow min-w-[240px]"
+    >
+      {sending ? (
+        <>
+          <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">
               Enviando {progress?.current || 0} de {progress?.total || 0}...
             </p>
-            <Progress value={progressPercent} className="h-2" />
             {progress?.waiting && (
-              <p className="text-xs text-muted-foreground animate-pulse">
-                Aguardando ~{delaySeconds}s de intervalo de segurança...
-              </p>
+              <p className="text-[10px] text-muted-foreground">Aguardando ~{delaySeconds}s...</p>
             )}
+            <Progress value={progressPercent} className="h-1.5 mt-1" />
           </div>
-        ) : (
-          <div className="space-y-3 flex-1 overflow-y-auto min-h-0">
-            {instances.length === 0 ? (
-              <div className="text-center py-6 text-sm text-muted-foreground">
-                Nenhuma instância de WhatsApp conectada.
-              </div>
-            ) : (
-              <>
-                {/* Search */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Buscar grupo..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
+        </>
+      ) : sendResult ? (
+        <>
+          <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+          <p className="text-sm font-medium">
+            Envio finalizado! Clique para ver.
+          </p>
+        </>
+      ) : null}
+    </div>,
+    document.body
+  ) : null;
 
-                {/* Select all */}
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground">
-                    {selectedGroupIds.size} de {filteredGroups.length} selecionado(s)
-                  </Label>
-                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={toggleAll}>
-                    {selectedGroupIds.size === filteredGroups.length ? "Desmarcar todos" : "Selecionar todos"}
-                  </Button>
-                </div>
+  return (
+    <>
+      <Dialog open={dialogVisible} onOpenChange={handleDialogOpenChange}>
+        <DialogContent className="sm:max-w-lg max-h-[90dvh] flex flex-col overflow-hidden p-4 sm:p-6">
+          {/* Minimize button during sending */}
+          {sending && (
+            <button
+              type="button"
+              onClick={() => setMinimized(true)}
+              className="absolute right-10 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              title="Minimizar"
+            >
+              <Minus className="h-4 w-4" />
+            </button>
+          )}
 
-                {/* Group list */}
-                <ScrollArea className="h-36 sm:h-44 border rounded-md">
-                  {filteredGroups.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full p-4 text-center">
-                      <UsersRound className="w-8 h-8 text-muted-foreground mb-2" />
-                      <p className="text-sm text-muted-foreground">
-                        {searchQuery ? "Nenhum grupo encontrado" : "Nenhum grupo disponível"}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="p-1 space-y-0.5">
-                      {filteredGroups.map((group) => {
-                        const inst = instances.find((i) => i.id === group.instance_id);
-                        const instanceLabel = inst?.unit || (inst?.phone_number ? `…${inst.phone_number.slice(-4)}` : null);
-                        return (
-                          <label
-                            key={group.id}
-                            className="flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 rounded-md text-sm hover:bg-accent cursor-pointer transition-colors"
-                          >
-                            <Checkbox
-                              checked={selectedGroupIds.has(group.id)}
-                              onCheckedChange={() => toggleGroup(group.id)}
-                            />
-                            <UsersRound className="w-4 h-4 shrink-0 text-muted-foreground" />
-                            <span className="truncate flex-1">
-                              {group.contact_name || group.remote_jid.split("@")[0]}
-                            </span>
-                            {instanceLabel && instances.length > 1 && (
-                              <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">
-                                {instanceLabel}
-                              </span>
-                            )}
-                          </label>
-                        );
-                      })}
-                    </div>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UsersRound className="w-5 h-5 text-primary" />
+              Enviar Escala para Grupos
+            </DialogTitle>
+            <DialogDescription>
+              Selecione os grupos e envie a escala "{schedule.title}" via WhatsApp.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Result screen */}
+          {sendResult ? (
+            <div className="space-y-4 py-4">
+              <div className="flex flex-col items-center gap-3 text-center">
+                {sendResult.errors === 0 ? (
+                  <CheckCircle2 className="w-10 h-10 text-green-500" />
+                ) : (
+                  <XCircle className="w-10 h-10 text-destructive" />
+                )}
+                <div>
+                  <p className="text-base font-semibold">
+                    {sendResult.success > 0
+                      ? `Enviado para ${sendResult.success} grupo${sendResult.success > 1 ? "s" : ""}!`
+                      : "Nenhuma mensagem enviada"}
+                  </p>
+                  {sendResult.errors > 0 && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {sendResult.errors} falha{sendResult.errors > 1 ? "s" : ""} no envio.
+                    </p>
                   )}
-                </ScrollArea>
-
-                {/* Message */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Mensagem:</Label>
-                  <Textarea
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    className="min-h-[100px] sm:min-h-[140px] text-sm resize-none"
-                    placeholder="Mensagem para enviar..."
-                  />
                 </div>
+              </div>
+              <Button onClick={handleCloseResult} className="w-full">
+                Fechar
+              </Button>
+            </div>
+          ) : loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : sending ? (
+            <div className="space-y-4 py-4">
+              <p className="text-sm font-medium">
+                Enviando {progress?.current || 0} de {progress?.total || 0}...
+              </p>
+              <Progress value={progressPercent} className="h-2" />
+              {progress?.waiting && (
+                <p className="text-xs text-muted-foreground animate-pulse">
+                  Aguardando ~{delaySeconds}s de intervalo de segurança...
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Você pode minimizar esta janela e continuar usando o sistema.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3 flex-1 overflow-y-auto min-h-0">
+              {instances.length === 0 ? (
+                <div className="text-center py-6 text-sm text-muted-foreground">
+                  Nenhuma instância de WhatsApp conectada.
+                </div>
+              ) : (
+                <>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar grupo..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
 
-                {/* Send */}
-                <Button
-                  onClick={handleSend}
-                  disabled={selectedGroupIds.size === 0 || !message.trim()}
-                  className="w-full gap-2"
-                >
-                  <Send className="w-4 h-4" />
-                  Enviar para {selectedGroupIds.size} grupo{selectedGroupIds.size !== 1 ? "s" : ""}
-                </Button>
-              </>
-            )}
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs text-muted-foreground">
+                      {selectedGroupIds.size} de {filteredGroups.length} selecionado(s)
+                    </Label>
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={toggleAll}>
+                      {selectedGroupIds.size === filteredGroups.length ? "Desmarcar todos" : "Selecionar todos"}
+                    </Button>
+                  </div>
+
+                  <ScrollArea className="h-36 sm:h-44 border rounded-md">
+                    {filteredGroups.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-full p-4 text-center">
+                        <UsersRound className="w-8 h-8 text-muted-foreground mb-2" />
+                        <p className="text-sm text-muted-foreground">
+                          {searchQuery ? "Nenhum grupo encontrado" : "Nenhum grupo disponível"}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="p-1 space-y-0.5">
+                        {filteredGroups.map((group) => {
+                          const inst = instances.find((i) => i.id === group.instance_id);
+                          const instanceLabel = inst?.unit || (inst?.phone_number ? `…${inst.phone_number.slice(-4)}` : null);
+                          return (
+                            <label
+                              key={group.id}
+                              className="flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 rounded-md text-sm hover:bg-accent cursor-pointer transition-colors"
+                            >
+                              <Checkbox
+                                checked={selectedGroupIds.has(group.id)}
+                                onCheckedChange={() => toggleGroup(group.id)}
+                              />
+                              <UsersRound className="w-4 h-4 shrink-0 text-muted-foreground" />
+                              <span className="truncate flex-1">
+                                {group.contact_name || group.remote_jid.split("@")[0]}
+                              </span>
+                              {instanceLabel && instances.length > 1 && (
+                                <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">
+                                  {instanceLabel}
+                                </span>
+                              )}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </ScrollArea>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Mensagem:</Label>
+                    <Textarea
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      className="min-h-[100px] sm:min-h-[140px] text-sm resize-none"
+                      placeholder="Mensagem para enviar..."
+                    />
+                  </div>
+
+                  <Button
+                    onClick={handleSend}
+                    disabled={selectedGroupIds.size === 0 || !message.trim()}
+                    className="w-full gap-2"
+                  >
+                    <Send className="w-4 h-4" />
+                    Enviar para {selectedGroupIds.size} grupo{selectedGroupIds.size !== 1 ? "s" : ""}
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {floatingBanner}
+    </>
   );
 }
