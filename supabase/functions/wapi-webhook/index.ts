@@ -3481,6 +3481,12 @@ async function processWebhookEvent(body: Record<string, unknown>) {
       const isGrp = (rj as string).includes('@g.us');
       if (!isGrp && !(rj as string).includes('@')) rj = `${rj}@s.whatsapp.net`;
       else if ((rj as string).includes('@c.us')) rj = (rj as string).replace('@c.us', '@s.whatsapp.net');
+
+      // Ignore Meta Linked IDs (@lid) - they duplicate real messages
+      if ((rj as string).includes('@lid')) {
+        console.log(`[Webhook] Ignoring @lid message: ${rj}`);
+        break;
+      }
       
       const fromMe = (msg as Record<string, unknown>).key?.fromMe || (msg as Record<string, unknown>).fromMe || false;
       const msgId = (msg as Record<string, unknown>).key?.id || (msg as Record<string, unknown>).id || (msg as Record<string, unknown>).messageId;
