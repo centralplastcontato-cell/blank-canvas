@@ -143,6 +143,10 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 10;
+  const totalPages = Math.ceil(responses.length / PAGE_SIZE);
+  const paginatedResponses = responses.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const handleDeleteResponse = async (id: string) => {
     setDeletingId(id);
@@ -214,7 +218,7 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
         description="Esta ação é irreversível e excluirá o cadastro permanentemente. Digite sua senha de acesso para confirmar."
         onConfirmed={() => { if (pendingDeleteId) handleDeleteResponse(pendingDeleteId); }}
       />
-      {responses.map((r) => {
+      {paginatedResponses.map((r) => {
         const isOpen = openId === r.id;
         const answersArr = Array.isArray(r.answers) ? r.answers : [];
         return (
@@ -320,6 +324,21 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
           </div>
         );
       })}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-3 px-1">
+          <span className="text-xs text-muted-foreground">
+            {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, responses.length)} de {responses.length}
+          </span>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="sm" className="h-7 px-2 text-xs" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
+              Anterior
+            </Button>
+            <Button variant="outline" size="sm" className="h-7 px-2 text-xs" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>
+              Próximo
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
