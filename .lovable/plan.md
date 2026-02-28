@@ -1,68 +1,52 @@
 
-## Correcao do Health Check que Desconectou Instancias
+## Editar nome de exibicao e remover festas individuais da escala
 
-### Causa Raiz
+### O que muda
 
-O `processInstanceHealthCheck()` no `follow-up-check/index.ts` chama diretamente `https://api.w-api.app/v1/instance/get-status`, que retorna 404 para as instancias. Porem, o endpoint `/qr` retorna `connected: true`. A logica do `wapi-send` (que a UI usa) ja tem fallback para multiplos endpoints e interpreta corretamente como `degraded`. O health check nao tem essa logica e interpretou 404 como "desconectado", marcando tudo como `disconnected`.
+**1. Remover festa individual da escala**
+- Adicionar um botao "X" (ou icone de lixeira pequeno) em cada card de festa dentro da escala expandida
+- Ao clicar, remove o `event_id` do array `event_ids` da escala no banco
+- Se a escala ficar com 0 festas, perguntar se quer excluir a escala inteira
+- Atualiza o contador de festas automaticamente
 
-### Correcao
-
-**1. Usar `wapi-send` ao inves de chamar W-API diretamente**
-
-O health check vai chamar o proprio edge function `wapi-send` com `action: "get-status"` (que ja tem a logica de fallback completa) em vez de chamar a API diretamente. Isso garante que o health check use exatamente a mesma logica de deteccao de status que a UI.
-
-**2. Respeitar status `degraded` sem desconectar**
-
-Se o `wapi-send` retornar `degraded`, o health check vai:
-- Manter o status como `degraded` (nao marcar como disconnected)
-- Enviar notificacao apenas uma vez (usando flag ou verificando se ja existe notificacao recente)
-- Nao tentar restart (porque restart tambem falha com 404 nesses casos)
-
-Apenas marcar como `disconnected` quando o `wapi-send` retornar explicitamente `disconnected` ou `instance_not_found`.
-
-**3. Restaurar instancias afetadas**
-
-Reverter as instancias que estavam funcionando de volta para seu status correto:
-- Manchester: ja estava com QR desconectado (QR retorna qrcode image, nao connected) -- manter disconnected
-- Trujillo e Planeta Divertido: verificar status real
-- Aventura Kids: ja esta `degraded` (correto)
+**2. Nome de exibicao customizavel por festa**
+- Adicionar uma coluna `event_display_names` (jsonb) na tabela `freelancer_schedules` - um mapa `{ event_id: "nome customizado" }`
+- Adicionar uma opcao de toggle/select por festa no card: "Nome do anfitriao" ou "Festa genérica (data/hora)"
+- Formato genérico: "Festa 01/03 as 13:00" (sem revelar nome do cliente)
+- Formato anfitriao: mostra o titulo original do evento (nome do anfitriao)
+- Na pagina publica (`PublicFreelancerSchedule`), usar o `display_name` customizado ao inves do `ev.title`
 
 ### Detalhes Tecnicos
 
-**Arquivo: `supabase/functions/follow-up-check/index.ts`**
+**Migration SQL:**
+- Adicionar coluna `event_display_names jsonb default '{}'::jsonb` em `freelancer_schedules`
 
-Reescrever `processInstanceHealthCheck()`:
+**Arquivos modificados:**
 
+1. **`src/components/freelancer/ScheduleCard.tsx`**
+   - Adicionar botao de remover festa (icone X) no header de cada evento
+   - Adicionar toggle por festa: um dropdown/botao para alternar entre "Nome do anfitriao" e "Festa DD/MM as HH:MM"
+   - Exibir o `display_name` quando configurado, senao mostrar o titulo original
+
+2. **`src/components/freelancer/FreelancerSchedulesTab.tsx`**
+   - Nova prop/callback `onRemoveEvent(scheduleId, eventId)` que faz UPDATE no array `event_ids` removendo o ID e tambem limpa availability/assignments relacionados
+   - Nova prop/callback `onUpdateDisplayName(scheduleId, eventId, displayName)` que atualiza o jsonb `event_display_names`
+   - Passar `event_display_names` para o `ScheduleCard`
+
+3. **`src/pages/PublicFreelancerSchedule.tsx`**
+   - Carregar `event_display_names` do schedule
+   - Usar o nome customizado (se existir) no lugar de `ev.title` na lista de festas publicas
+
+### Fluxo do usuario
+
+No card de cada festa dentro da escala:
 ```text
-Para cada instancia connected/degraded:
-  |
-  +-- Cooldown 30min? --> Pular
-  |
-  +-- Chamar wapi-send (edge function) com action: "get-status"
-        |
-        +-- status === "connected" --> OK, resetar recovery_attempts
-        |
-        +-- status === "degraded" --> Manter degraded, notificar 1x (se nao notificou)
-        |
-        +-- status === "disconnected" ou "instance_not_found"
-              |
-              +-- Era "connected"? --> Tentar restart via wapi-send
-              |     |
-              |     +-- Sucesso? --> Logar, incrementar attempts
-              |     +-- Falha? --> Marcar disconnected, notificar
-              |
-              +-- Era "degraded"? --> Apenas manter degraded (nao desconectar)
++--------------------------------------------------+
+| DOM  Festa 01/03 as 13:00   [Anfitriao v] [X]   |
+|  01  01/03 · 13:00 · Castelo                     |
++--------------------------------------------------+
 ```
-
-A chamada ao `wapi-send` sera feita via fetch interno ao Supabase:
-```
-fetch(`${SUPABASE_URL}/functions/v1/wapi-send`, {
-  method: "POST",
-  headers: { Authorization: `Bearer ${SERVICE_ROLE_KEY}`, "Content-Type": "application/json" },
-  body: JSON.stringify({ action: "get-status", instanceId: inst.instance_id, instanceToken: inst.instance_token })
-})
-```
-
-### Arquivos Modificados
-
-1. `supabase/functions/follow-up-check/index.ts` - reescrever processInstanceHealthCheck para usar wapi-send e respeitar degraded
+- O dropdown `[Anfitriao v]` permite escolher entre:
+  - "Nome do anfitriao" (ex: "Jessica Lopes")  
+  - "Festa generica" (ex: "Festa 01/03 as 13:00")
+- O botao `[X]` remove a festa da escala (com confirmacao)
