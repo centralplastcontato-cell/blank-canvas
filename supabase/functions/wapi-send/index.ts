@@ -174,8 +174,27 @@ function extractWapiMessageId(payload: unknown): string | null {
 }
 
 async function sendTextWithFallback(instanceId: string, token: string, rawPhone: string, message: string) {
-  const phone = String(rawPhone || '').replace(/\D/g, '');
   const endpoint = `${WAPI_BASE_URL}/message/send-text?instanceId=${instanceId}`;
+
+  // Detect group JIDs and send directly via chatId (skip phone normalization)
+  if (rawPhone && rawPhone.endsWith('@g.us')) {
+    const groupAttempts = [
+      { name: 'chatId+message', body: { chatId: rawPhone, message, delayTyping: 1 } },
+      { name: 'chatId+text', body: { chatId: rawPhone, text: message, delayTyping: 1 } },
+    ];
+    for (const attempt of groupAttempts) {
+      const res = await wapiRequest(endpoint, token, 'POST', attempt.body);
+      if (res.ok) {
+        const msgId = extractWapiMessageId(res.data);
+        console.log(`[send-text] Group success [${attempt.name}] msgId=${msgId || 'NONE'}`);
+        return { ok: true, data: res.data, attempt: attempt.name };
+      }
+      console.warn(`[send-text] Group failed [${attempt.name}]: ${res.error}`);
+    }
+    return { ok: false, error: 'Falha ao enviar para grupo (W-API)' };
+  }
+
+  const phone = String(rawPhone || '').replace(/\D/g, '');
 
   const attempts: Array<{ name: string; body: Record<string, unknown> }> = [
     { name: 'phone+message', body: { phone, message, delayTyping: 1 } },
