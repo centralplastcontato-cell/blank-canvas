@@ -3105,6 +3105,7 @@ export type Database = {
           instance_id: string
           instance_token: string
           last_health_check: string | null
+          last_restart_attempt: string | null
           messages_count: number | null
           phone_number: string | null
           status: string | null
@@ -3123,6 +3124,7 @@ export type Database = {
           instance_id: string
           instance_token: string
           last_health_check?: string | null
+          last_restart_attempt?: string | null
           messages_count?: number | null
           phone_number?: string | null
           status?: string | null
@@ -3141,6 +3143,7 @@ export type Database = {
           instance_id?: string
           instance_token?: string
           last_health_check?: string | null
+          last_restart_attempt?: string | null
           messages_count?: number | null
           phone_number?: string | null
           status?: string | null

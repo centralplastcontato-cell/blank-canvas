@@ -2305,34 +2305,36 @@ async function processInstanceHealthCheck(
 ): Promise<void> {
   console.log("[health-check] Starting instance health check...");
 
-  // Fetch all instances marked as "connected" or "degraded"
+  // Fetch ALL instances: connected, degraded AND disconnected (for auto-reconnection)
   const { data: instances, error: instError } = await supabase
     .from("wapi_instances")
-    .select("id, instance_id, instance_token, company_id, unit, status, last_health_check, auto_recovery_attempts")
-    .in("status", ["connected", "degraded"]);
+    .select("id, instance_id, instance_token, company_id, unit, status, last_health_check, auto_recovery_attempts, last_restart_attempt")
+    .in("status", ["connected", "degraded", "disconnected"]);
 
   if (instError || !instances || instances.length === 0) {
     if (instError) console.error("[health-check] Error fetching instances:", instError);
-    else console.log("[health-check] No connected/degraded instances to check");
+    else console.log("[health-check] No instances to check");
     return;
   }
 
-  console.log(`[health-check] Checking ${instances.length} instances...`);
+  console.log(`[health-check] Checking ${instances.length} instances (connected + degraded + disconnected)...`);
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
   for (const inst of instances) {
     try {
-      // Check cooldown: skip if last health check was < 30 min ago
-      if (inst.last_health_check) {
-        const lastCheck = new Date(inst.last_health_check).getTime();
+      // For connected/degraded: cooldown 30 min between checks
+      // For disconnected: cooldown 30 min between restart attempts
+      const cooldownField = inst.status === "disconnected" ? inst.last_restart_attempt : inst.last_health_check;
+      if (cooldownField) {
+        const lastTime = new Date(cooldownField).getTime();
         const now = Date.now();
-        if (now - lastCheck < 30 * 60 * 1000) {
-          continue; // Skip - checked recently
+        if (now - lastTime < 30 * 60 * 1000) {
+          continue; // Skip - checked/attempted recently
         }
       }
 
-      // Call wapi-send edge function (has full fallback logic) instead of W-API directly
+      // Call wapi-send edge function to get real status
       let detectedStatus = "disconnected";
       try {
         const statusResponse = await fetch(
@@ -2354,7 +2356,7 @@ async function processInstanceHealthCheck(
         if (statusResponse.ok) {
           const statusData = await statusResponse.json();
           detectedStatus = statusData?.status || "disconnected";
-          console.log(`[health-check] wapi-send get-status for ${inst.instance_id}: ${detectedStatus}`);
+          console.log(`[health-check] wapi-send get-status for ${inst.instance_id} (DB: ${inst.status}): ${detectedStatus}`);
         } else {
           const errText = await statusResponse.text();
           console.warn(`[health-check] wapi-send get-status failed for ${inst.instance_id} (${statusResponse.status}): ${errText}`);
@@ -2372,10 +2374,16 @@ async function processInstanceHealthCheck(
       // === Handle detected status ===
 
       if (detectedStatus === "connected") {
-        // Instance is healthy
-        console.log(`[health-check] Instance ${inst.instance_id} is healthy (connected)`);
+        // Instance is healthy - auto-recover if DB said disconnected
         if (inst.status !== "connected") {
-          await supabase.from("wapi_instances").update({ status: "connected" }).eq("id", inst.id);
+          console.log(`[health-check] ✅ Instance ${inst.instance_id} auto-recovered! Was ${inst.status}, now connected.`);
+          await supabase.from("wapi_instances").update({ 
+            status: "connected",
+            connected_at: new Date().toISOString(),
+            auto_recovery_attempts: 0,
+          }).eq("id", inst.id);
+        } else {
+          console.log(`[health-check] Instance ${inst.instance_id} is healthy (connected)`);
         }
         if ((inst.auto_recovery_attempts || 0) > 0) {
           await supabase.from("wapi_instances").update({ auto_recovery_attempts: 0 }).eq("id", inst.id);
@@ -2384,7 +2392,6 @@ async function processInstanceHealthCheck(
       }
 
       if (detectedStatus === "degraded") {
-        // Degraded = QR connected but API endpoints returning 404. Do NOT disconnect.
         console.log(`[health-check] Instance ${inst.instance_id} is degraded — keeping status, no restart`);
         if (inst.status !== "degraded") {
           await supabase.from("wapi_instances").update({ status: "degraded" }).eq("id", inst.id);
@@ -2431,8 +2438,14 @@ async function processInstanceHealthCheck(
         continue;
       }
 
-      // Instance was "connected" but now is truly disconnected — attempt restart
-      console.log(`[health-check] Instance ${inst.instance_id} is ${detectedStatus}. Attempting auto-restart...`);
+      // Instance is disconnected — attempt restart (with cooldown via last_restart_attempt)
+      console.log(`[health-check] Instance ${inst.instance_id} is ${detectedStatus} (DB: ${inst.status}). Attempting auto-restart...`);
+
+      // Update last_restart_attempt to enforce cooldown
+      await supabase
+        .from("wapi_instances")
+        .update({ last_restart_attempt: new Date().toISOString() })
+        .eq("id", inst.id);
 
       try {
         const restartResponse = await fetch(
@@ -2466,33 +2479,51 @@ async function processInstanceHealthCheck(
         console.error(`[health-check] ❌ Auto-restart fetch error for ${inst.instance_id}:`, restartFetchErr);
       }
 
-      // Restart failed - mark as disconnected and notify
-      await supabase
-        .from("wapi_instances")
-        .update({
-          status: "disconnected",
-          connected_at: null,
-          auto_recovery_attempts: 0,
-        })
-        .eq("id", inst.id);
+      // Restart failed — if was connected, mark as disconnected and notify
+      if (inst.status === "connected") {
+        await supabase
+          .from("wapi_instances")
+          .update({
+            status: "disconnected",
+            connected_at: null,
+            auto_recovery_attempts: 0,
+          })
+          .eq("id", inst.id);
 
-      const unitName = inst.unit || inst.instance_id || "WhatsApp";
-      const { data: companyUsers } = await supabase
-        .from("user_companies")
-        .select("user_id")
-        .eq("company_id", inst.company_id);
+        // Send notification only once per disconnect event (check recent 6h)
+        const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+        const { data: recentDisconnectNotif } = await supabase
+          .from("notifications")
+          .select("id")
+          .eq("company_id", inst.company_id)
+          .eq("type", "instance_disconnected")
+          .gte("created_at", sixHoursAgo)
+          .limit(1);
 
-      if (companyUsers && companyUsers.length > 0) {
-        const notifications = companyUsers.map((u: { user_id: string }) => ({
-          user_id: u.user_id,
-          company_id: inst.company_id,
-          type: "instance_disconnected",
-          title: "⚠️ WhatsApp desconectado",
-          message: `WhatsApp da unidade ${unitName} perdeu conexão. Reconecte via QR Code em Configurações.`,
-          data: { instance_id: inst.id, instance_name: unitName },
-        }));
-        await supabase.from("notifications").insert(notifications);
-        console.log(`[health-check] Disconnect notification sent to ${companyUsers.length} users for ${inst.instance_id}`);
+        if (!recentDisconnectNotif || recentDisconnectNotif.length === 0) {
+          const unitName = inst.unit || inst.instance_id || "WhatsApp";
+          const { data: companyUsers } = await supabase
+            .from("user_companies")
+            .select("user_id")
+            .eq("company_id", inst.company_id);
+
+          if (companyUsers && companyUsers.length > 0) {
+            const notifications = companyUsers.map((u: { user_id: string }) => ({
+              user_id: u.user_id,
+              company_id: inst.company_id,
+              type: "instance_disconnected",
+              title: "⚠️ WhatsApp desconectado",
+              message: `WhatsApp da unidade ${unitName} perdeu conexão. Reconecte via QR Code em Configurações.`,
+              data: { instance_id: inst.id, instance_name: unitName },
+            }));
+            await supabase.from("notifications").insert(notifications);
+            console.log(`[health-check] Disconnect notification sent to ${companyUsers.length} users for ${inst.instance_id}`);
+          }
+        }
+      }
+      // If already disconnected, just log - don't spam notifications
+      else if (inst.status === "disconnected") {
+        console.log(`[health-check] Instance ${inst.instance_id} still disconnected after restart attempt. Will retry in 30min.`);
       }
     } catch (err) {
       console.error(`[health-check] Error checking instance ${inst.instance_id}:`, err);
