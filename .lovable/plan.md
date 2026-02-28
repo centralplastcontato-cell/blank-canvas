@@ -1,61 +1,64 @@
 
 
-## Melhorar NotificationBell com abas por tipo
+## Calendario Semanal para Escalas de Freelancer
 
-Adicionar abas no popover do sino para organizar as notificacoes por categoria, alem de adicionar icones especificos para todos os 10 tipos.
+### O que muda
+Transformar a listagem plana de escalas em uma visualizacao organizada por **mes e semanas**, com navegacao mensal e resumo.
 
-### Layout proposto
+### Layout
 
 ```text
-+-----------------------------------------------+
-|  Notificacoes                    Marcar lidas  |
-+-----------------------------------------------+
-| Todos | Visitas | Clientes | Transf. | Outros |
-+-----------------------------------------------+
-|  [lista filtrada pela aba selecionada]         |
-+-----------------------------------------------+
++--------------------------------------------------+
+|  < Fevereiro 2026 >              [+ Nova Escala]  |
++--------------------------------------------------+
+|  3 escalas · 8 festas · 5 escalados               |
++--------------------------------------------------+
+|                                                    |
+|  SEMANA 1 · 02/03 - 08/03                         |
+|  +----------------------------------------------+ |
+|  | Escala Carnaval  | Ativa | 5 festas | 02-05  | |
+|  | [copiar] [pdf] [excluir]           [expandir] | |
+|  +----------------------------------------------+ |
+|                                                    |
+|  SEMANA 2 · 09/03 - 15/03                         |
+|  Nenhuma escala nesta semana                       |
+|                                                    |
+|  SEMANA 3 · 16/03 - 22/03                         |
+|  +----------------------------------------------+ |
+|  | Escala Marco P2  | Ativa | 3 festas | 16-20  | |
+|  +----------------------------------------------+ |
+|  +----------------------------------------------+ |
+|  | Escala VIP       |       | 2 festas | 18-22  | |
+|  +----------------------------------------------+ |
++--------------------------------------------------+
 ```
 
-### Abas
+### Arquivo editado
+`src/components/freelancer/FreelancerSchedulesTab.tsx`
 
-| Aba | Tipos incluidos | Icone |
-|---|---|---|
-| Todos | todos os tipos | -- |
-| Visitas | `visit_scheduled` | CalendarCheck |
-| Clientes | `existing_client` | Crown |
-| Transferencias | `lead_transfer`, `lead_assigned` | ArrowRightLeft |
-| Outros | `lead_questions`, `lead_analyzing`, `follow_up_sent`, `lead_lost`, `stale_reminded`, `lead_risk` | Bell |
+### Mudancas
 
-Cada aba mostra o contador de nao-lidas daquele grupo (badge pequeno no tab).
+1. **Novo estado `currentMonth`** (Date) para navegacao mensal, inicializado com o mes atual.
 
-### Icones especificos para todos os tipos
+2. **Navegador de mes** no header: botoes ChevronLeft/ChevronRight com nome do mes em portugues (ex: "Marco 2026").
 
-Atualizar o `getNotificationIcon` para cobrir todos os 10 tipos:
+3. **Resumo mensal** logo abaixo do header: cards compactos mostrando total de escalas, festas e freelancers escalados no mes filtrado.
 
-| Tipo | Icone | Cor |
-|---|---|---|
-| `lead_transfer` | ArrowRightLeft | primary |
-| `lead_assigned` | UserPlus | green |
-| `existing_client` | Crown | amber |
-| `visit_scheduled` | CalendarCheck | blue |
-| `lead_questions` | MessageCircle | orange |
-| `lead_analyzing` | Search | purple |
-| `follow_up_sent` | Send | teal |
-| `lead_lost` | UserX | red |
-| `stale_reminded` | Clock | gray |
-| `lead_risk` | AlertTriangle | red |
+4. **Agrupamento por semana** usando `eachWeekOfInterval`, `startOfWeek`, `endOfWeek` do `date-fns`:
+   - Calcula as semanas do mes selecionado
+   - Filtra escalas cujo intervalo `[start_date, end_date]` intersecta cada semana (via `areIntervalsOverlapping`)
+   - Renderiza container visual por semana com label "Semana N - dd/MM a dd/MM"
+
+5. **Semanas vazias** mostram texto discreto "Nenhuma escala nesta semana" em cor muted.
+
+6. **Cards de escala** mantem toda funcionalidade atual (expandir, copiar link, PDF, excluir, ver disponibilidade, escalar freelancers).
+
+7. **Sem mudancas no banco de dados** - apenas reorganizacao visual.
 
 ### Detalhes tecnicos
 
-**Arquivo editado:** `src/components/admin/NotificationBell.tsx`
-
-- Adicionar estado `activeTab` (default "todos")
-- Usar componente `Tabs`/`TabsList`/`TabsTrigger` do shadcn (ja existe em `src/components/ui/tabs.tsx`)
-- Filtrar `notifications` pelo tab ativo antes de renderizar a lista
-- Calcular contadores por grupo para os badges das abas
-- Importar icones adicionais do lucide-react: `MessageCircle`, `Search`, `Send`, `UserX`, `Clock`, `AlertTriangle`
-- As abas usam scroll horizontal no mobile para caber na tela
-- O badge de cada aba so aparece se houver nao-lidas naquele grupo
-
-Nenhum arquivo novo, nenhuma dependencia adicional.
+- Imports adicionais do `date-fns`: `startOfMonth`, `endOfMonth`, `startOfWeek`, `endOfWeek`, `eachWeekOfInterval`, `areIntervalsOverlapping`, `addMonths`, `subMonths`
+- Imports adicionais do `lucide-react`: `ChevronLeft`, `ChevronRight`, `CalendarDays`
+- Filtro de escalas por mes: escala aparece no mes se seu intervalo intersecta o intervalo do mes
+- Locale `ptBR` ja importado, usado para formatar nome do mes
 
