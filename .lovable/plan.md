@@ -1,64 +1,32 @@
 
 
-## Calendario Semanal para Escalas de Freelancer
+## Melhorar Visual do Dialog "Nova Escala"
 
-### O que muda
-Transformar a listagem plana de escalas em uma visualizacao organizada por **mes e semanas**, com navegacao mensal e resumo.
+### Problema atual
+O dialog esta com visual basico e generico, sem seguir o padrao premium do restante do sistema.
 
-### Layout
+### Melhorias propostas
 
-```text
-+--------------------------------------------------+
-|  < Fevereiro 2026 >              [+ Nova Escala]  |
-+--------------------------------------------------+
-|  3 escalas · 8 festas · 5 escalados               |
-+--------------------------------------------------+
-|                                                    |
-|  SEMANA 1 · 02/03 - 08/03                         |
-|  +----------------------------------------------+ |
-|  | Escala Carnaval  | Ativa | 5 festas | 02-05  | |
-|  | [copiar] [pdf] [excluir]           [expandir] | |
-|  +----------------------------------------------+ |
-|                                                    |
-|  SEMANA 2 · 09/03 - 15/03                         |
-|  Nenhuma escala nesta semana                       |
-|                                                    |
-|  SEMANA 3 · 16/03 - 22/03                         |
-|  +----------------------------------------------+ |
-|  | Escala Marco P2  | Ativa | 3 festas | 16-20  | |
-|  +----------------------------------------------+ |
-|  +----------------------------------------------+ |
-|  | Escala VIP       |       | 2 festas | 18-22  | |
-|  +----------------------------------------------+ |
-+--------------------------------------------------+
-```
+**Arquivo**: `src/components/freelancer/CreateScheduleDialog.tsx`
 
-### Arquivo editado
-`src/components/freelancer/FreelancerSchedulesTab.tsx`
+1. **Header com icone e descricao**: Adicionar icone CalendarPlus ao lado do titulo e uma descricao curta abaixo ("Defina o periodo e selecione as festas para a escala").
 
-### Mudancas
+2. **Campos com labels melhorados**: Labels com icones pequenos (Type icon para titulo, CalendarDays para datas), tracking uppercase discreto no estilo do design system (`text-[11px] tracking-[0.18em]`).
 
-1. **Novo estado `currentMonth`** (Date) para navegacao mensal, inicializado com o mes atual.
+3. **Inputs maiores**: Aumentar altura dos botoes de data para `h-12` para melhor toque mobile.
 
-2. **Navegador de mes** no header: botoes ChevronLeft/ChevronRight com nome do mes em portugues (ex: "Marco 2026").
+4. **Secao de festas com borda lateral**: Aplicar `border-l-4 border-l-primary/40` na secao de festas do periodo para destaque visual, seguindo o padrao do sistema.
 
-3. **Resumo mensal** logo abaixo do header: cards compactos mostrando total de escalas, festas e freelancers escalados no mes filtrado.
+5. **Cards de festa refinados**: Melhorar os cards de cada festa com hover mais suave, badge de tipo de evento, e layout mais espaçado.
 
-4. **Agrupamento por semana** usando `eachWeekOfInterval`, `startOfWeek`, `endOfWeek` do `date-fns`:
-   - Calcula as semanas do mes selecionado
-   - Filtra escalas cujo intervalo `[start_date, end_date]` intersecta cada semana (via `areIntervalsOverlapping`)
-   - Renderiza container visual por semana com label "Semana N - dd/MM a dd/MM"
+6. **Botao "Criar Escala" maior e com destaque**: `h-12` com `shadow-md` e icone de check.
 
-5. **Semanas vazias** mostram texto discreto "Nenhuma escala nesta semana" em cor muted.
-
-6. **Cards de escala** mantem toda funcionalidade atual (expandir, copiar link, PDF, excluir, ver disponibilidade, escalar freelancers).
-
-7. **Sem mudancas no banco de dados** - apenas reorganizacao visual.
+7. **Botao "Selecionar todos / Nenhum"**: Adicionar toggle rapido acima da lista de festas para facilitar selecao em massa.
 
 ### Detalhes tecnicos
 
-- Imports adicionais do `date-fns`: `startOfMonth`, `endOfMonth`, `startOfWeek`, `endOfWeek`, `eachWeekOfInterval`, `areIntervalsOverlapping`, `addMonths`, `subMonths`
-- Imports adicionais do `lucide-react`: `ChevronLeft`, `ChevronRight`, `CalendarDays`
-- Filtro de escalas por mes: escala aparece no mes se seu intervalo intersecta o intervalo do mes
-- Locale `ptBR` ja importado, usado para formatar nome do mes
+- Imports adicionais: `CalendarPlus`, `Type`, `CheckCircle2`, `ToggleLeft` do lucide-react
+- Adicionar `DialogDescription` ao header
+- Manter toda logica funcional intacta (fetch de eventos, submit, auto-titulo)
+- Aplicar classes do design system: `text-[11px] tracking-[0.18em]` para sub-labels, `rounded-xl` para cards de festa, `bg-primary/5` para secao destacada
 
