@@ -144,17 +144,29 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedFuncao, setSelectedFuncao] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 10;
 
+  // Extract all unique functions from responses
+  const allFuncoes = Array.from(new Set(
+    responses.flatMap((r) => {
+      const answersArr = Array.isArray(r.answers) ? r.answers : [];
+      const funcao = answersArr.find((a: any) => a.questionId === "funcao")?.value;
+      return Array.isArray(funcao) ? funcao : funcao ? [String(funcao)] : [];
+    })
+  )).sort();
+
   const filteredResponses = responses.filter((r) => {
-    if (!searchQuery.trim()) return true;
-    const query = searchQuery.toLowerCase().trim();
     const name = (r.respondent_name || "").toLowerCase();
     const answersArr = Array.isArray(r.answers) ? r.answers : [];
     const funcao = answersArr.find((a: any) => a.questionId === "funcao")?.value;
-    const funcaoStr = Array.isArray(funcao) ? funcao.join(" ").toLowerCase() : String(funcao || "").toLowerCase();
-    return name.includes(query) || funcaoStr.includes(query);
+    const funcaoArr: string[] = Array.isArray(funcao) ? funcao : funcao ? [String(funcao)] : [];
+
+    const matchesName = !searchQuery.trim() || name.includes(searchQuery.toLowerCase().trim());
+    const matchesFuncao = !selectedFuncao || funcaoArr.some(f => f.toLowerCase() === selectedFuncao.toLowerCase());
+
+    return matchesName && matchesFuncao;
   });
 
   const totalPages = Math.ceil(filteredResponses.length / PAGE_SIZE);
@@ -230,17 +242,44 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
         description="Esta ação é irreversível e excluirá o cadastro permanentemente. Digite sua senha de acesso para confirmar."
         onConfirmed={() => { if (pendingDeleteId) handleDeleteResponse(pendingDeleteId); }}
       />
-      <div className="relative mb-3">
+      <div className="relative mb-2">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Buscar por nome ou função..."
+          placeholder="Buscar por nome..."
           value={searchQuery}
           onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
           className="pl-9 h-9 text-sm"
         />
       </div>
-      {paginatedResponses.length === 0 && searchQuery.trim() && (
-        <p className="text-center text-sm text-muted-foreground py-6">Nenhum resultado para "{searchQuery}"</p>
+      {allFuncoes.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          <button
+            onClick={() => { setSelectedFuncao(null); setCurrentPage(1); }}
+            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+              !selectedFuncao
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-muted/40 text-muted-foreground border-border hover:bg-muted/60"
+            }`}
+          >
+            Todos
+          </button>
+          {allFuncoes.map((f) => (
+            <button
+              key={f}
+              onClick={() => { setSelectedFuncao(selectedFuncao === f ? null : f); setCurrentPage(1); }}
+              className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                selectedFuncao === f
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-muted/40 text-muted-foreground border-border hover:bg-muted/60"
+              }`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+      )}
+      {paginatedResponses.length === 0 && (searchQuery.trim() || selectedFuncao) && (
+        <p className="text-center text-sm text-muted-foreground py-6">Nenhum resultado encontrado</p>
       )}
       {paginatedResponses.map((r) => {
         const isOpen = openId === r.id;
