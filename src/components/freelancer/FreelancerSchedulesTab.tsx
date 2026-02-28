@@ -12,6 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { CreateScheduleDialog } from "./CreateScheduleDialog";
 import { generateSchedulePDF } from "./SchedulePDFGenerator";
 import { ScheduleCard } from "./ScheduleCard";
+import { SendScheduleToGroupsDialog } from "./SendScheduleToGroupsDialog";
 
 interface Schedule {
   id: string;
@@ -68,6 +69,7 @@ export function FreelancerSchedulesTab() {
   const [companyName, setCompanyName] = useState("");
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [sendToGroupsSchedule, setSendToGroupsSchedule] = useState<Schedule | null>(null);
 
   const fetchSchedules = async () => {
     if (!companyId) return;
@@ -376,6 +378,7 @@ export function FreelancerSchedulesTab() {
                     }}
                     onRemoveEvent={removeEventFromSchedule}
                     onUpdateDisplayName={updateDisplayName}
+                    onSendToGroups={() => setSendToGroupsSchedule(schedule)}
                     roles={ROLES}
                   />
                 ))}
@@ -399,6 +402,17 @@ export function FreelancerSchedulesTab() {
       )}
 
       <CreateScheduleDialog open={showCreate} onOpenChange={setShowCreate} onCreated={fetchSchedules} />
+
+      {sendToGroupsSchedule && companyId && (
+        <SendScheduleToGroupsDialog
+          open={!!sendToGroupsSchedule}
+          onOpenChange={(v) => { if (!v) setSendToGroupsSchedule(null); }}
+          schedule={sendToGroupsSchedule}
+          companyId={companyId}
+          companySlug={currentCompany?.slug}
+          customDomain={currentCompany?.custom_domain}
+        />
+      )}
     </div>
   );
 }
