@@ -303,7 +303,7 @@ async function checkSessionHealth(
     // Quick real-time check against W-API
     try {
       const statusRes = await fetch(
-        `${WAPI_BASE_URL}/instance/get-status?instanceId=${instanceExternalId}`,
+        `${WAPI_BASE_URL}/instance/qr-code?instanceId=${instanceExternalId}`,
         {
           method: 'GET',
           headers: { 'Authorization': `Bearer ${instanceToken}` },
@@ -311,17 +311,28 @@ async function checkSessionHealth(
       );
       
       if (statusRes.ok) {
-        const statusData = await statusRes.json();
-        const realStatus = statusData?.status || statusData?.state || 'disconnected';
-        
-        if (realStatus === 'connected' || realStatus === 'CONNECTED') {
-          // W-API says connected! Auto-recover DB and allow send
-          console.log(`[Preflight] ✅ W-API says connected! Auto-recovering instance ${instanceExternalId}`);
-          await supabase.from('wapi_instances').update({ 
-            status: 'connected', 
-            connected_at: new Date().toISOString() 
-          }).eq('id', dbInstance.id);
-          return null; // Allow send
+        const ct = statusRes.headers.get('content-type');
+        // If response is an image or HTML, QR is being shown = still disconnected
+        if (ct?.includes('image') || ct?.includes('text/html')) {
+          // Confirmed disconnected
+        } else {
+          const statusData = await statusRes.json();
+          const isConnected = statusData?.connected === true || 
+                              statusData?.status === 'connected' || 
+                              statusData?.state === 'connected' ||
+                              // No QR code and no error = likely connected
+                              (!statusData?.qrcode && !statusData?.qrCode && !statusData?.qr && !statusData?.base64 && !statusData?.error);
+          
+          if (isConnected) {
+            console.log(`[Preflight] ✅ W-API says connected! Auto-recovering instance ${instanceExternalId}`);
+            const phone = statusData?.phone || statusData?.phoneNumber || statusData?.me?.id?.split('@')[0] || null;
+            await supabase.from('wapi_instances').update({ 
+              status: 'connected', 
+              connected_at: new Date().toISOString(),
+              ...(phone ? { phone_number: phone } : {}),
+            }).eq('id', dbInstance.id);
+            return null; // Allow send
+          }
         }
       }
     } catch (err) {
@@ -733,226 +744,37 @@ Deno.serve(async (req) => {
 
       case 'get-status': {
         try {
-          // Track response types to classify error patterns
-          let notFoundCount = 0;
-          let timeoutCount = 0;
-          let unauthorizedCount = 0;
-          const totalEndpoints = 5;
-
-          // Helper to classify HTTP responses
-          const classifyResponse = (status: number): 'ok' | 'not_found' | 'timeout' | 'unauthorized' | 'unknown' => {
-            if (status >= 200 && status < 300) return 'ok';
-            if (status === 404) return 'not_found';
-            if (status === 401 || status === 403) return 'unauthorized';
-            if (status === 502 || status === 503 || status === 504 || status === 0) return 'timeout';
-            return 'unknown';
-          };
-
-          const trackResponse = (status: number) => {
-            const cls = classifyResponse(status);
-            if (cls === 'not_found') notFoundCount++;
-            if (cls === 'timeout') timeoutCount++;
-            if (cls === 'unauthorized') unauthorizedCount++;
-          };
-
-          // Helper for safe fetch with timeout
-          const safeFetch = async (url: string): Promise<Response | null> => {
-            try {
-              const controller = new AbortController();
-              const timeout = setTimeout(() => controller.abort(), 8000);
-              const res = await fetch(url, {
-                headers: { 'Authorization': `Bearer ${instance_token}` },
-                signal: controller.signal,
-              });
-              clearTimeout(timeout);
-              return res;
-            } catch (e) {
-              console.log('get-status fetch error for', url.split('?')[0].split('/').pop(), ':', e instanceof Error ? e.message : String(e));
-              timeoutCount++;
-              return null;
-            }
-          };
-
-          // Strategy: Try multiple endpoints in order of reliability
-          // 1. /instance/status
-          const statusRes = await safeFetch(`${WAPI_BASE_URL}/instance/status?instanceId=${instance_id}`);
+          console.log('get-status: checking via qr-code endpoint for', instance_id);
           
-          if (statusRes) {
-            console.log('get-status status response:', statusRes.status);
-            trackResponse(statusRes.status);
-            
-            if (statusRes.ok) {
-              const ct = statusRes.headers.get('content-type');
-              if (ct?.includes('application/json')) {
-                const statusData = await statusRes.json();
-                console.log('get-status status data:', JSON.stringify(statusData));
-                
-                const isConnected = statusData.state === 'open' || 
-                                    statusData.state === 'connected' ||
-                                    statusData.status === 'open' ||
-                                    statusData.status === 'connected' ||
-                                    statusData.connected === true ||
-                                    statusData.loggedIn === true;
-                
-                if (isConnected) {
-                  const phoneNumber = statusData.me?.id?.split('@')[0] || 
-                                     statusData.phoneNumber || 
-                                     statusData.phone ||
-                                     null;
-                  return new Response(JSON.stringify({ 
-                    status: 'connected',
-                    phoneNumber,
-                    connected: true,
-                  }), {
-                    status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                  });
-                }
-              }
-            }
-          }
+          // The only reliable endpoint in W-API LITE is /instance/qr-code
+          // All other endpoints (/instance/status, /info, /connection-state, /profile) return 404
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 10000);
           
-          // 2. /instance/info
-          const infoRes = await safeFetch(`${WAPI_BASE_URL}/instance/info?instanceId=${instance_id}`);
-          
-          if (infoRes) {
-            console.log('get-status info response:', infoRes.status);
-            trackResponse(infoRes.status);
-            
-            if (infoRes.ok) {
-              const ct = infoRes.headers.get('content-type');
-              if (ct?.includes('application/json')) {
-                const infoData = await infoRes.json();
-                console.log('get-status info data:', JSON.stringify(infoData));
-                
-                const isConnected = infoData.state === 'open' || 
-                                    infoData.state === 'connected' ||
-                                    infoData.status === 'connected' ||
-                                    infoData.connected === true ||
-                                    infoData.connectionState === 'open' ||
-                                    infoData.me?.id;
-                
-                if (isConnected) {
-                  const phoneNumber = infoData.me?.id?.split('@')[0] || 
-                                     infoData.phoneNumber || 
-                                     infoData.phone ||
-                                     infoData.wid?.user ||
-                                     null;
-                  return new Response(JSON.stringify({ 
-                    status: 'connected',
-                    phoneNumber,
-                    connected: true,
-                  }), {
-                    status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                  });
-                }
-              }
-            }
-          }
-          
-          // 3. /instance/connection-state
-          const stateRes = await safeFetch(`${WAPI_BASE_URL}/instance/connection-state?instanceId=${instance_id}`);
-          
-          if (stateRes) {
-            console.log('get-status connection-state response:', stateRes.status);
-            trackResponse(stateRes.status);
-            
-            if (stateRes.ok) {
-              const ct = stateRes.headers.get('content-type');
-              if (ct?.includes('application/json')) {
-                const stateData = await stateRes.json();
-                console.log('get-status connection-state data:', JSON.stringify(stateData));
-                
-                const isConnected = stateData.state === 'open' || 
-                                    stateData.state === 'connected' ||
-                                    stateData.connected === true ||
-                                    stateData.status === 'connected';
-                
-                if (isConnected) {
-                  return new Response(JSON.stringify({ 
-                    status: 'connected',
-                    phoneNumber: stateData.phoneNumber || stateData.phone || null,
-                    connected: true,
-                  }), {
-                    status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                  });
-                }
-              }
-            }
-          }
-          
-          // 4. /instance/profile
-          const profileRes = await safeFetch(`${WAPI_BASE_URL}/instance/profile?instanceId=${instance_id}`);
-          
-          if (profileRes) {
-            console.log('get-status profile response:', profileRes.status);
-            trackResponse(profileRes.status);
-            
-            if (profileRes.ok) {
-              const ct = profileRes.headers.get('content-type');
-              if (ct?.includes('application/json')) {
-                const profileData = await profileRes.json();
-                console.log('get-status profile data:', JSON.stringify(profileData));
-                
-                if (profileData.id || profileData.phone || profileData.wid || profileData.name) {
-                  const phoneNumber = profileData.id?.split('@')[0] || 
-                                     profileData.phone ||
-                                     profileData.wid?.user ||
-                                     null;
-                  return new Response(JSON.stringify({ 
-                    status: 'connected',
-                    phoneNumber,
-                    connected: true,
-                  }), {
-                    status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                  });
-                }
-              }
-            }
-          }
-          
-          // 5. /instance/qr-code (fallback)
-          const qrRes = await safeFetch(`${WAPI_BASE_URL}/instance/qr-code?instanceId=${instance_id}`);
-          
-          if (qrRes) {
-            console.log('get-status qr response:', qrRes.status);
-            trackResponse(qrRes.status);
-          }
-
-          // === ERROR CLASSIFICATION ===
-          
-          // If ALL endpoints timed out or had gateway errors, return DEGRADED (do NOT disconnect)
-          if (timeoutCount >= totalEndpoints || (timeoutCount > 0 && notFoundCount === 0 && timeoutCount + notFoundCount >= totalEndpoints)) {
-            console.warn(`get-status: ${timeoutCount}/${totalEndpoints} endpoints timed out for ${instance_id}. Returning degraded, NOT disconnecting.`);
+          let qrRes: Response | null = null;
+          try {
+            qrRes = await fetch(
+              `${WAPI_BASE_URL}/instance/qr-code?instanceId=${instance_id}`,
+              { headers: { 'Authorization': `Bearer ${instance_token}` }, signal: controller.signal }
+            );
+            clearTimeout(timeout);
+          } catch (fetchErr) {
+            clearTimeout(timeout);
+            console.warn('get-status: qr-code fetch failed:', fetchErr instanceof Error ? fetchErr.message : String(fetchErr));
             return new Response(JSON.stringify({ 
               status: 'degraded',
               connected: false,
-              error: 'Instabilidade temporária na W-API. O status anterior foi mantido.',
+              error: 'Instabilidade temporária na W-API.',
               errorType: 'TIMEOUT_OR_GATEWAY',
             }), {
               status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             });
           }
 
-          // If ALL endpoints returned unauthorized
-          if (unauthorizedCount >= totalEndpoints) {
-            console.error(`get-status: ALL endpoints returned unauthorized for ${instance_id}. Token may be invalid.`);
-            return new Response(JSON.stringify({ 
-              status: 'unauthorized',
-              connected: false,
-              error: 'Token da W-API inválido ou expirado. Atualize o token nas configurações.',
-              errorType: 'UNAUTHORIZED',
-            }), {
-              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            });
-          }
-
-          // If ALL endpoints returned 404, the instance truly doesn't exist
-          if (notFoundCount >= totalEndpoints) {
-            console.error(`get-status: ALL ${totalEndpoints} endpoints returned 404 for instance ${instance_id}. Instance likely expired/deleted.`);
-            await supabase
-              .from('wapi_instances')
-              .update({ status: 'disconnected' })
-              .eq('instance_id', instance_id);
+          console.log('get-status qr response:', qrRes.status);
+          
+          if (qrRes.status === 404) {
+            console.error(`get-status: qr-code returned 404 for ${instance_id}. Instance may be expired.`);
             return new Response(JSON.stringify({ 
               status: 'instance_not_found',
               connected: false,
@@ -963,77 +785,80 @@ Deno.serve(async (req) => {
             });
           }
 
-          // Mixed errors with some timeouts — treat as degraded, don't disconnect
-          if (timeoutCount > 0) {
-            console.warn(`get-status: mixed errors (404:${notFoundCount}, timeout:${timeoutCount}, auth:${unauthorizedCount}) for ${instance_id}. Returning degraded.`);
+          if (qrRes.status === 401 || qrRes.status === 403) {
+            return new Response(JSON.stringify({ 
+              status: 'unauthorized',
+              connected: false,
+              error: 'Token da W-API inválido ou expirado.',
+              errorType: 'UNAUTHORIZED',
+            }), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+
+          if (!qrRes.ok) {
             return new Response(JSON.stringify({ 
               status: 'degraded',
               connected: false,
-              error: 'Comunicação instável com a W-API. O status anterior foi mantido.',
+              error: `W-API retornou status ${qrRes.status}`,
               errorType: 'TIMEOUT_OR_GATEWAY',
             }), {
               status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             });
           }
+
+          const ct = qrRes.headers.get('content-type');
           
-          // Process QR response if available
-          if (qrRes) {
-            const ct = qrRes.headers.get('content-type');
-            if (ct?.includes('text/html') || !qrRes.ok) {
-              return new Response(JSON.stringify({ status: 'disconnected', connected: false }), {
-                status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-              });
-            }
-            
-            const data = await qrRes.json();
-            console.log('get-status qr data:', JSON.stringify(data));
-            
+          // If response is HTML, instance is likely disconnected
+          if (ct?.includes('text/html')) {
+            return new Response(JSON.stringify({ status: 'disconnected', connected: false }), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+
+          // If response is an image, QR code is being shown = not connected yet
+          if (ct?.includes('image')) {
+            return new Response(JSON.stringify({ status: 'disconnected', connected: false }), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+
+          const data = await qrRes.json();
+          console.log('get-status qr data:', JSON.stringify(data));
+          
           if (data.connected === true) {
-              const qrPhone = data.phone || data.phoneNumber || data.me?.id?.split('@')[0] || null;
-              // PHASE 1: Require phone number to confirm real connection.
-              // QR endpoint returning connected=true WITHOUT a phone means the session
-              // may be partially initialized (keys not synced) → "Aguardando mensagem" symptom.
-              if (!qrPhone) {
-                console.warn(`get-status: QR says connected but NO phone number for ${instance_id}. Returning degraded (session may be incomplete).`);
-                return new Response(JSON.stringify({ 
-                  status: 'degraded',
-                  connected: false,
-                  error: 'Instância parece conectada mas sem número vinculado. Sessão pode estar incompleta — tente desconectar e reconectar.',
-                  errorType: 'SESSION_INCOMPLETE',
-                }), {
-                  status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                });
-              }
-              return new Response(JSON.stringify({ 
-                status: 'connected',
-                phoneNumber: qrPhone,
-                connected: true,
-              }), {
-                status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-              });
-            }
-            
-            const hasQrCode = data.qrcode || data.qrCode || data.qr || data.base64;
-            
-            if (hasQrCode) {
-              return new Response(JSON.stringify({ 
-                status: 'disconnected',
-                phoneNumber: null,
-                connected: false,
-              }), {
-                status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-              });
-            }
-            
-            if (!data.error) {
-              return new Response(JSON.stringify({ 
-                status: 'connected',
-                phoneNumber: data.phone || data.phoneNumber || null,
-                connected: true,
-              }), {
-                status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-              });
-            }
+            const qrPhone = data.phone || data.phoneNumber || data.me?.id?.split('@')[0] || null;
+            return new Response(JSON.stringify({ 
+              status: 'connected',
+              phoneNumber: qrPhone,
+              connected: true,
+            }), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          
+          const hasQrCode = data.qrcode || data.qrCode || data.qr || data.base64;
+          
+          if (hasQrCode) {
+            return new Response(JSON.stringify({ 
+              status: 'disconnected',
+              phoneNumber: null,
+              connected: false,
+            }), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          
+          // No QR code and not explicitly connected - check if there's an error
+          if (!data.error) {
+            // W-API returned a response without error and without QR = likely connected
+            return new Response(JSON.stringify({ 
+              status: 'connected',
+              phoneNumber: data.phone || data.phoneNumber || null,
+              connected: true,
+            }), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
           }
           
           // Default to disconnected
@@ -1046,7 +871,6 @@ Deno.serve(async (req) => {
           });
         } catch (e) {
           console.error('get-status error:', e);
-          // On catch-all error, return degraded instead of disconnected
           return new Response(JSON.stringify({ 
             status: 'degraded', 
             connected: false, 
