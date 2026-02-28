@@ -300,6 +300,60 @@ function EditFreelancerDialog({ open, onOpenChange, response, template, onSaved 
   );
 }
 
+// UnitSelectDialog: lets admin pick which WhatsApp instance to send from
+function UnitSelectDialog({
+  open,
+  onOpenChange,
+  instances,
+  onSelect,
+  title = "Enviar por qual unidade?",
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  instances: { instance_id: string; instance_token: string; unit: string | null; phone_number: string | null }[];
+  onSelect: (instance: { instance_id: string; instance_token: string; unit: string | null; phone_number: string | null }) => void;
+  title?: string;
+}) {
+  const [sending, setSending] = useState<string | null>(null);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>Selecione a unidade que enviará a mensagem via WhatsApp.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2 py-2">
+          {instances.map((inst) => (
+            <button
+              key={inst.instance_id}
+              disabled={!!sending}
+              onClick={async () => {
+                setSending(inst.instance_id);
+                await onSelect(inst);
+                setSending(null);
+              }}
+              className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-primary/5 transition-colors text-left disabled:opacity-50"
+            >
+              {sending === inst.instance_id ? (
+                <Loader2 className="h-5 w-5 animate-spin text-primary shrink-0" />
+              ) : (
+                <MessageCircle className="h-5 w-5 text-primary shrink-0" />
+              )}
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">{inst.unit || "Sem nome"}</p>
+                {inst.phone_number && (
+                  <p className="text-xs text-muted-foreground">{inst.phone_number}</p>
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function FreelancerResponseCards({ responses, template, companyId, onDeleted, isAdmin }: {
   responses: any[];
   template: FreelancerTemplate | null;
@@ -318,6 +372,11 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
   const [editingResponse, setEditingResponse] = useState<any>(null);
   const [updatingApproval, setUpdatingApproval] = useState<string | null>(null);
   const PAGE_SIZE = 10;
+
+  // Unit selection dialog state
+  const [unitDialogOpen, setUnitDialogOpen] = useState(false);
+  const [connectedInstances, setConnectedInstances] = useState<{ instance_id: string; instance_token: string; unit: string | null; phone_number: string | null }[]>([]);
+  const [pendingUnitAction, setPendingUnitAction] = useState<{ type: "approval" | "photo"; response: any; phone: string; name: string } | null>(null);
 
   // Extract all unique functions from responses + template options
   const allFuncoes = Array.from(new Set([
@@ -369,6 +428,141 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
     setPasswordDialogOpen(true);
   };
 
+  // Helper: fetch all connected instances for the company
+  const fetchConnectedInstances = async () => {
+    const { data } = await supabase
+      .from("wapi_instances")
+      .select("instance_id, instance_token, unit, phone_number")
+      .eq("company_id", companyId)
+      .eq("status", "connected");
+    return (data || []) as { instance_id: string; instance_token: string; unit: string | null; phone_number: string | null }[];
+  };
+
+  // Helper: send approval message via a specific instance
+  const sendApprovalMessage = async (
+    instance: { instance_id: string; instance_token: string },
+    phone: string,
+    freelancerName: string,
+  ) => {
+    // Load custom message template (fallback to default)
+    const { DEFAULT_FREELANCER_APPROVAL_MESSAGE } = await import("@/components/whatsapp/settings/FreelancerApprovalMessageCard");
+    let messageTemplate = DEFAULT_FREELANCER_APPROVAL_MESSAGE;
+
+    const { data: companyData } = await supabase
+      .from("companies")
+      .select("settings")
+      .eq("id", companyId)
+      .single();
+
+    const settings = companyData?.settings as Record<string, any> | null;
+    if (settings?.freelancer_approval_message) {
+      messageTemplate = settings.freelancer_approval_message;
+    }
+
+    const message = messageTemplate.replace(/\{nome\}/g, freelancerName);
+
+    await supabase.functions.invoke("wapi-send", {
+      body: {
+        action: "send-text",
+        phone,
+        message,
+        instanceId: instance.instance_id,
+        instanceToken: instance.instance_token,
+      },
+    });
+
+    // Update conversation: tag as freelancer+equipe, disable bot
+    const { data: convData } = await (supabase as any)
+      .from("wapi_conversations")
+      .select("id, lead_id")
+      .eq("company_id", companyId)
+      .eq("phone", phone)
+      .limit(1)
+      .maybeSingle();
+
+    if (convData) {
+      await (supabase as any)
+        .from("wapi_conversations")
+        .update({ is_freelancer: true, is_equipe: true, bot_enabled: false, bot_step: null })
+        .eq("id", convData.id);
+
+      if (convData.lead_id) {
+        await supabase
+          .from("campaign_leads")
+          .update({ status: "trabalhe_conosco" })
+          .eq("id", convData.lead_id);
+      }
+    }
+
+    toast({ title: "Freelancer aprovado! ✅", description: "Mensagem enviada via WhatsApp." });
+  };
+
+  // Helper: send photo request via a specific instance
+  const sendPhotoRequest = async (
+    instance: { instance_id: string; instance_token: string },
+    phone: string,
+    name: string,
+  ) => {
+    const message = `Olá ${name}! 📸\n\nPrecisamos da sua foto para completar seu cadastro na equipe. Pode nos enviar uma foto sua por aqui?\n\nObrigado!`;
+    const { error } = await supabase.functions.invoke("wapi-send", {
+      body: { action: "send-text", phone, message, instanceId: instance.instance_id, instanceToken: instance.instance_token },
+    });
+    if (error) throw error;
+    toast({ title: "Solicitação enviada!", description: `Mensagem enviada para ${name}.` });
+  };
+
+  // Resolves which instance to use (direct or via dialog)
+  const resolveInstanceAndSend = async (
+    actionType: "approval" | "photo",
+    response: any,
+    phone: string,
+    name: string,
+  ) => {
+    const instances = await fetchConnectedInstances();
+
+    if (instances.length === 0) {
+      if (actionType === "approval") {
+        toast({ title: "Freelancer aprovado! ✅", description: "WhatsApp não conectado — mensagem não enviada." });
+      } else {
+        toast({ title: "WhatsApp não conectado", description: "Conecte uma instância antes de enviar.", variant: "destructive" });
+      }
+      return;
+    }
+
+    if (instances.length === 1) {
+      if (actionType === "approval") {
+        await sendApprovalMessage(instances[0], phone, name);
+      } else {
+        await sendPhotoRequest(instances[0], phone, name);
+      }
+      return;
+    }
+
+    // 2+ instances: open dialog
+    setConnectedInstances(instances);
+    setPendingUnitAction({ type: actionType, response, phone, name });
+    setUnitDialogOpen(true);
+  };
+
+  const handleUnitSelected = async (instance: { instance_id: string; instance_token: string; unit: string | null; phone_number: string | null }) => {
+    if (!pendingUnitAction) return;
+    try {
+      if (pendingUnitAction.type === "approval") {
+        await sendApprovalMessage(instance, pendingUnitAction.phone, pendingUnitAction.name);
+      } else {
+        await sendPhotoRequest(instance, pendingUnitAction.phone, pendingUnitAction.name);
+      }
+    } catch (err: any) {
+      console.error("Error sending via selected unit:", err);
+      toast({ title: "Erro ao enviar", description: err.message || "Tente novamente.", variant: "destructive" });
+    } finally {
+      setUnitDialogOpen(false);
+      setPendingUnitAction(null);
+      if (pendingUnitAction.type === "photo") setSendingPhotoRequest(null);
+      if (pendingUnitAction.type === "approval") { setUpdatingApproval(null); onDeleted?.(); }
+    }
+  };
+
   const handleRequestPhoto = async (r: any) => {
     const answersArr = Array.isArray(r.answers) ? r.answers : [];
     const phoneRaw = answersArr.find((a: any) => a.questionId === "telefone")?.value;
@@ -383,28 +577,10 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
     }
     setSendingPhotoRequest(r.id);
     try {
-      const { data: instance } = await supabase
-        .from("wapi_instances")
-        .select("instance_id, instance_token")
-        .eq("company_id", companyId)
-        .eq("status", "connected")
-        .limit(1)
-        .maybeSingle();
-      if (!instance) {
-        toast({ title: "WhatsApp não conectado", description: "Conecte uma instância antes de enviar.", variant: "destructive" });
-        return;
-      }
-      const name = r.respondent_name || "freelancer";
-      const message = `Olá ${name}! 📸\n\nPrecisamos da sua foto para completar seu cadastro na equipe. Pode nos enviar uma foto sua por aqui?\n\nObrigado!`;
-      const { error } = await supabase.functions.invoke("wapi-send", {
-        body: { action: "send-text", phone, message, instanceId: instance.instance_id, instanceToken: instance.instance_token },
-      });
-      if (error) throw error;
-      toast({ title: "Solicitação enviada!", description: `Mensagem enviada para ${name}.` });
+      await resolveInstanceAndSend("photo", r, phone, r.respondent_name || "freelancer");
     } catch (err: any) {
       console.error("Error requesting photo:", err);
       toast({ title: "Erro ao enviar", description: err.message || "Tente novamente.", variant: "destructive" });
-    } finally {
       setSendingPhotoRequest(null);
     }
   };
@@ -424,7 +600,6 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
       return;
     }
 
-    // If approved, send WhatsApp message + tag conversation + qualify lead
     if (status === "aprovado") {
       try {
         const answersArr = Array.isArray(response.answers) ? response.answers : [];
@@ -434,77 +609,8 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
         if (phoneRaw) {
           const phone = String(phoneRaw).replace(/\D/g, "");
           if (phone.length >= 10) {
-            // Get connected WhatsApp instance
-            const { data: instance } = await supabase
-              .from("wapi_instances")
-              .select("instance_id, instance_token, company_id")
-              .eq("company_id", companyId)
-              .eq("status", "connected")
-              .limit(1)
-              .maybeSingle();
-
-            if (instance) {
-              // Load custom message template (fallback to default)
-              const { DEFAULT_FREELANCER_APPROVAL_MESSAGE } = await import("@/components/whatsapp/settings/FreelancerApprovalMessageCard");
-              let messageTemplate = DEFAULT_FREELANCER_APPROVAL_MESSAGE;
-
-              const { data: companyData } = await supabase
-                .from("companies")
-                .select("settings")
-                .eq("id", companyId)
-                .single();
-
-              const settings = companyData?.settings as Record<string, any> | null;
-              if (settings?.freelancer_approval_message) {
-                messageTemplate = settings.freelancer_approval_message;
-              }
-
-              const message = messageTemplate.replace(/\{nome\}/g, freelancerName);
-
-              // Send message via wapi-send (no lpMode so bot stays off)
-              await supabase.functions.invoke("wapi-send", {
-                body: {
-                  action: "send-text",
-                  phone,
-                  message,
-                  instanceId: instance.instance_id,
-                  instanceToken: instance.instance_token,
-                },
-              });
-
-              // Update conversation: tag as freelancer+equipe, disable bot
-              const { data: convData } = await (supabase as any)
-                .from("wapi_conversations")
-                .select("id, lead_id")
-                .eq("company_id", companyId)
-                .eq("phone", phone)
-                .limit(1)
-                .maybeSingle();
-
-              if (convData) {
-                await (supabase as any)
-                  .from("wapi_conversations")
-                  .update({
-                    is_freelancer: true,
-                    is_equipe: true,
-                    bot_enabled: false,
-                    bot_step: null,
-                  })
-                  .eq("id", convData.id);
-
-                // Qualify lead as "trabalhe_conosco"
-                if (convData.lead_id) {
-                  await supabase
-                    .from("campaign_leads")
-                    .update({ status: "trabalhe_conosco" })
-                    .eq("id", convData.lead_id);
-                }
-              }
-
-              toast({ title: "Freelancer aprovado! ✅", description: "Mensagem enviada via WhatsApp." });
-            } else {
-              toast({ title: "Freelancer aprovado! ✅", description: "WhatsApp não conectado — mensagem não enviada." });
-            }
+            await resolveInstanceAndSend("approval", response, phone, freelancerName);
+            return; // resolveInstanceAndSend handles cleanup via handleUnitSelected or directly
           } else {
             toast({ title: "Freelancer aprovado! ✅", description: "Telefone inválido — mensagem não enviada." });
           }
@@ -538,6 +644,12 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
         response={editingResponse}
         template={template}
         onSaved={() => onDeleted?.()}
+      />
+      <UnitSelectDialog
+        open={unitDialogOpen}
+        onOpenChange={(v) => { if (!v) { setUnitDialogOpen(false); setPendingUnitAction(null); } }}
+        instances={connectedInstances}
+        onSelect={handleUnitSelected}
       />
       <div className="relative mb-2">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
