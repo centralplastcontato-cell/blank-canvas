@@ -46,36 +46,32 @@ export default function Auth() {
             setCompanyLogo(data.logo_url);
           }
         } else if (!isPreviewDomain()) {
-          // Detect company from custom domain or known buffet domain
+          // Detect company from custom domain using SECURITY DEFINER RPC (bypasses RLS)
           const domain = getCanonicalHost();
-          let { data } = await supabase
-            .from("companies")
-            .select("name, logo_url")
-            .eq("domain_canonical", domain)
+          const { data } = await supabase
+            .rpc("get_company_by_domain", { _domain: domain })
             .maybeSingle();
 
           // Fallback: try matching by base name (e.g. castelodadiversao.online → castelodadiversao.com.br)
-          if (!data) {
-            const baseName = domain.replace(/\.\w+$/, "");
-            const { data: fallback } = await supabase
-              .from("companies")
-              .select("name, logo_url")
-              .ilike("domain_canonical", `${baseName}%`)
-              .maybeSingle();
-            data = fallback;
-          }
           if (data) {
             setCompanyName(data.name);
             setCompanyLogo(data.logo_url);
+          } else {
+            const baseName = domain.replace(/\.\w+$/, "");
+            const { data: fallback } = await supabase
+              .rpc("get_company_branding_by_domain_fuzzy", { _base_name: baseName })
+              .maybeSingle();
+            if (fallback) {
+              setCompanyName(fallback.name);
+              setCompanyLogo(fallback.logo_url);
+            }
           }
         } else {
-          // Preview domain: try loading from last selected company
+          // Preview domain: try loading from last selected company using SECURITY DEFINER RPC
           const savedCompanyId = localStorage.getItem("selected_company_id");
           if (savedCompanyId) {
             const { data } = await supabase
-              .from("companies")
-              .select("name, logo_url")
-              .eq("id", savedCompanyId)
+              .rpc("get_company_public_info", { _company_id: savedCompanyId })
               .maybeSingle();
             if (data) {
               setCompanyName(data.name);

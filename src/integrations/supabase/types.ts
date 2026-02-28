@@ -3304,6 +3304,20 @@ export type Database = {
           thank_you_message: string
         }[]
       }
+      get_company_branding_by_domain: {
+        Args: { _domain: string }
+        Returns: {
+          logo_url: string
+          name: string
+        }[]
+      }
+      get_company_branding_by_domain_fuzzy: {
+        Args: { _base_name: string }
+        Returns: {
+          logo_url: string
+          name: string
+        }[]
+      }
       get_company_branding_by_slug: {
         Args: { _slug: string }
         Returns: {
