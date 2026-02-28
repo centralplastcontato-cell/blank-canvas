@@ -714,91 +714,97 @@ export function FreelancerManagerContent() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingTemplate ? "Editar Template" : "Novo Template de Freelancer"}</DialogTitle>
+            <DialogTitle className="text-lg">{editingTemplate ? "Editar Template" : "Novo Template de Freelancer"}</DialogTitle>
+            <DialogDescription className="text-xs">Configure as informações e perguntas do formulário de cadastro.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid gap-3">
+
+          <div className="space-y-5">
+            {/* --- Informações gerais --- */}
+            <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground mb-1">Informações gerais</p>
               <div>
-                <Label>Nome do formulário *</Label>
-                <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Ex: Cadastro de Freelancer" />
+                <Label className="text-xs">Nome do formulário *</Label>
+                <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Ex: Cadastro de Freelancer" className="mt-1" />
               </div>
               <div>
-                <Label>Descrição (aparece no topo do formulário)</Label>
-                <Textarea value={formDescription} onChange={(e) => setFormDescription(e.target.value)} placeholder="Texto exibido no topo do formulário" rows={2} />
+                <Label className="text-xs">Descrição</Label>
+                <Textarea value={formDescription} onChange={(e) => setFormDescription(e.target.value)} placeholder="Texto exibido no topo do formulário" rows={2} className="mt-1 resize-none" />
               </div>
               <div>
-                <Label>Mensagem de agradecimento (final)</Label>
-                <Input value={formThankYou} onChange={(e) => setFormThankYou(e.target.value)} placeholder="Obrigado pelo seu cadastro! 🎉" />
+                <Label className="text-xs">Mensagem de agradecimento</Label>
+                <Input value={formThankYou} onChange={(e) => setFormThankYou(e.target.value)} placeholder="Obrigado pelo seu cadastro! 🎉" className="mt-1" />
               </div>
             </div>
 
+            {/* --- Perguntas --- */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="text-base font-semibold">Perguntas</Label>
-                <Button variant="outline" size="sm" onClick={addQuestion}><Plus className="h-3.5 w-3.5 mr-1" /> Adicionar</Button>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Perguntas</p>
+                <Button variant="outline" size="sm" className="h-7 text-xs gap-1 rounded-full px-3" onClick={addQuestion}>
+                  <Plus className="h-3 w-3" /> Adicionar
+                </Button>
               </div>
 
-              {formQuestions.map((q, idx) => (
-                <Card key={q.id} className="bg-muted/50">
-                  <CardContent className="p-3 space-y-2">
+              <div className="space-y-2">
+                {formQuestions.map((q, idx) => (
+                  <div key={q.id} className="rounded-xl border border-border/60 bg-card p-3 space-y-2.5 shadow-sm">
                     <div className="flex items-start gap-2">
-                      <div className="flex-1 space-y-2">
-                        <Input
-                          value={q.text}
-                          onChange={(e) => updateQuestion(idx, { text: e.target.value })}
-                          placeholder="Texto da pergunta..."
-                          className="text-sm"
-                        />
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Select value={q.type} onValueChange={(v) => updateQuestion(idx, { type: v as any, ...(["select", "multiselect"].includes(v) && !q.options?.length ? { options: ["Opção 1"] } : {}) })}>
-                            <SelectTrigger className="w-36 h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Object.entries(TYPE_LABELS).map(([val, label]) => (
-                                <SelectItem key={val} value={val}>{label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Select value={String(q.step)} onValueChange={(v) => updateQuestion(idx, { step: parseInt(v) })}>
-                            <SelectTrigger className="w-28 h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {[1, 2, 3, 4, 5].map(s => (
-                                <SelectItem key={s} value={String(s)}>Etapa {s}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <label className="flex items-center gap-1.5 text-xs">
-                            <input type="checkbox" checked={q.required !== false} onChange={(e) => updateQuestion(idx, { required: e.target.checked })} className="rounded" />
-                            Obrigatória
-                          </label>
-                        </div>
-                        {(q.type === "select" || q.type === "multiselect") && (
-                          <div className="space-y-1.5 pl-1">
-                            <p className="text-xs text-muted-foreground">Opções (uma por linha):</p>
-                            <Textarea
-                              value={(q.options || []).join("\n")}
-                              onChange={(e) => updateQuestion(idx, { options: e.target.value.split("\n") })}
-                              onBlur={() => updateQuestion(idx, { options: (q.options || []).filter(o => o.trim()) })}
-                              placeholder={"Opção 1\nOpção 2\nOpção 3"}
-                              className="text-xs min-h-[60px]"
-                              rows={3}
-                            />
-                          </div>
-                        )}
-                      </div>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive shrink-0" onClick={() => removeQuestion(idx)}>
+                      <Input
+                        value={q.text}
+                        onChange={(e) => updateQuestion(idx, { text: e.target.value })}
+                        placeholder="Texto da pergunta..."
+                        className="text-sm font-medium border-0 bg-transparent px-0 h-8 shadow-none focus-visible:ring-0"
+                      />
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/60 hover:text-destructive shrink-0" onClick={() => removeQuestion(idx)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Select value={q.type} onValueChange={(v) => updateQuestion(idx, { type: v as any, ...(["select", "multiselect"].includes(v) && !q.options?.length ? { options: ["Opção 1"] } : {}) })}>
+                        <SelectTrigger className="w-[130px] h-7 text-[11px] rounded-lg bg-muted/40 border-border/40">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(TYPE_LABELS).map(([val, label]) => (
+                            <SelectItem key={val} value={val}>{label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select value={String(q.step)} onValueChange={(v) => updateQuestion(idx, { step: parseInt(v) })}>
+                        <SelectTrigger className="w-[100px] h-7 text-[11px] rounded-lg bg-muted/40 border-border/40">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[1, 2, 3, 4, 5].map(s => (
+                            <SelectItem key={s} value={String(s)}>Etapa {s}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer select-none ml-1">
+                        <input type="checkbox" checked={q.required !== false} onChange={(e) => updateQuestion(idx, { required: e.target.checked })} className="rounded h-3.5 w-3.5 accent-primary" />
+                        Obrigatória
+                      </label>
+                    </div>
+                    {(q.type === "select" || q.type === "multiselect") && (
+                      <div className="rounded-lg border border-dashed border-border/50 bg-muted/20 p-2.5 space-y-1">
+                        <p className="text-[10px] text-muted-foreground font-medium">Opções (uma por linha):</p>
+                        <Textarea
+                          value={(q.options || []).join("\n")}
+                          onChange={(e) => updateQuestion(idx, { options: e.target.value.split("\n") })}
+                          onBlur={() => updateQuestion(idx, { options: (q.options || []).filter(o => o.trim()) })}
+                          placeholder={"Opção 1\nOpção 2\nOpção 3"}
+                          className="text-xs min-h-[60px] resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 p-0"
+                          rows={3}
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-          <DialogFooter>
+
+          <DialogFooter className="pt-2">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving || !formName.trim()}>
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
