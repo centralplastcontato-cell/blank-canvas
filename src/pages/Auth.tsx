@@ -68,6 +68,7 @@ export default function Auth() {
           }
         } else {
           // Preview domain: try loading from last selected company using SECURITY DEFINER RPC
+          let found = false;
           const savedCompanyId = localStorage.getItem("selected_company_id");
           if (savedCompanyId) {
             const { data } = await supabase
@@ -76,6 +77,17 @@ export default function Auth() {
             if (data) {
               setCompanyName(data.name);
               setCompanyLogo(data.logo_url);
+              found = true;
+            }
+          }
+          // Fallback: if no saved company, load default company (Castelo)
+          if (!found) {
+            const { data: fallbackCompany } = await supabase
+              .rpc("get_company_branding_by_slug", { _slug: "castelo-da-diversao" })
+              .maybeSingle();
+            if (fallbackCompany) {
+              setCompanyName(fallbackCompany.name);
+              setCompanyLogo(fallbackCompany.logo_url);
             }
           }
         }
