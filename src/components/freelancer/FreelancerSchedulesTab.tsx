@@ -311,18 +311,16 @@ export function FreelancerSchedulesTab() {
       </div>
 
       {/* Monthly Summary */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
         {[
           { label: "Escalas", value: monthlySummary.scales, color: "text-primary", bg: "bg-primary/8", border: "border-primary/15" },
           { label: "Festas", value: monthlySummary.events, color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-200/60" },
           { label: "Escalados", value: monthlySummary.assigned, color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-200/60" },
         ].map(c => (
-          <Card key={c.label} className={`border ${c.border} shadow-none`}>
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className={`h-11 w-11 rounded-xl ${c.bg} flex items-center justify-center`}>
-                <span className={`text-xl font-extrabold ${c.color}`}>{c.value}</span>
-              </div>
-              <span className="text-[11px] text-muted-foreground font-semibold uppercase tracking-[0.15em]">{c.label}</span>
+          <Card key={c.label} className={`border ${c.border} shadow-none min-w-0`}>
+            <CardContent className="p-2.5 sm:p-4 flex flex-col sm:flex-row items-center gap-1.5 sm:gap-4">
+              <span className={`text-xl font-extrabold ${c.color}`}>{c.value}</span>
+              <span className="text-[10px] sm:text-[11px] text-muted-foreground font-semibold uppercase tracking-[0.1em] sm:tracking-[0.15em] truncate max-w-full text-center">{c.label}</span>
             </CardContent>
           </Card>
         ))}
