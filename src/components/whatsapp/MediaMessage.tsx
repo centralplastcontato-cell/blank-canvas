@@ -11,7 +11,6 @@ interface MediaMessageProps {
   content: string | null;
   fromMe: boolean;
   instanceId?: string;
-  instanceToken?: string;
   onMediaUrlUpdate?: (newUrl: string) => void;
 }
 
@@ -65,7 +64,6 @@ export function MediaMessage({
   content,
   fromMe,
   instanceId,
-  instanceToken,
   onMediaUrlUpdate,
 }: MediaMessageProps) {
   const [currentUrl, setCurrentUrl] = useState<string | null>(mediaUrl);
@@ -93,10 +91,10 @@ export function MediaMessage({
   );
   
   // Don't auto-download - only manual download to avoid flooding errors for old messages
-  const canAttemptDownload = !isPersisted && messageId && instanceId && instanceToken && hasWhatsAppMediaUrl;
+  const canAttemptDownload = !isPersisted && messageId && instanceId && hasWhatsAppMediaUrl;
 
   const handleDownload = useCallback(async () => {
-    if (!messageId || !instanceId || !instanceToken) return;
+    if (!messageId || !instanceId) return;
     
     setIsDownloading(true);
     setDownloadError(null);
@@ -111,7 +109,6 @@ export function MediaMessage({
             action: 'download-media',
             messageId,
             instanceId,
-            instanceToken,
           },
         });
         data = result.data;
@@ -161,7 +158,7 @@ export function MediaMessage({
     } finally {
       setIsDownloading(false);
     }
-  }, [messageId, instanceId, instanceToken, onMediaUrlUpdate]);
+  }, [messageId, instanceId, onMediaUrlUpdate]);
 
   // Handle image load error - just show placeholder, don't auto-download
   const handleImageError = () => {

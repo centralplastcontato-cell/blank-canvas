@@ -11,15 +11,15 @@ const WAPI_BASE_URL = 'https://api.w-api.app/v1';
 async function getInstanceCredentials(
   supabase: ReturnType<typeof createClient>,
   req: Request,
-  body: { instanceId?: string; instanceToken?: string; unit?: string }
+  body: { instanceId?: string; instanceToken?: string; unit?: string; companyId?: string }
 ): Promise<{ instance_id: string; instance_token: string } | Response> {
-  const { instanceId, instanceToken, unit } = body;
+  const { instanceId, instanceToken, unit, companyId } = body;
   
-  // Direct credentials provided
+  // Direct credentials provided (backward compat for webhook/config flows)
   if (instanceId && instanceToken) {
     return { instance_id: instanceId, instance_token: instanceToken };
   }
-  
+
   // Fetch by unit (public chatbot flow)
   if (unit) {
     const { data: instance, error } = await supabase
@@ -37,8 +37,8 @@ async function getInstanceCredentials(
     }
     return { instance_id: instance.instance_id, instance_token: instance.instance_token };
   }
-  
-  // Authenticated user flow
+
+  // Authenticated user flow — resolve token server-side
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) {
     return new Response(JSON.stringify({ error: 'Missing authorization header' }), {
@@ -46,31 +46,96 @@ async function getInstanceCredentials(
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-  
-  const token = authHeader.replace('Bearer ', '');
-  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-  
+
+  const jwtToken = authHeader.replace('Bearer ', '');
+  const { data: { user }, error: authError } = await supabase.auth.getUser(jwtToken);
+
   if (authError || !user) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-  
+
+  // Verify user has company access before returning credentials
+  if (instanceId) {
+    // Lookup by instanceId (without token) — verify user belongs to the same company
+    const { data: instance } = await supabase
+      .from('wapi_instances')
+      .select('instance_id, instance_token, company_id')
+      .eq('instance_id', instanceId)
+      .single();
+
+    if (!instance) {
+      return new Response(JSON.stringify({ error: 'Instance not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Verify user has access to this company
+    const { data: hasAccess } = await supabase.rpc('user_has_company_access', {
+      _user_id: user.id,
+      _company_id: instance.company_id,
+    });
+
+    if (!hasAccess) {
+      return new Response(JSON.stringify({ error: 'Access denied to this instance' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    return { instance_id: instance.instance_id, instance_token: instance.instance_token };
+  }
+
+  // Lookup by companyId — get first connected instance
+  if (companyId) {
+    const { data: hasAccess } = await supabase.rpc('user_has_company_access', {
+      _user_id: user.id,
+      _company_id: companyId,
+    });
+
+    if (!hasAccess) {
+      return new Response(JSON.stringify({ error: 'Access denied' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { data: instance } = await supabase
+      .from('wapi_instances')
+      .select('instance_id, instance_token')
+      .eq('company_id', companyId)
+      .eq('status', 'connected')
+      .limit(1)
+      .maybeSingle();
+
+    if (!instance) {
+      return new Response(JSON.stringify({ error: 'No connected instance for this company' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    return { instance_id: instance.instance_id, instance_token: instance.instance_token };
+  }
+
+  // Fallback: lookup by user_id
   const { data: instance } = await supabase
     .from('wapi_instances')
     .select('instance_id, instance_token')
     .eq('user_id', user.id)
     .limit(1)
     .single();
-  
+
   if (!instance) {
     return new Response(JSON.stringify({ error: 'No W-API instance configured' }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-  
+
   return { instance_id: instance.instance_id, instance_token: instance.instance_token };
 }
 

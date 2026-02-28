@@ -39,7 +39,6 @@ interface Group {
 interface WapiInstance {
   id: string;
   instance_id: string;
-  instance_token: string;
 }
 
 interface ShareToGroupDialogProps {
@@ -150,7 +149,6 @@ export function ShareToGroupDialog({
       const { data, error } = await supabase.functions.invoke('wapi-send', {
         body: {
           instanceId: instance.instance_id,
-          instanceToken: instance.instance_token,
           remoteJid: selectedGroup.remote_jid,
           message: customMessage.trim(),
         },

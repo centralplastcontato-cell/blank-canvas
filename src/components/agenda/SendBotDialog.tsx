@@ -97,7 +97,7 @@ export function SendBotButton({ guests, onSent }: Omit<SendBotDialogProps, 'reco
     try {
       const { data: instance } = await supabase
         .from("wapi_instances")
-        .select("instance_id, instance_token")
+        .select("instance_id")
         .eq("company_id", companyId)
         .eq("status", "connected")
         .limit(1)
@@ -138,7 +138,6 @@ export function SendBotButton({ guests, onSent }: Omit<SendBotDialogProps, 'reco
               phone,
               message,
               instanceId: instance.instance_id,
-              instanceToken: instance.instance_token,
               lpMode: true,
               contactName: guest.name,
             },
