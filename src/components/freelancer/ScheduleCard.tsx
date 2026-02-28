@@ -51,53 +51,64 @@ export function ScheduleCard({
   const assignCount = assignments.filter(a => a.schedule_id === schedule.id).length;
 
   return (
-    <Card>
+    <Card className={`transition-all duration-200 ${isExpanded ? "shadow-md border-primary/20 ring-1 ring-primary/5" : "hover:shadow-sm"}`}>
       <CardHeader className="cursor-pointer pb-3" onClick={onToggleExpand}>
         <div className="flex items-center justify-between">
           <div className="flex-1 min-w-0">
-            <CardTitle className="text-base flex items-center gap-2">
+            <CardTitle className="text-base flex items-center gap-2.5">
+              <div className="h-2 w-2 rounded-full bg-primary shrink-0" />
               {schedule.title}
-              {schedule.is_active && <Badge variant="secondary" className="text-xs">Ativa</Badge>}
+              {schedule.is_active && (
+                <Badge className="text-[10px] bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100">
+                  Ativa
+                </Badge>
+              )}
             </CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-sm text-muted-foreground mt-1 pl-4">
               {startStr} a {endStr} · {schedule.event_ids.length} festa(s)
-              {isExpanded && availCount > 0 && ` · ${availCount} resposta(s)`}
-              {isExpanded && assignCount > 0 && ` · ${assignCount} escalado(s)`}
+              {isExpanded && availCount > 0 && (
+                <span className="text-primary font-medium"> · {availCount} resposta(s)</span>
+              )}
+              {isExpanded && assignCount > 0 && (
+                <span className="text-emerald-600 font-medium"> · {assignCount} escalado(s)</span>
+              )}
             </p>
           </div>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); onCopyLink(); }}>
-              <Copy className="h-4 w-4" />
+          <div className="flex items-center gap-0.5">
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={e => { e.stopPropagation(); onCopyLink(); }}>
+              <Copy className="h-3.5 w-3.5" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); onGeneratePDF(); }}>
-              <FileDown className="h-4 w-4" />
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={e => { e.stopPropagation(); onGeneratePDF(); }}>
+              <FileDown className="h-3.5 w-3.5" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={e => { e.stopPropagation(); onDelete(); }}>
-              <Trash2 className="h-4 w-4" />
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-destructive hover:text-destructive" onClick={e => { e.stopPropagation(); onDelete(); }}>
+              <Trash2 className="h-3.5 w-3.5" />
             </Button>
-            {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+            <div className="ml-1 h-6 w-6 rounded-full bg-muted/60 flex items-center justify-center">
+              {isExpanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+            </div>
           </div>
         </div>
       </CardHeader>
 
       {isExpanded && (
-        <CardContent className="pt-0 space-y-4">
+        <CardContent className="pt-0 space-y-5">
           {/* Notes section */}
-          <div className="border rounded-lg p-3 bg-muted/30 space-y-2">
+          <div className="border-l-4 border-l-amber-400/60 rounded-r-xl bg-amber-50/50 dark:bg-amber-950/10 p-3.5 space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground flex items-center gap-1.5">
+              <label className="text-[11px] font-semibold tracking-[0.18em] uppercase text-amber-700/70 dark:text-amber-400/70 flex items-center gap-1.5">
                 <MessageSquare className="h-3.5 w-3.5" />
                 Observações
               </label>
               {editingNotes ? (
-                <Button variant="ghost" size="sm" className="h-7 text-xs px-2 gap-1" onClick={() => {
+                <Button variant="secondary" size="sm" className="h-7 text-xs px-3 gap-1.5 rounded-full" onClick={() => {
                   onUpdateNotes(schedule.id, notesValue);
                   setEditingNotes(false);
                 }}>
                   <Save className="h-3 w-3" /> Salvar
                 </Button>
               ) : (
-                <Button variant="ghost" size="sm" className="h-7 text-xs px-2 gap-1" onClick={() => {
+                <Button variant="ghost" size="sm" className="h-7 text-xs px-2.5 gap-1.5 rounded-full" onClick={() => {
                   setNotesValue(schedule.notes || "");
                   setEditingNotes(true);
                 }}>
@@ -110,14 +121,22 @@ export function ScheduleCard({
                 value={notesValue}
                 onChange={e => setNotesValue(e.target.value)}
                 placeholder="Ex: Chegar 30min antes, usar camiseta preta..."
-                className="min-h-[60px] resize-none text-sm"
+                className="min-h-[60px] resize-none text-sm bg-background"
                 maxLength={500}
               />
             ) : (
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+              <p className={`text-sm whitespace-pre-wrap ${schedule.notes ? "text-foreground/80" : "text-muted-foreground/50 italic"}`}>
                 {schedule.notes || "Nenhuma observação adicionada."}
               </p>
             )}
+          </div>
+
+          {/* Divider label */}
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
+              Festas da escala
+            </span>
+            <div className="flex-1 h-px bg-border/40" />
           </div>
 
           {schedule.event_ids.map(eventId => {
@@ -130,39 +149,48 @@ export function ScheduleCard({
             const assignedForEvent = assignments.filter(a => a.schedule_id === schedule.id && a.event_id === eventId);
 
             return (
-              <div key={eventId} className="border rounded-lg p-4 space-y-3">
+              <div key={eventId} className="border rounded-xl p-4 space-y-3 bg-card shadow-sm">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-sm">{ev.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {dayName} {format(dateObj, "dd/MM")}
-                      {ev.start_time && ` · ${ev.start_time.slice(0, 5)}`}
-                      {ev.package_name && ` · ${ev.package_name}`}
-                    </p>
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-primary/8 flex flex-col items-center justify-center shrink-0">
+                      <span className="text-[10px] font-bold text-primary uppercase leading-none">{dayName}</span>
+                      <span className="text-sm font-extrabold text-primary leading-tight">{format(dateObj, "dd")}</span>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm">{ev.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(dateObj, "dd/MM")}
+                        {ev.start_time && ` · ${ev.start_time.slice(0, 5)}`}
+                        {ev.package_name && ` · ${ev.package_name}`}
+                      </p>
+                    </div>
                   </div>
-                  <Badge variant="outline" className="text-xs">
+                  <Badge 
+                    variant={availForEvent.length > 0 ? "default" : "outline"} 
+                    className={`text-[10px] font-semibold ${availForEvent.length > 0 ? "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100" : ""}`}
+                  >
                     {availForEvent.length} disponível(is)
                   </Badge>
                 </div>
 
                 {availForEvent.length > 0 && (
-                  <div className="space-y-2">
+                  <div className="space-y-1.5 pt-1">
                     {availForEvent.map(av => {
                       const assigned = assignedForEvent.find(a => a.freelancer_name === av.freelancer_name);
                       return (
-                        <div key={av.id} className="flex items-center gap-3 p-2 rounded-md bg-muted/50">
+                        <div key={av.id} className={`flex items-center gap-3 p-2.5 rounded-lg border transition-colors ${assigned ? "bg-primary/5 border-primary/15" : "bg-muted/30 border-transparent"}`}>
                           <Checkbox
                             checked={!!assigned}
                             onCheckedChange={() => onToggleAssignment(schedule.id, eventId, av.freelancer_name, assigned?.role || "")}
                             disabled={savingAssignment}
                           />
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium">{av.freelancer_name}</p>
-                            <p className="text-xs text-muted-foreground">{av.freelancer_phone}</p>
+                            <p className={`text-sm ${assigned ? "font-semibold" : "font-medium"}`}>{av.freelancer_name}</p>
+                            <p className="text-[11px] text-muted-foreground">{av.freelancer_phone}</p>
                           </div>
                           {assigned && (
                             <Select value={assigned.role || "none"} onValueChange={v => onUpdateRole(assigned.id, v === "none" ? "" : v)}>
-                              <SelectTrigger className="w-32 h-8 text-xs">
+                              <SelectTrigger className="w-32 h-8 text-xs rounded-lg">
                                 <SelectValue placeholder="Função" />
                               </SelectTrigger>
                               <SelectContent>
@@ -179,7 +207,7 @@ export function ScheduleCard({
                 )}
 
                 {availForEvent.length === 0 && (
-                  <p className="text-xs text-muted-foreground">Nenhum freelancer disponível ainda.</p>
+                  <p className="text-xs text-muted-foreground/60 italic pl-1">Nenhum freelancer disponível ainda.</p>
                 )}
               </div>
             );
