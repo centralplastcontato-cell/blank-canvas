@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, CheckCircle2, CalendarDays, Clock } from "lucide-react";
+import { Loader2, CheckCircle2, CalendarDays, Clock, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -32,6 +32,7 @@ interface ScheduleData {
   company_logo: string | null;
   company_slug: string | null;
   event_display_names: Record<string, string>;
+  notes: string | null;
 }
 
 export default function PublicFreelancerSchedule() {
@@ -60,7 +61,7 @@ export default function PublicFreelancerSchedule() {
 
       let query = supabase
         .from("freelancer_schedules")
-        .select("id, title, start_date, end_date, event_ids, company_id, is_active, event_display_names")
+        .select("id, title, start_date, end_date, event_ids, company_id, is_active, event_display_names, notes")
         .eq("is_active", true);
 
       if (scheduleId) {
@@ -93,6 +94,7 @@ export default function PublicFreelancerSchedule() {
         company_logo: compData?.logo_url || null,
         company_slug: compData?.slug || null,
         event_display_names: sd.event_display_names || {},
+        notes: sd.notes || null,
       });
 
       // Fetch events
@@ -203,6 +205,19 @@ export default function PublicFreelancerSchedule() {
             Informe sua disponibilidade para as festas abaixo
           </p>
         </motion.div>
+
+        {/* Notes/Observações */}
+        {schedule.notes && (
+          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.05 }}>
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex gap-3">
+              <Info className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide mb-1">Observações</p>
+                <p className="text-sm text-amber-900 whitespace-pre-line">{schedule.notes}</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Name + Phone */}
         <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }} className="space-y-3">
