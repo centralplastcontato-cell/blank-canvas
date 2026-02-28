@@ -434,7 +434,7 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
       .from("wapi_instances")
       .select("instance_id, instance_token, unit, phone_number")
       .eq("company_id", companyId)
-      .eq("status", "connected");
+      .in("status", ["connected", "degraded"]);
     return (data || []) as { instance_id: string; instance_token: string; unit: string | null; phone_number: string | null }[];
   };
 
