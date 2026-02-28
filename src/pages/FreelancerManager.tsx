@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
-import { HardHat, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, ChevronDown, ChevronRight, MessageCircle, ShieldAlert } from "lucide-react";
+import { HardHat, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, ChevronDown, ChevronRight, MessageCircle, ShieldAlert, Search } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -143,10 +143,22 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 10;
-  const totalPages = Math.ceil(responses.length / PAGE_SIZE);
-  const paginatedResponses = responses.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  const filteredResponses = responses.filter((r) => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase().trim();
+    const name = (r.respondent_name || "").toLowerCase();
+    const answersArr = Array.isArray(r.answers) ? r.answers : [];
+    const funcao = answersArr.find((a: any) => a.questionId === "funcao")?.value;
+    const funcaoStr = Array.isArray(funcao) ? funcao.join(" ").toLowerCase() : String(funcao || "").toLowerCase();
+    return name.includes(query) || funcaoStr.includes(query);
+  });
+
+  const totalPages = Math.ceil(filteredResponses.length / PAGE_SIZE);
+  const paginatedResponses = filteredResponses.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const handleDeleteResponse = async (id: string) => {
     setDeletingId(id);
@@ -218,6 +230,18 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
         description="Esta ação é irreversível e excluirá o cadastro permanentemente. Digite sua senha de acesso para confirmar."
         onConfirmed={() => { if (pendingDeleteId) handleDeleteResponse(pendingDeleteId); }}
       />
+      <div className="relative mb-3">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Buscar por nome ou função..."
+          value={searchQuery}
+          onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+          className="pl-9 h-9 text-sm"
+        />
+      </div>
+      {paginatedResponses.length === 0 && searchQuery.trim() && (
+        <p className="text-center text-sm text-muted-foreground py-6">Nenhum resultado para "{searchQuery}"</p>
+      )}
       {paginatedResponses.map((r) => {
         const isOpen = openId === r.id;
         const answersArr = Array.isArray(r.answers) ? r.answers : [];
@@ -327,7 +351,7 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
       {totalPages > 1 && (
         <div className="flex items-center justify-between pt-3 px-1">
           <span className="text-xs text-muted-foreground">
-            {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, responses.length)} de {responses.length}
+            {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredResponses.length)} de {filteredResponses.length}
           </span>
           <div className="flex items-center gap-1">
             <Button variant="outline" size="sm" className="h-7 px-2 text-xs" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
