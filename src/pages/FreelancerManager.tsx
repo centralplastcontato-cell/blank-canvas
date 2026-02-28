@@ -946,6 +946,17 @@ export function FreelancerManagerContent() {
     setLoadingResponses(false);
   };
 
+  const refreshResponses = async (t: FreelancerTemplate) => {
+    setLoadingResponses(true);
+    const { data } = await supabase
+      .from("freelancer_responses")
+      .select("*")
+      .eq("template_id", t.id)
+      .order("created_at", { ascending: false });
+    setResponses(data || []);
+    setLoadingResponses(false);
+  };
+
   useEffect(() => { fetchTemplates(); }, [currentCompany?.id]);
 
   const openNew = () => {
@@ -1176,7 +1187,7 @@ export function FreelancerManagerContent() {
                               responses={responses}
                               template={selectedTemplate}
                               companyId={currentCompany?.id || ""}
-                              onDeleted={() => selectedTemplate && toggleResponses(selectedTemplate)}
+                              onDeleted={() => selectedTemplate && refreshResponses(selectedTemplate)}
                               isAdmin={isAdmin}
                             />
                           )}
