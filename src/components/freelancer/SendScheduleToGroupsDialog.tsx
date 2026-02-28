@@ -251,7 +251,7 @@ export function SendScheduleToGroupsDialog({
 
   return (
     <Dialog open={open} onOpenChange={sending ? undefined : onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[90dvh] flex flex-col overflow-hidden p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UsersRound className="w-5 h-5 text-primary" />
@@ -279,7 +279,7 @@ export function SendScheduleToGroupsDialog({
             )}
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3 flex-1 overflow-y-auto min-h-0">
             {instances.length === 0 ? (
               <div className="text-center py-6 text-sm text-muted-foreground">
                 Nenhuma instância de WhatsApp conectada.
@@ -308,7 +308,7 @@ export function SendScheduleToGroupsDialog({
                 </div>
 
                 {/* Group list */}
-                <ScrollArea className="h-44 border rounded-md">
+                <ScrollArea className="h-36 sm:h-44 border rounded-md">
                   {filteredGroups.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full p-4 text-center">
                       <UsersRound className="w-8 h-8 text-muted-foreground mb-2" />
@@ -324,7 +324,7 @@ export function SendScheduleToGroupsDialog({
                         return (
                           <label
                             key={group.id}
-                            className="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-accent cursor-pointer transition-colors"
+                            className="flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 rounded-md text-sm hover:bg-accent cursor-pointer transition-colors"
                           >
                             <Checkbox
                               checked={selectedGroupIds.has(group.id)}
@@ -352,7 +352,7 @@ export function SendScheduleToGroupsDialog({
                   <Textarea
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    className="min-h-[140px] text-sm resize-none"
+                    className="min-h-[100px] sm:min-h-[140px] text-sm resize-none"
                     placeholder="Mensagem para enviar..."
                   />
                 </div>
