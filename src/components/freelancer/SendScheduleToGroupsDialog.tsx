@@ -74,6 +74,7 @@ export function SendScheduleToGroupsDialog({
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number; waiting: boolean } | null>(null);
+  const [delaySeconds, setDelaySeconds] = useState(60);
 
   // Build the public link for this schedule
   const publicLink = useMemo(() => {
@@ -148,6 +149,12 @@ export function SendScheduleToGroupsDialog({
         ? settings.freelancer_schedule_group_message
         : DEFAULT_SCHEDULE_GROUP_MESSAGE;
 
+    const configuredDelay =
+      typeof settings?.group_message_delay_seconds === "number"
+        ? settings.group_message_delay_seconds
+        : 60;
+    setDelaySeconds(configuredDelay);
+
     setMessage(buildMessage(template));
     setLoading(false);
   };
@@ -194,7 +201,7 @@ export function SendScheduleToGroupsDialog({
 
       if (i > 0) {
         setProgress({ current: i, total: selectedGroups.length, waiting: true });
-        await randomDelay(1000, 3000);
+        await randomDelay(delaySeconds * 1000, delaySeconds * 1000 + 2000);
       }
 
       setProgress({ current: i + 1, total: selectedGroups.length, waiting: false });
@@ -274,7 +281,7 @@ export function SendScheduleToGroupsDialog({
             <Progress value={progressPercent} className="h-2" />
             {progress?.waiting && (
               <p className="text-xs text-muted-foreground animate-pulse">
-                Aguardando intervalo de segurança...
+                Aguardando ~{delaySeconds}s de intervalo de segurança...
               </p>
             )}
           </div>
