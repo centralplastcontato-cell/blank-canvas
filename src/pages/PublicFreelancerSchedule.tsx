@@ -31,6 +31,7 @@ interface ScheduleData {
   company_name: string;
   company_logo: string | null;
   company_slug: string | null;
+  event_display_names: Record<string, string>;
 }
 
 export default function PublicFreelancerSchedule() {
@@ -59,7 +60,7 @@ export default function PublicFreelancerSchedule() {
 
       let query = supabase
         .from("freelancer_schedules")
-        .select("id, title, start_date, end_date, event_ids, company_id, is_active")
+        .select("id, title, start_date, end_date, event_ids, company_id, is_active, event_display_names")
         .eq("is_active", true);
 
       if (scheduleId) {
@@ -91,6 +92,7 @@ export default function PublicFreelancerSchedule() {
         company_name: compData?.name || "",
         company_logo: compData?.logo_url || null,
         company_slug: compData?.slug || null,
+        event_display_names: sd.event_display_names || {},
       });
 
       // Fetch events
@@ -241,7 +243,7 @@ export default function PublicFreelancerSchedule() {
                 >
                   <Checkbox checked={isSelected} onCheckedChange={() => toggleEvent(ev.id)} className="shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm">{ev.title}</p>
+                    <p className="font-medium text-sm">{schedule?.event_display_names?.[ev.id] || ev.title}</p>
                     <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1 capitalize">
                         <CalendarDays className="h-3 w-3" />
