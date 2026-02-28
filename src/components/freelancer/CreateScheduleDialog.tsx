@@ -195,7 +195,7 @@ export function CreateScheduleDialog({ open, onOpenChange, onCreated }: Props) {
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2 min-h-[160px]">
               {weeks.map((w, i) => (
                 <Button
                   key={i}
