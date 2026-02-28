@@ -265,12 +265,12 @@ function EditFreelancerDialog({ open, onOpenChange, response, template, onSaved 
             <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Dados do Freelancer</span>
             <div className="flex-1 h-px bg-border/50" />
           </div>
-          <div className="space-y-4">
-            {template.questions.filter(q => q.type !== "photo").map((q) => {
+          <div className="space-y-0 divide-y divide-border/40">
+            {template.questions.filter(q => q.type !== "photo").map((q, idx) => {
               const answer = answers.find((a: any) => a.questionId === q.id);
               const value = answer?.value ?? "";
               return (
-                <div key={q.id} className="space-y-1.5">
+                <div key={q.id} className={`space-y-1.5 ${idx === 0 ? "pb-4" : "py-4"}`}>
                   <Label className="text-xs text-muted-foreground">{q.text}</Label>
                   {q.type === "date" ? (
                     <Input
