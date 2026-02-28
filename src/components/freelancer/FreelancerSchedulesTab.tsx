@@ -24,6 +24,7 @@ interface Schedule {
   slug: string | null;
   is_active: boolean;
   created_at: string;
+  notes: string | null;
 }
 
 export interface EventData {
@@ -301,6 +302,11 @@ export function FreelancerSchedulesTab() {
                 onDelete={() => deleteSchedule(schedule.id)}
                 onToggleAssignment={toggleAssignment}
                 onUpdateRole={updateRole}
+                onUpdateNotes={async (id, notes) => {
+                  await supabase.from("freelancer_schedules").update({ notes: notes || null } as any).eq("id", id);
+                  setSchedules(prev => prev.map(s => s.id === id ? { ...s, notes: notes || null } : s));
+                  toast({ title: "Observações atualizadas" });
+                }}
                 roles={ROLES}
               />
             ))
