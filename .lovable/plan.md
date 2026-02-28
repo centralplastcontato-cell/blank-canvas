@@ -1,30 +1,61 @@
 
 
-## Intervalo de segurança configurável para envio em grupos
+## Minimizar Dialog de Envio para Grupos
 
-### O que muda
+### Problema
+Com 10 grupos e intervalo de 60s, o envio leva ~10 minutos. Hoje o dialog trava a tela inteira durante esse tempo, impedindo o usuario de fazer qualquer outra coisa.
 
-1. **Novo campo em `companies.settings`**: `group_message_delay_seconds` (padrão: 60 segundos, como solicitado)
+### Solucao
+Adicionar um botao "Minimizar" no dialog durante o envio. Ao minimizar:
+- O dialog fecha visualmente
+- Um **banner flutuante compacto** aparece no canto inferior da tela mostrando o progresso (ex: "Enviando 3/10...")
+- O processo continua rodando em background
+- Ao finalizar, o dialog **reabre automaticamente** mostrando o resultado (sucesso/falhas)
+- O banner tambem permite clicar para reabrir o dialog a qualquer momento
 
-2. **Nova card em Configuracoes > Automacoes > Gatilhos**: "Intervalo de Segurança" com um slider ou inputs min/max para definir o delay entre mensagens enviadas para grupos de WhatsApp
-
-3. **`SendScheduleToGroupsDialog`**: ao abrir, carrega o valor de `group_message_delay_seconds` da empresa e usa como delay (em vez do fixo 1-3s atual)
-
-### Detalhes técnicos
-
-**Arquivo: `src/components/whatsapp/settings/AutomationsSection.tsx`**
-- Na sub-aba "Gatilhos", adicionar um card "Intervalo de Segurança" com:
-  - Input numérico para definir o intervalo em segundos (mínimo 5s, máximo 120s)
-  - Texto explicativo sobre risco de bloqueio
-  - Salva em `companies.settings.group_message_delay_seconds`
+### Alteracoes
 
 **Arquivo: `src/components/freelancer/SendScheduleToGroupsDialog.tsx`**
-- No `loadData()`, carregar `group_message_delay_seconds` do `companies.settings`
-- Substituir `randomDelay(1000, 3000)` por `randomDelay(delay * 1000, delay * 1000 + 2000)` onde `delay` vem da config (padrão 60s)
-- Exibir o intervalo configurado no progress (ex: "Aguardando ~60s...")
 
-**Nenhuma migration necessária** -- o campo é salvo dentro do JSONB `settings` da tabela `companies` que já existe.
+1. Adicionar estado `minimized` (boolean)
+2. Quando `minimized=true`, o Dialog fecha (`open={false}`) mas o loop de envio continua
+3. Renderizar um **portal flutuante** (fixed bottom-right) com:
+   - Icone de progresso animado
+   - Texto "Enviando X de Y..."
+   - Barra de progresso compacta
+   - Clique para maximizar (reabrir dialog)
+4. Botao "Minimizar" (icone Minus) visivel apenas durante o envio, ao lado do X
+5. Ao finalizar o envio:
+   - Se minimizado: automaticamente seta `minimized=false` e reabre o dialog com o resultado
+   - Mostrar resumo (X enviados, Y falhas) antes de fechar
 
-### Valor padrão
+**Arquivo: `src/components/freelancer/FreelancerSchedulesTab.tsx`**
+- Nenhuma alteracao necessaria -- a logica fica toda dentro do dialog
 
-O padrão será **60 segundos** (1 minuto) conforme solicitado, com variação aleatória de +0 a +2 segundos para parecer mais humano.
+### Detalhes tecnicos
+
+```text
++------------------------------------------+
+|  Dialog (open && !minimized)             |
+|  [Minimizar]  durante envio              |
++------------------------------------------+
+
+Quando minimizado:
++------------------------------------------+
+|                                          |
+|  (pagina normal, usuario navega livre)   |
+|                                          |
+|  +-----------------------------+         |
+|  | Enviando 3/10... [===>   ]  |  fixed  |
+|  +-----------------------------+  bottom |
++------------------------------------------+
+
+Ao finalizar:
+-> Dialog reabre com resumo do resultado
+```
+
+- O estado de envio (`sending`, `progress`, resultados) fica no componente, que permanece montado mesmo com dialog fechado
+- O banner flutuante usa `ReactDOM.createPortal` para renderizar fora do dialog
+- Ao clicar no banner, seta `minimized=false` para reabrir
+- Resultado final mostrado em tela de resumo dentro do dialog antes de fechar
+
