@@ -620,14 +620,16 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
     const id = response.id;
     setUpdatingApproval(id);
     const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase
+    const { error, data: updatedData } = await supabase
       .from("freelancer_responses")
       .update({ approval_status: status, approved_by: user?.id, approved_at: new Date().toISOString() } as any)
-      .eq("id", id);
+      .eq("id", id)
+      .select();
     
-    if (error) {
+    if (error || !updatedData || updatedData.length === 0) {
+      console.error("Update freelancer response failed:", error, "data:", updatedData);
       setUpdatingApproval(null);
-      toast({ title: "Erro ao atualizar status", variant: "destructive" });
+      toast({ title: "Erro ao atualizar status", description: error?.message || "Sem permissão para atualizar", variant: "destructive" });
       return;
     }
 
