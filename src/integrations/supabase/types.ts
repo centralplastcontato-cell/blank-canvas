@@ -1609,6 +1609,9 @@ export type Database = {
       freelancer_responses: {
         Row: {
           answers: Json
+          approval_status: string
+          approved_at: string | null
+          approved_by: string | null
           company_id: string
           created_at: string
           id: string
@@ -1620,6 +1623,9 @@ export type Database = {
         }
         Insert: {
           answers?: Json
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
           company_id: string
           created_at?: string
           id?: string
@@ -1631,6 +1637,9 @@ export type Database = {
         }
         Update: {
           answers?: Json
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
           company_id?: string
           created_at?: string
           id?: string
