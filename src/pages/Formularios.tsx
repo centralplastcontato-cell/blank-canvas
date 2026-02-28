@@ -225,8 +225,11 @@ export default function Formularios() {
                     onValueChange={handleTabChange}
                     className="flex-1 flex flex-col overflow-hidden"
                   >
-                    <div className="px-3 md:px-5 pt-3 overflow-x-auto flex justify-center">
-                      <div className="inline-flex gap-1 p-1 rounded-xl bg-muted/40 border border-border/30">
+                    <div className="px-3 md:px-5 pt-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">Tipo de formulário</span>
+                      </div>
+                      <div className="flex gap-1.5 overflow-x-auto pb-1">
                         {[
                           { value: "avaliacoes", icon: ClipboardCheck, label: "Avaliações" },
                           { value: "prefesta", icon: PartyPopper, label: "Pré-Festa" },
@@ -236,13 +239,13 @@ export default function Formularios() {
                           <button
                             key={t.value}
                             onClick={() => handleTabChange(t.value)}
-                            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border whitespace-nowrap ${
                               activeTab === t.value
-                                ? 'bg-primary/15 text-primary border border-primary/25 shadow-sm'
-                                : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground'
+                                ? 'bg-foreground text-background border-foreground shadow-sm'
+                                : 'bg-transparent text-muted-foreground border-border hover:bg-accent hover:text-foreground'
                             }`}
                           >
-                            <t.icon className={`h-4 w-4 ${activeTab === t.value ? 'text-primary' : ''}`} />
+                            <t.icon className="h-3.5 w-3.5" />
                             <span>{t.label}</span>
                           </button>
                         ))}
