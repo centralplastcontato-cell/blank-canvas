@@ -197,14 +197,17 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 10;
 
-  // Extract all unique functions from responses
-  const allFuncoes = Array.from(new Set(
-    responses.flatMap((r) => {
+  // Extract all unique functions from responses + template options
+  const allFuncoes = Array.from(new Set([
+    // From template options
+    ...(template?.questions.find(q => q.id === "funcao")?.options || []),
+    // From actual responses
+    ...responses.flatMap((r) => {
       const answersArr = Array.isArray(r.answers) ? r.answers : [];
       const funcao = answersArr.find((a: any) => a.questionId === "funcao")?.value;
       return Array.isArray(funcao) ? funcao : funcao ? [String(funcao)] : [];
-    })
-  )).sort();
+    }),
+  ].filter(f => f && f.trim()))).sort();
 
   const filteredResponses = responses
     .filter((r) => {
