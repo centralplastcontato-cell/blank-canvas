@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Bot, Clock, Forward, Zap, Plus, Trash2, Phone, Shield, Beaker, Power, Loader2, MessageSquare, Save, RotateCcw, Images, Video, FileText, Send, RefreshCw, GitBranch, Map, GripVertical, Workflow, Globe2 } from "lucide-react";
 import { LPBotSection } from "./LPBotSection";
 import { FreelancerApprovalMessageCard } from "./FreelancerApprovalMessageCard";
+import { ScheduleGroupMessageCard } from "./ScheduleGroupMessageCard";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { FlowListManager } from "@/components/flowbuilder/FlowListManager";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -2180,6 +2181,7 @@ export function AutomationsSection() {
         {/* ============ TAB: GATILHOS ============ */}
         <TabsContent value="gatilhos" className="space-y-6 mt-4">
           <FreelancerApprovalMessageCard />
+          <ScheduleGroupMessageCard />
         </TabsContent>
 
         {/* ============ TAB: BOT LP ============ */}
