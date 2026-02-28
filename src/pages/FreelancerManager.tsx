@@ -501,6 +501,7 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
           phone,
           message,
           instanceId: instance.instance_id,
+          contactName: freelancerName,
         },
       });
 
@@ -560,7 +561,7 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
     try {
       const message = `Olá ${name}! 📸\n\nPrecisamos da sua foto para completar seu cadastro na equipe. Pode nos enviar uma foto sua por aqui?\n\nObrigado!`;
       const { error } = await supabase.functions.invoke("wapi-send", {
-        body: { action: "send-text", phone, message, instanceId: instance.instance_id },
+        body: { action: "send-text", phone, message, instanceId: instance.instance_id, contactName: name },
       });
       if (error) throw error;
 
@@ -634,7 +635,8 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
       setUnitDialogOpen(false);
       setPendingUnitAction(null);
       if (pendingUnitAction.type === "photo") setSendingPhotoRequest(null);
-      if (pendingUnitAction.type === "approval") { setUpdatingApproval(null); onDeleted?.(); }
+      if (pendingUnitAction.type === "approval") setUpdatingApproval(null);
+      onDeleted?.(); // refresh to show updated status
     }
   };
 
@@ -726,7 +728,25 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
       />
       <UnitSelectDialog
         open={unitDialogOpen}
-        onOpenChange={(v) => { if (!v) { setUnitDialogOpen(false); setPendingUnitAction(null); } }}
+        onOpenChange={async (v) => {
+          if (!v) {
+            // Dialog closed without selecting a unit — record error
+            if (pendingUnitAction) {
+              const responseId = pendingUnitAction.response?.id;
+              if (responseId) {
+                await supabase
+                  .from("freelancer_responses")
+                  .update({ whatsapp_send_error: "Unidade não selecionada" } as any)
+                  .eq("id", responseId);
+              }
+              if (pendingUnitAction.type === "approval") setUpdatingApproval(null);
+              if (pendingUnitAction.type === "photo") setSendingPhotoRequest(null);
+            }
+            setUnitDialogOpen(false);
+            setPendingUnitAction(null);
+            onDeleted?.(); // refresh to show error indicator
+          }
+        }}
         instances={connectedInstances}
         onSelect={handleUnitSelected}
       />
@@ -821,7 +841,21 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
                         </Tooltip>
                       </TooltipProvider>
                     )}
-                    {(r as any).whatsapp_send_error && (
+                    {(r as any).approval_status === "aprovado" && !(r as any).whatsapp_sent_at && !(r as any).whatsapp_send_error && (
+                      <TooltipProvider delayDuration={200}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex items-center shrink-0">
+                              <MessageCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs">
+                            Mensagem não enviada
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                    {((r as any).whatsapp_send_error || ((r as any).approval_status === "aprovado" && !(r as any).whatsapp_sent_at && !(r as any).whatsapp_send_error)) && (
                       <button
                         type="button"
                         onClick={(e) => {
@@ -833,10 +867,14 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
                           if (phone2.length < 10) return;
                           resolveInstanceAndSend("approval", r, phone2, r.respondent_name || "freelancer");
                         }}
-                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors shrink-0 ${
+                          (r as any).whatsapp_send_error
+                            ? "text-destructive hover:bg-destructive/10"
+                            : "text-muted-foreground hover:bg-muted/60"
+                        }`}
                       >
                         <RefreshCw className="h-3 w-3" />
-                        Reenviar
+                        {(r as any).whatsapp_send_error ? "Reenviar" : "Enviar"}
                       </button>
                     )}
                   </div>
