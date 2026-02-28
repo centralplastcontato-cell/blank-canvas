@@ -40,6 +40,8 @@ interface Group {
 interface Instance {
   id: string;
   instance_id: string;
+  phone_number: string | null;
+  unit: string | null;
 }
 
 interface SendScheduleToGroupsDialogProps {
@@ -109,7 +111,7 @@ export function SendScheduleToGroupsDialog({
     // Fetch connected instances (READ-ONLY)
     const { data: instData } = await supabase
       .from("wapi_instances")
-      .select("id, instance_id")
+      .select("id, instance_id, phone_number, unit")
       .eq("company_id", companyId)
       .eq("status", "connected");
 
@@ -206,8 +208,9 @@ export function SendScheduleToGroupsDialog({
       try {
         const { error } = await supabase.functions.invoke("wapi-send", {
           body: {
+            action: "send-text",
             instanceId: instance.instance_id,
-            remoteJid: group.remote_jid,
+            phone: group.remote_jid,
             message: message.trim(),
           },
         });
@@ -315,21 +318,30 @@ export function SendScheduleToGroupsDialog({
                     </div>
                   ) : (
                     <div className="p-1 space-y-0.5">
-                      {filteredGroups.map((group) => (
-                        <label
-                          key={group.id}
-                          className="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-accent cursor-pointer transition-colors"
-                        >
-                          <Checkbox
-                            checked={selectedGroupIds.has(group.id)}
-                            onCheckedChange={() => toggleGroup(group.id)}
-                          />
-                          <UsersRound className="w-4 h-4 shrink-0 text-muted-foreground" />
-                          <span className="truncate">
-                            {group.contact_name || group.remote_jid.split("@")[0]}
-                          </span>
-                        </label>
-                      ))}
+                      {filteredGroups.map((group) => {
+                        const inst = instances.find((i) => i.id === group.instance_id);
+                        const instanceLabel = inst?.unit || (inst?.phone_number ? `…${inst.phone_number.slice(-4)}` : null);
+                        return (
+                          <label
+                            key={group.id}
+                            className="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-accent cursor-pointer transition-colors"
+                          >
+                            <Checkbox
+                              checked={selectedGroupIds.has(group.id)}
+                              onCheckedChange={() => toggleGroup(group.id)}
+                            />
+                            <UsersRound className="w-4 h-4 shrink-0 text-muted-foreground" />
+                            <span className="truncate flex-1">
+                              {group.contact_name || group.remote_jid.split("@")[0]}
+                            </span>
+                            {instanceLabel && instances.length > 1 && (
+                              <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">
+                                {instanceLabel}
+                              </span>
+                            )}
+                          </label>
+                        );
+                      })}
                     </div>
                   )}
                 </ScrollArea>
