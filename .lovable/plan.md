@@ -1,32 +1,99 @@
 
 
-## Melhorar Visual do Dialog "Nova Escala"
+## Plano: Sistema de Auto-Recuperacao de Instancias WhatsApp
 
-### Problema atual
-O dialog esta com visual basico e generico, sem seguir o padrao premium do restante do sistema.
+### Problema Identificado
 
-### Melhorias propostas
+Quando a W-API perde a sessao silenciosamente (endpoints retornam 404 mas o painel visual mostra "conectado"), a plataforma para de receber mensagens sem que ninguem perceba. Hoje, a deteccao so acontece quando um usuario abre a tela de chat.
 
-**Arquivo**: `src/components/freelancer/CreateScheduleDialog.tsx`
+### Solucao em 3 Frentes
 
-1. **Header com icone e descricao**: Adicionar icone CalendarPlus ao lado do titulo e uma descricao curta abaixo ("Defina o periodo e selecione as festas para a escala").
+---
 
-2. **Campos com labels melhorados**: Labels com icones pequenos (Type icon para titulo, CalendarDays para datas), tracking uppercase discreto no estilo do design system (`text-[11px] tracking-[0.18em]`).
+### 1. Auto-Verificacao Periodica no `follow-up-check`
 
-3. **Inputs maiores**: Aumentar altura dos botoes de data para `h-12` para melhor toque mobile.
+O `follow-up-check` ja roda a cada poucos minutos. Vamos adicionar uma verificacao automatica de saude das instancias:
 
-4. **Secao de festas com borda lateral**: Aplicar `border-l-4 border-l-primary/40` na secao de festas do periodo para destaque visual, seguindo o padrao do sistema.
+- **Para cada instancia com status "connected"**: chamar `get-status` na W-API
+- Se retornar **desconectado/degraded**: tentar automaticamente um `restart-instance`
+- Se o restart **falhar**: marcar como `disconnected` no banco e **criar uma notificacao** para os usuarios da empresa
+- Se o restart **funcionar**: manter como `connected` e logar a recuperacao
+- Limitar a **1 tentativa de auto-recovery a cada 30 minutos** por instancia (campo `last_health_check` na tabela)
 
-5. **Cards de festa refinados**: Melhorar os cards de cada festa com hover mais suave, badge de tipo de evento, e layout mais espaçado.
+**Arquivo**: `supabase/functions/follow-up-check/index.ts`
 
-6. **Botao "Criar Escala" maior e com destaque**: `h-12` com `shadow-md` e icone de check.
+---
 
-7. **Botao "Selecionar todos / Nenhum"**: Adicionar toggle rapido acima da lista de festas para facilitar selecao em massa.
+### 2. Coluna `last_health_check` na tabela `wapi_instances`
 
-### Detalhes tecnicos
+Adicionar uma coluna para rastrear a ultima verificacao automatica e evitar loops de restart:
 
-- Imports adicionais: `CalendarPlus`, `Type`, `CheckCircle2`, `ToggleLeft` do lucide-react
-- Adicionar `DialogDescription` ao header
-- Manter toda logica funcional intacta (fetch de eventos, submit, auto-titulo)
-- Aplicar classes do design system: `text-[11px] tracking-[0.18em]` para sub-labels, `rounded-xl` para cards de festa, `bg-primary/5` para secao destacada
+```sql
+ALTER TABLE wapi_instances 
+ADD COLUMN last_health_check timestamptz,
+ADD COLUMN auto_recovery_attempts integer DEFAULT 0;
+```
+
+---
+
+### 3. Notificacao Imediata quando Instancia Cai
+
+Quando o sistema detectar uma instancia desconectada (seja via follow-up-check ou via webhook):
+
+- Inserir uma notificacao na tabela `notifications` para todos os usuarios da empresa
+- Tipo: `instance_disconnected`
+- Mensagem: "WhatsApp da unidade X perdeu conexao. Reconecte via QR Code em Configuracoes."
+
+Isso garante que o sino de notificacao do admin toque imediatamente.
+
+**Arquivo**: `supabase/functions/follow-up-check/index.ts` (notificacao automatica)
+**Arquivo**: `supabase/functions/wapi-webhook/index.ts` (notificacao no evento de desconexao)
+
+---
+
+### Fluxo de Auto-Recuperacao
+
+```text
+follow-up-check roda (a cada ~5min)
+        |
+        v
+Para cada instancia "connected":
+  chamar get-status na W-API
+        |
+        +-- Conectado? --> OK, atualizar last_health_check
+        |
+        +-- Desconectado/Degraded?
+              |
+              +-- Ja tentou recovery < 30min atras? --> Pular
+              |
+              +-- Tentar restart-instance
+                    |
+                    +-- Sucesso? --> Logar, manter connected
+                    |
+                    +-- Falha? --> Marcar disconnected
+                                   Enviar notificacao
+                                   Zerar auto_recovery_attempts
+```
+
+---
+
+### Detalhes Tecnicos
+
+**Alteracoes em `follow-up-check/index.ts`:**
+- Nova funcao `processInstanceHealthCheck()` executada no inicio do loop
+- Faz `get-status` para cada instancia connected
+- Se falhar, tenta `restart-instance` via chamada HTTP interna ao `wapi-send`
+- Cria notificacao se nao conseguir recuperar
+
+**Alteracoes em `wapi-webhook/index.ts`:**
+- No case `disconnection`/`webhookDisconnected`: alem de marcar como disconnected, inserir notificacao para usuarios da empresa
+
+**Nova migracao SQL:**
+- Adicionar `last_health_check` e `auto_recovery_attempts` a `wapi_instances`
+
+**Arquivos modificados:**
+1. `supabase/functions/follow-up-check/index.ts` - adicionar health check automatico
+2. `supabase/functions/wapi-webhook/index.ts` - adicionar notificacao de desconexao
+3. Nova migracao SQL para colunas extras
+4. `src/integrations/supabase/types.ts` sera atualizado automaticamente
 
