@@ -1,19 +1,55 @@
 
 
-## Juntar os dois templates "Cadastro de Freelancer" em um so
-
-### Situacao atual
-- **Template 1** (mais antigo): 10 perguntas, 15 respostas - nao tem "data de nascimento", foto opcional
-- **Template 2** (mais recente): 11 perguntas, 38 respostas - tem "data de nascimento", foto obrigatoria
+## Mensagem de Aprovacao Editavel + Bot Desligado + Conversa Freelancer/Equipe
 
 ### O que sera feito
 
-Uma unica migration SQL que:
+Quando o buffet clicar em "Aprovar" um freelancer, o sistema vai:
 
-1. Move as 15 respostas do Template 1 para o Template 2 (UPDATE `freelancer_responses` SET `template_id` = Template 2 WHERE `template_id` = Template 1)
-2. Exclui o Template 1
+1. Aprovar no banco (como ja faz hoje)
+2. Enviar uma mensagem personalizada via WhatsApp para o freelancer
+3. Marcar a conversa como **Freelancer + Equipe** (aparece nos dois filtros)
+4. Qualificar o lead como **Trabalhe Conosco**
+5. Desligar o bot para essa conversa (freelancer responde, bot nao interfere)
 
-O Template 2 sera mantido como o template definitivo com todas as 53 respostas. As respostas antigas do Template 1 que nao possuem `data_nascimento` simplesmente terao esse campo vazio/nulo nas respostas, o que e normal.
+A mensagem podera ser editada nas **Configuracoes > WhatsApp > Conteudo**, com um card dedicado abaixo das tabs de Templates e Materiais.
 
-### Nenhuma alteracao de codigo
-Apenas uma migration SQL no banco de dados. Nenhum arquivo `.tsx` precisa ser alterado.
+### Mensagem padrao
+
+```
+Ola {nome}!
+
+Seu cadastro na nossa equipe foi aprovado!
+
+Voce ja esta disponivel para ser escalado(a) para nossos eventos. Fique atento(a) que entraremos em contato quando precisarmos de voce!
+
+Obrigado por fazer parte do time!
+```
+
+A variavel `{nome}` sera substituida automaticamente pelo nome do freelancer.
+
+### Detalhes tecnicos
+
+**Arquivo novo: `src/components/whatsapp/settings/FreelancerApprovalMessageCard.tsx`**
+- Seguindo o padrao exato do `PartyBotMessagesCard.tsx`
+- Carrega `companies.settings.freelancer_approval_message` ao montar
+- Textarea para editar, indicador da variavel `{nome}`, botoes Salvar e Restaurar padrao
+- Exporta `DEFAULT_FREELANCER_APPROVAL_MESSAGE` para reuso
+
+**Arquivo: `src/components/whatsapp/settings/ContentSection.tsx`**
+- Adicionar o `FreelancerApprovalMessageCard` abaixo das tabs existentes (fora do `Tabs`, como um card extra)
+
+**Arquivo: `src/pages/FreelancerManager.tsx`**
+- Alterar `handleApproval` para receber o objeto `response` completo (hoje recebe so o `id`)
+- Quando `status === "aprovado"`:
+  1. Buscar template: `companies.settings.freelancer_approval_message` (fallback para default)
+  2. Extrair telefone: `answers.find(a => a.questionId === "telefone")?.value`
+  3. Buscar instancia conectada: `wapi_instances` com `status = "connected"` e `company_id`
+  4. Enviar via `wapi-send` (action: `send-text`, SEM `lpMode`)
+  5. Buscar/atualizar conversa em `wapi_conversations` pelo telefone: `is_freelancer: true`, `is_equipe: true`, `bot_enabled: false`, `bot_step: null`
+  6. Se houver `lead_id` vinculado na conversa, atualizar `campaign_leads.status` para `trabalhe_conosco`
+- Atualizar chamadas no JSX: `onClick={() => handleApproval(r, "aprovado")}` passando o response inteiro
+- Tratamento gracioso: sem telefone ou sem WhatsApp conectado = aprovacao OK, apenas sem mensagem
+
+**Nenhuma alteracao no banco de dados** -- tudo usa campos ja existentes (`settings` JSONB, `is_freelancer`, `is_equipe`, `bot_enabled`, `bot_step`).
+
