@@ -1,70 +1,61 @@
 
 
-## Correcao: Erro de envio + Indicacao de numero/instancia
+## Correção: Mensagens não chegam nos grupos de WhatsApp
 
-### Problema 1: Erro ao enviar
+### Causa raiz
 
-O body enviado para `wapi-send` esta incorreto:
+A função `sendTextWithFallback` no edge function `wapi-send` (linha 177) faz:
 
 ```text
-Atual (errado):   { instanceId, remoteJid, message }
-Esperado:         { action: "send-text", instanceId, phone, message }
+const phone = String(rawPhone || '').replace(/\D/g, '');
 ```
 
-Faltam dois campos:
-- `action: "send-text"` -- sem isso o switch/case retorna "Acao desconhecida"
-- O campo se chama `phone`, nao `remoteJid`
+Isso transforma `120363023108143216@g.us` em apenas `120363023108143216`, e depois tenta enviar para `120363023108143216@s.whatsapp.net` (chat pessoal inexistente). A W-API aceita a requisição mas não entrega a mensagem.
 
-### Problema 2: Nao mostra qual numero vai enviar
+### Solução
 
-Quando a empresa tem 2+ instancias de WhatsApp, os grupos aparecem misturados sem indicacao de qual numero/instancia cada grupo pertence. O usuario nao sabe por qual numero a mensagem sera enviada.
+Detectar JIDs de grupo (`@g.us`) no início de `sendTextWithFallback` e usar `chatId` diretamente, pulando a normalização e os fallbacks de chat pessoal.
 
-### Correcoes
+### Arquivo modificado
 
-**Arquivo:** `src/components/freelancer/SendScheduleToGroupsDialog.tsx`
+**`supabase/functions/wapi-send/index.ts`** -- apenas a função `sendTextWithFallback` (linhas 176-208)
 
-#### 1. Corrigir payload do envio (linha ~207-213)
+### Alteração proposta
 
-Alterar o body de:
 ```typescript
-body: {
-  instanceId: instance.instance_id,
-  remoteJid: group.remote_jid,
-  message: message.trim(),
+async function sendTextWithFallback(instanceId: string, token: string, rawPhone: string, message: string) {
+  // Detect group JIDs and send directly via chatId
+  if (rawPhone && rawPhone.endsWith('@g.us')) {
+    const endpoint = `${WAPI_BASE_URL}/message/send-text?instanceId=${instanceId}`;
+    const groupAttempts = [
+      { name: 'chatId+message', body: { chatId: rawPhone, message, delayTyping: 1 } },
+      { name: 'chatId+text', body: { chatId: rawPhone, text: message, delayTyping: 1 } },
+    ];
+    for (const attempt of groupAttempts) {
+      const res = await wapiRequest(endpoint, token, 'POST', attempt.body);
+      if (res.ok) {
+        const msgId = extractWapiMessageId(res.data);
+        console.log(`[send-text] Group success [${attempt.name}] msgId=${msgId || 'NONE'}`);
+        return { ok: true, data: res.data, attempt: attempt.name };
+      }
+      console.warn(`[send-text] Group failed [${attempt.name}]: ${res.error}`);
+    }
+    return { ok: false, error: 'Falha ao enviar para grupo (W-API)' };
+  }
+
+  // Original logic for personal chats (unchanged)
+  const phone = String(rawPhone || '').replace(/\D/g, '');
+  // ... rest of existing code unchanged ...
 }
 ```
-Para:
-```typescript
-body: {
-  action: "send-text",
-  instanceId: instance.instance_id,
-  phone: group.remote_jid,
-  message: message.trim(),
-}
-```
 
-#### 2. Buscar phone_number e unit das instancias
+### Escopo de segurança
 
-Na query de `wapi_instances`, adicionar `phone_number` e `unit`:
-```typescript
-.select("id, instance_id, phone_number, unit")
-```
+- Nenhuma alteração em conexão, QR code, webhook, status de instância ou tabela `wapi_instances`
+- Apenas adiciona um bloco `if` no início de uma função utilitária de envio de texto
+- O fluxo existente para chats pessoais permanece 100% inalterado
+- A lógica de grupo usa `chatId` com o JID completo (`@g.us`), que é o formato nativo da W-API para grupos
 
-Atualizar a interface `Instance` para incluir esses campos.
+### Nota adicional
 
-#### 3. Mostrar o numero/unidade ao lado de cada grupo
-
-Na lista de grupos, exibir uma badge discreta indicando de qual numero/unidade aquele grupo pertence. Algo como:
-
-```
-[x] Grupo Monitores        55119xxxx
-[x] Grupo Freelancers      Unidade 2
-```
-
-Isso usa o campo `unit` da instancia se disponivel, senao mostra os ultimos digitos do `phone_number`.
-
-### Seguranca
-
-Nenhuma alteracao no edge function, conexao, instancia ou webhook. Apenas:
-- Correcao dos parametros enviados pelo componente cliente
-- Leitura adicional de `phone_number` e `unit` (somente SELECT)
+O `ShareToGroupDialog` existente (compartilhar lead em grupo) também tem o mesmo problema -- envia `remoteJid` sem `action`. Mas isso é um bug separado que pode ser corrigido depois. A correção no edge function resolve para ambos os casos, pois o `chatId` com `@g.us` será preservado.
