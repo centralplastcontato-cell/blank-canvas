@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Copy, ChevronDown, ChevronUp, FileDown, Trash2, Check } from "lucide-react";
+import { Copy, ChevronDown, ChevronUp, FileDown, Trash2, Check, MessageSquare, Pencil, Save } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { EventData, Availability, Assignment } from "./FreelancerSchedulesTab";
@@ -17,6 +19,7 @@ interface Schedule {
   slug: string | null;
   is_active: boolean;
   created_at: string;
+  notes: string | null;
 }
 
 interface ScheduleCardProps {
@@ -33,12 +36,15 @@ interface ScheduleCardProps {
   onDelete: () => void;
   onToggleAssignment: (scheduleId: string, eventId: string, freelancerName: string, role: string) => void;
   onUpdateRole: (assignmentId: string, newRole: string) => void;
+  onUpdateNotes: (scheduleId: string, notes: string) => void;
 }
 
 export function ScheduleCard({
   schedule, isExpanded, events, availability, assignments, savingAssignment, roles,
-  onToggleExpand, onCopyLink, onGeneratePDF, onDelete, onToggleAssignment, onUpdateRole,
+  onToggleExpand, onCopyLink, onGeneratePDF, onDelete, onToggleAssignment, onUpdateRole, onUpdateNotes,
 }: ScheduleCardProps) {
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesValue, setNotesValue] = useState(schedule.notes || "");
   const startStr = format(parseISO(schedule.start_date), "dd/MM", { locale: ptBR });
   const endStr = format(parseISO(schedule.end_date), "dd/MM", { locale: ptBR });
   const availCount = availability.filter(a => a.schedule_id === schedule.id).length;
@@ -76,6 +82,44 @@ export function ScheduleCard({
 
       {isExpanded && (
         <CardContent className="pt-0 space-y-4">
+          {/* Notes section */}
+          <div className="border rounded-lg p-3 bg-muted/30 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground flex items-center gap-1.5">
+                <MessageSquare className="h-3.5 w-3.5" />
+                Observações
+              </label>
+              {editingNotes ? (
+                <Button variant="ghost" size="sm" className="h-7 text-xs px-2 gap-1" onClick={() => {
+                  onUpdateNotes(schedule.id, notesValue);
+                  setEditingNotes(false);
+                }}>
+                  <Save className="h-3 w-3" /> Salvar
+                </Button>
+              ) : (
+                <Button variant="ghost" size="sm" className="h-7 text-xs px-2 gap-1" onClick={() => {
+                  setNotesValue(schedule.notes || "");
+                  setEditingNotes(true);
+                }}>
+                  <Pencil className="h-3 w-3" /> Editar
+                </Button>
+              )}
+            </div>
+            {editingNotes ? (
+              <Textarea
+                value={notesValue}
+                onChange={e => setNotesValue(e.target.value)}
+                placeholder="Ex: Chegar 30min antes, usar camiseta preta..."
+                className="min-h-[60px] resize-none text-sm"
+                maxLength={500}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                {schedule.notes || "Nenhuma observação adicionada."}
+              </p>
+            )}
+          </div>
+
           {schedule.event_ids.map(eventId => {
             const ev = events[eventId];
             if (!ev) return null;
