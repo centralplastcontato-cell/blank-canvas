@@ -1,47 +1,73 @@
 
 
-## Corrigir envio de mensagem WhatsApp na aprovacao do freelancer
+## Disparo de Escala para Grupos de WhatsApp
 
-### Problemas identificados
+### Restricao de seguranca
 
-Ao investigar o banco de dados, o Victor foi aprovado as 21:38 mas **a mensagem nunca foi enviada** -- tanto `whatsapp_sent_at` quanto `whatsapp_send_error` estao NULL. Os logs do edge function confirmam que nenhum `send-text` foi chamado nesse horario.
+**Nenhum codigo de conexao, QR code, webhook, status de instancia ou alteracao na tabela `wapi_instances` sera tocado.** O componente apenas:
+- **Le** instancias conectadas (`SELECT ... WHERE status = 'connected'`)
+- **Le** conversas de grupo (`SELECT ... WHERE remote_jid LIKE '%@g.us'`)
+- **Chama** `supabase.functions.invoke("wapi-send", { body: { action: "send-text", ... } })` — mesmo padrao do `ShareToGroupDialog` e `SendBotDialog` ja em producao
 
-**Causa raiz**: A empresa tem 2 instancias WhatsApp conectadas (Manchester e Trujillo). Quando existem 2+, o sistema abre um dialogo para escolher a unidade. Porem:
+### Arquivos
 
-1. Se o dialogo for fechado sem selecionar uma unidade, nenhum erro e registrado -- o sistema simplesmente "esquece" de enviar
-2. Como nenhum erro e gravado, o indicador de status (check verde ou alerta vermelho) nao aparece
-3. O botao "Reenviar" so aparece quando `whatsapp_send_error` tem valor, entao tambem fica invisivel
-4. A mensagem nunca foi enviada ao edge function, por isso nao apareceu na Central de Atendimento nem chegou ao WhatsApp
+| Acao | Arquivo |
+|---|---|
+| Criar | `src/components/freelancer/SendScheduleToGroupsDialog.tsx` |
+| Criar | `src/components/whatsapp/settings/ScheduleGroupMessageCard.tsx` |
+| Editar | `src/components/freelancer/ScheduleCard.tsx` (novo botao no header) |
+| Editar | `src/components/freelancer/FreelancerSchedulesTab.tsx` (estado + dialog) |
+| Editar | `src/components/whatsapp/settings/AutomationsSection.tsx` (importar card na aba Gatilhos) |
 
-### Solucao
+### 1. Card de template nas Configuracoes (`ScheduleGroupMessageCard`)
 
-#### 1. Registrar erro quando o dialogo de unidade e fechado sem selecionar
+Mesmo padrao do `FreelancerApprovalMessageCard`:
+- Textarea com template editavel
+- Salva em `companies.settings.freelancer_schedule_group_message`
+- Botoes "Salvar" e "Restaurar padrao"
+- Mostra badges com variaveis: `{link}`, `{titulo}`, `{periodo}`, `{qtd_festas}`, `{observacoes}`
+- Template padrao:
 
-No `FreelancerResponseCards`, quando o `UnitSelectDialog` fecha (`onOpenChange(false)`) sem que uma unidade tenha sido selecionada, gravar `whatsapp_send_error = "Unidade nao selecionada"` na resposta pendente. Isso fara o indicador de erro e o botao "Reenviar" aparecerem automaticamente.
+```
+📋 *{titulo}*
 
-#### 2. Mostrar indicador "Nao enviado" para aprovados sem tentativa
+🗓️ Periodo: {periodo}
+🎉 {qtd_festas} festa(s) disponiveis
 
-Para freelancers com `approval_status = "aprovado"` mas com ambos `whatsapp_sent_at` e `whatsapp_send_error` como null, mostrar um icone cinza de "mensagem pendente" com tooltip "Mensagem nao enviada" e um botao "Enviar" ao lado. Isso cobre o caso de freelancers aprovados antes da feature existir.
+Informe sua disponibilidade pelo link abaixo:
+👉 {link}
 
-#### 3. Passar `contactName` ao wapi-send
+{observacoes}
+```
 
-Adicionar `contactName: freelancerName` no body da chamada ao edge function tanto em `sendApprovalMessage` quanto em `sendPhotoRequest`. Isso garante que a conversa criada na Central de Atendimento tenha o nome correto do freelancer (em vez de apenas o numero de telefone).
+Sera adicionado na aba **Gatilhos** logo abaixo do `FreelancerApprovalMessageCard`.
 
-#### 4. Garantir refresh apos envio via dialogo
+### 2. Dialogo de envio para grupos (`SendScheduleToGroupsDialog`)
 
-Chamar `onDeleted?.()` (que recarrega a lista) apos o `handleUnitSelected` completar, para que o indicador de status apareca imediatamente no card.
+Baseado nos padroes do `ShareToGroupDialog` (UI) + `SendBotDialog` (envio em lote com delay):
 
-### Secao tecnica
+- **Props**: `open`, `onOpenChange`, `schedule` (titulo, datas, event_ids, slug, notes), `companyId`, `companySlug`, `customDomain`
+- Ao abrir:
+  - Le `wapi_instances` da empresa com `status = 'connected'` (somente leitura)
+  - Le `wapi_conversations` com `remote_jid LIKE '%@g.us'` (somente leitura)
+  - Le template de `companies.settings.freelancer_schedule_group_message`
+- Campo de busca para filtrar grupos
+- **Checkboxes** para selecao multipla de grupos
+- Textarea com mensagem pre-preenchida (variaveis substituidas)
+- Envio sequencial com delay aleatorio 1-3s (padrao `SendBotDialog`)
+- Barra de progresso durante o envio
 
-**Arquivo modificado:** `src/pages/FreelancerManager.tsx`
+### 3. Botao no `ScheduleCard`
 
-**Mudancas especificas:**
+Novo botao com icone `Send` no header, ao lado do Copy/PDF/Delete. Nova prop `onSendToGroups`.
 
-1. **`sendApprovalMessage` e `sendPhotoRequest`** (linhas ~498 e ~562): Adicionar `contactName: freelancerName` ou `contactName: name` no body do `supabase.functions.invoke("wapi-send", { body: { ... } })`.
+### 4. Integracao no `FreelancerSchedulesTab`
 
-2. **Fechamento do `UnitSelectDialog`** (~onOpenChange handler): Detectar quando o dialogo fecha sem selecao e gravar `whatsapp_send_error` no `freelancer_responses` correspondente.
+- Estado `sendToGroupsSchedule` para rastrear qual escala esta sendo compartilhada
+- Passa `onSendToGroups` para cada `ScheduleCard`
+- Renderiza `SendScheduleToGroupsDialog` no final do componente
 
-3. **Indicadores no card** (linhas ~790-841): Adicionar uma terceira condicao: quando `approval_status === "aprovado"` e ambos campos WhatsApp sao null, renderizar um icone `MessageCircle` cinza com botao "Enviar" que chama `resolveInstanceAndSend`.
+### Nenhuma alteracao de banco de dados necessaria
 
-4. **`handleUnitSelected`** (linha ~637): Garantir que `onDeleted?.()` seja chamado apos sucesso para atualizar os indicadores.
+Tudo utiliza tabelas e edge functions ja existentes. Nenhum codigo de conexao, instancia ou webhook sera modificado.
 
