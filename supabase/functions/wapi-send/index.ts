@@ -1098,7 +1098,7 @@ Deno.serve(async (req) => {
           
           if (!res.ok) {
             return new Response(JSON.stringify({ error: `Erro: ${res.status}` }), {
-              status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             });
           }
           
@@ -1117,7 +1117,7 @@ Deno.serve(async (req) => {
               });
             }
             return new Response(JSON.stringify({ error: 'QR não disponível' }), {
-              status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             });
           } else if (ct?.includes('image')) {
             const buf = await res.arrayBuffer();
@@ -1133,7 +1133,7 @@ Deno.serve(async (req) => {
           }
           
           return new Response(JSON.stringify({ error: 'Formato inesperado' }), {
-            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         } catch (e) {
           console.error('wapi-send: get-qr unexpected error:', e instanceof Error ? e.message : String(e));
@@ -1141,7 +1141,7 @@ Deno.serve(async (req) => {
             error: e instanceof Error ? e.message : 'Erro',
             errorType: 'UNKNOWN',
           }), {
-            status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
       }
