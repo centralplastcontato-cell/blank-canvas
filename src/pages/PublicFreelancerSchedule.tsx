@@ -142,13 +142,7 @@ export default function PublicFreelancerSchedule() {
     }
   };
 
-  useEffect(() => {
-    if (!submitted || !schedule?.company_slug) return;
-    const timer = setTimeout(() => {
-      window.location.href = `/lp/${schedule.company_slug}`;
-    }, 5000);
-    return () => clearTimeout(timer);
-  }, [submitted, schedule]);
+  // Removed auto-redirect after submission
 
   if (loading) {
     return (
@@ -170,7 +164,6 @@ export default function PublicFreelancerSchedule() {
   }
 
   if (submitted) {
-    const lpUrl = schedule.company_slug ? `/lp/${schedule.company_slug}` : null;
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
         <Helmet><title>Disponibilidade Enviada</title></Helmet>
@@ -179,14 +172,6 @@ export default function PublicFreelancerSchedule() {
           <CheckCircle2 className="h-16 w-16 text-accent mx-auto" />
           <h1 className="text-2xl font-bold text-foreground">Disponibilidade enviada! 🎉</h1>
           <p className="text-muted-foreground">Obrigado, {name}! O buffet receberá sua disponibilidade e entrará em contato.</p>
-          {lpUrl && (
-            <>
-              <Button onClick={() => window.location.href = lpUrl} className="w-full rounded-xl h-12 text-base font-semibold">
-                Conhecer o espaço
-              </Button>
-              <p className="text-xs text-muted-foreground">Redirecionando automaticamente em 5 segundos...</p>
-            </>
-          )}
         </motion.div>
       </div>
     );
