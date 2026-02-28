@@ -8,7 +8,8 @@ import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bot, Clock, Forward, Zap, Plus, Trash2, Phone, Shield, Beaker, Power, Loader2, MessageSquare, Save, RotateCcw, Images, Video, FileText, Send, RefreshCw, GitBranch, Map, GripVertical, Workflow } from "lucide-react";
+import { Bot, Clock, Forward, Zap, Plus, Trash2, Phone, Shield, Beaker, Power, Loader2, MessageSquare, Save, RotateCcw, Images, Video, FileText, Send, RefreshCw, GitBranch, Map, GripVertical, Workflow, Globe2 } from "lucide-react";
+import { LPBotSection } from "./LPBotSection";
 import { FreelancerApprovalMessageCard } from "./FreelancerApprovalMessageCard";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { FlowListManager } from "@/components/flowbuilder/FlowListManager";
@@ -774,6 +775,10 @@ export function AutomationsSection() {
           <TabsTrigger value="gatilhos" className="flex items-center gap-1.5 text-xs sm:text-sm">
             <Workflow className="w-3.5 h-3.5" />
             <span>Gatilhos</span>
+          </TabsTrigger>
+          <TabsTrigger value="bot-lp" className="flex items-center gap-1.5 text-xs sm:text-sm">
+            <Globe2 className="w-3.5 h-3.5" />
+            <span>Bot LP</span>
           </TabsTrigger>
         </TabsList>
 
@@ -2175,6 +2180,11 @@ export function AutomationsSection() {
         {/* ============ TAB: GATILHOS ============ */}
         <TabsContent value="gatilhos" className="space-y-6 mt-4">
           <FreelancerApprovalMessageCard />
+        </TabsContent>
+
+        {/* ============ TAB: BOT LP ============ */}
+        <TabsContent value="bot-lp" className="mt-4">
+          <LPBotSection />
         </TabsContent>
       </Tabs>
     </div>
