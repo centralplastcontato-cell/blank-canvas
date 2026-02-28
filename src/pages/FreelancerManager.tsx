@@ -409,20 +409,118 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
     }
   };
 
-  const handleApproval = async (id: string, status: "aprovado" | "rejeitado") => {
+  const handleApproval = async (response: any, status: "aprovado" | "rejeitado") => {
+    const id = response.id;
     setUpdatingApproval(id);
     const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase
       .from("freelancer_responses")
       .update({ approval_status: status, approved_by: user?.id, approved_at: new Date().toISOString() } as any)
       .eq("id", id);
-    setUpdatingApproval(null);
+    
     if (error) {
+      setUpdatingApproval(null);
       toast({ title: "Erro ao atualizar status", variant: "destructive" });
-    } else {
-      toast({ title: status === "aprovado" ? "Freelancer aprovado! ✅" : "Freelancer rejeitado" });
-      onDeleted?.(); // refresh
+      return;
     }
+
+    // If approved, send WhatsApp message + tag conversation + qualify lead
+    if (status === "aprovado") {
+      try {
+        const answersArr = Array.isArray(response.answers) ? response.answers : [];
+        const phoneRaw = answersArr.find((a: any) => a.questionId === "telefone")?.value;
+        const freelancerName = response.respondent_name || "freelancer";
+
+        if (phoneRaw) {
+          const phone = String(phoneRaw).replace(/\D/g, "");
+          if (phone.length >= 10) {
+            // Get connected WhatsApp instance
+            const { data: instance } = await supabase
+              .from("wapi_instances")
+              .select("instance_id, instance_token, company_id")
+              .eq("company_id", companyId)
+              .eq("status", "connected")
+              .limit(1)
+              .maybeSingle();
+
+            if (instance) {
+              // Load custom message template (fallback to default)
+              const { DEFAULT_FREELANCER_APPROVAL_MESSAGE } = await import("@/components/whatsapp/settings/FreelancerApprovalMessageCard");
+              let messageTemplate = DEFAULT_FREELANCER_APPROVAL_MESSAGE;
+
+              const { data: companyData } = await supabase
+                .from("companies")
+                .select("settings")
+                .eq("id", companyId)
+                .single();
+
+              const settings = companyData?.settings as Record<string, any> | null;
+              if (settings?.freelancer_approval_message) {
+                messageTemplate = settings.freelancer_approval_message;
+              }
+
+              const message = messageTemplate.replace(/\{nome\}/g, freelancerName);
+
+              // Send message via wapi-send (no lpMode so bot stays off)
+              await supabase.functions.invoke("wapi-send", {
+                body: {
+                  action: "send-text",
+                  phone,
+                  message,
+                  instanceId: instance.instance_id,
+                  instanceToken: instance.instance_token,
+                },
+              });
+
+              // Update conversation: tag as freelancer+equipe, disable bot
+              const { data: convData } = await (supabase as any)
+                .from("wapi_conversations")
+                .select("id, lead_id")
+                .eq("company_id", companyId)
+                .eq("phone", phone)
+                .limit(1)
+                .maybeSingle();
+
+              if (convData) {
+                await (supabase as any)
+                  .from("wapi_conversations")
+                  .update({
+                    is_freelancer: true,
+                    is_equipe: true,
+                    bot_enabled: false,
+                    bot_step: null,
+                  })
+                  .eq("id", convData.id);
+
+                // Qualify lead as "trabalhe_conosco"
+                if (convData.lead_id) {
+                  await supabase
+                    .from("campaign_leads")
+                    .update({ status: "trabalhe_conosco" })
+                    .eq("id", convData.lead_id);
+                }
+              }
+
+              toast({ title: "Freelancer aprovado! ✅", description: "Mensagem enviada via WhatsApp." });
+            } else {
+              toast({ title: "Freelancer aprovado! ✅", description: "WhatsApp não conectado — mensagem não enviada." });
+            }
+          } else {
+            toast({ title: "Freelancer aprovado! ✅", description: "Telefone inválido — mensagem não enviada." });
+          }
+        } else {
+          toast({ title: "Freelancer aprovado! ✅", description: "Sem telefone cadastrado — mensagem não enviada." });
+        }
+      } catch (err: any) {
+        console.error("Error in approval flow:", err);
+        toast({ title: "Freelancer aprovado! ✅", description: "Erro ao enviar mensagem, mas aprovação foi salva." });
+      }
+    } else {
+      toast({ title: "Freelancer rejeitado" });
+    }
+
+    setUpdatingApproval(null);
+    onDeleted?.(); // refresh
   };
 
   return (
@@ -531,7 +629,7 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
                               variant="ghost"
                               size="sm"
                               className="h-7 text-xs gap-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
-                              onClick={() => handleApproval(r.id, "aprovado")}
+                              onClick={() => handleApproval(r, "aprovado")}
                               disabled={updatingApproval === r.id}
                             >
                               {updatingApproval === r.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
@@ -543,7 +641,7 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
                               variant="ghost"
                               size="sm"
                               className="h-7 text-xs gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => handleApproval(r.id, "rejeitado")}
+                              onClick={() => handleApproval(r, "rejeitado")}
                               disabled={updatingApproval === r.id}
                             >
                               <XCircle className="h-3.5 w-3.5" />
