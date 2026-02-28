@@ -1665,6 +1665,7 @@ export type Database = {
           event_ids: string[]
           id: string
           is_active: boolean
+          notes: string | null
           slug: string | null
           start_date: string
           title: string
@@ -1677,6 +1678,7 @@ export type Database = {
           event_ids?: string[]
           id?: string
           is_active?: boolean
+          notes?: string | null
           slug?: string | null
           start_date: string
           title: string
@@ -1689,6 +1691,7 @@ export type Database = {
           event_ids?: string[]
           id?: string
           is_active?: boolean
+          notes?: string | null
           slug?: string | null
           start_date?: string
           title?: string
