@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Wifi, Bell, Bot, Settings, Lock, HelpCircle, FileText, Building2, Globe2 } from "lucide-react";
+import { Wifi, Bell, Bot, Settings, Lock, HelpCircle, FileText, Building2 } from "lucide-react";
 import { ConnectionSection } from "./settings/ConnectionSection";
 import { NotificationsSection } from "./settings/NotificationsSection";
 import { AutomationsSection } from "./settings/AutomationsSection";
@@ -8,7 +8,6 @@ import { AdvancedSection } from "./settings/AdvancedSection";
 import { VisualGuideSection } from "./settings/VisualGuideSection";
 import { ContentSection } from "./settings/ContentSection";
 import { CompanyDataSection } from "./settings/CompanyDataSection";
-import { LPBotSection } from "./settings/LPBotSection";
 import { useConfigPermissions } from "@/hooks/useConfigPermissions";
 import { useCompanyModules, type CompanyModules } from "@/hooks/useCompanyModules";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -73,15 +72,6 @@ const allConfigSections = [
     icon: Settings,
   },
   {
-    id: "lp-bot",
-    permissionKey: null as any,
-    moduleKey: null as keyof CompanyModules | null,
-    title: "Bot LP",
-    description: "Chatbot da Landing Page",
-    icon: Globe2,
-    requiresCompanyAdmin: true,
-  },
-  {
     id: "guide",
     permissionKey: null as any,
     moduleKey: null,
@@ -131,8 +121,6 @@ export function WhatsAppConfig({ userId, isAdmin, isGestor = false }: WhatsAppCo
         return <AutomationsSection />;
       case "advanced":
         return <AdvancedSection userId={userId} isAdmin={isAdmin} />;
-      case "lp-bot":
-        return <LPBotSection />;
       case "guide":
         return <VisualGuideSection />;
       default:
