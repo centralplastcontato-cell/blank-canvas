@@ -2,7 +2,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, FolderOpen } from "lucide-react";
 import { MessagesSection } from "./MessagesSection";
 import { SalesMaterialsSection } from "./SalesMaterialsSection";
-import { FreelancerApprovalMessageCard } from "./FreelancerApprovalMessageCard";
 
 interface ContentSectionProps {
   userId: string;
@@ -32,8 +31,6 @@ export function ContentSection({ userId, isAdmin }: ContentSectionProps) {
           <SalesMaterialsSection userId={userId} isAdmin={isAdmin} />
         </TabsContent>
       </Tabs>
-
-      <FreelancerApprovalMessageCard />
     </div>
   );
 }
