@@ -9,10 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
-import { HardHat, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, ChevronDown, ChevronRight, MessageCircle, ShieldAlert, Search } from "lucide-react";
+import { HardHat, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, ChevronDown, ChevronRight, MessageCircle, ShieldAlert, Search, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -128,6 +127,56 @@ function PasswordConfirmDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function OptionChipsEditor({ options, onChange }: { options: string[]; onChange: (opts: string[]) => void }) {
+  const [newOption, setNewOption] = useState("");
+
+  const addOption = () => {
+    const val = newOption.trim();
+    if (!val || options.includes(val)) return;
+    onChange([...options, val]);
+    setNewOption("");
+  };
+
+  const removeOption = (idx: number) => {
+    onChange(options.filter((_, i) => i !== idx));
+  };
+
+  return (
+    <div className="rounded-lg border border-border/50 bg-muted/15 p-2.5 space-y-2">
+      <p className="text-[10px] text-muted-foreground font-medium">Opções:</p>
+      <div className="flex flex-wrap gap-1.5">
+        {options.filter(o => o.trim()).map((opt, idx) => (
+          <span
+            key={idx}
+            className="inline-flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20"
+          >
+            {opt}
+            <button
+              type="button"
+              onClick={() => removeOption(idx)}
+              className="h-4 w-4 rounded-full hover:bg-destructive/20 hover:text-destructive flex items-center justify-center transition-colors"
+            >
+              <X className="h-2.5 w-2.5" />
+            </button>
+          </span>
+        ))}
+      </div>
+      <div className="flex gap-1.5">
+        <Input
+          value={newOption}
+          onChange={(e) => setNewOption(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addOption(); } }}
+          placeholder="Nova opção..."
+          className="h-7 text-xs flex-1"
+        />
+        <Button type="button" variant="outline" size="sm" className="h-7 text-xs px-2.5 shrink-0" onClick={addOption} disabled={!newOption.trim()}>
+          <Plus className="h-3 w-3" />
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -786,17 +835,10 @@ export function FreelancerManagerContent() {
                       </label>
                     </div>
                     {(q.type === "select" || q.type === "multiselect") && (
-                      <div className="rounded-lg border border-dashed border-border/50 bg-muted/20 p-2.5 space-y-1">
-                        <p className="text-[10px] text-muted-foreground font-medium">Opções (uma por linha):</p>
-                        <Textarea
-                          value={(q.options || []).join("\n")}
-                          onChange={(e) => updateQuestion(idx, { options: e.target.value.split("\n") })}
-                          onBlur={() => updateQuestion(idx, { options: (q.options || []).filter(o => o.trim()) })}
-                          placeholder={"Opção 1\nOpção 2\nOpção 3"}
-                          className="text-xs min-h-[60px] resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 p-0"
-                          rows={3}
-                        />
-                      </div>
+                      <OptionChipsEditor
+                        options={q.options || []}
+                        onChange={(newOptions) => updateQuestion(idx, { options: newOptions })}
+                      />
                     )}
                   </div>
                 ))}
