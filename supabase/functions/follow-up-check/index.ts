@@ -2319,7 +2319,7 @@ async function processInstanceHealthCheck(
 
   console.log(`[health-check] Checking ${instances.length} instances...`);
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-  const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
   for (const inst of instances) {
     try {
@@ -2332,16 +2332,36 @@ async function processInstanceHealthCheck(
         }
       }
 
-      // Call W-API get-status
-      const statusResponse = await fetch(
-        `https://api.w-api.app/v1/instance/get-status?instanceId=${inst.instance_id}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${inst.instance_token}`,
-          },
+      // Call wapi-send edge function (has full fallback logic) instead of W-API directly
+      let detectedStatus = "disconnected";
+      try {
+        const statusResponse = await fetch(
+          `${SUPABASE_URL}/functions/v1/wapi-send`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              action: "get-status",
+              instanceId: inst.instance_id,
+              instanceToken: inst.instance_token,
+            }),
+          }
+        );
+
+        if (statusResponse.ok) {
+          const statusData = await statusResponse.json();
+          detectedStatus = statusData?.status || "disconnected";
+          console.log(`[health-check] wapi-send get-status for ${inst.instance_id}: ${detectedStatus}`);
+        } else {
+          const errText = await statusResponse.text();
+          console.warn(`[health-check] wapi-send get-status failed for ${inst.instance_id} (${statusResponse.status}): ${errText}`);
         }
-      );
+      } catch (fetchErr) {
+        console.warn(`[health-check] wapi-send fetch error for ${inst.instance_id}:`, fetchErr);
+      }
 
       // Update last_health_check timestamp
       await supabase
@@ -2349,60 +2369,104 @@ async function processInstanceHealthCheck(
         .update({ last_health_check: new Date().toISOString() })
         .eq("id", inst.id);
 
-      if (statusResponse.ok) {
-        const statusData = await statusResponse.json();
-        const isConnected = statusData?.connected === true || 
-                           statusData?.status === "CONNECTED" || 
-                           statusData?.state === "CONNECTED";
+      // === Handle detected status ===
 
-        if (isConnected) {
-          // Instance is healthy
-          console.log(`[health-check] Instance ${inst.instance_id} is healthy`);
-          // Reset recovery attempts if it was previously in recovery
-          if ((inst.auto_recovery_attempts || 0) > 0) {
-            await supabase
-              .from("wapi_instances")
-              .update({ auto_recovery_attempts: 0 })
-              .eq("id", inst.id);
-          }
-          continue;
+      if (detectedStatus === "connected") {
+        // Instance is healthy
+        console.log(`[health-check] Instance ${inst.instance_id} is healthy (connected)`);
+        if (inst.status !== "connected") {
+          await supabase.from("wapi_instances").update({ status: "connected" }).eq("id", inst.id);
         }
-
-        console.warn(`[health-check] Instance ${inst.instance_id} reports NOT connected. Status:`, statusData);
-      } else {
-        const errText = await statusResponse.text();
-        console.warn(`[health-check] Instance ${inst.instance_id} get-status failed (${statusResponse.status}): ${errText}`);
-      }
-
-      // Instance is down - attempt restart
-      console.log(`[health-check] Attempting auto-restart for ${inst.instance_id}...`);
-
-      const restartResponse = await fetch(
-        `https://api.w-api.app/v1/instance/restart-instance?instanceId=${inst.instance_id}`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${inst.instance_token}`,
-            "Content-Type": "application/json",
-          },
+        if ((inst.auto_recovery_attempts || 0) > 0) {
+          await supabase.from("wapi_instances").update({ auto_recovery_attempts: 0 }).eq("id", inst.id);
         }
-      );
-
-      if (restartResponse.ok) {
-        console.log(`[health-check] ✅ Auto-restart successful for ${inst.instance_id}`);
-        await supabase
-          .from("wapi_instances")
-          .update({
-            auto_recovery_attempts: (inst.auto_recovery_attempts || 0) + 1,
-          })
-          .eq("id", inst.id);
         continue;
       }
 
-      // Restart failed - mark as disconnected and notify
-      const restartErr = await restartResponse.text();
-      console.error(`[health-check] ❌ Auto-restart FAILED for ${inst.instance_id}: ${restartErr}`);
+      if (detectedStatus === "degraded") {
+        // Degraded = QR connected but API endpoints returning 404. Do NOT disconnect.
+        console.log(`[health-check] Instance ${inst.instance_id} is degraded — keeping status, no restart`);
+        if (inst.status !== "degraded") {
+          await supabase.from("wapi_instances").update({ status: "degraded" }).eq("id", inst.id);
+        }
 
+        // Send notification only once (check if there's a recent one in the last 6 hours)
+        const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+        const { data: recentNotif } = await supabase
+          .from("notifications")
+          .select("id")
+          .eq("company_id", inst.company_id)
+          .eq("type", "instance_degraded")
+          .gte("created_at", sixHoursAgo)
+          .limit(1);
+
+        if (!recentNotif || recentNotif.length === 0) {
+          const unitName = inst.unit || inst.instance_id || "WhatsApp";
+          const { data: companyUsers } = await supabase
+            .from("user_companies")
+            .select("user_id")
+            .eq("company_id", inst.company_id);
+
+          if (companyUsers && companyUsers.length > 0) {
+            const notifications = companyUsers.map((u: { user_id: string }) => ({
+              user_id: u.user_id,
+              company_id: inst.company_id,
+              type: "instance_degraded",
+              title: "⚠️ WhatsApp em modo degradado",
+              message: `A instância ${unitName} está funcionando parcialmente. Alguns recursos podem estar limitados.`,
+              data: { instance_id: inst.id, instance_name: unitName },
+            }));
+            await supabase.from("notifications").insert(notifications);
+            console.log(`[health-check] Degraded notification sent for ${inst.instance_id}`);
+          }
+        }
+        continue;
+      }
+
+      // === Status is "disconnected" or "instance_not_found" ===
+
+      // If the instance was already degraded in our DB, keep it as degraded — don't worsen it
+      if (inst.status === "degraded") {
+        console.log(`[health-check] Instance ${inst.instance_id} returned ${detectedStatus} but was degraded in DB — keeping degraded, no restart`);
+        continue;
+      }
+
+      // Instance was "connected" but now is truly disconnected — attempt restart
+      console.log(`[health-check] Instance ${inst.instance_id} is ${detectedStatus}. Attempting auto-restart...`);
+
+      try {
+        const restartResponse = await fetch(
+          `${SUPABASE_URL}/functions/v1/wapi-send`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              action: "restart-instance",
+              instanceId: inst.instance_id,
+              instanceToken: inst.instance_token,
+            }),
+          }
+        );
+
+        if (restartResponse.ok) {
+          console.log(`[health-check] ✅ Auto-restart successful for ${inst.instance_id}`);
+          await supabase
+            .from("wapi_instances")
+            .update({ auto_recovery_attempts: (inst.auto_recovery_attempts || 0) + 1 })
+            .eq("id", inst.id);
+          continue;
+        }
+
+        const restartErr = await restartResponse.text();
+        console.error(`[health-check] ❌ Auto-restart FAILED for ${inst.instance_id}: ${restartErr}`);
+      } catch (restartFetchErr) {
+        console.error(`[health-check] ❌ Auto-restart fetch error for ${inst.instance_id}:`, restartFetchErr);
+      }
+
+      // Restart failed - mark as disconnected and notify
       await supabase
         .from("wapi_instances")
         .update({
@@ -2412,7 +2476,6 @@ async function processInstanceHealthCheck(
         })
         .eq("id", inst.id);
 
-      // Send notification to all company users
       const unitName = inst.unit || inst.instance_id || "WhatsApp";
       const { data: companyUsers } = await supabase
         .from("user_companies")
@@ -2429,7 +2492,7 @@ async function processInstanceHealthCheck(
           data: { instance_id: inst.id, instance_name: unitName },
         }));
         await supabase.from("notifications").insert(notifications);
-        console.log(`[health-check] Notification sent to ${companyUsers.length} users for ${inst.instance_id}`);
+        console.log(`[health-check] Disconnect notification sent to ${companyUsers.length} users for ${inst.instance_id}`);
       }
     } catch (err) {
       console.error(`[health-check] Error checking instance ${inst.instance_id}:`, err);
