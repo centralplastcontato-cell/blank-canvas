@@ -1,45 +1,30 @@
 
-## Correcao: W-API nao reconhece "chatId" para grupos
 
-### Diagnostico
+## Intervalo de segurança configurável para envio em grupos
 
-Os logs mostram claramente:
-```
-[send-text] Group failed [chatId+message]: O número de telefone ou ID do grupo é obrigatório.
-[send-text] Group failed [chatId+text]: O número de telefone ou ID do grupo é obrigatório.
-```
+### O que muda
 
-A W-API (api.w-api.app) nao aceita o campo `chatId` para envio de mensagens para grupos. A API rejeita o payload e retorna que "o numero de telefone ou ID do grupo e obrigatorio".
+1. **Novo campo em `companies.settings`**: `group_message_delay_seconds` (padrão: 60 segundos, como solicitado)
 
-### Solucao
+2. **Nova card em Configuracoes > Automacoes > Gatilhos**: "Intervalo de Segurança" com um slider ou inputs min/max para definir o delay entre mensagens enviadas para grupos de WhatsApp
 
-Expandir as tentativas de envio para grupos usando multiplos nomes de campo, similar ao que ja e feito para chats pessoais. A W-API provavelmente espera `phone` com o JID completo (`@g.us`), ou `groupId`, ou `number`.
+3. **`SendScheduleToGroupsDialog`**: ao abrir, carrega o valor de `group_message_delay_seconds` da empresa e usa como delay (em vez do fixo 1-3s atual)
 
-### Alteracao
+### Detalhes técnicos
 
-**Arquivo:** `supabase/functions/wapi-send/index.ts` (linhas 180-194)
+**Arquivo: `src/components/whatsapp/settings/AutomationsSection.tsx`**
+- Na sub-aba "Gatilhos", adicionar um card "Intervalo de Segurança" com:
+  - Input numérico para definir o intervalo em segundos (mínimo 5s, máximo 120s)
+  - Texto explicativo sobre risco de bloqueio
+  - Salva em `companies.settings.group_message_delay_seconds`
 
-Substituir as 2 tentativas atuais por uma lista mais abrangente:
+**Arquivo: `src/components/freelancer/SendScheduleToGroupsDialog.tsx`**
+- No `loadData()`, carregar `group_message_delay_seconds` do `companies.settings`
+- Substituir `randomDelay(1000, 3000)` por `randomDelay(delay * 1000, delay * 1000 + 2000)` onde `delay` vem da config (padrão 60s)
+- Exibir o intervalo configurado no progress (ex: "Aguardando ~60s...")
 
-```typescript
-if (rawPhone && rawPhone.endsWith('@g.us')) {
-  const groupAttempts = [
-    { name: 'phone+message', body: { phone: rawPhone, message, delayTyping: 1 } },
-    { name: 'phone+text', body: { phone: rawPhone, text: message, delayTyping: 1 } },
-    { name: 'chatId+message', body: { chatId: rawPhone, message, delayTyping: 1 } },
-    { name: 'chatId+text', body: { chatId: rawPhone, text: message, delayTyping: 1 } },
-    { name: 'number+message', body: { number: rawPhone, message, delayTyping: 1 } },
-    { name: 'groupId+message', body: { groupId: rawPhone, message, delayTyping: 1 } },
-  ];
-  // ... same loop logic
-}
-```
+**Nenhuma migration necessária** -- o campo é salvo dentro do JSONB `settings` da tabela `companies` que já existe.
 
-A logica de fallback ja existe -- tenta cada variante em sequencia e para na primeira que funcionar. Quando encontrarmos a variante correta, ela sera logada nos logs e poderemos otimizar depois.
+### Valor padrão
 
-### Escopo
-
-- Apenas altera o bloco de tentativas para grupo dentro de `sendTextWithFallback`
-- Nenhuma alteracao em conexao, webhook, instancias ou status
-- O fluxo de chats pessoais permanece inalterado
-- Redeploy da edge function `wapi-send` apos a alteracao
+O padrão será **60 segundos** (1 minuto) conforme solicitado, com variação aleatória de +0 a +2 segundos para parecer mais humano.
