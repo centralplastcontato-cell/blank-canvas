@@ -3357,6 +3357,17 @@ async function processWebhookEvent(body: Record<string, unknown>) {
     return;
   }
 
+  // === AUTO-RECOVERY: If webhook arrives but DB says disconnected/degraded, the instance IS connected ===
+  if (instance.status === 'disconnected' || instance.status === 'degraded') {
+    console.warn(`[Webhook] ⚡ Message received for instance ${instanceId} but DB status is "${instance.status}". Auto-recovering status to connected...`);
+    await supabase.from('wapi_instances').update({ 
+      status: 'connected', 
+      connected_at: new Date().toISOString() 
+    }).eq('id', instance.id);
+    // Update local reference so rest of handler uses correct status
+    instance.status = 'connected';
+  }
+
   let evt = event || body.event;
 
   // If event is undefined but body contains message-like data, treat as message

@@ -258,17 +258,19 @@ async function checkSessionHealth(
   const sendActions = ['send-text', 'send-image', 'send-audio', 'send-video', 'send-document', 'send-contact'];
   if (!sendActions.includes(action)) return null;
 
-  // Check DB first: if phone_number is null but status is 'connected', session is incomplete
+  // Check DB first
   const { data: dbInstance } = await supabase
     .from('wapi_instances')
     .select('id, status, phone_number')
     .eq('instance_id', instanceExternalId)
     .single();
 
-  if (dbInstance && dbInstance.status === 'connected' && !dbInstance.phone_number) {
+  if (!dbInstance) return null;
+
+  // SESSION_INCOMPLETE: connected but no phone_number
+  if (dbInstance.status === 'connected' && !dbInstance.phone_number) {
     console.warn(`[Preflight] BLOCKED ${action}: instance ${instanceExternalId} is connected but has no phone_number (SESSION_INCOMPLETE)`);
     
-    // Persist message as failed if we have conversation context
     if (conversationId && messageContent) {
       const failedMsgId = `blocked_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
       await supabase.from('wapi_messages').insert({
@@ -287,6 +289,66 @@ async function checkSessionHealth(
     return new Response(JSON.stringify({ 
       error: 'Sessão do WhatsApp incompleta. Reconecte a instância.',
       errorType: 'SESSION_INCOMPLETE',
+      blocked: true,
+    }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  // DISCONNECTED: check real status before blocking
+  if (dbInstance.status === 'disconnected') {
+    console.warn(`[Preflight] Instance ${instanceExternalId} is disconnected in DB. Checking real status...`);
+    
+    // Quick real-time check against W-API
+    try {
+      const statusRes = await fetch(
+        `${WAPI_BASE_URL}/instance/get-status?instanceId=${instanceExternalId}`,
+        {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${instanceToken}` },
+        }
+      );
+      
+      if (statusRes.ok) {
+        const statusData = await statusRes.json();
+        const realStatus = statusData?.status || statusData?.state || 'disconnected';
+        
+        if (realStatus === 'connected' || realStatus === 'CONNECTED') {
+          // W-API says connected! Auto-recover DB and allow send
+          console.log(`[Preflight] ✅ W-API says connected! Auto-recovering instance ${instanceExternalId}`);
+          await supabase.from('wapi_instances').update({ 
+            status: 'connected', 
+            connected_at: new Date().toISOString() 
+          }).eq('id', dbInstance.id);
+          return null; // Allow send
+        }
+      }
+    } catch (err) {
+      console.warn(`[Preflight] Real-time status check failed for ${instanceExternalId}:`, err);
+    }
+    
+    // Confirmed disconnected - save message as failed
+    console.warn(`[Preflight] BLOCKED ${action}: instance ${instanceExternalId} confirmed disconnected`);
+    
+    if (conversationId && messageContent) {
+      const failedMsgId = `blocked_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      await supabase.from('wapi_messages').insert({
+        conversation_id: conversationId,
+        message_id: failedMsgId,
+        from_me: true,
+        message_type: 'text',
+        content: messageContent,
+        status: 'failed',
+        timestamp: new Date().toISOString(),
+        company_id: companyId,
+        metadata: { blocked_reason: 'DISCONNECTED' },
+      });
+    }
+
+    return new Response(JSON.stringify({ 
+      error: 'Sessão do WhatsApp desconectada. Reconecte via QR Code nas Configurações.',
+      errorType: 'DISCONNECTED',
       blocked: true,
     }), {
       status: 400,
