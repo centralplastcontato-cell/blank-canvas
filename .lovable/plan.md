@@ -1,58 +1,22 @@
 
 
-## Limpeza de conversas fantasma @lid
+## Alterar status do freelancer Victor para "pendente"
 
-### Resumo
+### Objetivo
+Atualizar o campo `approval_status` do registro do freelancer **Victor** (id: `31891e12-37b0-4e3e-80f5-7dab73ccf99c`) de `rejeitado` para `pendente`, permitindo testar o fluxo de aprovacao com selecao de unidade.
 
-Remover 31 conversas fantasma e 93 mensagens associadas do banco de dados. Todas possuem `remote_jid LIKE '%@lid'` -- um identificador Meta que nunca corresponde a conversas reais (que usam `@s.whatsapp.net`).
-
-### Dados confirmados
-
-- **Castelo da Diversao (Trujillo)**: 24 conversas fantasma
-- **Planeta Divertido**: 7 conversas fantasma
-- **Total de mensagens a remover**: 93
-- **Risco para dados reais**: Zero -- o filtro `@lid` e exclusivo de identificadores Meta
-
-### Verificacao de dependencias
-
-Antes de deletar as conversas, e necessario verificar e limpar registros dependentes em tabelas relacionadas:
-
-1. `flow_lead_state` -- estados de fluxo do bot vinculados a essas conversas
-2. `wapi_messages` -- mensagens vinculadas a essas conversas
-3. `wapi_conversations` -- as conversas fantasma em si
-
-### Sequencia de execucao
-
-1. **Deletar `flow_lead_state`** onde `conversation_id` pertence a conversas com `@lid`
-2. **Deletar `wapi_messages`** onde `conversation_id` pertence a conversas com `@lid`
-3. **Deletar `wapi_conversations`** onde `remote_jid LIKE '%@lid'`
-
-### Detalhes tecnicos
-
-Tres operacoes DELETE executadas via ferramenta de insercao/delecao do Supabase, nesta ordem:
-
-```text
--- Passo 1: Limpar estados de fluxo
-DELETE FROM flow_lead_state 
-WHERE conversation_id IN (
-  SELECT id FROM wapi_conversations WHERE remote_jid LIKE '%@lid'
-);
-
--- Passo 2: Limpar mensagens
-DELETE FROM wapi_messages 
-WHERE conversation_id IN (
-  SELECT id FROM wapi_conversations WHERE remote_jid LIKE '%@lid'
-);
-
--- Passo 3: Limpar conversas
-DELETE FROM wapi_conversations 
-WHERE remote_jid LIKE '%@lid';
+### O que sera feito
+1. Criar uma migration SQL que executa:
+```sql
+UPDATE freelancer_responses 
+SET approval_status = 'pendente' 
+WHERE id = '31891e12-37b0-4e3e-80f5-7dab73ccf99c';
 ```
 
-### O que NAO sera alterado
+### Resultado esperado
+Apos a alteracao, ao clicar em **Aprovar** no card do Victor na tela de Formularios > Freelancer, o sistema devera exibir o dialogo de selecao de unidade (UnitSelectDialog) perguntando por qual numero enviar a mensagem, ja que a empresa possui 2 instancias conectadas (Manchester e Trujillo).
 
-- Nenhum codigo frontend ou backend sera modificado
-- Nenhuma conexao WhatsApp sera afetada
-- Nenhuma conversa real sera tocada
-- O filtro no webhook (ja ativo) continua impedindo novas fantasmas
-
+### Secao tecnica
+- Tabela: `freelancer_responses`
+- Coluna: `approval_status` (CHECK constraint aceita: pendente, aprovado, rejeitado)
+- Nenhuma alteracao de codigo necessaria -- apenas dado no banco
