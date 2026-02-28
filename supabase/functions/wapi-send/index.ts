@@ -179,8 +179,12 @@ async function sendTextWithFallback(instanceId: string, token: string, rawPhone:
   // Detect group JIDs and send directly via chatId (skip phone normalization)
   if (rawPhone && rawPhone.endsWith('@g.us')) {
     const groupAttempts = [
+      { name: 'phone+message', body: { phone: rawPhone, message, delayTyping: 1 } },
+      { name: 'phone+text', body: { phone: rawPhone, text: message, delayTyping: 1 } },
       { name: 'chatId+message', body: { chatId: rawPhone, message, delayTyping: 1 } },
       { name: 'chatId+text', body: { chatId: rawPhone, text: message, delayTyping: 1 } },
+      { name: 'number+message', body: { number: rawPhone, message, delayTyping: 1 } },
+      { name: 'groupId+message', body: { groupId: rawPhone, message, delayTyping: 1 } },
     ];
     for (const attempt of groupAttempts) {
       const res = await wapiRequest(endpoint, token, 'POST', attempt.body);
