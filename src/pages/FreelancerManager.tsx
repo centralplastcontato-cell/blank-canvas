@@ -476,7 +476,7 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
       .from("wapi_conversations")
       .select("id, lead_id")
       .eq("company_id", companyId)
-      .eq("phone", phone)
+      .eq("contact_phone", phone)
       .limit(1)
       .maybeSingle();
 
