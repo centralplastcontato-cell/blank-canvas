@@ -920,6 +920,94 @@ Deno.serve(async (req) => {
             });
           }
           
+          // W-API returns 500 when instance needs restart — auto-restart and retry
+          if (res.status === 500) {
+            console.warn('wapi-send: get-qr got 500 — attempting auto-restart for', instance_id);
+            
+            // Try restart endpoints
+            const restartUrls = [
+              { url: `${WAPI_BASE_URL}/instance/restart?instanceId=${instance_id}`, method: 'POST' },
+              { url: `${WAPI_BASE_URL}/instance/restart?instanceId=${instance_id}`, method: 'PUT' },
+              { url: `${WAPI_BASE_URL}/instance/reboot?instanceId=${instance_id}`, method: 'POST' },
+              { url: `${WAPI_BASE_URL}/instance/restart?instanceId=${instance_id}`, method: 'GET' },
+            ];
+            
+            let restarted = false;
+            for (const ep of restartUrls) {
+              try {
+                const rCtrl = new AbortController();
+                const rTimeout = setTimeout(() => rCtrl.abort(), 8000);
+                const rRes = await fetch(ep.url, {
+                  method: ep.method,
+                  headers: { 'Authorization': `Bearer ${instance_token}`, 'Content-Type': 'application/json' },
+                  signal: rCtrl.signal,
+                });
+                clearTimeout(rTimeout);
+                console.log(`get-qr auto-restart: ${ep.method} => ${rRes.status}`);
+                if (rRes.ok) { restarted = true; break; }
+              } catch (e) {
+                console.warn(`get-qr auto-restart ${ep.method} failed:`, e instanceof Error ? e.message : e);
+              }
+            }
+            
+            if (restarted) {
+              // Wait 4s for instance to come back, then retry QR
+              await new Promise(r => setTimeout(r, 4000));
+              console.log('get-qr: retrying QR after restart...');
+              
+              try {
+                const retryCtrl = new AbortController();
+                const retryTimeout = setTimeout(() => retryCtrl.abort(), 10000);
+                const retryRes = await fetch(
+                  `${WAPI_BASE_URL}/instance/qr-code?instanceId=${instance_id}&image=enable`,
+                  { headers: { 'Authorization': `Bearer ${instance_token}` }, signal: retryCtrl.signal }
+                );
+                clearTimeout(retryTimeout);
+                
+                console.log('get-qr retry status:', retryRes.status);
+                
+                if (retryRes.ok) {
+                  const retryCt = retryRes.headers.get('content-type');
+                  if (retryCt?.includes('application/json')) {
+                    const retryData = await retryRes.json();
+                    if (retryData.connected) {
+                      return new Response(JSON.stringify({ connected: true, success: true }), {
+                        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                      });
+                    }
+                    const retryQr = retryData.qrcode || retryData.qrCode || retryData.qr || retryData.base64;
+                    if (retryQr) {
+                      return new Response(JSON.stringify({ qrCode: retryQr, success: true }), {
+                        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                      });
+                    }
+                  } else if (retryCt?.includes('image')) {
+                    const buf = await retryRes.arrayBuffer();
+                    const bytes = new Uint8Array(buf);
+                    let bin = '';
+                    for (let i = 0; i < bytes.length; i += 32768) {
+                      const chunk = bytes.subarray(i, Math.min(i + 32768, bytes.length));
+                      bin += String.fromCharCode.apply(null, Array.from(chunk));
+                    }
+                    return new Response(JSON.stringify({ qrCode: `data:${retryCt};base64,${btoa(bin)}`, success: true }), {
+                      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                    });
+                  }
+                }
+              } catch (retryErr) {
+                console.warn('get-qr retry after restart failed:', retryErr instanceof Error ? retryErr.message : retryErr);
+              }
+            }
+            
+            // Restart failed or retry failed — return friendly error
+            return new Response(JSON.stringify({
+              error: 'Instância reiniciando. Aguarde alguns segundos e clique em "Tentar novamente".',
+              errorType: restarted ? 'RESTARTING' : 'INSTANCE_ERROR',
+            }), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          
           if (!res.ok) {
             return new Response(JSON.stringify({ error: `Erro: ${res.status}` }), {
               status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
