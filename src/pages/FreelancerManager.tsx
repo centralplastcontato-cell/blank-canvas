@@ -759,41 +759,43 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
             {isOpen && (
               <Card className="mt-1 bg-card border-border overflow-hidden">
                 <CardContent className="p-0">
-                  <div className="flex items-center justify-between px-4 py-2.5 bg-muted/30">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-sm">{r.respondent_name || "Sem nome"}</span>
-                      <ApprovalBadge status={(r as any).approval_status || "pendente"} />
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs text-muted-foreground mr-1">
+                  <div className="px-4 py-2.5 bg-muted/30 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-semibold text-sm truncate">{r.respondent_name || "Sem nome"}</span>
+                        <ApprovalBadge status={(r as any).approval_status || "pendente"} />
+                      </div>
+                      <span className="text-xs text-muted-foreground shrink-0">
                         {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                       </span>
-                      {isAdmin && (
-                        <>
-                          {(r as any).approval_status !== "aprovado" && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 text-xs gap-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
-                              onClick={() => handleApproval(r, "aprovado")}
-                              disabled={updatingApproval === r.id}
-                            >
-                              {updatingApproval === r.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-                              Aprovar
-                            </Button>
-                          )}
-                          {(r as any).approval_status !== "rejeitado" && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 text-xs gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => handleApproval(r, "rejeitado")}
-                              disabled={updatingApproval === r.id}
-                            >
-                              <XCircle className="h-3.5 w-3.5" />
-                              Rejeitar
-                            </Button>
-                          )}
+                    </div>
+                    {isAdmin && (
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {(r as any).approval_status !== "aprovado" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs gap-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                            onClick={() => handleApproval(r, "aprovado")}
+                            disabled={updatingApproval === r.id}
+                          >
+                            {updatingApproval === r.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                            Aprovar
+                          </Button>
+                        )}
+                        {(r as any).approval_status !== "rejeitado" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleApproval(r, "rejeitado")}
+                            disabled={updatingApproval === r.id}
+                          >
+                            <XCircle className="h-3.5 w-3.5" />
+                            Rejeitar
+                          </Button>
+                        )}
+                        <div className="flex items-center gap-1 ml-auto">
                           <Button
                             variant="ghost"
                             size="icon"
@@ -812,9 +814,9 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
                           >
                             {deletingId === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                           </Button>
-                        </>
-                      )}
-                    </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   {r.photo_url ? (
                     <div className="px-4 py-3 flex justify-center bg-muted/10">
@@ -1141,34 +1143,34 @@ export function FreelancerManagerContent() {
                           <Switch checked={t.is_active} onCheckedChange={(v) => handleToggleActive(t.id, v)} className="shrink-0" />
                         )}
                       </div>
-                      <div className="flex items-center gap-2 flex-wrap border-t border-border/50 pt-3">
-                        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs rounded-full px-3.5 bg-muted/30 border-border/60 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all" onClick={() => copyLink(t)}>
-                          <Link2 className="h-3.5 w-3.5" /> Link
+                      <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-1.5 sm:gap-2 border-t border-border/50 pt-3">
+                        <Button variant="outline" size="sm" className="h-8 gap-1 sm:gap-1.5 text-[11px] sm:text-xs rounded-full px-2.5 sm:px-3.5 bg-muted/30 border-border/60 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all" onClick={() => copyLink(t)}>
+                          <Link2 className="h-3.5 w-3.5 shrink-0" /> Link
                         </Button>
-                        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs rounded-full px-3.5 bg-muted/30 border-border/60 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all" onClick={() => window.open(getTemplateUrl(t), "_blank")}>
-                          <Eye className="h-3.5 w-3.5" /> Ver
+                        <Button variant="outline" size="sm" className="h-8 gap-1 sm:gap-1.5 text-[11px] sm:text-xs rounded-full px-2.5 sm:px-3.5 bg-muted/30 border-border/60 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all" onClick={() => window.open(getTemplateUrl(t), "_blank")}>
+                          <Eye className="h-3.5 w-3.5 shrink-0" /> Ver
                         </Button>
                         <CollapsibleTrigger asChild>
-                          <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs rounded-full px-3.5 bg-muted/30 border-border/60 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all">
-                            <MessageSquareText className="h-3.5 w-3.5" /> Respostas {count > 0 && `(${count})`}
-                            <ChevronDown className={`h-3 w-3 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                          <Button variant="outline" size="sm" className="h-8 gap-1 sm:gap-1.5 text-[11px] sm:text-xs rounded-full px-2.5 sm:px-3.5 bg-muted/30 border-border/60 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all">
+                            <MessageSquareText className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">Respostas{count > 0 ? ` (${count})` : ""}</span>
+                            <ChevronDown className={`h-3 w-3 transition-transform shrink-0 ${isExpanded ? "rotate-180" : ""}`} />
                           </Button>
                         </CollapsibleTrigger>
                         {isAdmin && (
                           <>
-                            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs rounded-full px-3.5 bg-muted/30 border-border/60 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all" onClick={() => openEdit(t)}>
-                              <Pencil className="h-3.5 w-3.5" /> Editar
+                            <Button variant="outline" size="sm" className="h-8 gap-1 sm:gap-1.5 text-[11px] sm:text-xs rounded-full px-2.5 sm:px-3.5 bg-muted/30 border-border/60 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all" onClick={() => openEdit(t)}>
+                              <Pencil className="h-3.5 w-3.5 shrink-0" /> Editar
                             </Button>
-                            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs rounded-full px-3.5 bg-muted/30 border-border/60 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all" onClick={() => handleDuplicate(t)}>
-                              <Copy className="h-3.5 w-3.5" /> Duplicar
+                            <Button variant="outline" size="sm" className="h-8 gap-1 sm:gap-1.5 text-[11px] sm:text-xs rounded-full px-2.5 sm:px-3.5 bg-muted/30 border-border/60 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all" onClick={() => handleDuplicate(t)}>
+                              <Copy className="h-3.5 w-3.5 shrink-0" /> Duplicar
                             </Button>
                             <Button
                               variant="outline"
                               size="sm"
-                              className="h-8 gap-1.5 text-xs rounded-full px-3.5 ml-auto border-destructive/30 text-destructive hover:bg-destructive/10 hover:border-destructive/50 transition-all"
+                              className="h-8 gap-1 sm:gap-1.5 text-[11px] sm:text-xs rounded-full px-2.5 sm:px-3.5 col-span-3 sm:col-span-1 sm:ml-auto border-destructive/30 text-destructive hover:bg-destructive/10 hover:border-destructive/50 transition-all"
                               onClick={() => requestDeleteTemplate(t.id)}
                             >
-                              <Trash2 className="h-3.5 w-3.5" /> Excluir
+                              <Trash2 className="h-3.5 w-3.5 shrink-0" /> Excluir
                             </Button>
                           </>
                         )}
