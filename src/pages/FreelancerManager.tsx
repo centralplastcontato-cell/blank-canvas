@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
-import { HardHat, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, ChevronDown, ChevronRight, MessageCircle, ShieldAlert, Search, X } from "lucide-react";
+import { HardHat, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, ChevronDown, ChevronRight, MessageCircle, ShieldAlert, Search, X, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -180,6 +180,126 @@ function OptionChipsEditor({ options, onChange }: { options: string[]; onChange:
   );
 }
 
+function ApprovalBadge({ status }: { status: string }) {
+  if (status === "aprovado") return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-600 border border-emerald-500/20"><CheckCircle2 className="h-3 w-3" />Aprovado</span>;
+  if (status === "rejeitado") return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-destructive/15 text-destructive border border-destructive/20"><XCircle className="h-3 w-3" />Rejeitado</span>;
+  return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-600 border border-amber-500/20"><Clock className="h-3 w-3" />Pendente</span>;
+}
+
+function EditFreelancerDialog({ open, onOpenChange, response, template, onSaved }: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  response: any;
+  template: FreelancerTemplate | null;
+  onSaved: () => void;
+}) {
+  const [answers, setAnswers] = useState<any[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open && response) {
+      setAnswers(Array.isArray(response.answers) ? JSON.parse(JSON.stringify(response.answers)) : []);
+    }
+  }, [open, response]);
+
+  const updateAnswer = (questionId: string, value: any) => {
+    setAnswers(prev => prev.map(a => a.questionId === questionId ? { ...a, value } : a));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    const respondentName = answers.find((a: any) => a.questionId === "nome")?.value || response.respondent_name;
+    const pixType = answers.find((a: any) => a.questionId === "pix_tipo")?.value || null;
+    const pixKey = answers.find((a: any) => a.questionId === "pix_chave")?.value || null;
+    
+    const { error } = await supabase
+      .from("freelancer_responses")
+      .update({ answers, respondent_name: respondentName, pix_type: pixType, pix_key: pixKey })
+      .eq("id", response.id);
+    
+    setSaving(false);
+    if (error) {
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Cadastro atualizado!" });
+      onOpenChange(false);
+      onSaved();
+    }
+  };
+
+  if (!template) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Editar Cadastro</DialogTitle>
+          <DialogDescription>Corrija os dados do freelancer conforme necessário.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          {template.questions.filter(q => q.type !== "photo").map((q) => {
+            const answer = answers.find((a: any) => a.questionId === q.id);
+            const value = answer?.value ?? "";
+            return (
+              <div key={q.id} className="space-y-1">
+                <Label className="text-xs text-muted-foreground">{q.text}</Label>
+                {q.type === "text" || q.type === "date" ? (
+                  <Input value={String(value || "")} onChange={(e) => updateAnswer(q.id, e.target.value)} className="text-sm" />
+                ) : q.type === "textarea" ? (
+                  <Textarea value={String(value || "")} onChange={(e) => updateAnswer(q.id, e.target.value)} className="text-sm" rows={2} />
+                ) : q.type === "yesno" ? (
+                  <Select value={value === true ? "sim" : value === false ? "nao" : ""} onValueChange={(v) => updateAnswer(q.id, v === "sim")}>
+                    <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sim">Sim</SelectItem>
+                      <SelectItem value="nao">Não</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : q.type === "select" ? (
+                  <Select value={String(value || "")} onValueChange={(v) => updateAnswer(q.id, v)}>
+                    <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      {(q.options || []).map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                ) : q.type === "multiselect" ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {(q.options || []).map(opt => {
+                      const selected = Array.isArray(value) && value.includes(opt);
+                      return (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => {
+                            const arr = Array.isArray(value) ? [...value] : [];
+                            updateAnswer(q.id, selected ? arr.filter(v => v !== opt) : [...arr, opt]);
+                          }}
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                            selected ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 text-muted-foreground border-border"
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+            Salvar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function FreelancerResponseCards({ responses, template, companyId, onDeleted, isAdmin }: {
   responses: any[];
   template: FreelancerTemplate | null;
@@ -195,6 +315,8 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFuncao, setSelectedFuncao] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [editingResponse, setEditingResponse] = useState<any>(null);
+  const [updatingApproval, setUpdatingApproval] = useState<string | null>(null);
   const PAGE_SIZE = 10;
 
   // Extract all unique functions from responses + template options
@@ -287,6 +409,22 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
     }
   };
 
+  const handleApproval = async (id: string, status: "aprovado" | "rejeitado") => {
+    setUpdatingApproval(id);
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase
+      .from("freelancer_responses")
+      .update({ approval_status: status, approved_by: user?.id, approved_at: new Date().toISOString() } as any)
+      .eq("id", id);
+    setUpdatingApproval(null);
+    if (error) {
+      toast({ title: "Erro ao atualizar status", variant: "destructive" });
+    } else {
+      toast({ title: status === "aprovado" ? "Freelancer aprovado! ✅" : "Freelancer rejeitado" });
+      onDeleted?.(); // refresh
+    }
+  };
+
   return (
     <div className="space-y-2">
       <PasswordConfirmDialog
@@ -295,6 +433,13 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
         title="Excluir cadastro de freelancer"
         description="Esta ação é irreversível e excluirá o cadastro permanentemente. Digite sua senha de acesso para confirmar."
         onConfirmed={() => { if (pendingDeleteId) handleDeleteResponse(pendingDeleteId); }}
+      />
+      <EditFreelancerDialog
+        open={!!editingResponse}
+        onOpenChange={(v) => { if (!v) setEditingResponse(null); }}
+        response={editingResponse}
+        template={template}
+        onSaved={() => onDeleted?.()}
       />
       <div className="relative mb-2">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -353,10 +498,13 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
                   </div>
                 )}
                 <div className="min-w-0">
-                  <span className="font-semibold text-sm truncate block">
-                    {r.respondent_name || "Sem nome"}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-sm truncate">
+                      {r.respondent_name || "Sem nome"}
+                    </span>
                     <FreelancerAvgBadge freelancerName={r.respondent_name || ""} companyId={companyId} />
-                  </span>
+                    <ApprovalBadge status={(r as any).approval_status || "pendente"} />
+                  </div>
                   <span className="text-xs text-muted-foreground">
                     {format(new Date(r.created_at), "dd/MM/yyyy", { locale: ptBR })}
                   </span>
@@ -368,21 +516,59 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
               <Card className="mt-1 bg-card border-border overflow-hidden">
                 <CardContent className="p-0">
                   <div className="flex items-center justify-between px-4 py-2.5 bg-muted/30">
-                    <span className="font-semibold text-sm">{r.respondent_name || "Sem nome"}</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">
+                      <span className="font-semibold text-sm">{r.respondent_name || "Sem nome"}</span>
+                      <ApprovalBadge status={(r as any).approval_status || "pendente"} />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-muted-foreground mr-1">
                         {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                       </span>
                       {isAdmin && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive hover:text-destructive"
-                          onClick={() => requestDelete(r.id)}
-                          disabled={deletingId === r.id}
-                        >
-                          {deletingId === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                        </Button>
+                        <>
+                          {(r as any).approval_status !== "aprovado" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs gap-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                              onClick={() => handleApproval(r.id, "aprovado")}
+                              disabled={updatingApproval === r.id}
+                            >
+                              {updatingApproval === r.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                              Aprovar
+                            </Button>
+                          )}
+                          {(r as any).approval_status !== "rejeitado" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => handleApproval(r.id, "rejeitado")}
+                              disabled={updatingApproval === r.id}
+                            >
+                              <XCircle className="h-3.5 w-3.5" />
+                              Rejeitar
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => setEditingResponse(r)}
+                            title="Editar cadastro"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:text-destructive"
+                            onClick={() => requestDelete(r.id)}
+                            disabled={deletingId === r.id}
+                          >
+                            {deletingId === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                          </Button>
+                        </>
                       )}
                     </div>
                   </div>

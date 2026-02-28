@@ -38,10 +38,11 @@ export function FreelancerAutocomplete({
       setSuggestions([]);
       return;
     }
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("freelancer_responses")
       .select("id, respondent_name, pix_type, pix_key")
       .eq("company_id", companyId)
+      .eq("approval_status", "aprovado")
       .ilike("respondent_name", `%${term.trim()}%`)
       .limit(8);
     const results = (data as FreelancerSuggestion[]) || [];
