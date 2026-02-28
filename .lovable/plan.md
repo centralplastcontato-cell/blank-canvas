@@ -1,39 +1,58 @@
 
 
-## Correcao: Ignorar mensagens com @lid no webhook
+## Limpeza de conversas fantasma @lid
 
-### O que muda
+### Resumo
 
-Uma unica linha de filtro adicionada no arquivo `supabase/functions/wapi-webhook/index.ts`, logo apos a normalizacao do `remoteJid` (por volta da linha 3482).
+Remover 31 conversas fantasma e 93 mensagens associadas do banco de dados. Todas possuem `remote_jid LIKE '%@lid'` -- um identificador Meta que nunca corresponde a conversas reais (que usam `@s.whatsapp.net`).
 
-### Por que e seguro
+### Dados confirmados
 
-- A correcao so adiciona um `break` quando o `remoteJid` contem `@lid`
-- Nenhuma logica de conexao, status, QR code ou envio e alterada
-- Nenhuma tabela e modificada
-- Usuarios conectados continuam funcionando normalmente
-- Mensagens reais (com `@s.whatsapp.net`) continuam sendo processadas
+- **Castelo da Diversao (Trujillo)**: 24 conversas fantasma
+- **Planeta Divertido**: 7 conversas fantasma
+- **Total de mensagens a remover**: 93
+- **Risco para dados reais**: Zero -- o filtro `@lid` e exclusivo de identificadores Meta
 
-### Mudanca tecnica
+### Verificacao de dependencias
 
-No bloco `case 'message': case 'messages.upsert':`, apos a normalizacao do `rj` (linha ~3483), adicionar:
+Antes de deletar as conversas, e necessario verificar e limpar registros dependentes em tabelas relacionadas:
+
+1. `flow_lead_state` -- estados de fluxo do bot vinculados a essas conversas
+2. `wapi_messages` -- mensagens vinculadas a essas conversas
+3. `wapi_conversations` -- as conversas fantasma em si
+
+### Sequencia de execucao
+
+1. **Deletar `flow_lead_state`** onde `conversation_id` pertence a conversas com `@lid`
+2. **Deletar `wapi_messages`** onde `conversation_id` pertence a conversas com `@lid`
+3. **Deletar `wapi_conversations`** onde `remote_jid LIKE '%@lid'`
+
+### Detalhes tecnicos
+
+Tres operacoes DELETE executadas via ferramenta de insercao/delecao do Supabase, nesta ordem:
 
 ```text
-// Ignore Meta Linked IDs (@lid) - they duplicate real messages
-if ((rj as string).includes('@lid')) {
-  console.log(`[Webhook] Ignoring @lid message: ${rj}`);
-  break;
-}
+-- Passo 1: Limpar estados de fluxo
+DELETE FROM flow_lead_state 
+WHERE conversation_id IN (
+  SELECT id FROM wapi_conversations WHERE remote_jid LIKE '%@lid'
+);
+
+-- Passo 2: Limpar mensagens
+DELETE FROM wapi_messages 
+WHERE conversation_id IN (
+  SELECT id FROM wapi_conversations WHERE remote_jid LIKE '%@lid'
+);
+
+-- Passo 3: Limpar conversas
+DELETE FROM wapi_conversations 
+WHERE remote_jid LIKE '%@lid';
 ```
 
-### Arquivo alterado
+### O que NAO sera alterado
 
-- `supabase/functions/wapi-webhook/index.ts` — 3 linhas adicionadas, 0 linhas removidas
-
-### Impacto
-
-- Trujillo: 23 conversas fantasma param de crescer imediatamente
-- Planeta Divertido: 7 conversas fantasma param de crescer
-- Manchester: 1 conversa fantasma para de crescer
-- Conversas fantasma existentes permanecem no banco (limpeza separada se desejado)
+- Nenhum codigo frontend ou backend sera modificado
+- Nenhuma conexao WhatsApp sera afetada
+- Nenhuma conversa real sera tocada
+- O filtro no webhook (ja ativo) continua impedindo novas fantasmas
 
