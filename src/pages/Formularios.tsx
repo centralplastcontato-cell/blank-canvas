@@ -271,8 +271,11 @@ export default function Formularios() {
               {canChecklist && (
                 <TabsContent value="checklist" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
                   <Tabs defaultValue="equipe" className="flex-1 flex flex-col overflow-hidden">
-                    <div className="px-3 md:px-5 pt-3 overflow-x-auto flex justify-center">
-                     <TabsList className="inline-flex gap-1 p-1 rounded-xl bg-muted/40 border border-border/30 h-auto">
+                    <div className="px-3 md:px-5 pt-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">Tipo de checklist</span>
+                      </div>
+                      <TabsList className="flex gap-1.5 overflow-x-auto pb-1 bg-transparent h-auto p-0">
                         {[
                           { value: "equipe", icon: Users, label: "Equipe" },
                           { value: "manutencao", icon: Wrench, label: "Manutenção" },
@@ -281,8 +284,8 @@ export default function Formularios() {
                           { value: "informacoes", icon: FileText, label: "Informações" },
                           { value: "templates", icon: LayoutTemplate, label: "Templates" },
                         ].map(t => (
-                          <TabsTrigger key={t.value} value={t.value} className={`gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/25 data-[state=active]:shadow-sm data-[state=inactive]:bg-muted/60 data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted data-[state=inactive]:hover:text-foreground`}>
-                            <t.icon className="h-4 w-4" />
+                          <TabsTrigger key={t.value} value={t.value} className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border whitespace-nowrap data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:border-foreground data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:border-border data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground">
+                            <t.icon className="h-3.5 w-3.5" />
                             <span>{t.label}</span>
                           </TabsTrigger>
                         ))}
@@ -319,23 +322,26 @@ export default function Formularios() {
               {(canFreelancer || canAvaliacoes) && (
                 <TabsContent value="freelancer" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
                   <Tabs defaultValue={canFreelancer ? "cadastro" : "avaliacoes-fl"} className="flex-1 flex flex-col overflow-hidden">
-                    <div className="px-3 md:px-5 pt-3 overflow-x-auto flex justify-center">
-                      <TabsList className="inline-flex gap-1 p-1 rounded-xl bg-muted/40 border border-border/30 h-auto">
+                    <div className="px-3 md:px-5 pt-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">Gestão de freelancer</span>
+                      </div>
+                      <TabsList className="flex gap-1.5 overflow-x-auto pb-1 bg-transparent h-auto p-0">
                         {canFreelancer && (
-                          <TabsTrigger value="cadastro" className="gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/25 data-[state=active]:shadow-sm data-[state=inactive]:bg-muted/60 data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted data-[state=inactive]:hover:text-foreground">
-                            <HardHat className="h-4 w-4" />
+                          <TabsTrigger value="cadastro" className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border whitespace-nowrap data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:border-foreground data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:border-border data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground">
+                            <HardHat className="h-3.5 w-3.5" />
                             <span>Cadastro</span>
                           </TabsTrigger>
                         )}
                         {canAvaliacoes && (
-                          <TabsTrigger value="avaliacoes-fl" className="gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/25 data-[state=active]:shadow-sm data-[state=inactive]:bg-muted/60 data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted data-[state=inactive]:hover:text-foreground">
-                            <ClipboardCheck className="h-4 w-4" />
+                          <TabsTrigger value="avaliacoes-fl" className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border whitespace-nowrap data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:border-foreground data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:border-border data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground">
+                            <ClipboardCheck className="h-3.5 w-3.5" />
                             <span>Avaliações</span>
                           </TabsTrigger>
                         )}
                         {canFreelancer && (
-                          <TabsTrigger value="escalas" className="gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/25 data-[state=active]:shadow-sm data-[state=inactive]:bg-muted/60 data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted data-[state=inactive]:hover:text-foreground">
-                            <CalendarClock className="h-4 w-4" />
+                          <TabsTrigger value="escalas" className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border whitespace-nowrap data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:border-foreground data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:border-border data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground">
+                            <CalendarClock className="h-3.5 w-3.5" />
                             <span>Escalas</span>
                           </TabsTrigger>
                         )}
