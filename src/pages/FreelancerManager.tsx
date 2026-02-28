@@ -259,72 +259,65 @@ function EditFreelancerDialog({ open, onOpenChange, response, template, onSaved 
           <DialogTitle>Editar Cadastro</DialogTitle>
           <DialogDescription>Corrija os dados do freelancer conforme necessário.</DialogDescription>
         </DialogHeader>
-        <div className="rounded-xl border border-border p-5 space-y-5">
-          <div className="flex items-center gap-2">
-            <Pencil className="h-4 w-4 text-muted-foreground" />
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Dados do Freelancer</span>
-            <div className="flex-1 h-px bg-border/50" />
-          </div>
-          <div className="space-y-0 divide-y divide-border/40">
-            {template.questions.filter(q => q.type !== "photo").map((q, idx) => {
-              const answer = answers.find((a: any) => a.questionId === q.id);
-              const value = answer?.value ?? "";
-              return (
-                <div key={q.id} className={`space-y-1.5 ${idx === 0 ? "pb-4" : "py-4"}`}>
-                  <Label className="text-xs text-muted-foreground">{q.text}</Label>
-                  {q.type === "date" ? (
-                    <Input
-                      value={formatDateDisplay(String(value || ""))}
-                      onChange={(e) => handleDateInput(q.id, e.target.value)}
-                      placeholder="dd/mm/aaaa"
-                      className="text-sm"
-                      maxLength={10}
-                    />
-                  ) : q.type === "text" ? (
-                    <Input value={String(value || "")} onChange={(e) => updateAnswer(q.id, e.target.value)} className="text-sm" />
-                  ) : q.type === "textarea" ? (
-                    <Textarea value={String(value || "")} onChange={(e) => updateAnswer(q.id, e.target.value)} className="text-sm" rows={2} />
-                  ) : q.type === "yesno" ? (
-                    <Select value={value === true ? "sim" : value === false ? "nao" : ""} onValueChange={(v) => updateAnswer(q.id, v === "sim")}>
-                      <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="sim">Sim</SelectItem>
-                        <SelectItem value="nao">Não</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : q.type === "select" ? (
-                    <Select value={String(value || "")} onValueChange={(v) => updateAnswer(q.id, v)}>
-                      <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                      <SelectContent>
-                        {(q.options || []).map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  ) : q.type === "multiselect" ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {(q.options || []).map(opt => {
-                        const selected = Array.isArray(value) && value.includes(opt);
-                        return (
-                          <button
-                            key={opt}
-                            type="button"
-                            onClick={() => {
-                              const arr = Array.isArray(value) ? [...value] : [];
-                              updateAnswer(q.id, selected ? arr.filter(v => v !== opt) : [...arr, opt]);
-                            }}
-                            className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                              selected ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 text-muted-foreground border-border"
-                            }`}
-                          >
-                            {opt}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
+        <div className="space-y-3">
+          {template.questions.filter(q => q.type !== "photo").map((q) => {
+            const answer = answers.find((a: any) => a.questionId === q.id);
+            const value = answer?.value ?? "";
+            return (
+              <div key={q.id} className="rounded-xl border border-border p-4 space-y-2">
+                <Label className="text-sm font-medium">{q.text}</Label>
+                {q.type === "date" ? (
+                  <Input
+                    value={formatDateDisplay(String(value || ""))}
+                    onChange={(e) => handleDateInput(q.id, e.target.value)}
+                    placeholder="dd/mm/aaaa"
+                    className="text-sm"
+                    maxLength={10}
+                  />
+                ) : q.type === "text" ? (
+                  <Input value={String(value || "")} onChange={(e) => updateAnswer(q.id, e.target.value)} className="text-sm" />
+                ) : q.type === "textarea" ? (
+                  <Textarea value={String(value || "")} onChange={(e) => updateAnswer(q.id, e.target.value)} className="text-sm" rows={2} />
+                ) : q.type === "yesno" ? (
+                  <Select value={value === true ? "sim" : value === false ? "nao" : ""} onValueChange={(v) => updateAnswer(q.id, v === "sim")}>
+                    <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sim">Sim</SelectItem>
+                      <SelectItem value="nao">Não</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : q.type === "select" ? (
+                  <Select value={String(value || "")} onValueChange={(v) => updateAnswer(q.id, v)}>
+                    <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      {(q.options || []).map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                ) : q.type === "multiselect" ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {(q.options || []).map(opt => {
+                      const selected = Array.isArray(value) && value.includes(opt);
+                      return (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => {
+                            const arr = Array.isArray(value) ? [...value] : [];
+                            updateAnswer(q.id, selected ? arr.filter(v => v !== opt) : [...arr, opt]);
+                          }}
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                            selected ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 text-muted-foreground border-border"
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
