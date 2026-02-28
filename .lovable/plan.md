@@ -1,55 +1,48 @@
 
+## Seletor de Unidade na Aprovacao do Freelancer
 
-## Mensagem de Aprovacao Editavel + Bot Desligado + Conversa Freelancer/Equipe
+### Resumo
 
-### O que sera feito
+Ao clicar em "Aprovar", o sistema verificara quantas instancias WhatsApp conectadas a empresa possui. Se houver apenas 1, envia direto. Se houver 2+, exibe um dialog para o admin escolher por qual unidade enviar a mensagem.
 
-Quando o buffet clicar em "Aprovar" um freelancer, o sistema vai:
+### Alteracoes
 
-1. Aprovar no banco (como ja faz hoje)
-2. Enviar uma mensagem personalizada via WhatsApp para o freelancer
-3. Marcar a conversa como **Freelancer + Equipe** (aparece nos dois filtros)
-4. Qualificar o lead como **Trabalhe Conosco**
-5. Desligar o bot para essa conversa (freelancer responde, bot nao interfere)
+**Arquivo: `src/pages/FreelancerManager.tsx`**
 
-A mensagem podera ser editada nas **Configuracoes > WhatsApp > Conteudo**, com um card dedicado abaixo das tabs de Templates e Materiais.
+1. Adicionar estado para o dialog de selecao de unidade:
+   - `unitDialogOpen` (boolean)
+   - `connectedInstances` (array de instancias com `instance_id`, `instance_token`, `unit`)
+   - `pendingApprovalResponse` (o response aguardando selecao de unidade)
 
-### Mensagem padrao
+2. Criar um componente `UnitSelectDialog` inline (dentro do mesmo arquivo, seguindo o padrao do `PasswordConfirmDialog` ja existente):
+   - Lista as instancias conectadas com nome da unidade e numero de telefone
+   - Botoes para selecionar a unidade desejada
+   - Loading state durante o envio
 
-```
-Ola {nome}!
+3. Refatorar `handleApproval`:
+   - Manter a logica de salvar aprovacao no banco (igual hoje)
+   - Quando `status === "aprovado"` e tem telefone valido:
+     - Buscar TODAS as instancias conectadas (remover `.limit(1).maybeSingle()`, usar `.select(...)` sem limit)
+     - Se 0 instancias: aprovar sem envio (como hoje)
+     - Se 1 instancia: enviar direto pela unica instancia (sem dialog)
+     - Se 2+ instancias: abrir `UnitSelectDialog` com as opcoes
+   - Extrair a logica de envio de mensagem + tag de conversa em uma funcao auxiliar `sendApprovalMessage(instance, phone, freelancerName)` para reusar tanto no envio direto quanto apos selecao no dialog
 
-Seu cadastro na nossa equipe foi aprovado!
-
-Voce ja esta disponivel para ser escalado(a) para nossos eventos. Fique atento(a) que entraremos em contato quando precisarmos de voce!
-
-Obrigado por fazer parte do time!
-```
-
-A variavel `{nome}` sera substituida automaticamente pelo nome do freelancer.
+4. Atualizar tambem `handleRequestPhoto` para usar a mesma logica de selecao de unidade (consistencia), pois hoje tambem pega `.limit(1)`.
 
 ### Detalhes tecnicos
 
-**Arquivo novo: `src/components/whatsapp/settings/FreelancerApprovalMessageCard.tsx`**
-- Seguindo o padrao exato do `PartyBotMessagesCard.tsx`
-- Carrega `companies.settings.freelancer_approval_message` ao montar
-- Textarea para editar, indicador da variavel `{nome}`, botoes Salvar e Restaurar padrao
-- Exporta `DEFAULT_FREELANCER_APPROVAL_MESSAGE` para reuso
+O `UnitSelectDialog` sera um `Dialog` simples com:
+- Titulo: "Enviar por qual unidade?"
+- Lista de cards/botoes com: nome da unidade + telefone conectado
+- Ao clicar, chama `sendApprovalMessage()` com a instancia selecionada e fecha o dialog
 
-**Arquivo: `src/components/whatsapp/settings/ContentSection.tsx`**
-- Adicionar o `FreelancerApprovalMessageCard` abaixo das tabs existentes (fora do `Tabs`, como um card extra)
+A funcao `sendApprovalMessage(instance, phone, freelancerName)` contera toda a logica que hoje esta dentro do `if (instance)` no `handleApproval`:
+- Carregar template customizado
+- Substituir `{nome}`
+- Enviar via `wapi-send`
+- Atualizar conversa (`is_freelancer`, `is_equipe`, `bot_enabled`)
+- Qualificar lead como `trabalhe_conosco`
+- Mostrar toast de sucesso
 
-**Arquivo: `src/pages/FreelancerManager.tsx`**
-- Alterar `handleApproval` para receber o objeto `response` completo (hoje recebe so o `id`)
-- Quando `status === "aprovado"`:
-  1. Buscar template: `companies.settings.freelancer_approval_message` (fallback para default)
-  2. Extrair telefone: `answers.find(a => a.questionId === "telefone")?.value`
-  3. Buscar instancia conectada: `wapi_instances` com `status = "connected"` e `company_id`
-  4. Enviar via `wapi-send` (action: `send-text`, SEM `lpMode`)
-  5. Buscar/atualizar conversa em `wapi_conversations` pelo telefone: `is_freelancer: true`, `is_equipe: true`, `bot_enabled: false`, `bot_step: null`
-  6. Se houver `lead_id` vinculado na conversa, atualizar `campaign_leads.status` para `trabalhe_conosco`
-- Atualizar chamadas no JSX: `onClick={() => handleApproval(r, "aprovado")}` passando o response inteiro
-- Tratamento gracioso: sem telefone ou sem WhatsApp conectado = aprovacao OK, apenas sem mensagem
-
-**Nenhuma alteracao no banco de dados** -- tudo usa campos ja existentes (`settings` JSONB, `is_freelancer`, `is_equipe`, `bot_enabled`, `bot_step`).
-
+Nenhuma alteracao no banco de dados necessaria.
