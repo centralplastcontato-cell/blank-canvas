@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentCompanyId } from "@/hooks/useCurrentCompanyId";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { CalendarIcon, CalendarPlus, Type, CheckCircle2, Loader2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
@@ -51,10 +52,9 @@ export function CreateScheduleDialog({ open, onOpenChange, onCreated }: Props) {
         .lte("event_date", format(endDate, "yyyy-MM-dd"))
         .order("event_date", { ascending: true });
       setEvents(data || []);
-      setSelectedEventIds((data || []).map(e => e.id)); // select all by default
+      setSelectedEventIds((data || []).map(e => e.id));
       setLoadingEvents(false);
 
-      // Auto-suggest title
       if (!title) {
         setTitle(`Escala ${format(startDate, "dd/MM")} a ${format(endDate, "dd/MM")}`);
       }
@@ -64,6 +64,11 @@ export function CreateScheduleDialog({ open, onOpenChange, onCreated }: Props) {
 
   const toggleEvent = (id: string) => {
     setSelectedEventIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const allSelected = events.length > 0 && selectedEventIds.length === events.length;
+  const toggleAll = () => {
+    setSelectedEventIds(allSelected ? [] : events.map(e => e.id));
   };
 
   const handleSubmit = async () => {
@@ -96,21 +101,35 @@ export function CreateScheduleDialog({ open, onOpenChange, onCreated }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Nova Escala</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <CalendarPlus className="h-5 w-5 text-primary" />
+            Nova Escala
+          </DialogTitle>
+          <DialogDescription>
+            Defina o período e selecione as festas para a escala.
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-5">
+          {/* Título */}
           <div>
-            <label className="text-sm font-medium mb-1 block">Título</label>
-            <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex: Escala Semana 3" />
+            <label className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground mb-1.5 flex items-center gap-1.5">
+              <Type className="h-3.5 w-3.5" />
+              Título
+            </label>
+            <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex: Escala Semana 3" className="h-12" />
           </div>
 
+          {/* Datas */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium mb-1 block">Data início</label>
+              <label className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                <CalendarIcon className="h-3.5 w-3.5" />
+                Data início
+              </label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start font-normal">
+                  <Button variant="outline" className="w-full justify-start font-normal h-12">
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {startDate ? format(startDate, "dd/MM/yyyy") : "Selecionar"}
                   </Button>
@@ -121,10 +140,13 @@ export function CreateScheduleDialog({ open, onOpenChange, onCreated }: Props) {
               </Popover>
             </div>
             <div>
-              <label className="text-sm font-medium mb-1 block">Data fim</label>
+              <label className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                <CalendarIcon className="h-3.5 w-3.5" />
+                Data fim
+              </label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start font-normal">
+                  <Button variant="outline" className="w-full justify-start font-normal h-12">
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {endDate ? format(endDate, "dd/MM/yyyy") : "Selecionar"}
                   </Button>
@@ -136,19 +158,36 @@ export function CreateScheduleDialog({ open, onOpenChange, onCreated }: Props) {
             </div>
           </div>
 
+          {/* Loading */}
           {loadingEvents && <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}
 
+          {/* Festas do período */}
           {events.length > 0 && (
-            <div>
-              <label className="text-sm font-medium mb-2 block">Festas do período ({events.length})</label>
+            <div className="border-l-4 border-l-primary/40 pl-4 rounded-r-xl bg-primary/5 py-3 pr-3">
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
+                  Festas do período ({events.length})
+                </label>
+                <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={toggleAll}>
+                  {allSelected ? "Desmarcar todos" : "Selecionar todos"}
+                </Button>
+              </div>
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {events.map(ev => {
                   const dateObj = parseISO(ev.event_date);
                   const dayName = format(dateObj, "EEE", { locale: ptBR });
+                  const isSelected = selectedEventIds.includes(ev.id);
                   return (
-                    <label key={ev.id} className="flex items-center gap-3 p-3 rounded-lg border bg-card cursor-pointer hover:bg-accent/50 transition-colors">
+                    <label
+                      key={ev.id}
+                      className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all duration-200 ${
+                        isSelected
+                          ? "bg-card border-primary/30 shadow-sm"
+                          : "bg-card/50 border-border hover:bg-accent/30"
+                      }`}
+                    >
                       <Checkbox
-                        checked={selectedEventIds.includes(ev.id)}
+                        checked={isSelected}
                         onCheckedChange={() => toggleEvent(ev.id)}
                       />
                       <div className="flex-1 min-w-0">
@@ -157,9 +196,18 @@ export function CreateScheduleDialog({ open, onOpenChange, onCreated }: Props) {
                           {dayName} {format(dateObj, "dd/MM")}
                           {ev.start_time && ` · ${ev.start_time.slice(0, 5)}`}
                           {ev.end_time && `-${ev.end_time.slice(0, 5)}`}
-                          {ev.package_name && ` · ${ev.package_name}`}
                         </p>
                       </div>
+                      {ev.event_type && (
+                        <Badge variant="secondary" className="text-[10px] shrink-0">
+                          {ev.event_type}
+                        </Badge>
+                      )}
+                      {ev.package_name && !ev.event_type && (
+                        <Badge variant="outline" className="text-[10px] shrink-0">
+                          {ev.package_name}
+                        </Badge>
+                      )}
                     </label>
                   );
                 })}
@@ -172,10 +220,10 @@ export function CreateScheduleDialog({ open, onOpenChange, onCreated }: Props) {
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleSubmit} disabled={submitting || !title || selectedEventIds.length === 0}>
-            {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+          <Button onClick={handleSubmit} disabled={submitting || !title || selectedEventIds.length === 0} className="h-12 shadow-md">
+            {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
             Criar Escala
           </Button>
         </DialogFooter>
