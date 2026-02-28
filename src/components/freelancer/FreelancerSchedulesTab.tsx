@@ -3,11 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCurrentCompanyId } from "@/hooks/useCurrentCompanyId";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Plus, Copy, ChevronDown, ChevronUp, Users, FileDown, Trash2, Check, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
+import { Loader2, Plus, Users, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 import { format, parseISO, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachWeekOfInterval, areIntervalsOverlapping, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
@@ -235,92 +233,110 @@ export function FreelancerSchedulesTab() {
   const monthLabel = format(currentMonth, "MMMM yyyy", { locale: ptBR });
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4">
+    <div className="max-w-6xl mx-auto space-y-6">
       {/* Month Navigator */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentMonth(prev => subMonths(prev, 1))}>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={() => setCurrentMonth(prev => subMonths(prev, 1))}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-primary/5 border border-primary/10">
             <CalendarDays className="h-4 w-4 text-primary" />
-            <h2 className="text-lg font-semibold capitalize">{monthLabel}</h2>
+            <h2 className="text-base font-bold capitalize tracking-tight">{monthLabel}</h2>
           </div>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentMonth(prev => addMonths(prev, 1))}>
+          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={() => setCurrentMonth(prev => addMonths(prev, 1))}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-        <Button onClick={() => setShowCreate(true)} size="sm">
-          <Plus className="h-4 w-4 mr-1" /> Nova Escala
+        <Button onClick={() => setShowCreate(true)} className="h-10 px-5 rounded-xl shadow-md font-semibold">
+          <Plus className="h-4 w-4 mr-1.5" /> Nova Escala
         </Button>
       </div>
 
       {/* Monthly Summary */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-4">
         {[
-          { label: "Escalas", value: monthlySummary.scales, color: "text-primary", bg: "bg-primary/10" },
-          { label: "Festas", value: monthlySummary.events, color: "text-amber-600", bg: "bg-amber-500/10" },
-          { label: "Escalados", value: monthlySummary.assigned, color: "text-emerald-600", bg: "bg-emerald-500/10" },
+          { label: "Escalas", value: monthlySummary.scales, color: "text-primary", bg: "bg-primary/8", border: "border-primary/15" },
+          { label: "Festas", value: monthlySummary.events, color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-200/60" },
+          { label: "Escalados", value: monthlySummary.assigned, color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-200/60" },
         ].map(c => (
-          <div key={c.label} className="rounded-xl border border-border/40 p-3 flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${c.bg}`}>
-              <span className={`text-lg font-bold ${c.color}`}>{c.value}</span>
-            </div>
-            <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{c.label}</span>
-          </div>
+          <Card key={c.label} className={`border ${c.border} shadow-none`}>
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className={`h-11 w-11 rounded-xl ${c.bg} flex items-center justify-center`}>
+                <span className={`text-xl font-extrabold ${c.color}`}>{c.value}</span>
+              </div>
+              <span className="text-[11px] text-muted-foreground font-semibold uppercase tracking-[0.15em]">{c.label}</span>
+            </CardContent>
+          </Card>
         ))}
       </div>
 
       {/* Weekly Groups */}
-      {weeksWithSchedules.map(week => (
-        <div key={week.weekNumber} className="space-y-2">
-          <div className="flex items-center gap-2 pt-2">
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Semana {week.weekNumber}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              · {format(week.start, "dd/MM")} - {format(week.end, "dd/MM")}
-            </span>
-            <div className="flex-1 h-px bg-border/50" />
-          </div>
+      <div className="space-y-6">
+        {weeksWithSchedules.map(week => (
+          <div key={week.weekNumber} className="space-y-3">
+            {/* Week header */}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 bg-muted/60 rounded-full px-3 py-1">
+                <span className="text-[11px] font-bold text-foreground uppercase tracking-[0.15em]">
+                  Semana {week.weekNumber}
+                </span>
+              </div>
+              <span className="text-[11px] text-muted-foreground font-medium">
+                {format(week.start, "dd/MM")} — {format(week.end, "dd/MM")}
+              </span>
+              <div className="flex-1 h-px bg-border/30" />
+              {week.schedules.length > 0 && (
+                <Badge variant="secondary" className="text-[10px] font-semibold">
+                  {week.schedules.length} escala(s)
+                </Badge>
+              )}
+            </div>
 
-          {week.schedules.length === 0 ? (
-            <p className="text-xs text-muted-foreground/60 pl-1 py-2">Nenhuma escala nesta semana</p>
-          ) : (
-            week.schedules.map(schedule => (
-              <ScheduleCard
-                key={schedule.id}
-                schedule={schedule}
-                isExpanded={expandedId === schedule.id}
-                events={events}
-                availability={availability}
-                assignments={assignments}
-                savingAssignment={savingAssignment}
-                onToggleExpand={() => loadScheduleDetails(schedule)}
-                onCopyLink={() => copyLink(schedule)}
-                onGeneratePDF={() => handleGeneratePDF(schedule)}
-                onDelete={() => deleteSchedule(schedule.id)}
-                onToggleAssignment={toggleAssignment}
-                onUpdateRole={updateRole}
-                onUpdateNotes={async (id, notes) => {
-                  await supabase.from("freelancer_schedules").update({ notes: notes || null } as any).eq("id", id);
-                  setSchedules(prev => prev.map(s => s.id === id ? { ...s, notes: notes || null } : s));
-                  toast({ title: "Observações atualizadas" });
-                }}
-                roles={ROLES}
-              />
-            ))
-          )}
-        </div>
-      ))}
+            {week.schedules.length === 0 ? (
+              <div className="pl-4 py-1">
+                <p className="text-xs text-muted-foreground/50 italic">Nenhuma escala nesta semana</p>
+              </div>
+            ) : (
+              <div className="space-y-3 pl-1">
+                {week.schedules.map(schedule => (
+                  <ScheduleCard
+                    key={schedule.id}
+                    schedule={schedule}
+                    isExpanded={expandedId === schedule.id}
+                    events={events}
+                    availability={availability}
+                    assignments={assignments}
+                    savingAssignment={savingAssignment}
+                    onToggleExpand={() => loadScheduleDetails(schedule)}
+                    onCopyLink={() => copyLink(schedule)}
+                    onGeneratePDF={() => handleGeneratePDF(schedule)}
+                    onDelete={() => deleteSchedule(schedule.id)}
+                    onToggleAssignment={toggleAssignment}
+                    onUpdateRole={updateRole}
+                    onUpdateNotes={async (id, notes) => {
+                      await supabase.from("freelancer_schedules").update({ notes: notes || null } as any).eq("id", id);
+                      setSchedules(prev => prev.map(s => s.id === id ? { ...s, notes: notes || null } : s));
+                      toast({ title: "Observações atualizadas" });
+                    }}
+                    roles={ROLES}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
 
       {/* Global empty state */}
       {schedules.length === 0 && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Users className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-            <p className="text-muted-foreground">Nenhuma escala criada ainda.</p>
-            <p className="text-sm text-muted-foreground">Crie uma escala para que freelancers informem disponibilidade.</p>
+        <Card className="border-dashed border-2">
+          <CardContent className="py-16 text-center space-y-3">
+            <div className="h-16 w-16 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto">
+              <Users className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <p className="text-muted-foreground font-medium">Nenhuma escala criada ainda.</p>
+            <p className="text-sm text-muted-foreground/70">Crie uma escala para que freelancers informem disponibilidade.</p>
           </CardContent>
         </Card>
       )}
