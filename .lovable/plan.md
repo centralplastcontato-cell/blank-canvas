@@ -1,73 +1,70 @@
 
 
-## Disparo de Escala para Grupos de WhatsApp
+## Correcao: Erro de envio + Indicacao de numero/instancia
 
-### Restricao de seguranca
+### Problema 1: Erro ao enviar
 
-**Nenhum codigo de conexao, QR code, webhook, status de instancia ou alteracao na tabela `wapi_instances` sera tocado.** O componente apenas:
-- **Le** instancias conectadas (`SELECT ... WHERE status = 'connected'`)
-- **Le** conversas de grupo (`SELECT ... WHERE remote_jid LIKE '%@g.us'`)
-- **Chama** `supabase.functions.invoke("wapi-send", { body: { action: "send-text", ... } })` — mesmo padrao do `ShareToGroupDialog` e `SendBotDialog` ja em producao
+O body enviado para `wapi-send` esta incorreto:
 
-### Arquivos
-
-| Acao | Arquivo |
-|---|---|
-| Criar | `src/components/freelancer/SendScheduleToGroupsDialog.tsx` |
-| Criar | `src/components/whatsapp/settings/ScheduleGroupMessageCard.tsx` |
-| Editar | `src/components/freelancer/ScheduleCard.tsx` (novo botao no header) |
-| Editar | `src/components/freelancer/FreelancerSchedulesTab.tsx` (estado + dialog) |
-| Editar | `src/components/whatsapp/settings/AutomationsSection.tsx` (importar card na aba Gatilhos) |
-
-### 1. Card de template nas Configuracoes (`ScheduleGroupMessageCard`)
-
-Mesmo padrao do `FreelancerApprovalMessageCard`:
-- Textarea com template editavel
-- Salva em `companies.settings.freelancer_schedule_group_message`
-- Botoes "Salvar" e "Restaurar padrao"
-- Mostra badges com variaveis: `{link}`, `{titulo}`, `{periodo}`, `{qtd_festas}`, `{observacoes}`
-- Template padrao:
-
-```
-📋 *{titulo}*
-
-🗓️ Periodo: {periodo}
-🎉 {qtd_festas} festa(s) disponiveis
-
-Informe sua disponibilidade pelo link abaixo:
-👉 {link}
-
-{observacoes}
+```text
+Atual (errado):   { instanceId, remoteJid, message }
+Esperado:         { action: "send-text", instanceId, phone, message }
 ```
 
-Sera adicionado na aba **Gatilhos** logo abaixo do `FreelancerApprovalMessageCard`.
+Faltam dois campos:
+- `action: "send-text"` -- sem isso o switch/case retorna "Acao desconhecida"
+- O campo se chama `phone`, nao `remoteJid`
 
-### 2. Dialogo de envio para grupos (`SendScheduleToGroupsDialog`)
+### Problema 2: Nao mostra qual numero vai enviar
 
-Baseado nos padroes do `ShareToGroupDialog` (UI) + `SendBotDialog` (envio em lote com delay):
+Quando a empresa tem 2+ instancias de WhatsApp, os grupos aparecem misturados sem indicacao de qual numero/instancia cada grupo pertence. O usuario nao sabe por qual numero a mensagem sera enviada.
 
-- **Props**: `open`, `onOpenChange`, `schedule` (titulo, datas, event_ids, slug, notes), `companyId`, `companySlug`, `customDomain`
-- Ao abrir:
-  - Le `wapi_instances` da empresa com `status = 'connected'` (somente leitura)
-  - Le `wapi_conversations` com `remote_jid LIKE '%@g.us'` (somente leitura)
-  - Le template de `companies.settings.freelancer_schedule_group_message`
-- Campo de busca para filtrar grupos
-- **Checkboxes** para selecao multipla de grupos
-- Textarea com mensagem pre-preenchida (variaveis substituidas)
-- Envio sequencial com delay aleatorio 1-3s (padrao `SendBotDialog`)
-- Barra de progresso durante o envio
+### Correcoes
 
-### 3. Botao no `ScheduleCard`
+**Arquivo:** `src/components/freelancer/SendScheduleToGroupsDialog.tsx`
 
-Novo botao com icone `Send` no header, ao lado do Copy/PDF/Delete. Nova prop `onSendToGroups`.
+#### 1. Corrigir payload do envio (linha ~207-213)
 
-### 4. Integracao no `FreelancerSchedulesTab`
+Alterar o body de:
+```typescript
+body: {
+  instanceId: instance.instance_id,
+  remoteJid: group.remote_jid,
+  message: message.trim(),
+}
+```
+Para:
+```typescript
+body: {
+  action: "send-text",
+  instanceId: instance.instance_id,
+  phone: group.remote_jid,
+  message: message.trim(),
+}
+```
 
-- Estado `sendToGroupsSchedule` para rastrear qual escala esta sendo compartilhada
-- Passa `onSendToGroups` para cada `ScheduleCard`
-- Renderiza `SendScheduleToGroupsDialog` no final do componente
+#### 2. Buscar phone_number e unit das instancias
 
-### Nenhuma alteracao de banco de dados necessaria
+Na query de `wapi_instances`, adicionar `phone_number` e `unit`:
+```typescript
+.select("id, instance_id, phone_number, unit")
+```
 
-Tudo utiliza tabelas e edge functions ja existentes. Nenhum codigo de conexao, instancia ou webhook sera modificado.
+Atualizar a interface `Instance` para incluir esses campos.
 
+#### 3. Mostrar o numero/unidade ao lado de cada grupo
+
+Na lista de grupos, exibir uma badge discreta indicando de qual numero/unidade aquele grupo pertence. Algo como:
+
+```
+[x] Grupo Monitores        55119xxxx
+[x] Grupo Freelancers      Unidade 2
+```
+
+Isso usa o campo `unit` da instancia se disponivel, senao mostra os ultimos digitos do `phone_number`.
+
+### Seguranca
+
+Nenhuma alteracao no edge function, conexao, instancia ou webhook. Apenas:
+- Correcao dos parametros enviados pelo componente cliente
+- Leitura adicional de `phone_number` e `unit` (somente SELECT)
