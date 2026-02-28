@@ -229,11 +229,34 @@ function EditFreelancerDialog({ open, onOpenChange, response, template, onSaved 
 
   if (!template) return null;
 
+  const formatDateDisplay = (val: string) => {
+    if (!val) return "";
+    // If it's yyyy-mm-dd, convert to dd/mm/yyyy
+    const match = String(val).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (match) return `${match[3]}/${match[2]}/${match[1]}`;
+    return String(val);
+  };
+
+  const handleDateInput = (qId: string, display: string) => {
+    // Allow typing in dd/mm/yyyy format
+    const clean = display.replace(/\D/g, "").slice(0, 8);
+    let formatted = clean;
+    if (clean.length > 2) formatted = clean.slice(0, 2) + "/" + clean.slice(2);
+    if (clean.length > 4) formatted = clean.slice(0, 2) + "/" + clean.slice(2, 4) + "/" + clean.slice(4);
+    // If complete, store as yyyy-mm-dd
+    if (clean.length === 8) {
+      const iso = `${clean.slice(4)}-${clean.slice(2, 4)}-${clean.slice(0, 2)}`;
+      updateAnswer(qId, iso);
+    } else {
+      updateAnswer(qId, formatted);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl">
         <DialogHeader>
-          <DialogTitle>Editar Cadastro</DialogTitle>
+          <DialogTitle className="text-lg">Editar Cadastro</DialogTitle>
           <DialogDescription>Corrija os dados do freelancer conforme necessário.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -241,9 +264,17 @@ function EditFreelancerDialog({ open, onOpenChange, response, template, onSaved 
             const answer = answers.find((a: any) => a.questionId === q.id);
             const value = answer?.value ?? "";
             return (
-              <div key={q.id} className="space-y-1">
-                <Label className="text-xs text-muted-foreground">{q.text}</Label>
-                {q.type === "text" || q.type === "date" ? (
+              <div key={q.id} className="space-y-1.5 bg-muted/30 rounded-xl p-3 border border-border/50">
+                <Label className="text-xs font-semibold text-muted-foreground">{q.text}</Label>
+                {q.type === "date" ? (
+                  <Input
+                    value={formatDateDisplay(String(value || ""))}
+                    onChange={(e) => handleDateInput(q.id, e.target.value)}
+                    placeholder="dd/mm/aaaa"
+                    className="text-sm"
+                    maxLength={10}
+                  />
+                ) : q.type === "text" ? (
                   <Input value={String(value || "")} onChange={(e) => updateAnswer(q.id, e.target.value)} className="text-sm" />
                 ) : q.type === "textarea" ? (
                   <Textarea value={String(value || "")} onChange={(e) => updateAnswer(q.id, e.target.value)} className="text-sm" rows={2} />
@@ -290,8 +321,8 @@ function EditFreelancerDialog({ open, onOpenChange, response, template, onSaved 
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+          <Button onClick={handleSave} disabled={saving} className="gap-2">
+            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             Salvar
           </Button>
         </DialogFooter>
