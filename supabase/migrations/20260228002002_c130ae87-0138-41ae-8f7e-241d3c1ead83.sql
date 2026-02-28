@@ -1,0 +1,1 @@
+ALTER TABLE public.freelancer_schedules ADD COLUMN notes text;

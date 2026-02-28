@@ -4,11 +4,12 @@ import { useCurrentCompanyId } from "@/hooks/useCurrentCompanyId";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, CalendarPlus, Type, CheckCircle2, Loader2 } from "lucide-react";
+import { CalendarIcon, CalendarPlus, Type, CheckCircle2, Loader2, MessageSquare } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
@@ -37,6 +38,7 @@ export function CreateScheduleDialog({ open, onOpenChange, onCreated }: Props) {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
+  const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   // Fetch events when date range changes
@@ -84,6 +86,7 @@ export function CreateScheduleDialog({ open, onOpenChange, onCreated }: Props) {
       end_date: format(endDate, "yyyy-MM-dd"),
       event_ids: selectedEventIds,
       slug,
+      notes: notes.trim() || null,
     } as any);
 
     setSubmitting(false);
@@ -92,7 +95,7 @@ export function CreateScheduleDialog({ open, onOpenChange, onCreated }: Props) {
     } else {
       toast({ title: "Escala criada com sucesso!" });
       onOpenChange(false);
-      setTitle(""); setStartDate(undefined); setEndDate(undefined); setEvents([]); setSelectedEventIds([]);
+      setTitle(""); setNotes(""); setStartDate(undefined); setEndDate(undefined); setEvents([]); setSelectedEventIds([]);
       onCreated();
     }
   };
@@ -218,6 +221,22 @@ export function CreateScheduleDialog({ open, onOpenChange, onCreated }: Props) {
           {startDate && endDate && !loadingEvents && events.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-4">Nenhuma festa encontrada no período selecionado.</p>
           )}
+
+          {/* Observações */}
+          <div>
+            <label className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground mb-1.5 flex items-center gap-1.5">
+              <MessageSquare className="h-3.5 w-3.5" />
+              Observações / Instruções
+            </label>
+            <Textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Ex: Chegar 30min antes, usar camiseta preta, trazer documento..."
+              className="min-h-[80px] resize-none"
+              maxLength={500}
+            />
+            <p className="text-[10px] text-muted-foreground text-right mt-1">{notes.length}/500</p>
+          </div>
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
