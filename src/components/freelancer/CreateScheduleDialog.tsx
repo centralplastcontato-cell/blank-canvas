@@ -40,6 +40,7 @@ export function CreateScheduleDialog({ open, onOpenChange, onCreated }: Props) {
   const [title, setTitle] = useState("");
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
+  const [hasAutoSelected, setHasAutoSelected] = useState(false);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
@@ -69,6 +70,25 @@ export function CreateScheduleDialog({ open, onOpenChange, onCreated }: Props) {
       };
     });
   }, [currentMonth]);
+
+  // Auto-select current week when dialog opens
+  useEffect(() => {
+    if (!open || hasAutoSelected || weeks.length === 0) return;
+    const today = new Date();
+    const autoIndex = weeks.findIndex(w => today >= w.start && today <= w.end);
+    const weekIndex = autoIndex >= 0 ? autoIndex : 0;
+    setSelectedWeek(weekIndex);
+    const monthName = format(currentMonth, "MMMM", { locale: ptBR });
+    setTitle(`Escala Semana ${weekIndex + 1} ${monthName}`);
+    setHasAutoSelected(true);
+  }, [open, weeks, hasAutoSelected]);
+
+  // Reset state when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setHasAutoSelected(false);
+    }
+  }, [open]);
 
   const startDate = selectedWeek !== null ? weeks[selectedWeek]?.start : undefined;
   const endDate = selectedWeek !== null ? weeks[selectedWeek]?.end : undefined;
