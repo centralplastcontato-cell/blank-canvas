@@ -23,6 +23,7 @@ interface Schedule {
   is_active: boolean;
   created_at: string;
   notes: string | null;
+  event_display_names?: Record<string, string>;
 }
 
 export interface EventData {
@@ -222,10 +223,66 @@ export function FreelancerSchedulesTab() {
 
   const deleteSchedule = async (id: string) => {
     if (!confirm("Tem certeza que deseja excluir esta escala?")) return;
+    await supabase.from("freelancer_assignments").delete().eq("schedule_id", id);
+    await supabase.from("freelancer_availability").delete().eq("schedule_id", id);
     await supabase.from("freelancer_schedules").delete().eq("id", id);
     setSchedules(prev => prev.filter(s => s.id !== id));
     if (expandedId === id) setExpandedId(null);
     toast({ title: "Escala excluída" });
+  };
+
+  const removeEventFromSchedule = async (scheduleId: string, eventId: string) => {
+    const schedule = schedules.find(s => s.id === scheduleId);
+    if (!schedule) return;
+
+    const newEventIds = schedule.event_ids.filter(id => id !== eventId);
+
+    // Remove availability references for this event
+    const relatedAvail = availability.filter(a => a.schedule_id === scheduleId);
+    for (const av of relatedAvail) {
+      const newAvailIds = av.available_event_ids.filter(id => id !== eventId);
+      if (newAvailIds.length === 0) {
+        await supabase.from("freelancer_availability").delete().eq("id", av.id);
+      } else {
+        await supabase.from("freelancer_availability").update({ available_event_ids: newAvailIds } as any).eq("id", av.id);
+      }
+    }
+
+    // Remove assignments for this event
+    await supabase.from("freelancer_assignments").delete().eq("schedule_id", scheduleId).eq("event_id", eventId);
+
+    // Remove display name entry
+    const newDisplayNames = { ...(schedule.event_display_names || {}) };
+    delete newDisplayNames[eventId];
+
+    // Update schedule
+    await supabase.from("freelancer_schedules").update({
+      event_ids: newEventIds,
+      event_display_names: newDisplayNames,
+    } as any).eq("id", scheduleId);
+
+    setSchedules(prev => prev.map(s => s.id === scheduleId ? { ...s, event_ids: newEventIds, event_display_names: newDisplayNames } : s));
+    setAvailability(prev => prev.filter(a => !(a.schedule_id === scheduleId && a.available_event_ids.length === 1 && a.available_event_ids[0] === eventId)).map(a => a.schedule_id === scheduleId ? { ...a, available_event_ids: a.available_event_ids.filter(id => id !== eventId) } : a));
+    setAssignments(prev => prev.filter(a => !(a.schedule_id === scheduleId && a.event_id === eventId)));
+    toast({ title: "Festa removida da escala" });
+  };
+
+  const updateDisplayName = async (scheduleId: string, eventId: string, displayName: string) => {
+    const schedule = schedules.find(s => s.id === scheduleId);
+    if (!schedule) return;
+
+    const newDisplayNames = { ...(schedule.event_display_names || {}) };
+    if (displayName) {
+      newDisplayNames[eventId] = displayName;
+    } else {
+      delete newDisplayNames[eventId];
+    }
+
+    await supabase.from("freelancer_schedules").update({
+      event_display_names: newDisplayNames,
+    } as any).eq("id", scheduleId);
+
+    setSchedules(prev => prev.map(s => s.id === scheduleId ? { ...s, event_display_names: newDisplayNames } : s));
   };
 
   if (loading) return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
@@ -319,6 +376,8 @@ export function FreelancerSchedulesTab() {
                       setSchedules(prev => prev.map(s => s.id === id ? { ...s, notes: notes || null } : s));
                       toast({ title: "Observações atualizadas" });
                     }}
+                    onRemoveEvent={removeEventFromSchedule}
+                    onUpdateDisplayName={updateDisplayName}
                     roles={ROLES}
                   />
                 ))}

@@ -1662,6 +1662,7 @@ export type Database = {
           company_id: string
           created_at: string
           end_date: string
+          event_display_names: Json | null
           event_ids: string[]
           id: string
           is_active: boolean
@@ -1675,6 +1676,7 @@ export type Database = {
           company_id: string
           created_at?: string
           end_date: string
+          event_display_names?: Json | null
           event_ids?: string[]
           id?: string
           is_active?: boolean
@@ -1688,6 +1690,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           end_date?: string
+          event_display_names?: Json | null
           event_ids?: string[]
           id?: string
           is_active?: boolean
