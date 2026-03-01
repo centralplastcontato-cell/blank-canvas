@@ -1,26 +1,27 @@
 
 
-# Onboarding Banner — Layout empilhado no mobile
+# Corrigir caracteres corrompidos no PDF do Manual
 
-## O que muda
+## Problema
 
-No mobile, o banner atual tenta colocar tudo em uma linha horizontal (ícone + título + barra + botão), o que pode ficar apertado. A mudança empilha verticalmente no mobile e mantém horizontal no desktop.
+O jsPDF usa a fonte Helvetica que nao suporta emojis Unicode. Os emojis nas caixas de dica e alerta estao sendo renderizados como caracteres ilegíveis:
+- `💡 Dica` aparece como `Ø=Ü¡ D i c a`
+- `⚠️ Atenção` provavelmente tambem aparece corrompido
 
-## Alteracao
+## Solucao
 
-**Arquivo**: `src/components/admin/OnboardingBanner.tsx` (linhas 33-46)
+Substituir os emojis por texto puro no arquivo `src/lib/generateManualPDF.ts`:
 
-O container interno passa de `flex items-center` fixo para um layout que empilha no mobile:
+**Arquivo**: `src/lib/generateManualPDF.ts`
 
-- **Mobile**: Icone + titulo na primeira linha, barra de progresso na segunda linha (largura total), botao "Ver passos" na terceira linha
-- **Desktop (md+)**: Mantém o layout horizontal atual (tudo em uma linha)
+| Linha | Antes | Depois |
+|-------|-------|--------|
+| 293 | `"💡 Dica"` | `">> Dica"` |
+| 322 | `"⚠️ Atenção"` | `"!! Atencao"` |
 
-Detalhes:
-- Container: `flex flex-col md:flex-row md:items-center gap-2 md:gap-4`
-- Primeira linha (mobile): `flex items-center gap-3` com icone + titulo + contador
-- Barra de progresso: `w-full md:flex-1` para ocupar largura total no mobile
-- Botao "Ver passos": `self-start md:self-auto` no mobile fica alinhado a esquerda
-- Padding do botao dismiss ajustado para nao sobrepor o titulo
+As caixas ja tem cor de fundo e barra lateral colorida que diferenciam visualmente dica vs alerta, entao o emoji nao e necessario para a identificacao.
 
-Nenhum arquivo novo, nenhuma dependencia nova. Apenas ajuste de classes Tailwind no componente existente.
+## Verificacao adicional
+
+Buscar qualquer outro emoji no arquivo que possa causar o mesmo problema (bullet points, titulos, etc).
 
