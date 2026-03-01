@@ -82,49 +82,75 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
   };
 
   return (
-    <div className="space-y-4">
-      <div>
-        <Label>Nome da campanha</Label>
+    <div className="space-y-5">
+      {/* Nome da campanha */}
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Nome da campanha
+        </Label>
         <Input
           placeholder="Ex: Promoção Abril 2026"
           value={draft.name}
           onChange={(e) => setDraft((prev) => ({ ...prev, name: e.target.value }))}
+          className="h-10"
         />
       </div>
 
-      <div>
-        <Label>Descreva o objetivo da campanha</Label>
+      {/* Objetivo */}
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Descreva o objetivo da campanha
+        </Label>
         <Textarea
           placeholder="Ex: Promover festas de abril com 10% de desconto para quem fechar até sexta..."
           value={draft.description}
           onChange={(e) => setDraft((prev) => ({ ...prev, description: e.target.value }))}
           rows={3}
+          className="resize-none"
         />
       </div>
 
-      <Button onClick={handleGenerate} disabled={generating || !draft.description.trim()} className="w-full">
-        {generating ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1.5" />}
+      {/* Botão gerar IA */}
+      <Button
+        onClick={handleGenerate}
+        disabled={generating || !draft.description.trim()}
+        className="w-full h-10 gap-2"
+        variant={draft.variations.length > 0 ? "outline" : "default"}
+      >
+        {generating ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <Sparkles className="w-4 h-4" />
+        )}
         {draft.variations.length > 0 ? "Regenerar Variações" : "Gerar 5 Variações com IA"}
       </Button>
 
+      {/* Variações */}
       {draft.variations.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label className="text-sm">{draft.variations.length} variações</Label>
-            <Button variant="ghost" size="sm" onClick={handleGenerate} disabled={generating}>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Variações
+              </span>
+              <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
+                {draft.variations.length}
+              </Badge>
+            </div>
+            <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={handleGenerate} disabled={generating}>
               <RefreshCw className={`w-3 h-3 mr-1 ${generating ? "animate-spin" : ""}`} />
               Regenerar
             </Button>
           </div>
-          <ScrollArea className="h-52 border rounded-md">
-            <div className="p-2 space-y-2">
+          <ScrollArea className="h-48 rounded-xl border bg-muted/20">
+            <div className="p-2.5 space-y-2">
               {draft.variations.map((v, i) => (
-                <div key={i} className="p-2.5 rounded-md border bg-muted/30 text-sm">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <Badge variant="outline" className="text-[10px]">
+                <div key={i} className="p-3 rounded-lg border bg-background shadow-sm text-sm transition-all hover:shadow-md">
+                  <div className="flex items-center justify-between mb-2">
+                    <Badge variant="outline" className="text-[10px] font-medium">
                       {TONE_LABELS[v.tone] || v.tone}
                     </Badge>
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => {
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground" onClick={() => {
                       setEditingIndex(i);
                       setEditText(v.text);
                     }}>
@@ -132,15 +158,15 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
                     </Button>
                   </div>
                   {editingIndex === i ? (
-                    <div className="space-y-1.5">
-                      <Textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={3} className="text-sm" />
+                    <div className="space-y-2">
+                      <Textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={3} className="text-sm resize-none" />
                       <div className="flex gap-1.5 justify-end">
-                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setEditingIndex(null)}>Cancelar</Button>
+                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingIndex(null)}>Cancelar</Button>
                         <Button size="sm" className="h-7 text-xs" onClick={() => saveEdit(i)}>Salvar</Button>
                       </div>
                     </div>
                   ) : (
-                    <p className="whitespace-pre-wrap text-foreground/90">{v.text}</p>
+                    <p className="whitespace-pre-wrap text-foreground/80 leading-relaxed">{v.text}</p>
                   )}
                 </div>
               ))}
@@ -150,22 +176,32 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
       )}
 
       {/* Image upload */}
-      <div>
-        <Label>Imagem (opcional)</Label>
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Imagem (opcional)
+        </Label>
         {draft.imageUrl ? (
-          <div className="relative inline-block mt-1">
-            <img src={draft.imageUrl} alt="Campaign" className="h-24 rounded-md border object-cover" />
+          <div className="relative inline-block">
+            <img src={draft.imageUrl} alt="Campaign" className="h-20 rounded-lg border object-cover shadow-sm" />
             <button
               onClick={() => setDraft((prev) => ({ ...prev, imageUrl: null }))}
-              className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center"
+              className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center shadow-sm hover:scale-110 transition-transform"
             >
               <X className="w-3 h-3" />
             </button>
           </div>
         ) : (
-          <label className="flex items-center gap-2 mt-1 p-3 border border-dashed rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
-            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4 text-muted-foreground" />}
-            <span className="text-sm text-muted-foreground">{uploading ? "Enviando..." : "Clique para enviar imagem"}</span>
+          <label className="flex items-center gap-2.5 p-3 border border-dashed rounded-xl cursor-pointer hover:bg-muted/50 hover:border-primary/30 transition-all group">
+            {uploading ? (
+              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+            ) : (
+              <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                <ImagePlus className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+              </div>
+            )}
+            <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
+              {uploading ? "Enviando..." : "Clique para enviar imagem"}
+            </span>
             <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
           </label>
         )}
