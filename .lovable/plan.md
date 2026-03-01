@@ -1,31 +1,50 @@
 
-# Adicionar capítulo de Campanhas ao Manual PDF
 
-## Objetivo
-Incluir um novo capítulo (ch17) sobre o módulo de Campanhas no PDF de treinamento, seguindo o mesmo padrão dos capítulos existentes.
+# Corrigir: Esconder botão de Suporte nas páginas públicas/LPs
 
-## Alterações no arquivo `src/lib/generateManualPDF.ts`
+## Problema
+O botão flutuante de suporte (ícone de fone de ouvido) aparece nas Landing Pages públicas dos buffets (ex: castelodadiversao.online). Isso é um erro grave pois:
+- Confunde os leads/clientes finais com um botão interno da plataforma
+- Conflita visualmente com o botão de WhatsApp (FloatingCTA) da LP
+- Expõe funcionalidade administrativa em página pública
 
-### 1. Criar a função `ch17(doc)` — "Campanhas de Marketing"
+## Causa raiz
+O `SupportChatbot` é renderizado globalmente no `App.tsx` (fora das rotas) e só verifica duas condições para se esconder:
+1. Usuário não autenticado (`!session`)
+2. Páginas do Hub (`/hub*`)
 
-O capítulo cobrirá:
+Porém, as LPs dinâmicas são renderizadas na rota `/` (via `RootPage`) e `/lp/:slug`, que não são filtradas. Como o usuário pode estar autenticado enquanto navega a LP, o botão aparece.
 
-- **O que são Campanhas**: disparo de mensagens em massa via WhatsApp para leads do CRM
-- **Wizard de 3 etapas**: Contexto (nome, objetivo, geração de variações com IA), Audiência (filtros de status/unidade/mês), Configuração (delay, revisão)
-- **Variações de mensagem (IA)**: o sistema gera 5 variações automáticas para reduzir risco de bloqueio
-- **Filtros de audiência**: status, unidade e mês de interesse
-- **Configuração de envio**: intervalo entre mensagens (delay), imagem anexa
-- **Acompanhamento**: progresso em tempo real, status por destinatário, execução em segundo plano
-- **Dica (TipBox)**: usar variações e delays adequados para evitar bloqueio do WhatsApp
+## Solução
+Adicionar verificação de rotas públicas/LP no `SupportChatbot.tsx`. O componente deve retornar `null` também quando estiver em:
+- `/` (root — sempre LP pública)
+- `/lp/:slug` (LP dinâmica por slug)
+- `/promo` (LP estática do Castelo)
+- `/para-buffets` (página B2B)
+- Rotas públicas (`/avaliacao`, `/pre-festa`, `/contrato`, `/cardapio`, `/equipe`, `/manutencao`, `/acompanhamento`, `/lista-presenca`, `/informacoes`, `/freelancer`, `/escala`, `/onboarding`, `/festa`)
 
-### 2. Registrar `ch17` na função `generateManualPDF`
+## Alteração
 
-Adicionar a chamada `ch17(doc)` após `ch16(doc)` na sequência de capítulos.
+**Arquivo**: `src/components/support/SupportChatbot.tsx`
 
----
+Expandir a lógica de ocultação (linha 173-176) para incluir todas as rotas públicas:
 
-### Detalhes técnicos
+```typescript
+const location = useLocation();
+const isHubPage = location.pathname.startsWith("/hub");
 
-- A função `ch17` usará os mesmos helpers: `addChapterTitle`, `addSectionTitle`, `addParagraph`, `addBulletList`, `addTipBox`, `addAlertBox`
-- O número do capítulo será 17
-- Nenhuma outra alteração no arquivo
+const PUBLIC_PREFIXES = [
+  "/lp", "/promo", "/para-buffets", "/onboarding",
+  "/avaliacao", "/pre-festa", "/contrato", "/cardapio",
+  "/equipe", "/manutencao", "/acompanhamento",
+  "/lista-presenca", "/informacoes", "/freelancer",
+  "/escala", "/festa", "/hub-landing", "/hub-login",
+];
+const isPublicPage =
+  location.pathname === "/" ||
+  PUBLIC_PREFIXES.some((p) => location.pathname.startsWith(p));
+
+if (!session || isHubPage || isPublicPage) return null;
+```
+
+Isso garante que o botão de suporte só apareça nas páginas administrativas autenticadas do painel do buffet (dashboard, atendimento, configurações, etc.).
