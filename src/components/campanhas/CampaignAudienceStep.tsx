@@ -25,6 +25,11 @@ const STATUS_OPTIONS = [
   { value: "orcamento_enviado", label: "Orçamento enviado" },
   { value: "fechado", label: "Fechado" },
   { value: "perdido", label: "Perdido" },
+  { value: "transferido", label: "Transferido" },
+  { value: "trabalhe_conosco", label: "Trabalhe conosco" },
+  { value: "fornecedor", label: "Fornecedor" },
+  { value: "cliente_retorno", label: "Cliente retorno" },
+  { value: "outros", label: "Outros" },
 ];
 
 const MONTH_OPTIONS = [
