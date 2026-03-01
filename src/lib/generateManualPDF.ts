@@ -898,6 +898,48 @@ function ch17(doc: jsPDF) {
   addAlertBox(doc, "Evite disparar campanhas para mais de 500 leads de uma só vez. Prefira segmentar em lotes menores para maior segurança e melhores taxas de entrega.");
 }
 
+function ch18(doc: jsPDF) {
+  addChapterTitle(doc, 18, "Suporte Integrado");
+
+  addParagraph(doc, "A plataforma conta com um sistema de suporte integrado acessível diretamente de qualquer tela do painel. Através do botão flutuante no canto inferior direito, você pode abrir o chat de suporte sem sair da página em que está trabalhando.");
+
+  addSectionTitle(doc, "Como acessar o suporte");
+  addParagraph(doc, "Clique no ícone de suporte (fone de ouvido) no canto inferior direito da tela. O chat será aberto em uma janela flutuante sobre a página atual.");
+  addBulletList(doc, [
+    "O suporte está disponível em todas as páginas autenticadas do painel.",
+    "Você não precisa sair da tela atual para pedir ajuda.",
+    "O assistente de IA responde instantaneamente às dúvidas mais comuns.",
+  ]);
+
+  addSectionTitle(doc, "Tipos de solicitação");
+  addParagraph(doc, "Ao abrir o chat, você pode escolher entre três categorias de atendimento:");
+  addBulletList(doc, [
+    "Dúvida: perguntas sobre funcionalidades, configurações ou fluxos da plataforma.",
+    "Erro: relatar problemas técnicos, bugs ou comportamentos inesperados.",
+    "Sugestão: enviar ideias de melhorias ou novas funcionalidades desejadas.",
+  ]);
+
+  addSectionTitle(doc, "Assistente de IA");
+  addParagraph(doc, "O chat de suporte é alimentado por inteligência artificial treinada especificamente sobre a plataforma Celebrei. Ele pode responder dúvidas frequentes, orientar sobre configurações e indicar onde encontrar cada funcionalidade.");
+  addBulletList(doc, [
+    "Respostas instantâneas para dúvidas operacionais comuns.",
+    "Orientações passo a passo sobre configurações do bot, WhatsApp e CRM.",
+    "Caso a IA não consiga resolver, um tíquete é criado automaticamente para a equipe humana.",
+  ]);
+
+  addSectionTitle(doc, "Diagnóstico automático");
+  addParagraph(doc, "Ao reportar um erro, o sistema captura automaticamente informações técnicas do seu navegador para agilizar a resolução:");
+  addBulletList(doc, [
+    "Logs do console e URL da página onde o erro ocorreu.",
+    "Informações do navegador e dispositivo utilizado.",
+    "Essas informações são enviadas junto com o tíquete, sem necessidade de ação sua.",
+  ]);
+
+  addTipBox(doc, "Sempre que possível, descreva o passo a passo do que estava fazendo quando o erro aconteceu. Isso ajuda a equipe a reproduzir e corrigir o problema mais rapidamente.");
+
+  addAlertBox(doc, "O suporte via chat é exclusivo para dúvidas sobre a plataforma. Para questões comerciais ou financeiras, entre em contato diretamente com seu gestor de conta.");
+}
+
 // ── Main export ────────────────────────────────────────────────
 
 export async function generateManualPDF(companyName?: string) {
@@ -938,6 +980,7 @@ export async function generateManualPDF(companyName?: string) {
   ch15(doc);
   ch16(doc);
   ch17(doc);
+  ch18(doc);
 
   // Add footers to all pages (skip cover)
   addAllFooters(doc, 2);
