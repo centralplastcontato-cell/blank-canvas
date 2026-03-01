@@ -342,7 +342,7 @@ export function SendScheduleToGroupsDialog({
               Enviar Escala para Grupos
             </DialogTitle>
             <DialogDescription>
-              Selecione os grupos e envie a escala "{schedule.title}" via WhatsApp.
+              Envio de escala para os grupos.
             </DialogDescription>
           </DialogHeader>
 
