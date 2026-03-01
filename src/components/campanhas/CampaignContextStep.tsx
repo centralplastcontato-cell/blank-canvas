@@ -17,12 +17,31 @@ interface Props {
 }
 
 const CAMPAIGN_NAME_SUGGESTIONS = [
-  "Mês do Consumidor", "Mês das Crianças", "Oportunidade Relâmpago", "Últimos Contratos",
-  "Férias de Julho", "Volta às Aulas", "Black Friday", "Natal Mágico", "Promoção de Natal",
-  "Esquenta de Carnaval", "Dia das Mães", "Dia dos Pais", "Promo Aniversário", "Feriado Prolongado",
-  "Liquidação de Verão", "Super Promoção", "Semana do Cliente", "Festival de Descontos",
-  "Última Chance", "Especial Primavera", "Queima de Estoque", "Fecha em 25",
-  "Lote Promocional", "Convite Especial", "Reativação de Leads",
+  { name: "Mês do Consumidor", description: "Aproveitar o mês do consumidor para oferecer condições especiais em pacotes de festa infantil com descontos exclusivos." },
+  { name: "Mês das Crianças", description: "Campanha especial de Dia das Crianças com pacotes promocionais e brindes para aniversariantes do período." },
+  { name: "Oportunidade Relâmpago", description: "Promoção relâmpago com vagas limitadas e desconto agressivo para fechar contratos esta semana." },
+  { name: "Últimos Contratos", description: "Últimas vagas disponíveis no mês, urgência para fechar os contratos restantes com condições diferenciadas." },
+  { name: "Férias de Julho", description: "Promoção especial para festas nas férias de julho, com pacotes temáticos e preços promocionais." },
+  { name: "Volta às Aulas", description: "Aproveitar o período de volta às aulas para promover festas de aniversário com condições facilitadas." },
+  { name: "Black Friday", description: "Descontos imperdíveis de Black Friday em todos os pacotes de festa infantil por tempo limitado." },
+  { name: "Natal Mágico", description: "Pacotes especiais de Natal com decoração temática e condições exclusivas para festas no período natalino." },
+  { name: "Promoção de Natal", description: "Promoção de fim de ano com descontos progressivos e brindes para quem fechar festa em dezembro." },
+  { name: "Esquenta de Carnaval", description: "Promoção pré-carnaval com descontos e convidados extras para festas realizadas no período." },
+  { name: "Dia das Mães", description: "Homenagem ao Dia das Mães com condições especiais para mamães que querem celebrar com os filhos." },
+  { name: "Dia dos Pais", description: "Promoção especial de Dia dos Pais com pacotes família e descontos para festas no período." },
+  { name: "Promo Aniversário", description: "Comemore o aniversário do buffet com descontos exclusivos e brindes para os primeiros contratos." },
+  { name: "Feriado Prolongado", description: "Aproveite o feriado prolongado para garantir sua festa com desconto especial e vagas limitadas." },
+  { name: "Liquidação de Verão", description: "Liquidação de verão com os melhores preços do ano em pacotes de festa infantil." },
+  { name: "Super Promoção", description: "Super promoção com desconto especial, convidados extras e condições imperdíveis por tempo limitado." },
+  { name: "Semana do Cliente", description: "Semana exclusiva para clientes com ofertas especiais, upgrades de pacote e brindes." },
+  { name: "Festival de Descontos", description: "Festival de descontos com até 15% off em pacotes selecionados para festas nos próximos meses." },
+  { name: "Última Chance", description: "Última oportunidade de garantir sua festa com as condições promocionais antes do reajuste." },
+  { name: "Especial Primavera", description: "Promoção de primavera com pacotes floridos, decoração temática e preços especiais." },
+  { name: "Queima de Estoque", description: "Queima de datas disponíveis com descontos agressivos para fechar o calendário do mês." },
+  { name: "Fecha em 25", description: "Condição exclusiva para quem fechar contrato com entrada de apenas R$25 por convidado." },
+  { name: "Lote Promocional", description: "Lote promocional com quantidade limitada de vagas com desconto especial para os primeiros." },
+  { name: "Convite Especial", description: "Convite personalizado para leads selecionados com oferta exclusiva e prazo curto." },
+  { name: "Reativação de Leads", description: "Reativar leads antigos com uma oferta irresistível para quem já demonstrou interesse anteriormente." },
 ];
 
 const TONE_LABELS: Record<string, string> = {
@@ -106,16 +125,16 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
         <div className="flex flex-wrap gap-1.5 mt-2">
           {CAMPAIGN_NAME_SUGGESTIONS.map((s) => (
             <Badge
-              key={s}
+              key={s.name}
               variant="outline"
               className={`text-[10px] cursor-pointer transition-all ${
-                draft.name === s
+                draft.name === s.name
                   ? "bg-primary/10 border-primary/30 text-primary"
                   : "hover:bg-primary/10 hover:border-primary/30"
               }`}
-              onClick={() => setDraft((prev) => ({ ...prev, name: s }))}
+              onClick={() => setDraft((prev) => ({ ...prev, name: s.name, description: s.description }))}
             >
-              {s}
+              {s.name}
             </Badge>
           ))}
         </div>
