@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { BarChart3, Building2, Users, LogOut, Smartphone, ClipboardList, Presentation, Brain, GraduationCap, Contact } from "lucide-react";
+import { BarChart3, Building2, Users, LogOut, Smartphone, ClipboardList, Presentation, Brain, GraduationCap, Contact, Headset } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -36,6 +36,7 @@ const menuItems = [
   { id: "onboarding", label: "Onboarding", icon: ClipboardList, path: "/hub/onboarding" },
   { id: "consumo-ia", label: "Consumo IA", icon: Brain, path: "/hub/consumo-ia" },
   { id: "treinamento", label: "Treinamento", icon: GraduationCap, path: "/hub/treinamento" },
+  { id: "suporte", label: "Suporte", icon: Headset, path: "/hub/suporte" },
 ];
 
 export function HubMobileMenu({
