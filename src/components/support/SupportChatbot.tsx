@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Send, Loader2, Headset, Lightbulb, Bug, HelpCircle, TicketCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -168,8 +169,11 @@ export function SupportChatbot() {
     }
   };
 
-  // Don't render if not authenticated
-  if (!session) return null;
+  const location = useLocation();
+  const isHubPage = location.pathname.startsWith("/hub");
+
+  // Don't render if not authenticated or on Hub pages
+  if (!session || isHubPage) return null;
 
   return (
     <>
