@@ -24,6 +24,7 @@ import { TransferAlertBanner } from "@/components/admin/TransferAlertBanner";
 import { ClientAlertBanner } from "@/components/admin/ClientAlertBanner";
 import { VisitAlertBanner } from "@/components/admin/VisitAlertBanner";
 import { QuestionsAlertBanner } from "@/components/admin/QuestionsAlertBanner";
+import { OnboardingBanner } from "@/components/admin/OnboardingBanner";
 import { WhatsAppChat } from "@/components/whatsapp/WhatsAppChat";
 
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,7 @@ import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { LayoutList, Columns, Menu, Bell, BellOff, MessageSquare, BarChart3, Filter, ChevronDown, ChevronLeft, ChevronRight, Building2, Brain } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useCompany } from "@/contexts/CompanyContext";
+import { useCompanyModules } from "@/hooks/useCompanyModules";
 
 export interface LeadFilters {
   campaign: string;
@@ -53,6 +55,7 @@ export interface LeadFilters {
 export default function CentralAtendimento() {
   const navigate = useNavigate();
   const { currentCompany } = useCompany();
+  const modules = useCompanyModules();
 
   // Guard: redirect to Hub dashboard if on Hub domain
   useEffect(() => {
@@ -750,6 +753,11 @@ export default function CentralAtendimento() {
           }}
         />
 
+        {/* Onboarding Banner - Mobile */}
+        {modules.onboarding_checklist && (isAdmin || role === 'gestor') && (
+          <OnboardingBanner />
+        )}
+
         <main className="flex-1 flex flex-col overflow-hidden min-h-0">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "chat" | "leads")} className="flex-1 flex flex-col overflow-hidden min-h-0">
             <div className="mx-3 mt-3 flex items-center gap-2">
@@ -1196,6 +1204,11 @@ export default function CentralAtendimento() {
               setActiveTab("chat");
             }}
           />
+
+          {/* Onboarding Banner - Desktop */}
+          {modules.onboarding_checklist && (isAdmin || role === 'gestor') && (
+            <OnboardingBanner />
+          )}
 
           <main className="flex-1 overflow-hidden min-h-0 p-5">
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "chat" | "leads")} className="h-full relative">

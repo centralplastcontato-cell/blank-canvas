@@ -18,6 +18,7 @@ export interface CompanyModules {
   operacoes: boolean;
   bot_festa: boolean;
   treinamento: boolean;
+  onboarding_checklist: boolean;
 }
 
 export interface PartyControlModules {
@@ -96,6 +97,7 @@ const DEFAULT_MODULES: CompanyModules = {
   operacoes: true,
   bot_festa: false,
   treinamento: true,
+  onboarding_checklist: false,
 };
 
 export function parseModules(settings: Json | null | undefined): CompanyModules {
@@ -125,6 +127,7 @@ export function parseModules(settings: Json | null | undefined): CompanyModules 
     operacoes: modules.operacoes !== false,
     bot_festa: modules.bot_festa === true,
     treinamento: modules.treinamento !== false,
+    onboarding_checklist: modules.onboarding_checklist === true,
   };
 }
 
@@ -150,4 +153,5 @@ export const MODULE_LABELS: Record<keyof CompanyModules, { label: string; descri
   operacoes: { label: 'Operações', description: 'Formulários, checklists, pacotes e freelancers' },
   bot_festa: { label: 'Bot Festa', description: 'Mensagens automáticas para convidados em festas' },
   treinamento: { label: 'Treinamento', description: 'Videoaulas de treinamento da plataforma' },
+  onboarding_checklist: { label: 'Onboarding Guiado', description: 'Checklist interativo de primeiros passos no painel' },
 };
