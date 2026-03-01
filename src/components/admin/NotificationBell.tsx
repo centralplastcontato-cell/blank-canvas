@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Bell, Check, Trash2, UserPlus, ArrowRightLeft, Crown, CalendarCheck,
-  ExternalLink, MessageCircle, Search, Send, UserX, Clock, AlertTriangle,
+  ExternalLink, MessageCircle, Search, Send, UserX, Clock, AlertTriangle, Headset,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,6 +41,7 @@ const ICON_MAP: Record<string, { icon: React.ElementType; className: string }> =
   lead_lost:       { icon: UserX,          className: "text-red-500" },
   stale_reminded:  { icon: Clock,          className: "text-gray-500" },
   lead_risk:       { icon: AlertTriangle,  className: "text-red-500" },
+  new_support_ticket: { icon: Headset,    className: "text-purple-500" },
 };
 
 function NotificationIcon({ type }: { type: string }) {
