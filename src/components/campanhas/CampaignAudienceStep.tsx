@@ -1,13 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Loader2, Users, Filter, UserCheck, UserX, X } from "lucide-react";
+import { Search, Loader2, Users, Filter, UserCheck, UserX, X, Database } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { CampaignDraft } from "./CampaignWizard";
 
@@ -48,6 +47,12 @@ const MONTH_OPTIONS = [
   { value: "Dezembro", label: "Dezembro" },
 ];
 
+const SOURCE_OPTIONS = [
+  { value: "all", label: "Todas origens" },
+  { value: "crm", label: "CRM" },
+  { value: "base", label: "Base" },
+];
+
 interface Lead {
   id: string;
   name: string;
@@ -55,6 +60,7 @@ interface Lead {
   month: string | null;
   status: string;
   unit: string | null;
+  source: "crm" | "base";
 }
 
 export function CampaignAudienceStep({ draft, setDraft, companyId }: Props) {
@@ -65,9 +71,10 @@ export function CampaignAudienceStep({ draft, setDraft, companyId }: Props) {
   const [filterMonth, setFilterMonth] = useState("all");
   const [units, setUnits] = useState<{ name: string }[]>([]);
   const [filterUnit, setFilterUnit] = useState("all");
+  const [filterSource, setFilterSource] = useState("all");
 
   useEffect(() => {
-    loadLeads();
+    loadAllLeads();
     loadUnits();
   }, [companyId]);
 
@@ -81,26 +88,55 @@ export function CampaignAudienceStep({ draft, setDraft, companyId }: Props) {
     setUnits(data || []);
   };
 
-  const loadLeads = async () => {
+  const loadAllLeads = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("campaign_leads")
-      .select("id, name, whatsapp, month, status, unit")
-      .eq("company_id", companyId)
-      .order("name");
 
-    if (!error && data) {
-      setLeads(data);
-      setDraft((prev) => ({
-        ...prev,
-        leads: data.map((l) => ({ id: l.id, name: l.name, whatsapp: l.whatsapp })),
-      }));
-    }
+    // Load CRM leads and base leads in parallel
+    const [crmResult, baseResult] = await Promise.all([
+      supabase
+        .from("campaign_leads")
+        .select("id, name, whatsapp, month, status, unit")
+        .eq("company_id", companyId)
+        .order("name"),
+      supabase
+        .from("base_leads")
+        .select("id, name, phone, month_interest, is_former_client")
+        .eq("company_id", companyId)
+        .order("name"),
+    ]);
+
+    const crmLeads: Lead[] = (crmResult.data || []).map((l) => ({
+      id: l.id,
+      name: l.name,
+      whatsapp: l.whatsapp,
+      month: l.month,
+      status: l.status,
+      unit: l.unit,
+      source: "crm" as const,
+    }));
+
+    const baseLeads: Lead[] = (baseResult.data || []).map((l) => ({
+      id: `base_${l.id}`,
+      name: l.name,
+      whatsapp: l.phone,
+      month: l.month_interest,
+      status: l.is_former_client ? "cliente_retorno" : "novo",
+      unit: null,
+      source: "base" as const,
+    }));
+
+    const allLeads = [...crmLeads, ...baseLeads];
+    setLeads(allLeads);
+    setDraft((prev) => ({
+      ...prev,
+      leads: allLeads.map((l) => ({ id: l.id, name: l.name, whatsapp: l.whatsapp })),
+    }));
     setLoading(false);
   };
 
   const filtered = useMemo(() => {
     return leads.filter((l) => {
+      if (filterSource !== "all" && l.source !== filterSource) return false;
       if (filterStatuses.length > 0 && !filterStatuses.includes(l.status)) return false;
       if (filterMonth !== "all" && l.month !== filterMonth) return false;
       if (filterUnit !== "all" && l.unit !== filterUnit) return false;
@@ -110,7 +146,7 @@ export function CampaignAudienceStep({ draft, setDraft, companyId }: Props) {
       }
       return true;
     });
-  }, [leads, filterStatuses, filterMonth, filterUnit, search]);
+  }, [leads, filterStatuses, filterMonth, filterUnit, filterSource, search]);
 
   const selectedSet = new Set(draft.selectedLeadIds);
 
@@ -138,7 +174,7 @@ export function CampaignAudienceStep({ draft, setDraft, companyId }: Props) {
   };
 
   const allSelected = filtered.length > 0 && filtered.every((l) => selectedSet.has(l.id));
-  const hasActiveFilters = filterStatuses.length > 0 || filterMonth !== "all" || filterUnit !== "all" || search.trim() !== "";
+  const hasActiveFilters = filterStatuses.length > 0 || filterMonth !== "all" || filterUnit !== "all" || filterSource !== "all" || search.trim() !== "";
 
   const toggleStatus = (value: string) => {
     setFilterStatuses((prev) =>
@@ -169,7 +205,19 @@ export function CampaignAudienceStep({ draft, setDraft, companyId }: Props) {
           <div className="flex-1 h-px bg-border/50" />
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {/* Source filter */}
+          <Select value={filterSource} onValueChange={setFilterSource}>
+            <SelectTrigger className="h-9 text-xs rounded-lg border-border/60 bg-background shadow-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SOURCE_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <Select value={filterMonth} onValueChange={setFilterMonth}>
             <SelectTrigger className="h-9 text-xs rounded-lg border-border/60 bg-background shadow-sm">
               <SelectValue />
@@ -315,7 +363,15 @@ export function CampaignAudienceStep({ draft, setDraft, companyId }: Props) {
                   className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate text-foreground">{lead.name}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-medium truncate text-foreground">{lead.name}</p>
+                    {lead.source === "base" && (
+                      <Badge variant="outline" className="text-[9px] h-4 px-1 shrink-0">
+                        <Database className="w-2.5 h-2.5 mr-0.5" />
+                        Base
+                      </Badge>
+                    )}
+                  </div>
                   <p className="text-[11px] text-muted-foreground truncate">
                     {lead.whatsapp}
                     {lead.unit && (

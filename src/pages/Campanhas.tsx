@@ -6,11 +6,13 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Megaphone, Plus, CheckCircle2, XCircle, Clock, Loader2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Megaphone, Plus, CheckCircle2, XCircle, Clock, Loader2, Users } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CampaignWizard } from "@/components/campanhas/CampaignWizard";
 import { CampaignSendDialog } from "@/components/campanhas/CampaignSendDialog";
+import { BaseLeadsTab } from "@/components/campanhas/BaseLeadsTab";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -94,78 +96,98 @@ export default function Campanhas() {
           onLogout={handleLogout}
         />
         <main className="flex-1 p-4 sm:p-6 max-w-5xl mx-auto w-full">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <Megaphone className="w-6 h-6 text-primary" />
-              <h1 className="text-xl sm:text-2xl font-bold">Campanhas</h1>
-            </div>
-            <Button onClick={() => setWizardOpen(true)} size="sm">
-              <Plus className="w-4 h-4 mr-1.5" />
-              Nova Campanha
-            </Button>
+          <div className="flex items-center gap-3 mb-6">
+            <Megaphone className="w-6 h-6 text-primary" />
+            <h1 className="text-xl sm:text-2xl font-bold">Campanhas</h1>
           </div>
 
-          {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : campaigns.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <Megaphone className="w-12 h-12 text-muted-foreground/40 mb-4" />
-              <p className="text-muted-foreground font-medium">Nenhuma campanha criada</p>
-              <p className="text-sm text-muted-foreground/70 mt-1">Clique em "Nova Campanha" para começar</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {campaigns.map((campaign) => {
-                const sc = statusConfig[campaign.status] || statusConfig.draft;
-                const StatusIcon = sc.icon;
-                return (
-                  <Card key={campaign.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => {
-                    if (campaign.status === "draft") {
-                      setSendCampaign(campaign);
-                    }
-                  }}>
-                    <CardContent className="p-4 flex items-center gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-semibold truncate">{campaign.name}</p>
-                          <Badge variant={sc.variant} className="shrink-0 text-[10px]">
-                            <StatusIcon className={`w-3 h-3 mr-1 ${campaign.status === "sending" ? "animate-spin" : ""}`} />
-                            {sc.label}
-                          </Badge>
-                        </div>
-                        {campaign.description && (
-                          <p className="text-sm text-muted-foreground truncate">{campaign.description}</p>
-                        )}
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {format(new Date(campaign.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                        </p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className="flex items-center gap-3 text-sm">
-                          <div className="text-center">
-                            <p className="font-bold text-lg">{campaign.total_recipients}</p>
-                            <p className="text-[10px] text-muted-foreground">Total</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="font-bold text-lg text-green-600">{campaign.sent_count}</p>
-                            <p className="text-[10px] text-muted-foreground">Enviados</p>
-                          </div>
-                          {campaign.error_count > 0 && (
-                            <div className="text-center">
-                              <p className="font-bold text-lg text-destructive">{campaign.error_count}</p>
-                              <p className="text-[10px] text-muted-foreground">Erros</p>
+          <Tabs defaultValue="campanhas" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="campanhas" className="gap-1.5">
+                <Megaphone className="w-3.5 h-3.5" />
+                Campanhas
+              </TabsTrigger>
+              <TabsTrigger value="base" className="gap-1.5">
+                <Users className="w-3.5 h-3.5" />
+                Leads de Base
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="campanhas">
+              <div className="flex justify-end mb-4">
+                <Button onClick={() => setWizardOpen(true)} size="sm">
+                  <Plus className="w-4 h-4 mr-1.5" />
+                  Nova Campanha
+                </Button>
+              </div>
+
+              {loading ? (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : campaigns.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <Megaphone className="w-12 h-12 text-muted-foreground/40 mb-4" />
+                  <p className="text-muted-foreground font-medium">Nenhuma campanha criada</p>
+                  <p className="text-sm text-muted-foreground/70 mt-1">Clique em "Nova Campanha" para começar</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {campaigns.map((campaign) => {
+                    const sc = statusConfig[campaign.status] || statusConfig.draft;
+                    const StatusIcon = sc.icon;
+                    return (
+                      <Card key={campaign.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => {
+                        if (campaign.status === "draft") {
+                          setSendCampaign(campaign);
+                        }
+                      }}>
+                        <CardContent className="p-4 flex items-center gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="font-semibold truncate">{campaign.name}</p>
+                              <Badge variant={sc.variant} className="shrink-0 text-[10px]">
+                                <StatusIcon className={`w-3 h-3 mr-1 ${campaign.status === "sending" ? "animate-spin" : ""}`} />
+                                {sc.label}
+                              </Badge>
                             </div>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
+                            {campaign.description && (
+                              <p className="text-sm text-muted-foreground truncate">{campaign.description}</p>
+                            )}
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {format(new Date(campaign.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                            </p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="flex items-center gap-3 text-sm">
+                              <div className="text-center">
+                                <p className="font-bold text-lg">{campaign.total_recipients}</p>
+                                <p className="text-[10px] text-muted-foreground">Total</p>
+                              </div>
+                              <div className="text-center">
+                                <p className="font-bold text-lg text-green-600">{campaign.sent_count}</p>
+                                <p className="text-[10px] text-muted-foreground">Enviados</p>
+                              </div>
+                              {campaign.error_count > 0 && (
+                                <div className="text-center">
+                                  <p className="font-bold text-lg text-destructive">{campaign.error_count}</p>
+                                  <p className="text-[10px] text-muted-foreground">Erros</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="base">
+              <BaseLeadsTab companyId={companyId || ""} />
+            </TabsContent>
+          </Tabs>
 
           <CampaignWizard
             open={wizardOpen}
