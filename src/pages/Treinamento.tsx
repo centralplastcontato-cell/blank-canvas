@@ -230,7 +230,7 @@ export default function Treinamento() {
                   <p className="text-sm text-muted-foreground">Carregando aulas...</p>
                 </div>
               ) : filtered.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 gap-4">
+              <div className="flex flex-col items-center justify-center py-16 gap-5">
                   <div className="h-20 w-20 rounded-full bg-muted/50 flex items-center justify-center">
                     <Video className="h-10 w-10 text-muted-foreground/40" />
                   </div>
@@ -241,6 +241,17 @@ export default function Treinamento() {
                         ? "Tente selecionar outra categoria."
                         : "As aulas serão publicadas em breve."}
                     </p>
+                  </div>
+                  <div className="mt-2 p-5 rounded-2xl border border-primary/15 bg-primary/5 max-w-sm text-center space-y-3">
+                    <BookOpen className="h-8 w-8 text-primary/70 mx-auto" />
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Enquanto isso, baixe o Manual</p>
+                      <p className="text-xs text-muted-foreground mt-1">Todas as informações e explicações sobre a plataforma em um PDF completo.</p>
+                    </div>
+                    <Button variant="outline" onClick={handleDownloadManual} disabled={generatingPDF} className="gap-2 rounded-xl">
+                      {generatingPDF ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                      Baixar Manual PDF
+                    </Button>
                   </div>
                 </div>
               ) : (
