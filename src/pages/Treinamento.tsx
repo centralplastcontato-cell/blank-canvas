@@ -230,25 +230,25 @@ export default function Treinamento() {
                   <p className="text-sm text-muted-foreground">Carregando aulas...</p>
                 </div>
               ) : filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 gap-5">
-                  <div className="h-20 w-20 rounded-full bg-muted/50 flex items-center justify-center">
-                    <Video className="h-10 w-10 text-muted-foreground/40" />
+              <div className="flex flex-col items-center justify-center py-10 md:py-16 gap-4">
+                  <div className="h-16 w-16 md:h-20 md:w-20 rounded-full bg-muted/50 flex items-center justify-center">
+                    <Video className="h-8 w-8 md:h-10 md:w-10 text-muted-foreground/40" />
                   </div>
                   <div className="text-center">
-                    <p className="font-medium text-foreground">Nenhuma aula disponível</p>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <p className="font-medium text-foreground text-sm md:text-base">Nenhuma aula disponível</p>
+                    <p className="text-xs md:text-sm text-muted-foreground mt-1">
                       {filterCategory !== "all"
                         ? "Tente selecionar outra categoria."
                         : "As aulas serão publicadas em breve."}
                     </p>
                   </div>
-                  <div className="mt-2 p-5 rounded-2xl border border-primary/15 bg-primary/5 max-w-sm text-center space-y-3">
-                    <BookOpen className="h-8 w-8 text-primary/70 mx-auto" />
+                  <div className="mt-1 p-4 rounded-2xl border border-primary/15 bg-primary/5 w-full max-w-sm text-center space-y-2.5">
+                    <BookOpen className="h-7 w-7 text-primary/70 mx-auto" />
                     <div>
                       <p className="text-sm font-semibold text-foreground">Enquanto isso, baixe o Manual</p>
                       <p className="text-xs text-muted-foreground mt-1">Todas as informações e explicações sobre a plataforma em um PDF completo.</p>
                     </div>
-                    <Button variant="outline" onClick={handleDownloadManual} disabled={generatingPDF} className="gap-2 rounded-xl">
+                    <Button variant="outline" size="sm" onClick={handleDownloadManual} disabled={generatingPDF} className="gap-2 rounded-xl">
                       {generatingPDF ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                       Baixar Manual PDF
                     </Button>
