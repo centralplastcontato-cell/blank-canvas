@@ -1,61 +1,59 @@
 
 
-## Minimizar Dialog de Envio para Grupos
+## Exibir lista de grupos com status de envio em tempo real
 
-### Problema
-Com 10 grupos e intervalo de 60s, o envio leva ~10 minutos. Hoje o dialog trava a tela inteira durante esse tempo, impedindo o usuario de fazer qualquer outra coisa.
+### O que muda
 
-### Solucao
-Adicionar um botao "Minimizar" no dialog durante o envio. Ao minimizar:
-- O dialog fecha visualmente
-- Um **banner flutuante compacto** aparece no canto inferior da tela mostrando o progresso (ex: "Enviando 3/10...")
-- O processo continua rodando em background
-- Ao finalizar, o dialog **reabre automaticamente** mostrando o resultado (sucesso/falhas)
-- O banner tambem permite clicar para reabrir o dialog a qualquer momento
+Substituir a tela de progresso genérica ("Enviando 2 de 4...") por uma **lista scrollable dos grupos selecionados**, onde cada grupo mostra seu status em tempo real:
 
-### Alteracoes
+- **Pendente**: icone cinza (relogio ou circulo vazio)
+- **Enviando**: spinner animado
+- **Enviado**: checkmark verde
+- **Falha**: X vermelho
 
-**Arquivo: `src/components/freelancer/SendScheduleToGroupsDialog.tsx`**
+### Como funciona
 
-1. Adicionar estado `minimized` (boolean)
-2. Quando `minimized=true`, o Dialog fecha (`open={false}`) mas o loop de envio continua
-3. Renderizar um **portal flutuante** (fixed bottom-right) com:
-   - Icone de progresso animado
-   - Texto "Enviando X de Y..."
-   - Barra de progresso compacta
-   - Clique para maximizar (reabrir dialog)
-4. Botao "Minimizar" (icone Minus) visivel apenas durante o envio, ao lado do X
-5. Ao finalizar o envio:
-   - Se minimizado: automaticamente seta `minimized=false` e reabre o dialog com o resultado
-   - Mostrar resumo (X enviados, Y falhas) antes de fechar
-
-**Arquivo: `src/components/freelancer/FreelancerSchedulesTab.tsx`**
-- Nenhuma alteracao necessaria -- a logica fica toda dentro do dialog
+1. Adicionar um novo estado `groupStatuses` (Map de group.id para "pending" | "sending" | "sent" | "error")
+2. No loop `handleSend`, antes de enviar para cada grupo, setar status "sending"; apos resultado, setar "sent" ou "error"
+3. Na tela de envio (onde hoje mostra apenas a barra de progresso), renderizar uma ScrollArea com a lista dos grupos selecionados, cada um com seu icone de status
+4. Manter a barra de progresso no topo como resumo geral
+5. O grupo sendo enviado no momento fica destacado visualmente
 
 ### Detalhes tecnicos
 
+**Arquivo: `src/components/freelancer/SendScheduleToGroupsDialog.tsx`**
+
+- Novo estado: `const [groupStatuses, setGroupStatuses] = useState<Map<string, "pending" | "sending" | "sent" | "error">>(new Map())`
+- No inicio de `handleSend`: inicializar todos os grupos selecionados como "pending"
+- No loop, antes do envio: setar o grupo atual como "sending"
+- Apos sucesso/erro: setar como "sent" ou "error"
+- Substituir o bloco `sending` (linhas 360-374) por:
+  - Barra de progresso + texto no topo
+  - ScrollArea com lista dos grupos mostrando nome + icone de status
+  - Texto de intervalo de seguranca quando aguardando
+  - Texto sobre minimizar
+
+- Icones por status:
+  - pending: `Clock` ou circulo cinza
+  - sending: `Loader2` com animate-spin
+  - sent: `CheckCircle2` verde
+  - error: `XCircle` vermelho
+
+### Layout visual
+
 ```text
-+------------------------------------------+
-|  Dialog (open && !minimized)             |
-|  [Minimizar]  durante envio              |
-+------------------------------------------+
-
-Quando minimizado:
-+------------------------------------------+
-|                                          |
-|  (pagina normal, usuario navega livre)   |
-|                                          |
-|  +-----------------------------+         |
-|  | Enviando 3/10... [===>   ]  |  fixed  |
-|  +-----------------------------+  bottom |
-+------------------------------------------+
-
-Ao finalizar:
--> Dialog reabre com resumo do resultado
++------------------------------------+
+| Enviando 2 de 4...                 |
+| [=========>          ] 50%         |
+| Aguardando ~60s...                 |
++------------------------------------+
+| [ ] Grupo Freelancers SP    [sent] |
+| [o] Grupo Monitores RJ  [sending] |
+| [ ] Grupo Equipe BH     [pending] |
+| [ ] Grupo Staff Curitiba[pending] |
++------------------------------------+
+| Voce pode minimizar...            |
++------------------------------------+
 ```
 
-- O estado de envio (`sending`, `progress`, resultados) fica no componente, que permanece montado mesmo com dialog fechado
-- O banner flutuante usa `ReactDOM.createPortal` para renderizar fora do dialog
-- Ao clicar no banner, seta `minimized=false` para reabrir
-- Resultado final mostrado em tela de resumo dentro do dialog antes de fechar
-
+Nenhum arquivo novo necessario -- apenas alteracoes em `SendScheduleToGroupsDialog.tsx`.
