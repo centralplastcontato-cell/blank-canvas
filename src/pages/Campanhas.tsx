@@ -7,13 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Megaphone, Plus, CheckCircle2, XCircle, Clock, Loader2, Users } from "lucide-react";
+import { Megaphone, Plus, CheckCircle2, XCircle, Clock, Loader2, Users, Menu } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CampaignWizard } from "@/components/campanhas/CampaignWizard";
 import { CampaignSendDialog } from "@/components/campanhas/CampaignSendDialog";
 import { BaseLeadsTab } from "@/components/campanhas/BaseLeadsTab";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { MobileMenu } from "@/components/admin/MobileMenu";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
@@ -40,6 +41,7 @@ export default function Campanhas() {
   const { currentCompany } = useCompany();
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data?.user));
@@ -96,8 +98,23 @@ export default function Campanhas() {
           onLogout={handleLogout}
         />
         <main className="flex-1 p-4 sm:p-6 max-w-5xl mx-auto w-full">
-          <div className="flex items-center gap-3 mb-6">
-            <SidebarTrigger className="md:hidden h-9 w-9 shrink-0" />
+          <div className="flex items-center gap-2 mb-6">
+            <MobileMenu
+              isOpen={isMobileMenuOpen}
+              onOpenChange={setIsMobileMenuOpen}
+              trigger={
+                <Button variant="ghost" size="icon" className="md:hidden h-9 w-9 shrink-0">
+                  <Menu className="w-5 h-5" />
+                </Button>
+              }
+              currentPage="atendimento"
+              userName={user?.user_metadata?.full_name || ""}
+              userEmail={user?.email || ""}
+              canManageUsers={canManageUsers}
+              isAdmin={isAdmin}
+              onRefresh={loadCampaigns}
+              onLogout={handleLogout}
+            />
             <Megaphone className="w-6 h-6 text-primary" />
             <h1 className="text-xl sm:text-2xl font-bold">Campanhas</h1>
           </div>
