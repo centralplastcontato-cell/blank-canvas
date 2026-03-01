@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -6,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, RefreshCw, Pencil, ImagePlus, X } from "lucide-react";
+import { Loader2, Sparkles, RefreshCw, Pencil, ImagePlus, X, ZoomIn, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { CampaignDraft } from "./CampaignWizard";
 
@@ -62,6 +63,7 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const handleGenerate = async () => {
     if (!draft.description.trim()) {
@@ -232,14 +234,29 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
           Imagem (opcional)
         </Label>
         {draft.imageUrl ? (
-          <div className="relative inline-block">
-            <img src={draft.imageUrl} alt="Campaign" className="h-20 rounded-lg border object-cover shadow-sm" />
+          <div className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-muted/10 shadow-sm">
             <button
-              onClick={() => setDraft((prev) => ({ ...prev, imageUrl: null }))}
-              className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center shadow-sm hover:scale-110 transition-transform"
+              type="button"
+              onClick={() => setPreviewOpen(true)}
+              className="relative group shrink-0 rounded-lg overflow-hidden border border-border/40 shadow-sm hover:shadow-md transition-all"
             >
-              <X className="w-3 h-3" />
+              <img src={draft.imageUrl} alt="Campaign" className="h-16 w-24 object-cover" />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                <ZoomIn className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
             </button>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-foreground truncate">Imagem da campanha</p>
+              <p className="text-[11px] text-muted-foreground">Clique para visualizar</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive shrink-0"
+              onClick={() => setDraft((prev) => ({ ...prev, imageUrl: null }))}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
           </div>
         ) : (
           <label className="flex items-center gap-2.5 p-3 border border-dashed rounded-xl cursor-pointer hover:bg-muted/50 hover:border-primary/30 transition-all group">
@@ -256,6 +273,15 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
             <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
           </label>
         )}
+
+        {/* Dialog de preview da imagem */}
+        <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+          <DialogContent className="max-w-lg p-2 bg-black/90 border-none">
+            {draft.imageUrl && (
+              <img src={draft.imageUrl} alt="Preview" className="w-full h-auto rounded-lg" />
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
