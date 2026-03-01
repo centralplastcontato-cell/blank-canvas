@@ -122,19 +122,20 @@ Regras:
     const parsed = JSON.parse(toolCall.function.arguments);
 
     // Log usage to ai_usage_logs if company_id is provided
-    if (company_id && data.usage) {
+    if (company_id) {
       try {
         const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
         const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
         const sb = createClient(supabaseUrl, supabaseKey);
 
-        const promptTokens = data.usage.prompt_tokens || 0;
-        const completionTokens = data.usage.completion_tokens || 0;
-        const totalTokens = data.usage.total_tokens || promptTokens + completionTokens;
-        // Gemini Flash pricing approximation: ~$0.00001 per token
+        const promptTokens = data.usage?.prompt_tokens || 0;
+        const completionTokens = data.usage?.completion_tokens || 0;
+        const totalTokens = data.usage?.total_tokens || promptTokens + completionTokens || 500;
         const estimatedCost = totalTokens * 0.00001;
 
-        await sb.from("ai_usage_logs").insert({
+        console.log("[campaign-ai] Logging usage:", { company_id, totalTokens, hasUsage: !!data.usage });
+
+        const { error: logError } = await sb.from("ai_usage_logs").insert({
           company_id,
           function_name: "campaign-ai",
           model: "gemini-3-flash-preview",
@@ -143,9 +144,13 @@ Regras:
           total_tokens: totalTokens,
           estimated_cost_usd: estimatedCost,
         });
+
+        if (logError) console.error("[campaign-ai] Log insert error:", logError);
       } catch (logErr) {
-        console.error("Failed to log AI usage (non-blocking):", logErr);
+        console.error("[campaign-ai] Failed to log AI usage:", logErr);
       }
+    } else {
+      console.warn("[campaign-ai] No company_id provided, skipping usage log");
     }
 
     return new Response(JSON.stringify({ variations: parsed.variations }), {
