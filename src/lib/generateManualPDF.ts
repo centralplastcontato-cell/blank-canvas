@@ -847,6 +847,57 @@ function ch16(doc: jsPDF) {
   addTipBox(doc, "Revise suas boas práticas a cada trimestre. O que funciona com 50 leads por mês pode não funcionar com 200. Adapte-se conforme o volume cresce.");
 }
 
+function ch17(doc: jsPDF) {
+  addChapterTitle(doc, 17, "Campanhas de Marketing");
+
+  addParagraph(doc, "O módulo de Campanhas permite o disparo de mensagens em massa via WhatsApp para leads do seu CRM. É ideal para ações promocionais, reativação de leads frios, datas comemorativas e comunicados gerais.");
+
+  addSectionTitle(doc, "Como funciona o Wizard de Campanha");
+  addParagraph(doc, "A criação de uma campanha segue um assistente de 3 etapas simples e guiadas:");
+  addBulletList(doc, [
+    "Contexto: Defina o nome da campanha, descreva o objetivo e gere as variações de mensagem com auxílio da IA. Você também pode anexar uma imagem promocional.",
+    "Audiência: Filtre e selecione os leads que receberão a campanha usando filtros de status (Novo, Fechado, Perdido, etc.), unidade e mês de interesse.",
+    "Configuração: Revise o resumo da campanha, ajuste o intervalo entre envios (delay) e confira a prévia da mensagem antes de criar.",
+  ]);
+
+  addSectionTitle(doc, "Variações de mensagem com IA");
+  addParagraph(doc, "Para reduzir o risco de bloqueio pelo WhatsApp, o sistema gera automaticamente 5 variações da sua mensagem usando inteligência artificial. Cada destinatário recebe uma versão diferente, tornando o disparo mais natural e seguro.");
+  addBulletList(doc, [
+    "As variações mantêm o sentido original da mensagem, alterando apenas a forma de escrever.",
+    "A variável {nome} é substituída automaticamente pelo nome de cada lead.",
+    "Você pode revisar e editar cada variação antes de confirmar a campanha.",
+  ]);
+
+  addSectionTitle(doc, "Filtros de audiência");
+  addParagraph(doc, "Na etapa de Audiência, utilize os filtros para segmentar sua base de leads:");
+  addBulletList(doc, [
+    "Status: filtre por Novo, Em Atendimento, Fechado, Perdido, Sem Resposta, etc.",
+    "Unidade: selecione leads de uma ou mais unidades específicas.",
+    "Mês de interesse: filtre pelo mês em que o lead demonstrou interesse para festas.",
+  ]);
+
+  addSectionTitle(doc, "Configuração de envio");
+  addParagraph(doc, "Antes de disparar, configure os parâmetros de segurança do envio:");
+  addBulletList(doc, [
+    "Delay (intervalo): defina o tempo de espera entre cada mensagem enviada. Valores entre 45 e 120 segundos são recomendados.",
+    "Imagem anexa: se uma imagem foi adicionada na etapa de Contexto, ela será enviada junto com cada mensagem.",
+    "Prévia: confira exatamente como a mensagem aparecerá para o destinatário antes de confirmar.",
+  ]);
+
+  addSectionTitle(doc, "Acompanhamento em tempo real");
+  addParagraph(doc, "Após iniciar o envio, acompanhe o progresso diretamente na tela:");
+  addBulletList(doc, [
+    "Barra de progresso mostra a porcentagem de envios concluídos.",
+    "Status individual por destinatário: Pendente, Enviado ou Erro.",
+    "A campanha pode ser executada em segundo plano — você pode navegar para outras telas enquanto o envio continua.",
+    "Ao finalizar, um resumo mostra o total de enviados e eventuais erros.",
+  ]);
+
+  addTipBox(doc, "Use delays de pelo menos 60 segundos e sempre utilize as variações de mensagem geradas pela IA. Isso reduz significativamente o risco de bloqueio do seu número pelo WhatsApp.");
+
+  addAlertBox(doc, "Evite disparar campanhas para mais de 500 leads de uma só vez. Prefira segmentar em lotes menores para maior segurança e melhores taxas de entrega.");
+}
+
 // ── Main export ────────────────────────────────────────────────
 
 export async function generateManualPDF(companyName?: string) {
@@ -886,6 +937,7 @@ export async function generateManualPDF(companyName?: string) {
   ch14(doc);
   ch15(doc);
   ch16(doc);
+  ch17(doc);
 
   // Add footers to all pages (skip cover)
   addAllFooters(doc, 2);
