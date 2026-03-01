@@ -36,6 +36,7 @@ export interface EventData {
   end_time: string | null;
   package_name: string | null;
   event_type: string | null;
+  unit: string | null;
 }
 
 export interface Availability {
@@ -144,7 +145,7 @@ export function FreelancerSchedulesTab() {
     if (schedule.event_ids.length > 0) {
       const { data: evData } = await supabase
         .from("company_events")
-        .select("id, title, event_date, start_time, end_time, package_name, event_type")
+        .select("id, title, event_date, start_time, end_time, package_name, event_type, unit")
         .in("id", schedule.event_ids)
         .order("event_date", { ascending: true });
       const evMap: Record<string, EventData> = {};

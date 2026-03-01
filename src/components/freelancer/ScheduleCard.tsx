@@ -212,7 +212,7 @@ export function ScheduleCard({
                       <p className="text-xs text-muted-foreground">
                         {format(dateObj, "dd/MM")}
                         {ev.start_time && ` · ${ev.start_time.slice(0, 5)}`}
-                        {ev.package_name && ` · ${ev.package_name}`}
+                        {ev.unit && ` · ${ev.unit}`}
                       </p>
                     </div>
                   </div>

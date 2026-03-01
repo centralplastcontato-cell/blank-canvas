@@ -19,6 +19,7 @@ interface EventItem {
   end_time: string | null;
   package_name: string | null;
   event_type: string | null;
+  unit: string | null;
 }
 
 interface ScheduleData {
@@ -257,8 +258,8 @@ export default function PublicFreelancerSchedule() {
                         </span>
                       )}
                     </div>
-                    {ev.package_name && (
-                      <span className="inline-block mt-1 text-xs bg-muted px-2 py-0.5 rounded-full">{ev.package_name}</span>
+                    {ev.unit && (
+                      <span className="inline-block mt-1 text-xs bg-muted px-2 py-0.5 rounded-full">{ev.unit}</span>
                     )}
                   </div>
                 </label>
