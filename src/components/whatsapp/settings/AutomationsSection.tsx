@@ -575,11 +575,10 @@ export function AutomationsSection() {
     setIsSavingQuestions(true);
 
     try {
-      await supabase
-        .from("wapi_bot_questions")
-        .delete()
-        .eq("instance_id", selectedInstance.id);
+      // 1. Capture old question IDs before any mutation
+      const oldIds = botQuestions.map(q => q.id);
 
+      // 2. Insert new default questions FIRST
       const newQuestions = DEFAULT_QUESTIONS.map(q => ({
         ...q,
         instance_id: selectedInstance.id,
@@ -593,6 +592,14 @@ export function AutomationsSection() {
 
       if (error) throw error;
 
+      // 3. Only delete old questions AFTER successful insert
+      if (oldIds.length > 0) {
+        await supabase
+          .from("wapi_bot_questions")
+          .delete()
+          .in("id", oldIds);
+      }
+
       setBotQuestions(data || []);
       toast({
         title: "Perguntas restauradas",
@@ -602,7 +609,7 @@ export function AutomationsSection() {
       console.error("Error resetting questions:", error);
       toast({
         title: "Erro ao restaurar",
-        description: "Não foi possível restaurar as perguntas padrão.",
+        description: "Não foi possível restaurar as perguntas padrão. As perguntas anteriores foram mantidas.",
         variant: "destructive",
       });
     }
