@@ -12,6 +12,7 @@ import { Bot, Clock, Forward, Zap, Plus, Trash2, Phone, Shield, Beaker, Power, L
 import { LPBotSection } from "./LPBotSection";
 import { FreelancerApprovalMessageCard } from "./FreelancerApprovalMessageCard";
 import { ScheduleGroupMessageCard } from "./ScheduleGroupMessageCard";
+import { AssignmentGroupMessageCard } from "./AssignmentGroupMessageCard";
 import { GroupMessageDelayCard } from "./GroupMessageDelayCard";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { FlowListManager } from "@/components/flowbuilder/FlowListManager";
@@ -2183,6 +2184,7 @@ export function AutomationsSection() {
         <TabsContent value="gatilhos" className="space-y-6 mt-4">
           <FreelancerApprovalMessageCard />
           <ScheduleGroupMessageCard />
+          <AssignmentGroupMessageCard />
           <GroupMessageDelayCard />
         </TabsContent>
 

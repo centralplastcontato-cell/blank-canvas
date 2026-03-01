@@ -9,7 +9,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Copy, ChevronDown, ChevronUp, FileDown, Trash2, Check, MessageSquare, Pencil, Save, X, Send } from "lucide-react";
+import { Copy, ChevronDown, ChevronUp, FileDown, Trash2, Check, MessageSquare, Pencil, Save, X, Send, UserCheck } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { EventData, Availability, Assignment } from "./FreelancerSchedulesTab";
@@ -45,12 +45,14 @@ interface ScheduleCardProps {
   onRemoveEvent?: (scheduleId: string, eventId: string) => void;
   onUpdateDisplayName?: (scheduleId: string, eventId: string, displayName: string) => void;
   onSendToGroups?: () => void;
+  onSendAssignmentsToGroups?: () => void;
+  scheduleAssignmentCount?: number;
 }
 
 export function ScheduleCard({
   schedule, isExpanded, events, availability, assignments, savingAssignment, roles,
   onToggleExpand, onCopyLink, onGeneratePDF, onDelete, onToggleAssignment, onUpdateRole, onUpdateNotes,
-  onRemoveEvent, onUpdateDisplayName, onSendToGroups,
+  onRemoveEvent, onUpdateDisplayName, onSendToGroups, onSendAssignmentsToGroups, scheduleAssignmentCount,
 }: ScheduleCardProps) {
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesValue, setNotesValue] = useState(schedule.notes || "");
@@ -104,6 +106,11 @@ export function ScheduleCard({
             </p>
           </div>
           <div className="flex items-center gap-0.5">
+            {onSendAssignmentsToGroups && (scheduleAssignmentCount ?? 0) > 0 && (
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-primary hover:text-primary/80" title="Enviar escalados para grupos" onClick={e => { e.stopPropagation(); onSendAssignmentsToGroups(); }}>
+                <UserCheck className="h-3.5 w-3.5" />
+              </Button>
+            )}
             {onSendToGroups && (
               <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-emerald-600 hover:text-emerald-700" onClick={e => { e.stopPropagation(); onSendToGroups(); }}>
                 <Send className="h-3.5 w-3.5" />
