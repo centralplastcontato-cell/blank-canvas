@@ -678,21 +678,21 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
 
           {/* Type tabs */}
           <Tabs value={selectedType} onValueChange={setSelectedType}>
-            <TabsList className="grid w-full grid-cols-4 mb-3 h-9">
-              <TabsTrigger value="pdf_package" className="text-xs px-1">
-                <FileText className="w-3.5 h-3.5 sm:mr-1" />
+            <TabsList className="flex w-full mb-3 h-9 p-1">
+              <TabsTrigger value="pdf_package" className="flex-1 text-xs px-1 gap-1">
+                <FileText className="w-3.5 h-3.5 shrink-0" />
                 <span className="hidden sm:inline">PDFs</span>
               </TabsTrigger>
-              <TabsTrigger value="photo_collection" className="text-xs px-1">
-                <Images className="w-3.5 h-3.5 sm:mr-1" />
+              <TabsTrigger value="photo_collection" className="flex-1 text-xs px-1 gap-1">
+                <Images className="w-3.5 h-3.5 shrink-0" />
                 <span className="hidden sm:inline">Coleções</span>
               </TabsTrigger>
-              <TabsTrigger value="photo" className="text-xs px-1">
-                <Image className="w-3.5 h-3.5 sm:mr-1" />
+              <TabsTrigger value="photo" className="flex-1 text-xs px-1 gap-1">
+                <Image className="w-3.5 h-3.5 shrink-0" />
                 <span className="hidden sm:inline">Fotos</span>
               </TabsTrigger>
-              <TabsTrigger value="video" className="text-xs px-1">
-                <Video className="w-3.5 h-3.5 sm:mr-1" />
+              <TabsTrigger value="video" className="flex-1 text-xs px-1 gap-1">
+                <Video className="w-3.5 h-3.5 shrink-0" />
                 <span className="hidden sm:inline">Vídeos</span>
               </TabsTrigger>
             </TabsList>
