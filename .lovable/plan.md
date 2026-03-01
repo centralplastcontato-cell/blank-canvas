@@ -1,30 +1,54 @@
 
 
-# Corrigir resetQuestions() para abordagem segura
+# Corrigir: Perguntas do bot invisíveis e impossíveis de criar/restaurar
 
-## Problema
+## Problema Real
 
-A funcao `resetQuestions()` atual faz DELETE primeiro e INSERT depois. Se o INSERT falhar (timeout, erro de rede, etc.), as perguntas personalizadas do buffet sao perdidas permanentemente -- exatamente o que aconteceu com o Aventura Kids.
+O erro **não é apenas** a ordem de delete/insert. O problema principal é que a coluna `company_id` está **NULL** em todas as perguntas existentes, e o código **nunca inclui** `company_id` ao inserir perguntas.
 
-## Solucao
+A política de segurança (RLS) da tabela `wapi_bot_questions` exige que `company_id` esteja preenchido e pertença às empresas do usuário. Resultado:
 
-Inverter a ordem: inserir as novas perguntas padrao primeiro, e so apagar as antigas apos confirmacao de sucesso da insercao. Usar os IDs das perguntas antigas (capturados antes) para o DELETE seletivo.
+- **SELECT falha silenciosamente** -- retorna 0 registros (as perguntas existem no banco, mas o usuário não consegue vê-las)
+- **INSERT falha** -- a política `WITH CHECK` rejeita registros sem `company_id`
+- Por isso aparece "Nenhuma pergunta configurada" e "Erro ao restaurar"
 
-## Detalhes tecnicos
+## Solução (2 partes)
+
+### Parte 1: Corrigir os dados existentes no banco
+
+Atualizar todos os registros de `wapi_bot_questions` que têm `company_id = NULL`, preenchendo com o `company_id` correto da respectiva instância (`wapi_instances`).
+
+```sql
+UPDATE wapi_bot_questions q
+SET company_id = i.company_id
+FROM wapi_instances i
+WHERE q.instance_id = i.id
+  AND q.company_id IS NULL;
+```
+
+### Parte 2: Corrigir o código para sempre incluir `company_id`
 
 **Arquivo**: `src/components/whatsapp/settings/AutomationsSection.tsx`
 
-**Logica atual (linhas 573-611)**:
-1. DELETE todas as perguntas da instancia
-2. INSERT perguntas padrao
-3. Se o INSERT falhar, dados perdidos
+Adicionar `company_id: currentCompanyId` em **3 locais**:
 
-**Nova logica**:
-1. Capturar os IDs das perguntas atuais (`botQuestions.map(q => q.id)`)
-2. INSERT das perguntas padrao novas (com `select()` para confirmar)
-3. Se o INSERT teve sucesso, DELETE apenas os registros com os IDs antigos capturados no passo 1
-4. Se o INSERT falhar, nao apaga nada -- perguntas antigas continuam intactas
-5. Atualizar o estado local com as novas perguntas
+1. **`fetchBotQuestions`** (auto-populate, ~linha 441): ao inserir perguntas padrão automaticamente quando nenhuma existe
+2. **`resetQuestions`** (~linha 582): ao inserir perguntas padrão no reset
+3. **`saveQuestions`** (~linha 545): garantir que perguntas salvas mantenham o `company_id`
 
-Essa abordagem garante que, em caso de falha, as perguntas originais do buffet permanecem no banco.
+Em cada insert, o objeto passará a incluir:
+```typescript
+{
+  ...q,
+  instance_id: selectedInstance.id,
+  company_id: currentCompanyId,  // NOVO
+  is_active: true,
+}
+```
+
+## Resultado esperado
+
+- As perguntas existentes voltarão a aparecer imediatamente (Parte 1)
+- Novas inserções e resets funcionarão sem erro de RLS (Parte 2)
+- O Aventura Kids conseguirá acessar e editar suas perguntas normalmente
 
