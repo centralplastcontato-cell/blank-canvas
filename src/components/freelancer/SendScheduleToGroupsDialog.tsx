@@ -310,7 +310,7 @@ export function SendScheduleToGroupsDialog({
             <button
               type="button"
               onClick={() => setMinimized(true)}
-              className="absolute right-10 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              className="absolute right-11 top-4 z-10 flex items-center justify-center h-6 w-6 rounded-md bg-muted hover:bg-accent text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
               title="Minimizar"
             >
               <Minus className="h-4 w-4" />
