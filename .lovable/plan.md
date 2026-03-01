@@ -1,68 +1,44 @@
 
 
-## Cadastro e Gestao de Contatos de Clientes
+## Correcao da Rota /promo + Protecao Preventiva
 
-### Objetivo
-Criar um modulo completo para que os buffets possam cadastrar, visualizar, editar e excluir contatos de clientes diretamente na plataforma. Isso atende a sugestao recebida pelo ticket de suporte do Castelo da Diversao.
+### Problema principal
+A rota `/promo` renderiza `LandingPage` (hardcoded para Castelo da Diversao) em qualquer dominio. Aventura Kids e Planeta Divertido mostram o site do Castelo ao acessar `/promo`.
 
-### O que sera criado
+### Solucao
 
-**1. Nova tabela no banco de dados: `company_contacts`**
-- Campos: `id`, `company_id`, `name`, `phone`, `email`, `notes`, `tags` (jsonb), `created_at`, `updated_at`, `created_by`
-- RLS: usuarios da empresa podem ver/criar/editar; admins da empresa e global admins podem deletar
-- Vinculo opcional com leads existentes via campo `lead_id` (nullable)
+**1. Criar `src/pages/PromoPage.tsx`** (novo arquivo)
+Componente com deteccao de dominio, seguindo o mesmo padrao do `RootPage.tsx`:
+- Dominios do Castelo (`castelodadiversao.com.br`, `castelodadiversao.online`) e preview/localhost: renderiza o `LandingPage` estatico atual
+- Outros dominios conhecidos (aventurakids.online, buffetplanetadivertido.online): renderiza `DynamicLandingPage` com o dominio correspondente via `getKnownBuffetDomain()`
+- Dominios desconhecidos: renderiza `NotFound`
 
-**2. Nova pagina: `/contatos`**
-- Seguira o mesmo layout das outras paginas (AdminSidebar no desktop, MobileMenu no mobile)
-- Tabela responsiva com busca por nome/telefone
-- Botao para adicionar novo contato (dialog/sheet)
-- Edicao inline ou via sheet lateral
-- Exclusao com confirmacao
-- Filtro por tags
+**2. Modificar `src/App.tsx` (linha 79)**
+- Trocar `<LandingPage />` por `<PromoPage />`
+- Adicionar import do `PromoPage`
 
-**3. Navegacao**
-- Novo item no `AdminSidebar` e `MobileMenu` com icone `Contact`/`BookUser`
-- Nova rota `/contatos` no `App.tsx`
-- Controlado pelo modulo existente `crm` (ja ativo por padrao)
+**3. (Preventivo) Proteger rota `/para-buffets`**
+Adicionar guard de dominio para que paginas de marketing do Celebrei so aparecam em dominios do Hub ou preview, nao em dominios de buffets. Se acessada de um dominio de buffet, redireciona para `/`.
+
+### Analise de risco pos-correcao
+Apos essa correcao, **nenhuma outra rota** apresenta o problema de crossover entre buffets:
+- `/` ja usa `RootPage` com deteccao de dominio
+- Rotas admin usam autenticacao e CompanyContext
+- Rotas publicas usam IDs/slugs na URL
+- Rotas do Hub sao independentes
 
 ### Detalhes tecnicos
 
-**Migracao SQL:**
+O `PromoPage` tera aproximadamente 25 linhas e seguira exatamente o padrao do `RootPage`:
+
 ```text
-CREATE TABLE company_contacts (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  company_id UUID NOT NULL REFERENCES companies(id),
-  name TEXT NOT NULL,
-  phone TEXT,
-  email TEXT,
-  notes TEXT,
-  tags JSONB DEFAULT '[]',
-  lead_id UUID,
-  created_by UUID,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-ALTER TABLE company_contacts ENABLE ROW LEVEL SECURITY;
-
--- SELECT: membros da empresa + admins globais
--- INSERT: membros da empresa + admins globais
--- UPDATE: membros da empresa + admins globais
--- DELETE: admins da empresa + admins globais
+PromoPage
+  |
+  +-- isPreviewDomain() ou dominio do Castelo? --> LandingPage (promo statica)
+  |
+  +-- getKnownBuffetDomain() retorna dominio? --> DynamicLandingPage(domain)
+  |
+  +-- Dominio desconhecido --> NotFound
 ```
 
-**Arquivos a criar:**
-- `src/pages/Contatos.tsx` - Pagina principal com listagem, busca, filtros e CRUD
-- `src/components/admin/ContactFormDialog.tsx` - Dialog para criar/editar contato
-
-**Arquivos a modificar:**
-- `src/App.tsx` - Adicionar rota `/contatos`
-- `src/components/admin/AdminSidebar.tsx` - Adicionar item "Contatos" no menu (icone `BookUser`, condicionado a `modules.crm`)
-- `src/components/admin/MobileMenu.tsx` - Adicionar item "Contatos" no menu mobile e no tipo `currentPage`
-
-**Padrao de implementacao:**
-- Usa `useCurrentCompanyId()` para filtrar por empresa
-- Queries diretas ao Supabase (mesmo padrao de `LeadsTable`, `PackagesManager`)
-- Toast para feedback de acoes
-- Layout responsivo mobile-first seguindo o padrao de `Configuracoes.tsx`
-
+Para `/para-buffets`, sera adicionada uma verificacao simples no inicio do componente: se `getKnownBuffetDomain()` retorna um valor (ou seja, estamos em dominio de buffet), redireciona para `/` com `Navigate`.
