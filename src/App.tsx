@@ -36,6 +36,7 @@ import Formularios from "./pages/Formularios";
 import Avaliacoes from "./pages/Avaliacoes";
 import PreFesta from "./pages/PreFesta";
 import Campanhas from "./pages/Campanhas";
+import Contatos from "./pages/Contatos";
 
 import DynamicLandingPage from "./pages/DynamicLandingPage";
 import PublicEvaluation from "./pages/PublicEvaluation";
@@ -97,6 +98,7 @@ const App = () => (
             <Route path="/avaliacoes" element={<Avaliacoes />} />
             <Route path="/pre-festa" element={<PreFesta />} />
             <Route path="/campanhas" element={<Campanhas />} />
+            <Route path="/contatos" element={<Contatos />} />
             
             {/* Party control hub */}
             <Route path="/festa/:eventId" element={<PublicPartyControl />} />
