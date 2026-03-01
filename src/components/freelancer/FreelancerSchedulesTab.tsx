@@ -26,6 +26,7 @@ interface Schedule {
   created_at: string;
   notes: string | null;
   event_display_names?: Record<string, string>;
+  event_notes?: Record<string, string>;
 }
 
 export interface EventData {
@@ -402,10 +403,15 @@ export function FreelancerSchedulesTab() {
                     onToggleAssignment={toggleAssignment}
                     onUpdateRole={updateRole}
                     freelancerRoles={freelancerRoles}
-                    onUpdateNotes={async (id, notes) => {
-                      await supabase.from("freelancer_schedules").update({ notes: notes || null } as any).eq("id", id);
-                      setSchedules(prev => prev.map(s => s.id === id ? { ...s, notes: notes || null } : s));
-                      toast({ title: "Observações atualizadas" });
+                    onUpdateNotes={async (scheduleId, eventId, notes) => {
+                      const schedule = schedules.find(s => s.id === scheduleId);
+                      const currentEventNotes = schedule?.event_notes || {};
+                      const updatedEventNotes = { ...currentEventNotes, [eventId]: notes || "" };
+                      // Remove empty entries
+                      if (!notes) delete updatedEventNotes[eventId];
+                      await supabase.from("freelancer_schedules").update({ event_notes: updatedEventNotes } as any).eq("id", scheduleId);
+                      setSchedules(prev => prev.map(s => s.id === scheduleId ? { ...s, event_notes: updatedEventNotes } : s));
+                      toast({ title: "Observação da festa atualizada" });
                     }}
                     onRemoveEvent={removeEventFromSchedule}
                     onUpdateDisplayName={updateDisplayName}

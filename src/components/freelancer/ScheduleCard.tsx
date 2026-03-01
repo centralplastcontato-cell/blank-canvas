@@ -26,6 +26,7 @@ interface Schedule {
   created_at: string;
   notes: string | null;
   event_display_names?: Record<string, string>;
+  event_notes?: Record<string, string>;
 }
 
 interface ScheduleCardProps {
@@ -42,7 +43,7 @@ interface ScheduleCardProps {
   onDelete: () => void;
   onToggleAssignment: (scheduleId: string, eventId: string, freelancerName: string, role: string) => void;
   onUpdateRole: (assignmentId: string, newRole: string) => void;
-  onUpdateNotes: (scheduleId: string, notes: string) => void;
+  onUpdateNotes: (scheduleId: string, eventId: string, notes: string) => void;
   onRemoveEvent?: (scheduleId: string, eventId: string) => void;
   onUpdateDisplayName?: (scheduleId: string, eventId: string, displayName: string) => void;
   onSendToGroups?: () => void;
@@ -57,14 +58,15 @@ export function ScheduleCard({
   onRemoveEvent, onUpdateDisplayName, onSendToGroups, onSendAssignmentsToGroups, scheduleAssignmentCount,
   freelancerRoles = {},
 }: ScheduleCardProps) {
-  const [editingNotes, setEditingNotes] = useState(false);
-  const [notesValue, setNotesValue] = useState(schedule.notes || "");
+  const [editingNotesFor, setEditingNotesFor] = useState<string | null>(null);
+  const [notesValue, setNotesValue] = useState("");
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null);
   const startStr = format(parseISO(schedule.start_date), "dd/MM", { locale: ptBR });
   const endStr = format(parseISO(schedule.end_date), "dd/MM", { locale: ptBR });
   const availCount = availability.filter(a => a.schedule_id === schedule.id).length;
   const assignCount = assignments.filter(a => a.schedule_id === schedule.id).length;
   const displayNames = schedule.event_display_names || {};
+  const eventNotes = schedule.event_notes || {};
 
   const getGenericName = (ev: EventData) => {
     const dateObj = parseISO(ev.event_date);
@@ -76,7 +78,7 @@ export function ScheduleCard({
   const getDisplayName = (eventId: string, ev: EventData) => {
     const custom = displayNames[eventId];
     if (custom) return custom;
-    return ev.title; // default: show host name
+    return ev.title;
   };
 
   const isGenericMode = (eventId: string, ev: EventData) => {
@@ -88,7 +90,6 @@ export function ScheduleCard({
     <Card className={`transition-all duration-200 ${isExpanded ? "shadow-md border-primary/20 ring-1 ring-primary/5" : "hover:shadow-sm"}`}>
       <CardHeader className="cursor-pointer pb-3" onClick={onToggleExpand}>
         <div className="space-y-2">
-          {/* Row 1: Title + badge + chevron */}
           <div className="flex items-start justify-between gap-2">
             <CardTitle className="text-base flex items-center gap-2 flex-wrap">
               <div className="h-2 w-2 rounded-full bg-primary shrink-0 mt-1.5" />
@@ -104,7 +105,6 @@ export function ScheduleCard({
             </div>
           </div>
 
-          {/* Row 2: Metadata + action icons */}
           <div className="flex items-center justify-between gap-2 pl-4">
             <p className="text-sm text-muted-foreground">
               {startStr} a {endStr} · {schedule.event_ids.length} festa(s)
@@ -142,44 +142,6 @@ export function ScheduleCard({
 
       {isExpanded && (
         <CardContent className="pt-0 space-y-5">
-          {/* Notes section */}
-          <div className="border-l-4 border-l-amber-400/60 rounded-r-xl bg-amber-50/50 dark:bg-amber-950/10 p-3.5 space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-[11px] font-semibold tracking-[0.18em] uppercase text-amber-700/70 dark:text-amber-400/70 flex items-center gap-1.5">
-                <MessageSquare className="h-3.5 w-3.5" />
-                Observações
-              </label>
-              {editingNotes ? (
-                <Button variant="secondary" size="sm" className="h-7 text-xs px-3 gap-1.5 rounded-full" onClick={() => {
-                  onUpdateNotes(schedule.id, notesValue);
-                  setEditingNotes(false);
-                }}>
-                  <Save className="h-3 w-3" /> Salvar
-                </Button>
-              ) : (
-                <Button variant="ghost" size="sm" className="h-7 text-xs px-2.5 gap-1.5 rounded-full" onClick={() => {
-                  setNotesValue(schedule.notes || "");
-                  setEditingNotes(true);
-                }}>
-                  <Pencil className="h-3 w-3" /> Editar
-                </Button>
-              )}
-            </div>
-            {editingNotes ? (
-              <Textarea
-                value={notesValue}
-                onChange={e => setNotesValue(e.target.value)}
-                placeholder="Ex: Chegar 30min antes, usar camiseta preta..."
-                className="min-h-[60px] resize-none text-sm bg-background"
-                maxLength={500}
-              />
-            ) : (
-              <p className={`text-sm whitespace-pre-wrap ${schedule.notes ? "text-foreground/80" : "text-muted-foreground/50 italic"}`}>
-                {schedule.notes || "Nenhuma observação adicionada."}
-              </p>
-            )}
-          </div>
-
           {/* Divider label */}
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
@@ -198,6 +160,8 @@ export function ScheduleCard({
             const assignedForEvent = assignments.filter(a => a.schedule_id === schedule.id && a.event_id === eventId);
             const displayName = getDisplayName(eventId, ev);
             const genericMode = isGenericMode(eventId, ev);
+            const currentNote = eventNotes[eventId] || "";
+            const isEditingNote = editingNotesFor === eventId;
 
             return (
               <div key={eventId} className="border rounded-xl p-4 space-y-3 bg-card shadow-sm">
@@ -217,7 +181,6 @@ export function ScheduleCard({
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {/* Display name toggle */}
                     {onUpdateDisplayName && (
                       <Select
                         value={genericMode ? "generic" : "host"}
@@ -241,7 +204,6 @@ export function ScheduleCard({
                     >
                       {availForEvent.length} disponível(is)
                     </Badge>
-                    {/* Remove event button */}
                     {onRemoveEvent && (
                       <Button
                         variant="ghost"
@@ -253,6 +215,44 @@ export function ScheduleCard({
                       </Button>
                     )}
                   </div>
+                </div>
+
+                {/* Per-event notes */}
+                <div className="border-l-4 border-l-amber-400/60 rounded-r-lg bg-amber-50/50 dark:bg-amber-950/10 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-semibold tracking-[0.15em] uppercase text-amber-700/70 dark:text-amber-400/70 flex items-center gap-1">
+                      <MessageSquare className="h-3 w-3" />
+                      Observação
+                    </label>
+                    {isEditingNote ? (
+                      <Button variant="secondary" size="sm" className="h-6 text-[10px] px-2.5 gap-1 rounded-full" onClick={() => {
+                        onUpdateNotes(schedule.id, eventId, notesValue);
+                        setEditingNotesFor(null);
+                      }}>
+                        <Save className="h-3 w-3" /> Salvar
+                      </Button>
+                    ) : (
+                      <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1 rounded-full" onClick={() => {
+                        setNotesValue(currentNote);
+                        setEditingNotesFor(eventId);
+                      }}>
+                        <Pencil className="h-3 w-3" /> Editar
+                      </Button>
+                    )}
+                  </div>
+                  {isEditingNote ? (
+                    <Textarea
+                      value={notesValue}
+                      onChange={e => setNotesValue(e.target.value)}
+                      placeholder="Ex: Chegar 30min antes, usar camiseta preta..."
+                      className="min-h-[50px] resize-none text-xs bg-background"
+                      maxLength={500}
+                    />
+                  ) : (
+                    <p className={`text-xs whitespace-pre-wrap ${currentNote ? "text-foreground/80" : "text-muted-foreground/50 italic"}`}>
+                      {currentNote || "Sem observação."}
+                    </p>
+                  )}
                 </div>
 
                 {availForEvent.length > 0 && (

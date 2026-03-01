@@ -29,6 +29,7 @@ interface ScheduleData {
   end_date: string;
   event_ids: string[];
   notes: string | null;
+  event_notes?: Record<string, string>;
   event_display_names?: Record<string, string>;
 }
 
