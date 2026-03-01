@@ -20,7 +20,7 @@ import {
   Image as ImageIcon, Mic, Paperclip, Loader2, Square, X, Pause, Play,
   Users, ArrowRightLeft, Trash2, Eraser,
   CalendarCheck, Briefcase, FileCheck, ArrowDown, Video,
-  Pencil, Copy, ChevronDown, Download, Pin, PinOff, Reply
+  Pencil, Copy, ChevronDown, ChevronUp, Download, Pin, PinOff, Reply
 } from "lucide-react";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { LinkPreviewCard, extractFirstUrl } from "@/components/whatsapp/LinkPreviewCard";
@@ -258,6 +258,54 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   // Reply (quote) state
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   
+  // Message search state
+  const [messageSearchActive, setMessageSearchActive] = useState(false);
+  const [messageSearchQuery, setMessageSearchQuery] = useState("");
+  const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
+  const messageSearchInputRef = useRef<HTMLInputElement>(null);
+  
+  const messageSearchResults = messageSearchQuery.length >= 2
+    ? messages.filter(m => m.content && m.content.toLowerCase().includes(messageSearchQuery.toLowerCase())).map(m => m.id)
+    : [];
+  
+  // Clear message search when conversation changes
+  useEffect(() => {
+    setMessageSearchActive(false);
+    setMessageSearchQuery("");
+    setCurrentSearchIndex(0);
+  }, [selectedConversation?.id]);
+
+  // Navigate search results
+  const navigateSearchResult = useCallback((direction: 'prev' | 'next') => {
+    if (messageSearchResults.length === 0) return;
+    const newIndex = direction === 'next'
+      ? (currentSearchIndex + 1) % messageSearchResults.length
+      : (currentSearchIndex - 1 + messageSearchResults.length) % messageSearchResults.length;
+    setCurrentSearchIndex(newIndex);
+    const el = document.getElementById(`msg-${messageSearchResults[newIndex]}`);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [messageSearchResults, currentSearchIndex]);
+
+  // Auto-scroll to first result when query changes
+  useEffect(() => {
+    if (messageSearchResults.length > 0) {
+      setCurrentSearchIndex(0);
+      const el = document.getElementById(`msg-${messageSearchResults[0]}`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [messageSearchQuery]);
+
+  const openMessageSearch = useCallback(() => {
+    setMessageSearchActive(true);
+    setTimeout(() => messageSearchInputRef.current?.focus(), 100);
+  }, []);
+
+  const closeMessageSearch = useCallback(() => {
+    setMessageSearchActive(false);
+    setMessageSearchQuery("");
+    setCurrentSearchIndex(0);
+  }, []);
+
   const [mobileStatusExpanded, setMobileStatusExpanded] = useState(false);
   
   // Undo send state
@@ -3715,6 +3763,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
+                        onClick={openMessageSearch}
+                        title="Buscar nas mensagens"
+                      >
+                        <Search className="w-4 h-4 text-muted-foreground" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
                         onClick={() => toggleConversationClosed(selectedConversation)}
                         title={selectedConversation.is_closed ? "Reabrir conversa" : "Encerrar conversa"}
                       >
@@ -3727,6 +3784,39 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                       </Button>
                     </div>
                   </div>
+
+                  {/* Message Search Bar - Desktop */}
+                  {messageSearchActive && (
+                    <div className="px-3 py-2 border-b border-border/40 bg-muted/30 flex items-center gap-2 shrink-0">
+                      <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <Input
+                        ref={messageSearchInputRef}
+                        placeholder="Buscar nas mensagens..."
+                        value={messageSearchQuery}
+                        onChange={(e) => setMessageSearchQuery(e.target.value)}
+                        className="h-8 text-sm bg-background/80 border-border/60"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') navigateSearchResult(e.shiftKey ? 'prev' : 'next');
+                          if (e.key === 'Escape') closeMessageSearch();
+                        }}
+                      />
+                      {messageSearchResults.length > 0 && (
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {currentSearchIndex + 1}/{messageSearchResults.length}
+                        </span>
+                      )}
+                      <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => navigateSearchResult('prev')} disabled={messageSearchResults.length === 0}>
+                        <ChevronUp className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => navigateSearchResult('next')} disabled={messageSearchResults.length === 0}>
+                        <ChevronDown className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={closeMessageSearch}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
+
 
                   {/* Lead Classification Panel - Always visible */}
                   <div className="border-b border-border/40 bg-muted/30 px-3 py-2 shrink-0 overflow-hidden">
@@ -3912,7 +4002,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                           messages.map((msg, idx) => {
                             const showDateSep = idx === 0 || getDateKey(msg.timestamp) !== getDateKey(messages[idx - 1].timestamp);
                             return (
-                            <div key={msg.id} id={`msg-${msg.id}`}>
+                            <div key={msg.id} id={`msg-${msg.id}`} className={cn(
+                              messageSearchResults.includes(msg.id) && "ring-2 ring-primary/50 rounded-xl",
+                              messageSearchResults[currentSearchIndex] === msg.id && "ring-2 ring-primary bg-primary/5 rounded-xl"
+                            )}>
                             {showDateSep && (
                               <div className="flex justify-center my-3">
                                 <span className="bg-muted text-muted-foreground text-xs px-3 py-1 rounded-md shadow-sm font-medium">
@@ -4626,8 +4719,49 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         <Star className="w-4 h-4 text-muted-foreground" />
                       )}
                     </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0"
+                      onClick={openMessageSearch}
+                      title="Buscar nas mensagens"
+                    >
+                      <Search className="w-4 h-4 text-muted-foreground" />
+                    </Button>
                   </div>
                 </div>
+
+                {/* Message Search Bar - Mobile */}
+                {messageSearchActive && (
+                  <div className="px-3 py-2 border-b bg-muted/30 flex items-center gap-2 shrink-0">
+                    <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <Input
+                      ref={messageSearchInputRef}
+                      placeholder="Buscar nas mensagens..."
+                      value={messageSearchQuery}
+                      onChange={(e) => setMessageSearchQuery(e.target.value)}
+                      className="h-8 text-sm bg-background/80 border-border/60"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') navigateSearchResult(e.shiftKey ? 'prev' : 'next');
+                        if (e.key === 'Escape') closeMessageSearch();
+                      }}
+                    />
+                    {messageSearchResults.length > 0 && (
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                        {currentSearchIndex + 1}/{messageSearchResults.length}
+                      </span>
+                    )}
+                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => navigateSearchResult('prev')} disabled={messageSearchResults.length === 0}>
+                      <ChevronUp className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => navigateSearchResult('next')} disabled={messageSearchResults.length === 0}>
+                      <ChevronDown className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={closeMessageSearch}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
 
                 {/* Mobile Lead Classification Panel - collapsible */}
                 <div className="border-b bg-card/50 shrink-0">
@@ -4820,7 +4954,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                       messages.map((msg, idx) => {
                         const showDateSep = idx === 0 || getDateKey(msg.timestamp) !== getDateKey(messages[idx - 1].timestamp);
                         return (
-                        <div key={msg.id} id={`msg-${msg.id}`}>
+                        <div key={msg.id} id={`msg-${msg.id}`} className={cn(
+                          messageSearchResults.includes(msg.id) && "ring-2 ring-primary/50 rounded-lg",
+                          messageSearchResults[currentSearchIndex] === msg.id && "ring-2 ring-primary bg-primary/5 rounded-lg"
+                        )}>
                         {showDateSep && (
                           <div className="flex justify-center my-3">
                             <span className="bg-muted text-muted-foreground text-xs px-3 py-1 rounded-md shadow-sm font-medium">
