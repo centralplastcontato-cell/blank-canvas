@@ -124,7 +124,7 @@ export default function Contatos() {
                 isOpen={mobileMenuOpen}
                 onOpenChange={setMobileMenuOpen}
                 trigger={<Button variant="ghost" size="icon"><Menu className="h-5 w-5" /></Button>}
-                currentPage="contatos"
+                currentPage="atendimento"
                 userName={userName}
                 userEmail={userEmail}
                 userAvatar={userAvatar}
