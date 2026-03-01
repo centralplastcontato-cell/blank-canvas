@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.rescue-orphan-leads]
 verify_jwt = false
+
+[functions.support-chat]
+verify_jwt = false

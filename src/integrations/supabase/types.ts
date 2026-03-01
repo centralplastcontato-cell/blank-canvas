@@ -2606,6 +2606,80 @@ export type Database = {
           },
         ]
       }
+      support_tickets: {
+        Row: {
+          ai_classification: string | null
+          category: string
+          company_id: string | null
+          console_errors: Json | null
+          context_data: Json | null
+          conversation_history: Json | null
+          created_at: string
+          description: string
+          id: string
+          page_url: string | null
+          priority: string
+          resolved_at: string | null
+          status: string
+          subject: string
+          updated_at: string
+          user_agent: string | null
+          user_email: string | null
+          user_id: string
+          user_name: string | null
+        }
+        Insert: {
+          ai_classification?: string | null
+          category?: string
+          company_id?: string | null
+          console_errors?: Json | null
+          context_data?: Json | null
+          conversation_history?: Json | null
+          created_at?: string
+          description: string
+          id?: string
+          page_url?: string | null
+          priority?: string
+          resolved_at?: string | null
+          status?: string
+          subject: string
+          updated_at?: string
+          user_agent?: string | null
+          user_email?: string | null
+          user_id: string
+          user_name?: string | null
+        }
+        Update: {
+          ai_classification?: string | null
+          category?: string
+          company_id?: string | null
+          console_errors?: Json | null
+          context_data?: Json | null
+          conversation_history?: Json | null
+          created_at?: string
+          description?: string
+          id?: string
+          page_url?: string | null
+          priority?: string
+          resolved_at?: string | null
+          status?: string
+          subject?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string
+          user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       training_lessons: {
         Row: {
           category: string | null
