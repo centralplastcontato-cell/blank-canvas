@@ -204,7 +204,7 @@ function MateriaisContent({ userId }: { userId: string }) {
   }).length;
 
   return (
-    <div className="space-y-4 overflow-hidden">
+    <div className="space-y-4 min-w-0 overflow-hidden">
       {/* Filters & Summary */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
@@ -281,7 +281,7 @@ function MaterialCard({
         : "*/*";
 
   return (
-    <Card className={`transition-all ${isBroken ? "border-destructive/50 bg-destructive/5" : ""}`}>
+    <Card className={`transition-all overflow-hidden min-w-0 ${isBroken ? "border-destructive/50 bg-destructive/5" : ""}`}>
       <CardContent className="p-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
@@ -339,7 +339,7 @@ function MaterialCard({
           {uploading ? (
             <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Enviando...</>
           ) : (
-            <><Upload className="h-4 w-4 mr-2" /> {isBroken ? "Enviar arquivo" : "Substituir arquivo"}</>
+            <><Upload className="h-4 w-4 mr-2" /> {isBroken ? <>Enviar<span className="hidden sm:inline"> arquivo</span></> : <>Substituir<span className="hidden sm:inline"> arquivo</span></>}</>
           )}
         </Button>
       </CardContent>
