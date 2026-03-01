@@ -13,6 +13,7 @@ import { CreateScheduleDialog } from "./CreateScheduleDialog";
 import { generateSchedulePDF } from "./SchedulePDFGenerator";
 import { ScheduleCard } from "./ScheduleCard";
 import { SendScheduleToGroupsDialog } from "./SendScheduleToGroupsDialog";
+import { SendAssignmentsToGroupsDialog } from "./SendAssignmentsToGroupsDialog";
 
 interface Schedule {
   id: string;
@@ -70,6 +71,7 @@ export function FreelancerSchedulesTab() {
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [sendToGroupsSchedule, setSendToGroupsSchedule] = useState<Schedule | null>(null);
+  const [sendAssignmentsSchedule, setSendAssignmentsSchedule] = useState<Schedule | null>(null);
 
   const fetchSchedules = async () => {
     if (!companyId) return;
@@ -379,6 +381,8 @@ export function FreelancerSchedulesTab() {
                     onRemoveEvent={removeEventFromSchedule}
                     onUpdateDisplayName={updateDisplayName}
                     onSendToGroups={() => setSendToGroupsSchedule(schedule)}
+                    onSendAssignmentsToGroups={() => setSendAssignmentsSchedule(schedule)}
+                    scheduleAssignmentCount={assignments.filter(a => a.schedule_id === schedule.id).length}
                     roles={ROLES}
                   />
                 ))}
@@ -411,6 +415,17 @@ export function FreelancerSchedulesTab() {
           companyId={companyId}
           companySlug={currentCompany?.slug}
           customDomain={currentCompany?.custom_domain}
+        />
+      )}
+
+      {sendAssignmentsSchedule && companyId && (
+        <SendAssignmentsToGroupsDialog
+          open={!!sendAssignmentsSchedule}
+          onOpenChange={(v) => { if (!v) setSendAssignmentsSchedule(null); }}
+          schedule={sendAssignmentsSchedule}
+          companyId={companyId}
+          events={events}
+          assignments={assignments}
         />
       )}
     </div>
