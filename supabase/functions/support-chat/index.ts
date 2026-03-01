@@ -126,6 +126,23 @@ serve(async (req) => {
       throw new Error("OPENAI_API_KEY is not configured");
     }
 
+    // Get user from auth header
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const sb = createClient(supabaseUrl, supabaseKey);
+
+    // Extract user from JWT
+    let userId: string | null = null;
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader) {
+      const anonClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: { user } } = await anonClient.auth.getUser();
+      userId = user?.id || null;
+    }
+
     const contextInfo = context
       ? `\n\n## Contexto do Usuário\n- Página: ${context.page_url || "N/A"}\n- Empresa: ${context.company_name || "N/A"}\n- Role: ${context.role || "N/A"}\n- Navegador: ${context.user_agent || "N/A"}`
       : "";
@@ -242,13 +259,33 @@ Coloque createTicket=true quando:
     const usage = data.usage;
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
 
+    let parsed: {
+      message: string;
+      createTicket: boolean;
+      subject?: string;
+      priority?: string;
+      category?: string;
+    };
+
+    if (toolCall?.function?.arguments) {
+      parsed = JSON.parse(toolCall.function.arguments);
+    } else {
+      const content = data.choices?.[0]?.message?.content || "";
+      try {
+        parsed = JSON.parse(content);
+      } catch {
+        parsed = {
+          message: content || "Desculpe, não consegui processar sua mensagem. Tente novamente.",
+          createTicket: false,
+          priority: "media",
+          category: "duvida",
+        };
+      }
+    }
+
     // Log usage to ai_usage_logs
     if (usage && company_id) {
       try {
-        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-        const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-        const sb = createClient(supabaseUrl, supabaseKey);
-
         const promptTokens = usage.prompt_tokens || 0;
         const completionTokens = usage.completion_tokens || 0;
         const totalTokens = usage.total_tokens || 0;
@@ -268,33 +305,47 @@ Coloque createTicket=true quando:
       }
     }
 
-    if (toolCall?.function?.arguments) {
-      const parsed = JSON.parse(toolCall.function.arguments);
-      return new Response(JSON.stringify(parsed), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // SERVER-SIDE TICKET CREATION using service role (bypasses RLS)
+    let ticketCreated = false;
+    if (parsed.createTicket && userId) {
+      try {
+        const lastUserMsg = [...messages].reverse().find((m: { role: string }) => m.role === "user");
+        const { error: ticketError } = await sb.from("support_tickets").insert({
+          company_id: company_id || null,
+          user_id: userId,
+          user_name: context?.user_name || null,
+          user_email: context?.user_email || null,
+          subject: parsed.subject || "Ticket de suporte",
+          description: lastUserMsg?.content || "",
+          category: parsed.category || "duvida",
+          page_url: context?.page_url || null,
+          user_agent: context?.user_agent || null,
+          console_errors: context?.console_errors || [],
+          context_data: {
+            company_name: context?.company_name || null,
+            role: context?.role || null,
+          },
+          priority: parsed.priority || "media",
+          ai_classification: parsed.category || null,
+          conversation_history: messages,
+        });
+
+        if (ticketError) {
+          console.error("Ticket creation error:", JSON.stringify(ticketError));
+        } else {
+          ticketCreated = true;
+          console.log("Ticket created successfully for user", userId);
+        }
+      } catch (e) {
+        console.error("Error creating ticket:", e);
+      }
+    } else if (parsed.createTicket && !userId) {
+      console.error("Cannot create ticket: no userId from auth header");
     }
 
-    // Fallback: try to parse content directly
-    const content = data.choices?.[0]?.message?.content || "";
-    try {
-      const parsed = JSON.parse(content);
-      return new Response(JSON.stringify(parsed), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    } catch {
-      return new Response(
-        JSON.stringify({
-          message: content || "Desculpe, não consegui processar sua mensagem. Tente novamente.",
-          createTicket: false,
-          priority: "media",
-          category: "duvida",
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
+    return new Response(JSON.stringify({ ...parsed, ticketCreated }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (e) {
     console.error("support-chat error:", e);
     return new Response(

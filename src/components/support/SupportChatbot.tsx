@@ -133,6 +133,7 @@ export function SupportChatbot() {
         subject?: string;
         priority?: string;
         category?: string;
+        ticketCreated?: boolean;
         error?: string;
       };
 
@@ -140,39 +141,7 @@ export function SupportChatbot() {
         throw new Error(aiResponse.error);
       }
 
-      let ticketCreated = false;
-
-      if (aiResponse.createTicket && session?.user?.id) {
-        try {
-          const { error: ticketError } = await supabase.from("support_tickets").insert({
-            company_id: context.company_id,
-            user_id: session.user.id,
-            user_name: context.user_name,
-            user_email: context.user_email,
-            subject: aiResponse.subject || "Ticket de suporte",
-            description: userMsg.content,
-            category: aiResponse.category || "duvida",
-            page_url: context.page_url,
-            user_agent: context.user_agent,
-            console_errors: context.console_errors,
-            context_data: {
-              company_name: context.company_name,
-              role: context.role,
-            },
-            priority: aiResponse.priority || "media",
-            ai_classification: aiResponse.category,
-            conversation_history: allMessages,
-          });
-
-          if (!ticketError) {
-            ticketCreated = true;
-          } else {
-            console.error("Ticket creation error:", ticketError);
-          }
-        } catch (e) {
-          console.error("Error creating ticket:", e);
-        }
-      }
+      const ticketCreated = aiResponse.ticketCreated || false;
 
       const categoryEmoji = aiResponse.category === "bug" ? "🐛" : aiResponse.category === "sugestao" ? "💡" : "";
       const ticketMsg = ticketCreated
