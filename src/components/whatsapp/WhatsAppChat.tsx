@@ -882,8 +882,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             // Reduced debounce for full refresh - only as safety net
             if (debounceTimer) clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
-              fetchConversations();
-            }, 3000);
+              fetchConversations(undefined, true);
+            }, 10000);
           }
         )
         .subscribe();
@@ -1280,7 +1280,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     }
   };
 
-  const fetchConversations = async (selectPhone?: string) => {
+  const fetchConversations = async (selectPhone?: string, skipLeadRefresh?: boolean) => {
     if (!selectedInstance) return;
 
     // Optimized: Select only necessary columns instead of "*"
@@ -1312,14 +1312,30 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         .filter((id): id is string => id !== null);
       
       if (leadIds.length > 0) {
-        // Fetch all linked leads for the conversation cards
-        const { data: allLeads } = await supabase
-          .from("campaign_leads")
-          .select("id, name, whatsapp, unit, status, month, day_of_month, day_preference, guests, observacoes, created_at, responsavel_id, campaign_name")
-          .in("id", leadIds);
-        
-        if (allLeads) {
-          // Create a map of conversation_id -> lead
+        // On realtime refresh (skipLeadRefresh), only fetch leads not already cached
+        const idsToFetch = skipLeadRefresh
+          ? leadIds.filter(id => !Object.values(conversationLeadsMap).some(l => l?.id === id))
+          : leadIds;
+
+        let allLeads: Lead[] = [];
+
+        if (!skipLeadRefresh || idsToFetch.length > 0) {
+          const fetchIds = skipLeadRefresh ? idsToFetch : leadIds;
+          const { data: freshLeads } = await supabase
+            .from("campaign_leads")
+            .select("id, name, whatsapp, unit, status, month, day_of_month, day_preference, guests, observacoes, created_at, responsavel_id, campaign_name")
+            .in("id", fetchIds);
+          if (freshLeads) allLeads = freshLeads as Lead[];
+        }
+
+        // Merge with existing cached leads when doing partial refresh
+        if (skipLeadRefresh) {
+          const cachedLeads = Object.values(conversationLeadsMap).filter((l): l is Lead => l !== null);
+          const freshIds = new Set(allLeads.map(l => l.id));
+          cachedLeads.forEach(l => { if (!freshIds.has(l.id) && leadIds.includes(l.id)) allLeads.push(l); });
+        }
+
+        if (allLeads.length > 0) {
           const leadsMap: Record<string, Lead | null> = {};
           const closedLeadIds = new Set<string>();
           const oeLeadIds = new Set<string>();
@@ -1329,7 +1345,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             if (lead.status === 'orcamento_enviado') oeLeadIds.add(lead.id);
           });
           
-          // Map leads to conversations
           data.forEach((conv: Conversation) => {
             if (conv.lead_id) {
               const lead = allLeads.find(l => l.id === conv.lead_id);
@@ -1339,7 +1354,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           
           setConversationLeadsMap(leadsMap);
           
-          // Set closed lead conversation IDs
           const closedConvIds = new Set(
             data
               .filter((conv: Conversation) => conv.lead_id && closedLeadIds.has(conv.lead_id))
@@ -1347,7 +1361,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           );
           setClosedLeadConversationIds(closedConvIds);
           
-          // Set O.E lead conversation IDs
           const oeConvIds = new Set(
             data
               .filter((conv: Conversation) => conv.lead_id && oeLeadIds.has(conv.lead_id))
