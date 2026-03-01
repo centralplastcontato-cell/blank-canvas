@@ -11,6 +11,7 @@ import {
   FolderOpen,
   GraduationCap,
   Megaphone,
+  BookUser,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,7 +30,7 @@ interface MobileMenuProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   trigger: React.ReactNode;
-  currentPage: "atendimento" | "configuracoes" | "users" | "whatsapp" | "inteligencia" | "agenda" | "avaliacoes" | "prefesta" | "formularios" | "perfil" | "treinamento";
+  currentPage: "atendimento" | "configuracoes" | "users" | "whatsapp" | "inteligencia" | "agenda" | "avaliacoes" | "prefesta" | "formularios" | "perfil" | "treinamento" | "contatos";
   userName: string;
   userEmail: string;
   userAvatar?: string | null;
@@ -99,6 +100,13 @@ export function MobileMenu({
       icon: Megaphone,
       path: "/campanhas",
       show: !!modules.campanhas,
+    },
+    {
+      id: "contatos",
+      label: "Contatos",
+      icon: BookUser,
+      path: "/contatos",
+      show: true,
     },
     {
       id: "configuracoes",
