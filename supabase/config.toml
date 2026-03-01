@@ -51,5 +51,8 @@ verify_jwt = false
 [functions.support-chat]
 verify_jwt = false
 
+[functions.migrate-castelo-materials]
+verify_jwt = false
+
 [functions.campaign-ai]
 verify_jwt = false
