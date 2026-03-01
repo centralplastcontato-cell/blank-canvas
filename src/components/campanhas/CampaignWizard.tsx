@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { CampaignContextStep } from "./CampaignContextStep";
 import { CampaignAudienceStep } from "./CampaignAudienceStep";
 import { CampaignConfigStep } from "./CampaignConfigStep";
-import { ChevronLeft, ChevronRight, Loader2, Megaphone, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Megaphone, Check, Info } from "lucide-react";
 import { toast } from "sonner";
 
 interface CampaignWizardProps {
@@ -36,6 +36,12 @@ const STEPS = [
   { label: "Contexto", description: "Mensagem & IA" },
   { label: "Audiência", description: "Selecionar leads" },
   { label: "Configuração", description: "Revisar & enviar" },
+];
+
+const STEP_DESCRIPTIONS = [
+  "Escolha um nome para sua campanha, descreva o objetivo e gere as variações de mensagem com a IA. Você também pode anexar uma imagem.",
+  "Filtre e selecione os leads que receberão a campanha. Use os filtros de status, unidade e mês para refinar sua lista.",
+  "Revise o resumo da campanha, ajuste o intervalo entre envios e confira a prévia da mensagem antes de criar.",
 ];
 
 export function CampaignWizard({ open, onOpenChange, companyId, companyName, onCampaignCreated }: CampaignWizardProps) {
@@ -154,6 +160,12 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
               </div>
             ))}
           </div>
+
+          {/* Step description */}
+          <p className="flex items-start gap-1.5 text-xs text-muted-foreground pb-3">
+            <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+            {STEP_DESCRIPTIONS[step]}
+          </p>
         </div>
 
         {/* Content area */}
