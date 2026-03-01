@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { context, companyName } = await req.json();
+    const { context, companyName, company_id } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
@@ -119,6 +120,33 @@ Regras:
     }
 
     const parsed = JSON.parse(toolCall.function.arguments);
+
+    // Log usage to ai_usage_logs if company_id is provided
+    if (company_id && data.usage) {
+      try {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const sb = createClient(supabaseUrl, supabaseKey);
+
+        const promptTokens = data.usage.prompt_tokens || 0;
+        const completionTokens = data.usage.completion_tokens || 0;
+        const totalTokens = data.usage.total_tokens || promptTokens + completionTokens;
+        // Gemini Flash pricing approximation: ~$0.00001 per token
+        const estimatedCost = totalTokens * 0.00001;
+
+        await sb.from("ai_usage_logs").insert({
+          company_id,
+          function_name: "campaign-ai",
+          model: "gemini-3-flash-preview",
+          prompt_tokens: promptTokens,
+          completion_tokens: completionTokens,
+          total_tokens: totalTokens,
+          estimated_cost_usd: estimatedCost,
+        });
+      } catch (logErr) {
+        console.error("Failed to log AI usage (non-blocking):", logErr);
+      }
+    }
 
     return new Response(JSON.stringify({ variations: parsed.variations }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
