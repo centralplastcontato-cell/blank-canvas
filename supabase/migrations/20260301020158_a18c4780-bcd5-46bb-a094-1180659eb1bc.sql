@@ -1,0 +1,1 @@
+ALTER TABLE public.freelancer_schedules ADD COLUMN event_notes jsonb DEFAULT '{}'::jsonb;

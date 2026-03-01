@@ -33,6 +33,7 @@ interface ScheduleData {
   company_logo: string | null;
   company_slug: string | null;
   event_display_names: Record<string, string>;
+  event_notes: Record<string, string>;
   notes: string | null;
 }
 
@@ -62,7 +63,7 @@ export default function PublicFreelancerSchedule() {
 
       let query = supabase
         .from("freelancer_schedules")
-        .select("id, title, start_date, end_date, event_ids, company_id, is_active, event_display_names, notes")
+        .select("id, title, start_date, end_date, event_ids, company_id, is_active, event_display_names, notes, event_notes")
         .eq("is_active", true);
 
       if (scheduleId) {
@@ -95,6 +96,7 @@ export default function PublicFreelancerSchedule() {
         company_logo: compData?.logo_url || null,
         company_slug: compData?.slug || null,
         event_display_names: sd.event_display_names || {},
+        event_notes: sd.event_notes || {},
         notes: sd.notes || null,
       });
 
@@ -192,18 +194,6 @@ export default function PublicFreelancerSchedule() {
           </p>
         </motion.div>
 
-        {/* Notes/Observações */}
-        {schedule.notes && (
-          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.05 }}>
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex gap-3">
-              <Info className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide mb-1">Observações</p>
-                <p className="text-sm text-amber-900 whitespace-pre-line">{schedule.notes}</p>
-              </div>
-            </div>
-          </motion.div>
-        )}
 
         {/* Name + Phone */}
         <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }} className="space-y-3">
@@ -260,6 +250,12 @@ export default function PublicFreelancerSchedule() {
                     </div>
                     {ev.unit && (
                       <span className="inline-block mt-1 text-xs bg-muted px-2 py-0.5 rounded-full">{ev.unit}</span>
+                    )}
+                    {schedule?.event_notes?.[ev.id] && (
+                      <div className="mt-2 bg-amber-50 border border-amber-200 rounded-lg p-2 flex gap-2">
+                        <Info className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
+                        <p className="text-xs text-amber-900 whitespace-pre-line">{schedule.event_notes[ev.id]}</p>
+                      </div>
                     )}
                   </div>
                 </label>

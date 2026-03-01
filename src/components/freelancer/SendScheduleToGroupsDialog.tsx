@@ -29,6 +29,7 @@ interface ScheduleData {
   event_ids: string[];
   slug: string | null;
   notes: string | null;
+  event_notes?: Record<string, string>;
 }
 
 interface Group {
@@ -95,7 +96,7 @@ export function SendScheduleToGroupsDialog({
       .replace(/\{periodo\}/g, `${startStr} a ${endStr}`)
       .replace(/\{qtd_festas\}/g, String(schedule.event_ids.length))
       .replace(/\{link\}/g, publicLink)
-      .replace(/\{observacoes\}/g, schedule.notes || "");
+      .replace(/\{observacoes\}/g, schedule.notes || Object.values(schedule.event_notes || {}).filter(Boolean).join("\n") || "");
   };
 
   useEffect(() => {
