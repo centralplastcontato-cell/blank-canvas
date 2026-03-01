@@ -339,7 +339,7 @@ export function SendScheduleToGroupsDialog({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UsersRound className="w-5 h-5 text-primary" />
-              Enviar Escala para Grupos
+              Envio de escalas !
             </DialogTitle>
             <DialogDescription>
               Envio de escala para os grupos.
