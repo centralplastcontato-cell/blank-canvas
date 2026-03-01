@@ -7,7 +7,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Loader2, Users, Filter, UserCheck, UserX } from "lucide-react";
+import { Search, Loader2, Users, Filter, UserCheck, UserX, X } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { CampaignDraft } from "./CampaignWizard";
 
 interface Props {
@@ -55,7 +56,7 @@ export function CampaignAudienceStep({ draft, setDraft, companyId }: Props) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
   const [filterMonth, setFilterMonth] = useState("all");
   const [units, setUnits] = useState<{ name: string }[]>([]);
   const [filterUnit, setFilterUnit] = useState("all");
@@ -95,7 +96,7 @@ export function CampaignAudienceStep({ draft, setDraft, companyId }: Props) {
 
   const filtered = useMemo(() => {
     return leads.filter((l) => {
-      if (filterStatus !== "all" && l.status !== filterStatus) return false;
+      if (filterStatuses.length > 0 && !filterStatuses.includes(l.status)) return false;
       if (filterMonth !== "all" && l.month !== filterMonth) return false;
       if (filterUnit !== "all" && l.unit !== filterUnit) return false;
       if (search.trim()) {
@@ -104,7 +105,7 @@ export function CampaignAudienceStep({ draft, setDraft, companyId }: Props) {
       }
       return true;
     });
-  }, [leads, filterStatus, filterMonth, filterUnit, search]);
+  }, [leads, filterStatuses, filterMonth, filterUnit, search]);
 
   const selectedSet = new Set(draft.selectedLeadIds);
 
@@ -132,7 +133,19 @@ export function CampaignAudienceStep({ draft, setDraft, companyId }: Props) {
   };
 
   const allSelected = filtered.length > 0 && filtered.every((l) => selectedSet.has(l.id));
-  const hasActiveFilters = filterStatus !== "all" || filterMonth !== "all" || filterUnit !== "all" || search.trim() !== "";
+  const hasActiveFilters = filterStatuses.length > 0 || filterMonth !== "all" || filterUnit !== "all" || search.trim() !== "";
+
+  const toggleStatus = (value: string) => {
+    setFilterStatuses((prev) =>
+      prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value]
+    );
+  };
+
+  const statusLabel = filterStatuses.length === 0
+    ? "Todos os status"
+    : filterStatuses.length === 1
+      ? STATUS_OPTIONS.find((o) => o.value === filterStatuses[0])?.label || filterStatuses[0]
+      : `${filterStatuses.length} status`;
 
   return (
     <div className="space-y-4">
@@ -162,16 +175,47 @@ export function CampaignAudienceStep({ draft, setDraft, companyId }: Props) {
               ))}
             </SelectContent>
           </Select>
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="h-9 text-xs rounded-lg border-border/60 bg-background shadow-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUS_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className={`h-9 px-3 text-xs rounded-lg border bg-background shadow-sm flex items-center justify-between gap-1.5 w-full transition-colors ${
+                  filterStatuses.length > 0
+                    ? "border-primary/30 text-primary"
+                    : "border-border/60 text-foreground"
+                }`}
+              >
+                <span className="truncate">{statusLabel}</span>
+                {filterStatuses.length > 0 ? (
+                  <X
+                    className="w-3.5 h-3.5 shrink-0 text-muted-foreground hover:text-foreground"
+                    onClick={(e) => { e.stopPropagation(); setFilterStatuses([]); }}
+                  />
+                ) : (
+                  <Filter className="w-3 h-3 shrink-0 text-muted-foreground" />
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-52 p-1.5" align="start">
+              {STATUS_OPTIONS.filter((o) => o.value !== "all").map((o) => (
+                <label
+                  key={o.value}
+                  className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md cursor-pointer transition-colors text-sm ${
+                    filterStatuses.includes(o.value)
+                      ? "bg-primary/5 text-primary font-medium"
+                      : "hover:bg-muted text-foreground"
+                  }`}
+                >
+                  <Checkbox
+                    checked={filterStatuses.includes(o.value)}
+                    onCheckedChange={() => toggleStatus(o.value)}
+                    className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                  />
+                  {o.label}
+                </label>
               ))}
-            </SelectContent>
-          </Select>
+            </PopoverContent>
+          </Popover>
           {units.length > 0 && (
             <Select value={filterUnit} onValueChange={setFilterUnit}>
               <SelectTrigger className="h-9 text-xs rounded-lg border-border/60 bg-background shadow-sm">
