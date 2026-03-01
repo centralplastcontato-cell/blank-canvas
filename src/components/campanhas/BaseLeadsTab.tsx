@@ -4,8 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, Loader2, Users, Pencil, Trash2, Phone } from "lucide-react";
+import { Search, Plus, Loader2, Users, Pencil, Trash2, Phone, Upload } from "lucide-react";
 import { BaseLeadFormDialog } from "./BaseLeadFormDialog";
+import { BaseLeadImportDialog } from "./BaseLeadImportDialog";
 import { toast } from "sonner";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -40,6 +41,7 @@ export function BaseLeadsTab({ companyId }: Props) {
   const [formOpen, setFormOpen] = useState(false);
   const [editLead, setEditLead] = useState<BaseLead | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const loadLeads = async () => {
     setLoading(true);
@@ -93,11 +95,17 @@ export function BaseLeadsTab({ companyId }: Props) {
             className="pl-9 h-9 text-sm"
           />
         </div>
-        <Button size="sm" onClick={() => { setEditLead(null); setFormOpen(true); }}>
-          <Plus className="w-4 h-4 mr-1.5" />
-          <span className="hidden sm:inline">Adicionar Contato</span>
-          <span className="sm:hidden">Adicionar</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
+            <Upload className="w-4 h-4 mr-1.5" />
+            <span className="hidden sm:inline">Importar</span>
+          </Button>
+          <Button size="sm" onClick={() => { setEditLead(null); setFormOpen(true); }}>
+            <Plus className="w-4 h-4 mr-1.5" />
+            <span className="hidden sm:inline">Adicionar Contato</span>
+            <span className="sm:hidden">Adicionar</span>
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -168,6 +176,13 @@ export function BaseLeadsTab({ companyId }: Props) {
           ))}
         </div>
       )}
+
+      <BaseLeadImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        companyId={companyId}
+        onImported={loadLeads}
+      />
 
       <BaseLeadFormDialog
         open={formOpen}
