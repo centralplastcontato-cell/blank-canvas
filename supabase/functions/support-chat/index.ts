@@ -24,11 +24,12 @@ novo → em_contato → orcamento_enviado → aguardando_resposta → fechado/pe
 Especiais: transferido, trabalhe_conosco, fornecedor, cliente_retorno, outros
 
 ### WhatsApp
-- Conexão via QR Code na aba Configurações > WhatsApp
-- Bot automático para LP (captura nome, mês, convidados, WhatsApp)
-- Flow Builder visual para fluxos personalizados
+- Conexão via QR Code na aba Configurações > WhatsApp > Conexão
+- Bot de qualificação automático (captura nome, mês, convidados, WhatsApp)
+- Configuração do bot em Configurações > WhatsApp > Automações (aba Perguntas para editar mensagens, aba Geral para boas-vindas/conclusão)
 - Materiais de venda (catálogos, vídeos) para enviar no chat
 - Áudios podem ser gravados direto no chat
+- Flow Builder (recurso avançado, desativado por padrão — não é o caminho principal para configurar o bot)
 
 ### Agenda (/agenda)
 - Calendário mensal com eventos coloridos por unidade
@@ -70,7 +71,7 @@ Especiais: transferido, trabalhe_conosco, fornecedor, cliente_retorno, outros
 
 ### Configurações (/configuracoes)
 - Perfil do usuário
-- WhatsApp (conexão, bot, mensagens)
+- WhatsApp: conexão, automações (bot de qualificação, perguntas, follow-ups, VIPs), materiais de venda, configurações avançadas
 - Landing Page (editor visual)
 - Pacotes de festa
 - Unidades do buffet
@@ -95,8 +96,9 @@ Especiais: transferido, trabalhe_conosco, fornecedor, cliente_retorno, outros
 
 1. **WhatsApp não conecta**: Ir em Configurações > WhatsApp > Conexão. Escanear QR Code. Se não aparecer, verificar se a instância está ativa.
 2. **Leads não aparecem**: Verificar filtros ativos (unidade, mês, status). Verificar se está na empresa correta (seletor de empresa no topo).
-3. **Bot não responde**: Verificar se o bot está ativado em Configurações > WhatsApp > Bot. Verificar se há um fluxo ativo no Flow Builder.
+3. **Bot não responde**: Verificar se o bot está ativado em Configurações > WhatsApp > Automações. Verificar se as perguntas estão configuradas na aba "Perguntas".
 4. **Landing page não aparece**: Verificar se está publicada em Configurações > Landing Page. Verificar DNS do domínio customizado.
+7. **Como alterar respostas do bot**: Ir em Configurações > WhatsApp > Automações. Na aba "Perguntas" você pode editar as mensagens, ativar/desativar perguntas e reordenar a sequência. Na aba "Geral" você altera as mensagens de boas-vindas, qualificação e conclusão.
 5. **Sem acesso a funcionalidade**: Verificar permissões com o administrador da empresa.
 6. **Formulário público não abre**: Verificar se o template está ativo. Verificar se o link está correto (slug da empresa + slug do template).
 
