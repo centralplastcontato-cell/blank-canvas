@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -59,6 +60,7 @@ const TONE_LABELS: Record<string, string> = {
 };
 
 export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
+  const { currentCompanyId } = useCompany();
   const [generating, setGenerating] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
@@ -73,7 +75,7 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
     setGenerating(true);
     try {
       const { data, error } = await supabase.functions.invoke("campaign-ai", {
-        body: { context: draft.description, companyName },
+        body: { context: draft.description, companyName, company_id: currentCompanyId },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);

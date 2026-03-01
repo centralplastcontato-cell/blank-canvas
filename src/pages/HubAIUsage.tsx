@@ -78,6 +78,7 @@ export default function HubAIUsage() {
     "fix-text": "Correção Texto",
     "wapi-webhook": "Qualificação IA",
     "support-chat": "Chat Suporte",
+    "campaign-ai": "Campanhas IA",
   };
 
   const chartData = Object.entries(byFunction).map(([fn, count]) => ({
@@ -145,7 +146,7 @@ export default function HubAIUsage() {
               Consumo de IA
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Monitoramento de chamadas OpenAI por empresa e função
+              Monitoramento de chamadas de IA por empresa e função
             </p>
           </div>
           <div className="flex items-center gap-3">
