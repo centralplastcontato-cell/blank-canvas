@@ -832,5 +832,7 @@ export async function generateManualPDF(companyName?: string) {
     ? `Manual_Celebrei_${companyName.replace(/\s+/g, "_")}.pdf`
     : "Manual_Celebrei.pdf";
 
-  doc.save(fileName);
+  const pdfBlob = doc.output("blob");
+  const blobUrl = URL.createObjectURL(pdfBlob);
+  window.open(blobUrl, "_blank");
 }
