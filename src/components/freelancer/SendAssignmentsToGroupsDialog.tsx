@@ -356,7 +356,7 @@ export function SendAssignmentsToGroupsDialog({
               Enviar Escalados para Grupos
             </DialogTitle>
             <DialogDescription>
-              Envie a lista de freelancers escalados da escala "{schedule.title}" para grupos de WhatsApp.
+              Escala: <span className="font-medium text-foreground">{schedule.title}</span>
             </DialogDescription>
           </DialogHeader>
 
