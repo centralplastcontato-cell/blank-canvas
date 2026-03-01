@@ -51,7 +51,7 @@ import Contrato from "./pages/Contrato";
 import Cardapio from "./pages/Cardapio";
 import NotFound from "./pages/NotFound";
 import PublicPartyControl from "./pages/PublicPartyControl";
-
+import { SupportChatbot } from "./components/support/SupportChatbot";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -137,6 +137,7 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <SupportChatbot />
         </BrowserRouter>
       </TooltipProvider>
     </CompanyProvider>
