@@ -117,15 +117,14 @@ export default function PublicAttendance() {
   const saveEntry = async (updatedGuests: Guest[], extraFields: Record<string, any> = {}) => {
     if (!entry) return;
     setSaving(true);
-    const { error } = await supabase
-      .from("attendance_entries")
-      .update({
-        guests: updatedGuests as any,
-        receptionist_name: receptionistName || null,
-        event_id: selectedEventId || null,
-        ...extraFields,
-      })
-      .eq("id", entry.id);
+    const { error } = await supabase.rpc("update_attendance_entry_public", {
+      _entry_id: entry.id,
+      _guests: updatedGuests as any,
+      _notes: (extraFields.notes !== undefined ? extraFields.notes : entry.notes) || null,
+      _receptionist_name: (extraFields.receptionist_name !== undefined ? extraFields.receptionist_name : receptionistName) || null,
+      _event_id: (extraFields.event_id !== undefined ? extraFields.event_id : selectedEventId) || null,
+      _finalized_at: extraFields.finalized_at !== undefined ? extraFields.finalized_at : entry.finalized_at || null,
+    });
     setSaving(false);
     if (error) {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
@@ -213,19 +212,27 @@ export default function PublicAttendance() {
     if (!entry) return;
     const ev = events.find(e => e.id === eventId);
     if (ev) setEventTitle(ev.title);
-    await supabase
-      .from("attendance_entries")
-      .update({ event_id: eventId || null })
-      .eq("id", entry.id);
+    await supabase.rpc("update_attendance_entry_public", {
+      _entry_id: entry.id,
+      _guests: entry.guests as any,
+      _notes: entry.notes || null,
+      _receptionist_name: receptionistName || null,
+      _event_id: eventId || null,
+      _finalized_at: entry.finalized_at || null,
+    });
   };
 
   const handleReopen = async () => {
     if (!entry) return;
     setSaving(true);
-    const { error } = await supabase
-      .from("attendance_entries")
-      .update({ finalized_at: null })
-      .eq("id", entry.id);
+    const { error } = await supabase.rpc("update_attendance_entry_public", {
+      _entry_id: entry.id,
+      _guests: entry.guests as any,
+      _notes: entry.notes || null,
+      _receptionist_name: receptionistName || null,
+      _event_id: selectedEventId || null,
+      _finalized_at: null,
+    });
     setSaving(false);
     if (error) {
       toast({ title: "Erro ao reabrir", description: error.message, variant: "destructive" });
@@ -247,10 +254,14 @@ export default function PublicAttendance() {
     }
     setSaving(true);
     const now = new Date().toISOString();
-    const { error } = await supabase
-      .from("attendance_entries")
-      .update({ finalized_at: now, receptionist_name: receptionistName || null })
-      .eq("id", entry.id);
+    const { error } = await supabase.rpc("update_attendance_entry_public", {
+      _entry_id: entry.id,
+      _guests: entry.guests as any,
+      _notes: entry.notes || null,
+      _receptionist_name: receptionistName || null,
+      _event_id: selectedEventId || null,
+      _finalized_at: now,
+    });
     setSaving(false);
     if (error) {
       toast({ title: "Erro ao finalizar", description: error.message, variant: "destructive" });

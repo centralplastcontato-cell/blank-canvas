@@ -131,20 +131,14 @@ export default function PublicStaff() {
 
     setSaving(true);
 
-    const updatePayload: any = {
-      staff_data: staffData,
-      notes: notes || null,
-    };
+    const rpcEventId = (!hasEventId && selectedEventId) ? selectedEventId : (eventId || null);
 
-    // If manager is selecting the event
-    if (!hasEventId && selectedEventId) {
-      updatePayload.event_id = selectedEventId;
-    }
-
-    const { error } = await supabase
-      .from("event_staff_entries")
-      .update(updatePayload)
-      .eq("id", recordId);
+    const { error } = await supabase.rpc("update_staff_entry_public", {
+      _entry_id: recordId,
+      _staff_data: staffData as any,
+      _notes: notes || null,
+      _event_id: rpcEventId,
+    });
 
     setSaving(false);
     if (error) {

@@ -3652,6 +3652,35 @@ export type Database = {
         }
         Returns: Json
       }
+      update_attendance_entry_public: {
+        Args: {
+          _entry_id: string
+          _event_id?: string
+          _finalized_at?: string
+          _guests: Json
+          _notes?: string
+          _receptionist_name?: string
+        }
+        Returns: undefined
+      }
+      update_event_info_entry_public: {
+        Args: {
+          _entry_id: string
+          _event_id?: string
+          _items: Json
+          _notes?: string
+        }
+        Returns: undefined
+      }
+      update_staff_entry_public: {
+        Args: {
+          _entry_id: string
+          _event_id?: string
+          _notes?: string
+          _staff_data: Json
+        }
+        Returns: undefined
+      }
       user_has_company_access: {
         Args: { _company_id: string; _user_id: string }
         Returns: boolean
