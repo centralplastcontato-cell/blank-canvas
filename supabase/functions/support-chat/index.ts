@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -116,11 +117,11 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, context } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const { messages, context, company_id } = await req.json();
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    if (!OPENAI_API_KEY) {
+      throw new Error("OPENAI_API_KEY is not configured");
     }
 
     const contextInfo = context
@@ -128,15 +129,15 @@ serve(async (req) => {
       : "";
 
     const response = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions",
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: "gpt-4o-mini",
           messages: [
             {
               role: "system",
@@ -231,12 +232,39 @@ Coloque createTicket=true quando:
         );
       }
       const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
-      throw new Error("AI gateway error");
+      console.error("OpenAI API error:", response.status, t);
+      throw new Error("OpenAI API error");
     }
 
     const data = await response.json();
+    const usage = data.usage;
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+
+    // Log usage to ai_usage_logs
+    if (usage && company_id) {
+      try {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const sb = createClient(supabaseUrl, supabaseKey);
+
+        const promptTokens = usage.prompt_tokens || 0;
+        const completionTokens = usage.completion_tokens || 0;
+        const totalTokens = usage.total_tokens || 0;
+        const estimatedCost = (promptTokens * 0.15 + completionTokens * 0.6) / 1_000_000;
+
+        await sb.from("ai_usage_logs").insert({
+          company_id,
+          function_name: "support-chat",
+          model: "gpt-4o-mini",
+          prompt_tokens: promptTokens,
+          completion_tokens: completionTokens,
+          total_tokens: totalTokens,
+          estimated_cost_usd: estimatedCost,
+        });
+      } catch (logErr) {
+        console.error("Failed to log AI usage:", logErr);
+      }
+    }
 
     if (toolCall?.function?.arguments) {
       const parsed = JSON.parse(toolCall.function.arguments);

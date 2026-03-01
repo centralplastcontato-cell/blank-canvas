@@ -122,7 +122,7 @@ export function SupportChatbot() {
       const context = getContext();
 
       const { data, error } = await supabase.functions.invoke("support-chat", {
-        body: { messages: allMessages, context },
+        body: { messages: allMessages, context, company_id: context.company_id },
       });
 
       if (error) throw error;
