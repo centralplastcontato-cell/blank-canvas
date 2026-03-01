@@ -2507,7 +2507,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         // Use signed URL since bucket is private
         const { data: signedData, error: signedError } = await supabase.storage
           .from('whatsapp-media')
-          .createSignedUrl(fileName, 3600); // 1 hour expiry
+          .createSignedUrl(fileName, 31536000); // 1 year expiry
 
         if (signedError || !signedData?.signedUrl) {
           throw new Error('Falha ao gerar URL do documento');
@@ -2549,7 +2549,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         // Use signed URL since bucket is private
         const { data: signedData, error: signedError } = await supabase.storage
           .from('whatsapp-media')
-          .createSignedUrl(fileName, 3600); // 1 hour expiry
+          .createSignedUrl(fileName, 31536000); // 1 year expiry
 
         if (signedError || !signedData?.signedUrl) {
           throw new Error('Falha ao gerar URL do vídeo');
