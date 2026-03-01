@@ -12,7 +12,7 @@ import UserSettings from "./pages/UserSettings";
 import Users from "./pages/Users";
 
 import RootPage from "./pages/RootPage";
-import LandingPage from "./pages/LandingPage";
+import PromoPage from "./pages/PromoPage";
 import ComercialB2B from "./pages/ComercialB2B";
 import ParaBuffets from "./pages/ParaBuffets";
 import HubLogin from "./pages/HubLogin";
@@ -76,7 +76,7 @@ const App = () => (
             <Route path="/para-buffets" element={<ParaBuffets />} />
             <Route path="/dashboard" element={<Index />} />
             <Route path="/users" element={<Users />} />
-            <Route path="/promo" element={<LandingPage />} />
+            <Route path="/promo" element={<PromoPage />} />
             {/* Hub portal - independent */}
             <Route path="/hub-landing" element={<HubLandingPage />} />
             <Route path="/hub-login" element={<HubLogin />} />
