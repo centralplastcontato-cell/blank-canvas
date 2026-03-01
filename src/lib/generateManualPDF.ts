@@ -82,9 +82,29 @@ function addAllFooters(doc: jsPDF, startPage: number) {
   }
 }
 
+// ── Logo loader ────────────────────────────────────────────────
+
+function loadImageAsBase64(src: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("Canvas not supported"));
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = () => reject(new Error("Failed to load image"));
+    img.src = src;
+  });
+}
+
 // ── Cover page ─────────────────────────────────────────────────
 
-function addCoverPage(doc: jsPDF, companyName?: string) {
+function addCoverPage(doc: jsPDF, companyName?: string, logoBase64?: string) {
   pageCount = 1;
   // Full purple background
   doc.setFillColor(...rgb(C.primary));
@@ -101,11 +121,24 @@ function addCoverPage(doc: jsPDF, companyName?: string) {
   doc.circle(30, 230, 60, "F");
   doc.setGState(new (doc as any).GState({ opacity: 1 }));
 
+  // Logo
+  let titleY = 110;
+  if (logoBase64) {
+    try {
+      const logoW = 40;
+      const logoH = 40;
+      doc.addImage(logoBase64, "PNG", (PAGE_W - logoW) / 2, 65, logoW, logoH);
+      titleY = 120;
+    } catch (e) {
+      console.warn("Could not add logo to PDF:", e);
+    }
+  }
+
   // Title
   doc.setTextColor(...rgb(C.white));
   doc.setFont("helvetica", "bold");
   doc.setFontSize(42);
-  doc.text("CELEBREI", PAGE_W / 2, 110, { align: "center" });
+  doc.text("CELEBREI", PAGE_W / 2, titleY, { align: "center" });
 
   // Subtitle
   doc.setFontSize(16);
@@ -802,10 +835,19 @@ export async function generateManualPDF(companyName?: string) {
   pageCount = 0;
   tocEntries = [];
 
+  // Load logo
+  let logoBase64: string | undefined;
+  try {
+    const logoModule = await import("@/assets/logo-celebrei.png");
+    logoBase64 = await loadImageAsBase64(logoModule.default);
+  } catch (e) {
+    console.warn("Could not load logo for PDF:", e);
+  }
+
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
   // 1. Cover
-  addCoverPage(doc, companyName);
+  addCoverPage(doc, companyName, logoBase64);
 
   // 2. All chapters (to collect TOC data)
   ch01(doc);
