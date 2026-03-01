@@ -421,10 +421,65 @@ WAPI_TOKEN             — Token de autenticação W-API
 | `whatsapp-media` | Não | Mídias recebidas/enviadas no WhatsApp |
 | `company-logos` | Sim | Logos das empresas |
 | `landing-pages` | Sim | Imagens das landing pages |
-| `onboarding-files` | Não | Arquivos do onboarding |
+| `onboarding-uploads` | Sim | Arquivos do onboarding (fotos, orçamentos) |
 | `sales-materials` | Sim | Materiais de venda (catálogos, vídeos) |
-| `evaluation-files` | Não | Anexos de avaliações |
-| `staff-photos` | Sim | Fotos da equipe |
+| `event-info-attachments` | Sim | Anexos de informações de eventos |
+| `training-videos` | Sim | Vídeos de treinamento |
+
+### RPCs / Funções de Banco (30+)
+
+| Função | Tipo | Descrição |
+|--------|------|-----------|
+| `get_company_by_domain(_domain)` | Query | Resolve empresa pelo domínio canonical |
+| `get_landing_page_by_domain(_domain)` | Query | LP completa por domínio |
+| `get_landing_page_by_slug(_slug)` | Query | LP completa por slug |
+| `get_company_branding_by_slug(_slug)` | Query | Nome + logo por slug |
+| `get_company_branding_by_domain(_domain)` | Query | Nome + logo por domínio |
+| `get_company_branding_by_domain_fuzzy(_base)` | Query | Branding por match parcial |
+| `get_company_id_by_slug(_slug)` | Query | UUID da empresa por slug |
+| `get_company_public_info(_id)` | Query | Info pública (id, name, logo, slug) |
+| `get_company_public_with_settings(_id)` | Query | Info pública + settings |
+| `get_onboarding_public_fields(_id)` | Query | WhatsApp, unidades, instagram |
+| `get_evaluation_template_public(_id)` | Query | Template de avaliação (público) |
+| `get_evaluation_template_by_slugs(company, template)` | Query | Template por slugs |
+| `get_prefesta_template_public(_id)` | Query | Template pré-festa (público) |
+| `get_prefesta_template_by_slugs(company, template)` | Query | Template por slugs |
+| `get_contrato_template_public(_id)` | Query | Template contrato (público) |
+| `get_contrato_template_by_slugs(company, template)` | Query | Template por slugs |
+| `get_cardapio_template_public(_id)` | Query | Template cardápio (público) |
+| `get_cardapio_template_by_slugs(company, template)` | Query | Template por slugs |
+| `get_freelancer_template_public(_id)` | Query | Template freelancer (público) |
+| `get_freelancer_template_by_slugs(company, template)` | Query | Template por slugs |
+| `get_event_public_info(_event_id)` | Query | Info pública do evento |
+| `get_events_public_list(_company_id)` | Query | Lista de eventos por empresa |
+| `get_company_events_for_cardapio(_company_id)` | Query | Eventos para seleção no cardápio |
+| `get_profiles_for_transfer()` | Query | Perfis disponíveis para transferência |
+| `is_admin(_user_id)` | Auth | Verifica se é admin global |
+| `get_user_company_ids(_user_id)` | Auth | IDs de empresas acessíveis (recursivo) |
+| `user_has_company_access(_user_id, _company_id)` | Auth | Verifica acesso à empresa |
+| `get_user_default_company(_user_id)` | Auth | Empresa padrão do usuário |
+| `can_manage_permissions(_user_id, _target)` | Auth | Pode gerenciar permissões do target? |
+| `recalculate_lead_score(_lead_id)` | Lógica | Recalcula score + temperatura do lead |
+| `reset_company_data(_company_id, ...)` | Admin | Limpa dados de uma empresa (admin only) |
+| `increment_freelancer_template_views(_id)` | Contagem | Incrementa views do template |
+| `update_updated_at_column()` | Trigger | Atualiza `updated_at` automaticamente |
+| `fn_trigger_recalc_score()` | Trigger | Dispara recálculo de score |
+| `fn_trigger_recalc_score_from_history()` | Trigger | Recálculo via lead_history |
+| `fn_notify_temperature_change()` | Trigger | Notifica mudanças de temperatura |
+| `fn_snapshot_score()` | Trigger | Salva snapshot diário do score |
+
+### Secrets do Supabase
+
+| Secret | Descrição |
+|--------|-----------|
+| `SUPABASE_URL` | URL do projeto |
+| `SUPABASE_SERVICE_ROLE_KEY` | Chave de serviço (acesso total) |
+| `SUPABASE_ANON_KEY` | Chave anon (público) |
+| `SUPABASE_DB_URL` | URL de conexão direta ao Postgres |
+| `SUPABASE_PUBLISHABLE_KEY` | Chave publicável |
+| `OPENAI_API_KEY` | API da OpenAI (IA) |
+| `SCD_API_TOKEN` | Token da integração SCD |
+| `LOVABLE_API_KEY` | API key do Lovable |
 
 ---
 
