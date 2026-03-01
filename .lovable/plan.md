@@ -1,29 +1,25 @@
 
-## Remover pagina /contatos e link no menu
+## Melhorar visual e texto do dialog de importacao CSV
 
-### O que sera feito
+O usuario relata que o dialog de importacao ainda nao esta claro o suficiente sobre o que o download faz. A mudanca principal e tornar o texto mais explicito e o botao de download mais destacado visualmente.
 
-Remover a pagina standalone de Contatos e todas as referencias a ela nos menus de navegacao, ja que a funcionalidade de Leads de Base dentro da aba Campanhas cumpre o mesmo papel.
+### Alteracoes em `src/components/campanhas/BaseLeadImportDialog.tsx`
 
-### Arquivos afetados
+**Step 1 - Download do template:**
+- Trocar o titulo de "Baixe o modelo de planilha" para **"Baixe a planilha modelo para cadastrar seus contatos"**
+- Reescrever a descricao para ser mais clara: **"Este arquivo e uma planilha pronta com todas as colunas necessarias para voce cadastrar seus contatos em massa. Baixe, preencha com os dados dos seus contatos no Excel ou Google Sheets, e depois envie aqui."**
+- Tornar o botao de download maior e mais visivel: usar `size="default"` em vez de `size="sm"`, com variante primaria (ja esta) e texto mais descritivo: **"Baixar planilha de cadastro (.csv)"**
+- Adicionar um icone de `FileSpreadsheet` ao lado do titulo do passo 1 para reforcar visualmente que se trata de uma planilha
 
-**1. `src/App.tsx`**
-- Remover o import de `Contatos` (linha 39)
-- Remover a rota `<Route path="/contatos" ...>` (linha 101)
+**Step 2 - Upload:**
+- Trocar titulo para **"Envie a planilha preenchida com seus contatos"**
+- Manter o restante igual
 
-**2. `src/components/admin/AdminSidebar.tsx`**
-- Remover o item `{ title: "Contatos", url: "/contatos", icon: BookUser }` do array `allItems` (linha 58)
-- Remover o import do icone `BookUser` se nao for mais usado
+### Detalhes tecnicos
 
-**3. `src/components/admin/MobileMenu.tsx`**
-- Remover `"contatos"` do union type de `currentPage` (linha 33)
-- Remover o item `{ id: "contatos", label: "Contatos", ... }` do array `menuItems` (linhas 104-110)
-- Remover o import do icone `BookUser` se nao for mais usado
+Arquivo unico editado: `src/components/campanhas/BaseLeadImportDialog.tsx`, linhas 231-274.
 
-### Arquivo NAO removido
-
-- `src/pages/Contatos.tsx` e `src/components/admin/ContactFormDialog.tsx` serao mantidos no repositorio por enquanto (codigo morto inofensivo). Se preferir, posso remove-los tambem.
-
-### Sem impacto no banco de dados
-
-A tabela `company_contacts` permanece intacta. Nenhuma migration necessaria.
+- Linha 235: atualizar texto do titulo
+- Linha 237-238: reescrever descricao
+- Linha 245-248: aumentar botao e trocar label
+- Linha 256: atualizar titulo do passo 2
