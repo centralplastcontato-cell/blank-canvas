@@ -1,7 +1,8 @@
- import { useState } from "react";
- import { Helmet } from "react-helmet-async";
- import { motion } from "framer-motion";
- import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Helmet } from "react-helmet-async";
+import { motion } from "framer-motion";
+import { Link, Navigate } from "react-router-dom";
+import { getKnownBuffetDomain } from "@/hooks/useDomainDetection";
  import { 
    MessageSquare, 
    BarChart3, 
@@ -57,8 +58,13 @@
    { name: "Ana C.", company: "Reino da Diversão", text: "A landing page de campanha é muito profissional. Os clientes amam o visual.", rating: 5 },
  ];
  
- export default function ParaBuffets() {
-   const [isChatOpen, setIsChatOpen] = useState(false);
+export default function ParaBuffets() {
+  const [isChatOpen, setIsChatOpen] = useState(false);
+
+  // Prevent buffet domains from seeing Celebrei marketing page
+  if (getKnownBuffetDomain()) {
+    return <Navigate to="/" replace />;
+  }
  
    return (
      <div className="min-h-screen bg-slate-900">
