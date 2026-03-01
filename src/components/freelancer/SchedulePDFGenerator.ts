@@ -9,6 +9,7 @@ interface EventData {
   event_date: string;
   start_time: string | null;
   package_name: string | null;
+  unit: string | null;
 }
 
 interface Assignment {
@@ -91,12 +92,12 @@ export async function generateSchedulePDF(data: ScheduleData) {
 
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
-    doc.text(`📅 ${event.title}`, 14, y);
+    doc.text(event.title, 14, y);
     y += 5;
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(100, 100, 100);
-    doc.text(`${dayName}, ${dateStr}${timeStr}${event.package_name ? ` · ${event.package_name}` : ""}`, 14, y);
+    doc.text(`${dayName}, ${dateStr}${timeStr}${event.unit ? ` · ${event.unit}` : ""}`, 14, y);
     doc.setTextColor(0, 0, 0);
     y += 3;
 
