@@ -1125,7 +1125,7 @@ export function AutomationsSection() {
                       onChange={(e) => setBotSettings(prev => prev ? { ...prev, welcome_message: e.target.value } : null)}
                       onBlur={() => botSettings && updateBotSettings({ welcome_message: botSettings.welcome_message })}
                       className="min-h-[80px] text-base"
-                      placeholder="Olá! 👋 Bem-vindo ao Castelo da Diversão!"
+                      placeholder="Olá! 👋 Bem-vindo ao nosso buffet!"
                     />
                   </div>
 
@@ -1226,7 +1226,7 @@ export function AutomationsSection() {
                       <div>
                         <Label className="text-xs font-medium text-amber-700 dark:text-amber-400">Resposta: Agendar Visita (1)</Label>
                         <Textarea
-                          value={botSettings?.next_step_visit_response || "Ótima escolha! 🏰✨\n\nNossa equipe vai entrar em contato para agendar sua visita ao Castelo da Diversão!\n\nAguarde um momento que já vamos te chamar! 👑"}
+                          value={botSettings?.next_step_visit_response || "Ótima escolha! 🏰✨\n\nNossa equipe vai entrar em contato para agendar sua visita!\n\nAguarde um momento que já vamos te chamar! 👑"}
                           onChange={(e) => setBotSettings(prev => prev ? { ...prev, next_step_visit_response: e.target.value } : null)}
                           onBlur={() => botSettings && updateBotSettings({ next_step_visit_response: botSettings.next_step_visit_response })}
                           className="min-h-[120px] text-sm mt-1"
