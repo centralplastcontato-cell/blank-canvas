@@ -1,54 +1,31 @@
 
+# Adicionar capítulo de Campanhas ao Manual PDF
 
-# Corrigir: Perguntas do bot invisíveis e impossíveis de criar/restaurar
+## Objetivo
+Incluir um novo capítulo (ch17) sobre o módulo de Campanhas no PDF de treinamento, seguindo o mesmo padrão dos capítulos existentes.
 
-## Problema Real
+## Alterações no arquivo `src/lib/generateManualPDF.ts`
 
-O erro **não é apenas** a ordem de delete/insert. O problema principal é que a coluna `company_id` está **NULL** em todas as perguntas existentes, e o código **nunca inclui** `company_id` ao inserir perguntas.
+### 1. Criar a função `ch17(doc)` — "Campanhas de Marketing"
 
-A política de segurança (RLS) da tabela `wapi_bot_questions` exige que `company_id` esteja preenchido e pertença às empresas do usuário. Resultado:
+O capítulo cobrirá:
 
-- **SELECT falha silenciosamente** -- retorna 0 registros (as perguntas existem no banco, mas o usuário não consegue vê-las)
-- **INSERT falha** -- a política `WITH CHECK` rejeita registros sem `company_id`
-- Por isso aparece "Nenhuma pergunta configurada" e "Erro ao restaurar"
+- **O que são Campanhas**: disparo de mensagens em massa via WhatsApp para leads do CRM
+- **Wizard de 3 etapas**: Contexto (nome, objetivo, geração de variações com IA), Audiência (filtros de status/unidade/mês), Configuração (delay, revisão)
+- **Variações de mensagem (IA)**: o sistema gera 5 variações automáticas para reduzir risco de bloqueio
+- **Filtros de audiência**: status, unidade e mês de interesse
+- **Configuração de envio**: intervalo entre mensagens (delay), imagem anexa
+- **Acompanhamento**: progresso em tempo real, status por destinatário, execução em segundo plano
+- **Dica (TipBox)**: usar variações e delays adequados para evitar bloqueio do WhatsApp
 
-## Solução (2 partes)
+### 2. Registrar `ch17` na função `generateManualPDF`
 
-### Parte 1: Corrigir os dados existentes no banco
+Adicionar a chamada `ch17(doc)` após `ch16(doc)` na sequência de capítulos.
 
-Atualizar todos os registros de `wapi_bot_questions` que têm `company_id = NULL`, preenchendo com o `company_id` correto da respectiva instância (`wapi_instances`).
+---
 
-```sql
-UPDATE wapi_bot_questions q
-SET company_id = i.company_id
-FROM wapi_instances i
-WHERE q.instance_id = i.id
-  AND q.company_id IS NULL;
-```
+### Detalhes técnicos
 
-### Parte 2: Corrigir o código para sempre incluir `company_id`
-
-**Arquivo**: `src/components/whatsapp/settings/AutomationsSection.tsx`
-
-Adicionar `company_id: currentCompanyId` em **3 locais**:
-
-1. **`fetchBotQuestions`** (auto-populate, ~linha 441): ao inserir perguntas padrão automaticamente quando nenhuma existe
-2. **`resetQuestions`** (~linha 582): ao inserir perguntas padrão no reset
-3. **`saveQuestions`** (~linha 545): garantir que perguntas salvas mantenham o `company_id`
-
-Em cada insert, o objeto passará a incluir:
-```typescript
-{
-  ...q,
-  instance_id: selectedInstance.id,
-  company_id: currentCompanyId,  // NOVO
-  is_active: true,
-}
-```
-
-## Resultado esperado
-
-- As perguntas existentes voltarão a aparecer imediatamente (Parte 1)
-- Novas inserções e resets funcionarão sem erro de RLS (Parte 2)
-- O Aventura Kids conseguirá acessar e editar suas perguntas normalmente
-
+- A função `ch17` usará os mesmos helpers: `addChapterTitle`, `addSectionTitle`, `addParagraph`, `addBulletList`, `addTipBox`, `addAlertBox`
+- O número do capítulo será 17
+- Nenhuma outra alteração no arquivo
