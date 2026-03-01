@@ -162,7 +162,7 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
           </div>
 
           {/* Step description */}
-          <p className="flex items-start gap-1.5 text-sm text-muted-foreground pb-3">
+          <p className="flex items-start gap-1.5 text-base text-muted-foreground pb-3">
             <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
             {STEP_DESCRIPTIONS[step]}
           </p>
