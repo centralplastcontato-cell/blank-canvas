@@ -1,37 +1,42 @@
 
 
-# Ajuste no Capitulo 15 -- Primeiros Passos
+# Corrigir Signed URLs e Hook use-mobile no WhatsApp
 
-## Problema identificado
+## Impacto
 
-O Passo 4 original dizia "Criar primeira Landing Page", mas quem cria a LP e o administrador da Celebrei (Hub), nao o buffet. O manual e direcionado ao usuario do buffet, entao precisa refletir acoes que ele realmente executa.
+### 1. Signed URLs de documentos e videos (1h → 1 ano)
+**Problema atual**: Documentos (PDFs, etc.) e videos enviados pelo chat geram URLs assinadas com validade de **1 hora**. Depois disso, o link quebra -- o usuario ve "Arquivo nao disponivel" e precisa baixar novamente (se ainda for possivel). Isso causa:
+- Reclamacoes de buffets que nao conseguem abrir PDFs de orcamento compartilhados horas antes
+- Videos de festas/materiais ficam inacessiveis no historico
+- Retrabalho para reenviar arquivos
 
-## Alteracao
+**Depois da correcao**: URLs validas por **1 ano** (mesmo padrao que ja funciona para imagens na linha 2466). Arquivos permanecem acessiveis no historico indefinidamente.
 
-Substituir o **Passo 4** de "Criar primeira Landing Page" por **"Criar seu primeiro evento na Agenda"**, e mover o antigo Passo 5 (evento) para Passo 4. O novo Passo 5 sera **"Testar o fluxo de captura de leads"** -- verificar que leads da LP/WhatsApp chegam no Kanban.
+**Risco**: Zero. E a mesma chamada que ja funciona para imagens, apenas mudando o numero `3600` para `31536000`.
 
-### Nova sequencia do Capitulo 15:
+### 2. Hook use-mobile reativo no WhatsApp.tsx
+**Problema atual**: A linha `const isMobile = typeof window !== 'undefined' && window.innerWidth < 768` e calculada **uma unica vez** no render. Se o usuario rotaciona o tablet ou redimensiona a janela, o layout nao muda -- fica preso no modo errado (desktop em tela pequena ou mobile em tela grande).
 
-1. **Passo 1**: Configurar dados da empresa (nome, logo, endereco, telefone)
-2. **Passo 2**: Personalizar seu funil de vendas (etapas do Kanban)
-3. **Passo 3**: Conectar WhatsApp (escanear QR Code, testar envio)
-4. **Passo 4**: Criar primeiro evento na Agenda (testar fluxo operacional)
-5. **Passo 5**: Testar o fluxo de captura de leads (verificar se leads chegam no CRM via LP ou WhatsApp)
-6. **Passo 6**: Criar primeiro usuario da equipe (adicionar com permissoes corretas)
+**Depois da correcao**: Usa o hook `useIsMobile()` que ja existe no projeto, com `matchMedia` listener. O layout reage automaticamente a mudancas de viewport.
 
-### TipBox atualizada
+**Risco**: Zero. O hook ja e usado em dezenas de outros componentes do projeto.
 
-"A Landing Page do seu buffet e configurada pela equipe Celebrei durante o onboarding. Seu papel e garantir que o WhatsApp esteja conectado para que o bot funcione corretamente."
+---
 
-## Alteracao tecnica
+## Alteracoes tecnicas
 
-No arquivo `src/lib/generateManualPDF.ts`, na funcao `ch15`:
-- Reescrever os blocos de conteudo dos Passos 4, 5 e 6
-- Atualizar as TipBox e AlertBox para refletir a nova sequencia
-- Adicionar AlertBox: "A Landing Page e criada pela equipe Celebrei. Voce nao precisa se preocupar com isso -- apenas verifique se os leads estao chegando no seu painel."
+### Arquivo 1: `src/components/whatsapp/WhatsAppChat.tsx`
+- **Linha 2510**: Alterar `createSignedUrl(fileName, 3600)` para `createSignedUrl(fileName, 31536000)` (documento)
+- **Linha 2552**: Alterar `createSignedUrl(fileName, 3600)` para `createSignedUrl(fileName, 31536000)` (video)
 
-## O que NAO muda
+### Arquivo 2: `src/pages/WhatsApp.tsx`
+- Adicionar import: `import { useIsMobile } from "@/hooks/use-mobile"`
+- **Linha 103**: Substituir `const isMobile = typeof window !== 'undefined' && window.innerWidth < 768` por `const isMobile = useIsMobile()`
+- Mover a chamada do hook para dentro do componente, antes dos blocos condicionais de loading/null (hooks devem ser chamados antes de returns condicionais)
 
-- Capitulos 1-14 e 16 permanecem intactos
-- Nenhuma dependencia ou banco alterado
-- Botoes de download continuam funcionando
+### O que NAO muda
+- Nenhuma alteracao no backend, banco, ou edge functions
+- Nenhuma dependencia nova
+- Logica de conexao WhatsApp intacta (respeitando a restricao de seguranca)
+- Imagens continuam com 1 ano (ja estavam corretas)
+
