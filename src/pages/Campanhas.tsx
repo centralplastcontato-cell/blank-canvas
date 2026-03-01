@@ -97,27 +97,38 @@ export default function Campanhas() {
           onRefresh={loadCampaigns}
           onLogout={handleLogout}
         />
-        <main className="flex-1 p-4 sm:p-6 max-w-5xl mx-auto w-full">
-          <div className="flex items-center gap-2 mb-6">
-            <MobileMenu
-              isOpen={isMobileMenuOpen}
-              onOpenChange={setIsMobileMenuOpen}
-              trigger={
-                <Button variant="ghost" size="icon" className="md:hidden h-9 w-9 shrink-0">
-                  <Menu className="w-5 h-5" />
-                </Button>
-              }
-              currentPage="atendimento"
-              userName={user?.user_metadata?.full_name || ""}
-              userEmail={user?.email || ""}
-              canManageUsers={canManageUsers}
-              isAdmin={isAdmin}
-              onRefresh={loadCampaigns}
-              onLogout={handleLogout}
-            />
+        <main className="flex-1 flex flex-col w-full">
+          <header className="bg-card border-b border-border sticky top-0 z-10 md:hidden">
+            <div className="px-3 py-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <MobileMenu
+                  isOpen={isMobileMenuOpen}
+                  onOpenChange={setIsMobileMenuOpen}
+                  trigger={
+                    <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0">
+                      <Menu className="w-5 h-5" />
+                    </Button>
+                  }
+                  currentPage="atendimento"
+                  userName={user?.user_metadata?.full_name || ""}
+                  userEmail={user?.email || ""}
+                  canManageUsers={canManageUsers}
+                  isAdmin={isAdmin}
+                  onRefresh={loadCampaigns}
+                  onLogout={handleLogout}
+                />
+                <div className="flex items-center gap-2 min-w-0">
+                  <img src={currentCompany?.logo_url || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-8 w-auto shrink-0" />
+                  <h1 className="font-display font-bold text-foreground text-sm truncate">Campanhas</h1>
+                </div>
+              </div>
+            </div>
+          </header>
+          <div className="hidden md:flex items-center gap-2 px-4 sm:px-6 pt-6 pb-2">
             <Megaphone className="w-6 h-6 text-primary" />
             <h1 className="text-xl sm:text-2xl font-bold">Campanhas</h1>
           </div>
+          <div className="flex-1 p-4 sm:p-6 max-w-5xl mx-auto w-full">
 
           <Tabs defaultValue="campanhas" className="space-y-4">
             <TabsList>
@@ -231,6 +242,7 @@ export default function Campanhas() {
               }}
             />
           )}
+          </div>
         </main>
       </div>
     </SidebarProvider>
