@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { CampaignContextStep } from "./CampaignContextStep";
 import { CampaignAudienceStep } from "./CampaignAudienceStep";
 import { CampaignConfigStep } from "./CampaignConfigStep";
-import { ChevronLeft, ChevronRight, Loader2, Megaphone } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Megaphone, Check } from "lucide-react";
 import { toast } from "sonner";
 
 interface CampaignWizardProps {
@@ -31,6 +31,12 @@ export interface CampaignDraft {
   leads: { id: string; name: string; whatsapp: string }[];
   delaySeconds: number;
 }
+
+const STEPS = [
+  { label: "Contexto", description: "Mensagem & IA" },
+  { label: "Audiência", description: "Selecionar leads" },
+  { label: "Configuração", description: "Revisar & enviar" },
+];
 
 export function CampaignWizard({ open, onOpenChange, companyId, companyName, onCampaignCreated }: CampaignWizardProps) {
   const [step, setStep] = useState(0);
@@ -76,7 +82,6 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
 
       if (error) throw error;
 
-      // Insert recipients
       const recipients = selectedLeads.map((lead, i) => ({
         campaign_id: campaign.id,
         lead_id: lead.id,
@@ -104,56 +109,76 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
     }
   };
 
-  const stepTitles = ["Contexto & Mensagem", "Audiência", "Configuração"];
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90dvh] flex flex-col overflow-hidden p-4 sm:p-6">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Megaphone className="w-5 h-5 text-primary" />
-            Nova Campanha — {stepTitles[step]}
-          </DialogTitle>
-          <DialogDescription>
-            Etapa {step + 1} de 3
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-2xl max-h-[90dvh] flex flex-col overflow-hidden p-0">
+        {/* Premium header */}
+        <div className="px-5 pt-5 pb-0">
+          <DialogHeader className="pb-3">
+            <DialogTitle className="flex items-center gap-2.5 text-lg">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Megaphone className="w-4 h-4 text-primary" />
+              </div>
+              Nova Campanha
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              Criar nova campanha de marketing
+            </DialogDescription>
+          </DialogHeader>
 
-        {/* Step indicators */}
-        <div className="flex gap-1.5 mb-2">
-          {[0, 1, 2].map((s) => (
-            <div key={s} className={`h-1 flex-1 rounded-full transition-colors ${s <= step ? "bg-primary" : "bg-muted"}`} />
-          ))}
+          {/* Step indicators - premium style */}
+          <div className="flex items-center gap-2 pb-4">
+            {STEPS.map((s, i) => (
+              <div key={i} className="flex items-center gap-2 flex-1">
+                <div className={`flex items-center gap-2 flex-1 px-3 py-2 rounded-lg transition-all text-xs font-medium ${
+                  i === step
+                    ? "bg-primary/10 text-primary border border-primary/20"
+                    : i < step
+                    ? "bg-muted text-muted-foreground"
+                    : "bg-muted/40 text-muted-foreground/50"
+                }`}>
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                    i < step
+                      ? "bg-primary text-primary-foreground"
+                      : i === step
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted-foreground/20 text-muted-foreground/50"
+                  }`}>
+                    {i < step ? <Check className="w-3 h-3" /> : i + 1}
+                  </div>
+                  <span className="hidden sm:inline truncate">{s.label}</span>
+                </div>
+                {i < STEPS.length - 1 && (
+                  <div className={`w-4 h-px shrink-0 ${i < step ? "bg-primary" : "bg-border"}`} />
+                )}
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto min-h-0">
+        {/* Content area */}
+        <div className="flex-1 overflow-y-auto min-h-0 px-5 pb-2">
           {step === 0 && (
-            <CampaignContextStep
-              draft={draft}
-              setDraft={setDraft}
-              companyName={companyName}
-            />
+            <CampaignContextStep draft={draft} setDraft={setDraft} companyName={companyName} />
           )}
           {step === 1 && (
-            <CampaignAudienceStep
-              draft={draft}
-              setDraft={setDraft}
-              companyId={companyId}
-            />
+            <CampaignAudienceStep draft={draft} setDraft={setDraft} companyId={companyId} />
           )}
           {step === 2 && (
             <CampaignConfigStep draft={draft} setDraft={setDraft} />
           )}
         </div>
 
-        <div className="flex justify-between pt-3 border-t shrink-0">
-          <Button variant="outline" onClick={() => step > 0 ? setStep(step - 1) : onOpenChange(false)}>
+        {/* Footer */}
+        <div className="flex justify-between items-center px-5 py-3.5 border-t bg-muted/30 shrink-0">
+          <Button variant="ghost" size="sm" onClick={() => step > 0 ? setStep(step - 1) : onOpenChange(false)}>
             <ChevronLeft className="w-4 h-4 mr-1" />
             {step === 0 ? "Cancelar" : "Voltar"}
           </Button>
 
           {step < 2 ? (
             <Button
+              size="sm"
               onClick={() => setStep(step + 1)}
               disabled={step === 0 ? !canAdvanceStep0 : !canAdvanceStep1}
             >
@@ -161,7 +186,7 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
               <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           ) : (
-            <Button onClick={handleCreate} disabled={saving}>
+            <Button size="sm" onClick={handleCreate} disabled={saving}>
               {saving && <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />}
               Criar e Iniciar Envio
             </Button>
