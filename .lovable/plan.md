@@ -1,55 +1,49 @@
 
 
-# Testes Automatizados -- Fluxos Criticos
+# Testes Deno para Edge Functions (wapi-webhook e submit-lead)
 
-Criacao de 7 arquivos de teste unitario cobrindo as funcoes puras mais criticas. Zero interacao com banco, APIs ou WhatsApp. Invisivel para usuarios finais.
+## Seguranca — Por que NAO ha risco
+
+- Os testes ficam em arquivos `_test.ts` separados e NUNCA sao executados em producao
+- Nenhuma linha do codigo das Edge Functions e modificada
+- As funcoes auxiliares sao **copiadas** para os arquivos de teste (mesmo padrao ja usado no `validate_name_test.ts` existente)
+- Zero chamadas ao banco, zero chamadas a W-API, zero interacao com instancias WhatsApp
+- Nao afeta deploy, conexao, sessao ou qualquer fluxo de usuario
 
 ## Arquivos a Criar
 
-### 1. `src/lib/__tests__/mask-utils.test.ts`
-Testa `maskPhone`:
-- Celular 11 digitos, fixo 10 digitos, internacional 13 digitos
-- Numeros curtos (<=8 digitos)
-- Numeros com formatacao
+### 1. `supabase/functions/wapi-webhook/bot_helpers_test.ts`
+Testa funcoes puras do bot (copiadas do index.ts para isolamento total):
 
-### 2. `src/lib/__tests__/format-message.test.tsx`
-Testa `formatMessageContent`:
-- null/undefined retorna inalterado
-- URLs viram links clicaveis
-- Telefones (10-13 digitos) viram links wa.me
-- Texto misto com URLs e telefones
+- **emojiDigitsToNumber**: converte emojis keycap para numeros (2 para 2, keycap 12 para 12, emoji 10 para 10)
+- **extractOptionsFromQuestion**: extrai opcoes de texto formatado ("1 - Opcao A", "*2* - Opcao B")
+- **numToKeycap**: converte numeros para emojis keycap
+- **buildMenuText**: monta texto de menu formatado
+- **validateName**: aceita nomes validos ("Maria Clara", "meu nome e Victor"), rejeita frases ("Quero saber o valor", "Vi no Instagram")
+- **validateMenuChoice**: aceita numero correto, texto similar, rejeita inputs invalidos
+- **validateAnswer**: roteamento correto por step (nome, tipo, mes, dia, convidados, proximo_passo)
 
-### 3. `src/lib/__tests__/supabase-helpers.test.ts`
-Testa `getCurrentCompanyId`:
-- Retorna default sem localStorage
-- Retorna valor do localStorage
+Total: ~30 casos de teste
 
-### 4. `src/hooks/__tests__/useDomainDetection.test.ts`
-Testa funcoes de dominio:
-- `getCanonicalHost`: lowercase, strip www/porta
-- `KNOWN_BUFFET_DOMAINS`: mapeamentos
-- `isPreviewDomain` e `getKnownBuffetDomain`
+### 2. `supabase/functions/submit-lead/validation_test.ts`
+Testa funcoes de validacao do submit-lead (copiadas do index.ts):
 
-### 5. `src/types/__tests__/crm.test.ts`
-Testa completude dos mapas:
-- Todo `LeadStatus` tem label e cor
-- Todo `AppRole` tem label
+- **validateName**: obrigatoriedade, min/max caracteres, caracteres suspeitos (`<>{}`)
+- **validateWhatsApp**: obrigatoriedade, normalizacao (remove formatacao), min/max digitos
+- **validateCampaignId**: obrigatoriedade, tamanho maximo
+- **validateUnit**: opcional, tamanho maximo
+- **validateMonth**: aceita meses validos com/sem ano ("Marco", "Marco/27"), rejeita invalidos
+- **validateDayOfMonth**: range 1-31, rejeita 0 e 32
+- **validateGuests**: opcional, tamanho maximo
 
-### 6. `src/components/flowbuilder/__tests__/types.test.ts`
-Testa completude:
-- Todo `NodeType` tem label e cor
-- Todo `ActionType` tem label
-- Todo `ExtractField` tem label
-
-### 7. `src/components/admin/__tests__/exportLeads.test.ts`
-Testa exportacao CSV:
-- Headers corretos
-- Mascara telefone quando sem permissao
-- Mostra telefone com permissao
+Total: ~25 casos de teste
 
 ## Detalhes Tecnicos
 
-- Framework: Vitest + React Testing Library (ja configurados)
-- Total: ~45 casos de teste
-- Testa apenas funcoes puras -- zero risco
-- Comando: `npm test`
+- Framework: Deno.test() nativo (mesmo padrao do `validate_name_test.ts` ja existente no projeto)
+- Asserts: `assertEquals` do `https://deno.land/std@0.208.0/assert/`
+- Padrao: funcoes copiadas para isolamento total (sem import do index.ts, sem dependencias externas)
+- Execucao: via ferramenta `test-edge-functions` do Lovable
+- Total: ~55 novos casos de teste
+- Nenhuma Edge Function existente e tocada ou modificada
+
