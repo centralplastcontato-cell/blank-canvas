@@ -444,6 +444,7 @@ export function FreelancerSchedulesTab() {
 
       {sendToGroupsSchedule && companyId && (
         <SendScheduleToGroupsDialog
+          key={sendToGroupsSchedule.id}
           open={!!sendToGroupsSchedule}
           onOpenChange={(v) => { if (!v) setSendToGroupsSchedule(null); }}
           schedule={sendToGroupsSchedule}
@@ -455,6 +456,7 @@ export function FreelancerSchedulesTab() {
 
       {sendAssignmentsSchedule && companyId && (
         <SendAssignmentsToGroupsDialog
+          key={sendAssignmentsSchedule.id}
           open={!!sendAssignmentsSchedule}
           onOpenChange={(v) => { if (!v) setSendAssignmentsSchedule(null); }}
           schedule={sendAssignmentsSchedule}
