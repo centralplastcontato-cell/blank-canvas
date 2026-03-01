@@ -1,64 +1,87 @@
 
+# Documentacao Tecnica Interna - Celebrei Hub
 
-## Auto-preencher funcao dos freelancers na escalacao
+Vou criar um arquivo Markdown completo no repositorio com toda a documentacao tecnica do projeto. O documento sera salvo em `docs/TECHNICAL_DOCS.md`.
 
-### O que muda
-Quando o buffet escalar um freelancer (marcar o checkbox), o sistema busca automaticamente a(s) funcao(oes) cadastrada(s) desse freelancer no formulario de recrutamento e pre-preenche o campo de funcao. Se o freelancer tiver mais de uma funcao, o select fica aberto para o buffet escolher qual.
+---
 
-### Como funciona hoje
-- O buffet marca o checkbox do freelancer
-- O campo de funcao fica vazio (o buffet precisa escolher manualmente)
-- Nao ha nenhuma informacao sobre quais funcoes o freelancer cadastrou
+## Conteudo do Documento
 
-### Como vai funcionar
-1. Ao expandir uma escala, buscar as funcoes cadastradas de cada freelancer disponivel (da tabela `freelancer_responses`)
-2. Exibir a(s) funcao(oes) cadastrada(s) como texto discreto abaixo do nome/telefone
-3. Ao marcar o checkbox (escalar), auto-preencher o role com a funcao cadastrada:
-   - Se tem **1 funcao**: preenche automaticamente
-   - Se tem **mais de 1 funcao**: deixa vazio para o buffet decidir, mas mostra as funcoes dele em destaque no select
+### 1. Visao Geral do Projeto
+- Plataforma SaaS multi-tenant para gestao de buffets infantis
+- Stack: React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui + Supabase
+- Dois portais independentes: Hub (grupo) e Painel do Buffet (operacional)
 
-### Exemplo visual
+### 2. Arquitetura Multi-Tenant
+- Resolucao de dominio via `useDomainDetection.ts` (Hub vs Buffet vs Preview)
+- `RootPage.tsx` como roteador raiz baseado em dominio
+- `CompanyContext` para gerenciar empresa ativa, troca de empresa, e hierarquia pai/filho
+- Mapeamento de dominios conhecidos em `KNOWN_BUFFET_DOMAINS`
 
-```text
-[x] Ana  ·  (15) 98100-7979
-    Cozinha                         [Cozinha v]  checkmark
+### 3. Estrutura de Rotas (48 paginas)
+- Rotas do Hub (`/hub/*`): Dashboard, Empresas, Users, WhatsApp, Onboarding, Prospeccao, IA, Treinamento, Leads
+- Rotas do Painel Buffet (`/atendimento`, `/configuracoes`, `/inteligencia`, `/agenda`, etc.)
+- Rotas Publicas (`/festa/:id`, `/lp/:slug`, `/avaliacao/...`, `/contrato/...`, `/cardapio/...`, `/equipe/...`, `/escala/...`)
+- Redirects de compatibilidade (`/admin` -> `/atendimento`, etc.)
 
-[ ] Victor  ·  (15) 98112-1710
-    Gerente
-```
+### 4. Modulos Principais
+- **CRM/Leads**: Kanban, tabela, filtros, transferencia, exportacao
+- **WhatsApp (W-API)**: Chat em tempo real, bot qualificador, Flow Builder visual
+- **Agenda**: Calendario de eventos, checklists, equipe, manutencao, monitoramento
+- **Freelancers**: Escalas, avaliacoes, disponibilidade publica, PDF
+- **Inteligencia**: Score de leads, temperatura, follow-ups, resumo diario (OpenAI)
+- **Landing Pages Dinamicas**: LP por empresa com tema customizavel
+- **Formularios Publicos**: Avaliacao, Pre-festa, Contrato, Cardapio, Freelancer
 
-### Alteracoes
+### 5. Sistema de Permissoes
+- Roles de app: `admin`, `gestor`, `comercial`, `visualizacao`
+- Roles de empresa: `owner`, `admin`, `member`
+- Permissoes granulares via `permission_definitions` + `user_permissions`
+- Permissoes por unidade (`useUnitPermissions`)
+- Modulos habilitaveis por empresa (`useCompanyModules`)
 
-**Arquivo: `FreelancerSchedulesTab.tsx`**
-- Novo estado: `freelancerRoles: Record<string, string[]>` (mapa nome do freelancer -> lista de funcoes)
-- Em `loadScheduleDetails`, apos buscar availability, extrair os nomes unicos dos freelancers disponiveis
-- Fazer query em `freelancer_responses` filtrando por `company_id` e `respondent_name` com `approval_status = 'aprovado'`
-- Extrair o campo `funcao` do array `answers` (questionId === "funcao", value e um array de strings)
-- Montar o mapa e passar como prop `freelancerRoles` para `ScheduleCard`
-- Em `toggleAssignment`: receber o role pre-preenchido (da funcao cadastrada quando tem apenas 1) ao inves de string vazia
+### 6. Edge Functions (15 funcoes)
+- `wapi-webhook`: Webhook do WhatsApp, processa mensagens, roda Flow Builder ou bot legado
+- `wapi-send`: Envia mensagens, QR code, status, pairing code
+- `submit-lead`: Captura de leads da LP
+- `submit-b2b-lead`: Captura de leads B2B
+- `manage-user`: CRUD de usuarios (admin only)
+- `daily-summary`: Resumo diario com OpenAI
+- `lead-summary`: Resumo individual de lead com IA
+- `fix-text`: Correcao de texto com IA
+- `follow-up-check`: Verificacao automatica de follow-ups
+- `og-fetch` / `og-preview`: Open Graph metadata
+- `scd-discover`: Integracao SCD
+- `rotate-months`: Rotacao de meses
+- `rescue-orphan-leads`: Resgate de leads orfaos
+- `migrate-aventura-images`: Migracao pontual
 
-**Arquivo: `ScheduleCard.tsx`**
-- Nova prop: `freelancerRoles: Record<string, string[]>`
-- Abaixo do nome/telefone do freelancer, mostrar as funcoes em texto discreto (text-xs text-muted-foreground)
-- Ao clicar no checkbox para escalar: se o freelancer tem exatamente 1 funcao, passar essa funcao como role; senao, passar vazio
-- No select de funcao (quando escalado): se o freelancer tem funcoes cadastradas, mostrar essas primeiro com um label "Funcoes cadastradas", seguidas de um separador e as demais funcoes genericas
+### 7. Banco de Dados
+- Tabelas principais e seus relacionamentos
+- 30+ RPCs/funcoes de banco (branding, permissoes, scoring, etc.)
+- Triggers: `recalculate_lead_score`, `fn_notify_temperature_change`, `fn_snapshot_score`
+- Storage buckets: 7 buckets (whatsapp-media, company-logos, landing-pages, etc.)
 
-### Detalhes tecnicos
+### 8. Hooks Customizados (25 hooks)
+- Listagem e descricao de cada hook com sua responsabilidade
 
-Query para buscar funcoes:
-```sql
-SELECT respondent_name, answers
-FROM freelancer_responses
-WHERE company_id = ? AND approval_status = 'aprovado'
-```
+### 9. Configuracao do Ambiente de Desenvolvimento
+- Requisitos (Node.js, npm/bun)
+- Variaveis de ambiente (`.env` auto-populado pelo Lovable)
+- Secrets do Supabase necessarios
+- Comandos (`npm run dev`, `npm run build`, `npm test`)
+- Dominio local vs preview vs producao
 
-Extracao do JSONB (ja confirmado na base):
-```typescript
-// answers e um array de { questionId, value }
-const funcaoAnswer = answers.find(a => a.questionId === "funcao");
-// funcaoAnswer.value = ["Cozinha"] ou ["Gerente", "Cozinha"]
-const roles = Array.isArray(funcaoAnswer?.value) ? funcaoAnswer.value : [];
-```
+### 10. Convencoes e Padroes
+- Estrutura de pastas
+- Nomenclatura de componentes e hooks
+- Uso de `supabase-helpers.ts` para queries com company_id
+- Padrao de notificacoes com isolamento multi-tenant
 
-O mapa agrupa por nome (pode haver duplicatas se o freelancer se cadastrou mais de uma vez -- pega o mais recente ou merge as funcoes).
+---
 
+## Detalhes Tecnicos
+
+**Arquivo criado:** `docs/TECHNICAL_DOCS.md` (~400-500 linhas de Markdown)
+
+O documento sera escrito em portugues, completo e copiavel, cobrindo todos os pontos acima com exemplos de codigo onde relevante (imports, estrutura de queries, etc.).
