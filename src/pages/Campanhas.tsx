@@ -13,7 +13,7 @@ import { ptBR } from "date-fns/locale";
 import { CampaignWizard } from "@/components/campanhas/CampaignWizard";
 import { CampaignSendDialog } from "@/components/campanhas/CampaignSendDialog";
 import { BaseLeadsTab } from "@/components/campanhas/BaseLeadsTab";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
@@ -97,6 +97,7 @@ export default function Campanhas() {
         />
         <main className="flex-1 p-4 sm:p-6 max-w-5xl mx-auto w-full">
           <div className="flex items-center gap-3 mb-6">
+            <SidebarTrigger className="md:hidden h-9 w-9 shrink-0" />
             <Megaphone className="w-6 h-6 text-primary" />
             <h1 className="text-xl sm:text-2xl font-bold">Campanhas</h1>
           </div>
