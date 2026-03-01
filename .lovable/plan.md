@@ -1,64 +1,140 @@
 
-# Restringir UPDATE Anonimo por UUID Especifico
 
-## O Problema
+# Manual PDF Celebrei -- eBook Visual Premium
 
-As 3 tabelas abaixo tem politicas de UPDATE anonimo com `USING(true)`, permitindo que qualquer pessoa modifique qualquer registro sem autenticacao:
+## Objetivo
 
-| Tabela | Politica Atual | Risco |
-|--------|---------------|-------|
-| `attendance_entries` | `USING(true)` | Alguem pode alterar listas de presenca de qualquer festa |
-| `event_info_entries` | `USING(true)` | Alguem pode alterar informativos de qualquer evento |
-| `event_staff_entries` | `USING(true)` | Alguem pode alterar dados de equipe/financeiro de qualquer festa |
+Criar um arquivo `src/lib/generateManualPDF.ts` que gera um PDF de ~30-40 paginas com design visual sofisticado, utilizando `jsPDF` + `jspdf-autotable` (ja instalados). Adicionar botoes de download nas paginas de Treinamento.
 
-## A Solucao
+## Design Visual do PDF
 
-Nao precisamos remover o acesso anonimo (os formularios publicos dependem dele), mas podemos **restringir quais colunas podem ser atualizadas** e garantir que a politica esteja correta.
+O manual tera um design premium com elementos visuais que o `jsPDF` suporta nativamente:
 
-Como o Postgres RLS nao consegue "saber" qual UUID o usuario esta tentando atualizar diretamente via politica (o `USING(true)` ja filtra pelo `WHERE id = X` do query), a abordagem mais segura e:
+```text
++------------------------------------------+
+|  [Faixa roxa gradiente no topo]          |
+|                                          |
+|         CELEBREI                         |
+|   Manual Completo da Plataforma          |
+|                                          |
+|      [Logo da empresa se houver]         |
+|                                          |
+|   Versao 1.0 - Marco 2026               |
+|  [Faixa decorativa inferior]             |
++------------------------------------------+
+```
 
-1. **Substituir UPDATE anonimo direto por RPCs `SECURITY DEFINER`** que aceitam o UUID e atualizam apenas os campos permitidos
-2. **Remover as politicas de UPDATE anonimo** das 3 tabelas
+### Elementos visuais por pagina
 
-Isso garante que usuarios anonimos so possam atualizar campos especificos (ex: guests, items) e nao campos sensiveis (ex: company_id, event_id).
+- **Capa**: fundo roxo (#7c3aed) com titulo em branco, nome da empresa, data, faixa decorativa
+- **Sumario**: numeracao elegante com linhas pontilhadas ate o numero da pagina
+- **Capitulos**: header com faixa colorida lateral (barra roxa de 4mm na esquerda), titulo grande, linha decorativa
+- **Secoes**: subtitulos com icone unicode (circulo, seta, check) e cor de destaque
+- **Caixas de dica**: retangulo com fundo roxo claro (#f3e8ff), borda roxa, icone de lampada (unicode), texto
+- **Caixas de alerta**: retangulo com fundo amarelo claro, borda amarela
+- **Listas**: bullets customizados com circulos roxos preenchidos
+- **Tabelas**: usando `autoTable` com header roxo, linhas alternadas, bordas suaves
+- **Rodape**: numero da pagina centralizado + "Celebrei - Manual da Plataforma" + linha fina roxa
+- **Cabecalho**: linha fina roxa no topo de cada pagina (exceto capa)
 
-## Detalhes Tecnicos
+### Paleta de cores
 
-### Migration SQL (1 arquivo)
+| Elemento | Cor (RGB) |
+|----------|-----------|
+| Primaria (roxo) | 124, 58, 237 |
+| Primaria clara | 243, 232, 255 |
+| Texto principal | 30, 30, 30 |
+| Texto secundario | 100, 100, 100 |
+| Fundo dica | 243, 232, 255 |
+| Fundo alerta | 254, 249, 195 |
+| Linha decorativa | 200, 200, 200 |
 
-**DROP das 3 politicas de UPDATE anonimo:**
-- `DROP POLICY "Anon can update attendance entry" ON attendance_entries`
-- `DROP POLICY "Anon can update event info entry" ON event_info_entries`
-- `DROP POLICY "Anon can update staff entry" ON event_staff_entries`
+## Estrutura do Conteudo (14 capitulos)
 
-**3 RPCs novos (SECURITY DEFINER):**
+1. Introducao -- O que e, como acessar, visao geral
+2. Central de Atendimento (CRM) -- Kanban, filtros, metricas, exportar
+3. WhatsApp -- Conexao, chat, midias, materiais, status
+4. Automacoes e Bot -- Flow Builder, bots LP/festa, follow-ups
+5. Inteligencia -- Resumo AI, prioridades, score, funil, temperatura
+6. Agenda -- Calendario, eventos, checklists, resumo mensal
+7. Operacoes (Controle de Festa) -- Hub da festa, checklist, equipe, manutencao
+8. Formularios Publicos -- Avaliacao, pre-festa, contrato, cardapio
+9. Freelancers -- Escalas, atribuicoes, avaliacoes, PDF
+10. Landing Pages Dinamicas -- Editor, temas, publicar, chatbot
+11. Configuracoes -- Dados empresa, WhatsApp, automacoes, notificacoes
+12. Usuarios e Permissoes -- Papeis, permissoes granulares, por unidade
+13. Multi-Unidades -- Criar unidades, cores, filtros, kanban separado
+14. Treinamento -- Videoaulas, categorias, player
 
-1. `update_attendance_entry_public(_entry_id uuid, _guests jsonb, _notes text, _receptionist_name text, _event_id uuid, _finalized_at timestamptz)`
-   - Atualiza apenas: guests, notes, receptionist_name, event_id, finalized_at
-   - NAO permite alterar: company_id, filled_by
+## Arquitetura Tecnica
 
-2. `update_event_info_entry_public(_entry_id uuid, _items jsonb, _notes text, _event_id uuid)`
-   - Atualiza apenas: items, notes, event_id
-   - NAO permite alterar: company_id, filled_by
+### Novo arquivo: `src/lib/generateManualPDF.ts`
 
-3. `update_staff_entry_public(_entry_id uuid, _staff_data jsonb, _notes text, _event_id uuid)`
-   - Atualiza apenas: staff_data, notes, event_id
-   - NAO permite alterar: company_id, filled_by
+Funcoes internas do gerador:
 
-### Codigo Frontend (3 arquivos)
+- `addCoverPage(doc, companyName?, logoUrl?)` -- capa com fundo roxo, titulo branco, logo
+- `addTableOfContents(doc, chapters)` -- sumario com linhas pontilhadas
+- `addPageHeader(doc, pageNum)` -- linha roxa fina + texto discreto
+- `addPageFooter(doc, pageNum, totalPages)` -- "Pagina X de Y" + nome
+- `addChapterTitle(doc, num, title)` -- barra lateral roxa + titulo grande
+- `addSectionTitle(doc, title)` -- subtitulo com icone unicode
+- `addParagraph(doc, text, x, maxWidth)` -- texto com word-wrap automatico
+- `addBulletList(doc, items)` -- bullets com circulos roxos
+- `addTipBox(doc, text)` -- caixa roxa clara com icone lampada
+- `addAlertBox(doc, text)` -- caixa amarela com icone atencao
+- `checkPageBreak(doc, needed)` -- quebra de pagina automatica com header/footer
+- `export async function generateManualPDF(companyName?, logoUrl?)` -- orquestra tudo
 
-1. **`src/pages/PublicAttendance.tsx`** -- substituir `supabase.from("attendance_entries").update(...)` por `supabase.rpc("update_attendance_entry_public", {...})`
+Tamanho estimado: ~1000-1400 linhas (conteudo textual + helpers visuais).
 
-2. **`src/pages/PublicEventInfo.tsx`** -- se houver update, substituir por RPC (verificar se essa pagina faz updates)
+### Alteracao: `src/pages/Treinamento.tsx`
 
-3. **`src/pages/PublicStaff.tsx`** -- substituir update direto por `supabase.rpc("update_staff_entry_public", {...})`
+- Importar `Button` e `Download` icon
+- Adicionar botao "Baixar Manual" no header ao lado do Select de categoria
+- Ao clicar: chama `generateManualPDF()` com estado de loading
 
-Paginas publicas que tambem fazem updates e precisam ser verificadas:
-- `PublicMaintenance.tsx` (maintenance_entries)
-- `PublicPartyMonitoring.tsx` (party_monitoring_entries)
-- `PublicPartyControl.tsx`
+### Alteracao: `src/pages/HubTreinamento.tsx`
 
-### O que NAO muda
-- Usuarios autenticados (admin/gestor) continuam com UPDATE normal via politica de empresa
-- Formularios publicos continuam funcionando, so que agora via RPC seguro
-- Nenhum dado e perdido
+- Adicionar botao "Baixar Manual PDF" na barra de acoes ao lado de "Nova Aula"
+- Mesma chamada `generateManualPDF()`
+
+## Exemplo Visual de uma Pagina de Capitulo
+
+```text
+[linha roxa fina 0.5mm no topo]
+                          Celebrei - Manual
+
++--+---------------------------------------+
+|  |                                       |
+|R | 2. Central de Atendimento             |
+|O |                                       |
+|X |    A Central de Atendimento e o       |
+|O |    coracao do CRM da Celebrei...      |
+|  |                                       |
+|B |  > Visao Kanban vs Lista              |
+|A |    O sistema oferece duas formas...   |
+|R |                                       |
+|R |  +----------------------------------+ |
+|A |  | Dica: Use os filtros de unidade  | |
+|  |  | para focar nos leads de cada     | |
+|4 |  | filial separadamente.            | |
+|m |  +----------------------------------+ |
+|m |                                       |
+|  |  * Filtrar por campanha               |
+|  |  * Filtrar por status                 |
+|  |  * Filtrar por responsavel            |
+|  |  * Exportar para CSV                  |
+|  |                                       |
++--+---------------------------------------+
+              Pagina 5 de 38
+       Celebrei - Manual da Plataforma
+```
+
+## O que NAO muda
+
+- Nenhuma tabela nova no banco de dados
+- Nenhuma Edge Function nova
+- Nenhuma dependencia nova (jsPDF e jspdf-autotable ja instalados)
+- Videoaulas existentes continuam funcionando normalmente
+- Conteudo e 100% estatico (texto fixo em portugues), sem consultas ao banco
+
