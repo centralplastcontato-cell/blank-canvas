@@ -193,20 +193,20 @@ export default function HubSuporte() {
           </div>
 
           {/* Metric cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-4 gap-2 sm:gap-4">
             {[
               { label: "Total", value: counts.total, icon: Headset, color: "text-primary" },
               { label: "Novos", value: counts.novo, icon: Inbox, color: "text-blue-500" },
-              { label: "Em andamento", value: counts.em_andamento, icon: Clock, color: "text-orange-500" },
+              { label: "Andamento", value: counts.em_andamento, icon: Clock, color: "text-orange-500" },
               { label: "Resolvidos", value: counts.resolvido, icon: CheckCircle2, color: "text-green-500" },
             ].map((m) => (
               <Card key={m.label}>
-                <CardContent className="pt-5 pb-4">
-                  <div className="flex items-center gap-3">
-                    <m.icon className={`h-5 w-5 ${m.color}`} />
-                    <div>
-                      <p className="text-xs text-muted-foreground">{m.label}</p>
-                      {loading ? <Skeleton className="h-7 w-12" /> : <p className="text-2xl font-bold">{m.value}</p>}
+                <CardContent className="p-3 sm:pt-5 sm:pb-4">
+                  <div className="flex flex-col items-center gap-1 sm:flex-row sm:gap-3">
+                    <m.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${m.color}`} />
+                    <div className="text-center sm:text-left">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">{m.label}</p>
+                      {loading ? <Skeleton className="h-6 w-8 sm:h-7 sm:w-12" /> : <p className="text-lg sm:text-2xl font-bold">{m.value}</p>}
                     </div>
                   </div>
                 </CardContent>
@@ -215,21 +215,21 @@ export default function HubSuporte() {
           </div>
 
           {/* Filters */}
-          <div className="flex flex-wrap gap-3">
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-3">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-36"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-36 h-8 sm:h-10 text-xs sm:text-sm"><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>{STATUS_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
             </Select>
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-36"><SelectValue placeholder="Categoria" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-36 h-8 sm:h-10 text-xs sm:text-sm"><SelectValue placeholder="Categoria" /></SelectTrigger>
               <SelectContent>{CATEGORY_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
             </Select>
             <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-              <SelectTrigger className="w-36"><SelectValue placeholder="Prioridade" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-36 h-8 sm:h-10 text-xs sm:text-sm"><SelectValue placeholder="Prioridade" /></SelectTrigger>
               <SelectContent>{PRIORITY_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
             </Select>
             <Select value={companyFilter} onValueChange={setCompanyFilter}>
-              <SelectTrigger className="w-48"><SelectValue placeholder="Empresa" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-48 h-8 sm:h-10 text-xs sm:text-sm"><SelectValue placeholder="Empresa" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas empresas</SelectItem>
                 {companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
@@ -245,34 +245,52 @@ export default function HubSuporte() {
               ) : filtered.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-12">Nenhum ticket encontrado.</p>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Assunto</TableHead>
-                        <TableHead>Empresa</TableHead>
-                        <TableHead>Usuário</TableHead>
-                        <TableHead>Categoria</TableHead>
-                        <TableHead>Prioridade</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Data</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filtered.map((t) => (
-                        <TableRow key={t.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedTicket(t)}>
-                          <TableCell className="font-medium max-w-[200px] truncate">{t.subject}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{t.company_id ? companyMap.get(t.company_id) || "—" : "—"}</TableCell>
-                          <TableCell className="text-sm">{t.user_name || t.user_email || "—"}</TableCell>
-                          <TableCell><CategoryBadge category={t.category} /></TableCell>
-                          <TableCell><PriorityBadge priority={t.priority} /></TableCell>
-                          <TableCell><StatusBadge status={t.status} /></TableCell>
-                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{formatDate(t.created_at)}</TableCell>
+                <>
+                  {/* Mobile: card list */}
+                  <div className="sm:hidden divide-y">
+                    {filtered.map((t) => (
+                      <div key={t.id} className="p-3 cursor-pointer hover:bg-muted/50 active:bg-muted" onClick={() => setSelectedTicket(t)}>
+                        <p className="text-sm font-medium truncate">{t.subject}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{t.company_id ? companyMap.get(t.company_id) || "—" : "—"} · {t.user_name || "—"}</p>
+                        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                          <CategoryBadge category={t.category} />
+                          <PriorityBadge priority={t.priority} />
+                          <StatusBadge status={t.status} />
+                          <span className="text-[10px] text-muted-foreground ml-auto">{formatDate(t.created_at)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Desktop: table */}
+                  <div className="hidden sm:block overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Assunto</TableHead>
+                          <TableHead>Empresa</TableHead>
+                          <TableHead>Usuário</TableHead>
+                          <TableHead>Categoria</TableHead>
+                          <TableHead>Prioridade</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Data</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {filtered.map((t) => (
+                          <TableRow key={t.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedTicket(t)}>
+                            <TableCell className="font-medium max-w-[200px] truncate">{t.subject}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{t.company_id ? companyMap.get(t.company_id) || "—" : "—"}</TableCell>
+                            <TableCell className="text-sm">{t.user_name || t.user_email || "—"}</TableCell>
+                            <TableCell><CategoryBadge category={t.category} /></TableCell>
+                            <TableCell><PriorityBadge priority={t.priority} /></TableCell>
+                            <TableCell><StatusBadge status={t.status} /></TableCell>
+                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{formatDate(t.created_at)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
