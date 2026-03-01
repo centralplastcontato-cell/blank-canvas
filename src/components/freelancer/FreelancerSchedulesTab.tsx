@@ -72,6 +72,7 @@ export function FreelancerSchedulesTab() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [sendToGroupsSchedule, setSendToGroupsSchedule] = useState<Schedule | null>(null);
   const [sendAssignmentsSchedule, setSendAssignmentsSchedule] = useState<Schedule | null>(null);
+  const [freelancerRoles, setFreelancerRoles] = useState<Record<string, string[]>>({});
 
   const fetchSchedules = async () => {
     if (!companyId) return;
@@ -155,13 +156,39 @@ export function FreelancerSchedulesTab() {
       .from("freelancer_availability")
       .select("*")
       .eq("schedule_id", schedule.id);
-    setAvailability((avData as any[]) || []);
+    const avList = (avData as any[]) || [];
+    setAvailability(avList);
 
     const { data: asData } = await supabase
       .from("freelancer_assignments")
       .select("*")
       .eq("schedule_id", schedule.id);
     setAssignments((asData as any[]) || []);
+
+    // Fetch freelancer registered roles from freelancer_responses
+    const uniqueNames = [...new Set(avList.map((a: any) => a.freelancer_name))];
+    if (uniqueNames.length > 0 && companyId) {
+      const { data: frData } = await supabase
+        .from("freelancer_responses")
+        .select("respondent_name, answers")
+        .eq("company_id", companyId)
+        .eq("approval_status", "aprovado")
+        .in("respondent_name", uniqueNames);
+      const rolesMap: Record<string, string[]> = {};
+      (frData || []).forEach((fr: any) => {
+        const name = fr.respondent_name;
+        if (!name) return;
+        const answers = Array.isArray(fr.answers) ? fr.answers : [];
+        const funcaoAnswer = answers.find((a: any) => a.questionId === "funcao");
+        const roles = Array.isArray(funcaoAnswer?.value) ? funcaoAnswer.value as string[] : [];
+        if (roles.length > 0) {
+          // Merge if multiple registrations
+          const existing = rolesMap[name] || [];
+          rolesMap[name] = [...new Set([...existing, ...roles])];
+        }
+      });
+      setFreelancerRoles(rolesMap);
+    }
   };
 
   const copyLink = (schedule: Schedule) => {
@@ -373,6 +400,7 @@ export function FreelancerSchedulesTab() {
                     onDelete={() => deleteSchedule(schedule.id)}
                     onToggleAssignment={toggleAssignment}
                     onUpdateRole={updateRole}
+                    freelancerRoles={freelancerRoles}
                     onUpdateNotes={async (id, notes) => {
                       await supabase.from("freelancer_schedules").update({ notes: notes || null } as any).eq("id", id);
                       setSchedules(prev => prev.map(s => s.id === id ? { ...s, notes: notes || null } : s));

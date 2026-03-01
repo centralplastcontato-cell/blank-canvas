@@ -9,6 +9,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Separator } from "@/components/ui/separator";
 import { Copy, ChevronDown, ChevronUp, FileDown, Trash2, Check, MessageSquare, Pencil, Save, X, Send, UserCheck } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -47,12 +48,14 @@ interface ScheduleCardProps {
   onSendToGroups?: () => void;
   onSendAssignmentsToGroups?: () => void;
   scheduleAssignmentCount?: number;
+  freelancerRoles?: Record<string, string[]>;
 }
 
 export function ScheduleCard({
   schedule, isExpanded, events, availability, assignments, savingAssignment, roles,
   onToggleExpand, onCopyLink, onGeneratePDF, onDelete, onToggleAssignment, onUpdateRole, onUpdateNotes,
   onRemoveEvent, onUpdateDisplayName, onSendToGroups, onSendAssignmentsToGroups, scheduleAssignmentCount,
+  freelancerRoles = {},
 }: ScheduleCardProps) {
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesValue, setNotesValue] = useState(schedule.notes || "");
@@ -256,16 +259,21 @@ export function ScheduleCard({
                   <div className="space-y-1.5 pt-1">
                     {availForEvent.map(av => {
                       const assigned = assignedForEvent.find(a => a.freelancer_name === av.freelancer_name);
+                      const registeredRoles = freelancerRoles[av.freelancer_name] || [];
+                      const autoRole = registeredRoles.length === 1 ? registeredRoles[0] : "";
                       return (
                         <div key={av.id} className={`flex items-center gap-3 p-2.5 rounded-lg border transition-colors ${assigned ? "bg-primary/5 border-primary/15" : "bg-muted/30 border-transparent"}`}>
                           <Checkbox
                             checked={!!assigned}
-                            onCheckedChange={() => onToggleAssignment(schedule.id, eventId, av.freelancer_name, assigned?.role || "")}
+                            onCheckedChange={() => onToggleAssignment(schedule.id, eventId, av.freelancer_name, assigned?.role || autoRole)}
                             disabled={savingAssignment}
                           />
                           <div className="flex-1 min-w-0">
                             <p className={`text-sm ${assigned ? "font-semibold" : "font-medium"}`}>{av.freelancer_name}</p>
                             <p className="text-[11px] text-muted-foreground">{av.freelancer_phone}</p>
+                            {registeredRoles.length > 0 && (
+                              <p className="text-[11px] text-primary/70 font-medium mt-0.5">{registeredRoles.join(", ")}</p>
+                            )}
                           </div>
                           {assigned && (
                             <Select value={assigned.role || "none"} onValueChange={v => onUpdateRole(assigned.id, v === "none" ? "" : v)}>
@@ -274,7 +282,13 @@ export function ScheduleCard({
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="none">Sem função</SelectItem>
-                                {roles.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                                {registeredRoles.length > 0 && (
+                                  <>
+                                    {registeredRoles.map(r => <SelectItem key={`reg-${r}`} value={r}>{r}</SelectItem>)}
+                                    <Separator className="my-1" />
+                                  </>
+                                )}
+                                {roles.filter(r => !registeredRoles.includes(r)).map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                               </SelectContent>
                             </Select>
                           )}
