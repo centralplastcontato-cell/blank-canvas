@@ -54,10 +54,6 @@ interface SendScheduleToGroupsDialogProps {
   customDomain?: string | null;
 }
 
-function randomDelay(minMs: number, maxMs: number): Promise<void> {
-  const ms = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 export function SendScheduleToGroupsDialog({
   open,
@@ -79,6 +75,7 @@ export function SendScheduleToGroupsDialog({
   const [minimized, setMinimized] = useState(false);
   const [sendResult, setSendResult] = useState<{ success: number; errors: number } | null>(null);
   const [groupStatuses, setGroupStatuses] = useState<Map<string, "pending" | "sending" | "sent" | "error">>(new Map());
+  const [countdown, setCountdown] = useState<number | null>(null);
 
   // Keep component mounted while sending even if parent tries to close
   const isSendingRef = useRef(false);
@@ -102,6 +99,14 @@ export function SendScheduleToGroupsDialog({
   };
 
   useEffect(() => {
+    if (countdown === null || countdown <= 0) return;
+    const timer = setInterval(() => {
+      setCountdown((prev) => (prev !== null && prev > 1 ? prev - 1 : null));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [countdown]);
+
+  useEffect(() => {
     if (!open) return;
     setSelectedGroupIds(new Set());
     setSearchQuery("");
@@ -109,6 +114,7 @@ export function SendScheduleToGroupsDialog({
     setProgress(null);
     setMinimized(false);
     setSendResult(null);
+    setCountdown(null);
     loadData();
   }, [open]);
 
@@ -208,8 +214,11 @@ export function SendScheduleToGroupsDialog({
       const group = selectedGroups[i];
 
       if (i > 0) {
+        const totalDelay = delaySeconds + Math.floor(Math.random() * 3);
+        setCountdown(totalDelay);
         setProgress({ current: i, total: selectedGroups.length, waiting: true });
-        await randomDelay(delaySeconds * 1000, delaySeconds * 1000 + 2000);
+        await new Promise((resolve) => setTimeout(resolve, totalDelay * 1000));
+        setCountdown(null);
       }
 
       setProgress({ current: i + 1, total: selectedGroups.length, waiting: false });
@@ -293,8 +302,8 @@ export function SendScheduleToGroupsDialog({
             <p className="text-sm font-medium truncate">
               Enviando {progress?.current || 0} de {progress?.total || 0}...
             </p>
-            {progress?.waiting && (
-              <p className="text-[10px] text-muted-foreground">Aguardando ~{delaySeconds}s...</p>
+            {progress?.waiting && countdown !== null && (
+              <p className="text-[10px] text-muted-foreground">Próximo envio em {countdown}s ⏳</p>
             )}
             <Progress value={progressPercent} className="h-1.5 mt-1" />
           </div>
@@ -374,9 +383,9 @@ export function SendScheduleToGroupsDialog({
                   Enviando {progress?.current || 0} de {progress?.total || 0}...
                 </p>
                 <Progress value={progressPercent} className="h-2" />
-                {progress?.waiting && (
+                {progress?.waiting && countdown !== null && (
                   <p className="text-xs text-muted-foreground animate-pulse">
-                    Aguardando ~{delaySeconds}s de intervalo de segurança...
+                    Próximo envio em {countdown}s ⏳
                   </p>
                 )}
               </div>
