@@ -44,7 +44,9 @@ import {
   Eye,
   EyeOff,
   Video,
+  Download,
 } from "lucide-react";
+import { generateManualPDF } from "@/lib/generateManualPDF";
 
 interface TrainingLesson {
   id: string;
@@ -88,6 +90,16 @@ export default function HubTreinamento() {
   const [formPublished, setFormPublished] = useState(false);
   const [formVideoUrl, setFormVideoUrl] = useState("");
   const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [generatingPDF, setGeneratingPDF] = useState(false);
+
+  const handleDownloadManual = async () => {
+    setGeneratingPDF(true);
+    try {
+      await generateManualPDF();
+    } finally {
+      setGeneratingPDF(false);
+    }
+  };
 
   const fetchLessons = async () => {
     setLoading(true);
@@ -267,10 +279,16 @@ export default function HubTreinamento() {
               </SelectContent>
             </Select>
 
-            <Button onClick={openNewDialog}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Aula
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={handleDownloadManual} disabled={generatingPDF}>
+                {generatingPDF ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                Baixar Manual PDF
+              </Button>
+              <Button onClick={openNewDialog}>
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Aula
+              </Button>
+            </div>
           </div>
 
           {/* Lessons grid */}
