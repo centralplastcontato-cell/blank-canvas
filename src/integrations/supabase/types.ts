@@ -246,6 +246,131 @@ export type Database = {
           },
         ]
       }
+      campaign_recipients: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          error_message: string | null
+          id: string
+          lead_id: string | null
+          lead_name: string
+          phone: string
+          sent_at: string | null
+          status: string
+          variation_index: number
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          lead_id?: string | null
+          lead_name?: string
+          phone: string
+          sent_at?: string | null
+          status?: string
+          variation_index?: number
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          lead_id?: string | null
+          lead_name?: string
+          phone?: string
+          sent_at?: string | null
+          status?: string
+          variation_index?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_recipients_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_recipients_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaigns: {
+        Row: {
+          company_id: string
+          completed_at: string | null
+          created_at: string
+          created_by: string
+          delay_seconds: number
+          description: string | null
+          error_count: number
+          filters: Json | null
+          id: string
+          image_url: string | null
+          message_variations: Json
+          name: string
+          scheduled_at: string | null
+          sent_count: number
+          started_at: string | null
+          status: string
+          total_recipients: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          completed_at?: string | null
+          created_at?: string
+          created_by: string
+          delay_seconds?: number
+          description?: string | null
+          error_count?: number
+          filters?: Json | null
+          id?: string
+          image_url?: string | null
+          message_variations?: Json
+          name: string
+          scheduled_at?: string | null
+          sent_count?: number
+          started_at?: string | null
+          status?: string
+          total_recipients?: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string
+          delay_seconds?: number
+          description?: string | null
+          error_count?: number
+          filters?: Json | null
+          id?: string
+          image_url?: string | null
+          message_variations?: Json
+          name?: string
+          scheduled_at?: string | null
+          sent_count?: number
+          started_at?: string | null
+          status?: string
+          total_recipients?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cardapio_responses: {
         Row: {
           answers: Json

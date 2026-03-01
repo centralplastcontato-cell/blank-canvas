@@ -10,6 +10,7 @@ import {
   CalendarDays,
   FolderOpen,
   GraduationCap,
+  Megaphone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -91,6 +92,13 @@ export function MobileMenu({
       icon: FolderOpen,
       path: "/formularios",
       show: !!modules.operacoes,
+    },
+    {
+      id: "campanhas",
+      label: "Campanhas",
+      icon: Megaphone,
+      path: "/campanhas",
+      show: !!modules.campanhas,
     },
     {
       id: "configuracoes",

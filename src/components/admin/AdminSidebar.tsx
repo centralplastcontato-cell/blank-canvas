@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Users, LogOut, RefreshCw, Headset, Settings, Pin, PinOff, ChevronLeft, Building2, Brain, CalendarDays, FolderOpen, GraduationCap } from "lucide-react";
+import { Users, LogOut, RefreshCw, Headset, Settings, Pin, PinOff, ChevronLeft, Building2, Brain, CalendarDays, FolderOpen, GraduationCap, Megaphone } from "lucide-react";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -54,6 +54,7 @@ export function AdminSidebar({
     ...(modules.inteligencia ? [{ title: "Inteligência", url: "/inteligencia", icon: Brain }] : []),
     ...(modules.agenda ? [{ title: "Agenda", url: "/agenda", icon: CalendarDays }] : []),
     ...(modules.operacoes ? [{ title: "Operações", url: "/formularios", icon: FolderOpen }] : []),
+    ...(modules.campanhas ? [{ title: "Campanhas", url: "/campanhas", icon: Megaphone }] : []),
     ...(canManageUsers ? [{ title: "Gerenciar Usuários", url: "/users", icon: Users }] : []),
     ...(isAdmin ? [{ title: "Empresas", url: "/hub/empresas", icon: Building2 }] : []),
     ...(modules.treinamento ? [{ title: "Treinamento", url: "/treinamento", icon: GraduationCap }] : []),

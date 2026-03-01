@@ -19,6 +19,7 @@ export interface CompanyModules {
   bot_festa: boolean;
   treinamento: boolean;
   onboarding_checklist: boolean;
+  campanhas: boolean;
 }
 
 export interface PartyControlModules {
@@ -98,6 +99,7 @@ const DEFAULT_MODULES: CompanyModules = {
   bot_festa: false,
   treinamento: true,
   onboarding_checklist: false,
+  campanhas: false,
 };
 
 export function parseModules(settings: Json | null | undefined): CompanyModules {
@@ -128,6 +130,7 @@ export function parseModules(settings: Json | null | undefined): CompanyModules 
     bot_festa: modules.bot_festa === true,
     treinamento: modules.treinamento !== false,
     onboarding_checklist: modules.onboarding_checklist === true,
+    campanhas: modules.campanhas === true,
   };
 }
 
@@ -154,4 +157,5 @@ export const MODULE_LABELS: Record<keyof CompanyModules, { label: string; descri
   bot_festa: { label: 'Bot Festa', description: 'Mensagens automáticas para convidados em festas' },
   treinamento: { label: 'Treinamento', description: 'Videoaulas de treinamento da plataforma' },
   onboarding_checklist: { label: 'Onboarding Guiado', description: 'Checklist interativo de primeiros passos no painel' },
+  campanhas: { label: 'Campanhas', description: 'Disparos de marketing em massa via WhatsApp' },
 };
