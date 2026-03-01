@@ -1,82 +1,79 @@
 
 
-## Leads de BASE - Nova aba no modulo de Campanhas
+## Importacao de Leads de Base via CSV
 
-### Conceito
-Criar uma aba "Leads de Base" dentro da pagina de Campanhas para que buffets possam cadastrar manualmente contatos que ja possuem (clientes antigos, indicacoes, listas de contato) mas que nao estao no CRM. Esses contatos servem exclusivamente como audiencia para campanhas de ativacao.
+### Resumo
+Criar um dialog de importacao CSV na aba "Leads de Base" que permite ao usuario baixar um modelo de planilha, preencher com seus contatos e enviar de volta ao sistema para cadastro em lote.
 
-Quando uma campanha e disparada para um lead de Base e ele responde no WhatsApp, o bot trata como um contato novo e inicia o fluxo completo de qualificacao, criando automaticamente o lead no CRM.
-
-### Estrutura
-
-**1. Nova tabela no Supabase: `base_leads`**
-- `id` (uuid, PK)
-- `company_id` (uuid, FK companies)
-- `name` (text, obrigatorio)
-- `phone` (text, obrigatorio - formato WhatsApp)
-- `is_former_client` (boolean, default false)
-- `former_party_info` (text, nullable - "quando foi a festa")
-- `month_interest` (text, nullable - mes de interesse se nao for ex-cliente)
-- `notes` (text, nullable)
-- `created_at` (timestamptz)
-- `created_by` (uuid, FK auth.users)
-
-Com RLS habilitado, filtrando por `company_id` via `user_companies`.
-
-**2. Modificar pagina `src/pages/Campanhas.tsx`**
-- Adicionar duas abas usando Tabs: "Campanhas" e "Leads de Base"
-- A aba "Campanhas" mantem o conteudo atual (lista de campanhas + botao Nova Campanha)
-- A aba "Leads de Base" mostra a lista de contatos cadastrados + botao "Adicionar Contato"
-
-**3. Criar `src/components/campanhas/BaseLeadsTab.tsx`**
-- Lista de leads de base com busca
-- Cards compactos mostrando nome, telefone, se foi cliente, mes de interesse
-- Botao para adicionar novo contato
-- Opcoes de editar e excluir
-
-**4. Criar `src/components/campanhas/BaseLeadFormDialog.tsx`**
-- Dialog com formulario:
-  - Nome (obrigatorio)
-  - Telefone/WhatsApp (obrigatorio, com mascara)
-  - "Ja foi cliente?" (toggle Sim/Nao)
-    - Se Sim: campo "Quando foi a festa?" (texto livre)
-    - Se Nao: campo "Mes de interesse" (select com meses)
-  - Observacoes (opcional)
-- Validacao de campos obrigatorios
-- Insert/Update no `base_leads`
-
-**5. Modificar `src/components/campanhas/CampaignAudienceStep.tsx`**
-- Adicionar um filtro/toggle "Origem" com opcoes: "CRM" | "Base" | "Todos"
-- Quando "Base" ou "Todos" estiver selecionado, carregar tambem os leads de `base_leads`
-- Os leads de Base aparecem na mesma lista com um badge "Base" para diferencia-los dos leads do CRM
-- Os leads de Base sao mapeados para o mesmo formato `{ id, name, whatsapp }` para compatibilidade com o wizard
-
-**6. Fluxo do bot (sem alteracao de codigo)**
-- Como os leads de Base nao existem no CRM (`campaign_leads`), quando o bot recebe uma mensagem de um numero desconhecido, ele ja trata como novo contato e inicia qualificacao normalmente. Nenhuma alteracao e necessaria no webhook.
-
-### Resumo visual da pagina
-
-```text
-+------------------------------------------+
-| Campanhas                                |
-| [Campanhas]  [Leads de Base]             |
-+------------------------------------------+
-|                                          |
-|  Aba Campanhas: lista atual              |
-|  Aba Leads de Base:                      |
-|    [+ Adicionar Contato]                 |
-|    [Busca...]                            |
-|    - Maria Silva  (11) 9xxxx  Base       |
-|    - Joao Santos  (11) 9xxxx  Ex-cliente |
-|                                          |
-+------------------------------------------+
-```
+### Fluxo do usuario
+1. Clica no botao "Importar" (ao lado de "Adicionar Contato")
+2. Abre um dialog com botao para baixar o modelo CSV
+3. Preenche a planilha no Excel/Google Sheets
+4. Faz upload do arquivo preenchido
+5. Ve a pre-visualizacao: quantos validos, erros e duplicatas
+6. Confirma e os contatos sao inseridos em lote
 
 ### Arquivos envolvidos
-1. **Nova migration SQL** - Criar tabela `base_leads` com RLS
-2. **`src/pages/Campanhas.tsx`** - Adicionar Tabs (Campanhas / Leads de Base)
-3. **`src/components/campanhas/BaseLeadsTab.tsx`** - Novo componente da aba
-4. **`src/components/campanhas/BaseLeadFormDialog.tsx`** - Novo dialog de formulario
-5. **`src/components/campanhas/CampaignAudienceStep.tsx`** - Adicionar filtro "Origem" e carregar base_leads
-6. **`src/components/campanhas/CampaignWizard.tsx`** - Ajustar interface CampaignDraft para suportar leads de base
+
+**Novo arquivo: `src/components/campanhas/BaseLeadImportDialog.tsx`**
+
+Dialog com duas etapas:
+- **Etapa 1 (Upload)**: Botao para baixar template CSV + area de upload de arquivo
+- **Etapa 2 (Confirmacao)**: Tabela de pre-visualizacao com contadores (validos, erros, duplicatas) + botao de confirmar
+
+Logica interna:
+- Parse do CSV no frontend (sem biblioteca externa) - detecta separador `;` ou `,` automaticamente
+- Validacao por linha: nome obrigatorio (min 2 chars), telefone com 10-11 digitos
+- Normalizacao do telefone: remove formatacao, aceita com ou sem DDI (55), armazena apenas DDD+numero
+- Campo `ex_cliente`: aceita "sim"/"s"/"yes"/"1" como true, qualquer outro valor como false
+- Consulta `base_leads` existentes da empresa para detectar duplicatas por telefone
+- Insercao em batches de 50 registros via Supabase
+- Barra de progresso durante a importacao
+- Resumo final: X importados, Y duplicatas ignoradas, Z com erro
+
+Template CSV gerado:
+```text
+nome;telefone;ex_cliente;info_festa;mes_interesse;observacoes
+Maria Silva;11999887766;sim;Marco 2024;;Indicacao da Ana
+Joao Santos;11988776655;nao;;Junho;Viu no Instagram
+```
+
+**Arquivo editado: `src/components/campanhas/BaseLeadsTab.tsx`**
+
+- Adicionar botao "Importar" (icone `Upload`) ao lado do botao "Adicionar Contato"
+- State `importOpen` para controlar o dialog
+- Renderizar `BaseLeadImportDialog` passando `companyId` e `onImported={loadLeads}`
+
+### Detalhes tecnicos
+
+**Parse do CSV:**
+- Dividir texto por `\n`, ignorar linhas vazias
+- Primeira linha = header (ignorada)
+- Detectar separador: se header contem `;` usa `;`, senao usa `,`
+- Cada campo e trimado; aspas duplas envolventes sao removidas
+
+**Validacao:**
+- `nome`: obrigatorio, min 2 caracteres, max 100
+- `telefone`: obrigatorio, somente digitos apos limpeza, 10 ou 11 digitos
+- Se telefone comecar com "55" e tiver 12-13 digitos, remove o "55" para armazenar apenas DDD+numero
+- `ex_cliente`: normalizado para boolean
+- `info_festa`: max 100 chars
+- `mes_interesse`: validado contra lista de meses conhecidos (aceita lowercase)
+- `observacoes`: max 500 chars
+
+**Deteccao de duplicatas:**
+- Busca todos os telefones existentes em `base_leads` para o `company_id`
+- Compara o telefone normalizado de cada linha do CSV contra os existentes
+
+**Insercao em lote:**
+- Batches de 50 registros usando `supabase.from('base_leads').insert(batch)`
+- `created_by` obtido via `supabase.auth.getUser()`
+- Progress bar atualizada a cada batch
+
+**Estilo visual:**
+- Segue o mesmo padrao premium do `BaseLeadFormDialog` (glassmorphism, rounded-2xl, gradiente no header)
+- Icones e badges coloridos para status de validacao (verde = valido, vermelho = erro, amarelo = duplicata)
+
+### Nenhuma alteracao no banco de dados
+A tabela `base_leads` ja possui todos os campos necessarios. Nao e preciso criar migration.
 
