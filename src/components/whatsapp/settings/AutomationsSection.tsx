@@ -441,6 +441,7 @@ export function AutomationsSection() {
       const inserts = DEFAULT_QUESTIONS.map(q => ({
         ...q,
         instance_id: selectedInstance.id,
+        company_id: currentCompanyId,
         is_active: true,
       }));
 
@@ -548,6 +549,7 @@ export function AutomationsSection() {
             confirmation_text: question.confirmation_text,
             is_active: question.is_active,
             sort_order: question.sort_order,
+            company_id: currentCompanyId,
           })
           .eq("id", question.id);
 
@@ -582,6 +584,7 @@ export function AutomationsSection() {
       const newQuestions = DEFAULT_QUESTIONS.map(q => ({
         ...q,
         instance_id: selectedInstance.id,
+        company_id: currentCompanyId,
         is_active: true,
       }));
 
