@@ -98,6 +98,17 @@ function loadImageAsBase64(src: string): Promise<string> {
         const ctx = canvas.getContext("2d");
         if (!ctx) return reject(new Error("Canvas not supported"));
         ctx.drawImage(img, 0, 0);
+        // Remove white/near-white background pixels (make transparent)
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i], g = data[i + 1], b = data[i + 2];
+          // If pixel is white or near-white, make it transparent
+          if (r > 230 && g > 230 && b > 230) {
+            data[i + 3] = 0; // set alpha to 0
+          }
+        }
+        ctx.putImageData(imageData, 0, 0);
         resolve(canvas.toDataURL("image/png"));
       } catch (e) {
         reject(e);
