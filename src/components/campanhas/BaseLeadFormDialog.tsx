@@ -115,79 +115,103 @@ export function BaseLeadFormDialog({ open, onOpenChange, companyId, editLead, on
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{editLead ? "Editar Contato" : "Adicionar Contato"}</DialogTitle>
-          <DialogDescription>
-            {editLead ? "Edite as informações do contato de base." : "Adicione um contato à sua lista de base para campanhas."}
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-md rounded-2xl border-border/40 bg-background/95 backdrop-blur-xl shadow-2xl p-0 overflow-hidden">
+        {/* Header com gradiente sutil */}
+        <div className="px-6 pt-6 pb-4 bg-gradient-to-b from-primary/5 to-transparent">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold tracking-tight">{editLead ? "Editar Contato" : "Adicionar Contato"}</DialogTitle>
+            <DialogDescription className="text-muted-foreground/80">
+              {editLead ? "Edite as informações do contato de base." : "Adicione um contato à sua lista de base para campanhas."}
+            </DialogDescription>
+          </DialogHeader>
+        </div>
 
-        <div className="space-y-4 pt-2">
+        <div className="px-6 pb-6 space-y-5">
+          {/* Seção: Dados pessoais */}
           <div className="space-y-1.5">
-            <Label htmlFor="bl-name">Nome *</Label>
-            <Input
-              id="bl-name"
-              placeholder="Nome do contato"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={100}
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="bl-phone">Telefone/WhatsApp *</Label>
-            <Input
-              id="bl-phone"
-              placeholder="(11) 99999-9999"
-              value={phone}
-              onChange={(e) => setPhone(formatPhone(e.target.value))}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Já foi cliente?</Label>
-            <RadioGroup value={isFormerClient} onValueChange={setIsFormerClient} className="flex gap-4">
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="yes" id="bl-yes" />
-                <Label htmlFor="bl-yes" className="font-normal cursor-pointer">Sim</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="no" id="bl-no" />
-                <Label htmlFor="bl-no" className="font-normal cursor-pointer">Não</Label>
-              </div>
-            </RadioGroup>
-          </div>
-
-          {isFormerClient === "yes" ? (
-            <div className="space-y-1.5">
-              <Label htmlFor="bl-party">Quando foi a festa?</Label>
-              <Input
-                id="bl-party"
-                placeholder="Ex: Março 2024"
-                value={formerPartyInfo}
-                onChange={(e) => setFormerPartyInfo(e.target.value)}
-                maxLength={100}
-              />
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Dados pessoais</span>
+              <div className="flex-1 h-px bg-border/50" />
             </div>
-          ) : (
-            <div className="space-y-1.5">
-              <Label>Mês de interesse</Label>
-              <Select value={monthInterest} onValueChange={setMonthInterest}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o mês" />
-                </SelectTrigger>
-                <SelectContent>
-                  {MONTHS.map((m) => (
-                    <SelectItem key={m} value={m}>{m}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-3.5">
+              <div className="space-y-1.5">
+                <Label htmlFor="bl-name" className="text-xs font-semibold text-foreground/80">Nome *</Label>
+                <Input
+                  id="bl-name"
+                  placeholder="Nome do contato"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  maxLength={100}
+                  className="rounded-xl h-11 border-border/60 focus:border-primary/40"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="bl-phone" className="text-xs font-semibold text-foreground/80">Telefone/WhatsApp *</Label>
+                <Input
+                  id="bl-phone"
+                  placeholder="(11) 99999-9999"
+                  value={phone}
+                  onChange={(e) => setPhone(formatPhone(e.target.value))}
+                  className="rounded-xl h-11 border-border/60 focus:border-primary/40"
+                />
+              </div>
             </div>
-          )}
+          </div>
 
+          {/* Seção: Histórico */}
           <div className="space-y-1.5">
-            <Label htmlFor="bl-notes">Observações</Label>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Histórico</span>
+              <div className="flex-1 h-px bg-border/50" />
+            </div>
+            <div className="space-y-3.5">
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-foreground/80">Já foi cliente?</Label>
+                <RadioGroup value={isFormerClient} onValueChange={setIsFormerClient} className="flex gap-4">
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="yes" id="bl-yes" />
+                    <Label htmlFor="bl-yes" className="font-normal cursor-pointer text-sm">Sim</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="no" id="bl-no" />
+                    <Label htmlFor="bl-no" className="font-normal cursor-pointer text-sm">Não</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {isFormerClient === "yes" ? (
+                <div className="space-y-1.5">
+                  <Label htmlFor="bl-party" className="text-xs font-semibold text-foreground/80">Quando foi a festa?</Label>
+                  <Input
+                    id="bl-party"
+                    placeholder="Ex: Março 2024"
+                    value={formerPartyInfo}
+                    onChange={(e) => setFormerPartyInfo(e.target.value)}
+                    maxLength={100}
+                    className="rounded-xl h-11 border-border/60 focus:border-primary/40"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-foreground/80">Mês de interesse</Label>
+                  <Select value={monthInterest} onValueChange={setMonthInterest}>
+                    <SelectTrigger className="rounded-xl h-11 border-border/60">
+                      <SelectValue placeholder="Selecione o mês" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MONTHS.map((m) => (
+                        <SelectItem key={m} value={m}>{m}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Observações */}
+          <div className="space-y-1.5">
+            <Label htmlFor="bl-notes" className="text-xs font-semibold text-foreground/80">Observações</Label>
             <Textarea
               id="bl-notes"
               placeholder="Anotações sobre o contato..."
@@ -195,12 +219,14 @@ export function BaseLeadFormDialog({ open, onOpenChange, companyId, editLead, on
               onChange={(e) => setNotes(e.target.value)}
               maxLength={500}
               rows={2}
+              className="rounded-xl border-border/60 focus:border-primary/40 resize-none"
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={!canSave || saving}>
+          {/* Botões */}
+          <div className="flex justify-end gap-2.5 pt-3 border-t border-border/30">
+            <Button variant="ghost" onClick={() => onOpenChange(false)} className="rounded-xl px-5">Cancelar</Button>
+            <Button onClick={handleSave} disabled={!canSave || saving} className="rounded-xl px-6 shadow-md shadow-primary/20">
               {saving && <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />}
               {editLead ? "Salvar" : "Adicionar"}
             </Button>
