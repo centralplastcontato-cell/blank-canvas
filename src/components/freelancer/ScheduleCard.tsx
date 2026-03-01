@@ -84,49 +84,54 @@ export function ScheduleCard({
   return (
     <Card className={`transition-all duration-200 ${isExpanded ? "shadow-md border-primary/20 ring-1 ring-primary/5" : "hover:shadow-sm"}`}>
       <CardHeader className="cursor-pointer pb-3" onClick={onToggleExpand}>
-        <div className="flex items-center justify-between">
-          <div className="flex-1 min-w-0">
-            <CardTitle className="text-base flex items-center gap-2.5">
-              <div className="h-2 w-2 rounded-full bg-primary shrink-0" />
-              {schedule.title}
+        <div className="space-y-2">
+          {/* Row 1: Title + badge + chevron */}
+          <div className="flex items-start justify-between gap-2">
+            <CardTitle className="text-base flex items-center gap-2 flex-wrap">
+              <div className="h-2 w-2 rounded-full bg-primary shrink-0 mt-1.5" />
+              <span>{schedule.title}</span>
               {schedule.is_active && (
                 <Badge className="text-[10px] bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100">
                   Ativa
                 </Badge>
               )}
             </CardTitle>
-            <p className="text-sm text-muted-foreground mt-1 pl-4">
+            <div className="h-6 w-6 rounded-full bg-muted/60 flex items-center justify-center shrink-0 mt-0.5">
+              {isExpanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+            </div>
+          </div>
+
+          {/* Row 2: Metadata + action icons */}
+          <div className="flex items-center justify-between gap-2 pl-4">
+            <p className="text-sm text-muted-foreground">
               {startStr} a {endStr} · {schedule.event_ids.length} festa(s)
               {isExpanded && availCount > 0 && (
-                <span className="text-primary font-medium"> · {availCount} resposta(s)</span>
+                <span className="text-primary font-medium"> · {availCount} resp.</span>
               )}
               {isExpanded && assignCount > 0 && (
-                <span className="text-emerald-600 font-medium"> · {assignCount} escalado(s)</span>
+                <span className="text-emerald-600 font-medium"> · {assignCount} esc.</span>
               )}
             </p>
-          </div>
-          <div className="flex items-center gap-0.5">
-            {onSendAssignmentsToGroups && (scheduleAssignmentCount ?? 0) > 0 && (
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-primary hover:text-primary/80" title="Enviar escalados para grupos" onClick={e => { e.stopPropagation(); onSendAssignmentsToGroups(); }}>
-                <UserCheck className="h-3.5 w-3.5" />
+            <div className="flex items-center gap-0.5 shrink-0">
+              {onSendAssignmentsToGroups && (scheduleAssignmentCount ?? 0) > 0 && (
+                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-primary hover:text-primary/80" title="Enviar escalados para grupos" onClick={e => { e.stopPropagation(); onSendAssignmentsToGroups(); }}>
+                  <UserCheck className="h-3.5 w-3.5" />
+                </Button>
+              )}
+              {onSendToGroups && (
+                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-emerald-600 hover:text-emerald-700" onClick={e => { e.stopPropagation(); onSendToGroups(); }}>
+                  <Send className="h-3.5 w-3.5" />
+                </Button>
+              )}
+              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={e => { e.stopPropagation(); onCopyLink(); }}>
+                <Copy className="h-3.5 w-3.5" />
               </Button>
-            )}
-            {onSendToGroups && (
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-emerald-600 hover:text-emerald-700" onClick={e => { e.stopPropagation(); onSendToGroups(); }}>
-                <Send className="h-3.5 w-3.5" />
+              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={e => { e.stopPropagation(); onGeneratePDF(); }}>
+                <FileDown className="h-3.5 w-3.5" />
               </Button>
-            )}
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={e => { e.stopPropagation(); onCopyLink(); }}>
-              <Copy className="h-3.5 w-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={e => { e.stopPropagation(); onGeneratePDF(); }}>
-              <FileDown className="h-3.5 w-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-destructive hover:text-destructive" onClick={e => { e.stopPropagation(); onDelete(); }}>
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-            <div className="ml-1 h-6 w-6 rounded-full bg-muted/60 flex items-center justify-center">
-              {isExpanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-destructive hover:text-destructive" onClick={e => { e.stopPropagation(); onDelete(); }}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
             </div>
           </div>
         </div>
