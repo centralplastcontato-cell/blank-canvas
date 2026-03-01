@@ -1121,9 +1121,20 @@ export function AutomationsSection() {
                       Mensagem de Boas-vindas
                     </Label>
                     <Textarea
-                      value={botSettings?.welcome_message || ""}
-                      onChange={(e) => setBotSettings(prev => prev ? { ...prev, welcome_message: e.target.value } : null)}
-                      onBlur={() => botSettings && updateBotSettings({ welcome_message: botSettings.welcome_message })}
+                      value={botSettings?.welcome_message ?? ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        console.log("[welcome] onChange:", val.slice(0, 30));
+                        setBotSettings(prev => {
+                          if (!prev) return prev;
+                          return { ...prev, welcome_message: val };
+                        });
+                      }}
+                      onBlur={() => {
+                        if (botSettings) {
+                          debouncedUpdateBotSettings('welcome_message', { welcome_message: botSettings.welcome_message }, 300);
+                        }
+                      }}
                       className="min-h-[80px] text-base"
                       placeholder="Olá! 👋 Bem-vindo ao nosso buffet!"
                     />
