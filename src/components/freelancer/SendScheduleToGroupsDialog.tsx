@@ -16,7 +16,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
-import { Search, UsersRound, Loader2, Send, Minus, CheckCircle2, XCircle } from "lucide-react";
+import { Search, UsersRound, Loader2, Send, Minus, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { DEFAULT_SCHEDULE_GROUP_MESSAGE } from "@/components/whatsapp/settings/ScheduleGroupMessageCard";
@@ -78,6 +78,7 @@ export function SendScheduleToGroupsDialog({
   const [delaySeconds, setDelaySeconds] = useState(60);
   const [minimized, setMinimized] = useState(false);
   const [sendResult, setSendResult] = useState<{ success: number; errors: number } | null>(null);
+  const [groupStatuses, setGroupStatuses] = useState<Map<string, "pending" | "sending" | "sent" | "error">>(new Map());
 
   // Keep component mounted while sending even if parent tries to close
   const isSendingRef = useRef(false);
@@ -196,6 +197,10 @@ export function SendScheduleToGroupsDialog({
     setProgress({ current: 0, total: selectedGroups.length, waiting: false });
     setSendResult(null);
 
+    const initialStatuses = new Map<string, "pending" | "sending" | "sent" | "error">();
+    selectedGroups.forEach((g) => initialStatuses.set(g.id, "pending"));
+    setGroupStatuses(initialStatuses);
+
     let successCount = 0;
     let errorCount = 0;
 
@@ -208,10 +213,12 @@ export function SendScheduleToGroupsDialog({
       }
 
       setProgress({ current: i + 1, total: selectedGroups.length, waiting: false });
+      setGroupStatuses((prev) => new Map(prev).set(group.id, "sending"));
 
       const instance = instances.find((inst) => inst.id === group.instance_id);
       if (!instance) {
         errorCount++;
+        setGroupStatuses((prev) => new Map(prev).set(group.id, "error"));
         continue;
       }
 
@@ -228,12 +235,15 @@ export function SendScheduleToGroupsDialog({
         if (error) {
           console.error(`Failed to send to group ${group.contact_name}:`, error);
           errorCount++;
+          setGroupStatuses((prev) => new Map(prev).set(group.id, "error"));
         } else {
           successCount++;
+          setGroupStatuses((prev) => new Map(prev).set(group.id, "sent"));
         }
       } catch (err) {
         console.error(`Error sending to group:`, err);
         errorCount++;
+        setGroupStatuses((prev) => new Map(prev).set(group.id, "error"));
       }
     }
 
@@ -358,17 +368,44 @@ export function SendScheduleToGroupsDialog({
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
           ) : sending ? (
-            <div className="space-y-4 py-4">
-              <p className="text-sm font-medium">
-                Enviando {progress?.current || 0} de {progress?.total || 0}...
-              </p>
-              <Progress value={progressPercent} className="h-2" />
-              {progress?.waiting && (
-                <p className="text-xs text-muted-foreground animate-pulse">
-                  Aguardando ~{delaySeconds}s de intervalo de segurança...
+            <div className="space-y-3 py-2 flex-1 overflow-hidden flex flex-col min-h-0">
+              <div className="space-y-1.5 shrink-0">
+                <p className="text-sm font-medium">
+                  Enviando {progress?.current || 0} de {progress?.total || 0}...
                 </p>
-              )}
-              <p className="text-xs text-muted-foreground">
+                <Progress value={progressPercent} className="h-2" />
+                {progress?.waiting && (
+                  <p className="text-xs text-muted-foreground animate-pulse">
+                    Aguardando ~{delaySeconds}s de intervalo de segurança...
+                  </p>
+                )}
+              </div>
+
+              <ScrollArea className="flex-1 border rounded-md min-h-0">
+                <div className="p-1 space-y-0.5">
+                  {groups
+                    .filter((g) => groupStatuses.has(g.id))
+                    .map((group) => {
+                      const status = groupStatuses.get(group.id) || "pending";
+                      return (
+                        <div
+                          key={group.id}
+                          className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors ${status === "sending" ? "bg-accent" : ""}`}
+                        >
+                          {status === "pending" && <Clock className="w-4 h-4 shrink-0 text-muted-foreground" />}
+                          {status === "sending" && <Loader2 className="w-4 h-4 shrink-0 text-primary animate-spin" />}
+                          {status === "sent" && <CheckCircle2 className="w-4 h-4 shrink-0 text-green-500" />}
+                          {status === "error" && <XCircle className="w-4 h-4 shrink-0 text-destructive" />}
+                          <span className="truncate flex-1">
+                            {group.contact_name || group.remote_jid.split("@")[0]}
+                          </span>
+                        </div>
+                      );
+                    })}
+                </div>
+              </ScrollArea>
+
+              <p className="text-xs text-muted-foreground shrink-0">
                 Você pode minimizar esta janela e continuar usando o sistema.
               </p>
             </div>
