@@ -1,24 +1,30 @@
 
 
-# Adicionar explicacoes por passo no Wizard de Campanhas
+# Corrigir resetQuestions() para abordagem segura
 
-## O que sera feito
+## Problema
 
-Adicionar um texto explicativo abaixo dos indicadores de etapa no Wizard, mostrando uma descricao clara do que o usuario deve fazer em cada passo. O texto muda dinamicamente conforme o passo ativo.
+A funcao `resetQuestions()` atual faz DELETE primeiro e INSERT depois. Se o INSERT falhar (timeout, erro de rede, etc.), as perguntas personalizadas do buffet sao perdidas permanentemente -- exatamente o que aconteceu com o Aventura Kids.
 
-## Textos por passo
+## Solucao
 
-- **Passo 1 - Contexto**: "Escolha um nome para sua campanha, descreva o objetivo e gere as variacoes de mensagem com a IA. Voce tambem pode anexar uma imagem."
-- **Passo 2 - Audiencia**: "Filtre e selecione os leads que receberao a campanha. Use os filtros de status, unidade e mes para refinar sua lista."
-- **Passo 3 - Configuracao**: "Revise o resumo da campanha, ajuste o intervalo entre envios e confira a previa da mensagem antes de criar."
+Inverter a ordem: inserir as novas perguntas padrao primeiro, e so apagar as antigas apos confirmacao de sucesso da insercao. Usar os IDs das perguntas antigas (capturados antes) para o DELETE seletivo.
 
 ## Detalhes tecnicos
 
-**Arquivo unico**: `src/components/campanhas/CampaignWizard.tsx`
+**Arquivo**: `src/components/whatsapp/settings/AutomationsSection.tsx`
 
-1. Adicionar um array `STEP_DESCRIPTIONS` com os 3 textos explicativos
-2. Renderizar um paragrafo com `STEP_DESCRIPTIONS[step]` logo abaixo do bloco de step indicators (dentro do header, antes do content area)
-3. Estilo: texto pequeno (`text-xs`), cor suave (`text-muted-foreground`), com padding inferior para separar do conteudo, e um icone de info (`Info` do lucide) ao lado
+**Logica atual (linhas 573-611)**:
+1. DELETE todas as perguntas da instancia
+2. INSERT perguntas padrao
+3. Se o INSERT falhar, dados perdidos
 
-Nenhum outro arquivo precisa ser alterado.
+**Nova logica**:
+1. Capturar os IDs das perguntas atuais (`botQuestions.map(q => q.id)`)
+2. INSERT das perguntas padrao novas (com `select()` para confirmar)
+3. Se o INSERT teve sucesso, DELETE apenas os registros com os IDs antigos capturados no passo 1
+4. Se o INSERT falhar, nao apaga nada -- perguntas antigas continuam intactas
+5. Atualizar o estado local com as novas perguntas
+
+Essa abordagem garante que, em caso de falha, as perguntas originais do buffet permanecem no banco.
 
