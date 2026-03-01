@@ -68,11 +68,8 @@ export default function PublicStaff() {
   useEffect(() => {
     if (!recordId) return;
     (async () => {
-      const { data, error } = await supabase
-        .from("event_staff_entries")
-        .select("*")
-        .eq("id", recordId)
-        .single();
+      const { data: rpcData, error } = await supabase.rpc("get_staff_entry_public", { _entry_id: recordId });
+      const data = rpcData && Array.isArray(rpcData) ? (rpcData as any[])[0] : rpcData;
 
       if (error || !data) {
         setNotFound(true);

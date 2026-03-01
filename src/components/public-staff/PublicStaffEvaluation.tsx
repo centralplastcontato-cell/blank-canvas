@@ -72,11 +72,7 @@ export function PublicStaffEvaluation({ recordId, companyId, eventId, staffData 
 
   const loadExisting = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("freelancer_evaluations")
-      .select("*")
-      .eq("event_staff_entry_id", recordId)
-      .eq("company_id", companyId);
+    const { data } = await supabase.rpc("get_evaluations_by_staff_entry", { _entry_id: recordId });
 
     const existingMap = new Map(
       (data || []).map((d: any) => [d.freelancer_name, d])

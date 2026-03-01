@@ -3451,6 +3451,19 @@ export type Database = {
           thank_you_message: string
         }[]
       }
+      get_evaluations_by_staff_entry: {
+        Args: { _entry_id: string }
+        Returns: {
+          company_id: string
+          created_at: string
+          event_id: string
+          event_staff_entry_id: string
+          freelancer_name: string
+          id: string
+          observations: string
+          scores: Json
+        }[]
+      }
       get_event_public_info: {
         Args: { _event_id: string }
         Returns: {
@@ -3546,6 +3559,24 @@ export type Database = {
           video: Json
         }[]
       }
+      get_lp_bot_settings_public: {
+        Args: { _company_id: string }
+        Returns: {
+          completion_message: string
+          guest_limit: number
+          guest_limit_message: string
+          guest_limit_redirect_name: string
+          guest_options: Json
+          guest_question: string
+          month_options: Json
+          month_question: string
+          name_question: string
+          redirect_completion_message: string
+          welcome_message: string
+          whatsapp_question: string
+          whatsapp_welcome_template: string
+        }[]
+      }
       get_onboarding_public_fields: {
         Args: { _company_id: string }
         Returns: {
@@ -3591,6 +3622,18 @@ export type Database = {
           id: string
           is_active: boolean
           user_id: string
+        }[]
+      }
+      get_staff_entry_public: {
+        Args: { _entry_id: string }
+        Returns: {
+          company_id: string
+          created_at: string
+          event_id: string
+          id: string
+          notes: string
+          staff_data: Json
+          updated_at: string
         }[]
       }
       get_user_company_ids: { Args: { _user_id: string }; Returns: string[] }
