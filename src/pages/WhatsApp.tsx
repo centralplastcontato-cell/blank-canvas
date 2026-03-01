@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
@@ -34,7 +35,7 @@ export default function WhatsApp() {
   const { role, isLoading: isLoadingRole, canManageUsers, isAdmin } = useUserRole(user?.id);
   const { allowedUnits, canViewAll, isLoading: isLoadingUnitPerms } = useUnitPermissions(user?.id);
   const { hasPermission } = usePermissions(user?.id);
-  
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -99,8 +100,6 @@ export default function WhatsApp() {
   if (!user || !role) {
     return null;
   }
-
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   // Mobile layout
   if (isMobile) {
