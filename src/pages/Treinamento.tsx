@@ -14,7 +14,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { GraduationCap, Loader2, Play, Video } from "lucide-react";
+import { GraduationCap, Loader2, Play, Video, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { generateManualPDF } from "@/lib/generateManualPDF";
 
 interface TrainingLesson {
   id: string;
@@ -43,6 +45,16 @@ export default function Treinamento() {
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewTitle, setPreviewTitle] = useState("");
+  const [generatingPDF, setGeneratingPDF] = useState(false);
+
+  const handleDownloadManual = async () => {
+    setGeneratingPDF(true);
+    try {
+      await generateManualPDF();
+    } finally {
+      setGeneratingPDF(false);
+    }
+  };
 
   useEffect(() => {
     const fetch = async () => {
@@ -84,17 +96,23 @@ export default function Treinamento() {
             </div>
           </div>
 
-          <Select value={filterCategory} onValueChange={setFilterCategory}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Filtrar por categoria" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
-              {CATEGORIES.map((c) => (
-                <SelectItem key={c} value={c}>{c}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Select value={filterCategory} onValueChange={setFilterCategory}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Filtrar por categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas</SelectItem>
+                {CATEGORIES.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" onClick={handleDownloadManual} disabled={generatingPDF}>
+              {generatingPDF ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+              Baixar Manual
+            </Button>
+          </div>
         </div>
 
         {/* Content */}
