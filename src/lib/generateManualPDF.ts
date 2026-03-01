@@ -86,18 +86,27 @@ function addAllFooters(doc: jsPDF, startPage: number) {
 
 function loadImageAsBase64(src: string): Promise<string> {
   return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error("Image load timeout")), 5000);
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return reject(new Error("Canvas not supported"));
-      ctx.drawImage(img, 0, 0);
-      resolve(canvas.toDataURL("image/png"));
+      clearTimeout(timeout);
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject(new Error("Canvas not supported"));
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL("image/png"));
+      } catch (e) {
+        reject(e);
+      }
     };
-    img.onerror = () => reject(new Error("Failed to load image"));
+    img.onerror = () => {
+      clearTimeout(timeout);
+      reject(new Error("Failed to load image"));
+    };
     img.src = src;
   });
 }
@@ -876,5 +885,18 @@ export async function generateManualPDF(companyName?: string) {
 
   const pdfBlob = doc.output("blob");
   const blobUrl = URL.createObjectURL(pdfBlob);
-  window.open(blobUrl, "_blank");
+  
+  // Use a download link as fallback since window.open is often blocked by popup blockers
+  const link = document.createElement("a");
+  link.href = blobUrl;
+  link.download = fileName;
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  
+  // Also try opening in new tab
+  setTimeout(() => {
+    window.open(blobUrl, "_blank");
+    document.body.removeChild(link);
+  }, 100);
 }
