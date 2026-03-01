@@ -172,8 +172,19 @@ export function SupportChatbot() {
   const location = useLocation();
   const isHubPage = location.pathname.startsWith("/hub");
 
-  // Don't render if not authenticated or on Hub pages
-  if (!session || isHubPage) return null;
+  const PUBLIC_PREFIXES = [
+    "/lp", "/promo", "/para-buffets", "/onboarding",
+    "/avaliacao", "/pre-festa", "/contrato", "/cardapio",
+    "/equipe", "/manutencao", "/acompanhamento",
+    "/lista-presenca", "/informacoes", "/freelancer",
+    "/escala", "/festa", "/hub-landing", "/hub-login",
+  ];
+  const isPublicPage =
+    location.pathname === "/" ||
+    PUBLIC_PREFIXES.some((p) => location.pathname.startsWith(p));
+
+  // Don't render if not authenticated, on Hub pages, or on public pages
+  if (!session || isHubPage || isPublicPage) return null;
 
   return (
     <>
