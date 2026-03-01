@@ -232,19 +232,20 @@ export function BaseLeadImportDialog({ open, onOpenChange, companyId, onImported
               <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">1</div>
-                  <p className="text-sm font-bold text-foreground">Baixe o modelo de planilha</p>
+                  <FileSpreadsheet className="w-5 h-5 text-primary" />
+                  <p className="text-sm font-bold text-foreground">Baixe a planilha modelo para cadastrar seus contatos</p>
                 </div>
-                <p className="text-xs text-muted-foreground leading-relaxed pl-9">
-                  O arquivo modelo já vem com as colunas certas. Abra no <strong>Excel</strong> ou <strong>Google Sheets</strong>, preencha seus contatos e salve como <strong>.csv</strong>.
+                <p className="text-sm text-muted-foreground leading-relaxed pl-9">
+                  Este arquivo é uma planilha pronta com todas as colunas necessárias para você cadastrar seus contatos em massa. Baixe, preencha com os dados dos seus contatos no <strong>Excel</strong> ou <strong>Google Sheets</strong>, e depois envie aqui.
                 </p>
                 <div className="pl-9 space-y-2">
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground/80">
                     <span>📋 <strong>Obrigatórios:</strong> nome, telefone</span>
                     <span>📌 <strong>Opcionais:</strong> ex_cliente, info_festa, mes_interesse, observações</span>
                   </div>
-                  <Button onClick={downloadTemplate} size="sm" className="rounded-xl shadow-sm shadow-primary/20 gap-1.5">
+                  <Button onClick={downloadTemplate} size="default" className="rounded-xl shadow-sm shadow-primary/20 gap-1.5 w-full sm:w-auto">
                     <Download className="w-4 h-4" />
-                    Baixar modelo CSV
+                    Baixar planilha de cadastro (.csv)
                   </Button>
                 </div>
               </div>
@@ -253,7 +254,7 @@ export function BaseLeadImportDialog({ open, onOpenChange, companyId, onImported
               <div className="rounded-xl border border-dashed border-border/60 p-4 space-y-3 bg-muted/30">
                 <div className="flex items-center gap-2">
                   <div className="flex items-center justify-center w-7 h-7 rounded-full bg-muted-foreground/20 text-muted-foreground text-xs font-bold shrink-0">2</div>
-                  <p className="text-sm font-bold text-foreground">Envie o arquivo preenchido</p>
+                  <p className="text-sm font-bold text-foreground">Envie a planilha preenchida com seus contatos</p>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed pl-9">
                   Formatos aceitos: <code className="bg-muted px-1 py-0.5 rounded text-[11px]">.csv</code> separado por <code className="bg-muted px-1 py-0.5 rounded text-[11px]">;</code> ou <code className="bg-muted px-1 py-0.5 rounded text-[11px]">,</code>
