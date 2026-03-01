@@ -77,6 +77,7 @@ export default function HubAIUsage() {
     "daily-summary": "Resumo Diário",
     "fix-text": "Correção Texto",
     "wapi-webhook": "Qualificação IA",
+    "support-chat": "Chat Suporte",
   };
 
   const chartData = Object.entries(byFunction).map(([fn, count]) => ({
