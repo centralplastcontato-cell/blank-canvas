@@ -676,6 +676,124 @@ function ch14(doc: jsPDF) {
   addTipBox(doc, "Assista às videoaulas com novos colaboradores durante o onboarding. É a forma mais eficiente de capacitar a equipe rapidamente.");
 }
 
+function ch15(doc: jsPDF) {
+  addChapterTitle(doc, 15, "Primeiros Passos — Configurando em 60 Minutos");
+
+  addParagraph(doc, "Este capítulo é um guia rápido para colocar o Celebrei em funcionamento. Siga os 6 passos abaixo na ordem indicada para garantir que cada etapa funcione sobre a anterior.");
+
+  addTipBox(doc, "A Landing Page do seu buffet é configurada pela equipe Celebrei durante o onboarding. Seu papel é garantir que o WhatsApp esteja conectado para que o bot funcione corretamente.");
+
+  addSectionTitle(doc, "Checklist de configuração inicial");
+  addBulletList(doc, [
+    "1. Configurar dados da empresa",
+    "2. Personalizar funil de vendas",
+    "3. Conectar WhatsApp",
+    "4. Criar primeiro evento na Agenda",
+    "5. Testar fluxo de captura de leads",
+    "6. Criar primeiro usuário da equipe",
+  ]);
+
+  addSectionTitle(doc, "Passo 1: Configurar dados da empresa");
+  addParagraph(doc, "Acesse Configurações e preencha o nome do buffet, endereço completo, telefone de contato e faça o upload do logotipo. Esses dados aparecem nas landing pages, propostas e comunicações enviadas pelo bot.");
+  addTipBox(doc, "Use uma imagem de logo com fundo transparente (PNG) para melhor resultado visual nas landing pages e PDFs.");
+
+  addSectionTitle(doc, "Passo 2: Personalizar seu funil de vendas");
+  addParagraph(doc, "Na Central de Atendimento, revise as etapas do Kanban. Renomeie, reordene ou crie novas colunas de acordo com o fluxo comercial do seu buffet. Recomendamos entre 5 e 7 etapas.");
+  addBulletList(doc, [
+    "Novo Lead → Contato Inicial → Visita Agendada → Proposta Enviada → Fechado",
+    "Adapte os nomes à linguagem da sua equipe para facilitar a adoção.",
+  ]);
+
+  addSectionTitle(doc, "Passo 3: Conectar WhatsApp");
+  addParagraph(doc, "Acesse Configurações > WhatsApp e clique em 'Conectar'. Escaneie o QR Code com o WhatsApp do número comercial do buffet. Após conectar, envie uma mensagem de teste para verificar que tudo funciona.");
+  addAlertBox(doc, "Conecte o WhatsApp antes de testar a captura de leads. O bot depende da conexão ativa para enviar mensagens automáticas aos novos leads.");
+
+  addSectionTitle(doc, "Passo 4: Criar primeiro evento na Agenda");
+  addParagraph(doc, "Vá até a Agenda e crie um evento de teste. Preencha data, horário, tipo de evento e número de convidados. Isso permite validar o fluxo operacional: checklist, equipe, controle de festa e formulários públicos.");
+  addBulletList(doc, [
+    "Defina um evento fictício para explorar todas as funcionalidades sem risco.",
+    "Teste o checklist, a atribuição de equipe e o link público de acompanhamento.",
+  ]);
+
+  addSectionTitle(doc, "Passo 5: Testar o fluxo de captura de leads");
+  addParagraph(doc, "Verifique se os leads estão chegando corretamente no seu painel. Peça à equipe Celebrei para confirmar que a Landing Page está ativa, depois envie uma mensagem de teste pelo WhatsApp conectado.");
+  addBulletList(doc, [
+    "Acesse a Central de Atendimento e verifique se o lead aparece na primeira coluna do Kanban.",
+    "Confira se o bot enviou a mensagem de boas-vindas automaticamente.",
+    "Teste também preenchendo o formulário da Landing Page para validar o fluxo completo.",
+  ]);
+  addAlertBox(doc, "A Landing Page é criada pela equipe Celebrei. Você não precisa se preocupar com isso — apenas verifique se os leads estão chegando no seu painel.");
+
+  addSectionTitle(doc, "Passo 6: Criar primeiro usuário da equipe");
+  addParagraph(doc, "Em Usuários, clique em 'Novo Usuário' e cadastre um membro da equipe com email e senha. Atribua o papel adequado (Gestor, Operador, etc.) e, se houver múltiplas unidades, restrinja o acesso à unidade correta.");
+  addTipBox(doc, "Siga essa ordem dos 6 passos para garantir que cada funcionalidade esteja pronta quando a seguinte for configurada. Em caso de dúvida, consulte a equipe Celebrei.");
+}
+
+function ch16(doc: jsPDF) {
+  addChapterTitle(doc, 16, "Boas Práticas de Uso");
+
+  addParagraph(doc, "Este capítulo reúne recomendações estratégicas para extrair o máximo da plataforma. São dicas baseadas na experiência de dezenas de buffets que já utilizam o Celebrei.");
+
+  addSectionTitle(doc, "Estruturando seu funil de vendas");
+  addParagraph(doc, "Um funil bem estruturado é a base de um CRM eficiente. Mantenha entre 5 e 7 etapas com nomes claros e objetivos.");
+  addBulletList(doc, [
+    "Evite criar etapas demais — isso gera confusão e abandono de uso.",
+    "Use nomes de ação: 'Aguardando Visita' é melhor que 'Visita'.",
+    "Revise o funil a cada trimestre para ajustar ao comportamento real dos leads.",
+    "Considere etapas diferentes por tipo de evento (aniversário, corporativo, etc.).",
+  ]);
+
+  addSectionTitle(doc, "Frequência ideal de follow-up");
+  addParagraph(doc, "O timing do follow-up é crucial para a conversão. Leads quentes esfriam rápido se não receberem atenção.");
+  addBulletList(doc, [
+    "Primeiro contato: em até 5 minutos após o lead chegar (o bot faz isso automaticamente).",
+    "Segundo follow-up: 24 horas após o primeiro contato, se não houve resposta.",
+    "Terceiro follow-up: 3 dias depois, com uma abordagem diferente (ex: enviar fotos do espaço).",
+    "Último follow-up: 7 dias depois. Se não responder, mova para 'Sem Resposta'.",
+    "Nunca abandone um lead quente sem pelo menos 3 tentativas de contato.",
+  ]);
+  addTipBox(doc, "Use o módulo de Inteligência para identificar quais leads precisam de follow-up urgente. O score e a temperatura ajudam a priorizar.");
+
+  addSectionTitle(doc, "Usando o score corretamente");
+  addParagraph(doc, "O score de 0 a 100 é calculado automaticamente com base no engajamento do lead. Entenda como interpretá-lo:");
+  addBulletList(doc, [
+    "80-100 (Quente): lead altamente engajado. Priorize visita ou proposta.",
+    "50-79 (Morno): interessado mas ainda decidindo. Envie materiais e mantenha contato.",
+    "20-49 (Frio): baixo engajamento. Faça follow-ups espaçados.",
+    "0-19 (Gelado): provavelmente não vai converter neste ciclo. Mantenha no radar para reativação futura.",
+  ]);
+  addAlertBox(doc, "Não ignore leads frios completamente. Muitos buffets relatam que leads 'gelados' voltam meses depois quando a data do evento se aproxima.");
+
+  addSectionTitle(doc, "Checklist padrão eficiente");
+  addParagraph(doc, "Um bom checklist garante que nada seja esquecido na operação do evento. Siga estas boas práticas:");
+  addBulletList(doc, [
+    "Organize por momentos: Antes do Evento, Durante o Evento, Após o Evento.",
+    "Mantenha entre 15 e 25 itens — suficiente para cobrir tudo sem ser exaustivo.",
+    "Use templates de checklist para padronizar entre unidades e tipos de evento.",
+    "Inclua itens de verificação final: limpeza, checagem de equipamentos, feedback do cliente.",
+  ]);
+
+  addSectionTitle(doc, "Organizando múltiplas unidades");
+  addParagraph(doc, "Buffets com várias filiais precisam de organização extra para evitar confusão:");
+  addBulletList(doc, [
+    "Use cores bem distintas para cada unidade (azul, verde, laranja, etc.).",
+    "Atribua um gestor responsável por unidade com permissões específicas.",
+    "Realize reuniões semanais de alinhamento usando os dados do painel de cada unidade.",
+    "Compare métricas entre unidades para identificar boas práticas e pontos de melhoria.",
+  ]);
+
+  addSectionTitle(doc, "Rotina diária recomendada");
+  addParagraph(doc, "Para melhores resultados, siga esta rotina todas as manhãs:");
+  addBulletList(doc, [
+    "1. Abra o Resumo Diário (Inteligência) para ver o panorama do dia anterior.",
+    "2. Verifique as Prioridades para identificar leads que precisam de ação imediata.",
+    "3. Responda os Follow-ups pendentes antes de fazer qualquer outra coisa.",
+    "4. Confira a Agenda do dia para se preparar para eventos e visitas.",
+    "5. Ao final do dia, registre observações no resumo diário para manter o histórico.",
+  ]);
+  addTipBox(doc, "Revise suas boas práticas a cada trimestre. O que funciona com 50 leads por mês pode não funcionar com 200. Adapte-se conforme o volume cresce.");
+}
+
 // ── Main export ────────────────────────────────────────────────
 
 export async function generateManualPDF(companyName?: string) {
@@ -704,14 +822,11 @@ export async function generateManualPDF(companyName?: string) {
   ch12(doc);
   ch13(doc);
   ch14(doc);
+  ch15(doc);
+  ch16(doc);
 
-  // 3. Insert TOC after cover (page 2)
-  // We'll build TOC data and re-generate to place it correctly
-  // For simplicity, we add TOC at end and note it
-  // Actually, let's use a simpler approach: generate chapters, then build a new doc with TOC in correct position
-
-  // Simpler approach: add footers to all pages and save
-  addAllFooters(doc, 2); // skip cover page
+  // Add footers to all pages (skip cover)
+  addAllFooters(doc, 2);
 
   const fileName = companyName
     ? `Manual_Celebrei_${companyName.replace(/\s+/g, "_")}.pdf`
