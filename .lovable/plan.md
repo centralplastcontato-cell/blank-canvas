@@ -1,66 +1,67 @@
 
+# Painel de Tickets de Suporte no Hub + Notificacoes
 
-# Migrar Support Chat para OpenAI + Rastrear Consumo
+## Problema
+Hoje os tickets sao criados pelo chatbot mas ninguem e avisado e nao existe nenhuma tela para visualizar ou gerenciar esses tickets.
 
-## Objetivo
-Trocar a IA do chatbot de suporte de Lovable AI (Gemini) para OpenAI (gpt-4o-mini) -- mesmo modelo usado no resto da plataforma -- e registrar cada chamada na tabela `ai_usage_logs` para que o consumo apareca no painel Hub > Consumo IA.
+## Solucao
 
----
+### 1. Nova pagina `/hub/suporte` - Gerenciador de Tickets
 
-## Mudancas
+Pagina no Hub seguindo o mesmo padrao do `HubAIUsage.tsx` (usa `HubLayout`, cards de metricas, tabela, filtros).
 
-### 1. Edge Function `support-chat/index.ts`
+**O que mostra:**
+- Cards de resumo: Total de tickets, Abertos, Em andamento, Resolvidos
+- Filtros: por status (novo, em_andamento, resolvido, fechado), por categoria (duvida, bug, sugestao), por empresa, por prioridade
+- Tabela com todos os tickets: assunto, empresa, usuario, categoria, prioridade, status, data
+- Ao clicar num ticket: abre um Sheet lateral com todos os detalhes (descricao, historico da conversa com a IA, erros do console, pagina onde ocorreu, dados de contexto)
+- Botoes para mudar status (ex: "Marcar como em andamento", "Resolver", "Fechar")
+- Badge colorido por categoria: bug (vermelho), sugestao (azul), duvida (amarelo)
 
-- Trocar `LOVABLE_API_KEY` por `OPENAI_API_KEY` (ja existe nos secrets)
-- Trocar endpoint de `ai.gateway.lovable.dev` para `api.openai.com/v1/chat/completions`
-- Trocar modelo de `google/gemini-3-flash-preview` para `gpt-4o-mini`
-- Adicionar import do `createClient` do Supabase (igual ao `fix-text`)
-- Receber `company_id` no body (enviado pelo frontend junto com messages e context)
-- Apos resposta da OpenAI, inserir registro em `ai_usage_logs` com:
-  - `function_name: 'support-chat'`
-  - `model: 'gpt-4o-mini'`
-  - Tokens e custo estimado (mesmo calculo do `fix-text`)
-- Manter toda a logica de tool calling e knowledge base intacta
+### 2. Notificacao automatica quando ticket e criado
 
-### 2. Frontend `SupportChatbot.tsx`
+Criar um **trigger no banco** na tabela `support_tickets` que, ao inserir um novo ticket, cria uma notificacao para todos os admins globais (is_admin) na tabela `notifications`.
 
-- Passar `company_id` no body da chamada `supabase.functions.invoke("support-chat", ...)` para que a Edge Function saiba qual empresa logar
-- O `company_id` ja esta disponivel via `getContext()` no componente
+- Tipo: `new_support_ticket`
+- Titulo: "Novo ticket de suporte" + emoji por categoria
+- Mensagem: nome do usuario + assunto do ticket
+- Data: `{ ticket_id, category, priority, company_name }`
 
-### 3. Painel Hub `HubAIUsage.tsx`
+Assim o Victor (e voce) recebem o alerta no sino de notificacoes em tempo real, com som e tudo, usando o sistema que ja existe.
 
-- Adicionar `"support-chat": "Chat Suporte"` no objeto `functionLabels` para que as chamadas aparecam com nome amigavel no grafico e na tabela
+### 3. Adicionar no menu do Hub
+
+Adicionar item "Suporte" no `HubSidebar.tsx` com icone `Headset` (do lucide-react), apontando para `/hub/suporte`.
+
+### 4. Rota no App.tsx
+
+Adicionar `<Route path="/hub/suporte" element={<HubSuporte />} />`.
 
 ---
 
 ## Detalhes Tecnicos
 
-### Edge Function - Mudancas principais
+### Arquivos a criar
+| Arquivo | Descricao |
+|---------|-----------|
+| `src/pages/HubSuporte.tsx` | Pagina principal de gerenciamento de tickets |
 
-```text
-ANTES                                    DEPOIS
-─────                                    ──────
-LOVABLE_API_KEY                       -> OPENAI_API_KEY
-ai.gateway.lovable.dev/v1/...         -> api.openai.com/v1/chat/completions
-google/gemini-3-flash-preview         -> gpt-4o-mini
-Sem log de uso                        -> Insert em ai_usage_logs
-Sem company_id no body                -> Recebe company_id
-```
-
-O padrao de logging sera identico ao `fix-text`:
-- Custo estimado: `(prompt_tokens * 0.15 + completion_tokens * 0.6) / 1_000_000`
-- Insert silencioso (erro de log nao quebra a resposta)
-
-### Arquivos modificados
-
+### Arquivos a modificar
 | Arquivo | Mudanca |
 |---------|---------|
-| `supabase/functions/support-chat/index.ts` | Trocar para OpenAI + adicionar logging |
-| `src/components/support/SupportChatbot.tsx` | Enviar `company_id` no body |
-| `src/pages/HubAIUsage.tsx` | Adicionar label "Chat Suporte" |
+| `src/components/hub/HubSidebar.tsx` | Adicionar item "Suporte" no menu |
+| `src/App.tsx` | Adicionar rota `/hub/suporte` |
+| `src/components/admin/NotificationBell.tsx` | Adicionar icone para tipo `new_support_ticket` |
 
-### Nenhuma dependencia nova necessaria
+### Migration SQL
+- Trigger `fn_notify_new_support_ticket()` na tabela `support_tickets` (INSERT)
+- Busca admins globais via `is_admin()` e insere notificacao para cada um
+- Inclui categoria, prioridade e nome da empresa na notificacao
 
-- `OPENAI_API_KEY` ja esta configurada nos secrets
-- Tabela `ai_usage_logs` ja existe
-- Modelo `gpt-4o-mini` ja e usado nas demais funcoes
+### Funcionalidades da pagina
+- Listagem com paginacao (ultimos 100 tickets)
+- Filtro por status, categoria, empresa e prioridade
+- Sheet lateral com detalhes completos do ticket (incluindo conversa IA e erros do console)
+- Acoes: alterar status do ticket diretamente
+- Realtime: subscribe a novos tickets para atualizar a lista automaticamente
+- Cards de metricas no topo (total, abertos, por categoria)
