@@ -290,7 +290,7 @@ function addTipBox(doc: jsPDF, text: string) {
   // Label
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...rgb(C.primary));
-  doc.text("💡 Dica", MARGIN_L + 7, cursorY + 4);
+  doc.text(">> Dica", MARGIN_L + 7, cursorY + 4);
 
   // Text
   doc.setFont("helvetica", "normal");
@@ -319,7 +319,7 @@ function addAlertBox(doc: jsPDF, text: string) {
 
   doc.setFont("helvetica", "bold");
   doc.setTextColor(120, 80, 0);
-  doc.text("⚠️ Atenção", MARGIN_L + 7, cursorY + 4);
+  doc.text("!! Atencao", MARGIN_L + 7, cursorY + 4);
 
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...rgb(C.text));
