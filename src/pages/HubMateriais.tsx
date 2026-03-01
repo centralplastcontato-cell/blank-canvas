@@ -204,12 +204,12 @@ function MateriaisContent({ userId }: { userId: string }) {
   }).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 overflow-hidden">
       {/* Filters & Summary */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+      <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
           <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-            <SelectTrigger className="w-[240px]">
+            <SelectTrigger className="w-full sm:w-[240px]">
               <SelectValue placeholder="Todas as empresas" />
             </SelectTrigger>
             <SelectContent>
@@ -220,13 +220,13 @@ function MateriaisContent({ userId }: { userId: string }) {
             </SelectContent>
           </Select>
 
-          <Badge variant="secondary" className="whitespace-nowrap">
+          <Badge variant="secondary" className="whitespace-nowrap shrink-0">
             {filteredMaterials.length} materiais
           </Badge>
         </div>
 
         {brokenCount > 0 && (
-          <Badge variant="destructive" className="flex items-center gap-1">
+          <Badge variant="destructive" className="flex items-center gap-1 w-fit">
             <AlertTriangle className="h-3 w-3" />
             {brokenCount} com URL quebrada
           </Badge>
@@ -239,7 +239,7 @@ function MateriaisContent({ userId }: { userId: string }) {
           Nenhum material encontrado.
         </CardContent></Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {filteredMaterials.map((material) => (
             <MaterialCard
               key={material.id}
