@@ -227,34 +227,50 @@ export function BaseLeadImportDialog({ open, onOpenChange, companyId, onImported
         <div className="px-6 pb-6 space-y-4 overflow-y-auto flex-1">
           {/* Step: Upload */}
           {step === "upload" && (
-            <div className="space-y-5">
-              <div className="rounded-xl border border-dashed border-border/60 p-5 space-y-3 bg-muted/30">
-                <p className="text-sm font-medium text-foreground/90">1. Baixe o modelo de planilha</p>
-                <p className="text-xs text-muted-foreground">
-                  Preencha no Excel ou Google Sheets. Campos obrigatórios: <strong>nome</strong> e <strong>telefone</strong> (DDD + número).
+            <div className="space-y-4">
+              {/* Step 1 — Download template */}
+              <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">1</div>
+                  <p className="text-sm font-bold text-foreground">Baixe o modelo de planilha</p>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed pl-9">
+                  O arquivo modelo já vem com as colunas certas. Abra no <strong>Excel</strong> ou <strong>Google Sheets</strong>, preencha seus contatos e salve como <strong>.csv</strong>.
                 </p>
-                <Button variant="outline" size="sm" onClick={downloadTemplate} className="rounded-xl">
-                  <Download className="w-4 h-4 mr-1.5" />
-                  Baixar modelo CSV
-                </Button>
+                <div className="pl-9 space-y-2">
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground/80">
+                    <span>📋 <strong>Obrigatórios:</strong> nome, telefone</span>
+                    <span>📌 <strong>Opcionais:</strong> ex_cliente, info_festa, mes_interesse, observações</span>
+                  </div>
+                  <Button onClick={downloadTemplate} size="sm" className="rounded-xl shadow-sm shadow-primary/20 gap-1.5">
+                    <Download className="w-4 h-4" />
+                    Baixar modelo CSV
+                  </Button>
+                </div>
               </div>
 
-              <div className="rounded-xl border border-dashed border-border/60 p-5 space-y-3 bg-muted/30">
-                <p className="text-sm font-medium text-foreground/90">2. Envie o arquivo preenchido</p>
-                <p className="text-xs text-muted-foreground">
-                  Formatos aceitos: CSV (separado por <code>;</code> ou <code>,</code>)
+              {/* Step 2 — Upload file */}
+              <div className="rounded-xl border border-dashed border-border/60 p-4 space-y-3 bg-muted/30">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center w-7 h-7 rounded-full bg-muted-foreground/20 text-muted-foreground text-xs font-bold shrink-0">2</div>
+                  <p className="text-sm font-bold text-foreground">Envie o arquivo preenchido</p>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed pl-9">
+                  Formatos aceitos: <code className="bg-muted px-1 py-0.5 rounded text-[11px]">.csv</code> separado por <code className="bg-muted px-1 py-0.5 rounded text-[11px]">;</code> ou <code className="bg-muted px-1 py-0.5 rounded text-[11px]">,</code>
                 </p>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept=".csv,text/csv,*/*"
-                  onChange={handleFile}
-                  className="hidden"
-                />
-                <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} className="rounded-xl">
-                  <Upload className="w-4 h-4 mr-1.5" />
-                  Selecionar arquivo
-                </Button>
+                <div className="pl-9">
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept=".csv,text/csv,*/*"
+                    onChange={handleFile}
+                    className="hidden"
+                  />
+                  <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} className="rounded-xl gap-1.5">
+                    <Upload className="w-4 h-4" />
+                    Selecionar arquivo
+                  </Button>
+                </div>
               </div>
             </div>
           )}
