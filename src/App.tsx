@@ -27,6 +27,7 @@ import HubAIUsage from "./pages/HubAIUsage";
 import HubTreinamento from "./pages/HubTreinamento";
 import HubLeads from "./pages/HubLeads";
 import HubSuporte from "./pages/HubSuporte";
+import HubMateriais from "./pages/HubMateriais";
 import Treinamento from "./pages/Treinamento";
 import Onboarding from "./pages/Onboarding";
 import Inteligencia from "./pages/Inteligencia";
@@ -88,6 +89,7 @@ const App = () => (
             <Route path="/hub/treinamento" element={<HubTreinamento />} />
             <Route path="/hub/leads" element={<HubLeads />} />
             <Route path="/hub/suporte" element={<HubSuporte />} />
+            <Route path="/hub/materiais" element={<HubMateriais />} />
             <Route path="/treinamento" element={<Treinamento />} />
             <Route path="/inteligencia" element={<Inteligencia />} />
             <Route path="/agenda" element={<Agenda />} />
