@@ -353,7 +353,7 @@ export function SendAssignmentsToGroupsDialog({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserCheck className="w-5 h-5 text-primary" />
-              Enviar Escalados para Grupos
+              Enviando os escalados para os grupos
             </DialogTitle>
             <DialogDescription>
               Escala: <span className="font-medium text-foreground">{schedule.title}</span>
