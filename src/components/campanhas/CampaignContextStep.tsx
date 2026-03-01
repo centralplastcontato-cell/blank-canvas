@@ -16,6 +16,15 @@ interface Props {
   companyName: string;
 }
 
+const CAMPAIGN_NAME_SUGGESTIONS = [
+  "Mês do Consumidor", "Mês das Crianças", "Oportunidade Relâmpago", "Últimos Contratos",
+  "Férias de Julho", "Volta às Aulas", "Black Friday", "Natal Mágico", "Promoção de Natal",
+  "Esquenta de Carnaval", "Dia das Mães", "Dia dos Pais", "Promo Aniversário", "Feriado Prolongado",
+  "Liquidação de Verão", "Super Promoção", "Semana do Cliente", "Festival de Descontos",
+  "Última Chance", "Especial Primavera", "Queima de Estoque", "Fecha em 25",
+  "Lote Promocional", "Convite Especial", "Reativação de Leads",
+];
+
 const TONE_LABELS: Record<string, string> = {
   profissional: "🏢 Profissional",
   "amigável": "😊 Amigável",
@@ -94,6 +103,22 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
           onChange={(e) => setDraft((prev) => ({ ...prev, name: e.target.value }))}
           className="h-10"
         />
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {CAMPAIGN_NAME_SUGGESTIONS.map((s) => (
+            <Badge
+              key={s}
+              variant="outline"
+              className={`text-[10px] cursor-pointer transition-all ${
+                draft.name === s
+                  ? "bg-primary/10 border-primary/30 text-primary"
+                  : "hover:bg-primary/10 hover:border-primary/30"
+              }`}
+              onClick={() => setDraft((prev) => ({ ...prev, name: s }))}
+            >
+              {s}
+            </Badge>
+          ))}
+        </div>
       </div>
 
       {/* Objetivo */}
