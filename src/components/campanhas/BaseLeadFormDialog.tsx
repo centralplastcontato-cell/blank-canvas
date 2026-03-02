@@ -85,7 +85,7 @@ export function BaseLeadFormDialog({ open, onOpenChange, companyId, editLead, on
         phone: rawPhone,
         is_former_client: isFormerClient === "yes",
         former_party_info: isFormerClient === "yes" ? formerPartyInfo.trim() || null : null,
-        month_interest: isFormerClient === "no" ? monthInterest || null : null,
+        month_interest: monthInterest || null,
         notes: notes.trim() || null,
         created_by: user?.user?.id || null,
       };
@@ -179,7 +179,7 @@ export function BaseLeadFormDialog({ open, onOpenChange, companyId, editLead, on
                 </RadioGroup>
               </div>
 
-              {isFormerClient === "yes" ? (
+              {isFormerClient === "yes" && (
                 <div className="space-y-1.5">
                   <Label htmlFor="bl-party" className="text-xs font-semibold text-foreground/80">Quando foi a festa?</Label>
                   <Input
@@ -191,21 +191,21 @@ export function BaseLeadFormDialog({ open, onOpenChange, companyId, editLead, on
                     className="rounded-xl h-10 sm:h-11 border-border/60 focus:border-primary/40"
                   />
                 </div>
-              ) : (
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-foreground/80">Mês de interesse</Label>
-                  <Select value={monthInterest} onValueChange={setMonthInterest}>
-                    <SelectTrigger className="rounded-xl h-10 sm:h-11 border-border/60">
-                      <SelectValue placeholder="Selecione o mês" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {MONTHS.map((m) => (
-                        <SelectItem key={m} value={m}>{m}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
               )}
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground/80">Mês de interesse</Label>
+                <Select value={monthInterest} onValueChange={setMonthInterest}>
+                  <SelectTrigger className="rounded-xl h-10 sm:h-11 border-border/60">
+                    <SelectValue placeholder="Selecione o mês" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONTHS.map((m) => (
+                      <SelectItem key={m} value={m}>{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
