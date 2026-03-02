@@ -131,7 +131,7 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
           onChange={(e) => setDraft((prev) => ({ ...prev, name: e.target.value }))}
           className="h-10"
         />
-        <ScrollArea className="h-28 rounded-lg border bg-muted/20 mt-2">
+        <ScrollArea className="h-28 sm:h-40 rounded-lg border bg-muted/20 mt-2">
           <div className="p-1.5 space-y-0.5">
             {CAMPAIGN_NAME_SUGGESTIONS.map((s) => (
               <button
