@@ -25,6 +25,7 @@ interface CampaignWizardProps {
 
 export interface CampaignDraft {
   name: string;
+  campaignType: string;
   description: string;
   variations: { tone: string; text: string }[];
   imageUrl: string | null;
@@ -50,6 +51,7 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState<CampaignDraft>({
     name: "",
+    campaignType: "",
     description: "",
     variations: [],
     imageUrl: null,
@@ -109,7 +111,7 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
 
       toast.success("Campanha criada!");
       setStep(0);
-      setDraft({ name: "", description: "", variations: [], imageUrl: null, selectedLeadIds: [], leads: [], delaySeconds: 60 });
+      setDraft({ name: "", campaignType: "", description: "", variations: [], imageUrl: null, selectedLeadIds: [], leads: [], delaySeconds: 60 });
       onCampaignCreated(campaign);
     } catch (err: any) {
       console.error("Error creating campaign:", err);
