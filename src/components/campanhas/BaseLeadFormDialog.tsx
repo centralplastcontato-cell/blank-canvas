@@ -19,6 +19,7 @@ interface BaseLead {
   is_former_client: boolean;
   former_party_info: string | null;
   month_interest: string | null;
+  party_type: string | null;
   notes: string | null;
 }
 
@@ -48,6 +49,7 @@ export function BaseLeadFormDialog({ open, onOpenChange, companyId, editLead, on
   const [isFormerClient, setIsFormerClient] = useState("no");
   const [formerPartyInfo, setFormerPartyInfo] = useState("");
   const [monthInterest, setMonthInterest] = useState("");
+  const [partyType, setPartyType] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -59,6 +61,7 @@ export function BaseLeadFormDialog({ open, onOpenChange, companyId, editLead, on
         setIsFormerClient(editLead.is_former_client ? "yes" : "no");
         setFormerPartyInfo(editLead.former_party_info || "");
         setMonthInterest(editLead.month_interest || "");
+        setPartyType(editLead.party_type || "");
         setNotes(editLead.notes || "");
       } else {
         setName("");
@@ -66,6 +69,7 @@ export function BaseLeadFormDialog({ open, onOpenChange, companyId, editLead, on
         setIsFormerClient("no");
         setFormerPartyInfo("");
         setMonthInterest("");
+        setPartyType("");
         setNotes("");
       }
     }
@@ -86,6 +90,7 @@ export function BaseLeadFormDialog({ open, onOpenChange, companyId, editLead, on
         is_former_client: isFormerClient === "yes",
         former_party_info: isFormerClient === "yes" ? formerPartyInfo.trim() || null : null,
         month_interest: monthInterest || null,
+        party_type: partyType || null,
         notes: notes.trim() || null,
         created_by: user?.user?.id || null,
       };
@@ -203,6 +208,22 @@ export function BaseLeadFormDialog({ open, onOpenChange, companyId, editLead, on
                     {MONTHS.map((m) => (
                       <SelectItem key={m} value={m}>{m}</SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground/80">Tipo de festa</Label>
+                <Select value={partyType} onValueChange={setPartyType}>
+                  <SelectTrigger className="rounded-xl h-10 sm:h-11 border-border/60">
+                    <SelectValue placeholder="Selecione o tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="aniversario">Aniversário</SelectItem>
+                    <SelectItem value="formatura">Formatura</SelectItem>
+                    <SelectItem value="escolar">Escolar</SelectItem>
+                    <SelectItem value="confraternizacao">Confraternização</SelectItem>
+                    <SelectItem value="outro">Outro</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

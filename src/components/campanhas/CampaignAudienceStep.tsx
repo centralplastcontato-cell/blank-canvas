@@ -53,6 +53,15 @@ const SOURCE_OPTIONS = [
   { value: "base", label: "Base" },
 ];
 
+const PARTY_TYPE_OPTIONS = [
+  { value: "all", label: "Todos os tipos" },
+  { value: "aniversario", label: "🎂 Aniversário" },
+  { value: "formatura", label: "🎓 Formatura" },
+  { value: "escolar", label: "🏫 Escolar" },
+  { value: "confraternizacao", label: "🏢 Confraternização" },
+  { value: "outro", label: "📌 Outro" },
+];
+
 interface Lead {
   id: string;
   name: string;
@@ -61,6 +70,7 @@ interface Lead {
   status: string;
   unit: string | null;
   source: "crm" | "base";
+  partyType: string | null;
 }
 
 export function CampaignAudienceStep({ draft, setDraft, companyId }: Props) {
@@ -72,6 +82,7 @@ export function CampaignAudienceStep({ draft, setDraft, companyId }: Props) {
   const [units, setUnits] = useState<{ name: string }[]>([]);
   const [filterUnit, setFilterUnit] = useState("all");
   const [filterSource, setFilterSource] = useState("all");
+  const [filterPartyType, setFilterPartyType] = useState("all");
 
   useEffect(() => {
     loadAllLeads();
@@ -100,7 +111,7 @@ export function CampaignAudienceStep({ draft, setDraft, companyId }: Props) {
         .order("name"),
       supabase
         .from("base_leads")
-        .select("id, name, phone, month_interest, is_former_client")
+        .select("id, name, phone, month_interest, is_former_client, party_type")
         .eq("company_id", companyId)
         .order("name"),
     ]);
@@ -113,6 +124,7 @@ export function CampaignAudienceStep({ draft, setDraft, companyId }: Props) {
       status: l.status,
       unit: l.unit,
       source: "crm" as const,
+      partyType: null,
     }));
 
     const baseLeads: Lead[] = (baseResult.data || []).map((l) => ({
@@ -123,6 +135,7 @@ export function CampaignAudienceStep({ draft, setDraft, companyId }: Props) {
       status: l.is_former_client ? "cliente_retorno" : "novo",
       unit: null,
       source: "base" as const,
+      partyType: l.party_type || null,
     }));
 
     const allLeads = [...crmLeads, ...baseLeads];
@@ -140,13 +153,14 @@ export function CampaignAudienceStep({ draft, setDraft, companyId }: Props) {
       if (filterStatuses.length > 0 && !filterStatuses.includes(l.status)) return false;
       if (filterMonth !== "all" && l.month !== filterMonth) return false;
       if (filterUnit !== "all" && l.unit !== filterUnit) return false;
+      if (filterPartyType !== "all" && l.partyType !== filterPartyType) return false;
       if (search.trim()) {
         const q = search.toLowerCase();
         if (!l.name.toLowerCase().includes(q) && !l.whatsapp.includes(q)) return false;
       }
       return true;
     });
-  }, [leads, filterStatuses, filterMonth, filterUnit, filterSource, search]);
+  }, [leads, filterStatuses, filterMonth, filterUnit, filterSource, filterPartyType, search]);
 
   const selectedSet = new Set(draft.selectedLeadIds);
 
@@ -174,7 +188,7 @@ export function CampaignAudienceStep({ draft, setDraft, companyId }: Props) {
   };
 
   const allSelected = filtered.length > 0 && filtered.every((l) => selectedSet.has(l.id));
-  const hasActiveFilters = filterStatuses.length > 0 || filterMonth !== "all" || filterUnit !== "all" || filterSource !== "all" || search.trim() !== "";
+  const hasActiveFilters = filterStatuses.length > 0 || filterMonth !== "all" || filterUnit !== "all" || filterSource !== "all" || filterPartyType !== "all" || search.trim() !== "";
 
   const toggleStatus = (value: string) => {
     setFilterStatuses((prev) =>
@@ -205,7 +219,7 @@ export function CampaignAudienceStep({ draft, setDraft, companyId }: Props) {
           <div className="flex-1 h-px bg-border/50" />
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
           {/* Source filter */}
           <Select value={filterSource} onValueChange={setFilterSource}>
             <SelectTrigger className="h-9 text-xs rounded-lg border-border/60 bg-background shadow-sm">
@@ -282,6 +296,17 @@ export function CampaignAudienceStep({ draft, setDraft, companyId }: Props) {
               </SelectContent>
             </Select>
           )}
+          {/* Party type filter */}
+          <Select value={filterPartyType} onValueChange={setFilterPartyType}>
+            <SelectTrigger className="h-9 text-xs rounded-lg border-border/60 bg-background shadow-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PARTY_TYPE_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
