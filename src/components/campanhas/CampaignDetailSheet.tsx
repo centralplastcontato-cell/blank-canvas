@@ -34,6 +34,7 @@ interface Recipient {
   status: string;
   error_message: string | null;
   sent_at: string | null;
+  variation_index: number;
 }
 
 interface CampaignDetailSheetProps {
@@ -71,7 +72,7 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
     setLoading(true);
     const { data, error } = await supabase
       .from("campaign_recipients")
-      .select("id, lead_name, phone, status, error_message, sent_at")
+      .select("id, lead_name, phone, status, error_message, sent_at, variation_index")
       .eq("campaign_id", campaign.id)
       .order("lead_name");
 
@@ -171,10 +172,17 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
                 <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
               </div>
             ) : recipients.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-10">Nenhum destinatário</p>
+              campaign.total_recipients > 0 ? (
+                <div className="text-center py-10 space-y-1">
+                  <p className="text-sm text-muted-foreground">Dados de destinatários indisponíveis.</p>
+                  <p className="text-xs text-muted-foreground">Possivelmente houve um erro na criação desta campanha.</p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-10">Nenhum destinatário</p>
+              )
             ) : (
               recipients.map((r) => (
-                <RecipientRow key={r.id} recipient={r} formatPhone={formatPhone} />
+                <RecipientRow key={r.id} recipient={r} formatPhone={formatPhone} messageVariations={campaign.message_variations} />
               ))
             )}
           </div>
@@ -215,7 +223,7 @@ function MetricCard({ label, value, icon: Icon, color }: { label: string; value:
   );
 }
 
-function RecipientRow({ recipient, formatPhone }: { recipient: Recipient; formatPhone: (p: string) => string }) {
+function RecipientRow({ recipient, formatPhone, messageVariations }: { recipient: Recipient; formatPhone: (p: string) => string; messageVariations: any }) {
   const statusMap: Record<string, { icon: any; label: string; cls: string }> = {
     sent: { icon: CheckCircle2, label: "Enviado", cls: "text-green-600" },
     error: { icon: XCircle, label: "Erro", cls: "text-destructive" },
@@ -224,11 +232,30 @@ function RecipientRow({ recipient, formatPhone }: { recipient: Recipient; format
   const s = statusMap[recipient.status] || statusMap.pending;
   const SIcon = s.icon;
 
+  const resolvedMessage = (() => {
+    if (!messageVariations || !Array.isArray(messageVariations)) return null;
+    const template = messageVariations[recipient.variation_index || 0];
+    if (!template) return null;
+    return template.replace(/\{nome\}/gi, recipient.lead_name);
+  })();
+
   return (
     <div className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50 transition-colors">
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{recipient.lead_name}</p>
         <p className="text-xs text-muted-foreground">{formatPhone(recipient.phone)}</p>
+        {resolvedMessage && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <p className="text-[11px] text-muted-foreground/70 truncate cursor-help mt-0.5 italic">"{resolvedMessage}"</p>
+              </TooltipTrigger>
+              <TooltipContent side="left" className="max-w-xs">
+                <p className="text-xs whitespace-pre-wrap">{resolvedMessage}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
         {recipient.status === "error" && recipient.error_message && (
           <TooltipProvider>
             <Tooltip>
