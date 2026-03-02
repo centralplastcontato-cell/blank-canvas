@@ -1,45 +1,41 @@
 
-## Paginacao e Ordem Alfabetica nos Leads de Base
+## Corrigir arraste do botao de suporte no mobile
 
 ### Problema
-A lista de leads de base carrega todos os registros de uma vez sem paginacao e esta ordenada por data de criacao (mais recente primeiro). Com 26+ contatos, a lista fica longa no mobile. Alem disso, o usuario quer que novos leads ja aparecam na posicao alfabetica correta.
+O `animate={{ x: 0, y: 0 }}` do Framer Motion reseta a posicao do botao para (0,0) a cada re-render, anulando o arraste. No mobile, isso impede completamente o movimento porque o touch gesture e cancelado pelo reset da animacao.
 
-### Mudancas
+### Solucao
 
-**Arquivo: `src/components/campanhas/BaseLeadsTab.tsx`**
+**Arquivo: `src/components/support/SupportChatbot.tsx`**
 
-1. **Ordenacao alfabetica**: Trocar `.order("created_at", { ascending: false })` por `.order("name", { ascending: true })` na query do Supabase. Isso garante que tanto os leads existentes quanto os novos ja venham em ordem alfabetica diretamente do banco.
+1. **Remover `x: 0, y: 0` do `animate`** -- manter apenas `scale` e `opacity`. Isso para de resetar a posicao durante o arraste.
 
-2. **Paginacao de 20 em 20**: Adicionar estado `currentPage` e calcular `paginatedLeads` a partir do array `filtered`, exibindo apenas 20 itens por pagina. Usar os componentes de paginacao ja existentes no projeto (`Pagination`, `PaginationContent`, `PaginationItem`, etc. de `@/components/ui/pagination`).
+2. **Aumentar `bottomPx` padrao de 24 para 90** -- evita sobreposicao com a barra de input/microfone do WhatsApp no mobile.
 
-3. **Contador atualizado**: O texto "X contatos" continua mostrando o total filtrado, e a paginacao aparece abaixo da lista quando ha mais de 20 resultados.
+3. **Trocar `onTap` por `onClick` com guard de distancia** -- no mobile, `onTap` do Framer Motion pode conflitar com o drag. Usar um handler manual que checa se o dedo se moveu mais de 5px (drag) ou nao (tap/click).
 
-4. **Reset de pagina na busca**: Quando o usuario digitar na busca, a pagina volta para 1 automaticamente.
+4. **Adicionar `dragConstraints` na window** -- limitar o arraste dentro da tela visivel usando um ref do body ou valores calculados.
 
-### Comportamento esperado
-
-- Lista ordenada de A-Z por nome
-- Novos leads adicionados ou importados ja aparecem na posicao correta (a query recarrega ordenada)
-- Paginacao com botoes Anterior/Proximo e numeros de pagina
-- 20 contatos por pagina
-- Busca reseta para pagina 1
-- Contagem total visivel (ex: "26 contatos - Pagina 1 de 2")
-
-### Detalhes tecnicos
+### Mudanca principal
 
 ```text
-Estado novo:
-  - currentPage: number (default 1)
+Antes (linha 143):
+  animate={{ scale: 1, opacity: 1, x: 0, y: 0 }}
 
-Query alterada:
-  - .order("name", { ascending: true })  // era created_at desc
+Depois:
+  animate={{ scale: 1, opacity: 1 }}
 
-Memo paginado:
-  - paginatedLeads = filtered.slice((currentPage - 1) * 20, currentPage * 20)
+Antes (linha 44):
+  return { side: "right", bottomPx: 24 };
 
-Paginacao UI:
-  - Componentes de src/components/ui/pagination.tsx
-  - Aparece somente quando filtered.length > 20
+Depois:
+  return { side: "right", bottomPx: 90 };
+
+Antes (linhas 152-154):
+  onTap={() => { if (!isDragging.current) onTap(); }}
+
+Depois:
+  onClick={() => { if (!isDragging.current) onTap(); }}
 ```
 
-Apenas o arquivo `BaseLeadsTab.tsx` sera modificado. Nenhuma dependencia nova necessaria.
+Apenas o arquivo `SupportChatbot.tsx` sera modificado. Sem dependencias novas.
