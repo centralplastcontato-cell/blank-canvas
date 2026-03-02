@@ -1,38 +1,30 @@
 
-## Tornar campo "Unidade" obrigatorio quando buffet tem multiplas unidades
+
+## Botao de Enviar e Microfone lado a lado (estilo WhatsApp)
 
 ### Problema
-Eventos podem ser criados sem unidade atribuida quando o buffet tem mais de uma unidade, causando inconsistencia na contagem de festas ao usar o filtro "Todas as unidades" vs filtros individuais.
+Atualmente, o botao de enviar texto e o botao de gravar audio ocupam o mesmo espaco -- apenas um aparece por vez (se ha texto digitado, mostra Enviar; se nao, mostra Microfone). O usuario quer que ambos fiquem visiveis lado a lado, como no WhatsApp nativo.
 
 ### Solucao
+Mostrar sempre os dois botoes: o botao de enviar (habilitado apenas quando ha texto) e o botao de microfone, lado a lado a direita do campo de texto.
 
-**Arquivo: `src/components/agenda/EventFormDialog.tsx`**
+### Mudancas
 
-1. **Adicionar validacao no submit** (linha ~195): Quando `units.length > 1`, verificar se `form.unit` esta preenchido antes de permitir o submit. Se nao estiver, mostrar toast de erro.
+**Arquivo: `src/components/whatsapp/WhatsAppChat.tsx`**
 
-2. **Marcar label como obrigatorio visualmente**: No campo "Unidade" (linha ~332), quando `units.length > 1`, adicionar asterisco `*` ao label (mesmo padrao do "Nome do cliente *").
+Substituir a logica ternaria `newMessage.trim() ? <Send> : <Mic>` por ambos os botoes renderizados simultaneamente, em dois locais:
 
-3. **Adicionar `required` visual no Select**: Quando ha multiplas unidades, indicar que o campo e obrigatorio.
+1. **Desktop (linha ~4483-4503)**: Remover o ternario e renderizar ambos:
+   - Botao Send: sempre visivel, desabilitado quando nao ha texto ou esta enviando
+   - Botao Mic: sempre visivel, desabilitado quando ha texto digitado ou sem permissao
 
-### Detalhes tecnicos
+2. **Mobile (linha ~5347-5362)**: Mesma alteracao para manter consistencia.
 
-**Validacao no handleSubmit:**
+### Resultado esperado
 ```text
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!form.title || !form.event_date) return;
-  if (units.length > 1 && !form.unit) {
-    toast.error("Selecione uma unidade");
-    return;
-  }
-  // ... resto igual
-};
+[  Campo de texto...  ] [Enviar] [Mic]
 ```
+- Com texto digitado: Enviar ativo (azul), Mic desabilitado (cinza)
+- Sem texto: Enviar desabilitado, Mic ativo
+- Ambos sempre visiveis
 
-**Label condicional:**
-```text
-<Label>Unidade{units.length > 1 ? " *" : ""}</Label>
-```
-
-### Arquivos modificados
-- `src/components/agenda/EventFormDialog.tsx` -- adicionar validacao e indicador visual de obrigatoriedade
