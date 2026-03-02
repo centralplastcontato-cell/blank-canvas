@@ -38,7 +38,7 @@ const EDGE_GAP = 24;
 const MIN_BOTTOM = 24;
 
 function getDefaultPosition(): BtnPosition {
-  return { side: "right", bottomPx: 24 };
+  return { side: "right", bottomPx: 90 };
 }
 
 function loadPosition(): BtnPosition {
@@ -140,7 +140,7 @@ function DraggableSupportButton({
     <motion.button
       key={`support-btn-${position.side}`}
       initial={{ scale: 0, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1, x: 0, y: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
       exit={{ scale: 0, opacity: 0 }}
       whileHover={{ scale: 1.1 }}
       whileTap={{ scale: 0.95 }}
@@ -149,7 +149,7 @@ function DraggableSupportButton({
       dragElastic={0.1}
       onDragStart={() => { isDragging.current = true; }}
       onDragEnd={handleDragEnd}
-      onTap={() => {
+      onClick={() => {
         if (!isDragging.current) onTap();
       }}
       style={style}
