@@ -7,10 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { CalendarPlus, Type, CheckCircle2, Loader2, MessageSquare, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarPlus, Type, CheckCircle2, Loader2, MessageSquare, ChevronLeft, ChevronRight, CalendarDays, CalendarIcon } from "lucide-react";
 import { format, parseISO, startOfMonth, endOfMonth, eachWeekOfInterval, startOfWeek, endOfWeek, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface Props {
   open: boolean;
@@ -35,12 +38,17 @@ interface WeekOption {
   label: string;
 }
 
+type Mode = "week" | "free";
+
 export function CreateScheduleDialog({ open, onOpenChange, onCreated }: Props) {
   const companyId = useCurrentCompanyId();
   const [title, setTitle] = useState("");
+  const [mode, setMode] = useState<Mode>("week");
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
   const [hasAutoSelected, setHasAutoSelected] = useState(false);
+  const [freeFrom, setFreeFrom] = useState<Date | undefined>();
+  const [freeTo, setFreeTo] = useState<Date | undefined>();
   const [events, setEvents] = useState<EventItem[]>([]);
   const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
@@ -59,7 +67,6 @@ export function CreateScheduleDialog({ open, onOpenChange, onCreated }: Props) {
     return weekStarts.map((ws, i) => {
       const wStart = startOfWeek(ws, { weekStartsOn: 0 });
       const wEnd = endOfWeek(ws, { weekStartsOn: 0 });
-      // Clamp to month boundaries
       const clampedStart = wStart < monthStart ? monthStart : wStart;
       const clampedEnd = wEnd > monthEnd ? monthEnd : wEnd;
       return {
@@ -71,9 +78,9 @@ export function CreateScheduleDialog({ open, onOpenChange, onCreated }: Props) {
     });
   }, [currentMonth]);
 
-  // Auto-select current week when dialog opens
+  // Auto-select current week when dialog opens (week mode only)
   useEffect(() => {
-    if (!open || hasAutoSelected || weeks.length === 0) return;
+    if (!open || hasAutoSelected || weeks.length === 0 || mode !== "week") return;
     const today = new Date();
     const autoIndex = weeks.findIndex(w => today >= w.start && today <= w.end);
     const weekIndex = autoIndex >= 0 ? autoIndex : 0;
@@ -81,19 +88,27 @@ export function CreateScheduleDialog({ open, onOpenChange, onCreated }: Props) {
     const monthName = format(currentMonth, "MMMM", { locale: ptBR });
     setTitle(`Escala Semana ${weekIndex + 1} ${monthName}`);
     setHasAutoSelected(true);
-  }, [open, weeks, hasAutoSelected]);
+  }, [open, weeks, hasAutoSelected, mode]);
 
   // Reset state when dialog closes
   useEffect(() => {
     if (!open) {
       setHasAutoSelected(false);
+      setMode("week");
+      setFreeFrom(undefined);
+      setFreeTo(undefined);
     }
   }, [open]);
 
-  const startDate = selectedWeek !== null ? weeks[selectedWeek]?.start : undefined;
-  const endDate = selectedWeek !== null ? weeks[selectedWeek]?.end : undefined;
+  // Derive startDate/endDate from active mode
+  const startDate = mode === "week"
+    ? (selectedWeek !== null ? weeks[selectedWeek]?.start : undefined)
+    : freeFrom;
+  const endDate = mode === "week"
+    ? (selectedWeek !== null ? weeks[selectedWeek]?.end : undefined)
+    : freeTo;
 
-  // Fetch events when week changes
+  // Fetch events when range changes
   useEffect(() => {
     if (!startDate || !endDate || !companyId) { setEvents([]); return; }
     const fetchEvents = async () => {
@@ -112,13 +127,31 @@ export function CreateScheduleDialog({ open, onOpenChange, onCreated }: Props) {
     fetchEvents();
   }, [startDate, endDate, companyId]);
 
+  // Auto-suggest title for free mode
+  useEffect(() => {
+    if (mode === "free" && freeFrom && freeTo) {
+      setTitle(`Escala ${format(freeFrom, "dd/MM")} - ${format(freeTo, "dd/MM")}`);
+    }
+  }, [freeFrom, freeTo, mode]);
+
   // Auto-suggest title when week is selected
   useEffect(() => {
-    if (selectedWeek !== null && !title) {
+    if (mode === "week" && selectedWeek !== null && !title) {
       const monthName = format(currentMonth, "MMMM", { locale: ptBR });
       setTitle(`Escala Semana ${selectedWeek + 1} ${monthName}`);
     }
-  }, [selectedWeek]);
+  }, [selectedWeek, mode]);
+
+  const handleModeChange = (newMode: Mode) => {
+    if (newMode === mode) return;
+    setMode(newMode);
+    setSelectedWeek(null);
+    setFreeFrom(undefined);
+    setFreeTo(undefined);
+    setEvents([]);
+    setSelectedEventIds([]);
+    setTitle("");
+  };
 
   const handleSelectWeek = (index: number) => {
     if (selectedWeek === index) {
@@ -163,6 +196,7 @@ export function CreateScheduleDialog({ open, onOpenChange, onCreated }: Props) {
       toast({ title: "Escala criada com sucesso!" });
       onOpenChange(false);
       setTitle(""); setNotes(""); setSelectedWeek(null); setEvents([]); setSelectedEventIds([]);
+      setFreeFrom(undefined); setFreeTo(undefined);
       onCreated();
     }
   };
@@ -184,7 +218,7 @@ export function CreateScheduleDialog({ open, onOpenChange, onCreated }: Props) {
             Nova Escala
           </DialogTitle>
           <DialogDescription>
-            Selecione a semana e as festas para a escala.
+            Selecione o período e as festas para a escala.
           </DialogDescription>
         </DialogHeader>
 
@@ -198,39 +232,129 @@ export function CreateScheduleDialog({ open, onOpenChange, onCreated }: Props) {
             <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex: Escala Semana 3" className="h-12" />
           </div>
 
-          {/* Month navigator + Week selector */}
+          {/* Mode toggle + period selector */}
           <div>
             <label className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground mb-2 flex items-center gap-1.5">
               <CalendarDays className="h-3.5 w-3.5" />
-              Semana
+              Período
             </label>
-            <div className="flex items-center justify-between mb-3">
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleMonthChange("prev")}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="text-sm font-semibold capitalize">
-                {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
-              </span>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleMonthChange("next")}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+
+            {/* Toggle */}
+            <div className="flex rounded-lg border border-border p-1 mb-3">
+              <button
+                type="button"
+                onClick={() => handleModeChange("week")}
+                className={cn(
+                  "flex-1 text-xs font-medium py-2 rounded-md transition-all",
+                  mode === "week"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Semana fixa
+              </button>
+              <button
+                type="button"
+                onClick={() => handleModeChange("free")}
+                className={cn(
+                  "flex-1 text-xs font-medium py-2 rounded-md transition-all",
+                  mode === "free"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Período livre
+              </button>
             </div>
-            <div className="grid grid-cols-2 gap-2 min-h-[160px]">
-              {weeks.map((w, i) => (
-                <Button
-                  key={i}
-                  type="button"
-                  variant={selectedWeek === i ? "default" : "outline"}
-                  className="h-auto py-2.5 px-3 flex flex-col items-start text-left"
-                  onClick={() => handleSelectWeek(i)}
-                >
-                  <span className="text-xs font-semibold">Semana {w.weekNumber}</span>
-                  <span className={`text-[10px] ${selectedWeek === i ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                    {w.label}
+
+            {mode === "week" ? (
+              <>
+                <div className="flex items-center justify-between mb-3">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleMonthChange("prev")}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm font-semibold capitalize">
+                    {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
                   </span>
-                </Button>
-              ))}
-            </div>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleMonthChange("next")}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-2 min-h-[160px]">
+                  {weeks.map((w, i) => (
+                    <Button
+                      key={i}
+                      type="button"
+                      variant={selectedWeek === i ? "default" : "outline"}
+                      className="h-auto py-2.5 px-3 flex flex-col items-start text-left"
+                      onClick={() => handleSelectWeek(i)}
+                    >
+                      <span className="text-xs font-semibold">Semana {w.weekNumber}</span>
+                      <span className={`text-[10px] ${selectedWeek === i ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                        {w.label}
+                      </span>
+                    </Button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {/* Date From */}
+                <div>
+                  <span className="text-[10px] font-medium text-muted-foreground mb-1 block">De</span>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn("w-full justify-start text-left font-normal h-11", !freeFrom && "text-muted-foreground")}
+                      >
+                        <CalendarIcon className="h-4 w-4 mr-2 shrink-0" />
+                        {freeFrom ? format(freeFrom, "dd/MM/yyyy") : "Selecionar"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={freeFrom}
+                        onSelect={(d) => {
+                          setFreeFrom(d);
+                          if (freeTo && d && d > freeTo) setFreeTo(undefined);
+                        }}
+                        locale={ptBR}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                {/* Date To */}
+                <div>
+                  <span className="text-[10px] font-medium text-muted-foreground mb-1 block">Até</span>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn("w-full justify-start text-left font-normal h-11", !freeTo && "text-muted-foreground")}
+                      >
+                        <CalendarIcon className="h-4 w-4 mr-2 shrink-0" />
+                        {freeTo ? format(freeTo, "dd/MM/yyyy") : "Selecionar"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={freeTo}
+                        onSelect={setFreeTo}
+                        disabled={(date) => freeFrom ? date < freeFrom : false}
+                        locale={ptBR}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Loading */}
@@ -290,8 +414,8 @@ export function CreateScheduleDialog({ open, onOpenChange, onCreated }: Props) {
             </div>
           )}
 
-          {selectedWeek !== null && !loadingEvents && events.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-4">Nenhuma festa encontrada nesta semana.</p>
+          {startDate && endDate && !loadingEvents && events.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-4">Nenhuma festa encontrada neste período.</p>
           )}
 
           {/* Observações */}
