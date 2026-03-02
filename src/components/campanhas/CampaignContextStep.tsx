@@ -123,7 +123,7 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
       {/* Nome da campanha */}
       <div className="space-y-1.5">
         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Nome da campanha
+          Título da campanha
         </Label>
         <Input
           placeholder="Ex: Promoção Abril 2026"
