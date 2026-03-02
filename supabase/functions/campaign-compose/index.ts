@@ -22,13 +22,13 @@ Deno.serve(async (req) => {
     }
 
     const positionMap: Record<string, string> = {
-      "top-left": "top-left corner",
-      "top-right": "top-right corner",
-      "bottom-left": "bottom-left corner",
-      "bottom-right": "bottom-right corner",
-      "center": "center",
+      "top-left": "canto superior esquerdo",
+      "top-right": "canto superior direito",
+      "bottom-left": "canto inferior esquerdo",
+      "bottom-right": "canto inferior direito",
+      "center": "centro",
     };
-    const posLabel = positionMap[position] || "bottom-right corner";
+    const posLabel = positionMap[position] || "canto inferior direito";
 
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
@@ -41,11 +41,11 @@ Deno.serve(async (req) => {
 
     if (enhance) {
       // Enhanced mode: creative AI art combining photo + logo + design elements
-      promptText = `Create a professional, eye-catching promotional image for a children's party venue. Use the provided photo as the main background/visual element.${
-        logo_url ? ` Place the company logo prominently in the ${posLabel}.` : ""
-      } Add subtle festive design elements (confetti, balloons, stars, ribbons) around the edges. Enhance the colors to look vibrant and inviting. The image should look like a polished marketing flyer.${
-        context ? ` Campaign context: ${context}` : ""
-      } IMPORTANT: Do NOT add any text, letters, words, numbers, banners with text, or written characters of any kind to the image. Pure visual art only.`;
+      promptText = `Aprimore esta foto para parecer uma arte promocional profissional de buffet infantil. Use a foto fornecida como elemento visual principal.${
+        logo_url ? ` Posicione o logotipo da empresa no ${posLabel} da imagem.` : ""
+      } Adicione elementos decorativos sutis (confetes, baloes, estrelas, fitas) nas bordas. Realce as cores para ficarem vibrantes e convidativas.${
+        context ? ` Contexto da campanha: ${context}.` : ""
+      } REGRA OBRIGATORIA: NAO adicione nenhum texto, letra, palavra, numero, faixa com texto ou caractere escrito de qualquer tipo na imagem. Apenas arte visual.`;
       if (logo_url) {
         imageContent.push({ type: "image_url", image_url: { url: logo_url } });
       }
@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      promptText = `Place this logo in the ${posLabel} of the base image. The logo should be clearly visible but not too large (about 15-20% of the image width). Keep the logo proportions intact. Do not alter the base image content. The result should look like a professional marketing image with a logo placement.`;
+      promptText = `Posicione este logotipo no ${posLabel} da imagem base. O logotipo deve estar claramente visivel mas nao muito grande (cerca de 15-20% da largura da imagem). Mantenha as proporcoes do logotipo intactas. Nao altere o conteudo da imagem base. O resultado deve parecer uma imagem de marketing profissional com posicionamento de logotipo.`;
       imageContent.push({ type: "image_url", image_url: { url: logo_url } });
     }
 
