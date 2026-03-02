@@ -4480,27 +4480,24 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                           rows={1}
                           spellCheck={true}
                         />
-                        {newMessage.trim() ? (
-                          <Button 
-                            type="submit" 
-                            size="icon" 
-                            disabled={isSending || !canSendMessages}
-                            className="shrink-0"
-                          >
-                            <Send className="w-4 h-4" />
-                          </Button>
-                        ) : (
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="icon"
-                            className="shrink-0"
-                            onClick={canSendAudio ? startRecording : undefined}
-                            disabled={!canSendAudio}
-                          >
-                            <Mic className="w-4 h-4" />
-                          </Button>
-                        )}
+                        <Button 
+                          type="submit" 
+                          size="icon" 
+                          disabled={!newMessage.trim() || isSending || !canSendMessages}
+                          className="shrink-0"
+                        >
+                          <Send className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="icon"
+                          className="shrink-0"
+                          onClick={canSendAudio ? startRecording : undefined}
+                          disabled={!canSendAudio || !!newMessage.trim()}
+                        >
+                          <Mic className="w-4 h-4" />
+                        </Button>
                       </form>
                     )}
                   </div>
@@ -5344,22 +5341,19 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                       rows={1}
                       spellCheck={true}
                     />
-                    {newMessage.trim() ? (
-                      <Button type="submit" size="icon" disabled={isSending || !canSendMessages} className="shrink-0">
-                        <Send className="w-4 h-4" />
-                      </Button>
-                    ) : (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="icon"
-                        className="shrink-0"
-                        onClick={canSendAudio ? startRecording : undefined}
-                        disabled={!canSendAudio}
-                      >
-                        <Mic className="w-4 h-4" />
-                      </Button>
-                    )}
+                    <Button type="submit" size="icon" disabled={!newMessage.trim() || isSending || !canSendMessages} className="shrink-0">
+                      <Send className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="icon"
+                      className="shrink-0"
+                      onClick={canSendAudio ? startRecording : undefined}
+                      disabled={!canSendAudio || !!newMessage.trim()}
+                    >
+                      <Mic className="w-4 h-4" />
+                    </Button>
                   </form>
                   )}
                 </div>
