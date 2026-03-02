@@ -1915,6 +1915,7 @@ export type Database = {
           id: string
           is_active: boolean
           notes: string | null
+          schedule_type: string
           slug: string | null
           start_date: string
           title: string
@@ -1930,6 +1931,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           notes?: string | null
+          schedule_type?: string
           slug?: string | null
           start_date: string
           title: string
@@ -1945,6 +1947,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           notes?: string | null
+          schedule_type?: string
           slug?: string | null
           start_date?: string
           title?: string

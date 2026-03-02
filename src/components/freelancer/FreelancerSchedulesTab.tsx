@@ -27,6 +27,7 @@ interface Schedule {
   notes: string | null;
   event_display_names?: Record<string, string>;
   event_notes?: Record<string, string>;
+  schedule_type?: string;
 }
 
 export interface EventData {
@@ -72,6 +73,7 @@ export function FreelancerSchedulesTab() {
   const [companyName, setCompanyName] = useState("");
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [viewMode, setViewMode] = useState<"week" | "free">("week");
   const [sendToGroupsSchedule, setSendToGroupsSchedule] = useState<Schedule | null>(null);
   const [sendAssignmentsSchedule, setSendAssignmentsSchedule] = useState<Schedule | null>(null);
   const [freelancerRoles, setFreelancerRoles] = useState<Record<string, string[]>>({});
@@ -97,8 +99,14 @@ export function FreelancerSchedulesTab() {
     }
   }, [companyId]);
 
-  // Weekly grouping
+  // Filter schedules by view mode
+  const schedulesFiltered = useMemo(() => {
+    return schedules.filter(s => (s.schedule_type || "week") === viewMode);
+  }, [schedules, viewMode]);
+
+  // Weekly grouping (only for week mode)
   const weeksWithSchedules = useMemo(() => {
+    if (viewMode !== "week") return [];
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
     const weeks = eachWeekOfInterval({ start: monthStart, end: monthEnd }, { weekStartsOn: 0 });
@@ -107,7 +115,7 @@ export function FreelancerSchedulesTab() {
       const wStart = startOfWeek(weekStart, { weekStartsOn: 0 });
       const wEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
 
-      const weekSchedules = schedules.filter(s => {
+      const weekSchedules = schedulesFiltered.filter(s => {
         try {
           return areIntervalsOverlapping(
             { start: parseISO(s.start_date), end: parseISO(s.end_date) },
@@ -118,13 +126,19 @@ export function FreelancerSchedulesTab() {
 
       return { weekNumber: index + 1, start: wStart, end: wEnd, schedules: weekSchedules };
     });
-  }, [schedules, currentMonth]);
+  }, [schedulesFiltered, currentMonth, viewMode]);
+
+  // Free mode: sorted by start_date
+  const freeSchedulesSorted = useMemo(() => {
+    if (viewMode !== "free") return [];
+    return [...schedulesFiltered].sort((a, b) => a.start_date.localeCompare(b.start_date));
+  }, [schedulesFiltered, viewMode]);
 
   // Monthly summary
   const monthlySummary = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
-    const monthSchedules = schedules.filter(s => {
+    const monthSchedules = schedulesFiltered.filter(s => {
       try {
         return areIntervalsOverlapping(
           { start: parseISO(s.start_date), end: parseISO(s.end_date) },
@@ -137,7 +151,7 @@ export function FreelancerSchedulesTab() {
       assignments.filter(a => monthSchedules.some(s => s.id === a.schedule_id)).map(a => a.freelancer_name)
     );
     return { scales: monthSchedules.length, events: totalEvents, assigned: assignedNames.size };
-  }, [schedules, assignments, currentMonth]);
+  }, [schedulesFiltered, assignments, currentMonth]);
 
   const loadScheduleDetails = async (schedule: Schedule) => {
     if (expandedId === schedule.id) { setExpandedId(null); return; }
@@ -342,6 +356,32 @@ export function FreelancerSchedulesTab() {
         </Button>
       </div>
 
+      {/* View Mode Toggle */}
+      <div className="flex rounded-lg border border-border p-1">
+        <button
+          type="button"
+          onClick={() => setViewMode("week")}
+          className={`flex-1 text-xs font-medium py-2 rounded-md transition-all ${
+            viewMode === "week"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Semanal
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewMode("free")}
+          className={`flex-1 text-xs font-medium py-2 rounded-md transition-all ${
+            viewMode === "free"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Período livre
+        </button>
+      </div>
+
       {/* Monthly Summary */}
       <div className="grid grid-cols-3 gap-2 sm:gap-4">
         {[
@@ -358,73 +398,117 @@ export function FreelancerSchedulesTab() {
         ))}
       </div>
 
-      {/* Weekly Groups */}
-      <div className="space-y-6">
-        {weeksWithSchedules.map(week => (
-          <div key={week.weekNumber} className="space-y-3">
-            {/* Week header */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 bg-muted/60 rounded-full px-3 py-1">
-                <span className="text-[11px] font-bold text-foreground uppercase tracking-[0.15em]">
-                  Semana {week.weekNumber}
+      {/* Weekly Groups (week mode) */}
+      {viewMode === "week" && (
+        <div className="space-y-6">
+          {weeksWithSchedules.map(week => (
+            <div key={week.weekNumber} className="space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 bg-muted/60 rounded-full px-3 py-1">
+                  <span className="text-[11px] font-bold text-foreground uppercase tracking-[0.15em]">
+                    Semana {week.weekNumber}
+                  </span>
+                </div>
+                <span className="text-[11px] text-muted-foreground font-medium">
+                  {format(week.start, "dd/MM")} — {format(week.end, "dd/MM")}
                 </span>
+                <div className="flex-1 h-px bg-border/30" />
+                {week.schedules.length > 0 && (
+                  <Badge variant="secondary" className="text-[10px] font-semibold">
+                    {week.schedules.length} escala(s)
+                  </Badge>
+                )}
               </div>
-              <span className="text-[11px] text-muted-foreground font-medium">
-                {format(week.start, "dd/MM")} — {format(week.end, "dd/MM")}
-              </span>
-              <div className="flex-1 h-px bg-border/30" />
-              {week.schedules.length > 0 && (
-                <Badge variant="secondary" className="text-[10px] font-semibold">
-                  {week.schedules.length} escala(s)
-                </Badge>
+              {week.schedules.length === 0 ? (
+                <div className="pl-4 py-1">
+                  <p className="text-xs text-muted-foreground/50 italic">Nenhuma escala nesta semana</p>
+                </div>
+              ) : (
+                <div className="space-y-3 pl-1">
+                  {week.schedules.map(schedule => (
+                    <ScheduleCard
+                      key={schedule.id}
+                      schedule={schedule}
+                      isExpanded={expandedId === schedule.id}
+                      events={events}
+                      availability={availability}
+                      assignments={assignments}
+                      savingAssignment={savingAssignment}
+                      onToggleExpand={() => loadScheduleDetails(schedule)}
+                      onCopyLink={() => copyLink(schedule)}
+                      onGeneratePDF={() => handleGeneratePDF(schedule)}
+                      onDelete={() => deleteSchedule(schedule.id)}
+                      onToggleAssignment={toggleAssignment}
+                      onUpdateRole={updateRole}
+                      freelancerRoles={freelancerRoles}
+                      onUpdateNotes={async (scheduleId, eventId, notes) => {
+                        const schedule = schedules.find(s => s.id === scheduleId);
+                        const currentEventNotes = schedule?.event_notes || {};
+                        const updatedEventNotes = { ...currentEventNotes, [eventId]: notes || "" };
+                        if (!notes) delete updatedEventNotes[eventId];
+                        await supabase.from("freelancer_schedules").update({ event_notes: updatedEventNotes } as any).eq("id", scheduleId);
+                        setSchedules(prev => prev.map(s => s.id === scheduleId ? { ...s, event_notes: updatedEventNotes } : s));
+                        toast({ title: "Observação da festa atualizada" });
+                      }}
+                      onRemoveEvent={removeEventFromSchedule}
+                      onUpdateDisplayName={updateDisplayName}
+                      onSendToGroups={() => setSendToGroupsSchedule(schedule)}
+                      onSendAssignmentsToGroups={() => setSendAssignmentsSchedule(schedule)}
+                      scheduleAssignmentCount={assignments.filter(a => a.schedule_id === schedule.id).length}
+                      roles={ROLES}
+                    />
+                  ))}
+                </div>
               )}
             </div>
+          ))}
+        </div>
+      )}
 
-            {week.schedules.length === 0 ? (
-              <div className="pl-4 py-1">
-                <p className="text-xs text-muted-foreground/50 italic">Nenhuma escala nesta semana</p>
-              </div>
-            ) : (
-              <div className="space-y-3 pl-1">
-                {week.schedules.map(schedule => (
-                  <ScheduleCard
-                    key={schedule.id}
-                    schedule={schedule}
-                    isExpanded={expandedId === schedule.id}
-                    events={events}
-                    availability={availability}
-                    assignments={assignments}
-                    savingAssignment={savingAssignment}
-                    onToggleExpand={() => loadScheduleDetails(schedule)}
-                    onCopyLink={() => copyLink(schedule)}
-                    onGeneratePDF={() => handleGeneratePDF(schedule)}
-                    onDelete={() => deleteSchedule(schedule.id)}
-                    onToggleAssignment={toggleAssignment}
-                    onUpdateRole={updateRole}
-                    freelancerRoles={freelancerRoles}
-                    onUpdateNotes={async (scheduleId, eventId, notes) => {
-                      const schedule = schedules.find(s => s.id === scheduleId);
-                      const currentEventNotes = schedule?.event_notes || {};
-                      const updatedEventNotes = { ...currentEventNotes, [eventId]: notes || "" };
-                      // Remove empty entries
-                      if (!notes) delete updatedEventNotes[eventId];
-                      await supabase.from("freelancer_schedules").update({ event_notes: updatedEventNotes } as any).eq("id", scheduleId);
-                      setSchedules(prev => prev.map(s => s.id === scheduleId ? { ...s, event_notes: updatedEventNotes } : s));
-                      toast({ title: "Observação da festa atualizada" });
-                    }}
-                    onRemoveEvent={removeEventFromSchedule}
-                    onUpdateDisplayName={updateDisplayName}
-                    onSendToGroups={() => setSendToGroupsSchedule(schedule)}
-                    onSendAssignmentsToGroups={() => setSendAssignmentsSchedule(schedule)}
-                    scheduleAssignmentCount={assignments.filter(a => a.schedule_id === schedule.id).length}
-                    roles={ROLES}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+      {/* Free mode list */}
+      {viewMode === "free" && (
+        <div className="space-y-3">
+          {freeSchedulesSorted.length === 0 ? (
+            <div className="py-8 text-center">
+              <p className="text-sm text-muted-foreground/60 italic">Nenhuma escala de período livre neste mês</p>
+            </div>
+          ) : (
+            freeSchedulesSorted.map(schedule => (
+              <ScheduleCard
+                key={schedule.id}
+                schedule={schedule}
+                isExpanded={expandedId === schedule.id}
+                events={events}
+                availability={availability}
+                assignments={assignments}
+                savingAssignment={savingAssignment}
+                onToggleExpand={() => loadScheduleDetails(schedule)}
+                onCopyLink={() => copyLink(schedule)}
+                onGeneratePDF={() => handleGeneratePDF(schedule)}
+                onDelete={() => deleteSchedule(schedule.id)}
+                onToggleAssignment={toggleAssignment}
+                onUpdateRole={updateRole}
+                freelancerRoles={freelancerRoles}
+                onUpdateNotes={async (scheduleId, eventId, notes) => {
+                  const schedule = schedules.find(s => s.id === scheduleId);
+                  const currentEventNotes = schedule?.event_notes || {};
+                  const updatedEventNotes = { ...currentEventNotes, [eventId]: notes || "" };
+                  if (!notes) delete updatedEventNotes[eventId];
+                  await supabase.from("freelancer_schedules").update({ event_notes: updatedEventNotes } as any).eq("id", scheduleId);
+                  setSchedules(prev => prev.map(s => s.id === scheduleId ? { ...s, event_notes: updatedEventNotes } : s));
+                  toast({ title: "Observação da festa atualizada" });
+                }}
+                onRemoveEvent={removeEventFromSchedule}
+                onUpdateDisplayName={updateDisplayName}
+                onSendToGroups={() => setSendToGroupsSchedule(schedule)}
+                onSendAssignmentsToGroups={() => setSendAssignmentsSchedule(schedule)}
+                scheduleAssignmentCount={assignments.filter(a => a.schedule_id === schedule.id).length}
+                roles={ROLES}
+              />
+            ))
+          )}
+        </div>
+      )}
 
       {/* Global empty state */}
       {schedules.length === 0 && (

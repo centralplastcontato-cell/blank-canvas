@@ -187,6 +187,7 @@ export function CreateScheduleDialog({ open, onOpenChange, onCreated }: Props) {
       event_ids: selectedEventIds,
       slug,
       notes: notes.trim() || null,
+      schedule_type: mode,
     } as any);
 
     setSubmitting(false);

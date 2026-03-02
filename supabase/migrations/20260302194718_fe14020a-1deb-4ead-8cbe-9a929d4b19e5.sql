@@ -1,0 +1,1 @@
+ALTER TABLE public.freelancer_schedules ADD COLUMN IF NOT EXISTS schedule_type text NOT NULL DEFAULT 'week';
