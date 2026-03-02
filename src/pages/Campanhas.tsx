@@ -7,13 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Megaphone, Plus, CheckCircle2, XCircle, Clock, Loader2, Users, Menu } from "lucide-react";
+import { Megaphone, Plus, CheckCircle2, XCircle, Clock, Loader2, Users, Menu, ImageIcon } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CampaignWizard } from "@/components/campanhas/CampaignWizard";
 import { CampaignSendDialog } from "@/components/campanhas/CampaignSendDialog";
 import { CampaignDetailSheet } from "@/components/campanhas/CampaignDetailSheet";
 import { BaseLeadsTab } from "@/components/campanhas/BaseLeadsTab";
+import { CampaignGalleryTab } from "@/components/campanhas/CampaignGalleryTab";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
@@ -142,6 +143,10 @@ export default function Campanhas() {
                 <Users className="w-3.5 h-3.5" />
                 Leads de Base
               </TabsTrigger>
+              <TabsTrigger value="galeria" className="gap-1.5">
+                <ImageIcon className="w-3.5 h-3.5" />
+                Galeria
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="campanhas">
@@ -213,6 +218,10 @@ export default function Campanhas() {
 
             <TabsContent value="base">
               <BaseLeadsTab companyId={companyId || ""} />
+            </TabsContent>
+
+            <TabsContent value="galeria">
+              <CampaignGalleryTab companyId={companyId || ""} />
             </TabsContent>
           </Tabs>
 
