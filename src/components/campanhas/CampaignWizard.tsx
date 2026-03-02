@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { CampaignContextStep } from "./CampaignContextStep";
 import { CampaignAudienceStep } from "./CampaignAudienceStep";
 import { CampaignConfigStep } from "./CampaignConfigStep";
-import { ChevronLeft, ChevronRight, Loader2, Megaphone, Check, Info } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Megaphone, Check, Info, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
 
 interface CampaignWizardProps {
@@ -164,11 +165,19 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
             ))}
           </div>
 
-          {/* Step description */}
-          <p className="flex items-start gap-1.5 text-base text-muted-foreground pb-3">
-            <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-            {STEP_DESCRIPTIONS[step]}
-          </p>
+          {/* Step description - collapsible */}
+          <Collapsible>
+            <CollapsibleTrigger className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors pb-2 cursor-pointer">
+              <Info className="w-3.5 h-3.5 shrink-0" />
+              <span>Instruções</span>
+              <ChevronDown className="w-3 h-3" />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <p className="text-xs text-muted-foreground pb-3 pl-5">
+                {STEP_DESCRIPTIONS[step]}
+              </p>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
 
         {/* Content area */}
