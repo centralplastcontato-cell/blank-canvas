@@ -615,19 +615,18 @@ Deno.serve(async (req) => {
         
         let audioPayload: Record<string, unknown> = { phone };
 
-        // Prefer sending by URL directly (same pattern as send-image)
-        if (audioMediaUrl && !audioBase64) {
-          console.log('send-audio: sending by URL:', audioMediaUrl.substring(0, 80));
-          audioPayload.audio = audioMediaUrl;
-        } else if (audioBase64) {
+        if (audioBase64) {
+          // Se já veio base64, usar diretamente (com prefixo)
           let finalAudio = audioBase64;
           if (!finalAudio.startsWith('data:')) {
             finalAudio = `data:audio/ogg;base64,${finalAudio}`;
           }
           audioPayload.audio = finalAudio;
         } else if (audioMediaUrl) {
-          // Fallback: fetch and convert to base64 with prefix
+          // W-API rejeita URLs sem extensão .mp3/.ogg — sempre converter para base64
+          console.log('send-audio: fetching and converting to base64:', audioMediaUrl.substring(0, 80));
           const audioRes = await fetch(audioMediaUrl);
+          if (!audioRes.ok) throw new Error('Falha ao baixar audio: ' + audioRes.status);
           const buf = await audioRes.arrayBuffer();
           const bytes = new Uint8Array(buf);
           let bin = '';
