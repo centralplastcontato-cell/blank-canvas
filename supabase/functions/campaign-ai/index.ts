@@ -24,9 +24,10 @@ Dado o contexto da campanha e o nome da empresa, gere exatamente 5 variações d
 Regras:
 - Cada variação deve ter um tom diferente: 1) profissional, 2) amigável/casual, 3) com urgência, 4) curta/direta, 5) detalhada/descritiva
 - Use a variável {nome} onde o nome do cliente seria inserido (ex: "Oi {nome}!")
+- Use a variável {empresa} onde o nome da empresa/buffet seria inserido (ex: "Aqui é da equipe da {empresa}")
+- NUNCA escreva o nome real da empresa "${companyName}" diretamente no texto, sempre use a variável {empresa}
 - Mantenha as mensagens entre 2-5 linhas cada
 - Use emojis moderadamente
-- O nome da empresa é "${companyName}"
 - NÃO use markdown, apenas texto simples com quebras de linha
 - As mensagens devem parecer naturais como se fossem escritas por uma pessoa`;
 
