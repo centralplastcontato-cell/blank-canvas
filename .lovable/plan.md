@@ -1,31 +1,39 @@
 
+## Corrigir erro de UUID na criacao de campanha com leads de base
 
-## Melhorar a planilha CSV de modelo para importacao de contatos
+### Problema
+Quando um lead de base e selecionado para uma campanha, o sistema prefixa o ID com `base_` (ex: `base_c751c20a-...`) para diferenciar dos leads do CRM na interface. Porem, ao salvar os destinatarios na tabela `campaign_recipients`, esse ID prefixado e inserido na coluna `lead_id` que espera um UUID valido, causando o erro:
 
-A planilha modelo atual tem cabecalhos tecnicos (ex: `ex_cliente`, `info_festa`, `mes_interesse`), apenas 2 linhas de exemplo e nenhuma numeracao. O objetivo e tornar o template mais amigavel e profissional.
+```
+invalid input syntax for type uuid: "base_c751c20a-c0d9-4fb2-beb3-d7804ff17b76"
+```
 
-### Mudancas no `CSV_TEMPLATE` em `src/components/campanhas/BaseLeadImportDialog.tsx`
+### Solucao
 
-**1. Cabecalhos mais descritivos:**
-- `nome` -> `Nome do Contato`
-- `telefone` -> `Telefone (com DDD)`
-- `ex_cliente` -> `Ex-Cliente? (sim/nao)`
-- `info_festa` -> `Info da Festa Anterior`
-- `mes_interesse` -> `Mes de Interesse`
-- `observacoes` -> `Observacoes`
+Alterar o `CampaignWizard.tsx` na funcao `handleCreate` para remover o prefixo `base_` antes de inserir o `lead_id` na tabela de destinatarios. Tambem tornar o campo `lead_id` opcional (null) para leads de base, ja que eles pertencem a tabela `base_leads` e nao a `campaign_leads`.
 
-**2. Mais linhas de exemplo (5 linhas ao inves de 2):**
-Adicionar exemplos variados cobrindo diferentes cenarios: ex-cliente com info de festa, lead novo com mes de interesse, lead com observacao, etc.
+**Arquivo: `src/components/campanhas/CampaignWizard.tsx`**
 
-**3. Coluna de numeracao:**
-Adicionar uma primeira coluna `#` com numeros sequenciais (1, 2, 3...) para facilitar a conferencia visual no Excel.
+Na construcao do array `recipients` (linha ~91-97), verificar se o `lead.id` comeca com `base_` e, nesse caso:
+- Extrair o UUID real removendo o prefixo
+- Salvar o UUID real no `lead_id` (que referencia a tabela correta)
 
-**4. Ajuste no parser:**
-Atualizar a funcao `handleFile` para ignorar a primeira coluna (numeracao) ao processar o CSV, garantindo compatibilidade. O parser precisa detectar que a primeira coluna e `#` e fazer o offset dos indices das colunas.
+```typescript
+const recipients = selectedLeads.map((lead, i) => {
+  const isBase = lead.id.startsWith("base_");
+  const realId = isBase ? lead.id.replace("base_", "") : lead.id;
+  return {
+    campaign_id: campaign.id,
+    lead_id: realId,
+    phone: lead.whatsapp,
+    lead_name: lead.name,
+    variation_index: i % draft.variations.length,
+    status: "pending",
+  };
+});
+```
 
 ### Detalhes tecnicos
-
-- Arquivo editado: `src/components/campanhas/BaseLeadImportDialog.tsx`
-- Atualizar a constante `CSV_TEMPLATE` (linhas 44-46) com os novos cabecalhos, numeracao e 5 linhas de exemplo
-- Atualizar `handleFile` (por volta da linha 98) para detectar se a primeira coluna do header e `#` e, nesse caso, descartar a primeira coluna de cada linha antes de processar os campos
-
+- Arquivo editado: `src/components/campanhas/CampaignWizard.tsx`, linhas 91-97
+- Mudanca minima: apenas extrair o UUID real antes da insercao
+- Nenhuma mudanca de banco de dados necessaria
