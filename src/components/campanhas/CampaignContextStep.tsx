@@ -452,13 +452,18 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
                     <button
                       key={i}
                       type="button"
-                      className="relative group rounded-lg overflow-hidden border-2 border-border/40 hover:border-primary/60 hover:shadow-md transition-all aspect-video"
+                      className="relative group rounded-xl overflow-hidden border-2 border-border/40 hover:border-primary hover:shadow-md transition-all bg-white dark:bg-muted/30"
                       onClick={() => handleSelectBuffetPhoto(url)}
                     >
-                      <img src={url} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                        <ImagePlus className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="w-full pt-[75%] relative">
+                        <img
+                          src={url}
+                          alt={`Foto ${i + 1}`}
+                          className="absolute inset-0 w-full h-full object-contain p-0.5"
+                          loading="lazy"
+                        />
                       </div>
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
                     </button>
                   ))}
                 </div>
