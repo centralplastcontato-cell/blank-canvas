@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { base_image_url, logo_url, company_id } = await req.json();
+    const { base_image_url, logo_url, company_id, position } = await req.json();
 
     if (!base_image_url || !logo_url || !company_id) {
       return new Response(
@@ -20,6 +20,15 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const positionMap: Record<string, string> = {
+      "top-left": "top-left corner",
+      "top-right": "top-right corner",
+      "bottom-left": "bottom-left corner",
+      "bottom-right": "bottom-right corner",
+      "center": "center",
+    };
+    const posLabel = positionMap[position] || "bottom-right corner";
 
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
@@ -39,7 +48,7 @@ Deno.serve(async (req) => {
             content: [
               {
                 type: "text",
-                text: "Place this logo in the bottom-right corner of the base image. The logo should be clearly visible but not too large (about 15-20% of the image width). Keep the logo proportions intact. Do not alter the base image content. The result should look like a professional marketing image with a subtle brand watermark.",
+                text: `Place this logo in the ${posLabel} of the base image. The logo should be clearly visible but not too large (about 15-20% of the image width). Keep the logo proportions intact. Do not alter the base image content. The result should look like a professional marketing image with a logo placement.`,
               },
               {
                 type: "image_url",
