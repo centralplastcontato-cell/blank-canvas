@@ -1,25 +1,31 @@
 
-## Melhorar visual e texto do dialog de importacao CSV
 
-O usuario relata que o dialog de importacao ainda nao esta claro o suficiente sobre o que o download faz. A mudanca principal e tornar o texto mais explicito e o botao de download mais destacado visualmente.
+## Melhorar a planilha CSV de modelo para importacao de contatos
 
-### Alteracoes em `src/components/campanhas/BaseLeadImportDialog.tsx`
+A planilha modelo atual tem cabecalhos tecnicos (ex: `ex_cliente`, `info_festa`, `mes_interesse`), apenas 2 linhas de exemplo e nenhuma numeracao. O objetivo e tornar o template mais amigavel e profissional.
 
-**Step 1 - Download do template:**
-- Trocar o titulo de "Baixe o modelo de planilha" para **"Baixe a planilha modelo para cadastrar seus contatos"**
-- Reescrever a descricao para ser mais clara: **"Este arquivo e uma planilha pronta com todas as colunas necessarias para voce cadastrar seus contatos em massa. Baixe, preencha com os dados dos seus contatos no Excel ou Google Sheets, e depois envie aqui."**
-- Tornar o botao de download maior e mais visivel: usar `size="default"` em vez de `size="sm"`, com variante primaria (ja esta) e texto mais descritivo: **"Baixar planilha de cadastro (.csv)"**
-- Adicionar um icone de `FileSpreadsheet` ao lado do titulo do passo 1 para reforcar visualmente que se trata de uma planilha
+### Mudancas no `CSV_TEMPLATE` em `src/components/campanhas/BaseLeadImportDialog.tsx`
 
-**Step 2 - Upload:**
-- Trocar titulo para **"Envie a planilha preenchida com seus contatos"**
-- Manter o restante igual
+**1. Cabecalhos mais descritivos:**
+- `nome` -> `Nome do Contato`
+- `telefone` -> `Telefone (com DDD)`
+- `ex_cliente` -> `Ex-Cliente? (sim/nao)`
+- `info_festa` -> `Info da Festa Anterior`
+- `mes_interesse` -> `Mes de Interesse`
+- `observacoes` -> `Observacoes`
+
+**2. Mais linhas de exemplo (5 linhas ao inves de 2):**
+Adicionar exemplos variados cobrindo diferentes cenarios: ex-cliente com info de festa, lead novo com mes de interesse, lead com observacao, etc.
+
+**3. Coluna de numeracao:**
+Adicionar uma primeira coluna `#` com numeros sequenciais (1, 2, 3...) para facilitar a conferencia visual no Excel.
+
+**4. Ajuste no parser:**
+Atualizar a funcao `handleFile` para ignorar a primeira coluna (numeracao) ao processar o CSV, garantindo compatibilidade. O parser precisa detectar que a primeira coluna e `#` e fazer o offset dos indices das colunas.
 
 ### Detalhes tecnicos
 
-Arquivo unico editado: `src/components/campanhas/BaseLeadImportDialog.tsx`, linhas 231-274.
+- Arquivo editado: `src/components/campanhas/BaseLeadImportDialog.tsx`
+- Atualizar a constante `CSV_TEMPLATE` (linhas 44-46) com os novos cabecalhos, numeracao e 5 linhas de exemplo
+- Atualizar `handleFile` (por volta da linha 98) para detectar se a primeira coluna do header e `#` e, nesse caso, descartar a primeira coluna de cada linha antes de processar os campos
 
-- Linha 235: atualizar texto do titulo
-- Linha 237-238: reescrever descricao
-- Linha 245-248: aumentar botao e trocar label
-- Linha 256: atualizar titulo do passo 2
