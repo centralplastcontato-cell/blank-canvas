@@ -41,9 +41,12 @@ const MONTHS_MAP: Record<string, string> = {
   novembro: "Novembro", dezembro: "Dezembro",
 };
 
-const CSV_TEMPLATE = `nome;telefone;ex_cliente;info_festa;mes_interesse;observacoes
-Maria Silva;11999887766;sim;Marco 2024;;Indicacao da Ana
-Joao Santos;11988776655;nao;;Junho;Viu no Instagram`;
+const CSV_TEMPLATE = `#;Nome do Contato;Telefone (com DDD);Ex-Cliente? (sim/nao);Info da Festa Anterior;Mes de Interesse;Observacoes
+1;Maria Silva;11999887766;sim;Aniversario de 5 anos - Marco 2024;;Indicacao da Ana
+2;Joao Santos;11988776655;nao;;Junho;Viu no Instagram
+3;Carla Oliveira;21977665544;sim;Festa junina 2023;;Quer repetir este ano
+4;Pedro Lima;31966554433;nao;;Outubro;Indicacao do Joao
+5;Ana Souza;11955443322;nao;;Dezembro;Entrou em contato pelo site`;
 
 function normalizePhone(raw: string): string {
   let digits = raw.replace(/\D/g, "");
@@ -106,6 +109,10 @@ export function BaseLeadImportDialog({ open, onOpenChange, companyId, onImported
     const header = lines[0];
     const sep = header.includes(";") ? ";" : ",";
 
+    // Detect if first column is a numbering column (#)
+    const headerCols = header.split(sep).map(unquote);
+    const hasNumberCol = headerCols[0]?.trim() === "#";
+
     // Fetch existing phones for duplicate detection
     const { data: existing } = await supabase
       .from("base_leads")
@@ -117,7 +124,8 @@ export function BaseLeadImportDialog({ open, onOpenChange, companyId, onImported
     const parsed: ParsedRow[] = [];
 
     for (let i = 1; i < lines.length; i++) {
-      const cols = lines[i].split(sep).map(unquote);
+      let cols = lines[i].split(sep).map(unquote);
+      if (hasNumberCol) cols = cols.slice(1);
       const name = (cols[0] || "").slice(0, 100);
       const rawPhone = normalizePhone(cols[1] || "");
       const isFormer = parseBool(cols[2] || "");
