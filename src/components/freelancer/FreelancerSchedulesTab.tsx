@@ -174,11 +174,10 @@ export function FreelancerSchedulesTab() {
         .from("freelancer_responses")
         .select("respondent_name, answers")
         .eq("company_id", companyId)
-        .eq("approval_status", "aprovado")
         .in("respondent_name", uniqueNames);
       const rolesMap: Record<string, string[]> = {};
       (frData || []).forEach((fr: any) => {
-        const name = fr.respondent_name;
+        const name = fr.respondent_name?.trim();
         if (!name) return;
         const answers = Array.isArray(fr.answers) ? fr.answers : [];
         const funcaoAnswer = answers.find((a: any) => a.questionId === "funcao");
