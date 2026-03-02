@@ -195,6 +195,7 @@ export type Database = {
           month_interest: string | null
           name: string
           notes: string | null
+          party_type: string | null
           phone: string
         }
         Insert: {
@@ -207,6 +208,7 @@ export type Database = {
           month_interest?: string | null
           name: string
           notes?: string | null
+          party_type?: string | null
           phone: string
         }
         Update: {
@@ -219,6 +221,7 @@ export type Database = {
           month_interest?: string | null
           name?: string
           notes?: string | null
+          party_type?: string | null
           phone?: string
         }
         Relationships: [

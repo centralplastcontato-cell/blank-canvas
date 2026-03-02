@@ -20,6 +20,7 @@ interface BaseLead {
   is_former_client: boolean;
   former_party_info: string | null;
   month_interest: string | null;
+  party_type: string | null;
   notes: string | null;
 }
 
@@ -47,7 +48,7 @@ export function BaseLeadsTab({ companyId }: Props) {
     setLoading(true);
     const { data, error } = await supabase
       .from("base_leads")
-      .select("id, name, phone, is_former_client, former_party_info, month_interest, notes")
+      .select("id, name, phone, is_former_client, former_party_info, month_interest, party_type, notes")
       .eq("company_id", companyId)
       .order("created_at", { ascending: false });
 
@@ -141,6 +142,15 @@ export function BaseLeadsTab({ companyId }: Props) {
                     >
                       {lead.is_former_client ? "Ex-cliente" : "Base"}
                     </Badge>
+                    {lead.party_type && (
+                      <Badge variant="outline" className="text-[10px] shrink-0">
+                        {lead.party_type === "aniversario" ? "🎂 Aniversário" :
+                         lead.party_type === "formatura" ? "🎓 Formatura" :
+                         lead.party_type === "escolar" ? "🏫 Escolar" :
+                         lead.party_type === "confraternizacao" ? "🏢 Confraternização" :
+                         "📌 Outro"}
+                      </Badge>
+                    )}
                   </div>
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
                     <Phone className="w-3 h-3" />

@@ -29,6 +29,7 @@ interface ParsedRow {
   isFormerClient: boolean;
   formerPartyInfo: string;
   monthInterest: string;
+  partyType: string;
   notes: string;
   status: "valid" | "error" | "duplicate";
   errorMsg?: string;
@@ -41,12 +42,20 @@ const MONTHS_MAP: Record<string, string> = {
   novembro: "Novembro", dezembro: "Dezembro",
 };
 
-const CSV_TEMPLATE = `#;Nome do Contato;Telefone (com DDD);Ex-Cliente? (sim/nao);Info da Festa Anterior;Mes de Interesse;Observacoes
-1;Maria Silva;11999887766;sim;Aniversario de 5 anos - Marco 2024;;Indicacao da Ana
-2;Joao Santos;11988776655;nao;;Junho;Viu no Instagram
-3;Carla Oliveira;21977665544;sim;Festa junina 2023;;Quer repetir este ano
-4;Pedro Lima;31966554433;nao;;Outubro;Indicacao do Joao
-5;Ana Souza;11955443322;nao;;Dezembro;Entrou em contato pelo site`;
+const PARTY_TYPE_MAP: Record<string, string> = {
+  aniversario: "aniversario", aniversário: "aniversario",
+  formatura: "formatura",
+  escolar: "escolar", escola: "escolar",
+  confraternizacao: "confraternizacao", confraternização: "confraternizacao", empresa: "confraternizacao",
+  outro: "outro",
+};
+
+const CSV_TEMPLATE = `#;Nome do Contato;Telefone (com DDD);Ex-Cliente? (sim/nao);Info da Festa Anterior;Mes de Interesse;Tipo de Festa;Observacoes
+1;Maria Silva;11999887766;sim;Aniversario de 5 anos - Marco 2024;;aniversario;Indicacao da Ana
+2;Joao Santos;11988776655;nao;;Junho;formatura;Viu no Instagram
+3;Carla Oliveira;21977665544;sim;Festa junina 2023;;;Quer repetir este ano
+4;Pedro Lima;31966554433;nao;;Outubro;confraternizacao;Indicacao do Joao
+5;Ana Souza;11955443322;nao;;Dezembro;;Entrou em contato pelo site`;
 
 function normalizePhone(raw: string): string {
   let digits = raw.replace(/\D/g, "");
@@ -131,9 +140,11 @@ export function BaseLeadImportDialog({ open, onOpenChange, companyId, onImported
       const isFormer = parseBool(cols[2] || "");
       const formerInfo = (cols[3] || "").slice(0, 100);
       const rawMonth = (cols[4] || "").trim().toLowerCase();
-      const notes = (cols[5] || "").slice(0, 500);
+      const rawPartyType = (cols[5] || "").trim().toLowerCase();
+      const notes = (cols[6] || "").slice(0, 500);
 
       const monthInterest = MONTHS_MAP[rawMonth] || "";
+      const partyType = PARTY_TYPE_MAP[rawPartyType] || "";
 
       let status: ParsedRow["status"] = "valid";
       let errorMsg: string | undefined;
@@ -158,6 +169,7 @@ export function BaseLeadImportDialog({ open, onOpenChange, companyId, onImported
         isFormerClient: isFormer,
         formerPartyInfo: formerInfo,
         monthInterest,
+        partyType,
         notes,
         status,
         errorMsg,
@@ -187,7 +199,8 @@ export function BaseLeadImportDialog({ open, onOpenChange, companyId, onImported
       phone: r.phone,
       is_former_client: r.isFormerClient,
       former_party_info: r.isFormerClient ? r.formerPartyInfo || null : null,
-      month_interest: !r.isFormerClient ? r.monthInterest || null : null,
+      month_interest: r.monthInterest || null,
+      party_type: r.partyType || null,
       notes: r.notes || null,
       created_by: userId,
     }));

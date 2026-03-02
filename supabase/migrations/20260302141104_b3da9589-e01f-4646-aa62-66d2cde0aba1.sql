@@ -1,0 +1,1 @@
+ALTER TABLE public.base_leads ADD COLUMN party_type text;
