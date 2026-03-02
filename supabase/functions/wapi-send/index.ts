@@ -613,8 +613,20 @@ Deno.serve(async (req) => {
       case 'send-audio': {
         const { base64: audioBase64, mediaUrl: audioMediaUrl } = body;
         
-        let finalAudio = audioBase64;
-        if (!finalAudio && audioMediaUrl) {
+        let audioPayload: Record<string, unknown> = { phone };
+
+        // Prefer sending by URL directly (same pattern as send-image)
+        if (audioMediaUrl && !audioBase64) {
+          console.log('send-audio: sending by URL:', audioMediaUrl.substring(0, 80));
+          audioPayload.audio = audioMediaUrl;
+        } else if (audioBase64) {
+          let finalAudio = audioBase64;
+          if (!finalAudio.startsWith('data:')) {
+            finalAudio = `data:audio/ogg;base64,${finalAudio}`;
+          }
+          audioPayload.audio = finalAudio;
+        } else if (audioMediaUrl) {
+          // Fallback: fetch and convert to base64 with prefix
           const audioRes = await fetch(audioMediaUrl);
           const buf = await audioRes.arrayBuffer();
           const bytes = new Uint8Array(buf);
@@ -623,17 +635,22 @@ Deno.serve(async (req) => {
             const chunk = bytes.subarray(i, Math.min(i + 32768, bytes.length));
             bin += String.fromCharCode.apply(null, Array.from(chunk));
           }
-          finalAudio = btoa(bin);
+          audioPayload.audio = `data:audio/ogg;base64,${btoa(bin)}`;
+        } else {
+          return new Response(JSON.stringify({ error: 'Áudio é obrigatório' }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
         }
 
         const res = await wapiRequest(
           `${WAPI_BASE_URL}/message/send-audio?instanceId=${instance_id}`,
           instance_token,
           'POST',
-          { phone, base64: finalAudio }
+          audioPayload
         );
         
         if (!res.ok) {
+          console.error('send-audio failed:', res.error, 'mediaUrl:', audioMediaUrl?.substring(0, 80));
           return new Response(JSON.stringify({ error: res.error }), {
             status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
