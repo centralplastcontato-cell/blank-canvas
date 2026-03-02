@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, RefreshCw, Pencil, ImagePlus, X, ZoomIn, Trash2 } from "lucide-react";
+import { Loader2, Sparkles, RefreshCw, Pencil, ImagePlus, ZoomIn, Trash2, Building2, Image } from "lucide-react";
 import { toast } from "sonner";
 import type { CampaignDraft } from "./CampaignWizard";
 
@@ -60,13 +60,16 @@ const TONE_LABELS: Record<string, string> = {
 };
 
 export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
-  const { currentCompanyId } = useCompany();
+  const { currentCompanyId, currentCompany } = useCompany();
   const [generating, setGenerating] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
   const [uploading, setUploading] = useState(false);
   const [generatingImage, setGeneratingImage] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [photosDialogOpen, setPhotosDialogOpen] = useState(false);
+  const [buffetPhotos, setBuffetPhotos] = useState<string[]>([]);
+  const [loadingPhotos, setLoadingPhotos] = useState(false);
 
   const handleGenerate = async () => {
     if (!draft.description.trim()) {
@@ -136,6 +139,46 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
     } finally {
       setGeneratingImage(false);
     }
+  };
+
+  const handleUseLogo = () => {
+    if (currentCompany?.logo_url) {
+      setDraft((prev) => ({ ...prev, imageUrl: currentCompany.logo_url }));
+      toast.success("Logotipo aplicado!");
+    }
+  };
+
+  const handleOpenPhotosDialog = async () => {
+    setPhotosDialogOpen(true);
+    setLoadingPhotos(true);
+    try {
+      const { data, error } = await supabase
+        .from("sales_materials")
+        .select("id, name, photo_urls")
+        .eq("company_id", currentCompanyId!)
+        .eq("is_active", true);
+      if (error) throw error;
+
+      const allPhotos: string[] = [];
+      (data || []).forEach((m: any) => {
+        if (Array.isArray(m.photo_urls)) {
+          m.photo_urls.forEach((url: string) => {
+            if (url) allPhotos.push(url);
+          });
+        }
+      });
+      setBuffetPhotos(allPhotos);
+    } catch (err: any) {
+      toast.error("Erro ao carregar fotos");
+    } finally {
+      setLoadingPhotos(false);
+    }
+  };
+
+  const handleSelectBuffetPhoto = (url: string) => {
+    setDraft((prev) => ({ ...prev, imageUrl: url }));
+    setPhotosDialogOpen(false);
+    toast.success("Foto selecionada!");
   };
 
   const saveEdit = (index: number) => {
@@ -259,35 +302,89 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
         </div>
       )}
 
-      {/* Image upload */}
+      {/* Image section */}
       <div className="space-y-1.5">
         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Imagem (opcional)
         </Label>
         {draft.imageUrl ? (
-          <div className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-muted/10 shadow-sm">
-            <button
-              type="button"
-              onClick={() => setPreviewOpen(true)}
-              className="relative group shrink-0 rounded-lg overflow-hidden border border-border/40 shadow-sm hover:shadow-md transition-all"
-            >
-              <img src={draft.imageUrl} alt="Campaign" className="h-16 w-24 object-cover" />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                <ZoomIn className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="space-y-2">
+            <div className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-muted/10 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setPreviewOpen(true)}
+                className="relative group shrink-0 rounded-lg overflow-hidden border border-border/40 shadow-sm hover:shadow-md transition-all"
+              >
+                <img src={draft.imageUrl} alt="Campaign" className="h-16 w-24 object-cover" />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                  <ZoomIn className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </button>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-foreground truncate">Imagem da campanha</p>
+                <p className="text-[11px] text-muted-foreground">Clique para visualizar</p>
               </div>
-            </button>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-foreground truncate">Imagem da campanha</p>
-              <p className="text-[11px] text-muted-foreground">Clique para visualizar</p>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive shrink-0"
-              onClick={() => setDraft((prev) => ({ ...prev, imageUrl: null }))}
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </Button>
+            {/* Action buttons when image is selected */}
+            <div className="flex gap-1.5 flex-wrap">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs gap-1.5"
+                onClick={handleGenerateImage}
+                disabled={generatingImage || !draft.description.trim()}
+              >
+                {generatingImage ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                Regenerar IA
+              </Button>
+              {currentCompany?.logo_url && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs gap-1.5"
+                  onClick={handleUseLogo}
+                >
+                  <Building2 className="w-3 h-3" />
+                  Logotipo
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs gap-1.5"
+                onClick={handleOpenPhotosDialog}
+              >
+                <Image className="w-3 h-3" />
+                Fotos
+              </Button>
+              <label className="inline-flex">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs gap-1.5"
+                  asChild
+                >
+                  <span>
+                    <ImagePlus className="w-3 h-3" />
+                    Trocar
+                  </span>
+                </Button>
+                <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
+              </label>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs gap-1.5 text-destructive hover:text-destructive"
+                onClick={() => setDraft((prev) => ({ ...prev, imageUrl: null }))}
+              >
+                <Trash2 className="w-3 h-3" />
+                Excluir
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="space-y-2">
@@ -318,6 +415,26 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
               )}
               {generatingImage ? "Gerando arte com IA..." : "Gerar Arte com IA"}
             </Button>
+            {currentCompany?.logo_url && (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-10 gap-2 border-dashed"
+                onClick={handleUseLogo}
+              >
+                <Building2 className="w-4 h-4" />
+                Usar Logotipo da Empresa
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full h-10 gap-2 border-dashed"
+              onClick={handleOpenPhotosDialog}
+            >
+              <Image className="w-4 h-4" />
+              Fotos do Buffet
+            </Button>
           </div>
         )}
 
@@ -326,6 +443,40 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
           <DialogContent className="max-w-lg p-2 bg-black/90 border-none">
             {draft.imageUrl && (
               <img src={draft.imageUrl} alt="Preview" className="w-full h-auto rounded-lg" />
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog de fotos do buffet */}
+        <Dialog open={photosDialogOpen} onOpenChange={setPhotosDialogOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Fotos do Buffet</DialogTitle>
+            </DialogHeader>
+            {loadingPhotos ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : buffetPhotos.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                Nenhuma foto encontrada nos materiais de venda.
+              </p>
+            ) : (
+              <ScrollArea className="h-72">
+                <div className="grid grid-cols-3 gap-2 p-1">
+                  {buffetPhotos.map((url, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      className="relative group rounded-lg overflow-hidden border border-border/40 hover:border-primary/60 hover:shadow-md transition-all aspect-square"
+                      onClick={() => handleSelectBuffetPhoto(url)}
+                    >
+                      <img src={url} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                    </button>
+                  ))}
+                </div>
+              </ScrollArea>
             )}
           </DialogContent>
         </Dialog>
