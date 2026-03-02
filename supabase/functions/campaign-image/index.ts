@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { prompt_context, company_name, company_id } = await req.json();
+    const { prompt_context, campaign_theme, company_name, company_id } = await req.json();
 
     if (!prompt_context || !company_id) {
       return new Response(
@@ -27,7 +27,8 @@ Deno.serve(async (req) => {
     }
 
     // Build optimized prompt for children's party venue art (no text in image)
-    const prompt = `Create a vibrant, eye-catching promotional visual for a children's party venue called "${company_name || "Buffet Infantil"}". Context: ${prompt_context}. Style: colorful, festive, balloons, confetti, streamers, party decorations, joyful atmosphere, professional marketing quality. DO NOT include any text, letters, words, numbers, or watermarks in the image. Pure visual art only. Square format, high contrast, suitable for WhatsApp sharing.`;
+    const themeHint = campaign_theme ? `Theme/occasion: "${campaign_theme}". The image MUST visually represent this theme with appropriate elements and symbolism. ` : "";
+    const prompt = `Create a vibrant, eye-catching promotional visual for a children's party venue called "${company_name || "Buffet Infantil"}". ${themeHint}Context: ${prompt_context}. Style: colorful, festive, professional marketing quality. DO NOT include any text, letters, words, numbers, or watermarks in the image. Pure visual art only. Square format, high contrast, suitable for WhatsApp sharing.`;
 
     // Call DALL-E 3
     const openaiRes = await fetch("https://api.openai.com/v1/images/generations", {
