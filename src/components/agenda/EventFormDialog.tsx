@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Search, X, UserCheck, ListChecks, User, CalendarDays, PartyPopper } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 
@@ -193,6 +194,10 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title || !form.event_date) return;
+    if (units.length > 1 && !form.unit) {
+      toast({ title: "Selecione uma unidade", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       await onSubmit(form);
@@ -342,7 +347,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               </div>
 
               <div className="space-y-2.5 md:pr-6">
-                <Label className="text-sm font-medium text-foreground/70">Unidade</Label>
+                <Label className="text-sm font-medium text-foreground/70">Unidade{units.length > 1 ? " *" : ""}</Label>
                 {units.length > 0 ? (
                   <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v })}>
                     <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
