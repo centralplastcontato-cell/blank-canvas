@@ -12,11 +12,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { base_image_url, logo_url, company_id, position } = await req.json();
+    const { base_image_url, logo_url, company_id, position, enhance, context } = await req.json();
 
-    if (!base_image_url || !logo_url || !company_id) {
+    if (!base_image_url || !company_id) {
       return new Response(
-        JSON.stringify({ error: "base_image_url, logo_url e company_id são obrigatórios" }),
+        JSON.stringify({ error: "base_image_url e company_id são obrigatórios" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -33,7 +33,34 @@ Deno.serve(async (req) => {
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
 
-    // Call Gemini image editing API to compose logo onto base image
+    // Build prompt based on mode
+    let promptText: string;
+    const imageContent: any[] = [
+      { type: "image_url", image_url: { url: base_image_url } },
+    ];
+
+    if (enhance) {
+      // Enhanced mode: creative AI art combining photo + logo + design elements
+      promptText = `Create a professional, eye-catching promotional image for a children's party venue. Use the provided photo as the main background/visual element.${
+        logo_url ? ` Place the company logo prominently in the ${posLabel}.` : ""
+      } Add subtle festive design elements (confetti, balloons, stars, ribbons) around the edges. Enhance the colors to look vibrant and inviting. The image should look like a polished marketing flyer. Do NOT add any text to the image.${
+        context ? ` Campaign context: ${context}` : ""
+      }`;
+      if (logo_url) {
+        imageContent.push({ type: "image_url", image_url: { url: logo_url } });
+      }
+    } else {
+      // Simple overlay mode (existing behavior)
+      if (!logo_url) {
+        return new Response(
+          JSON.stringify({ error: "logo_url é obrigatório para sobreposição" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      promptText = `Place this logo in the ${posLabel} of the base image. The logo should be clearly visible but not too large (about 15-20% of the image width). Keep the logo proportions intact. Do not alter the base image content. The result should look like a professional marketing image with a logo placement.`;
+      imageContent.push({ type: "image_url", image_url: { url: logo_url } });
+    }
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -46,18 +73,8 @@ Deno.serve(async (req) => {
           {
             role: "user",
             content: [
-              {
-                type: "text",
-                text: `Place this logo in the ${posLabel} of the base image. The logo should be clearly visible but not too large (about 15-20% of the image width). Keep the logo proportions intact. Do not alter the base image content. The result should look like a professional marketing image with a logo placement.`,
-              },
-              {
-                type: "image_url",
-                image_url: { url: base_image_url },
-              },
-              {
-                type: "image_url",
-                image_url: { url: logo_url },
-              },
+              { type: "text", text: promptText },
+              ...imageContent,
             ],
           },
         ],
