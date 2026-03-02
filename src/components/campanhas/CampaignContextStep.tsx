@@ -130,6 +130,7 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
       const { data, error } = await supabase.functions.invoke("campaign-image", {
         body: {
           prompt_context: draft.description,
+          campaign_theme: draft.name || null,
           company_name: companyName,
           company_id: currentCompanyId,
         },
@@ -192,7 +193,7 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
           company_id: currentCompanyId,
           position: logoPosition,
           enhance: true,
-          context: draft.description || null,
+          context: [draft.name, draft.description].filter(Boolean).join(" - ") || null,
         },
       });
       if (error) throw error;
