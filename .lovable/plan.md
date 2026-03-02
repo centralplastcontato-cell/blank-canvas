@@ -1,30 +1,39 @@
 
 
-## Botao de Enviar e Microfone lado a lado (estilo WhatsApp)
+## Corrigir mensagens salvas com conteudo vazio no webhook
 
 ### Problema
-Atualmente, o botao de enviar texto e o botao de gravar audio ocupam o mesmo espaco -- apenas um aparece por vez (se ha texto digitado, mostra Enviar; se nao, mostra Microfone). O usuario quer que ambos fiquem visiveis lado a lado, como no WhatsApp nativo.
+Quando o W-API envia eventos de sincronizacao de historico (history sync), as mensagens chegam em lote com payloads que nao contem o campo `message` no formato esperado. O `extractMsgContent` retorna `content: ""` e a mensagem e salva no banco sem conteudo, gerando bolhas vazias no chat.
+
+Isso foi confirmado com a conversa da Nayara: 20+ mensagens recebidas no mesmo segundo, todas com `content: ""` e `message_type: "text"`.
 
 ### Solucao
-Mostrar sempre os dois botoes: o botao de enviar (habilitado apenas quando ha texto) e o botao de microfone, lado a lado a direita do campo de texto.
 
-### Mudancas
+**Arquivo: `supabase/functions/wapi-webhook/index.ts`**
 
-**Arquivo: `src/components/whatsapp/WhatsAppChat.tsx`**
+Adicionar uma validacao apos a extracao de conteudo para rejeitar mensagens de texto com conteudo vazio. Mensagens de midia (imagem, video, audio, documento, etc.) podem ter conteudo como placeholder ("[Imagem]") e devem continuar passando normalmente.
 
-Substituir a logica ternaria `newMessage.trim() ? <Send> : <Mic>` por ambos os botoes renderizados simultaneamente, em dois locais:
+### Mudanca especifica
 
-1. **Desktop (linha ~4483-4503)**: Remover o ternario e renderizar ambos:
-   - Botao Send: sempre visivel, desabilitado quando nao ha texto ou esta enviando
-   - Botao Mic: sempre visivel, desabilitado quando ha texto digitado ou sem permissao
+Apos a linha 3511 (`let { type, content, url, key, path, fn, download, mime } = ext;`), adicionar:
 
-2. **Mobile (linha ~5347-5362)**: Mesma alteracao para manter consistencia.
-
-### Resultado esperado
 ```text
-[  Campo de texto...  ] [Enviar] [Mic]
+// Reject text messages with empty content (common in history sync events)
+if (type === 'text' && !content.trim()) {
+  console.log(`[Webhook] Skipping empty text message, msgId=${msgId}, phone=${phone}`);
+  break;
+}
 ```
-- Com texto digitado: Enviar ativo (azul), Mic desabilitado (cinza)
-- Sem texto: Enviar desabilitado, Mic ativo
-- Ambos sempre visiveis
+
+### Por que funciona
+- Mensagens de texto legitimas sempre tem `content` preenchido via `mc.conversation` ou `mc.extendedTextMessage.text`
+- Mensagens de midia tem `type` diferente de `text` (image, video, audio, etc.) e nao sao afetadas
+- History sync com payloads incompletos sao descartados silenciosamente em vez de gerar bolhas vazias
+- Mensagens ja salvas no banco (as da Nayara) nao serao afetadas — isso so previne novas ocorrencias
+
+### Limpeza dos dados existentes (opcional)
+As mensagens vazias da Nayara ja estao no banco. Posso tambem limpar essas mensagens existentes com uma query de DELETE nas mensagens de tipo `text` com `content = ''`, caso deseje.
+
+### Arquivos modificados
+- `supabase/functions/wapi-webhook/index.ts` — adicionar validacao para rejeitar mensagens de texto vazias
 
