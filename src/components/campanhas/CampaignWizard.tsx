@@ -88,14 +88,17 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
 
       if (error) throw error;
 
-      const recipients = selectedLeads.map((lead, i) => ({
-        campaign_id: campaign.id,
-        lead_id: lead.id,
-        phone: lead.whatsapp,
-        lead_name: lead.name,
-        variation_index: i % draft.variations.length,
-        status: "pending",
-      }));
+      const recipients = selectedLeads.map((lead, i) => {
+        const isBase = lead.id.startsWith("base_");
+        return {
+          campaign_id: campaign.id,
+          lead_id: isBase ? null : lead.id,
+          phone: lead.whatsapp,
+          lead_name: lead.name,
+          variation_index: i % draft.variations.length,
+          status: "pending",
+        };
+      });
 
       const { error: recipErr } = await supabase
         .from("campaign_recipients")
