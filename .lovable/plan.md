@@ -1,48 +1,76 @@
 
-## Botao de Suporte com posicao ajustavel (drag)
+## Adicionar "Tipo de Festa" aos Leads de Base e Filtro nas Campanhas
 
-### Problema
-O botao flutuante de suporte fica fixo no canto inferior direito (`bottom-6 right-6`) e pode sobrepor elementos importantes da interface, como o campo de digitacao do WhatsApp no mobile.
+### Objetivo
+Permitir categorizar cada lead de base por tipo de festa (aniversario, formatura, escolar, confraternizacao) para criar campanhas segmentadas por publico especifico. Exemplo: campanha so para empresas (confraternizacao) ou so para escolas (formatura).
 
-### Solucao
-Tornar o botao arrastavel (draggable) usando Framer Motion `drag`, com persistencia da posicao no `localStorage`. O usuario arrasta o botao para onde preferir e ele "gruda" na borda mais proxima (snap to edge). A posicao e salva e restaurada ao recarregar.
+### Mudancas
 
-### Detalhes tecnicos
+**1. Banco de dados -- nova coluna na tabela `base_leads`**
 
-**Arquivo: `src/components/support/SupportChatbot.tsx`**
-
-1. **Drag com Framer Motion**: Usar `drag` no `motion.button` do botao flutuante (ja usa `motion.button`). Framer Motion suporta `drag`, `dragConstraints`, `onDragEnd` nativamente -- sem dependencias novas.
-
-2. **Persistencia no localStorage**: Salvar `{ x, y }` em `localStorage` key `support-btn-pos` ao soltar o botao (`onDragEnd`). Ao montar, ler a posicao salva e aplicar como `style={{ bottom, right }}` ou via coordenadas absolutas.
-
-3. **Snap to edge**: No `onDragEnd`, calcular se o botao esta mais perto da borda esquerda ou direita e ajustar horizontalmente. Manter a posicao vertical onde o usuario soltou (com limites min/max para nao sair da tela).
-
-4. **Janela do chat segue o botao**: Quando abrir o chat, posicionar o `motion.div` do chat window proximo ao botao (respeitando limites da viewport).
-
-### Comportamento esperado
-
-- O usuario toca/clica e arrasta o botao para qualquer posicao na tela
-- Ao soltar, o botao desliza suavemente para a borda horizontal mais proxima (esquerda ou direita)
-- A posicao vertical e mantida onde o usuario soltou
-- Ao recarregar a pagina, o botao aparece na ultima posicao salva
-- Toque curto (sem arrastar) continua abrindo o chat normalmente
-- A janela do chat abre do lado correto (esquerda ou direita) baseado na posicao do botao
-
-### Implementacao resumida
-
-```text
-Estado:
-  - btnPosition = localStorage "support-btn-pos" || { side: "right", y: window.innerHeight - 80 }
-
-Botao:
-  - motion.button com drag habilitado
-  - dragConstraints = ref do documento (viewport)
-  - onDragEnd: calcular snap, salvar no localStorage
-  - style dinâmico: left/right + bottom baseado em btnPosition
-
-Chat window:
-  - Se botao esta na esquerda: fixed bottom-X left-6
-  - Se botao esta na direita: fixed bottom-X right-6
+Adicionar coluna `party_type TEXT NULL` com migration SQL:
+```sql
+ALTER TABLE base_leads ADD COLUMN party_type text;
 ```
 
-Apenas o arquivo `SupportChatbot.tsx` sera modificado. Nenhuma dependencia nova necessaria.
+Valores possiveis: `aniversario`, `formatura`, `escolar`, `confraternizacao`, `outro` (ou nulo).
+
+**2. Formulario de criacao/edicao -- `BaseLeadFormDialog.tsx`**
+
+Adicionar um novo campo Select "Tipo de festa" na secao Historico, abaixo de "Mes de interesse", com as opcoes:
+- Aniversario
+- Formatura
+- Escolar
+- Confraternizacao
+- Outro
+
+O campo sera opcional. Novo estado `partyType`, salvo no payload do `handleSave`. Na edicao, o valor sera carregado do lead existente.
+
+**3. Importacao CSV -- `BaseLeadImportDialog.tsx`**
+
+- Adicionar coluna "Tipo de Festa" ao template CSV (coluna 7)
+- Mapear valores no parser (ex: "aniversario" -> "aniversario", "formatura" -> "formatura", etc.)
+- Incluir `party_type` no payload de insercao
+- Corrigir tambem o bug existente que ignora `month_interest` para ex-clientes na importacao (linha 190)
+
+Template atualizado:
+```text
+#;Nome;Telefone;Ex-Cliente?;Info Festa;Mes Interesse;Tipo de Festa;Observacoes
+1;Maria Silva;11999887766;sim;Marco 2024;;aniversario;Indicacao
+```
+
+**4. Filtro na audiencia da campanha -- `CampaignAudienceStep.tsx`**
+
+- Adicionar `party_type` na interface `Lead` e na query de `base_leads`
+- Adicionar novo Select de filtro "Tipo de festa" no grid de filtros (mudando de 4 colunas para 5 ou quebrando em 2 linhas)
+- Aplicar filtro no `useMemo` de `filtered`
+
+Opcoes do filtro:
+```text
+Todos os tipos | Aniversario | Formatura | Escolar | Confraternizacao | Outro
+```
+
+**5. Lista de leads -- `BaseLeadsTab.tsx`**
+
+- Adicionar `party_type` na interface `BaseLead` e na query
+- Exibir o tipo de festa como badge ao lado do badge existente (Ex-cliente/Base) no card de cada lead
+
+### Arquivos modificados
+
+| Arquivo | Alteracao |
+|---|---|
+| Migration SQL | `ALTER TABLE base_leads ADD COLUMN party_type text` |
+| `BaseLeadFormDialog.tsx` | Novo Select + estado + interface + payload |
+| `BaseLeadImportDialog.tsx` | Nova coluna template + parser + payload |
+| `CampaignAudienceStep.tsx` | Novo filtro + campo na interface + query |
+| `BaseLeadsTab.tsx` | Badge do tipo de festa nos cards |
+
+### Layout do formulario atualizado
+
+```text
+--- Historico ---
+Ja foi cliente?  (Sim) (Nao)
+[Se Sim] Quando foi a festa?  ________
+Mes de interesse  [Select v]
+Tipo de festa     [Select v]    <-- NOVO
+```
