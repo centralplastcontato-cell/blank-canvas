@@ -1,46 +1,48 @@
 
 
-## Corrigir envio de audio - Edge Function retornando 400
+## Corrigir envio de audio - W-API rejeita URL sem extensao .mp3/.ogg
 
 ### Problema
-O envio de audio esta falhando com status 400 porque:
+O log do Edge Function mostra o erro exato:
+```
+send-audio failed: A URL do áudio deve ser nos formatos .mp3 ou .ogg
+```
 
-1. O `send-audio` na Edge Function converte o audio de URL para base64 puro, mas a W-API espera o base64 com prefixo `data:audio/...;base64,...` (igual ao `send-image` que ja faz isso na linha 561-563)
-2. Alem disso, o `send-image` ja tem logica para enviar direto por URL quando disponivel (mais eficiente), mas o `send-audio` nao tem esse caminho
+A W-API valida a extensao da URL e rejeita URLs assinadas do Supabase (que terminam com parametros de query e tem extensao `.webm`). Enviar por URL direta nao funciona para audio nesta API.
 
 ### Solucao
 
 **Arquivo: `supabase/functions/wapi-send/index.ts`**
 
-Modificar o case `send-audio` para seguir o mesmo padrao do `send-image`:
+Modificar o case `send-audio` para SEMPRE converter o audio para base64 quando receber uma `mediaUrl`, ao inves de tentar enviar a URL diretamente. O fluxo sera:
 
-1. **Priorizar envio por URL diretamente** -- se `audioMediaUrl` existe, enviar a URL para a W-API sem converter para base64. A W-API suporta receber URLs de audio da mesma forma que imagens. Isso evita problemas de memoria e tamanho de base64.
+1. Recebe `mediaUrl` (URL assinada do Supabase Storage)
+2. Faz `fetch` da URL para obter o conteudo binario
+3. Converte para base64 com prefixo `data:audio/ogg;base64,...`
+4. Envia para a W-API como base64
 
-2. **Se base64 for usado, adicionar o prefixo `data:`** -- caso o audio venha como base64 (sem URL), garantir que tenha o prefixo `data:audio/ogg;base64,...` antes de enviar para a W-API. Atualmente o codigo envia base64 puro sem prefixo, o que a W-API rejeita.
+Isso segue o mesmo padrao que ja funciona para outros tipos de midia quando a URL nao e aceita diretamente.
 
-3. **Adicionar log de erro** -- incluir `console.error` quando o envio falhar para facilitar debug futuro.
-
-### Codigo proposto
+### Codigo
 
 ```text
 case 'send-audio': {
   const { base64: audioBase64, mediaUrl: audioMediaUrl } = body;
   
-  let audioPayload: Record<string, any> = { phone };
-  
-  // Prefer sending by URL directly (same pattern as send-image)
-  if (audioMediaUrl && !audioBase64) {
-    console.log('send-audio: sending by URL:', audioMediaUrl.substring(0, 80));
-    audioPayload.audio = audioMediaUrl;
-  } else if (audioBase64) {
+  let audioPayload: Record<string, unknown> = { phone };
+
+  if (audioBase64) {
+    // Se ja veio base64, usar diretamente (com prefixo)
     let finalAudio = audioBase64;
     if (!finalAudio.startsWith('data:')) {
       finalAudio = `data:audio/ogg;base64,${finalAudio}`;
     }
     audioPayload.audio = finalAudio;
   } else if (audioMediaUrl) {
-    // Fallback: fetch and convert to base64 with prefix
+    // Baixar da URL e converter para base64 (W-API nao aceita URLs sem extensao .mp3/.ogg)
+    console.log('send-audio: fetching and converting to base64:', audioMediaUrl.substring(0, 80));
     const audioRes = await fetch(audioMediaUrl);
+    if (!audioRes.ok) throw new Error('Falha ao baixar audio: ' + audioRes.status);
     const buf = await audioRes.arrayBuffer();
     const bytes = new Uint8Array(buf);
     let bin = '';
@@ -50,21 +52,16 @@ case 'send-audio': {
     }
     audioPayload.audio = `data:audio/ogg;base64,${btoa(bin)}`;
   } else {
-    return error response;
+    return error;
   }
-
-  // Send via W-API
-  const res = await wapiRequest(send-audio endpoint, ...audioPayload);
-  
-  if (!res.ok) {
-    console.error('send-audio failed:', res.error);
-    return error response;
-  }
-  // ... rest stays the same (save message, update conversation)
+  // ... resto igual (enviar para W-API, salvar mensagem)
 }
 ```
 
-### Resumo das mudancas
+### Sobre o microfone pedindo permissao
 
-- **Edge Function (`wapi-send/index.ts`)**: Reescrever o bloco `send-audio` para enviar audio por URL diretamente (evitando conversao base64), seguindo o mesmo padrao ja usado pelo `send-image`. Se base64 for necessario, adicionar prefixo `data:audio/ogg;base64,` que a W-API exige.
-- **Nenhuma mudanca no frontend** -- o `WhatsAppChat.tsx` ja envia `mediaUrl` corretamente.
+O navegador SEMPRE pede permissao para acessar o microfone na primeira vez -- isso e uma restricao de seguranca do browser e nao pode ser removida. No WhatsApp nativo isso nao acontece porque e um app instalado. Apos conceder a permissao uma vez, o browser nao pede novamente (ate limpar dados do site).
+
+### Resumo
+- Uma unica mudanca no `wapi-send/index.ts`: remover o caminho de "enviar por URL" para audio e sempre converter para base64
+- Nenhuma mudanca no frontend
