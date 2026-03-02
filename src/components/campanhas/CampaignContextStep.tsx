@@ -10,7 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Sparkles, RefreshCw, Pencil, ImagePlus, ZoomIn, Trash2, Building2, Image, MapPin, Wand2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import type { CampaignDraft } from "./CampaignWizard";
@@ -21,37 +21,42 @@ interface Props {
   companyName: string;
 }
 
-const CAMPAIGN_NAME_SUGGESTIONS = [
-  // Datas comemorativas (ordem cronológica)
-  { name: "Esquenta de Carnaval", description: "Promoção pré-carnaval com descontos e convidados extras para festas realizadas no período." },
-  { name: "Volta às Aulas", description: "Aproveitar o período de volta às aulas para promover festas de aniversário com condições facilitadas." },
-  { name: "Dia das Mães", description: "Homenagem ao Dia das Mães com condições especiais para mamães que querem celebrar com os filhos." },
-  { name: "Dia dos Pais", description: "Promoção especial de Dia dos Pais com pacotes família e descontos para festas no período." },
-  { name: "Férias de Julho", description: "Promoção especial para festas nas férias de julho, com pacotes temáticos e preços promocionais." },
-  { name: "Mês das Crianças", description: "Campanha especial de Dia das Crianças com pacotes promocionais e brindes para aniversariantes do período." },
-  { name: "Black Friday", description: "Descontos imperdíveis de Black Friday em todos os pacotes de festa infantil por tempo limitado." },
-  { name: "Natal Mágico", description: "Pacotes especiais de Natal com decoração temática e condições exclusivas para festas no período natalino." },
-  { name: "Promoção de Natal", description: "Promoção de fim de ano com descontos progressivos e brindes para quem fechar festa em dezembro." },
-  // Sazonais
-  { name: "Liquidação de Verão", description: "Liquidação de verão com os melhores preços do ano em pacotes de festa infantil." },
-  { name: "Especial Primavera", description: "Promoção de primavera com pacotes floridos, decoração temática e preços especiais." },
-  { name: "Feriado Prolongado", description: "Aproveite o feriado prolongado para garantir sua festa com desconto especial e vagas limitadas." },
-  // Promoções genéricas
-  { name: "Mês do Consumidor", description: "Aproveitar o mês do consumidor para oferecer condições especiais em pacotes de festa infantil com descontos exclusivos." },
-  { name: "Semana do Cliente", description: "Semana exclusiva para clientes com ofertas especiais, upgrades de pacote e brindes." },
-  { name: "Promo Aniversário", description: "Comemore o aniversário do buffet com descontos exclusivos e brindes para os primeiros contratos." },
-  { name: "Super Promoção", description: "Super promoção com desconto especial, convidados extras e condições imperdíveis por tempo limitado." },
-  { name: "Festival de Descontos", description: "Festival de descontos com até 15% off em pacotes selecionados para festas nos próximos meses." },
-  // Urgência e escassez
-  { name: "Oportunidade Relâmpago", description: "Promoção relâmpago com vagas limitadas e desconto agressivo para fechar contratos esta semana." },
-  { name: "Últimos Contratos", description: "Últimas vagas disponíveis no mês, urgência para fechar os contratos restantes com condições diferenciadas." },
-  { name: "Última Chance", description: "Última oportunidade de garantir sua festa com as condições promocionais antes do reajuste." },
-  { name: "Queima de Estoque", description: "Queima de datas disponíveis com descontos agressivos para fechar o calendário do mês." },
-  { name: "Fecha em 25", description: "Condição exclusiva para quem fechar contrato com entrada de apenas R$25 por convidado." },
-  { name: "Lote Promocional", description: "Lote promocional com quantidade limitada de vagas com desconto especial para os primeiros." },
-  // Reengajamento
-  { name: "Convite Especial", description: "Convite personalizado para leads selecionados com oferta exclusiva e prazo curto." },
-  { name: "Reativação de Leads", description: "Reativar leads antigos com uma oferta irresistível para quem já demonstrou interesse anteriormente." },
+const CAMPAIGN_TYPE_OPTIONS = [
+  { group: "Datas Comemorativas", items: [
+    { value: "Esquenta de Carnaval", description: "Promoção pré-carnaval com descontos e convidados extras para festas realizadas no período." },
+    { value: "Volta às Aulas", description: "Aproveitar o período de volta às aulas para promover festas de aniversário com condições facilitadas." },
+    { value: "Dia das Mães", description: "Homenagem ao Dia das Mães com condições especiais para mamães que querem celebrar com os filhos." },
+    { value: "Dia dos Pais", description: "Promoção especial de Dia dos Pais com pacotes família e descontos para festas no período." },
+    { value: "Férias de Julho", description: "Promoção especial para festas nas férias de julho, com pacotes temáticos e preços promocionais." },
+    { value: "Mês das Crianças", description: "Campanha especial de Dia das Crianças com pacotes promocionais e brindes para aniversariantes do período." },
+    { value: "Black Friday", description: "Descontos imperdíveis de Black Friday em todos os pacotes de festa infantil por tempo limitado." },
+    { value: "Natal Mágico", description: "Pacotes especiais de Natal com decoração temática e condições exclusivas para festas no período natalino." },
+    { value: "Promoção de Natal", description: "Promoção de fim de ano com descontos progressivos e brindes para quem fechar festa em dezembro." },
+  ]},
+  { group: "Sazonais", items: [
+    { value: "Liquidação de Verão", description: "Liquidação de verão com os melhores preços do ano em pacotes de festa infantil." },
+    { value: "Especial Primavera", description: "Promoção de primavera com pacotes floridos, decoração temática e preços especiais." },
+    { value: "Feriado Prolongado", description: "Aproveite o feriado prolongado para garantir sua festa com desconto especial e vagas limitadas." },
+  ]},
+  { group: "Promoções Genéricas", items: [
+    { value: "Mês do Consumidor", description: "Aproveitar o mês do consumidor para oferecer condições especiais em pacotes de festa infantil com descontos exclusivos." },
+    { value: "Semana do Cliente", description: "Semana exclusiva para clientes com ofertas especiais, upgrades de pacote e brindes." },
+    { value: "Promo Aniversário", description: "Comemore o aniversário do buffet com descontos exclusivos e brindes para os primeiros contratos." },
+    { value: "Super Promoção", description: "Super promoção com desconto especial, convidados extras e condições imperdíveis por tempo limitado." },
+    { value: "Festival de Descontos", description: "Festival de descontos com até 15% off em pacotes selecionados para festas nos próximos meses." },
+  ]},
+  { group: "Urgência e Escassez", items: [
+    { value: "Oportunidade Relâmpago", description: "Promoção relâmpago com vagas limitadas e desconto agressivo para fechar contratos esta semana." },
+    { value: "Últimos Contratos", description: "Últimas vagas disponíveis no mês, urgência para fechar os contratos restantes com condições diferenciadas." },
+    { value: "Última Chance", description: "Última oportunidade de garantir sua festa com as condições promocionais antes do reajuste." },
+    { value: "Queima de Estoque", description: "Queima de datas disponíveis com descontos agressivos para fechar o calendário do mês." },
+    { value: "Fecha em 25", description: "Condição exclusiva para quem fechar contrato com entrada de apenas R$25 por convidado." },
+    { value: "Lote Promocional", description: "Lote promocional com quantidade limitada de vagas com desconto especial para os primeiros." },
+  ]},
+  { group: "Reengajamento", items: [
+    { value: "Convite Especial", description: "Convite personalizado para leads selecionados com oferta exclusiva e prazo curto." },
+    { value: "Reativação de Leads", description: "Reativar leads antigos com uma oferta irresistível para quem já demonstrou interesse anteriormente." },
+  ]},
 ];
 
 const TONE_LABELS: Record<string, string> = {
@@ -130,7 +135,7 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
       const { data, error } = await supabase.functions.invoke("campaign-image", {
         body: {
           prompt_context: draft.description,
-          campaign_theme: draft.name || null,
+          campaign_theme: draft.campaignType || draft.name || null,
           company_name: companyName,
           company_id: currentCompanyId,
         },
@@ -193,7 +198,7 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
           company_id: currentCompanyId,
           position: logoPosition,
           enhance: true,
-          context: [draft.name, draft.description].filter(Boolean).join(" - ") || null,
+          context: [draft.campaignType, draft.description].filter(Boolean).join(" - ") || null,
         },
       });
       if (error) throw error;
@@ -254,7 +259,7 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
 
   return (
     <div className="space-y-5">
-      {/* Nome da campanha */}
+      {/* Título da campanha */}
       <div className="space-y-1.5">
         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Título da campanha
@@ -265,24 +270,41 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
           onChange={(e) => setDraft((prev) => ({ ...prev, name: e.target.value }))}
           className="h-10"
         />
-        <ScrollArea className="h-28 sm:h-40 rounded-lg border bg-muted/20 mt-2">
-          <div className="p-1.5 space-y-0.5">
-            {CAMPAIGN_NAME_SUGGESTIONS.map((s) => (
-              <button
-                key={s.name}
-                type="button"
-                className={`w-full text-left text-xs px-2.5 py-1.5 rounded-md transition-all ${
-                  draft.name === s.name
-                    ? "bg-primary/10 text-primary font-medium"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
-                onClick={() => setDraft((prev) => ({ ...prev, name: s.name, description: s.description }))}
-              >
-                {s.name}
-              </button>
+      </div>
+
+      {/* Tipo da campanha */}
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Tipo da campanha
+        </Label>
+        <Select
+          value={draft.campaignType}
+          onValueChange={(value) => {
+            const allItems = CAMPAIGN_TYPE_OPTIONS.flatMap((g) => g.items);
+            const match = allItems.find((item) => item.value === value);
+            setDraft((prev) => ({
+              ...prev,
+              campaignType: value,
+              description: match?.description || prev.description,
+            }));
+          }}
+        >
+          <SelectTrigger className="h-10">
+            <SelectValue placeholder="Selecione o tipo..." />
+          </SelectTrigger>
+          <SelectContent>
+            {CAMPAIGN_TYPE_OPTIONS.map((group) => (
+              <SelectGroup key={group.group}>
+                <SelectLabel>{group.group}</SelectLabel>
+                {group.items.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.value}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             ))}
-          </div>
-        </ScrollArea>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Objetivo */}
