@@ -39,7 +39,7 @@ const STEPS = [
 ];
 
 const STEP_DESCRIPTIONS = [
-  "Escolha um nome para sua campanha, descreva o objetivo e gere as variações de mensagem com a IA. Você também pode anexar uma imagem.",
+  "Escolha um nome para sua campanha, descreva o objetivo e gere as variações de mensagem com a IA. Você também pode anexar uma imagem ou gerar uma arte com IA.",
   "Filtre e selecione os leads que receberão a campanha. Use os filtros de status, unidade e mês para refinar sua lista.",
   "Revise o resumo da campanha, ajuste o intervalo entre envios e confira a prévia da mensagem antes de criar.",
 ];
