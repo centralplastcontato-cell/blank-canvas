@@ -135,17 +135,17 @@ export default function Campanhas() {
 
           <Tabs defaultValue="campanhas" className="space-y-4">
             <div className="flex justify-center">
-              <TabsList className="h-auto p-1.5 gap-1.5 rounded-full">
-                <TabsTrigger value="campanhas" className="gap-2 rounded-full px-6 py-3 text-sm font-semibold">
-                  <Megaphone className="w-4 h-4" />
+              <TabsList className="h-auto p-2 gap-2 rounded-full">
+                <TabsTrigger value="campanhas" className="gap-2.5 rounded-full px-8 py-3.5 text-base font-semibold">
+                  <Megaphone className="w-5 h-5" />
                   Campanhas
                 </TabsTrigger>
-                <TabsTrigger value="galeria" className="gap-2 rounded-full px-6 py-3 text-sm font-semibold">
-                  <ImageIcon className="w-4 h-4" />
+                <TabsTrigger value="galeria" className="gap-2.5 rounded-full px-8 py-3.5 text-base font-semibold">
+                  <ImageIcon className="w-5 h-5" />
                   Galeria
                 </TabsTrigger>
-                <TabsTrigger value="base" className="gap-2 rounded-full px-6 py-3 text-sm font-semibold">
-                  <Users className="w-4 h-4" />
+                <TabsTrigger value="base" className="gap-2.5 rounded-full px-8 py-3.5 text-base font-semibold">
+                  <Users className="w-5 h-5" />
                   Leads de Base
                 </TabsTrigger>
               </TabsList>
