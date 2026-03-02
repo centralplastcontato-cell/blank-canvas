@@ -115,25 +115,25 @@ export function BaseLeadFormDialog({ open, onOpenChange, companyId, editLead, on
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md rounded-2xl border-border/40 bg-background/95 backdrop-blur-xl shadow-2xl p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-md rounded-2xl border-border/40 bg-background/95 backdrop-blur-xl shadow-2xl p-0 overflow-hidden max-h-[90dvh] flex flex-col">
         {/* Header com gradiente sutil */}
-        <div className="px-6 pt-6 pb-4 bg-gradient-to-b from-primary/5 to-transparent">
+        <div className="px-4 sm:px-6 pt-5 sm:pt-6 pb-3 sm:pb-4 bg-gradient-to-b from-primary/5 to-transparent shrink-0">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold tracking-tight">{editLead ? "Editar Contato" : "Adicionar Contato"}</DialogTitle>
-            <DialogDescription className="text-muted-foreground/80">
+            <DialogTitle className="text-lg sm:text-xl font-bold tracking-tight">{editLead ? "Editar Contato" : "Adicionar Contato"}</DialogTitle>
+            <DialogDescription className="text-muted-foreground/80 text-sm">
               {editLead ? "Edite as informações do contato de base." : "Adicione um contato à sua lista de base para campanhas."}
             </DialogDescription>
           </DialogHeader>
         </div>
 
-        <div className="px-6 pb-6 space-y-5">
+        <div className="px-4 sm:px-6 pb-2 space-y-4 sm:space-y-5 overflow-y-auto flex-1 min-h-0">
           {/* Seção: Dados pessoais */}
           <div className="space-y-1.5">
             <div className="flex items-center gap-2 mb-3">
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Dados pessoais</span>
               <div className="flex-1 h-px bg-border/50" />
             </div>
-            <div className="space-y-3.5">
+            <div className="space-y-3">
               <div className="space-y-1.5">
                 <Label htmlFor="bl-name" className="text-xs font-semibold text-foreground/80">Nome *</Label>
                 <Input
@@ -142,7 +142,7 @@ export function BaseLeadFormDialog({ open, onOpenChange, companyId, editLead, on
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   maxLength={100}
-                  className="rounded-xl h-11 border-border/60 focus:border-primary/40"
+                  className="rounded-xl h-10 sm:h-11 border-border/60 focus:border-primary/40"
                 />
               </div>
               <div className="space-y-1.5">
@@ -152,7 +152,7 @@ export function BaseLeadFormDialog({ open, onOpenChange, companyId, editLead, on
                   placeholder="(11) 99999-9999"
                   value={phone}
                   onChange={(e) => setPhone(formatPhone(e.target.value))}
-                  className="rounded-xl h-11 border-border/60 focus:border-primary/40"
+                  className="rounded-xl h-10 sm:h-11 border-border/60 focus:border-primary/40"
                 />
               </div>
             </div>
@@ -164,7 +164,7 @@ export function BaseLeadFormDialog({ open, onOpenChange, companyId, editLead, on
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Histórico</span>
               <div className="flex-1 h-px bg-border/50" />
             </div>
-            <div className="space-y-3.5">
+            <div className="space-y-3">
               <div className="space-y-2">
                 <Label className="text-xs font-semibold text-foreground/80">Já foi cliente?</Label>
                 <RadioGroup value={isFormerClient} onValueChange={setIsFormerClient} className="flex gap-4">
@@ -188,14 +188,14 @@ export function BaseLeadFormDialog({ open, onOpenChange, companyId, editLead, on
                     value={formerPartyInfo}
                     onChange={(e) => setFormerPartyInfo(e.target.value)}
                     maxLength={100}
-                    className="rounded-xl h-11 border-border/60 focus:border-primary/40"
+                    className="rounded-xl h-10 sm:h-11 border-border/60 focus:border-primary/40"
                   />
                 </div>
               ) : (
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-foreground/80">Mês de interesse</Label>
                   <Select value={monthInterest} onValueChange={setMonthInterest}>
-                    <SelectTrigger className="rounded-xl h-11 border-border/60">
+                    <SelectTrigger className="rounded-xl h-10 sm:h-11 border-border/60">
                       <SelectValue placeholder="Selecione o mês" />
                     </SelectTrigger>
                     <SelectContent>
@@ -222,15 +222,15 @@ export function BaseLeadFormDialog({ open, onOpenChange, companyId, editLead, on
               className="rounded-xl border-border/60 focus:border-primary/40 resize-none"
             />
           </div>
+        </div>
 
-          {/* Botões */}
-          <div className="flex justify-end gap-2.5 pt-3 border-t border-border/30">
-            <Button variant="ghost" onClick={() => onOpenChange(false)} className="rounded-xl px-5">Cancelar</Button>
-            <Button onClick={handleSave} disabled={!canSave || saving} className="rounded-xl px-6 shadow-md shadow-primary/20">
-              {saving && <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />}
-              {editLead ? "Salvar" : "Adicionar"}
-            </Button>
-          </div>
+        {/* Footer sticky */}
+        <div className="flex justify-end gap-2.5 px-4 sm:px-6 py-3 sm:py-4 border-t border-border/30 bg-background/80 backdrop-blur-sm shrink-0">
+          <Button variant="ghost" onClick={() => onOpenChange(false)} className="rounded-xl px-5">Cancelar</Button>
+          <Button onClick={handleSave} disabled={!canSave || saving} className="rounded-xl px-6 shadow-md shadow-primary/20">
+            {saving && <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />}
+            {editLead ? "Salvar" : "Adicionar"}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
