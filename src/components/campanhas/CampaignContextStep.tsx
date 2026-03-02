@@ -462,17 +462,19 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
                 Nenhuma foto encontrada nos materiais de venda.
               </p>
             ) : (
-              <ScrollArea className="h-72">
-                <div className="grid grid-cols-3 gap-2 p-1">
+              <ScrollArea className="h-80">
+                <div className="grid grid-cols-2 gap-2 p-1">
                   {buffetPhotos.map((url, i) => (
                     <button
                       key={i}
                       type="button"
-                      className="relative group rounded-lg overflow-hidden border border-border/40 hover:border-primary/60 hover:shadow-md transition-all aspect-square"
+                      className="relative group rounded-lg overflow-hidden border-2 border-border/40 hover:border-primary/60 hover:shadow-md transition-all aspect-video"
                       onClick={() => handleSelectBuffetPhoto(url)}
                     >
                       <img src={url} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                        <ImagePlus className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
                     </button>
                   ))}
                 </div>
