@@ -9,6 +9,10 @@ import { BaseLeadFormDialog } from "./BaseLeadFormDialog";
 import { BaseLeadImportDialog } from "./BaseLeadImportDialog";
 import { toast } from "sonner";
 import {
+  Pagination, PaginationContent, PaginationItem,
+  PaginationLink, PaginationNext, PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
@@ -28,6 +32,8 @@ interface Props {
   companyId: string;
 }
 
+const ITEMS_PER_PAGE = 20;
+
 function formatPhoneDisplay(phone: string): string {
   const d = phone.replace(/\D/g, "");
   if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
@@ -43,6 +49,7 @@ export function BaseLeadsTab({ companyId }: Props) {
   const [editLead, setEditLead] = useState<BaseLead | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const loadLeads = async () => {
     setLoading(true);
@@ -50,7 +57,7 @@ export function BaseLeadsTab({ companyId }: Props) {
       .from("base_leads")
       .select("id, name, phone, is_former_client, former_party_info, month_interest, party_type, notes")
       .eq("company_id", companyId)
-      .order("created_at", { ascending: false });
+      .order("name", { ascending: true });
 
     if (error) {
       console.error("Error loading base leads:", error);
@@ -71,6 +78,16 @@ export function BaseLeadsTab({ companyId }: Props) {
       (l) => l.name.toLowerCase().includes(q) || l.phone.includes(q)
     );
   }, [leads, search]);
+
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginatedLeads = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filtered.slice(start, start + ITEMS_PER_PAGE);
+  }, [filtered, currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -129,8 +146,9 @@ export function BaseLeadsTab({ companyId }: Props) {
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground px-1">
             {filtered.length} contato{filtered.length !== 1 ? "s" : ""}
+            {totalPages > 1 && ` · Página ${currentPage} de ${totalPages}`}
           </p>
-          {filtered.map((lead) => (
+          {paginatedLeads.map((lead) => (
             <Card key={lead.id} className="hover:shadow-sm transition-shadow">
               <CardContent className="p-3 flex items-center gap-3">
                 <div className="flex-1 min-w-0">
@@ -184,6 +202,36 @@ export function BaseLeadsTab({ companyId }: Props) {
               </CardContent>
             </Card>
           ))}
+
+          {totalPages > 1 && (
+            <Pagination className="mt-4">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  />
+                </PaginationItem>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      isActive={page === currentPage}
+                      onClick={() => setCurrentPage(page)}
+                      className="cursor-pointer"
+                    >
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
         </div>
       )}
 
