@@ -50,45 +50,62 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Fetch user's companies with company details
-      const { data: userCompaniesData, error: ucError } = await supabase
-        .from('user_companies')
-        .select(`
-          id,
-          user_id,
-          company_id,
-          role,
-          is_default,
-          created_at,
-          updated_at
-        `)
-        .eq('user_id', user.id);
+      // Check if user is super admin
+      const { data: isAdmin } = await supabase.rpc('is_admin', { _user_id: user.id });
 
-      if (ucError) throw ucError;
+      let combinedData: UserCompanyWithDetails[];
 
-      if (!userCompaniesData || userCompaniesData.length === 0) {
-        setUserCompanies([]);
-        setCurrentCompany(null);
-        setCurrentRole(null);
-        setIsLoading(false);
-        return;
+      if (isAdmin) {
+        // Super admin: load ALL active companies virtually
+        const { data: allCompanies, error: acError } = await supabase
+          .from('companies')
+          .select('*')
+          .eq('is_active', true)
+          .order('name');
+
+        if (acError) throw acError;
+
+        combinedData = (allCompanies || []).map(c => ({
+          id: `virtual-${c.id}`,
+          user_id: user.id,
+          company_id: c.id,
+          role: 'owner' as UserCompanyRole,
+          is_default: false,
+          created_at: c.created_at,
+          updated_at: c.updated_at,
+          company: c as Company,
+        }));
+      } else {
+        // Regular user: fetch only assigned companies
+        const { data: userCompaniesData, error: ucError } = await supabase
+          .from('user_companies')
+          .select(`id, user_id, company_id, role, is_default, created_at, updated_at`)
+          .eq('user_id', user.id);
+
+        if (ucError) throw ucError;
+
+        if (!userCompaniesData || userCompaniesData.length === 0) {
+          setUserCompanies([]);
+          setCurrentCompany(null);
+          setCurrentRole(null);
+          setIsLoading(false);
+          return;
+        }
+
+        const companyIds = userCompaniesData.map(uc => uc.company_id);
+        const { data: companiesData, error: cError } = await supabase
+          .from('companies')
+          .select('*')
+          .in('id', companyIds);
+
+        if (cError) throw cError;
+
+        combinedData = userCompaniesData.map(uc => ({
+          ...uc,
+          role: uc.role as UserCompanyRole,
+          company: companiesData?.find(c => c.id === uc.company_id) as Company,
+        })).filter(uc => uc.company);
       }
-
-      // Fetch company details for all user companies
-      const companyIds = userCompaniesData.map(uc => uc.company_id);
-      const { data: companiesData, error: cError } = await supabase
-        .from('companies')
-        .select('*')
-        .in('id', companyIds);
-
-      if (cError) throw cError;
-
-      // Combine user_companies with company details
-      const combinedData: UserCompanyWithDetails[] = userCompaniesData.map(uc => ({
-        ...uc,
-        role: uc.role as UserCompanyRole,
-        company: companiesData?.find(c => c.id === uc.company_id) as Company,
-      })).filter(uc => uc.company);
 
       setUserCompanies(combinedData);
 
