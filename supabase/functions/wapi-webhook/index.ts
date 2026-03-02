@@ -3509,6 +3509,13 @@ async function processWebhookEvent(body: Record<string, unknown>) {
       const ext = extractMsgContent(mc as Record<string, unknown>, msg as Record<string, unknown>);
       if (!ext) break;
       let { type, content, url, key, path, fn, download, mime } = ext;
+
+      // Reject text messages with empty content (common in history sync events)
+      if (type === 'text' && !content.trim()) {
+        console.log(`[Webhook] Skipping empty text message, msgId=${msgId}, phone=${phone}`);
+        break;
+      }
+
       console.log(`[Debug] Extracted: type=${type}, download=${download}, hasUrl=${!!url}, hasKey=${!!key}, hasPath=${!!path}, msgId=${msgId}`);
       
       const preview = getPreview(mc as Record<string, unknown>, msg as Record<string, unknown>);
