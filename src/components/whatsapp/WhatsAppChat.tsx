@@ -2361,7 +2361,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       // Get signed URL (bucket is private)
       const { data: urlData, error: urlError } = await supabase.storage
         .from('whatsapp-media')
-        .createSignedUrl(fileName, 600); // 10 min expiry - enough for edge function to download
+        .createSignedUrl(fileName, 31536000); // 1 year expiry
 
       if (urlError || !urlData?.signedUrl) {
         throw new Error('Erro ao gerar URL do áudio');
