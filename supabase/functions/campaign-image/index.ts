@@ -26,9 +26,11 @@ Deno.serve(async (req) => {
       throw new Error("OPENAI_API_KEY not configured");
     }
 
-    // Build optimized prompt for children's party venue art (no text in image)
-    const themeHint = campaign_theme ? `Theme/occasion: "${campaign_theme}". The image MUST visually represent this theme with appropriate elements and symbolism. ` : "";
-    const prompt = `Create a vibrant, eye-catching promotional visual for a children's party venue called "${company_name || "Buffet Infantil"}". ${themeHint}Context: ${prompt_context}. Style: colorful, festive, professional marketing quality. CRITICAL RULE: The image must contain ZERO text. No letters, no words, no numbers, no banners with text, no signs, no watermarks, no captions, no titles - absolutely NO written characters in ANY language. This is a strict requirement. Pure visual illustration only. Square format, high contrast, suitable for WhatsApp sharing.`;
+    // Build optimized prompt in Portuguese to avoid English text rendering
+    const themeHint = campaign_theme
+      ? `O tema visual deve representar "${campaign_theme}" usando simbolos, cores e elementos decorativos apropriados (sem escrever o nome do tema). `
+      : "";
+    const prompt = `Crie uma ilustracao vibrante e festiva para um buffet de festas infantis. ${themeHint}Contexto: ${prompt_context}. Estilo: colorido, alegre, qualidade profissional de marketing. A imagem deve ser uma ilustracao artistica pura, SEM NENHUM texto, letra, palavra, numero, placa, faixa ou caractere escrito em qualquer idioma. Proibido qualquer elemento que contenha escrita. Formato quadrado, alto contraste, adequado para compartilhamento no WhatsApp.`;
 
     // Call DALL-E 3
     const openaiRes = await fetch("https://api.openai.com/v1/images/generations", {
