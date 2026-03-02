@@ -98,7 +98,7 @@ export function BaseLeadsTab({ companyId }: Props) {
         <div className="flex items-center gap-2">
           <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
             <Upload className="w-4 h-4 mr-1.5" />
-            <span className="hidden sm:inline">Importar</span>
+            Importar
           </Button>
           <Button size="sm" onClick={() => { setEditLead(null); setFormOpen(true); }}>
             <Plus className="w-4 h-4 mr-1.5" />
