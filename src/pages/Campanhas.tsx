@@ -134,20 +134,22 @@ export default function Campanhas() {
           <div className="flex-1 p-4 sm:p-6 max-w-5xl mx-auto w-full">
 
           <Tabs defaultValue="campanhas" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="campanhas" className="gap-1.5">
-                <Megaphone className="w-3.5 h-3.5" />
-                Campanhas
-              </TabsTrigger>
-              <TabsTrigger value="base" className="gap-1.5">
-                <Users className="w-3.5 h-3.5" />
-                Leads de Base
-              </TabsTrigger>
-              <TabsTrigger value="galeria" className="gap-1.5">
-                <ImageIcon className="w-3.5 h-3.5" />
-                Galeria
-              </TabsTrigger>
-            </TabsList>
+            <div className="flex justify-center">
+              <TabsList className="h-auto p-1.5 gap-1 rounded-full">
+                <TabsTrigger value="campanhas" className="gap-2 rounded-full px-5 py-2.5 text-sm font-medium">
+                  <Megaphone className="w-4 h-4" />
+                  Campanhas
+                </TabsTrigger>
+                <TabsTrigger value="galeria" className="gap-2 rounded-full px-5 py-2.5 text-sm font-medium">
+                  <ImageIcon className="w-4 h-4" />
+                  Galeria
+                </TabsTrigger>
+                <TabsTrigger value="base" className="gap-2 rounded-full px-5 py-2.5 text-sm font-medium">
+                  <Users className="w-4 h-4" />
+                  Leads de Base
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
             <TabsContent value="campanhas">
               <div className="flex justify-end mb-4">
