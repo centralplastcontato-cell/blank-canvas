@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.campaign-ai]
 verify_jwt = false
+
+[functions.campaign-image]
+verify_jwt = false

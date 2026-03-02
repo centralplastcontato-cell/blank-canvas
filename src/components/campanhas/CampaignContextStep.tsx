@@ -65,6 +65,7 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [generatingImage, setGeneratingImage] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const handleGenerate = async () => {
@@ -106,6 +107,34 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
       toast.error("Erro no upload: " + err.message);
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleGenerateImage = async () => {
+    if (!draft.description.trim()) {
+      toast.error("Descreva o objetivo da campanha antes de gerar a imagem");
+      return;
+    }
+    setGeneratingImage(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("campaign-image", {
+        body: {
+          prompt_context: draft.description,
+          company_name: companyName,
+          company_id: currentCompanyId,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (!data?.url) throw new Error("Nenhuma imagem retornada");
+
+      setDraft((prev) => ({ ...prev, imageUrl: data.url }));
+      toast.success("Imagem gerada com IA!");
+    } catch (err: any) {
+      console.error("campaign-image error:", err);
+      toast.error(err.message || "Erro ao gerar imagem com IA");
+    } finally {
+      setGeneratingImage(false);
     }
   };
 
@@ -261,19 +290,35 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
             </Button>
           </div>
         ) : (
-          <label className="flex items-center gap-2.5 p-3 border border-dashed rounded-xl cursor-pointer hover:bg-muted/50 hover:border-primary/30 transition-all group">
-            {uploading ? (
-              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-            ) : (
-              <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                <ImagePlus className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-              </div>
-            )}
-            <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
-              {uploading ? "Enviando..." : "Clique para enviar imagem"}
-            </span>
-            <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
-          </label>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2.5 p-3 border border-dashed rounded-xl cursor-pointer hover:bg-muted/50 hover:border-primary/30 transition-all group">
+              {uploading ? (
+                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+              ) : (
+                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                  <ImagePlus className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                </div>
+              )}
+              <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
+                {uploading ? "Enviando..." : "Clique para enviar imagem"}
+              </span>
+              <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
+            </label>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full h-10 gap-2 border-dashed"
+              onClick={handleGenerateImage}
+              disabled={generatingImage || !draft.description.trim()}
+            >
+              {generatingImage ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4" />
+              )}
+              {generatingImage ? "Gerando arte com IA..." : "Gerar Arte com IA"}
+            </Button>
+          </div>
         )}
 
         {/* Dialog de preview da imagem */}
