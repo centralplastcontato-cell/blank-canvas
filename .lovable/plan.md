@@ -1,39 +1,58 @@
 
-## Corrigir erro de UUID na criacao de campanha com leads de base
+## Tela de Detalhes da Campanha
 
-### Problema
-Quando um lead de base e selecionado para uma campanha, o sistema prefixa o ID com `base_` (ex: `base_c751c20a-...`) para diferenciar dos leads do CRM na interface. Porem, ao salvar os destinatarios na tabela `campaign_recipients`, esse ID prefixado e inserido na coluna `lead_id` que espera um UUID valido, causando o erro:
+Atualmente, ao clicar em uma campanha, so abre o dialogo de envio se ela estiver em "draft". Campanhas concluidas ou com erros nao sao clicaveis. A ideia e criar uma tela/sheet de detalhes que abre ao clicar em qualquer campanha, mostrando metricas, lista de destinatarios e opcao de reenvio.
 
-```
-invalid input syntax for type uuid: "base_c751c20a-c0d9-4fb2-beb3-d7804ff17b76"
-```
+### O que sera criado
 
-### Solucao
+**1. Novo componente `CampaignDetailSheet.tsx`** em `src/components/campanhas/`
 
-Alterar o `CampaignWizard.tsx` na funcao `handleCreate` para remover o prefixo `base_` antes de inserir o `lead_id` na tabela de destinatarios. Tambem tornar o campo `lead_id` opcional (null) para leads de base, ja que eles pertencem a tabela `base_leads` e nao a `campaign_leads`.
+Um Sheet (painel lateral) que abre ao clicar em qualquer campanha, contendo:
 
-**Arquivo: `src/components/campanhas/CampaignWizard.tsx`**
+- **Cabecalho**: nome da campanha, status (badge), descricao e data de criacao
+- **Cards de metricas**: Total de destinatarios, Enviados (verde), Erros (vermelho), Pendentes (amarelo)
+- **Lista de destinatarios**: tabela/lista com nome, telefone, status (icone + badge) e mensagem de erro (quando houver)
+- **Botao "Reenviar com erro"**: seleciona automaticamente os destinatarios com status "error", reseta o status para "pending" no banco e abre o `CampaignSendDialog` para reenviar apenas esses contatos
 
-Na construcao do array `recipients` (linha ~91-97), verificar se o `lead.id` comeca com `base_` e, nesse caso:
-- Extrair o UUID real removendo o prefixo
-- Salvar o UUID real no `lead_id` (que referencia a tabela correta)
+**2. Modificar `Campanhas.tsx`**
 
-```typescript
-const recipients = selectedLeads.map((lead, i) => {
-  const isBase = lead.id.startsWith("base_");
-  const realId = isBase ? lead.id.replace("base_", "") : lead.id;
-  return {
-    campaign_id: campaign.id,
-    lead_id: realId,
-    phone: lead.whatsapp,
-    lead_name: lead.name,
-    variation_index: i % draft.variations.length,
-    status: "pending",
-  };
-});
+- Adicionar estado `detailCampaign` para controlar qual campanha esta aberta no sheet
+- Ao clicar em qualquer card de campanha (nao so draft), abrir o `CampaignDetailSheet`
+- Manter o fluxo atual: se a campanha for draft, o sheet tera um botao "Iniciar Envio" que abre o `CampaignSendDialog`
+
+### Layout do Sheet (mobile-first)
+
+```text
++----------------------------------+
+|  [X]  Ferias de Julho            |
+|  Concluida  ·  01/03/2026       |
+|  Promocao especial para festas   |
++----------------------------------+
+|  [1]Total  [0]Enviados  [0]Erros |
++----------------------------------+
+|  Lista de Destinatarios          |
+|  Nome        Telefone   Status   |
+|  Joao Silva  119999...  ✓ Env.  |
+|  Maria       119888...  ✗ Erro  |
+|  ...                             |
++----------------------------------+
+|  [ Reenviar para erros (2) ]     |
++----------------------------------+
 ```
 
 ### Detalhes tecnicos
-- Arquivo editado: `src/components/campanhas/CampaignWizard.tsx`, linhas 91-97
-- Mudanca minima: apenas extrair o UUID real antes da insercao
-- Nenhuma mudanca de banco de dados necessaria
+
+**Arquivo novo:** `src/components/campanhas/CampaignDetailSheet.tsx`
+- Props: `campaign: Campaign | null`, `open`, `onOpenChange`, `companyId`, `onResend(campaign)`
+- Busca `campaign_recipients` do Supabase filtrado por `campaign_id`, todos os status
+- Agrupa metricas localmente (sent, error, pending)
+- Lista com ScrollArea, mostrando nome, telefone formatado, badge de status
+- Para erros, mostrar a `error_message` em tooltip ou texto pequeno
+- Botao de reenvio: atualiza `campaign_recipients` com status "error" para "pending", reseta `error_message`, atualiza contadores da campanha, e chama `onResend(campaign)`
+
+**Arquivo editado:** `src/pages/Campanhas.tsx`
+- Importar `CampaignDetailSheet`
+- Novo estado `detailCampaign`
+- onClick do card: sempre abre o detail sheet (remover condicao de draft-only)
+- No sheet, se for draft, mostrar botao "Iniciar Envio" que abre o `CampaignSendDialog`
+- Apos reenvio concluido, recarregar campanhas
