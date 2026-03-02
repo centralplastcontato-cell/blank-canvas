@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, RefreshCw, Pencil, ImagePlus, ZoomIn, Trash2, Building2, Image, MapPin } from "lucide-react";
+import { Loader2, Sparkles, RefreshCw, Pencil, ImagePlus, ZoomIn, Trash2, Building2, Image, MapPin, Wand2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
@@ -69,6 +70,8 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
   const [uploading, setUploading] = useState(false);
   const [generatingImage, setGeneratingImage] = useState(false);
   const [composing, setComposing] = useState(false);
+  const [enhancing, setEnhancing] = useState(false);
+  const [includeLogo, setIncludeLogo] = useState(true);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [photosDialogOpen, setPhotosDialogOpen] = useState(false);
   const [buffetPhotos, setBuffetPhotos] = useState<string[]>([]);
@@ -175,6 +178,34 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
       toast.error(err.message || "Erro ao sobrepor logo");
     } finally {
       setComposing(false);
+    }
+  };
+
+  const handleEnhanceWithAI = async () => {
+    if (!draft.imageUrl) return;
+    setEnhancing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("campaign-compose", {
+        body: {
+          base_image_url: draft.imageUrl,
+          logo_url: includeLogo && currentCompany?.logo_url ? currentCompany.logo_url : null,
+          company_id: currentCompanyId,
+          position: logoPosition,
+          enhance: true,
+          context: draft.description || null,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (!data?.url) throw new Error("Nenhuma imagem retornada");
+
+      setDraft((prev) => ({ ...prev, imageUrl: data.url }));
+      toast.success("Arte profissional criada com IA!");
+    } catch (err: any) {
+      console.error("campaign-compose enhance error:", err);
+      toast.error(err.message || "Erro ao criar arte com IA");
+    } finally {
+      setEnhancing(false);
     }
   };
 
@@ -432,6 +463,77 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
                   </PopoverContent>
                 </Popover>
               )}
+              {/* Arte IA button - only when image is selected */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors disabled:opacity-50"
+                    disabled={enhancing}
+                  >
+                    {enhancing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+                    Arte IA
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-60 p-3" align="center">
+                  <div className="space-y-3">
+                    <p className="text-xs font-medium">Criar arte profissional</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      A IA vai criar uma arte combinando sua foto{currentCompany?.logo_url ? " + logotipo" : ""} + elementos de design
+                    </p>
+                    {currentCompany?.logo_url && (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="include-logo"
+                            checked={includeLogo}
+                            onCheckedChange={(v) => setIncludeLogo(!!v)}
+                          />
+                          <label htmlFor="include-logo" className="text-xs cursor-pointer">
+                            Incluir logotipo
+                          </label>
+                        </div>
+                        {includeLogo && (
+                          <>
+                            <p className="text-[10px] text-muted-foreground">Posição do logo</p>
+                            <div className="grid grid-cols-3 gap-1.5">
+                              {[
+                                { value: "top-left", label: "↖" },
+                                { value: "top-right", label: "↗" },
+                                { value: "center", label: "⊕" },
+                                { value: "bottom-left", label: "↙" },
+                                { value: "bottom-right", label: "↘" },
+                              ].map((pos) => (
+                                <button
+                                  key={pos.value}
+                                  type="button"
+                                  className={`p-2 text-sm rounded-md border transition-colors ${
+                                    logoPosition === pos.value
+                                      ? "bg-primary text-primary-foreground border-primary"
+                                      : "bg-muted/30 hover:bg-muted border-border"
+                                  }`}
+                                  onClick={() => setLogoPosition(pos.value)}
+                                >
+                                  {pos.label}
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </>
+                    )}
+                    <Button
+                      size="sm"
+                      className="w-full text-xs gap-1.5"
+                      onClick={handleEnhanceWithAI}
+                      disabled={enhancing}
+                    >
+                      {enhancing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+                      Criar Arte com IA
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
               <button
                 type="button"
                 className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
