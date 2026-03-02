@@ -1,33 +1,66 @@
 
-## Exibir cargo do freelancer na escala mesmo quando status nao e "aprovado"
+## Consulta de Festas por Periodo na Agenda
 
-### Problema
-A funcao de exibir o cargo do freelancer na escala ja existe no codigo, porem nao esta funcionando por dois motivos:
+### O que sera feito
+Adicionar um botao "Consultar periodo" ao lado dos cards de resumo da Agenda. Ao clicar, abre um popover com dois date pickers (data inicial e data final) e presets rapidos (ex: "Ultimo trimestre", "Proximo semestre", "Ano inteiro"). Ao confirmar, os cards de resumo mostram os totais do periodo selecionado (com um badge indicando o range ativo), e um botao para voltar a visao mensal normal.
 
-1. **Filtro muito restritivo**: O codigo busca apenas freelancers com `approval_status = "aprovado"`, mas a Jamile (e possivelmente outros) esta com status `"pendente"`. Como o cargo e cadastrado no momento da inscricao, a informacao ja existe no banco.
+### Como funciona
 
-2. **Espacos no nome**: O `respondent_name` no banco tem espaco extra ("Jamile ") enquanto o `freelancer_name` na disponibilidade e "Jamile" (sem espaco). A comparacao exata falha.
+1. **Botao de ativacao**: Um botao discreto ("Consultar periodo") aparece acima ou ao lado dos `MonthSummaryCards`, no desktop e mobile.
 
-### Solucao
+2. **Popover com filtros**:
+   - Dois date pickers: "De" e "Ate"
+   - Presets rapidos: "Ultimo trimestre", "Proximo trimestre", "Semestre atual", "Ano 2026 inteiro"
+   - Botao "Consultar"
 
-**Arquivo: `src/components/freelancer/FreelancerSchedulesTab.tsx`**
+3. **Query separada**: Quando o periodo esta ativo, uma query adicional busca `company_events` no range selecionado (independente do mes do calendario). Os resultados alimentam os `MonthSummaryCards` com os dados do periodo.
 
-Na funcao `loadScheduleDetails`, alterar a query de busca de roles (linhas ~172-193):
+4. **Indicador visual**: Quando o filtro de periodo esta ativo, exibe um badge com o range (ex: "01/01 - 30/06/2026") e um botao "X" para limpar e voltar ao resumo mensal.
 
-1. Remover o filtro `.eq("approval_status", "aprovado")` -- buscar o cargo independente do status de aprovacao
-2. Usar `TRIM()` nos nomes para evitar falhas por espacos extras -- como o Supabase JS nao tem `trim` nativo, aplicar `.trim()` no JavaScript ao comparar os nomes
+5. **Barra de ocupacao**: No modo periodo, a barra de ocupacao calcula com base no total de dias do range em vez de um unico mes.
+
+6. **Faturamento total**: Adicionar uma linha extra nos cards mostrando o valor total (`total_value`) do periodo selecionado.
+
+### Arquivos modificados
+
+- **`src/pages/Agenda.tsx`** -- Adicionar estado para `periodRange` (null | {from, to}), query adicional para buscar eventos do periodo, e logica para alternar entre visao mensal e visao por periodo nos cards.
+
+- **`src/components/agenda/MonthSummaryCards.tsx`** -- Aceitar prop opcional `periodLabel` (string) para exibir o badge do periodo ativo, e prop `totalDaysOverride` (number) para o calculo correto de ocupacao quando em modo periodo. Adicionar card de faturamento total.
+
+- **`src/components/agenda/PeriodFilterPopover.tsx`** (novo) -- Componente com dois date pickers e presets, retorna `{from: Date, to: Date}` ao confirmar.
+
+### Detalhe tecnico
 
 ```text
-Antes:
-  .eq("approval_status", "aprovado")
-  .in("respondent_name", uniqueNames)
+Agenda.tsx:
+  periodRange: { from: Date; to: Date } | null = null
 
-Depois:
-  .in("respondent_name", uniqueNames)  // sem filtro de aprovacao
-  // + trim nos nomes ao montar o rolesMap
+  SE periodRange != null:
+    query = SELECT * FROM company_events
+            WHERE company_id = X
+            AND event_date >= periodRange.from
+            AND event_date <= periodRange.to
+    passar esses eventos para MonthSummaryCards
+    totalDays = differenceInDays(to, from) + 1
+  SENAO:
+    manter fluxo atual (filteredEvents do mes)
+
+MonthSummaryCards:
+  props adicionais:
+    periodLabel?: string  // ex: "01/03 - 30/06/2026"
+    totalDaysOverride?: number  // para ocupacao correta no periodo
+  SE periodLabel presente:
+    exibir badge com o label + botao limpar
+    usar totalDaysOverride no calculo de ocupacao
+
+PeriodFilterPopover (novo):
+  - Popover com Calendar mode="range"
+  - Presets como botoes
+  - onConfirm({ from, to })
 ```
 
 ### Resultado
-- O cargo cadastrado pelo freelancer (ex: "Gerente" para Jamile) aparecera abaixo do nome na lista de disponibilidade
-- A funcao de auto-preenchimento de cargo ao escalar tambem funcionara
-- Nenhuma mudanca visual -- a UI ja suporta a exibicao, so faltava o dado chegar
+- O buffet pode consultar "quantas festas tenho de marco a dezembro" com um clique
+- Os KPIs (total, confirmadas, pendentes, canceladas, ocupacao, faturamento) se adaptam ao periodo
+- O calendario continua funcionando normalmente no mes atual
+- Ao limpar o filtro, volta ao resumo mensal padrao
