@@ -1,59 +1,94 @@
 
 
-## Aba separada para Escalas de Periodo Livre
+## Gerador de Imagens com DALL-E 3 para Campanhas
 
-### Problema
-Hoje, todas as escalas (semanais e de periodo livre) aparecem agrupadas por semana. Escalas com periodos livres (ex: 13/03 - 15/03) acabam aparecendo dentro de uma semana especifica, o que pode confundir. O ideal e separar visualmente.
+### Objetivo
+Adicionar um botão "Gerar Arte com IA" no step de criação de campanha que usa DALL-E 3 (OpenAI) para criar imagens promocionais. A imagem gerada sera salva no Supabase Storage e preenchida no draft como o upload manual.
 
-### Solucao
-
-Adicionar um toggle de duas abas no topo da listagem de escalas:
+### Arquitetura
 
 ```text
-  [ Semanal ]  [ Periodo livre ]
+CampaignContextStep.tsx
+        |
+        | supabase.functions.invoke("campaign-image")
+        v
+campaign-image (Edge Function)
+        |
+        | POST api.openai.com/v1/images/generations
+        v
+   DALL-E 3 (OpenAI)
+        |
+        | base64 image
+        v
+   Upload to Supabase Storage (sales-materials bucket)
+        |
+        | public URL
+        v
+   Return URL to frontend
 ```
 
-- **Semanal**: Exibe o agrupamento por semanas do mes (comportamento atual)
-- **Periodo livre**: Lista as escalas livres em ordem cronologica, sem agrupamento semanal
+### Detalhes Tecnicos
 
-### Como distinguir os dois tipos
+#### 1. Nova Edge Function: `campaign-image`
 
-1. Adicionar uma coluna `schedule_type` (`text`, default `'week'`) na tabela `freelancer_schedules` para registrar se a escala foi criada como `'week'` ou `'free'`
-2. No `CreateScheduleDialog`, salvar o `mode` atual (`"week"` ou `"free"`) nesse campo ao criar a escala
-3. Na listagem, filtrar as escalas pelo tipo selecionado na aba
+Criar `supabase/functions/campaign-image/index.ts`:
 
-### Arquivos modificados
+- Recebe: `{ prompt_context, company_name, company_id }`
+- Monta um prompt otimizado para arte de buffet infantil (sem texto na imagem, foco em visual promocional)
+- Chama a API DALL-E 3: `POST https://api.openai.com/v1/images/generations`
+  - model: `dall-e-3`
+  - size: `1024x1024`
+  - quality: `standard`
+  - response_format: `b64_json`
+- Recebe o base64, faz upload no bucket `sales-materials` com path `campaigns/ai-{timestamp}.png`
+- Registra uso na tabela `ai_usage_logs` (function_name: "campaign-image", estimated_cost_usd: 0.04)
+- Retorna a URL publica da imagem
+- Trata erros 429 (rate limit) e 402 (billing)
 
-- **Migracao SQL** -- Adicionar coluna `schedule_type text default 'week'` na tabela `freelancer_schedules`
-- **`src/components/freelancer/CreateScheduleDialog.tsx`** -- Incluir `schedule_type: mode` no insert
-- **`src/components/freelancer/FreelancerSchedulesTab.tsx`** -- Adicionar estado `viewMode` com toggle de abas. Na aba "Semanal", manter o agrupamento por semanas. Na aba "Periodo livre", exibir as escalas do tipo `free` em lista simples ordenada por data, com os mesmos cards e acoes
-- **`src/integrations/supabase/types.ts`** -- Atualizar os tipos para incluir `schedule_type`
+Prompt exemplo interno:
+> "Create a vibrant promotional banner for a children's party venue called '{companyName}'. Context: {promptContext}. Style: colorful, festive, balloons, confetti, party decorations. DO NOT include any text or letters in the image. Pure visual art only."
 
-### Detalhe tecnico
+#### 2. Configuracao no `supabase/config.toml`
 
-```text
-FreelancerSchedulesTab:
-  viewMode: "week" | "free" = "week"
-
-  schedulesFiltered = schedules.filter(s => 
-    (s.schedule_type || "week") === viewMode
-  )
-
-  SE viewMode === "week":
-    renderizar agrupamento semanal (como hoje)
-  SE viewMode === "free":
-    renderizar lista simples ordenada por start_date
-    cada card mostra o periodo (dd/MM - dd/MM) sem header de semana
-
-CreateScheduleDialog (insert):
-  schedule_type: mode  // "week" ou "free"
-
-Escalas antigas (sem schedule_type) serao tratadas como "week" 
-por default, mantendo compatibilidade.
+Adicionar:
+```toml
+[functions.campaign-image]
+verify_jwt = false
 ```
 
-### Resultado
-- Buffets que usam periodo livre veem suas escalas separadas, sem confusao com semanas
-- Buffets que usam so semana fixa nao percebem mudanca (aba semanal vem selecionada por padrao)
-- Escalas antigas continuam aparecendo na aba semanal
+#### 3. Atualizar `CampaignContextStep.tsx`
+
+Na secao de imagem (onde hoje tem o upload manual), adicionar:
+
+- Botao "Gerar Arte com IA" com icone Sparkles, ao lado do upload manual
+- Estado `generatingImage` para loading
+- Ao clicar: chama `supabase.functions.invoke("campaign-image")` passando `draft.description`, `companyName`, e `currentCompanyId`
+- Ao receber a URL, preenche `draft.imageUrl` (mesmo fluxo do upload manual)
+- Toast de sucesso/erro
+- Layout: botao de upload e botao de IA lado a lado, ou IA como opcao secundaria abaixo do upload
+
+#### 4. Registro de uso (ai_usage_logs)
+
+Reutiliza a tabela `ai_usage_logs` existente:
+- `function_name`: "campaign-image"
+- `model`: "dall-e-3"
+- `total_tokens`: 0 (DALL-E nao usa tokens)
+- `estimated_cost_usd`: 0.04
+
+Isso permite que o painel Hub de consumo de IA (`/hub/consumo-ia`) ja mostre o uso automaticamente.
+
+### Sem alteracoes no banco de dados
+Nenhuma migration necessaria -- reutiliza tabelas e buckets existentes.
+
+### Seguranca
+- A `OPENAI_API_KEY` ja esta configurada como secret do Supabase
+- A chamada a OpenAI acontece apenas na Edge Function (server-side)
+- O bucket `sales-materials` ja e publico
+
+### Resumo de arquivos
+| Arquivo | Acao |
+|---|---|
+| `supabase/functions/campaign-image/index.ts` | Criar (nova Edge Function) |
+| `supabase/config.toml` | Adicionar config da nova function |
+| `src/components/campanhas/CampaignContextStep.tsx` | Adicionar botao "Gerar Arte com IA" |
 
