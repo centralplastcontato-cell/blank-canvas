@@ -2358,12 +2358,16 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         throw new Error(uploadError.message);
       }
 
-      // Get public URL
-      const { data: urlData } = supabase.storage
+      // Get signed URL (bucket is private)
+      const { data: urlData, error: urlError } = await supabase.storage
         .from('whatsapp-media')
-        .getPublicUrl(fileName);
+        .createSignedUrl(fileName, 600); // 10 min expiry - enough for edge function to download
 
-      const mediaUrl = urlData.publicUrl;
+      if (urlError || !urlData?.signedUrl) {
+        throw new Error('Erro ao gerar URL do áudio');
+      }
+
+      const mediaUrl = urlData.signedUrl;
 
       const response = await supabase.functions.invoke("wapi-send", {
         body: {
