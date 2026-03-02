@@ -320,6 +320,23 @@ export default function Agenda() {
             </div>
           </header>
 
+          {/* Mobile unit filter */}
+          {(() => {
+            const visibleUnits = canViewAll ? physicalUnits : physicalUnits.filter(u => unitAccess[u.name]);
+            if (visibleUnits.length <= 1) return null;
+            return (
+              <div className="md:hidden px-3 pt-3">
+                <Select value={selectedUnit} onValueChange={setSelectedUnit}>
+                  <SelectTrigger className="w-full"><MapPin className="h-4 w-4 mr-2 text-muted-foreground" /><SelectValue placeholder="Todas as unidades" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as unidades</SelectItem>
+                    {visibleUnits.map(u => <SelectItem key={u.name} value={u.name}>{u.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            );
+          })()}
+
           <PullToRefresh onRefresh={async () => { await fetchEvents(); }} className="flex-1 p-3 md:p-6 lg:p-8 overflow-x-hidden overflow-y-auto">
             <div className="max-w-7xl mx-auto space-y-6">
               {/* Desktop header */}
