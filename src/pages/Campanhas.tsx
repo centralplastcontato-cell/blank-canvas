@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CampaignWizard } from "@/components/campanhas/CampaignWizard";
 import { CampaignSendDialog } from "@/components/campanhas/CampaignSendDialog";
+import { CampaignDetailSheet } from "@/components/campanhas/CampaignDetailSheet";
 import { BaseLeadsTab } from "@/components/campanhas/BaseLeadsTab";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
@@ -52,6 +53,7 @@ export default function Campanhas() {
   const [loading, setLoading] = useState(true);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [sendCampaign, setSendCampaign] = useState<Campaign | null>(null);
+  const [detailCampaign, setDetailCampaign] = useState<Campaign | null>(null);
 
   useEffect(() => {
     if (!companyId) return;
@@ -166,11 +168,7 @@ export default function Campanhas() {
                     const sc = statusConfig[campaign.status] || statusConfig.draft;
                     const StatusIcon = sc.icon;
                     return (
-                      <Card key={campaign.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => {
-                        if (campaign.status === "draft") {
-                          setSendCampaign(campaign);
-                        }
-                      }}>
+                      <Card key={campaign.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setDetailCampaign(campaign)}>
                         <CardContent className="p-4 flex items-center gap-4">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
@@ -242,6 +240,16 @@ export default function Campanhas() {
               }}
             />
           )}
+
+          <CampaignDetailSheet
+            campaign={detailCampaign}
+            open={!!detailCampaign}
+            onOpenChange={(open) => { if (!open) setDetailCampaign(null); }}
+            companyId={companyId || ""}
+            onStartSend={(c) => { setDetailCampaign(null); setSendCampaign(c); }}
+            onResend={(c) => { setSendCampaign(c); }}
+            onRefresh={loadCampaigns}
+          />
           </div>
         </main>
       </div>
