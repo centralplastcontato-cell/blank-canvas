@@ -19,9 +19,10 @@ import { AgendaListView } from "@/components/agenda/AgendaListView";
 import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
 import { EventDetailSheet } from "@/components/agenda/EventDetailSheet";
 import { MonthSummaryCards } from "@/components/agenda/MonthSummaryCards";
+import { PeriodFilterPopover } from "@/components/agenda/PeriodFilterPopover";
 import { CalendarDays, Plus, Loader2, ShieldAlert, Menu, Clock, AlertTriangle, List, ListChecks, MapPin, Users, DollarSign } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format, startOfMonth, endOfMonth, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 
@@ -61,6 +62,9 @@ export default function Agenda() {
   const [month, setMonth] = useState(startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedUnit, setSelectedUnit] = useState("all");
+  const [periodRange, setPeriodRange] = useState<{ from: Date; to: Date } | null>(null);
+  const [periodEvents, setPeriodEvents] = useState<CompanyEvent[]>([]);
+  const [periodLoading, setPeriodLoading] = useState(false);
 
   const { canViewAll, allowedUnits, unitAccess, isLoading: permUnitLoading } = useUnitPermissions(currentUser?.id, currentCompany?.id);
 
@@ -123,6 +127,33 @@ export default function Agenda() {
 
   useEffect(() => { fetchEvents(); }, [currentCompany?.id, month]);
 
+  // Fetch events for custom period
+  const fetchPeriodEvents = async (range: { from: Date; to: Date }) => {
+    if (!currentCompany?.id) return;
+    setPeriodLoading(true);
+    const start = format(range.from, "yyyy-MM-dd");
+    const end = format(range.to, "yyyy-MM-dd");
+    const { data, error } = await supabase
+      .from("company_events")
+      .select("*")
+      .eq("company_id", currentCompany.id)
+      .gte("event_date", start)
+      .lte("event_date", end)
+      .order("event_date");
+    if (!error && data) setPeriodEvents(data as CompanyEvent[]);
+    setPeriodLoading(false);
+  };
+
+  const handlePeriodConfirm = (range: { from: Date; to: Date }) => {
+    setPeriodRange(range);
+    fetchPeriodEvents(range);
+  };
+
+  const handlePeriodClear = () => {
+    setPeriodRange(null);
+    setPeriodEvents([]);
+  };
+
   // Auto-select unit based on permissions
   useEffect(() => {
     if (permUnitLoading) return;
@@ -148,6 +179,19 @@ export default function Agenda() {
     }
     return filtered;
   }, [events, selectedUnit, canViewAll, allowedUnits]);
+
+  // Filtered period events (same unit logic)
+  const periodFilteredEvents = useMemo(() => {
+    let filtered = periodEvents;
+    if (!canViewAll) {
+      const permitted = allowedUnits.filter(u => u !== "As duas");
+      filtered = filtered.filter(e => e.unit && permitted.includes(e.unit));
+    }
+    if (selectedUnit !== "all") {
+      filtered = filtered.filter(e => e.unit === selectedUnit);
+    }
+    return filtered;
+  }, [periodEvents, selectedUnit, canViewAll, allowedUnits]);
 
   // Events for selected day
   const dayEvents = useMemo(() => {
@@ -376,8 +420,20 @@ export default function Agenda() {
                 </div>
               </div>
 
-              {/* Summary */}
-              <MonthSummaryCards events={filteredEvents} month={month} />
+              {/* Period filter + Summary */}
+              <div className="space-y-4">
+                <PeriodFilterPopover
+                  onConfirm={handlePeriodConfirm}
+                  activePeriod={periodRange}
+                  onClear={handlePeriodClear}
+                />
+                <MonthSummaryCards
+                  events={periodRange ? periodFilteredEvents : filteredEvents}
+                  month={month}
+                  periodLabel={periodRange ? `${format(periodRange.from, "dd/MM/yyyy")} – ${format(periodRange.to, "dd/MM/yyyy")}` : undefined}
+                  totalDaysOverride={periodRange ? differenceInDays(periodRange.to, periodRange.from) + 1 : undefined}
+                />
+              </div>
 
               {/* Calendar + Day detail */}
               {viewMode === "calendar" ? (
