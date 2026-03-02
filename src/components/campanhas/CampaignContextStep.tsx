@@ -66,6 +66,7 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
   const [editText, setEditText] = useState("");
   const [uploading, setUploading] = useState(false);
   const [generatingImage, setGeneratingImage] = useState(false);
+  const [composing, setComposing] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [photosDialogOpen, setPhotosDialogOpen] = useState(false);
   const [buffetPhotos, setBuffetPhotos] = useState<string[]>([]);
@@ -145,6 +146,31 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
     if (currentCompany?.logo_url) {
       setDraft((prev) => ({ ...prev, imageUrl: currentCompany.logo_url }));
       toast.success("Logotipo aplicado!");
+    }
+  };
+
+  const handleComposeLogo = async () => {
+    if (!draft.imageUrl || !currentCompany?.logo_url) return;
+    setComposing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("campaign-compose", {
+        body: {
+          base_image_url: draft.imageUrl,
+          logo_url: currentCompany.logo_url,
+          company_id: currentCompanyId,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (!data?.url) throw new Error("Nenhuma imagem retornada");
+
+      setDraft((prev) => ({ ...prev, imageUrl: data.url }));
+      toast.success("Logo sobreposto na imagem!");
+    } catch (err: any) {
+      console.error("campaign-compose error:", err);
+      toast.error(err.message || "Erro ao sobrepor logo");
+    } finally {
+      setComposing(false);
     }
   };
 
@@ -348,11 +374,12 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
               {currentCompany?.logo_url && (
                 <button
                   type="button"
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                  onClick={handleUseLogo}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors disabled:opacity-50"
+                  onClick={handleComposeLogo}
+                  disabled={composing}
                 >
-                  <Building2 className="w-3 h-3" />
-                  Logo
+                  {composing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Building2 className="w-3 h-3" />}
+                  + Logo
                 </button>
               )}
               <button
