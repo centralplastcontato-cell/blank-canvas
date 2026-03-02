@@ -43,9 +43,9 @@ Deno.serve(async (req) => {
       // Enhanced mode: creative AI art combining photo + logo + design elements
       promptText = `Create a professional, eye-catching promotional image for a children's party venue. Use the provided photo as the main background/visual element.${
         logo_url ? ` Place the company logo prominently in the ${posLabel}.` : ""
-      } Add subtle festive design elements (confetti, balloons, stars, ribbons) around the edges. Enhance the colors to look vibrant and inviting. The image should look like a polished marketing flyer. Do NOT add any text to the image.${
+      } Add subtle festive design elements (confetti, balloons, stars, ribbons) around the edges. Enhance the colors to look vibrant and inviting. The image should look like a polished marketing flyer.${
         context ? ` Campaign context: ${context}` : ""
-      }`;
+      } IMPORTANT: Do NOT add any text, letters, words, numbers, banners with text, or written characters of any kind to the image. Pure visual art only.`;
       if (logo_url) {
         imageContent.push({ type: "image_url", image_url: { url: logo_url } });
       }
