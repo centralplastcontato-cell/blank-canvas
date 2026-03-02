@@ -17,7 +17,7 @@ import { toast } from "@/hooks/use-toast";
 import { 
   Send, Search, MessageSquare, Check, CheckCheck, Clock, WifiOff, RefreshCw, 
   ArrowLeft, Building2, Star, StarOff, Link2, FileText, Smile,
-  Image as ImageIcon, Mic, Paperclip, Loader2, Square, X, Pause, Play,
+  Image as ImageIcon, Mic, Paperclip, Loader2, X,
   Users, ArrowRightLeft, Trash2, Eraser,
   CalendarCheck, Briefcase, FileCheck, ArrowDown, Video,
   Pencil, Copy, ChevronDown, ChevronUp, Download, Pin, PinOff, Reply
@@ -221,6 +221,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [pendingSendAudio, setPendingSendAudio] = useState(false);
   const [mediaPreview, setMediaPreview] = useState<{
     type: 'image' | 'audio' | 'document' | 'video';
     file: File;
@@ -325,13 +326,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   // Audio recording hook
   const {
     isRecording,
-    isPaused,
     recordingTime,
     audioBlob,
     startRecording,
     stopRecording,
-    pauseRecording,
-    resumeRecording,
     cancelRecording,
     error: recordingError,
   } = useAudioRecorder({ maxDuration: 120 });
@@ -2404,6 +2402,20 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     setIsUploading(false);
   };
 
+  // Auto-send audio when blob is ready after stop+send
+  useEffect(() => {
+    if (audioBlob && pendingSendAudio) {
+      setPendingSendAudio(false);
+      sendRecordedAudio();
+    }
+  }, [audioBlob, pendingSendAudio]);
+
+  // Handle stop and send in one action (WhatsApp-style)
+  const handleStopAndSend = () => {
+    setPendingSendAudio(true);
+    stopRecording();
+  };
+
   // Effect to show error from recording
   useEffect(() => {
     if (recordingError) {
@@ -4311,21 +4323,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         </Button>
                       </div>
                     )}
-                    {isRecording || audioBlob ? (
+                    {isRecording ? (
                       <div className="flex items-center gap-2">
                         <div className="flex-1 flex items-center gap-3 bg-muted rounded-lg px-4 py-2">
-                          <div className={cn(
-                            "w-3 h-3 rounded-full",
-                            isRecording && !isPaused ? "bg-destructive animate-pulse" : "bg-muted-foreground"
-                          )} />
+                          <div className="w-3 h-3 rounded-full bg-destructive animate-pulse" />
                           <span className="font-mono text-lg">
                             {formatRecordingTime(recordingTime)}
                           </span>
-                          {audioBlob && (
-                            <span className="text-sm text-muted-foreground">
-                              Gravação pronta
-                            </span>
-                          )}
                         </div>
                         <Button
                           type="button"
@@ -4336,46 +4340,14 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         >
                           <X className="w-4 h-4" />
                         </Button>
-                        {isRecording && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="shrink-0"
-                            onClick={isPaused ? resumeRecording : pauseRecording}
-                          >
-                            {isPaused ? (
-                              <Play className="w-4 h-4" />
-                            ) : (
-                              <Pause className="w-4 h-4" />
-                            )}
-                          </Button>
-                        )}
-                        {isRecording ? (
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            size="icon"
-                            className="shrink-0"
-                            onClick={stopRecording}
-                          >
-                            <Square className="w-4 h-4" />
-                          </Button>
-                        ) : audioBlob ? (
-                          <Button
-                            type="button"
-                            size="icon"
-                            className="shrink-0"
-                            onClick={sendRecordedAudio}
-                            disabled={isUploading}
-                          >
-                            {isUploading ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Send className="w-4 h-4" />
-                            )}
-                          </Button>
-                        ) : null}
+                        <Button
+                          type="button"
+                          size="icon"
+                          className="shrink-0"
+                          onClick={handleStopAndSend}
+                        >
+                          <Send className="w-4 h-4" />
+                        </Button>
                       </div>
                     ) : (
                       <form
@@ -5257,6 +5229,33 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                       </Button>
                     </div>
                   )}
+                  {isRecording ? (
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 flex items-center gap-3 bg-muted rounded-lg px-4 py-2">
+                        <div className="w-3 h-3 rounded-full bg-destructive animate-pulse" />
+                        <span className="font-mono text-lg">
+                          {formatRecordingTime(recordingTime)}
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0"
+                        onClick={cancelRecording}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="icon"
+                        className="shrink-0"
+                        onClick={handleStopAndSend}
+                      >
+                        <Send className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ) : (
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
@@ -5358,6 +5357,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                       </Button>
                     )}
                   </form>
+                  )}
                 </div>
               </>
             )}
