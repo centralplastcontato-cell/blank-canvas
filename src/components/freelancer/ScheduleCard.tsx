@@ -92,26 +92,48 @@ export function ScheduleCard({
 
   const handleOpenFreelancerEdit = async (freelancerName: string) => {
     if (!companyId) return;
-    const normalize = (s: string) => s.trim().toLowerCase();
-    const { data } = await supabase
+    const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+    const { data, error } = await supabase
       .from("freelancer_responses")
       .select("*")
       .eq("company_id", companyId);
-    const match = (data || []).find((r: any) => normalize(r.respondent_name || "") === normalize(freelancerName));
+    
+    if (error) {
+      console.error("[ScheduleCard] Error fetching freelancer_responses:", error);
+      toast({ title: "Erro ao buscar cadastro", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    const records = data || [];
+    const target = normalize(freelancerName);
+    
+    // 1. Exact match on respondent_name
+    let match = records.find((r: any) => normalize(r.respondent_name || "") === target);
+    
+    // 2. Partial/prefix match on respondent_name
+    if (!match) {
+      match = records.find((r: any) => {
+        const a = normalize(r.respondent_name || "");
+        return a.startsWith(target) || target.startsWith(a);
+      });
+    }
+    
+    // 3. Match by "nome" answer inside answers array
+    if (!match) {
+      match = records.find((r: any) => {
+        if (!Array.isArray(r.answers)) return false;
+        const nomeAnswer = r.answers.find((ans: any) => ans.questionId === "nome");
+        if (!nomeAnswer?.value) return false;
+        const ansName = normalize(String(nomeAnswer.value));
+        return ansName === target || ansName.startsWith(target) || target.startsWith(ansName);
+      });
+    }
+
     if (match) {
       setEditingFreelancer(match);
     } else {
-      // Try partial match
-      const partial = (data || []).find((r: any) => {
-        const a = normalize(r.respondent_name || "");
-        const b = normalize(freelancerName);
-        return a.startsWith(b) || b.startsWith(a);
-      });
-      if (partial) {
-        setEditingFreelancer(partial);
-      } else {
-        toast({ title: "Cadastro não encontrado", description: `Não foi possível localizar o cadastro de "${freelancerName}". O freelancer pode não ter se inscrito pelo formulário.`, variant: "destructive" });
-      }
+      console.warn("[ScheduleCard] No freelancer_responses match for:", freelancerName, "| Total records:", records.length, "| Names:", records.map((r: any) => r.respondent_name));
+      toast({ title: "Cadastro não encontrado", description: `Não foi possível localizar o cadastro de "${freelancerName}". O freelancer pode não ter se inscrito pelo formulário.`, variant: "destructive" });
     }
   };
   const startStr = format(parseISO(schedule.start_date), "dd/MM", { locale: ptBR });
