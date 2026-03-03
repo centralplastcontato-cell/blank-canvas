@@ -181,25 +181,27 @@ export function FreelancerSchedulesTab() {
       .eq("schedule_id", schedule.id);
     setAssignments((asData as any[]) || []);
 
-    // Fetch freelancer registered roles from freelancer_responses
+    // Fetch freelancer registered roles from freelancer_responses (normalized matching)
     const uniqueNames = [...new Set(avList.map((a: any) => a.freelancer_name))];
     if (uniqueNames.length > 0 && companyId) {
+      const normalize = (s: string) => s.trim().toLowerCase();
       const { data: frData } = await supabase
         .from("freelancer_responses")
         .select("respondent_name, answers")
-        .eq("company_id", companyId)
-        .in("respondent_name", uniqueNames);
+        .eq("company_id", companyId);
       const rolesMap: Record<string, string[]> = {};
       (frData || []).forEach((fr: any) => {
-        const name = fr.respondent_name?.trim();
-        if (!name) return;
+        const rawName = fr.respondent_name?.trim();
+        if (!rawName) return;
+        // Find the original availability name that matches (case/space insensitive)
+        const matchedOriginal = uniqueNames.find(n => normalize(n) === normalize(rawName));
+        if (!matchedOriginal) return;
         const answers = Array.isArray(fr.answers) ? fr.answers : [];
         const funcaoAnswer = answers.find((a: any) => a.questionId === "funcao");
         const roles = Array.isArray(funcaoAnswer?.value) ? funcaoAnswer.value as string[] : [];
         if (roles.length > 0) {
-          // Merge if multiple registrations
-          const existing = rolesMap[name] || [];
-          rolesMap[name] = [...new Set([...existing, ...roles])];
+          const existing = rolesMap[matchedOriginal] || [];
+          rolesMap[matchedOriginal] = [...new Set([...existing, ...roles])];
         }
       });
       setFreelancerRoles(rolesMap);
