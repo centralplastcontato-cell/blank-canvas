@@ -32,26 +32,32 @@ Deno.serve(async (req) => {
       : "";
     const prompt = `Crie uma ilustracao vibrante e festiva para um buffet de festas infantis. ${themeHint}Contexto: ${prompt_context}. Estilo: colorido, alegre, qualidade profissional de marketing. A imagem deve ser uma ilustracao artistica pura, SEM NENHUM texto, letra, palavra, numero, placa, faixa ou caractere escrito em qualquer idioma. Proibido qualquer elemento que contenha escrita. Formato quadrado, alto contraste, adequado para compartilhamento no WhatsApp.`;
 
-    // Call DALL-E 3
-    const openaiRes = await fetch("https://api.openai.com/v1/images/generations", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${openaiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "dall-e-3",
-        prompt,
-        size: "1024x1024",
-        quality: "standard",
-        response_format: "b64_json",
-        n: 1,
-      }),
-    });
+    // Call DALL-E 3 with retry for transient server errors
+    const MAX_RETRIES = 2;
+    let openaiRes: Response | null = null;
+    let lastError = "";
 
-    if (!openaiRes.ok) {
-      const errBody = await openaiRes.text();
-      console.error("DALL-E error:", openaiRes.status, errBody);
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      openaiRes = await fetch("https://api.openai.com/v1/images/generations", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${openaiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "dall-e-3",
+          prompt,
+          size: "1024x1024",
+          quality: "standard",
+          response_format: "b64_json",
+          n: 1,
+        }),
+      });
+
+      if (openaiRes.ok) break;
+
+      lastError = await openaiRes.text();
+      console.error(`DALL-E error (attempt ${attempt + 1}/${MAX_RETRIES + 1}):`, openaiRes.status, lastError);
 
       if (openaiRes.status === 429) {
         return new Response(
@@ -65,8 +71,19 @@ Deno.serve(async (req) => {
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+
+      // Retry on 500/502/503 transient errors
+      if (openaiRes.status >= 500 && attempt < MAX_RETRIES) {
+        const delay = (attempt + 1) * 3000;
+        console.log(`Retrying DALL-E in ${delay}ms...`);
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+
       throw new Error(`DALL-E API error: ${openaiRes.status}`);
     }
+
+    if (!openaiRes || !openaiRes.ok) throw new Error("DALL-E falhou após tentativas de retry");
 
     const openaiData = await openaiRes.json();
     const b64 = openaiData.data?.[0]?.b64_json;
