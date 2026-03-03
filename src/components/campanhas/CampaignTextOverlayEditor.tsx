@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Type, Save, X, LayoutTemplate, Move, ALargeSmall, Square, Eye, Maximize2, Sparkles } from "lucide-react";
+import { Loader2, Type, Save, X, LayoutTemplate, Move, ALargeSmall, Square, Eye, Maximize2, Sparkles, GripVertical } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
@@ -24,6 +24,7 @@ interface TextLayer {
   placeholder: string;
   fontSize: number;        // 0-100 slider → mapped to px range per layer
   fontFamily: string;
+  customY?: number;        // 0-1 ratio for custom drag position
 }
 
 interface TemplateConfig {
@@ -253,6 +254,11 @@ const POS_MAP: Record<PositionY, { title: number; subtitle: number; cta: number 
 
 /* ── Render functions per template ───────────────────────── */
 
+function getLayerY(layer: TextLayer, layerId: string, pos: Record<string, number>, size: number): number {
+  if (layer.customY !== undefined) return size * layer.customY;
+  return size * (pos[layerId] ?? 0.5);
+}
+
 function renderOferta(ctx: CanvasRenderingContext2D, size: number, layers: TextLayer[], accentColor: string, posY: PositionY) {
   const title = layers.find((l) => l.id === "title")!;
   const subtitle = layers.find((l) => l.id === "subtitle")!;
@@ -266,16 +272,16 @@ function renderOferta(ctx: CanvasRenderingContext2D, size: number, layers: TextL
   if (title.content.trim()) {
     const px = layerFontPx("title", title.fontSize);
     ctx.font = `bold ${px}px ${title.fontFamily}, sans-serif`;
-    drawTextWithShadow(ctx, title.content.trim().toUpperCase(), size / 2, size * pos.title, "#FFFFFF");
+    drawTextWithShadow(ctx, title.content.trim().toUpperCase(), size / 2, getLayerY(title, "title", pos, size), "#FFFFFF");
   }
   if (subtitle.content.trim()) {
     const px = layerFontPx("subtitle", subtitle.fontSize);
     ctx.font = `600 ${px}px ${subtitle.fontFamily}, sans-serif`;
-    drawTextWithShadow(ctx, subtitle.content.trim(), size / 2, size * pos.subtitle, "rgba(255,255,255,0.9)", "rgba(0,0,0,0.4)", 1);
+    drawTextWithShadow(ctx, subtitle.content.trim(), size / 2, getLayerY(subtitle, "subtitle", pos, size), "rgba(255,255,255,0.9)", "rgba(0,0,0,0.4)", 1);
   }
   if (cta.content.trim()) {
     const px = layerFontPx("cta", cta.fontSize);
-    drawCTAButton(ctx, cta.content.trim().toUpperCase(), size / 2, size * pos.cta, accentColor, "#FFFFFF", px, cta.fontFamily);
+    drawCTAButton(ctx, cta.content.trim().toUpperCase(), size / 2, getLayerY(cta, "cta", pos, size), accentColor, "#FFFFFF", px, cta.fontFamily);
   }
 }
 
@@ -341,18 +347,18 @@ function renderEscassez(ctx: CanvasRenderingContext2D, size: number, layers: Tex
     if (title.content.trim()) {
       const px = layerFontPx("title", title.fontSize);
       ctx.font = `bold ${px}px ${title.fontFamily}, sans-serif`;
-      drawTextWithShadow(ctx, title.content.trim().toUpperCase(), size / 2, size * pos.title, "#FFFFFF");
+      drawTextWithShadow(ctx, title.content.trim().toUpperCase(), size / 2, getLayerY(title, "title", pos, size), "#FFFFFF");
     }
     if (subtitle.content.trim()) {
       const px = layerFontPx("subtitle", subtitle.fontSize);
       ctx.font = `500 ${px}px ${subtitle.fontFamily}, sans-serif`;
-      drawTextWithShadow(ctx, subtitle.content.trim(), size / 2, size * pos.subtitle, "rgba(255,255,255,0.88)", "rgba(0,0,0,0.3)", 1);
+      drawTextWithShadow(ctx, subtitle.content.trim(), size / 2, getLayerY(subtitle, "subtitle", pos, size), "rgba(255,255,255,0.88)", "rgba(0,0,0,0.3)", 1);
     }
     if (cta.content.trim()) {
       const px = layerFontPx("cta", cta.fontSize);
       ctx.font = `bold ${px}px ${cta.fontFamily}, sans-serif`;
       ctx.fillStyle = accentColor;
-      drawTextWithShadow(ctx, cta.content.trim(), size / 2, size * pos.cta, accentColor);
+      drawTextWithShadow(ctx, cta.content.trim(), size / 2, getLayerY(cta, "cta", pos, size), accentColor);
     }
   }
 }
@@ -370,16 +376,16 @@ function renderSazonal(ctx: CanvasRenderingContext2D, size: number, layers: Text
   if (title.content.trim()) {
     const px = layerFontPx("title", title.fontSize);
     ctx.font = `bold ${px}px ${title.fontFamily}, sans-serif`;
-    drawTextWithShadow(ctx, title.content.trim().toUpperCase(), size / 2, size * pos.title, "#FFFFFF");
+    drawTextWithShadow(ctx, title.content.trim().toUpperCase(), size / 2, getLayerY(title, "title", pos, size), "#FFFFFF");
   }
   if (subtitle.content.trim()) {
     const px = layerFontPx("subtitle", subtitle.fontSize);
     ctx.font = `500 ${px}px ${subtitle.fontFamily}, sans-serif`;
-    drawTextWithShadow(ctx, subtitle.content.trim(), size / 2, size * pos.subtitle, "rgba(255,255,255,0.88)", "rgba(0,0,0,0.3)", 1);
+    drawTextWithShadow(ctx, subtitle.content.trim(), size / 2, getLayerY(subtitle, "subtitle", pos, size), "rgba(255,255,255,0.88)", "rgba(0,0,0,0.3)", 1);
   }
   if (cta.content.trim()) {
     const px = layerFontPx("cta", cta.fontSize);
-    drawCTAButton(ctx, cta.content.trim().toUpperCase(), size / 2, size * pos.cta, accentColor, "#FFFFFF", px, cta.fontFamily);
+    drawCTAButton(ctx, cta.content.trim().toUpperCase(), size / 2, getLayerY(cta, "cta", pos, size), accentColor, "#FFFFFF", px, cta.fontFamily);
   }
 }
 
@@ -487,6 +493,82 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
     setLayers((prev) => prev.map((l) => (l.id === id ? { ...l, ...updates } : l)));
   };
 
+  /* ── Drag-to-reposition logic ─────────────────────────── */
+  const draggingRef = useRef<{ layerId: string; startMouseY: number; startCustomY: number } | null>(null);
+
+  const getCanvasY = useCallback((e: React.MouseEvent | React.TouchEvent): number => {
+    const canvas = canvasRef.current;
+    if (!canvas) return 0;
+    const rect = canvas.getBoundingClientRect();
+    const clientY = "touches" in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    return (clientY - rect.top) / rect.height; // 0-1 ratio
+  }, []);
+
+  const findClosestLayer = useCallback((yRatio: number): TextLayer | null => {
+    const pos = POS_MAP[positionY];
+    let closest: TextLayer | null = null;
+    let minDist = 0.08; // threshold: 8% of canvas height
+    for (const layer of layers) {
+      if (!layer.content.trim()) continue;
+      const layerYRatio = layer.customY ?? pos[layer.id as keyof typeof pos] ?? 0.5;
+      const dist = Math.abs(yRatio - layerYRatio);
+      if (dist < minDist) {
+        minDist = dist;
+        closest = layer;
+      }
+    }
+    return closest;
+  }, [layers, positionY]);
+
+  const handleCanvasPointerDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    const yRatio = getCanvasY(e);
+    const layer = findClosestLayer(yRatio);
+    if (!layer) return;
+    e.preventDefault();
+    const currentY = layer.customY ?? POS_MAP[positionY][layer.id as keyof (typeof POS_MAP)["top"]] ?? 0.5;
+    draggingRef.current = { layerId: layer.id, startMouseY: yRatio, startCustomY: currentY };
+    // Change cursor
+    if (canvasRef.current) canvasRef.current.style.cursor = "grabbing";
+  }, [getCanvasY, findClosestLayer, positionY]);
+
+  const handleCanvasPointerMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    if (!draggingRef.current) {
+      // Show grab cursor when hovering over text
+      const yRatio = getCanvasY(e);
+      const layer = findClosestLayer(yRatio);
+      if (canvasRef.current) canvasRef.current.style.cursor = layer ? "grab" : "default";
+      return;
+    }
+    e.preventDefault();
+    const yRatio = getCanvasY(e);
+    const delta = yRatio - draggingRef.current.startMouseY;
+    const newY = Math.max(0.05, Math.min(0.95, draggingRef.current.startCustomY + delta));
+    updateLayer(draggingRef.current.layerId, { customY: newY });
+  }, [getCanvasY, findClosestLayer]);
+
+  const handleCanvasPointerUp = useCallback(() => {
+    draggingRef.current = null;
+    if (canvasRef.current) canvasRef.current.style.cursor = "default";
+  }, []);
+
+  // Global mouseup/touchend to handle drag release outside canvas
+  useEffect(() => {
+    const handleUp = () => {
+      draggingRef.current = null;
+      if (canvasRef.current) canvasRef.current.style.cursor = "default";
+    };
+    window.addEventListener("mouseup", handleUp);
+    window.addEventListener("touchend", handleUp);
+    return () => {
+      window.removeEventListener("mouseup", handleUp);
+      window.removeEventListener("touchend", handleUp);
+    };
+  }, []);
+
+  const resetPositions = useCallback(() => {
+    setLayers((prev) => prev.map((l) => ({ ...l, customY: undefined })));
+  }, []);
+
   const handleSaveWithText = async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -529,7 +611,31 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
           {/* Canvas preview */}
           <div className="flex-1 min-w-0">
             <div className="rounded-xl border overflow-hidden bg-muted/20">
-              <canvas ref={canvasRef} className="w-full h-auto block" />
+              <canvas
+                ref={canvasRef}
+                className="w-full h-auto block touch-none"
+                onMouseDown={handleCanvasPointerDown}
+                onMouseMove={handleCanvasPointerMove}
+                onMouseUp={handleCanvasPointerUp}
+                onTouchStart={handleCanvasPointerDown}
+                onTouchMove={handleCanvasPointerMove}
+                onTouchEnd={handleCanvasPointerUp}
+              />
+            </div>
+            <div className="flex items-center justify-between mt-1.5 px-1">
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                <GripVertical className="w-3 h-3" />
+                Arraste os textos na imagem para reposicionar
+              </p>
+              {layers.some((l) => l.customY !== undefined) && (
+                <button
+                  type="button"
+                  onClick={resetPositions}
+                  className="text-[10px] text-primary hover:underline"
+                >
+                  Resetar posições
+                </button>
+              )}
             </div>
           </div>
 
