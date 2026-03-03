@@ -89,7 +89,8 @@ export function usePermissions(userId: string | undefined) {
   const hasPermission = useCallback(
     (permissionCode: string): boolean => {
       const userPerm = permissions.find((p) => p.permission === permissionCode);
-      return userPerm?.granted ?? false;
+      // Default to true (allowed) when no record exists — only block when explicitly denied
+      return userPerm?.granted ?? true;
     },
     [permissions]
   );
@@ -200,7 +201,8 @@ export function useUserPermissions(targetUserId: string | undefined) {
   const hasPermission = useCallback(
     (permissionCode: string): boolean => {
       const perm = permissions.find((p) => p.permission === permissionCode);
-      return perm?.granted ?? false;
+      // Default to true (allowed) when no record exists — only block when explicitly denied
+      return perm?.granted ?? true;
     },
     [permissions]
   );
