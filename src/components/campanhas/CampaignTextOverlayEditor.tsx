@@ -37,7 +37,38 @@ interface Props {
   imageUrl: string;
   onSave: (finalUrl: string) => void;
   companyId: string;
+  campaignType?: string;
 }
+
+/* ── Preset texts by campaign type ──────────────────────── */
+
+const CAMPAIGN_PRESETS: Record<string, { title: string; subtitle: string; cta: string }> = {
+  "Esquenta de Carnaval": { title: "ESQUENTA DE CARNAVAL", subtitle: "Descontos especiais para sua festa!", cta: "GARANTA SUA VAGA" },
+  "Volta às Aulas": { title: "VOLTA ÀS AULAS", subtitle: "Celebre o novo ciclo com diversão!", cta: "RESERVE AGORA" },
+  "Dia das Mães": { title: "ESPECIAL DIA DAS MÃES", subtitle: "Uma festa inesquecível para as mamães!", cta: "AGENDE JÁ" },
+  "Dia dos Pais": { title: "ESPECIAL DIA DOS PAIS", subtitle: "Comemore com quem você ama!", cta: "GARANTA SUA DATA" },
+  "Férias de Julho": { title: "FÉRIAS DE JULHO", subtitle: "Diversão garantida para toda família!", cta: "RESERVE AGORA" },
+  "Mês das Crianças": { title: "MÊS DAS CRIANÇAS", subtitle: "O mês mais divertido do ano!", cta: "APROVEITE" },
+  "Black Friday": { title: "BLACK FRIDAY", subtitle: "Os melhores preços do ano!", cta: "GARANTA JÁ" },
+  "Natal Mágico": { title: "NATAL MÁGICO", subtitle: "A magia do Natal na sua festa!", cta: "RESERVE SUA DATA" },
+  "Promoção de Natal": { title: "PROMOÇÃO DE NATAL", subtitle: "Descontos especiais de fim de ano!", cta: "APROVEITE AGORA" },
+  "Liquidação de Verão": { title: "LIQUIDAÇÃO DE VERÃO", subtitle: "Os melhores preços da temporada!", cta: "CONFIRA" },
+  "Especial Primavera": { title: "ESPECIAL PRIMAVERA", subtitle: "Festas floridas com preços especiais!", cta: "RESERVE JÁ" },
+  "Feriado Prolongado": { title: "FERIADO PROLONGADO", subtitle: "Aproveite o feriado para festejar!", cta: "GARANTA SUA VAGA" },
+  "Mês do Consumidor": { title: "MÊS DO CONSUMIDOR", subtitle: "Condições exclusivas para você!", cta: "APROVEITE" },
+  "Semana do Cliente": { title: "SEMANA DO CLIENTE", subtitle: "Ofertas especiais só esta semana!", cta: "RESERVE AGORA" },
+  "Promo Aniversário": { title: "ANIVERSÁRIO DO BUFFET", subtitle: "Comemore com a gente com descontos!", cta: "GARANTA JÁ" },
+  "Super Promoção": { title: "SUPER PROMOÇÃO", subtitle: "Condições imperdíveis por tempo limitado!", cta: "NÃO PERCA" },
+  "Festival de Descontos": { title: "FESTIVAL DE DESCONTOS", subtitle: "Até 15% OFF em pacotes selecionados!", cta: "CONFIRA AGORA" },
+  "Oportunidade Relâmpago": { title: "OPORTUNIDADE RELÂMPAGO", subtitle: "Vagas limitadas com desconto!", cta: "FECHE AGORA" },
+  "Últimos Contratos": { title: "ÚLTIMOS CONTRATOS", subtitle: "Poucas vagas restantes no mês!", cta: "GARANTA A SUA" },
+  "Última Chance": { title: "ÚLTIMA CHANCE", subtitle: "Antes do reajuste de preços!", cta: "APROVEITE AGORA" },
+  "Queima de Estoque": { title: "QUEIMA DE DATAS", subtitle: "Descontos agressivos para fechar!", cta: "CONFIRA" },
+  "Fecha em 25": { title: "FECHA EM R$25", subtitle: "Entrada especial por convidado!", cta: "SAIBA MAIS" },
+  "Lote Promocional": { title: "LOTE PROMOCIONAL", subtitle: "Vagas limitadas com desconto!", cta: "GARANTA JÁ" },
+  "Convite Especial": { title: "CONVITE ESPECIAL", subtitle: "Uma oferta exclusiva para você!", cta: "AGENDE SUA VISITA" },
+  "Reativação de Leads": { title: "OFERTA EXCLUSIVA", subtitle: "Voltamos com uma proposta especial!", cta: "ENTRE EM CONTATO" },
+};
 
 /* ── Constants ──────────────────────────────────────────── */
 
@@ -360,7 +391,7 @@ const RENDER_MAP: Record<TemplateId, RenderFn> = {
 
 /* ── Component ───────────────────────────────────────────── */
 
-export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave, companyId }: Props) {
+export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave, companyId, campaignType }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [template, setTemplate] = useState<TemplateId>("oferta");
   const [layers, setLayers] = useState<TextLayer[]>(TEMPLATES[0].layers.map((l) => ({ ...l })));
@@ -370,6 +401,23 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
   const [imageLoaded, setImageLoaded] = useState(false);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const [cardSettings, setCardSettings] = useState<CardSettings>({ showCard: true, opacity: 65, cardSize: 50 });
+  const appliedPresetRef = useRef<string | null>(null);
+
+  // Pre-fill layers from campaign type when editor opens
+  useEffect(() => {
+    if (!open || !campaignType) return;
+    if (appliedPresetRef.current === campaignType) return;
+    const preset = CAMPAIGN_PRESETS[campaignType];
+    if (preset) {
+      setLayers((prev) => prev.map((l) => {
+        if (l.id === "title") return { ...l, content: preset.title };
+        if (l.id === "subtitle") return { ...l, content: preset.subtitle };
+        if (l.id === "cta") return { ...l, content: preset.cta };
+        return l;
+      }));
+      appliedPresetRef.current = campaignType;
+    }
+  }, [open, campaignType]);
 
   // Load base image
   useEffect(() => {
