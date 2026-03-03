@@ -236,6 +236,10 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
       // Open text overlay editor instead of saving directly
       setPendingArtUrl(data.url);
       setArtDialogOpen(false);
+      toast("🎨 Sua imagem ficou pronta! Personalize ela com a sua preferência!", {
+        duration: 5000,
+        icon: "✨",
+      });
       setTextEditorOpen(true);
     } catch (err: any) {
       console.error("campaign-image error:", err);
