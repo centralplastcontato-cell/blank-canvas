@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Type, Save, X, LayoutTemplate, Move, ALargeSmall } from "lucide-react";
+import { Loader2, Type, Save, X, LayoutTemplate, Move, ALargeSmall, Square, Eye, Maximize2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -240,53 +241,81 @@ function renderOferta(ctx: CanvasRenderingContext2D, size: number, layers: TextL
   }
 }
 
-function renderEscassez(ctx: CanvasRenderingContext2D, size: number, layers: TextLayer[], accentColor: string, _posY: PositionY) {
+function renderEscassez(ctx: CanvasRenderingContext2D, size: number, layers: TextLayer[], accentColor: string, posY: PositionY, cardSettings?: CardSettings) {
   const title = layers.find((l) => l.id === "title")!;
   const subtitle = layers.find((l) => l.id === "subtitle")!;
   const cta = layers.find((l) => l.id === "cta")!;
+  const showCard = cardSettings?.showCard ?? true;
+  const cardOpacity = (cardSettings?.opacity ?? 65) / 100;
+  const cardSizeFactor = 0.5 + (cardSettings?.cardSize ?? 50) / 100 * 0.5; // 0.5 to 1.0
 
-  ctx.fillStyle = "rgba(0,0,0,0.3)";
-  ctx.fillRect(0, 0, size, size);
+  if (showCard) {
+    ctx.fillStyle = `rgba(0,0,0,${(cardOpacity * 0.45).toFixed(2)})`;
+    ctx.fillRect(0, 0, size, size);
 
-  const cardW = size * 0.78;
-  const cardH = size * 0.48;
-  const cardX = (size - cardW) / 2;
-  const cardY = (size - cardH) / 2;
+    const cardW = size * 0.78 * cardSizeFactor;
+    const cardH = size * 0.48 * cardSizeFactor;
+    const cardX = (size - cardW) / 2;
+    const cardY = (size - cardH) / 2;
 
-  ctx.save();
-  ctx.shadowColor = "rgba(0,0,0,0.4)";
-  ctx.shadowBlur = 30;
-  ctx.shadowOffsetY = 10;
-  ctx.fillStyle = "rgba(0,0,0,0.65)";
-  drawRoundedRect(ctx, cardX, cardY, cardW, cardH, 20);
-  ctx.fill();
-  ctx.restore();
+    ctx.save();
+    ctx.shadowColor = "rgba(0,0,0,0.4)";
+    ctx.shadowBlur = 30;
+    ctx.shadowOffsetY = 10;
+    ctx.fillStyle = `rgba(0,0,0,${cardOpacity.toFixed(2)})`;
+    drawRoundedRect(ctx, cardX, cardY, cardW, cardH, 20);
+    ctx.fill();
+    ctx.restore();
 
-  ctx.fillStyle = accentColor;
-  drawRoundedRect(ctx, cardX, cardY, cardW, 6, 20);
-  ctx.fill();
-  ctx.fillRect(cardX + 20, cardY, cardW - 40, 6);
-
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-
-  if (title.content.trim()) {
-    const px = layerFontPx("title", title.fontSize);
-    ctx.font = `bold ${px}px ${title.fontFamily}, sans-serif`;
-    ctx.fillStyle = "#FFFFFF";
-    ctx.fillText(title.content.trim().toUpperCase(), size / 2, cardY + cardH * 0.32);
-  }
-  if (subtitle.content.trim()) {
-    const px = layerFontPx("subtitle", subtitle.fontSize);
-    ctx.font = `500 ${px}px ${subtitle.fontFamily}, sans-serif`;
-    ctx.fillStyle = "rgba(255,255,255,0.85)";
-    ctx.fillText(subtitle.content.trim(), size / 2, cardY + cardH * 0.55);
-  }
-  if (cta.content.trim()) {
-    const px = layerFontPx("cta", cta.fontSize);
-    ctx.font = `bold ${px}px ${cta.fontFamily}, sans-serif`;
     ctx.fillStyle = accentColor;
-    ctx.fillText(cta.content.trim(), size / 2, cardY + cardH * 0.78);
+    drawRoundedRect(ctx, cardX, cardY, cardW, 6, 20);
+    ctx.fill();
+    ctx.fillRect(cardX + 20, cardY, cardW - 40, 6);
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    if (title.content.trim()) {
+      const px = layerFontPx("title", title.fontSize);
+      ctx.font = `bold ${px}px ${title.fontFamily}, sans-serif`;
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillText(title.content.trim().toUpperCase(), size / 2, cardY + cardH * 0.32);
+    }
+    if (subtitle.content.trim()) {
+      const px = layerFontPx("subtitle", subtitle.fontSize);
+      ctx.font = `500 ${px}px ${subtitle.fontFamily}, sans-serif`;
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.fillText(subtitle.content.trim(), size / 2, cardY + cardH * 0.55);
+    }
+    if (cta.content.trim()) {
+      const px = layerFontPx("cta", cta.fontSize);
+      ctx.font = `bold ${px}px ${cta.fontFamily}, sans-serif`;
+      ctx.fillStyle = accentColor;
+      ctx.fillText(cta.content.trim(), size / 2, cardY + cardH * 0.78);
+    }
+  } else {
+    // No card — use gradient + text like other templates
+    const pos = POS_MAP[posY];
+    drawGradientOverlay(ctx, size, "both");
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    if (title.content.trim()) {
+      const px = layerFontPx("title", title.fontSize);
+      ctx.font = `bold ${px}px ${title.fontFamily}, sans-serif`;
+      drawTextWithShadow(ctx, title.content.trim().toUpperCase(), size / 2, size * pos.title, "#FFFFFF");
+    }
+    if (subtitle.content.trim()) {
+      const px = layerFontPx("subtitle", subtitle.fontSize);
+      ctx.font = `500 ${px}px ${subtitle.fontFamily}, sans-serif`;
+      drawTextWithShadow(ctx, subtitle.content.trim(), size / 2, size * pos.subtitle, "rgba(255,255,255,0.88)", "rgba(0,0,0,0.3)", 1);
+    }
+    if (cta.content.trim()) {
+      const px = layerFontPx("cta", cta.fontSize);
+      ctx.font = `bold ${px}px ${cta.fontFamily}, sans-serif`;
+      ctx.fillStyle = accentColor;
+      drawTextWithShadow(ctx, cta.content.trim(), size / 2, size * pos.cta, accentColor);
+    }
   }
 }
 
@@ -316,7 +345,13 @@ function renderSazonal(ctx: CanvasRenderingContext2D, size: number, layers: Text
   }
 }
 
-type RenderFn = (ctx: CanvasRenderingContext2D, size: number, layers: TextLayer[], accent: string, posY: PositionY) => void;
+interface CardSettings {
+  showCard: boolean;
+  opacity: number;   // 0-100
+  cardSize: number;  // 0-100
+}
+
+type RenderFn = (ctx: CanvasRenderingContext2D, size: number, layers: TextLayer[], accent: string, posY: PositionY, cardSettings?: CardSettings) => void;
 const RENDER_MAP: Record<TemplateId, RenderFn> = {
   oferta: renderOferta,
   escassez: renderEscassez,
@@ -334,6 +369,7 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
   const [saving, setSaving] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const imgRef = useRef<HTMLImageElement | null>(null);
+  const [cardSettings, setCardSettings] = useState<CardSettings>({ showCard: true, opacity: 65, cardSize: 50 });
 
   // Load base image
   useEffect(() => {
@@ -387,8 +423,8 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
     const h = img.height * scale;
     ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
 
-    RENDER_MAP[template](ctx, size, layers, accentColor, positionY);
-  }, [layers, imageLoaded, template, accentColor, positionY]);
+    RENDER_MAP[template](ctx, size, layers, accentColor, positionY, cardSettings);
+  }, [layers, imageLoaded, template, accentColor, positionY, cardSettings]);
 
   useEffect(() => { renderCanvas(); }, [renderCanvas]);
 
@@ -510,7 +546,57 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
               </div>
             </div>
 
-            {/* Text inputs with font controls */}
+            {/* Card settings — only for Escassez */}
+            {template === "escassez" && (
+              <div className="space-y-3 p-3 rounded-xl border border-border/40 bg-muted/5">
+                <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                  <Square className="w-3.5 h-3.5" /> Card central
+                </p>
+
+                {/* Toggle card on/off */}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Exibir card</span>
+                  <Switch
+                    checked={cardSettings.showCard}
+                    onCheckedChange={(v) => setCardSettings((s) => ({ ...s, showCard: v }))}
+                  />
+                </div>
+
+                {cardSettings.showCard && (
+                  <>
+                    {/* Opacity */}
+                    <div className="flex items-center gap-2">
+                      <Eye className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                      <span className="text-[10px] text-muted-foreground shrink-0 w-14">Opacidade</span>
+                      <Slider
+                        value={[cardSettings.opacity]}
+                        onValueChange={([v]) => setCardSettings((s) => ({ ...s, opacity: v }))}
+                        min={10}
+                        max={100}
+                        step={5}
+                        className="flex-1"
+                      />
+                      <span className="text-[10px] text-muted-foreground w-8 text-right">{cardSettings.opacity}%</span>
+                    </div>
+
+                    {/* Size */}
+                    <div className="flex items-center gap-2">
+                      <Maximize2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                      <span className="text-[10px] text-muted-foreground shrink-0 w-14">Tamanho</span>
+                      <Slider
+                        value={[cardSettings.cardSize]}
+                        onValueChange={([v]) => setCardSettings((s) => ({ ...s, cardSize: v }))}
+                        min={20}
+                        max={100}
+                        step={5}
+                        className="flex-1"
+                      />
+                      <span className="text-[10px] text-muted-foreground w-8 text-right">{cardSettings.cardSize}%</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
             <div className="space-y-4">
               {layers.map((layer) => (
                 <div key={layer.id} className="space-y-2 p-3 rounded-xl border border-border/40 bg-muted/5">
