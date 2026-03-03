@@ -30,9 +30,8 @@ export default function Inteligencia() {
   const navigate = useNavigate();
   const modules = useCompanyModules();
   const [activeTab, setActiveTab] = useState("resumo");
-  const needsIntelligence = activeTab !== "resumo";
-  const { data, isLoading, refetch } = useLeadIntelligence(needsIntelligence);
-  const { data: stageDurations, isLoading: isDurationsLoading } = useLeadStageDurations(needsIntelligence);
+  const { data, isLoading, refetch } = useLeadIntelligence(true);
+  const { data: stageDurations, isLoading: isDurationsLoading } = useLeadStageDurations(activeTab === "funil");
   const { currentCompany } = useCompany();
 
   const [isAdmin, setIsAdmin] = useState(false);
@@ -437,7 +436,7 @@ export default function Inteligencia() {
               </TabsContent>
 
               <TabsContent value="prioridades" className="animate-fade-up">
-                {isLoading || isLoadingUnitPerms || permLoading ? (
+                {isLoading || !data || isLoadingUnitPerms || permLoading ? (
                   <LoadingSkeleton />
                 ) : (
                   <PrioridadesTab data={filteredData} />
@@ -445,7 +444,7 @@ export default function Inteligencia() {
               </TabsContent>
 
               <TabsContent value="follow-ups" className="animate-fade-up">
-                {isLoading || isLoadingUnitPerms || permLoading ? (
+                {isLoading || !data || isLoadingUnitPerms || permLoading ? (
                   <LoadingSkeleton />
                 ) : (
                   <FollowUpsTab intelligenceData={filteredData} selectedUnit={selectedUnit} />
@@ -453,7 +452,7 @@ export default function Inteligencia() {
               </TabsContent>
 
               <TabsContent value="funil" className="animate-fade-up">
-                {isLoading || isLoadingUnitPerms || isDurationsLoading || permLoading ? (
+                {isLoading || !data || isLoadingUnitPerms || isDurationsLoading || permLoading ? (
                   <LoadingSkeleton />
                 ) : (
                   <FunilTab data={filteredData} stageDurations={stageDurations} />
@@ -461,7 +460,7 @@ export default function Inteligencia() {
               </TabsContent>
 
               <TabsContent value="leads-dia" className="animate-fade-up">
-                {isLoading || isLoadingUnitPerms || permLoading ? (
+                {isLoading || !data || isLoadingUnitPerms || permLoading ? (
                   <LoadingSkeleton />
                 ) : (
                   <LeadsDoDiaTab data={filteredData} canExport={hasExport} />
