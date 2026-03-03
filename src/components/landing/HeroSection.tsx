@@ -233,21 +233,6 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
           </motion.div>
         </motion.div>
 
-        {/* Scroll Indicator */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.8 }}
-          className="absolute bottom-6 left-1/2 -translate-x-1/2"
-        >
-          <motion.div
-            animate={{ y: [0, 10, 0] }}
-            transition={{ duration: 1.5, repeat: Infinity }}
-            className="w-8 h-12 rounded-full border-2 border-primary-foreground/40 flex items-start justify-center p-2"
-          >
-            <div className="w-2 h-3 bg-primary-foreground/40 rounded-full" />
-          </motion.div>
-        </motion.div>
       </div>
     </section>
   );
