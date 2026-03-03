@@ -1,46 +1,21 @@
 
 
-## Correção 2: Ampliar escopo de follow-up para leads inativos
+## Problem
 
-### Problema atual
-A função `processFollowUp` (linha 434-441) busca **apenas** leads que escolheram "Analisar com calma" (ação "Próximo passo escolhido" com valor "Analisar" ou "3"). Leads que ficam inativos em status como `orcamento_enviado` ou `aguardando_resposta` sem ter passado por essa escolha específica nunca recebem follow-up.
+The send button becomes disabled for several seconds after each message because `isSending` is set to `true` before the API call (`supabase.functions.invoke("wapi-send")`) and only reset to `false` after it completes. Since the Edge Function call takes 2-5 seconds, the user cannot send sequential messages rapidly.
 
-### Solução
-Expandir o `processFollowUp` para buscar leads por **duas vias** (OR):
+## Solution
 
-1. **Via atual**: leads que escolheram "Analisar com calma" (mantém comportamento existente)
-2. **Via nova**: leads inativos cuja última mensagem do bot/agente foi enviada dentro da janela de tempo, e que estão em status `orcamento_enviado` ou `aguardando_resposta`
+Move `setIsSending(false)` to immediately after the optimistic message is added to the UI, **before** the API call. The optimistic update already handles showing the message instantly, so there's no UX reason to block the input while the network request completes. Each send will still be self-contained — errors will restore the message to the input field independently.
 
-### Alterações no arquivo
+## Changes
 
-**Arquivo**: `supabase/functions/follow-up-check/index.ts`
+**File: `src/components/whatsapp/WhatsAppChat.tsx`**
 
-#### Mudança 1: Busca de leads inativos (após linha 441)
-Adicionar uma segunda query para buscar conversas inativas na instância atual, onde:
-- `instance_id` = instância sendo processada
-- `last_message_from_me` = true (bot/agente enviou, lead não respondeu)
-- `last_message_at` está dentro da janela `minTime` → `maxTime`
-- Não é grupo (`@g.us`)
-- Tem `lead_id` associado
+1. Move `setIsSending(false)` from line 1879 (after API call) to right after line 1825 (after optimistic message is added)
+2. Also move the textarea refocus (`setTimeout(() => messageTextareaRef.current?.focus(), 50)`) to the same early position
+3. Remove the `setIsSending(false)` on line 1859 (SESSION_INCOMPLETE error path) since it will already be false
+4. Remove the late `setIsSending(false)` on line 1879
 
-Unir os `lead_id` das duas fontes (Set) para eliminar duplicatas.
-
-#### Mudança 2: Expandir filtro de status (linha 530)
-Trocar `.eq("status", "aguardando_resposta")` por `.in("status", ["aguardando_resposta", "orcamento_enviado"])` para incluir leads em orçamento enviado.
-
-#### Mudança 3: Log descritivo
-Atualizar logs para indicar quantos leads vieram de cada via (analisar vs inativo).
-
-### Segurança multi-tenant
-O isolamento por `instance_id` é mantido em ambas as vias. A query de conversas inativas filtra por `instance_id` da mesma forma que a via atual.
-
-### Proteções existentes mantidas
-- Verificação de follow-up já enviado (`lead_history` com `historyAction`)
-- Verificação de resposta do lead (`last_message_from_me = false`)
-- Verificação de follow-up anterior para FU2/3/4 (`checkPreviousAction`)
-- Test mode guard
-- Append de opções numeradas na mensagem
-
-### Resultado esperado
-Leads inativos em `orcamento_enviado` e `aguardando_resposta` passam a receber follow-ups mesmo sem ter escolhido "Analisar com calma", cobrindo os 519+ leads que hoje ficam sem acompanhamento.
+This ensures the button re-enables instantly (~0ms) after each send, matching native WhatsApp behavior where you can type and send messages in rapid succession.
 
