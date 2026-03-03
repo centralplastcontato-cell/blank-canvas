@@ -14,7 +14,7 @@ import { toast } from "sonner";
 
 /* ── Types ──────────────────────────────────────────────── */
 
-type TemplateId = "oferta" | "escassez" | "sazonal";
+type TemplateId = "oferta" | "escassez" | "sazonal" | "minimalista" | "neon";
 type PositionY = "top" | "center" | "bottom";
 
 interface TextLayer {
@@ -25,6 +25,8 @@ interface TextLayer {
   fontSize: number;        // 0-100 slider → mapped to px range per layer
   fontFamily: string;
   customY?: number;        // 0-1 ratio for custom drag position
+  shadowEnabled?: boolean; // toggle text shadow
+  shadowIntensity?: number; // 0-100 shadow strength
 }
 
 interface TemplateConfig {
@@ -247,12 +249,16 @@ const COLOR_PRESETS = [
 
 const FONT_OPTIONS = [
   { value: "Montserrat", label: "Montserrat" },
+  { value: "Bebas Neue", label: "Bebas Neue" },
+  { value: "Playfair Display", label: "Playfair Display" },
+  { value: "Oswald", label: "Oswald" },
+  { value: "Dancing Script", label: "Dancing Script" },
+  { value: "Permanent Marker", label: "Permanent Marker" },
+  { value: "Poppins", label: "Poppins" },
+  { value: "Roboto Condensed", label: "Roboto Condensed" },
   { value: "Arial Black", label: "Arial Black" },
   { value: "Georgia", label: "Georgia" },
   { value: "Impact", label: "Impact" },
-  { value: "Courier New", label: "Courier New" },
-  { value: "Trebuchet MS", label: "Trebuchet MS" },
-  { value: "Verdana", label: "Verdana" },
 ];
 
 const POSITION_OPTIONS: { value: PositionY; label: string }[] = [
@@ -274,7 +280,7 @@ function layerFontPx(layerId: string, sliderVal: number): number {
 }
 
 const defaultLayer = (id: string, label: string, placeholder: string, defaultSize = 50): TextLayer => ({
-  id, label, content: "", placeholder, fontSize: defaultSize, fontFamily: "Montserrat",
+  id, label, content: "", placeholder, fontSize: defaultSize, fontFamily: "Montserrat", shadowEnabled: true, shadowIntensity: 50,
 });
 
 const TEMPLATES: TemplateConfig[] = [
@@ -308,9 +314,27 @@ const TEMPLATES: TemplateConfig[] = [
       defaultLayer("cta", "Botão CTA", "RESERVE AGORA", 50),
     ],
   },
+  {
+    id: "minimalista",
+    label: "Minimalista",
+    description: "Clean, sem gradiente",
+    layers: [
+      defaultLayer("title", "Título", "PROMOÇÃO ESPECIAL", 55),
+      defaultLayer("subtitle", "Subtítulo", "Condições exclusivas para você", 50),
+      defaultLayer("cta", "Botão CTA", "SAIBA MAIS", 50),
+    ],
+  },
+  {
+    id: "neon",
+    label: "Neon",
+    description: "Brilho colorido futurista",
+    layers: [
+      defaultLayer("title", "Título", "MEGA PROMOÇÃO", 55),
+      defaultLayer("subtitle", "Subtítulo", "Oferta por tempo limitado!", 50),
+      defaultLayer("cta", "Botão CTA", "GARANTA JÁ", 50),
+    ],
+  },
 ];
-
-/* ── Helpers ─────────────────────────────────────────────── */
 
 function drawRoundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
@@ -328,19 +352,46 @@ function drawRoundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w:
 
 function drawTextWithShadow(
   ctx: CanvasRenderingContext2D, text: string, x: number, y: number,
-  color: string, strokeColor = "rgba(0,0,0,0.6)", strokeWidth = 2
+  color: string, strokeColor = "rgba(0,0,0,0.6)", strokeWidth = 2,
+  layer?: TextLayer
 ) {
   ctx.save();
-  ctx.shadowColor = "rgba(0,0,0,0.5)";
-  ctx.shadowBlur = 8;
-  ctx.shadowOffsetX = 2;
-  ctx.shadowOffsetY = 2;
+  const shadowOn = layer?.shadowEnabled !== false;
+  const intensity = (layer?.shadowIntensity ?? 50) / 100;
+  if (shadowOn) {
+    ctx.shadowColor = `rgba(0,0,0,${(0.5 * intensity).toFixed(2)})`;
+    ctx.shadowBlur = 8 * intensity;
+    ctx.shadowOffsetX = 2 * intensity;
+    ctx.shadowOffsetY = 2 * intensity;
+  }
   ctx.strokeStyle = strokeColor;
   ctx.lineWidth = strokeWidth;
   ctx.strokeText(text, x, y);
   ctx.shadowBlur = 0;
   ctx.shadowOffsetX = 0;
   ctx.shadowOffsetY = 0;
+  ctx.fillStyle = color;
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+function drawNeonText(
+  ctx: CanvasRenderingContext2D, text: string, x: number, y: number,
+  color: string, glowColor: string, layer?: TextLayer
+) {
+  ctx.save();
+  const intensity = (layer?.shadowIntensity ?? 70) / 100;
+  // Multi-pass glow
+  for (let i = 3; i >= 1; i--) {
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur = (20 * i) * intensity;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    ctx.fillStyle = i === 1 ? color : "transparent";
+    ctx.fillText(text, x, y);
+  }
+  // Final crisp text
+  ctx.shadowBlur = 0;
   ctx.fillStyle = color;
   ctx.fillText(text, x, y);
   ctx.restore();
@@ -424,12 +475,12 @@ function renderOferta(ctx: CanvasRenderingContext2D, size: number, layers: TextL
   if (title.content.trim()) {
     const px = layerFontPx("title", title.fontSize);
     ctx.font = `bold ${px}px ${title.fontFamily}, sans-serif`;
-    drawTextWithShadow(ctx, title.content.trim().toUpperCase(), size / 2, getLayerY(title, "title", pos, size), "#FFFFFF");
+    drawTextWithShadow(ctx, title.content.trim().toUpperCase(), size / 2, getLayerY(title, "title", pos, size), "#FFFFFF", "rgba(0,0,0,0.6)", 2, title);
   }
   if (subtitle.content.trim()) {
     const px = layerFontPx("subtitle", subtitle.fontSize);
     ctx.font = `600 ${px}px ${subtitle.fontFamily}, sans-serif`;
-    drawTextWithShadow(ctx, subtitle.content.trim(), size / 2, getLayerY(subtitle, "subtitle", pos, size), "rgba(255,255,255,0.9)", "rgba(0,0,0,0.4)", 1);
+    drawTextWithShadow(ctx, subtitle.content.trim(), size / 2, getLayerY(subtitle, "subtitle", pos, size), "rgba(255,255,255,0.9)", "rgba(0,0,0,0.4)", 1, subtitle);
   }
   if (cta.content.trim()) {
     const px = layerFontPx("cta", cta.fontSize);
@@ -499,18 +550,18 @@ function renderEscassez(ctx: CanvasRenderingContext2D, size: number, layers: Tex
     if (title.content.trim()) {
       const px = layerFontPx("title", title.fontSize);
       ctx.font = `bold ${px}px ${title.fontFamily}, sans-serif`;
-      drawTextWithShadow(ctx, title.content.trim().toUpperCase(), size / 2, getLayerY(title, "title", pos, size), "#FFFFFF");
+      drawTextWithShadow(ctx, title.content.trim().toUpperCase(), size / 2, getLayerY(title, "title", pos, size), "#FFFFFF", "rgba(0,0,0,0.6)", 2, title);
     }
     if (subtitle.content.trim()) {
       const px = layerFontPx("subtitle", subtitle.fontSize);
       ctx.font = `500 ${px}px ${subtitle.fontFamily}, sans-serif`;
-      drawTextWithShadow(ctx, subtitle.content.trim(), size / 2, getLayerY(subtitle, "subtitle", pos, size), "rgba(255,255,255,0.88)", "rgba(0,0,0,0.3)", 1);
+      drawTextWithShadow(ctx, subtitle.content.trim(), size / 2, getLayerY(subtitle, "subtitle", pos, size), "rgba(255,255,255,0.88)", "rgba(0,0,0,0.3)", 1, subtitle);
     }
     if (cta.content.trim()) {
       const px = layerFontPx("cta", cta.fontSize);
       ctx.font = `bold ${px}px ${cta.fontFamily}, sans-serif`;
       ctx.fillStyle = accentColor;
-      drawTextWithShadow(ctx, cta.content.trim(), size / 2, getLayerY(cta, "cta", pos, size), accentColor);
+      drawTextWithShadow(ctx, cta.content.trim(), size / 2, getLayerY(cta, "cta", pos, size), accentColor, "rgba(0,0,0,0.3)", 1, cta);
     }
   }
 }
@@ -528,12 +579,12 @@ function renderSazonal(ctx: CanvasRenderingContext2D, size: number, layers: Text
   if (title.content.trim()) {
     const px = layerFontPx("title", title.fontSize);
     ctx.font = `bold ${px}px ${title.fontFamily}, sans-serif`;
-    drawTextWithShadow(ctx, title.content.trim().toUpperCase(), size / 2, getLayerY(title, "title", pos, size), "#FFFFFF");
+    drawTextWithShadow(ctx, title.content.trim().toUpperCase(), size / 2, getLayerY(title, "title", pos, size), "#FFFFFF", "rgba(0,0,0,0.6)", 2, title);
   }
   if (subtitle.content.trim()) {
     const px = layerFontPx("subtitle", subtitle.fontSize);
     ctx.font = `500 ${px}px ${subtitle.fontFamily}, sans-serif`;
-    drawTextWithShadow(ctx, subtitle.content.trim(), size / 2, getLayerY(subtitle, "subtitle", pos, size), "rgba(255,255,255,0.88)", "rgba(0,0,0,0.3)", 1);
+    drawTextWithShadow(ctx, subtitle.content.trim(), size / 2, getLayerY(subtitle, "subtitle", pos, size), "rgba(255,255,255,0.88)", "rgba(0,0,0,0.3)", 1, subtitle);
   }
   if (cta.content.trim()) {
     const px = layerFontPx("cta", cta.fontSize);
@@ -548,10 +599,106 @@ interface CardSettings {
 }
 
 type RenderFn = (ctx: CanvasRenderingContext2D, size: number, layers: TextLayer[], accent: string, posY: PositionY, cardSettings?: CardSettings) => void;
+
+function renderMinimalista(ctx: CanvasRenderingContext2D, size: number, layers: TextLayer[], accentColor: string, posY: PositionY) {
+  const title = layers.find((l) => l.id === "title")!;
+  const subtitle = layers.find((l) => l.id === "subtitle")!;
+  const cta = layers.find((l) => l.id === "cta")!;
+  const pos = POS_MAP[posY];
+
+  // Subtle dark overlay at bottom only
+  const grad = ctx.createLinearGradient(0, size * 0.6, 0, size);
+  grad.addColorStop(0, "rgba(0,0,0,0)");
+  grad.addColorStop(1, "rgba(0,0,0,0.4)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  if (title.content.trim()) {
+    const px = layerFontPx("title", title.fontSize);
+    ctx.font = `bold ${px}px ${title.fontFamily}, sans-serif`;
+    // Clean white text, minimal shadow
+    drawTextWithShadow(ctx, title.content.trim().toUpperCase(), size / 2, getLayerY(title, "title", pos, size), "#FFFFFF", "rgba(0,0,0,0.2)", 1, title);
+  }
+  if (subtitle.content.trim()) {
+    const px = layerFontPx("subtitle", subtitle.fontSize);
+    ctx.font = `400 ${px}px ${subtitle.fontFamily}, sans-serif`;
+    drawTextWithShadow(ctx, subtitle.content.trim(), size / 2, getLayerY(subtitle, "subtitle", pos, size), "rgba(255,255,255,0.85)", "rgba(0,0,0,0.15)", 0.5, subtitle);
+  }
+  if (cta.content.trim()) {
+    const px = layerFontPx("cta", cta.fontSize);
+    // Simple underlined text instead of button
+    ctx.font = `600 ${px}px ${cta.fontFamily}, sans-serif`;
+    const y = getLayerY(cta, "cta", pos, size);
+    drawTextWithShadow(ctx, cta.content.trim().toUpperCase(), size / 2, y, accentColor, "rgba(0,0,0,0.15)", 0.5, cta);
+    // Underline
+    const metrics = ctx.measureText(cta.content.trim().toUpperCase());
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(size / 2 - metrics.width / 2, y + px * 0.4);
+    ctx.lineTo(size / 2 + metrics.width / 2, y + px * 0.4);
+    ctx.stroke();
+  }
+}
+
+function renderNeon(ctx: CanvasRenderingContext2D, size: number, layers: TextLayer[], accentColor: string, posY: PositionY) {
+  const title = layers.find((l) => l.id === "title")!;
+  const subtitle = layers.find((l) => l.id === "subtitle")!;
+  const cta = layers.find((l) => l.id === "cta")!;
+  const pos = POS_MAP[posY];
+
+  // Dark overlay for neon effect
+  ctx.fillStyle = "rgba(0,0,0,0.55)";
+  ctx.fillRect(0, 0, size, size);
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  if (title.content.trim()) {
+    const px = layerFontPx("title", title.fontSize);
+    ctx.font = `bold ${px}px ${title.fontFamily}, sans-serif`;
+    drawNeonText(ctx, title.content.trim().toUpperCase(), size / 2, getLayerY(title, "title", pos, size), "#FFFFFF", accentColor, title);
+  }
+  if (subtitle.content.trim()) {
+    const px = layerFontPx("subtitle", subtitle.fontSize);
+    ctx.font = `500 ${px}px ${subtitle.fontFamily}, sans-serif`;
+    drawNeonText(ctx, subtitle.content.trim(), size / 2, getLayerY(subtitle, "subtitle", pos, size), "rgba(255,255,255,0.9)", accentColor, subtitle);
+  }
+  if (cta.content.trim()) {
+    const px = layerFontPx("cta", cta.fontSize);
+    // Neon bordered button
+    ctx.font = `bold ${px}px ${cta.fontFamily}, sans-serif`;
+    const metrics = ctx.measureText(cta.content.trim().toUpperCase());
+    const btnW = metrics.width + 80;
+    const btnH = px + 44;
+    const y = getLayerY(cta, "cta", pos, size);
+    const btnX = size / 2 - btnW / 2;
+    const btnY = y - btnH / 2;
+
+    // Neon glow border
+    ctx.save();
+    ctx.shadowColor = accentColor;
+    ctx.shadowBlur = 20;
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 3;
+    drawRoundedRect(ctx, btnX, btnY, btnW, btnH, 14);
+    ctx.stroke();
+    ctx.restore();
+
+    // Text inside
+    drawNeonText(ctx, cta.content.trim().toUpperCase(), size / 2, y + 2, "#FFFFFF", accentColor, cta);
+  }
+}
+
 const RENDER_MAP: Record<TemplateId, RenderFn> = {
   oferta: renderOferta,
   escassez: renderEscassez,
   sazonal: renderSazonal,
+  minimalista: renderMinimalista,
+  neon: renderNeon,
 };
 
 /* ── Component ───────────────────────────────────────────── */
@@ -599,15 +746,30 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
   // Load fonts
   useEffect(() => {
     if (!open) return;
-    const weights = [
-      { weight: "500", url: "https://fonts.gstatic.com/s/montserrat/v29/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCu173w5aXo.woff2" },
-      { weight: "600", url: "https://fonts.gstatic.com/s/montserrat/v29/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCuM73w5aXo.woff2" },
-      { weight: "700", url: "https://fonts.gstatic.com/s/montserrat/v29/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Hw5aXo.woff2" },
+    const googleFonts: { family: string; weights: string[]; url: string }[] = [
+      { family: "Montserrat", weights: ["500", "600", "700"], url: "https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&display=swap" },
+      { family: "Bebas Neue", weights: ["400"], url: "https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" },
+      { family: "Playfair Display", weights: ["400", "700"], url: "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap" },
+      { family: "Oswald", weights: ["400", "600", "700"], url: "https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&display=swap" },
+      { family: "Dancing Script", weights: ["400", "700"], url: "https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&display=swap" },
+      { family: "Permanent Marker", weights: ["400"], url: "https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap" },
+      { family: "Poppins", weights: ["400", "600", "700"], url: "https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" },
+      { family: "Roboto Condensed", weights: ["400", "700"], url: "https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&display=swap" },
     ];
-    Promise.all(weights.map((w) => {
-      const f = new FontFace("Montserrat", `url(${w.url})`, { weight: w.weight });
-      return f.load().then((loaded) => document.fonts.add(loaded));
-    })).catch(() => {});
+    // Inject link tags for Google Fonts (CSS approach for canvas compatibility)
+    googleFonts.forEach((gf) => {
+      if (!document.querySelector(`link[href="${gf.url}"]`)) {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = gf.url;
+        document.head.appendChild(link);
+      }
+    });
+    // Wait for fonts to be ready
+    document.fonts.ready.then(() => {
+      // Force re-render after fonts load
+      renderCanvas();
+    });
   }, [open]);
 
   const switchTemplate = (id: TemplateId) => {
@@ -799,7 +961,7 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
               <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
                 <LayoutTemplate className="w-3.5 h-3.5" /> Template
               </p>
-              <div className="grid grid-cols-3 md:grid-cols-1 gap-2">
+              <div className="grid grid-cols-3 md:grid-cols-1 gap-1.5">
                 {TEMPLATES.map((tpl) => (
                   <button
                     key={tpl.id}
@@ -1000,6 +1162,25 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
                     <span className="text-[10px] text-muted-foreground w-8 text-right">
                       {layerFontPx(layer.id, layer.fontSize)}px
                     </span>
+                  </div>
+
+                  {/* Shadow controls */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-muted-foreground shrink-0">Sombra</span>
+                    <Switch
+                      checked={layer.shadowEnabled !== false}
+                      onCheckedChange={(v) => updateLayer(layer.id, { shadowEnabled: v })}
+                    />
+                    {layer.shadowEnabled !== false && (
+                      <Slider
+                        value={[layer.shadowIntensity ?? 50]}
+                        onValueChange={([v]) => updateLayer(layer.id, { shadowIntensity: v })}
+                        min={0}
+                        max={100}
+                        step={5}
+                        className="flex-1"
+                      />
+                    )}
                   </div>
                 </div>
               ))}
