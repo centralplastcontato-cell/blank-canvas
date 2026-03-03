@@ -356,8 +356,8 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
     const size = CANVAS_SIZE;
     canvas.width = size * DPR;
     canvas.height = size * DPR;
-    canvas.style.width = `${size}px`;
-    canvas.style.height = `${size}px`;
+    canvas.style.width = "";
+    canvas.style.height = "";
     ctx.scale(DPR, DPR);
 
     // Draw base image (cover)
@@ -441,7 +441,7 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
 
           {/* Canvas preview */}
           <div className="rounded-xl border overflow-hidden bg-muted/20">
-            <canvas ref={canvasRef} className="w-full h-auto" style={{ maxHeight: 420, objectFit: "contain" }} />
+            <canvas ref={canvasRef} className="w-full h-auto block" />
           </div>
 
           {/* Accent color */}
