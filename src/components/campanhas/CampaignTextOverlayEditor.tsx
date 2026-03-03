@@ -1059,7 +1059,7 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[90vw] md:max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] md:max-w-7xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Type className="w-5 h-5 text-primary" />
@@ -1068,6 +1068,75 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
         </DialogHeader>
 
         <div className="flex flex-col md:flex-row gap-4">
+          {/* LEFT sidebar — Filters + Stickers (desktop only) */}
+          <div className="hidden md:block md:w-56 shrink-0 space-y-4 overflow-y-auto md:max-h-[65vh] pr-1">
+            {/* Photo filters */}
+            <div className="space-y-3 p-3 rounded-xl border border-border/40 bg-muted/5">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                  <Sun className="w-3.5 h-3.5" /> Ajustes da foto
+                </p>
+                {hasFilters && (
+                  <button type="button" onClick={resetFilters} className="text-[10px] text-primary hover:underline">Resetar</button>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Sun className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <span className="text-[10px] text-muted-foreground shrink-0 w-14">Brilho</span>
+                <Slider value={[brightness]} onValueChange={([v]) => setBrightness(v)} min={-50} max={50} step={1} className="flex-1" />
+                <span className="text-[10px] text-muted-foreground w-6 text-right">{brightness}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Contrast className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <span className="text-[10px] text-muted-foreground shrink-0 w-14">Contraste</span>
+                <Slider value={[contrast]} onValueChange={([v]) => setContrast(v)} min={-50} max={50} step={1} className="flex-1" />
+                <span className="text-[10px] text-muted-foreground w-6 text-right">{contrast}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Moon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <span className="text-[10px] text-muted-foreground shrink-0 w-14">Escurecer</span>
+                <Slider value={[darken]} onValueChange={([v]) => setDarken(v)} min={0} max={80} step={1} className="flex-1" />
+                <span className="text-[10px] text-muted-foreground w-6 text-right">{darken}%</span>
+              </div>
+            </div>
+
+            {/* Stickers */}
+            <div className="space-y-3 p-3 rounded-xl border border-border/40 bg-muted/5">
+              <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                <Smile className="w-3.5 h-3.5" /> Stickers ({stickers.length}/{MAX_STICKERS})
+              </p>
+              <div className="space-y-2">
+                {STICKER_CATEGORIES.map((cat) => (
+                  <div key={cat.label}>
+                    <span className="text-[10px] text-muted-foreground font-medium">{cat.label}</span>
+                    <div className="flex gap-1 flex-wrap mt-0.5">
+                      {cat.emojis.map((emoji) => (
+                        <button key={emoji} type="button" onClick={() => addSticker(emoji)} disabled={stickers.length >= MAX_STICKERS}
+                          className="w-7 h-7 flex items-center justify-center text-base rounded-lg hover:bg-primary/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {stickers.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-border/30">
+                  {stickers.map((s) => (
+                    <div key={s.id} className="flex items-center gap-1.5">
+                      <span className="text-base">{s.emoji}</span>
+                      <Slider value={[s.size]} onValueChange={([v]) => updateStickerSize(s.id, v)} min={20} max={120} step={2} className="flex-1" />
+                      <span className="text-[10px] text-muted-foreground w-7 text-right">{s.size}px</span>
+                      <button type="button" onClick={() => removeSticker(s.id)} className="text-destructive hover:text-destructive/80 transition-colors">
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Canvas preview */}
           <div className="flex-1 min-w-0">
             <div className="rounded-xl border overflow-hidden bg-muted/20">
@@ -1088,19 +1157,13 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
                 Arraste textos e stickers para reposicionar
               </p>
               {layers.some((l) => l.customY !== undefined || l.customX !== undefined) && (
-                <button
-                  type="button"
-                  onClick={resetPositions}
-                  className="text-[10px] text-primary hover:underline"
-                >
-                  Resetar posições
-                </button>
+                <button type="button" onClick={resetPositions} className="text-[10px] text-primary hover:underline">Resetar posições</button>
               )}
             </div>
           </div>
 
-          {/* Controls sidebar */}
-          <div className="md:w-80 shrink-0 space-y-4 overflow-y-auto md:max-h-[65vh] pr-1">
+          {/* RIGHT sidebar — Template + Position + Texts */}
+          <div className="md:w-72 shrink-0 space-y-4 overflow-y-auto md:max-h-[65vh] pr-1">
             {/* Template selector */}
             <div>
               <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
@@ -1125,65 +1188,6 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
               </div>
             </div>
 
-            {/* Photo filters */}
-            <div className="space-y-3 p-3 rounded-xl border border-border/40 bg-muted/5">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                  <Sun className="w-3.5 h-3.5" /> Ajustes da foto
-                </p>
-                {hasFilters && (
-                  <button type="button" onClick={resetFilters} className="text-[10px] text-primary hover:underline">
-                    Resetar
-                  </button>
-                )}
-              </div>
-
-              {/* Brightness */}
-              <div className="flex items-center gap-2">
-                <Sun className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                <span className="text-[10px] text-muted-foreground shrink-0 w-14">Brilho</span>
-                <Slider
-                  value={[brightness]}
-                  onValueChange={([v]) => setBrightness(v)}
-                  min={-50}
-                  max={50}
-                  step={1}
-                  className="flex-1"
-                />
-                <span className="text-[10px] text-muted-foreground w-8 text-right">{brightness > 0 ? "+" : ""}{brightness}</span>
-              </div>
-
-              {/* Contrast */}
-              <div className="flex items-center gap-2">
-                <Contrast className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                <span className="text-[10px] text-muted-foreground shrink-0 w-14">Contraste</span>
-                <Slider
-                  value={[contrast]}
-                  onValueChange={([v]) => setContrast(v)}
-                  min={-50}
-                  max={50}
-                  step={1}
-                  className="flex-1"
-                />
-                <span className="text-[10px] text-muted-foreground w-8 text-right">{contrast > 0 ? "+" : ""}{contrast}</span>
-              </div>
-
-              {/* Darken */}
-              <div className="flex items-center gap-2">
-                <Moon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                <span className="text-[10px] text-muted-foreground shrink-0 w-14">Escurecer</span>
-                <Slider
-                  value={[darken]}
-                  onValueChange={([v]) => setDarken(v)}
-                  min={0}
-                  max={80}
-                  step={1}
-                  className="flex-1"
-                />
-                <span className="text-[10px] text-muted-foreground w-8 text-right">{darken}%</span>
-              </div>
-            </div>
-
             {/* Position */}
             <div>
               <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
@@ -1191,38 +1195,21 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
               </p>
               <div className="flex gap-1.5 mb-1.5">
                 {POSITION_OPTIONS.map((p) => (
-                  <button
-                    key={p.value}
-                    type="button"
-                    onClick={() => setPositionY(p.value)}
-                    className={`flex-1 text-xs font-medium py-1.5 rounded-lg border transition-all ${
-                      positionY === p.value
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border/60 text-muted-foreground hover:border-primary/40"
-                    }`}
-                  >
+                  <button key={p.value} type="button" onClick={() => setPositionY(p.value)}
+                    className={`flex-1 text-xs font-medium py-1.5 rounded-lg border transition-all ${positionY === p.value ? "border-primary bg-primary/10 text-primary" : "border-border/60 text-muted-foreground hover:border-primary/40"}`}>
                     {p.label}
                   </button>
                 ))}
               </div>
               <div className="flex gap-1.5">
                 {POSITION_X_OPTIONS.map((p) => (
-                  <button
-                    key={p.value}
-                    type="button"
-                    onClick={() => setPositionX(p.value)}
-                    className={`flex-1 text-xs font-medium py-1.5 rounded-lg border transition-all ${
-                      positionX === p.value
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border/60 text-muted-foreground hover:border-primary/40"
-                    }`}
-                  >
+                  <button key={p.value} type="button" onClick={() => setPositionX(p.value)}
+                    className={`flex-1 text-xs font-medium py-1.5 rounded-lg border transition-all ${positionX === p.value ? "border-primary bg-primary/10 text-primary" : "border-border/60 text-muted-foreground hover:border-primary/40"}`}>
                     {p.label}
                   </button>
                 ))}
               </div>
             </div>
-
 
             {/* Preset texts */}
             <div>
@@ -1243,9 +1230,7 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
                         <div key={key} className="mb-1">
                           <span className="text-[10px] font-bold text-muted-foreground uppercase px-3 py-1 block">{key}</span>
                           {presets.map((preset, idx) => (
-                            <button
-                              key={`${key}-${idx}`}
-                              type="button"
+                            <button key={`${key}-${idx}`} type="button"
                               onClick={() => {
                                 setLayers((prev) => prev.map((l) => {
                                   if (l.id === "title") return { ...l, content: preset.title };
@@ -1254,8 +1239,7 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
                                   return l;
                                 }));
                               }}
-                              className="w-full text-left rounded-lg px-3 py-1.5 hover:bg-primary/10 transition-colors"
-                            >
+                              className="w-full text-left rounded-lg px-3 py-1.5 hover:bg-primary/10 transition-colors">
                               <span className="text-xs font-semibold block">{preset.title}</span>
                               <span className="text-[10px] text-muted-foreground line-clamp-1">{preset.subtitle} · {preset.cta}</span>
                             </button>
@@ -1268,104 +1252,28 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
               </Popover>
             </div>
 
-            {/* Stickers */}
-            <div className="space-y-3 p-3 rounded-xl border border-border/40 bg-muted/5">
-              <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                <Smile className="w-3.5 h-3.5" /> Stickers ({stickers.length}/{MAX_STICKERS})
-              </p>
-
-              {/* Emoji grid */}
-              <div className="space-y-2">
-                {STICKER_CATEGORIES.map((cat) => (
-                  <div key={cat.label}>
-                    <span className="text-[10px] text-muted-foreground font-medium">{cat.label}</span>
-                    <div className="flex gap-1 flex-wrap mt-0.5">
-                      {cat.emojis.map((emoji) => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          onClick={() => addSticker(emoji)}
-                          disabled={stickers.length >= MAX_STICKERS}
-                          className="w-8 h-8 flex items-center justify-center text-lg rounded-lg hover:bg-primary/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Active stickers list */}
-              {stickers.length > 0 && (
-                <div className="space-y-2 pt-2 border-t border-border/30">
-                  {stickers.map((s) => (
-                    <div key={s.id} className="flex items-center gap-2">
-                      <span className="text-lg">{s.emoji}</span>
-                      <Slider
-                        value={[s.size]}
-                        onValueChange={([v]) => updateStickerSize(s.id, v)}
-                        min={20}
-                        max={120}
-                        step={2}
-                        className="flex-1"
-                      />
-                      <span className="text-[10px] text-muted-foreground w-8 text-right">{s.size}px</span>
-                      <button
-                        type="button"
-                        onClick={() => removeSticker(s.id)}
-                        className="text-destructive hover:text-destructive/80 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* Card settings — only for Escassez */}
             {template === "escassez" && (
               <div className="space-y-3 p-3 rounded-xl border border-border/40 bg-muted/5">
                 <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
                   <Square className="w-3.5 h-3.5" /> Card central
                 </p>
-
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">Exibir card</span>
-                  <Switch
-                    checked={cardSettings.showCard}
-                    onCheckedChange={(v) => setCardSettings((s) => ({ ...s, showCard: v }))}
-                  />
+                  <Switch checked={cardSettings.showCard} onCheckedChange={(v) => setCardSettings((s) => ({ ...s, showCard: v }))} />
                 </div>
-
                 {cardSettings.showCard && (
                   <>
                     <div className="flex items-center gap-2">
                       <Eye className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                       <span className="text-[10px] text-muted-foreground shrink-0 w-14">Opacidade</span>
-                      <Slider
-                        value={[cardSettings.opacity]}
-                        onValueChange={([v]) => setCardSettings((s) => ({ ...s, opacity: v }))}
-                        min={10}
-                        max={100}
-                        step={5}
-                        className="flex-1"
-                      />
+                      <Slider value={[cardSettings.opacity]} onValueChange={([v]) => setCardSettings((s) => ({ ...s, opacity: v }))} min={10} max={100} step={5} className="flex-1" />
                       <span className="text-[10px] text-muted-foreground w-8 text-right">{cardSettings.opacity}%</span>
                     </div>
-
                     <div className="flex items-center gap-2">
                       <Maximize2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                       <span className="text-[10px] text-muted-foreground shrink-0 w-14">Tamanho</span>
-                      <Slider
-                        value={[cardSettings.cardSize]}
-                        onValueChange={([v]) => setCardSettings((s) => ({ ...s, cardSize: v }))}
-                        min={20}
-                        max={100}
-                        step={5}
-                        className="flex-1"
-                      />
+                      <Slider value={[cardSettings.cardSize]} onValueChange={([v]) => setCardSettings((s) => ({ ...s, cardSize: v }))} min={20} max={100} step={5} className="flex-1" />
                       <span className="text-[10px] text-muted-foreground w-8 text-right">{cardSettings.cardSize}%</span>
                     </div>
                   </>
@@ -1378,22 +1286,11 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
               {layers.map((layer) => (
                 <div key={layer.id} className="space-y-2 p-3 rounded-xl border border-border/40 bg-muted/5">
                   <Badge variant="outline" className="text-[10px]">{layer.label}</Badge>
-                  <Input
-                    placeholder={layer.placeholder}
-                    value={layer.content}
-                    onChange={(e) => updateLayer(layer.id, { content: e.target.value })}
-                    className="h-9 text-sm"
-                  />
-
+                  <Input placeholder={layer.placeholder} value={layer.content} onChange={(e) => updateLayer(layer.id, { content: e.target.value })} className="h-9 text-sm" />
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] text-muted-foreground shrink-0 w-10">Fonte</span>
-                    <Select
-                      value={layer.fontFamily}
-                      onValueChange={(v) => updateLayer(layer.id, { fontFamily: v })}
-                    >
-                      <SelectTrigger className="h-7 text-xs flex-1">
-                        <SelectValue />
-                      </SelectTrigger>
+                    <Select value={layer.fontFamily} onValueChange={(v) => updateLayer(layer.id, { fontFamily: v })}>
+                      <SelectTrigger className="h-7 text-xs flex-1"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {FONT_OPTIONS.map((f) => (
                           <SelectItem key={f.value} value={f.value} className="text-xs">
@@ -1403,59 +1300,84 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
                       </SelectContent>
                     </Select>
                   </div>
-
-                  {/* Per-layer color */}
                   <div>
                     <span className="text-[10px] text-muted-foreground mb-1 block">Cor</span>
                     <div className="flex gap-1 flex-wrap">
                       {COLOR_PRESETS.map((c) => (
-                        <button
-                          key={c.value}
-                          type="button"
-                          title={c.label}
-                          className={`w-5.5 h-5.5 rounded-full border-2 transition-transform ${
-                            layer.color === c.value ? "scale-125 border-primary ring-2 ring-primary/30" : "border-border/50 hover:scale-110"
-                          }`}
+                        <button key={c.value} type="button" title={c.label}
+                          className={`rounded-full border-2 transition-transform ${layer.color === c.value ? "scale-125 border-primary ring-2 ring-primary/30" : "border-border/50 hover:scale-110"}`}
                           style={{ backgroundColor: c.value, width: 22, height: 22 }}
-                          onClick={() => updateLayer(layer.id, { color: c.value })}
-                        />
+                          onClick={() => updateLayer(layer.id, { color: c.value })} />
                       ))}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <ALargeSmall className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                    <Slider
-                      value={[layer.fontSize]}
-                      onValueChange={([v]) => updateLayer(layer.id, { fontSize: v })}
-                      min={0}
-                      max={100}
-                      step={1}
-                      className="flex-1"
-                    />
-                    <span className="text-[10px] text-muted-foreground w-8 text-right">
-                      {layerFontPx(layer.id, layer.fontSize)}px
-                    </span>
+                    <Slider value={[layer.fontSize]} onValueChange={([v]) => updateLayer(layer.id, { fontSize: v })} min={0} max={100} step={1} className="flex-1" />
+                    <span className="text-[10px] text-muted-foreground w-8 text-right">{layerFontPx(layer.id, layer.fontSize)}px</span>
                   </div>
-
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] text-muted-foreground shrink-0">Sombra</span>
-                    <Switch
-                      checked={layer.shadowEnabled !== false}
-                      onCheckedChange={(v) => updateLayer(layer.id, { shadowEnabled: v })}
-                    />
+                    <Switch checked={layer.shadowEnabled !== false} onCheckedChange={(v) => updateLayer(layer.id, { shadowEnabled: v })} />
                     {layer.shadowEnabled !== false && (
-                      <Slider
-                        value={[layer.shadowIntensity ?? 50]}
-                        onValueChange={([v]) => updateLayer(layer.id, { shadowIntensity: v })}
-                        min={0}
-                        max={100}
-                        step={5}
-                        className="flex-1"
-                      />
+                      <Slider value={[layer.shadowIntensity ?? 50]} onValueChange={([v]) => updateLayer(layer.id, { shadowIntensity: v })} min={0} max={100} step={5} className="flex-1" />
                     )}
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* Mobile-only: Filters + Stickers */}
+            <div className="md:hidden space-y-4">
+              <div className="space-y-3 p-3 rounded-xl border border-border/40 bg-muted/5">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Sun className="w-3.5 h-3.5" /> Ajustes da foto</p>
+                  {hasFilters && <button type="button" onClick={resetFilters} className="text-[10px] text-primary hover:underline">Resetar</button>}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Sun className="w-3.5 h-3.5 text-muted-foreground shrink-0" /><span className="text-[10px] text-muted-foreground shrink-0 w-14">Brilho</span>
+                  <Slider value={[brightness]} onValueChange={([v]) => setBrightness(v)} min={-50} max={50} step={1} className="flex-1" />
+                  <span className="text-[10px] text-muted-foreground w-6 text-right">{brightness}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Contrast className="w-3.5 h-3.5 text-muted-foreground shrink-0" /><span className="text-[10px] text-muted-foreground shrink-0 w-14">Contraste</span>
+                  <Slider value={[contrast]} onValueChange={([v]) => setContrast(v)} min={-50} max={50} step={1} className="flex-1" />
+                  <span className="text-[10px] text-muted-foreground w-6 text-right">{contrast}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Moon className="w-3.5 h-3.5 text-muted-foreground shrink-0" /><span className="text-[10px] text-muted-foreground shrink-0 w-14">Escurecer</span>
+                  <Slider value={[darken]} onValueChange={([v]) => setDarken(v)} min={0} max={80} step={1} className="flex-1" />
+                  <span className="text-[10px] text-muted-foreground w-6 text-right">{darken}%</span>
+                </div>
+              </div>
+              <div className="space-y-3 p-3 rounded-xl border border-border/40 bg-muted/5">
+                <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Smile className="w-3.5 h-3.5" /> Stickers ({stickers.length}/{MAX_STICKERS})</p>
+                <div className="space-y-2">
+                  {STICKER_CATEGORIES.map((cat) => (
+                    <div key={cat.label}>
+                      <span className="text-[10px] text-muted-foreground font-medium">{cat.label}</span>
+                      <div className="flex gap-1 flex-wrap mt-0.5">
+                        {cat.emojis.map((emoji) => (
+                          <button key={emoji} type="button" onClick={() => addSticker(emoji)} disabled={stickers.length >= MAX_STICKERS}
+                            className="w-8 h-8 flex items-center justify-center text-lg rounded-lg hover:bg-primary/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">{emoji}</button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {stickers.length > 0 && (
+                  <div className="space-y-2 pt-2 border-t border-border/30">
+                    {stickers.map((s) => (
+                      <div key={s.id} className="flex items-center gap-2">
+                        <span className="text-lg">{s.emoji}</span>
+                        <Slider value={[s.size]} onValueChange={([v]) => updateStickerSize(s.id, v)} min={20} max={120} step={2} className="flex-1" />
+                        <span className="text-[10px] text-muted-foreground w-8 text-right">{s.size}px</span>
+                        <button type="button" onClick={() => removeSticker(s.id)} className="text-destructive hover:text-destructive/80 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
