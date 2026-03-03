@@ -1,42 +1,22 @@
 
 
-## Plan: Otimização de Thumbnails para Galeria de Campanhas
+## Problema
 
-### Problema
-As imagens da galeria são carregadas em resolução original (1-5MB cada), consumindo muitos dados do usuário. Como o Supabase Image Transformation é recurso pago (plano Pro), a solução é gerar thumbnails no momento do upload/geração.
+No editor de arte, a seção "Textos prontos" mostra **todos** os presets de todas as campanhas (Carnaval, Volta às Aulas, Dia das Mães, etc.) misturados. Quando o tema é "Volta às Aulas", os textos de Carnaval não deveriam aparecer — ou pelo menos o tema atual deveria ser destacado e mostrado primeiro.
 
-### Abordagem
-Criar uma **Edge Function `resize-image`** que recebe a URL de uma imagem, faz download, redimensiona para ~400px de largura usando a API Canvas do Deno, e faz upload do thumbnail no mesmo bucket. O `thumbnail_url` é salvo na tabela `campaign_images`.
+## Solução
 
-### Mudanças
+Reorganizar o popover de "Textos prontos" para:
 
-**1. Migration: adicionar coluna `thumbnail_url`**
-```sql
-ALTER TABLE public.campaign_images ADD COLUMN thumbnail_url text;
-```
+1. **Mostrar primeiro os presets do tema atual** (`campaignType`) com destaque visual (fundo colorido, badge "Tema atual")
+2. **Separar os demais temas** em uma seção colapsada "Outros temas" para não poluir a interface
+3. Se `campaignType` não corresponder a nenhum preset, manter o comportamento atual
 
-**2. Edge Function `resize-image`**
-- Recebe `{ image_url, company_id }` 
-- Faz fetch da imagem original
-- Usa a lib `imagescript` (Deno-compatible) para redimensionar para 400px de largura mantendo proporção
-- Converte para JPEG com qualidade 75%
-- Upload no bucket `sales-materials` com path `campaigns/thumb-{timestamp}.jpg`
-- Retorna `{ thumbnail_url }`
+## Mudança
 
-**3. Atualizar `CampaignContextStep.tsx`**
-- Após salvar imagem na galeria (`saveImageToGallery`), chamar a edge function `resize-image` em background
-- Atualizar o registro `campaign_images` com o `thumbnail_url` retornado
+**Arquivo**: `src/components/campanhas/CampaignTextOverlayEditor.tsx` (linhas ~1388-1413)
 
-**4. Atualizar `CampaignGalleryTab.tsx`**
-- Na grid da galeria, usar `img.thumbnail_url || img.image_url` como `src` das imagens
-- No lightbox, continuar usando `img.image_url` (resolução original)
-
-**5. Atualizar `campaign-image` Edge Function**
-- Após gerar a arte via IA e fazer upload, gerar também o thumbnail chamando a mesma lógica de resize
-- Salvar ambos URLs
-
-### Resultado esperado
-- Grid da galeria carrega imagens de ~30-50KB em vez de 1-5MB (redução de ~90%)
-- Lightbox continua mostrando qualidade original
-- Processo transparente para o usuário
+- Dividir `Object.entries(CAMPAIGN_PRESETS)` em dois grupos: `currentPresets` (matching `campaignType`) e `otherPresets` (restante)
+- Renderizar `currentPresets` primeiro com badge de destaque
+- Renderizar `otherPresets` dentro de um `Collapsible` com label "Outros temas" (fechado por padrão)
 
