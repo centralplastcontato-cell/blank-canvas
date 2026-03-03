@@ -759,7 +759,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
       const newPos = reordered.findIndex(r => r.id === m.id);
       if (newPos !== -1) return { ...m, sort_order: newPos };
       return m;
-    });
+    }).sort((a, b) => a.sort_order - b.sort_order);
     setMaterials(updatedMaterials);
 
     // Persist to DB
