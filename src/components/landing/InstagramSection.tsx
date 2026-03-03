@@ -60,15 +60,15 @@ export const InstagramSection = () => {
             viewport={{ once: true }}
           >
             <Sparkles className="w-4 h-4" />
-            <span className="text-sm font-medium">Conheça nossos espaços</span>
+            <span className="text-sm font-medium">Galeria de momentos</span>
             <Sparkles className="w-4 h-4" />
           </motion.div>
 
           <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-4">
-            Nossas <span className="gradient-text">Unidades</span>
+            Momentos incríveis que já <span className="gradient-text">aconteceram aqui</span>
           </h2>
-          <p className="text-muted-foreground text-lg max-w-md mx-auto">
-            Veja os espaços incríveis onde realizamos festas inesquecíveis
+          <p className="text-muted-foreground text-lg max-w-lg mx-auto">
+            Centenas de famílias já comemoraram momentos inesquecíveis no Castelo da Diversão.
           </p>
         </motion.div>
 

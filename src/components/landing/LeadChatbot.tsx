@@ -192,7 +192,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
     if (isOpen && messages.length === 0) {
       const welcomeMsg = isDynamic
         ? (lpBotConfig?.welcome_message || `Oi 👋 Que bom te ver por aqui!\n\nVou te fazer algumas perguntas rápidas para montar seu orçamento 😉`)
-        : "Oi 👋 Que bom te ver por aqui!\n\nVou te fazer algumas perguntas rápidas para montar seu orçamento com a promoção 😉";
+        : "Oi 👋 Que bom te ver por aqui!\n\nVou te fazer algumas perguntas rápidas para montar seu orçamento com os bônus do Mês do Consumidor 🎉";
 
       setTimeout(() => {
         setMessages([

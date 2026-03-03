@@ -22,7 +22,7 @@ export function FloatingCTA({ onClick }: FloatingCTAProps) {
       >
         <MessageCircle className="w-7 h-7" />
       </motion.div>
-      <span className="hidden sm:inline font-bold text-lg pr-2">Falar Agora</span>
+      <span className="hidden sm:inline font-bold text-lg pr-2">Quero saber as datas disponíveis</span>
       
       {/* Pulse ring */}
       <span className="absolute inset-0 rounded-full bg-primary/30 animate-ping" />

@@ -14,7 +14,7 @@ export function Footer() {
             className="w-32 md:w-40 mx-auto mb-4"
           />
           <p className="text-primary-foreground/70 mb-6 max-w-md mx-auto">
-            Transformando sonhos em festas inesquecíveis há mais de 10 anos.
+            Buffet infantil especializado em festas inesquecíveis.
           </p>
           
           <div className="flex flex-wrap justify-center gap-6 md:gap-8 mb-8">

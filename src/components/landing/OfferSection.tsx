@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Check, Gift, Star } from "lucide-react";
+import { Check, Gift, Star, Sparkles } from "lucide-react";
 import { campaignConfig } from "@/config/campaignConfig";
 
 interface OfferSectionProps {
@@ -19,7 +19,7 @@ export function OfferSection({ onCtaClick }: OfferSectionProps) {
         >
           <span className="inline-flex items-center gap-2 bg-festive text-festive-foreground px-4 py-2 rounded-full text-sm font-bold mb-4">
             <Gift className="w-4 h-4" />
-            OFERTA ESPECIAL
+            MÊS DO CONSUMIDOR
           </span>
           <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-4">
             {campaignConfig.offer.headline}
@@ -38,16 +38,13 @@ export function OfferSection({ onCtaClick }: OfferSectionProps) {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="relative p-8 rounded-3xl overflow-hidden border border-white/30 shadow-2xl backdrop-blur-xl bg-white/10"
           >
-            {/* Subtle gradient overlay */}
             <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-white/10" />
-            
-            {/* Decorative circles */}
             <div className="absolute -top-10 -right-10 w-40 h-40 bg-secondary/30 rounded-full blur-3xl" />
             <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-primary/20 rounded-full blur-3xl" />
             <div className="relative z-10">
               <h3 className="text-2xl font-display font-bold text-foreground mb-6 flex items-center gap-2">
                 <Star className="w-6 h-6 text-secondary fill-secondary" />
-                O que está incluso
+                Bônus exclusivos
               </h3>
               <ul className="space-y-4">
                 {campaignConfig.offer.benefits.map((benefit, index) => (
@@ -66,10 +63,13 @@ export function OfferSection({ onCtaClick }: OfferSectionProps) {
                   </motion.li>
                 ))}
               </ul>
+              <p className="mt-6 text-muted-foreground text-sm">
+                Tudo isso sem custo adicional.
+              </p>
             </div>
           </motion.div>
 
-          {/* CTA Card - Glassmorphism */}
+          {/* CTA Card with Scarcity Counter */}
           <motion.div
             initial={{ opacity: 0, x: 30 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -77,10 +77,7 @@ export function OfferSection({ onCtaClick }: OfferSectionProps) {
             transition={{ duration: 0.6, delay: 0.4 }}
             className="relative p-8 rounded-3xl overflow-hidden border border-white/30 shadow-xl backdrop-blur-xl bg-white/10"
           >
-            {/* Subtle gradient overlay */}
             <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-white/10" />
-            
-            {/* Decorative elements */}
             <div className="absolute -top-16 -right-16 w-40 h-40 bg-festive/20 rounded-full blur-3xl" />
             <div className="absolute -bottom-16 -left-16 w-40 h-40 bg-secondary/20 rounded-full blur-3xl" />
 
@@ -94,16 +91,24 @@ export function OfferSection({ onCtaClick }: OfferSectionProps) {
                   <Gift className="w-10 h-10 text-festive-foreground" />
                 </motion.div>
                 
-                <h3 className="text-2xl font-display font-bold text-foreground mb-4">
-                  Garanta sua data!
-                </h3>
+                {/* Scarcity Counter */}
+                <motion.div
+                  animate={{ scale: [1, 1.03, 1] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                  className="bg-accent/20 border border-accent/40 rounded-2xl px-6 py-4 mb-6"
+                >
+                  <div className="flex items-center justify-center gap-2 mb-1">
+                    <Sparkles className="w-5 h-5 text-accent-foreground" />
+                    <span className="text-sm font-medium text-accent-foreground">Vagas limitadas</span>
+                  </div>
+                  <p className="text-3xl font-display font-bold text-accent-foreground">
+                    Apenas {campaignConfig.urgency.spotsLeft} bônus
+                  </p>
+                  <p className="text-sm text-accent-foreground/80">disponíveis</p>
+                </motion.div>
                 
-                <p className="text-muted-foreground mb-6">
-                  As vagas são limitadas e o Carnaval NÃO ESPERA! 🎭💃
-                </p>
-
                 <button onClick={onCtaClick} className="btn-cta w-full">
-                  Quero Esta Oferta! 🎁
+                  Garantir minha festa 🎁
                 </button>
               </div>
 

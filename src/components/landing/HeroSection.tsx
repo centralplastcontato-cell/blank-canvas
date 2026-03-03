@@ -12,7 +12,6 @@ interface HeroSectionProps {
 export function HeroSection({ onCtaClick }: HeroSectionProps) {
   const [activeImage, setActiveImage] = useState(0);
 
-  // Mobile crossfade: alternate every 4s
   useEffect(() => {
     const interval = setInterval(() => {
       setActiveImage((prev) => (prev === 0 ? 1 : 0));
@@ -26,7 +25,6 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden" aria-label="Seção principal">
       {/* Background - Desktop: split side-by-side | Mobile: crossfade */}
       <div className="absolute inset-0">
-        {/* Desktop split */}
         <div className="hidden md:flex absolute inset-0">
           <div className="w-1/2 h-full">
             <img src={fachada1} alt="Fachada Unidade 1 - Castelo da Diversão" className="w-full h-full object-cover" loading="eager" fetchPriority="high" />
@@ -35,7 +33,6 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
             <img src={fachada2} alt="Fachada Unidade 2 - Castelo da Diversão" className="w-full h-full object-cover" loading="eager" />
           </div>
         </div>
-        {/* Mobile crossfade */}
         <div className="md:hidden absolute inset-0">
           {images.map((src, i) => (
             <motion.img
@@ -52,7 +49,7 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
         <div className="absolute inset-0 bg-gradient-to-b from-primary/60 via-castle/40 to-background/90" />
       </div>
 
-      {/* Floating Confetti Elements */}
+      {/* Floating Confetti */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(20)].map((_, i) => (
           <motion.div
@@ -63,17 +60,8 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
               left: `${Math.random() * 100}%`,
               top: `-5%`,
             }}
-            animate={{
-              y: ['0vh', '110vh'],
-              rotate: [0, 720],
-              opacity: [1, 0],
-            }}
-            transition={{
-              duration: 4 + Math.random() * 4,
-              repeat: Infinity,
-              delay: Math.random() * 5,
-              ease: "linear",
-            }}
+            animate={{ y: ['0vh', '110vh'], rotate: [0, 720], opacity: [1, 0] }}
+            transition={{ duration: 4 + Math.random() * 4, repeat: Infinity, delay: Math.random() * 5, ease: "linear" }}
           />
         ))}
       </div>
@@ -106,68 +94,70 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
             {campaignConfig.tagline}
           </motion.span>
 
-          {/* Main Title */}
-          <motion.h1
+          {/* Subtitle */}
+          <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6, duration: 0.6 }}
-            className="text-5xl md:text-7xl lg:text-8xl font-display font-bold bg-gradient-to-r from-yellow-300 via-orange-400 to-pink-400 bg-clip-text text-transparent drop-shadow-lg [text-shadow:_2px_2px_20px_rgba(255,200,100,0.4)]"
+            className="text-lg md:text-2xl text-white/90 max-w-3xl mx-auto font-medium drop-shadow-md"
           >
-            {campaignConfig.title}
-          </motion.h1>
+            {campaignConfig.subtitle}
+          </motion.p>
 
-          {/* Offer Preview - Glassmorphism */}
+          {/* Bonus Highlight Block - Glassmorphism */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.8, duration: 0.5 }}
-            className="relative inline-block overflow-hidden rounded-3xl p-6 md:p-8 mt-8 border border-white/30 shadow-floating backdrop-blur-xl bg-white/20"
+            className="relative inline-block overflow-hidden rounded-3xl p-6 md:p-8 mt-4 border border-white/30 shadow-floating backdrop-blur-xl bg-white/20"
           >
-            {/* Subtle gradient overlay for depth */}
             <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-white/10 pointer-events-none" />
-            
-            {/* Decorative blur circles */}
             <div className="absolute -top-8 -right-8 w-24 h-24 bg-secondary/20 rounded-full blur-2xl" />
             <div className="absolute -bottom-8 -left-8 w-24 h-24 bg-primary/15 rounded-full blur-2xl" />
             
             <div className="relative z-10">
-              <p className="text-base md:text-xl font-bold text-foreground mb-3 md:mb-4">
-                {campaignConfig.offer.headline}
+              <p className="text-base md:text-lg font-bold text-foreground mb-4">
+                Bônus exclusivos para os 10 primeiros:
               </p>
-              <div className="flex flex-col gap-2 md:gap-3">
-                {/* Benefit 1 - 10% discount */}
-                <div className="flex items-center justify-center gap-2 md:gap-3 bg-primary/10 rounded-xl px-3 md:px-4 py-2 md:py-3 border border-primary/20">
-                  <span className="text-xl md:text-3xl">✨</span>
-                  <span className="text-base md:text-2xl font-bold text-primary whitespace-nowrap">
-                    10% de desconto à vista
-                  </span>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-center gap-3 bg-primary/10 rounded-xl px-4 py-3 border border-primary/20">
+                  <span className="text-2xl md:text-3xl">🎁</span>
+                  <span className="text-base md:text-xl font-bold text-primary">Decoração completa</span>
                 </div>
-                {/* Benefit 2 - 10 guests */}
-                <div className="flex items-center justify-center gap-2 md:gap-3 bg-secondary/20 rounded-xl px-3 md:px-4 py-2 md:py-3 border border-secondary/30">
-                  <span className="text-xl md:text-3xl">🎁</span>
-                  <span className="text-base md:text-2xl font-bold text-secondary-foreground whitespace-nowrap">
-                    + 10 convidados grátis
-                  </span>
+                <div className="flex items-center justify-center gap-3 bg-secondary/20 rounded-xl px-4 py-3 border border-secondary/30">
+                  <span className="text-2xl md:text-3xl">🍬</span>
+                  <span className="text-base md:text-xl font-bold text-secondary-foreground">Docinhos para mesa de decoração</span>
+                </div>
+                <div className="flex items-center justify-center gap-3 bg-accent/20 rounded-xl px-4 py-3 border border-accent/30">
+                  <span className="text-2xl md:text-3xl">🪑</span>
+                  <span className="text-base md:text-xl font-bold text-accent-foreground">Toalhas para as mesas dos convidados</span>
                 </div>
               </div>
-              <p className="text-xs md:text-sm text-muted-foreground mt-3 md:mt-4 text-center">
-                Válido até {campaignConfig.offer.validUntil}
-              </p>
             </div>
           </motion.div>
+
+          {/* Emotional text */}
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1, duration: 0.5 }}
+            className="text-base md:text-lg text-white/80 max-w-2xl mx-auto italic"
+          >
+            Uma festa completa para comemorar um dos dias mais importantes e divertidos da vida do seu pequeno ❤️
+          </motion.p>
 
           {/* CTA Button */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1, duration: 0.5 }}
-            className="pt-6"
+            transition={{ delay: 1.2, duration: 0.5 }}
+            className="pt-4"
           >
             <button
               onClick={onCtaClick}
               className="btn-cta text-xl md:text-2xl animate-bounce-gentle"
             >
-              🎉 Quero Garantir Minha Data
+              📅 Consultar datas disponíveis
             </button>
           </motion.div>
         </motion.div>
