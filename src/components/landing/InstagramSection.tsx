@@ -3,30 +3,33 @@ import { Instagram, Sparkles, MapPin } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
 
+const SUPABASE_STORAGE = "https://rsezgnkfhodltrsewlhz.supabase.co/storage/v1/object/public/sales-materials";
+
 const manchesterPhotos = [
-  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/manchester/collections/1770337337388_0.jpeg",
-  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/manchester/collections/1770337338233_1.jpeg",
-  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/manchester/collections/1770337338780_2.jpeg",
-  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/manchester/collections/1770337339504_3.jpeg",
-  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/manchester/collections/1770337340211_4.jpeg",
-  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/manchester/collections/1770337340867_5.jpeg",
-  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/manchester/collections/1770337341426_6.jpeg",
-  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/manchester/collections/1770337342104_7.jpeg",
-  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/manchester/collections/1770337342975_8.jpeg",
-  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/manchester/collections/1770337343554_9.jpeg",
+  `${SUPABASE_STORAGE}/manchester/collections/1772395758130_0.jpeg`,
+  `${SUPABASE_STORAGE}/manchester/collections/1772395759058_1.jpeg`,
+  `${SUPABASE_STORAGE}/manchester/collections/1772395759570_2.jpeg`,
+  `${SUPABASE_STORAGE}/manchester/collections/1772395760275_3.jpeg`,
+  `${SUPABASE_STORAGE}/manchester/collections/1772395760979_4.jpeg`,
+  `${SUPABASE_STORAGE}/manchester/collections/1772395761599_5.jpeg`,
+  `${SUPABASE_STORAGE}/manchester/collections/1772395762150_6.jpeg`,
+  `${SUPABASE_STORAGE}/manchester/collections/1772395762643_7.jpeg`,
+  `${SUPABASE_STORAGE}/manchester/collections/1772395763126_8.jpeg`,
+  `${SUPABASE_STORAGE}/manchester/collections/1772395763766_9.jpeg`,
 ];
 
+// Trujillo photos not yet migrated to current storage — using Manchester as fallback
 const trujilloPhotos = [
-  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/trujillo/collections/1770337873541_0.jpeg",
-  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/trujillo/collections/1770337874866_1.jpeg",
-  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/trujillo/collections/1770337875484_2.jpeg",
-  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/trujillo/collections/1770337876098_3.jpeg",
-  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/trujillo/collections/1770337876811_4.jpeg",
-  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/trujillo/collections/1770337877432_5.jpeg",
-  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/trujillo/collections/1770337878592_6.jpeg",
-  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/trujillo/collections/1770337879265_7.jpeg",
-  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/trujillo/collections/1770337880085_8.jpeg",
-  "https://knyzkwgdmclcwvzhdmyk.supabase.co/storage/v1/object/public/sales-materials/trujillo/collections/1770337880807_9.jpeg",
+  `${SUPABASE_STORAGE}/manchester/collections/1772395758130_0.jpeg`,
+  `${SUPABASE_STORAGE}/manchester/collections/1772395759058_1.jpeg`,
+  `${SUPABASE_STORAGE}/manchester/collections/1772395759570_2.jpeg`,
+  `${SUPABASE_STORAGE}/manchester/collections/1772395760275_3.jpeg`,
+  `${SUPABASE_STORAGE}/manchester/collections/1772395760979_4.jpeg`,
+  `${SUPABASE_STORAGE}/manchester/collections/1772395761599_5.jpeg`,
+  `${SUPABASE_STORAGE}/manchester/collections/1772395762150_6.jpeg`,
+  `${SUPABASE_STORAGE}/manchester/collections/1772395762643_7.jpeg`,
+  `${SUPABASE_STORAGE}/manchester/collections/1772395763126_8.jpeg`,
+  `${SUPABASE_STORAGE}/manchester/collections/1772395763766_9.jpeg`,
 ];
 
 const units = [
