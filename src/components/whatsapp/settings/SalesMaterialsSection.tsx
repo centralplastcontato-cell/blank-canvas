@@ -764,18 +764,17 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
 
     // Persist to DB
     try {
-      const results = await Promise.all(
-        reordered.map((m, i) => 
-          supabase.from("sales_materials").update({ sort_order: i }).eq("id", m.id).select("id")
-        )
-      );
-      
-      const hasError = results.some(r => r.error || !r.data?.length);
-      if (hasError) {
-        console.error("[SalesMaterials] Reorder errors:", results.filter(r => r.error).map(r => r.error));
-        toast({ title: "Erro ao reordenar", description: "Não foi possível salvar a nova ordem. Verifique suas permissões.", variant: "destructive" });
-        // Revert by refetching
-        fetchMaterials();
+      for (let i = 0; i < reordered.length; i++) {
+        const { error } = await supabase
+          .from("sales_materials")
+          .update({ sort_order: i })
+          .eq("id", reordered[i].id);
+        if (error) {
+          console.error("[SalesMaterials] Reorder error for id:", reordered[i].id, error);
+          toast({ title: "Erro ao reordenar", description: "Não foi possível salvar a nova ordem.", variant: "destructive" });
+          fetchMaterials();
+          return;
+        }
       }
     } catch (err) {
       console.error("[SalesMaterials] Reorder failed:", err);
