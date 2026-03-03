@@ -2090,6 +2090,16 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     }
   };
 
+  const getSenderColor = (participant: string | undefined) => {
+    if (!participant) return 'hsl(200, 60%, 45%)';
+    let hash = 0;
+    for (let i = 0; i < participant.length; i++) {
+      hash = participant.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = Math.abs(hash) % 360;
+    return `hsl(${hue}, 65%, 40%)`;
+  };
+
   const formatMessageTime = (timestamp: string) => {
     const date = new Date(timestamp);
     return format(date, "HH:mm");
@@ -4060,6 +4070,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                       : "px-3.5 py-2.5"
                                   )}
                                 >
+{/* Group sender name */}
+{selectedConversation?.remote_jid?.includes('@g.us') && !msg.from_me && (
+  <p className="text-xs font-semibold mb-0.5" style={{ color: getSenderColor((msg.metadata as Record<string, string> | null)?.participant) }}>
+    {(msg.metadata as Record<string, string> | null)?.sender_name || (msg.metadata as Record<string, string> | null)?.participant || 'Desconhecido'}
+  </p>
+)}
 {(msg.message_type === 'image' || msg.message_type === 'video' || msg.message_type === 'audio' || msg.message_type === 'document') && (
                                   <div className={(msg.message_type === 'image' || msg.message_type === 'video') ? "" : "mb-2"}>
                                     <MediaMessage

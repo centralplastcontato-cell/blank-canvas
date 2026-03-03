@@ -3670,19 +3670,29 @@ async function processWebhookEvent(body: Record<string, unknown>) {
         if (existingMsg) {
           console.log(`[Bot] Skipping duplicate outgoing message ${msgId} - already saved`);
         } else {
+          const grpMeta1 = isGrp ? {
+            participant: ((msg as Record<string, unknown>).key?.participant || (msg as Record<string, unknown>).participant || '').replace('@s.whatsapp.net',''),
+            sender_name: (msg as Record<string, unknown>).pushName || (msg as Record<string, unknown>).sender?.pushName || null
+          } : null;
           await supabase.from('wapi_messages').insert({
             conversation_id: conv.id, message_id: msgId, from_me: fromMe, message_type: type, content,
             media_url: url, media_key: key, media_direct_path: path, status: 'sent',
             timestamp: messageTimestamp,
             company_id: instance.company_id,
+            metadata: grpMeta1,
           });
         }
       } else {
+        const grpMeta2 = isGrp ? {
+          participant: ((msg as Record<string, unknown>).key?.participant || (msg as Record<string, unknown>).participant || '').replace('@s.whatsapp.net',''),
+          sender_name: (msg as Record<string, unknown>).pushName || (msg as Record<string, unknown>).sender?.pushName || null
+        } : null;
         await supabase.from('wapi_messages').insert({
           conversation_id: conv.id, message_id: msgId, from_me: fromMe, message_type: type, content,
           media_url: url, media_key: key, media_direct_path: path, status: fromMe ? 'sent' : 'received',
           timestamp: messageTimestamp,
           company_id: instance.company_id,
+          metadata: grpMeta2,
         });
       }
       
