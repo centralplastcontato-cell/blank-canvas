@@ -12,27 +12,62 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { prompt_context, campaign_theme, company_name, company_id } = await req.json();
+    const { base_image_url, logo_url, company_id, position, campaign_theme, context } = await req.json();
 
-    if (!prompt_context || !company_id) {
+    if (!base_image_url || !company_id) {
       return new Response(
-        JSON.stringify({ error: "prompt_context e company_id são obrigatórios" }),
+        JSON.stringify({ error: "base_image_url e company_id são obrigatórios" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) {
-      throw new Error("LOVABLE_API_KEY not configured");
+    if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
+
+    // Position mapping
+    const positionMap: Record<string, string> = {
+      "top-left": "canto superior esquerdo",
+      "top-right": "canto superior direito",
+      "bottom-left": "canto inferior esquerdo",
+      "bottom-right": "canto inferior direito",
+      "center": "centro",
+    };
+    const posLabel = positionMap[position] || "canto inferior direito";
+
+    // Build composition prompt - professional agency style
+    const themeHint = campaign_theme
+      ? `O tema visual da campanha e "${campaign_theme}". Use elementos decorativos sutis relacionados a esse tema (confetes, baloes, estrelas, fitas, flores, etc) nas bordas e cantos da imagem.`
+      : "Adicione elementos decorativos festivos e alegres (confetes, baloes, estrelas) sutilmente nas bordas.";
+
+    const contextHint = context ? ` Contexto da campanha: ${context}.` : "";
+
+    const logoInstruction = logo_url
+      ? `Posicione o logotipo fornecido no ${posLabel} da imagem, com um fundo semi-transparente arredondado por tras para garantir legibilidade. O logotipo deve ocupar cerca de 15-20% da largura da imagem e manter suas proporcoes originais.`
+      : "";
+
+    const promptText = `Voce e um designer grafico profissional especializado em marketing de buffet infantil.
+Transforme esta foto em uma arte promocional de alto impacto para compartilhamento no WhatsApp.
+
+Instrucoes OBRIGATORIAS:
+- Use a foto fornecida como elemento visual PRINCIPAL. A foto deve ocupar pelo menos 70% da area total da imagem.
+- Adicione uma moldura ou borda decorativa elegante e profissional nas bordas da imagem.
+- ${themeHint}
+- ${logoInstruction}
+- Ajuste as cores para ficarem mais vibrantes, saturadas e convidativas. Aumente levemente o contraste.
+- O resultado deve parecer uma arte feita por uma agencia de marketing profissional.
+- Formato quadrado, alta resolucao.${contextHint}
+
+REGRA ABSOLUTA: NAO adicione NENHUM texto, letra, palavra, numero, faixa com texto, placa ou caractere escrito de qualquer tipo em qualquer idioma. Apenas elementos visuais decorativos. ZERO texto.`;
+
+    // Build image content array
+    const imageContent: any[] = [
+      { type: "image_url", image_url: { url: base_image_url } },
+    ];
+    if (logo_url) {
+      imageContent.push({ type: "image_url", image_url: { url: logo_url } });
     }
 
-    // Build optimized prompt in Portuguese - Gemini follows no-text instructions much better than DALL-E
-    const themeHint = campaign_theme
-      ? `O tema visual deve representar "${campaign_theme}" usando simbolos, cores e elementos decorativos apropriados (sem escrever o nome do tema). `
-      : "";
-    const prompt = `Crie uma ilustracao vibrante e festiva para um buffet de festas infantis. ${themeHint}Contexto: ${prompt_context}. Estilo: colorido, alegre, qualidade profissional de marketing. A imagem deve ser uma ilustracao artistica pura, SEM NENHUM texto, letra, palavra, numero, placa, faixa ou caractere escrito em qualquer idioma. Proibido qualquer elemento que contenha escrita. Formato quadrado, alto contraste, adequado para compartilhamento no WhatsApp.`;
-
-    // Use Gemini image generation via Lovable AI Gateway
+    // Call Gemini Pro Image for higher quality composition
     const MAX_RETRIES = 2;
     let response: Response | null = null;
 
@@ -44,8 +79,16 @@ Deno.serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash-image",
-          messages: [{ role: "user", content: prompt }],
+          model: "google/gemini-3-pro-image-preview",
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: promptText },
+                ...imageContent,
+              ],
+            },
+          ],
           modalities: ["image", "text"],
         }),
       });
@@ -53,7 +96,7 @@ Deno.serve(async (req) => {
       if (response.ok) break;
 
       const errText = await response.text();
-      console.error(`Gemini error (attempt ${attempt + 1}/${MAX_RETRIES + 1}):`, response.status, errText);
+      console.error(`Gemini Pro error (attempt ${attempt + 1}/${MAX_RETRIES + 1}):`, response.status, errText);
 
       if (response.status === 429) {
         return new Response(
@@ -107,7 +150,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const filePath = `campaigns/ai-${Date.now()}.${imageFormat}`;
+    const filePath = `campaigns/composed-${Date.now()}.${imageFormat}`;
     const { error: uploadError } = await supabase.storage
       .from("sales-materials")
       .upload(filePath, bytes, { contentType: `image/${imageFormat}`, upsert: false });
@@ -115,28 +158,27 @@ Deno.serve(async (req) => {
     if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
 
     const { data: urlData } = supabase.storage.from("sales-materials").getPublicUrl(filePath);
-    const publicUrl = urlData.publicUrl;
 
     // Log AI usage
     const tokens = data.usage?.total_tokens || 500;
     await supabase.from("ai_usage_logs").insert({
       company_id,
       function_name: "campaign-image",
-      model: "gemini-2.5-flash-image",
+      model: "gemini-3-pro-image-preview",
       prompt_tokens: data.usage?.prompt_tokens || 0,
       completion_tokens: data.usage?.completion_tokens || 0,
       total_tokens: tokens,
-      estimated_cost_usd: 0.02,
+      estimated_cost_usd: 0.04,
     });
 
     return new Response(
-      JSON.stringify({ url: publicUrl }),
+      JSON.stringify({ url: urlData.publicUrl }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
     console.error("campaign-image error:", err);
     return new Response(
-      JSON.stringify({ error: err.message || "Erro ao gerar imagem" }),
+      JSON.stringify({ error: err.message || "Erro ao compor arte" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

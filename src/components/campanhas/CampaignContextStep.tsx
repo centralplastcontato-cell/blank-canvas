@@ -8,10 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, RefreshCw, Pencil, ImagePlus, ZoomIn, Trash2, Building2, Image, MapPin, Wand2 } from "lucide-react";
+import { Loader2, Sparkles, RefreshCw, Pencil, ImagePlus, ZoomIn, Trash2, Building2, Image, Wand2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import type { CampaignDraft } from "./CampaignWizard";
 
@@ -73,15 +72,14 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
   const [uploading, setUploading] = useState(false);
-  const [generatingImage, setGeneratingImage] = useState(false);
   const [composing, setComposing] = useState(false);
-  const [enhancing, setEnhancing] = useState(false);
   const [includeLogo, setIncludeLogo] = useState(true);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [photosDialogOpen, setPhotosDialogOpen] = useState(false);
+  const [artDialogOpen, setArtDialogOpen] = useState(false);
   const [buffetPhotos, setBuffetPhotos] = useState<string[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [logoPosition, setLogoPosition] = useState<string>("bottom-right");
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
   const handleGenerate = async () => {
     if (!draft.description.trim()) {
@@ -125,32 +123,22 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
     }
   };
 
-  const handleGenerateImage = async () => {
-    if (!draft.description.trim()) {
-      toast.error("Descreva o objetivo da campanha antes de gerar a imagem");
-      return;
-    }
-    setGeneratingImage(true);
+  const handleUploadForArt = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("campaign-image", {
-        body: {
-          prompt_context: draft.description,
-          campaign_theme: draft.campaignType || draft.name || null,
-          company_name: companyName,
-          company_id: currentCompanyId,
-        },
-      });
+      const ext = file.name.split(".").pop();
+      const path = `campaigns/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("sales-materials").upload(path, file);
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      if (!data?.url) throw new Error("Nenhuma imagem retornada");
-
-      setDraft((prev) => ({ ...prev, imageUrl: data.url }));
-      toast.success("Imagem gerada com IA!");
+      const { data: urlData } = supabase.storage.from("sales-materials").getPublicUrl(path);
+      setSelectedPhoto(urlData.publicUrl);
+      toast.success("Foto carregada!");
     } catch (err: any) {
-      console.error("campaign-image error:", err);
-      toast.error(err.message || "Erro ao gerar imagem com IA");
+      toast.error("Erro no upload: " + err.message);
     } finally {
-      setGeneratingImage(false);
+      setUploading(false);
     }
   };
 
@@ -161,62 +149,9 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
     }
   };
 
-  const handleComposeLogo = async () => {
-    if (!draft.imageUrl || !currentCompany?.logo_url) return;
-    setComposing(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("campaign-compose", {
-        body: {
-          base_image_url: draft.imageUrl,
-          logo_url: currentCompany.logo_url,
-          company_id: currentCompanyId,
-          position: logoPosition,
-        },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      if (!data?.url) throw new Error("Nenhuma imagem retornada");
-
-      setDraft((prev) => ({ ...prev, imageUrl: data.url }));
-      toast.success("Logo sobreposto na imagem!");
-    } catch (err: any) {
-      console.error("campaign-compose error:", err);
-      toast.error(err.message || "Erro ao sobrepor logo");
-    } finally {
-      setComposing(false);
-    }
-  };
-
-  const handleEnhanceWithAI = async () => {
-    if (!draft.imageUrl) return;
-    setEnhancing(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("campaign-compose", {
-        body: {
-          base_image_url: draft.imageUrl,
-          logo_url: includeLogo && currentCompany?.logo_url ? currentCompany.logo_url : null,
-          company_id: currentCompanyId,
-          position: logoPosition,
-          enhance: true,
-          context: [draft.campaignType, draft.description].filter(Boolean).join(" - ") || null,
-        },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      if (!data?.url) throw new Error("Nenhuma imagem retornada");
-
-      setDraft((prev) => ({ ...prev, imageUrl: data.url }));
-      toast.success("Arte profissional criada com IA!");
-    } catch (err: any) {
-      console.error("campaign-compose enhance error:", err);
-      toast.error(err.message || "Erro ao criar arte com IA");
-    } finally {
-      setEnhancing(false);
-    }
-  };
-
-  const handleOpenPhotosDialog = async () => {
-    setPhotosDialogOpen(true);
+  const handleOpenArtDialog = async () => {
+    setArtDialogOpen(true);
+    setSelectedPhoto(null);
     setLoadingPhotos(true);
     try {
       const { data, error } = await supabase
@@ -242,10 +177,36 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
     }
   };
 
-  const handleSelectBuffetPhoto = (url: string) => {
-    setDraft((prev) => ({ ...prev, imageUrl: url }));
-    setPhotosDialogOpen(false);
-    toast.success("Foto selecionada!");
+  const handleComposeArt = async () => {
+    if (!selectedPhoto) {
+      toast.error("Selecione uma foto base primeiro");
+      return;
+    }
+    setComposing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("campaign-image", {
+        body: {
+          base_image_url: selectedPhoto,
+          logo_url: includeLogo && currentCompany?.logo_url ? currentCompany.logo_url : null,
+          company_id: currentCompanyId,
+          position: logoPosition,
+          campaign_theme: draft.campaignType || draft.name || null,
+          context: draft.description || null,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (!data?.url) throw new Error("Nenhuma imagem retornada");
+
+      setDraft((prev) => ({ ...prev, imageUrl: data.url }));
+      setArtDialogOpen(false);
+      toast.success("Arte profissional criada com IA! 🎨");
+    } catch (err: any) {
+      console.error("campaign-image error:", err);
+      toast.error(err.message || "Erro ao criar arte");
+    } finally {
+      setComposing(false);
+    }
   };
 
   const saveEdit = (index: number) => {
@@ -422,29 +383,163 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
             <div className="flex items-center border-t border-border/40 divide-x divide-border/40">
               <button
                 type="button"
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors disabled:opacity-50"
-                onClick={handleGenerateImage}
-                disabled={generatingImage || !draft.description.trim()}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                onClick={handleOpenArtDialog}
               >
-                {generatingImage ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                IA
+                <Wand2 className="w-3 h-3" />
+                Criar Arte
               </button>
+              <label className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer">
+                <ImagePlus className="w-3 h-3" />
+                Trocar
+                <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
+              </label>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {/* Primary CTA: Criar Arte Profissional */}
+            <Button
+              type="button"
+              className="w-full h-12 gap-2.5 text-sm font-semibold"
+              onClick={handleOpenArtDialog}
+            >
+              <Wand2 className="w-4.5 h-4.5" />
+              Criar Arte Profissional
+            </Button>
+
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+              <div className="flex-1 h-px bg-border" />
+              ou
+              <div className="flex-1 h-px bg-border" />
+            </div>
+
+            <div className="flex gap-2">
+              <label className="flex-1 flex items-center justify-center gap-2 p-2.5 border border-dashed rounded-lg cursor-pointer hover:bg-muted/50 hover:border-primary/30 transition-all text-xs text-muted-foreground hover:text-foreground">
+                {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />}
+                Upload manual
+                <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
+              </label>
               {currentCompany?.logo_url && (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors disabled:opacity-50"
-                      disabled={composing}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 h-auto py-2.5 gap-2 border-dashed text-xs"
+                  onClick={handleUseLogo}
+                >
+                  <Building2 className="w-3.5 h-3.5" />
+                  Usar Logotipo
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Dialog de preview da imagem */}
+        <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+          <DialogContent className="max-w-lg p-2 bg-black/90 border-none">
+            {draft.imageUrl && (
+              <img src={draft.imageUrl} alt="Preview" className="w-full h-auto rounded-lg" />
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog de Criar Arte Profissional */}
+        <Dialog open={artDialogOpen} onOpenChange={setArtDialogOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Wand2 className="w-5 h-5 text-primary" />
+                Criar Arte Profissional
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {/* Step 1: Select photo */}
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  1. Escolha a foto base
+                </Label>
+
+                {selectedPhoto ? (
+                  <div className="relative rounded-xl overflow-hidden border-2 border-primary shadow-md">
+                    <img src={selectedPhoto} alt="Foto selecionada" className="w-full h-48 object-contain bg-white" />
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="absolute top-2 right-2 h-7 text-xs gap-1"
+                      onClick={() => setSelectedPhoto(null)}
                     >
-                      {composing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Building2 className="w-3 h-3" />}
-                      + Logo
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-56 p-3" align="center">
-                    <div className="space-y-3">
-                      <p className="text-xs font-medium">Posição do logo</p>
-                      <div className="grid grid-cols-3 gap-1.5">
+                      <RefreshCw className="w-3 h-3" />
+                      Trocar
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    {loadingPhotos ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : buffetPhotos.length > 0 ? (
+                      <ScrollArea className="h-52">
+                        <div className="grid grid-cols-3 gap-2 p-1">
+                          {buffetPhotos.map((url, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              className="relative group rounded-lg overflow-hidden border-2 border-border/40 hover:border-primary hover:shadow-md transition-all bg-white dark:bg-muted/30"
+                              onClick={() => setSelectedPhoto(url)}
+                            >
+                              <div className="w-full pt-[100%] relative">
+                                <img
+                                  src={url}
+                                  alt={`Foto ${i + 1}`}
+                                  className="absolute inset-0 w-full h-full object-contain p-0.5"
+                                  loading="lazy"
+                                />
+                              </div>
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                                <Image className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    ) : (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        Nenhuma foto encontrada nos materiais de venda.
+                      </p>
+                    )}
+
+                    <label className="flex items-center justify-center gap-2 p-3 border border-dashed rounded-lg cursor-pointer hover:bg-muted/50 hover:border-primary/30 transition-all text-sm text-muted-foreground hover:text-foreground">
+                      {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+                      {uploading ? "Enviando..." : "Fazer upload de outra foto"}
+                      <input type="file" accept="image/*" className="hidden" onChange={handleUploadForArt} disabled={uploading} />
+                    </label>
+                  </>
+                )}
+              </div>
+
+              {/* Step 2: Logo options */}
+              {currentCompany?.logo_url && (
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    2. Logotipo
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="include-logo-art"
+                      checked={includeLogo}
+                      onCheckedChange={(v) => setIncludeLogo(!!v)}
+                    />
+                    <label htmlFor="include-logo-art" className="text-sm cursor-pointer">
+                      Incluir logotipo na arte
+                    </label>
+                  </div>
+                  {includeLogo && (
+                    <div className="space-y-1.5">
+                      <p className="text-[11px] text-muted-foreground">Posição do logo</p>
+                      <div className="grid grid-cols-5 gap-1.5">
                         {[
                           { value: "top-left", label: "↖" },
                           { value: "top-right", label: "↗" },
@@ -466,211 +561,36 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
                           </button>
                         ))}
                       </div>
-                      <div className="text-[10px] text-muted-foreground text-center">
-                        {logoPosition === "top-left" && "Superior esquerdo"}
-                        {logoPosition === "top-right" && "Superior direito"}
-                        {logoPosition === "center" && "Centro"}
-                        {logoPosition === "bottom-left" && "Inferior esquerdo"}
-                        {logoPosition === "bottom-right" && "Inferior direito"}
-                      </div>
-                      <Button
-                        size="sm"
-                        className="w-full text-xs"
-                        onClick={handleComposeLogo}
-                        disabled={composing}
-                      >
-                        {composing ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Building2 className="w-3 h-3 mr-1" />}
-                        Aplicar logo
-                      </Button>
                     </div>
-                  </PopoverContent>
-                </Popover>
-              )}
-              {/* Arte IA button - only when image is selected */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors disabled:opacity-50"
-                    disabled={enhancing}
-                  >
-                    {enhancing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
-                    Arte IA
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-60 p-3" align="center">
-                  <div className="space-y-3">
-                    <p className="text-xs font-medium">Criar arte profissional</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      A IA vai criar uma arte combinando sua foto{currentCompany?.logo_url ? " + logotipo" : ""} + elementos de design
-                    </p>
-                    {currentCompany?.logo_url && (
-                      <>
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            id="include-logo"
-                            checked={includeLogo}
-                            onCheckedChange={(v) => setIncludeLogo(!!v)}
-                          />
-                          <label htmlFor="include-logo" className="text-xs cursor-pointer">
-                            Incluir logotipo
-                          </label>
-                        </div>
-                        {includeLogo && (
-                          <>
-                            <p className="text-[10px] text-muted-foreground">Posição do logo</p>
-                            <div className="grid grid-cols-3 gap-1.5">
-                              {[
-                                { value: "top-left", label: "↖" },
-                                { value: "top-right", label: "↗" },
-                                { value: "center", label: "⊕" },
-                                { value: "bottom-left", label: "↙" },
-                                { value: "bottom-right", label: "↘" },
-                              ].map((pos) => (
-                                <button
-                                  key={pos.value}
-                                  type="button"
-                                  className={`p-2 text-sm rounded-md border transition-colors ${
-                                    logoPosition === pos.value
-                                      ? "bg-primary text-primary-foreground border-primary"
-                                      : "bg-muted/30 hover:bg-muted border-border"
-                                  }`}
-                                  onClick={() => setLogoPosition(pos.value)}
-                                >
-                                  {pos.label}
-                                </button>
-                              ))}
-                            </div>
-                          </>
-                        )}
-                      </>
-                    )}
-                    <Button
-                      size="sm"
-                      className="w-full text-xs gap-1.5"
-                      onClick={handleEnhanceWithAI}
-                      disabled={enhancing}
-                    >
-                      {enhancing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
-                      Criar Arte com IA
-                    </Button>
-                  </div>
-                </PopoverContent>
-              </Popover>
-              <button
-                type="button"
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                onClick={handleOpenPhotosDialog}
-              >
-                <Image className="w-3 h-3" />
-                Fotos
-              </button>
-              <label className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer">
-                <ImagePlus className="w-3 h-3" />
-                Upload
-                <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
-              </label>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <label className="flex items-center gap-2.5 p-3 border border-dashed rounded-xl cursor-pointer hover:bg-muted/50 hover:border-primary/30 transition-all group">
-              {uploading ? (
-                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-              ) : (
-                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                  <ImagePlus className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                  )}
                 </div>
               )}
-              <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
-                {uploading ? "Enviando..." : "Clique para enviar imagem"}
-              </span>
-              <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
-            </label>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full h-10 gap-2 border-dashed"
-              onClick={handleGenerateImage}
-              disabled={generatingImage || !draft.description.trim()}
-            >
-              {generatingImage ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Sparkles className="w-4 h-4" />
-              )}
-              {generatingImage ? "Gerando arte com IA..." : "Gerar Arte com IA"}
-            </Button>
-            {currentCompany?.logo_url && (
+
+              {/* Generate button */}
               <Button
-                type="button"
-                variant="outline"
-                className="w-full h-10 gap-2 border-dashed"
-                onClick={handleUseLogo}
+                className="w-full h-11 gap-2 text-sm font-semibold"
+                onClick={handleComposeArt}
+                disabled={composing || !selectedPhoto}
               >
-                <Building2 className="w-4 h-4" />
-                Usar Logotipo da Empresa
+                {composing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Criando arte profissional...
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="w-4 h-4" />
+                    Gerar Arte Profissional
+                  </>
+                )}
               </Button>
-            )}
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full h-10 gap-2 border-dashed"
-              onClick={handleOpenPhotosDialog}
-            >
-              <Image className="w-4 h-4" />
-              Fotos do Buffet
-            </Button>
-          </div>
-        )}
 
-        {/* Dialog de preview da imagem */}
-        <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-          <DialogContent className="max-w-lg p-2 bg-black/90 border-none">
-            {draft.imageUrl && (
-              <img src={draft.imageUrl} alt="Preview" className="w-full h-auto rounded-lg" />
-            )}
-          </DialogContent>
-        </Dialog>
-
-        {/* Dialog de fotos do buffet */}
-        <Dialog open={photosDialogOpen} onOpenChange={setPhotosDialogOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Fotos do Buffet</DialogTitle>
-            </DialogHeader>
-            {loadingPhotos ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : buffetPhotos.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                Nenhuma foto encontrada nos materiais de venda.
-              </p>
-            ) : (
-              <ScrollArea className="h-80">
-                <div className="grid grid-cols-2 gap-2 p-1">
-                  {buffetPhotos.map((url, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      className="relative group rounded-xl overflow-hidden border-2 border-border/40 hover:border-primary hover:shadow-md transition-all bg-white dark:bg-muted/30"
-                      onClick={() => handleSelectBuffetPhoto(url)}
-                    >
-                      <div className="w-full pt-[75%] relative">
-                        <img
-                          src={url}
-                          alt={`Foto ${i + 1}`}
-                          className="absolute inset-0 w-full h-full object-contain p-0.5"
-                          loading="lazy"
-                        />
-                      </div>
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-                    </button>
-                  ))}
-                </div>
-              </ScrollArea>
-            )}
+              {!selectedPhoto && (
+                <p className="text-[11px] text-muted-foreground text-center">
+                  Selecione uma foto do buffet para a IA criar uma arte promocional profissional
+                </p>
+              )}
+            </div>
           </DialogContent>
         </Dialog>
       </div>
