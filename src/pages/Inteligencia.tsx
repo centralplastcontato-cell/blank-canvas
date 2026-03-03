@@ -224,7 +224,7 @@ export default function Inteligencia() {
           </header>
 
           <PullToRefresh onRefresh={async () => { await refetch(); }} className="flex-1 p-3 md:p-5 overflow-x-hidden overflow-y-auto">
-            <div className="max-w-7xl mx-auto space-y-4">
+            <div className={`mx-auto space-y-4 ${activeTab === "follow-ups" ? "" : "max-w-7xl"}`}>
               {/* Desktop header */}
               <div className="hidden md:flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex items-center gap-3">
