@@ -285,20 +285,25 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
   }
 
   const visibleColumns = COLUMN_CONFIG.filter(col => isColumnEnabled(col.fuNumber));
-  const gridCols = visibleColumns.length <= 2 ? `md:grid-cols-${visibleColumns.length}` : visibleColumns.length === 3 ? "md:grid-cols-3" : visibleColumns.length === 4 ? "md:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-2 lg:grid-cols-5";
+  const gridCols = visibleColumns.length <= 2 ? `md:grid-cols-${visibleColumns.length}` : visibleColumns.length === 3 ? "md:grid-cols-3" : visibleColumns.length === 4 ? "md:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5";
+  const containerClass = visibleColumns.length >= 5 ? "overflow-x-auto" : "";
+  const minWidthClass = visibleColumns.length >= 5 ? "min-w-[1100px]" : "";
 
   if (isLoading) {
     return (
-      <div className={`grid gap-6 ${gridCols}`}>
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-64 rounded-xl" />
-        ))}
+      <div className={containerClass}>
+        <div className={`grid gap-6 ${gridCols} ${minWidthClass}`}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-64 rounded-xl" />
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className={`grid gap-6 ${gridCols}`}>
+    <div className={containerClass}>
+    <div className={`grid gap-6 ${gridCols} ${minWidthClass}`}>
       {visibleColumns.map(col => {
         const columnLeads = followUpLeads.filter(l => l.fuNumber === col.fuNumber);
         return (
@@ -364,6 +369,7 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
           </Card>
         );
       })}
+    </div>
     </div>
   );
 }
