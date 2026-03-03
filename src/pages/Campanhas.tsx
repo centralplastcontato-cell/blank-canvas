@@ -7,7 +7,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Megaphone, Plus, CheckCircle2, XCircle, Clock, Loader2, Users, Menu, ImageIcon } from "lucide-react";
+import { Megaphone, Plus, CheckCircle2, XCircle, Clock, Loader2, Users, Menu, ImageIcon, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CampaignWizard } from "@/components/campanhas/CampaignWizard";
@@ -55,6 +65,8 @@ export default function Campanhas() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [sendCampaign, setSendCampaign] = useState<Campaign | null>(null);
   const [detailCampaign, setDetailCampaign] = useState<Campaign | null>(null);
+  const [campaignToDelete, setCampaignToDelete] = useState<Campaign | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!companyId) return;
@@ -76,6 +88,22 @@ export default function Campanhas() {
     }
     setCampaigns((data as Campaign[]) || []);
     setLoading(false);
+  };
+
+  const handleDeleteCampaign = async () => {
+    if (!campaignToDelete) return;
+    setDeleting(true);
+    // Delete recipients first, then campaign
+    await supabase.from("campaign_recipients").delete().eq("campaign_id", campaignToDelete.id);
+    const { error } = await supabase.from("campaigns").delete().eq("id", campaignToDelete.id);
+    if (error) {
+      toast.error("Erro ao excluir campanha");
+    } else {
+      toast.success("Campanha excluída!");
+      loadCampaigns();
+    }
+    setDeleting(false);
+    setCampaignToDelete(null);
   };
 
   const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
@@ -192,7 +220,7 @@ export default function Campanhas() {
                               {format(new Date(campaign.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                             </p>
                           </div>
-                          <div className="text-right shrink-0">
+                          <div className="flex items-center gap-3 shrink-0">
                             <div className="flex items-center gap-3 text-sm">
                               <div className="text-center">
                                 <p className="font-bold text-lg">{campaign.total_recipients}</p>
@@ -209,6 +237,14 @@ export default function Campanhas() {
                                 </div>
                               )}
                             </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              onClick={(e) => { e.stopPropagation(); setCampaignToDelete(campaign); }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
                         </CardContent>
                       </Card>
@@ -261,6 +297,28 @@ export default function Campanhas() {
             onResend={(c) => { setSendCampaign(c); }}
             onRefresh={loadCampaigns}
           />
+
+          <AlertDialog open={!!campaignToDelete} onOpenChange={(open) => !open && setCampaignToDelete(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir campanha?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tem certeza que deseja excluir a campanha "{campaignToDelete?.name}"? Esta ação não pode ser desfeita.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeleteCampaign}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  disabled={deleting}
+                >
+                  {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Excluir
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           </div>
         </main>
       </div>
