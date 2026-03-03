@@ -66,6 +66,28 @@ export function ScheduleCard({
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null);
   const [editingFreelancer, setEditingFreelancer] = useState<any>(null);
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [expandedEvents, setExpandedEvents] = useState<Set<string>>(() => {
+    // If only 1 event, start expanded
+    return schedule.event_ids.length === 1 ? new Set(schedule.event_ids) : new Set();
+  });
+
+  const toggleEvent = (eventId: string) => {
+    setExpandedEvents(prev => {
+      const next = new Set(prev);
+      if (next.has(eventId)) next.delete(eventId);
+      else next.add(eventId);
+      return next;
+    });
+  };
+
+  const allEventsExpanded = schedule.event_ids.every(id => expandedEvents.has(id));
+  const toggleAllEvents = () => {
+    if (allEventsExpanded) {
+      setExpandedEvents(new Set());
+    } else {
+      setExpandedEvents(new Set(schedule.event_ids));
+    }
+  };
 
   const handleOpenFreelancerEdit = async (freelancerName: string) => {
     if (!companyId) return;
@@ -170,13 +192,32 @@ export function ScheduleCard({
 
       {isExpanded && (
         <CardContent className="pt-0 space-y-5">
-          {/* Divider label */}
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
-              Festas da escala
-            </span>
-            <div className="flex-1 h-px bg-border/40" />
-          </div>
+          {/* Expand/Collapse all button */}
+          {schedule.event_ids.length > 1 && (
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
+                Festas da escala
+              </span>
+              <div className="flex-1 h-px bg-border/40" />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-[10px] px-2 gap-1 rounded-full"
+                onClick={toggleAllEvents}
+              >
+                {allEventsExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                {allEventsExpanded ? "Recolher todas" : "Expandir todas"}
+              </Button>
+            </div>
+          )}
+          {schedule.event_ids.length === 1 && (
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
+                Festas da escala
+              </span>
+              <div className="flex-1 h-px bg-border/40" />
+            </div>
+          )}
 
           {schedule.event_ids.map(eventId => {
             const ev = events[eventId];
@@ -191,9 +232,15 @@ export function ScheduleCard({
             const currentNote = eventNotes[eventId] || "";
             const isEditingNote = editingNotesFor === eventId;
 
+            const isEventExpanded = expandedEvents.has(eventId);
+
             return (
-              <div key={eventId} className="border rounded-xl p-4 space-y-3 bg-card shadow-sm">
-                <div className="flex items-center justify-between">
+              <div key={eventId} className="border rounded-xl bg-card shadow-sm overflow-hidden">
+                {/* Clickable event header */}
+                <div
+                  className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/30 transition-colors"
+                  onClick={() => toggleEvent(eventId)}
+                >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className="h-10 w-10 rounded-lg bg-primary/8 flex flex-col items-center justify-center shrink-0">
                       <span className="text-[10px] font-bold text-primary uppercase leading-none">{dayName}</span>
@@ -210,21 +257,23 @@ export function ScheduleCard({
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     {onUpdateDisplayName && (
-                      <Select
-                        value={genericMode ? "generic" : "host"}
-                        onValueChange={v => {
-                          const newName = v === "generic" ? getGenericName(ev) : "";
-                          onUpdateDisplayName(schedule.id, eventId, newName);
-                        }}
-                      >
-                        <SelectTrigger className="w-28 h-7 text-[10px] rounded-lg border-dashed">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="host">Anfitrião</SelectItem>
-                          <SelectItem value="generic">Festa genérica</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div onClick={e => e.stopPropagation()}>
+                        <Select
+                          value={genericMode ? "generic" : "host"}
+                          onValueChange={v => {
+                            const newName = v === "generic" ? getGenericName(ev) : "";
+                            onUpdateDisplayName(schedule.id, eventId, newName);
+                          }}
+                        >
+                          <SelectTrigger className="w-28 h-7 text-[10px] rounded-lg border-dashed">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="host">Anfitrião</SelectItem>
+                            <SelectItem value="generic">Festa genérica</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     )}
                     <Badge
                       variant={availForEvent.length > 0 ? "default" : "outline"}
@@ -237,185 +286,187 @@ export function ScheduleCard({
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 rounded-full text-destructive/60 hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => setRemoveConfirm(eventId)}
+                        onClick={e => { e.stopPropagation(); setRemoveConfirm(eventId); }}
                       >
                         <X className="h-3.5 w-3.5" />
                       </Button>
                     )}
+                    <div className="h-5 w-5 rounded-full bg-muted/60 flex items-center justify-center ml-1">
+                      {isEventExpanded ? <ChevronUp className="h-3 w-3 text-muted-foreground" /> : <ChevronDown className="h-3 w-3 text-muted-foreground" />}
+                    </div>
                   </div>
                 </div>
 
-                {/* Per-event notes */}
-                <div className="border-l-4 border-l-amber-400/60 rounded-r-lg bg-amber-50/50 dark:bg-amber-950/10 p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-semibold tracking-[0.15em] uppercase text-amber-700/70 dark:text-amber-400/70 flex items-center gap-1">
-                      <MessageSquare className="h-3 w-3" />
-                      Observação
-                    </label>
-                    {isEditingNote ? (
-                      <Button variant="secondary" size="sm" className="h-6 text-[10px] px-2.5 gap-1 rounded-full" onClick={() => {
-                        onUpdateNotes(schedule.id, eventId, notesValue);
-                        setEditingNotesFor(null);
-                      }}>
-                        <Save className="h-3 w-3" /> Salvar
-                      </Button>
-                    ) : (
-                      <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1 rounded-full" onClick={() => {
-                        setNotesValue(currentNote);
-                        setEditingNotesFor(eventId);
-                      }}>
-                        <Pencil className="h-3 w-3" /> Editar
-                      </Button>
-                    )}
-                  </div>
-                  {isEditingNote ? (
-                    <Textarea
-                      value={notesValue}
-                      onChange={e => setNotesValue(e.target.value)}
-                      placeholder="Ex: Chegar 30min antes, usar camiseta preta..."
-                      className="min-h-[50px] resize-none text-xs bg-background"
-                      maxLength={500}
-                    />
-                  ) : (
-                    <p className={`text-xs whitespace-pre-wrap ${currentNote ? "text-foreground/80" : "text-muted-foreground/50 italic"}`}>
-                      {currentNote || "Sem observação."}
-                    </p>
-                  )}
-                </div>
-
-                {availForEvent.length > 0 && (() => {
-                  // Collect all roles present in this event's availability
-                  const eventRoles = new Set<string>();
-                  availForEvent.forEach(av => {
-                    (freelancerRoles[av.freelancer_name] || []).forEach(r => eventRoles.add(r));
-                  });
-                  const sortedRoles = Array.from(eventRoles).sort();
-
-                  // Filter by role
-                  const filteredAvailUnsorted = roleFilter === "all"
-                    ? availForEvent
-                    : roleFilter === "sem_funcao"
-                      ? availForEvent.filter(av => !(freelancerRoles[av.freelancer_name]?.length))
-                      : availForEvent.filter(av => (freelancerRoles[av.freelancer_name] || []).includes(roleFilter));
-
-                  // Sort: group by primary role (alphabetical), then by name within each group
-                  // Freelancers without a role go to the end
-                  const filteredAvail = [...filteredAvailUnsorted].sort((a, b) => {
-                    const rolesA = freelancerRoles[a.freelancer_name] || [];
-                    const rolesB = freelancerRoles[b.freelancer_name] || [];
-                    const primaryA = rolesA.length > 0 ? rolesA[0] : "zzz";
-                    const primaryB = rolesB.length > 0 ? rolesB[0] : "zzz";
-                    if (primaryA !== primaryB) return primaryA.localeCompare(primaryB, "pt-BR");
-                    return a.freelancer_name.localeCompare(b.freelancer_name, "pt-BR");
-                  });
-
-                  return (
-                    <div className="space-y-2 pt-1">
-                      {/* Role filter chips */}
-                      {sortedRoles.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setRoleFilter("all")}
-                            className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
-                              roleFilter === "all" ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 text-muted-foreground border-border hover:bg-muted"
-                            }`}
-                          >
-                            Todos ({availForEvent.length})
-                          </button>
-                          {sortedRoles.map(r => {
-                            const count = availForEvent.filter(av => (freelancerRoles[av.freelancer_name] || []).includes(r)).length;
-                            return (
-                              <button
-                                key={r}
-                                type="button"
-                                onClick={() => setRoleFilter(prev => prev === r ? "all" : r)}
-                                className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
-                                  roleFilter === r ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 text-muted-foreground border-border hover:bg-muted"
-                                }`}
-                              >
-                                {r} ({count})
-                              </button>
-                            );
-                          })}
-                          {availForEvent.some(av => !(freelancerRoles[av.freelancer_name]?.length)) && (
-                            <button
-                              type="button"
-                              onClick={() => setRoleFilter(prev => prev === "sem_funcao" ? "all" : "sem_funcao")}
-                              className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
-                                roleFilter === "sem_funcao" ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 text-muted-foreground border-border hover:bg-muted"
-                              }`}
-                            >
-                              Sem função ({availForEvent.filter(av => !(freelancerRoles[av.freelancer_name]?.length)).length})
-                            </button>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Freelancer list */}
-                      <div className="space-y-1.5">
-                        {filteredAvail.map(av => {
-                          const assigned = assignedForEvent.find(a => a.freelancer_name === av.freelancer_name);
-                          const registeredRoles = freelancerRoles[av.freelancer_name] || [];
-                          const autoRole = registeredRoles.length === 1 ? registeredRoles[0] : "";
-                          return (
-                            <div key={av.id} className={`flex items-center gap-3 p-2.5 rounded-lg border transition-colors ${assigned ? "bg-primary/5 border-primary/15" : "bg-muted/30 border-transparent"}`}>
-                              <Checkbox
-                                checked={!!assigned}
-                                onCheckedChange={() => onToggleAssignment(schedule.id, eventId, av.freelancer_name, assigned?.role || autoRole)}
-                                disabled={savingAssignment}
-                              />
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1">
-                                  <p className={`text-sm ${assigned ? "font-semibold" : "font-medium"}`}>{av.freelancer_name}</p>
-                                  {companyId && (
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-5 w-5 rounded-full text-muted-foreground hover:text-primary shrink-0"
-                                      onClick={() => handleOpenFreelancerEdit(av.freelancer_name)}
-                                      title="Editar cadastro"
-                                    >
-                                      <Pencil className="h-3 w-3" />
-                                    </Button>
-                                  )}
-                                </div>
-                                <p className="text-[11px] text-muted-foreground">{av.freelancer_phone}</p>
-                                {registeredRoles.length > 0 && (
-                                  <p className="text-[11px] text-primary/70 font-medium mt-0.5">{registeredRoles.join(", ")}</p>
-                                )}
-                              </div>
-                              {assigned && (
-                                <Select value={assigned.role || "none"} onValueChange={v => onUpdateRole(assigned.id, v === "none" ? "" : v)}>
-                                  <SelectTrigger className="w-32 h-8 text-xs rounded-lg">
-                                    <SelectValue placeholder="Função" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="none">Sem função</SelectItem>
-                                    {registeredRoles.length > 0 && (
-                                      <>
-                                        {registeredRoles.map(r => <SelectItem key={`reg-${r}`} value={r}>{r}</SelectItem>)}
-                                        <Separator className="my-1" />
-                                      </>
-                                    )}
-                                    {roles.filter(r => !registeredRoles.includes(r)).map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                                  </SelectContent>
-                                </Select>
-                              )}
-                              {assigned && <Check className="h-4 w-4 text-primary shrink-0" />}
-                            </div>
-                          );
-                        })}
-                        {filteredAvail.length === 0 && (
-                          <p className="text-xs text-muted-foreground/60 italic pl-1">Nenhum freelancer com este cargo.</p>
+                {/* Collapsible event body */}
+                {isEventExpanded && (
+                  <div className="px-4 pb-4 space-y-3">
+                    {/* Per-event notes */}
+                    <div className="border-l-4 border-l-amber-400/60 rounded-r-lg bg-amber-50/50 dark:bg-amber-950/10 p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-semibold tracking-[0.15em] uppercase text-amber-700/70 dark:text-amber-400/70 flex items-center gap-1">
+                          <MessageSquare className="h-3 w-3" />
+                          Observação
+                        </label>
+                        {isEditingNote ? (
+                          <Button variant="secondary" size="sm" className="h-6 text-[10px] px-2.5 gap-1 rounded-full" onClick={() => {
+                            onUpdateNotes(schedule.id, eventId, notesValue);
+                            setEditingNotesFor(null);
+                          }}>
+                            <Save className="h-3 w-3" /> Salvar
+                          </Button>
+                        ) : (
+                          <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1 rounded-full" onClick={() => {
+                            setNotesValue(currentNote);
+                            setEditingNotesFor(eventId);
+                          }}>
+                            <Pencil className="h-3 w-3" /> Editar
+                          </Button>
                         )}
                       </div>
+                      {isEditingNote ? (
+                        <Textarea
+                          value={notesValue}
+                          onChange={e => setNotesValue(e.target.value)}
+                          placeholder="Ex: Chegar 30min antes, usar camiseta preta..."
+                          className="min-h-[50px] resize-none text-xs bg-background"
+                          maxLength={500}
+                        />
+                      ) : (
+                        <p className={`text-xs whitespace-pre-wrap ${currentNote ? "text-foreground/80" : "text-muted-foreground/50 italic"}`}>
+                          {currentNote || "Sem observação."}
+                        </p>
+                      )}
                     </div>
-                  );
-                })()}
 
-                {availForEvent.length === 0 && (
-                  <p className="text-xs text-muted-foreground/60 italic pl-1">Nenhum freelancer disponível ainda.</p>
+                    {availForEvent.length > 0 && (() => {
+                      const eventRoles = new Set<string>();
+                      availForEvent.forEach(av => {
+                        (freelancerRoles[av.freelancer_name] || []).forEach(r => eventRoles.add(r));
+                      });
+                      const sortedRoles = Array.from(eventRoles).sort();
+
+                      const filteredAvailUnsorted = roleFilter === "all"
+                        ? availForEvent
+                        : roleFilter === "sem_funcao"
+                          ? availForEvent.filter(av => !(freelancerRoles[av.freelancer_name]?.length))
+                          : availForEvent.filter(av => (freelancerRoles[av.freelancer_name] || []).includes(roleFilter));
+
+                      const filteredAvail = [...filteredAvailUnsorted].sort((a, b) => {
+                        const rolesA = freelancerRoles[a.freelancer_name] || [];
+                        const rolesB = freelancerRoles[b.freelancer_name] || [];
+                        const primaryA = rolesA.length > 0 ? rolesA[0] : "zzz";
+                        const primaryB = rolesB.length > 0 ? rolesB[0] : "zzz";
+                        if (primaryA !== primaryB) return primaryA.localeCompare(primaryB, "pt-BR");
+                        return a.freelancer_name.localeCompare(b.freelancer_name, "pt-BR");
+                      });
+
+                      return (
+                        <div className="space-y-2 pt-1">
+                          {sortedRoles.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setRoleFilter("all")}
+                                className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
+                                  roleFilter === "all" ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 text-muted-foreground border-border hover:bg-muted"
+                                }`}
+                              >
+                                Todos ({availForEvent.length})
+                              </button>
+                              {sortedRoles.map(r => {
+                                const count = availForEvent.filter(av => (freelancerRoles[av.freelancer_name] || []).includes(r)).length;
+                                return (
+                                  <button
+                                    key={r}
+                                    type="button"
+                                    onClick={() => setRoleFilter(prev => prev === r ? "all" : r)}
+                                    className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
+                                      roleFilter === r ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 text-muted-foreground border-border hover:bg-muted"
+                                    }`}
+                                  >
+                                    {r} ({count})
+                                  </button>
+                                );
+                              })}
+                              {availForEvent.some(av => !(freelancerRoles[av.freelancer_name]?.length)) && (
+                                <button
+                                  type="button"
+                                  onClick={() => setRoleFilter(prev => prev === "sem_funcao" ? "all" : "sem_funcao")}
+                                  className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
+                                    roleFilter === "sem_funcao" ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 text-muted-foreground border-border hover:bg-muted"
+                                  }`}
+                                >
+                                  Sem função ({availForEvent.filter(av => !(freelancerRoles[av.freelancer_name]?.length)).length})
+                                </button>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="space-y-1.5">
+                            {filteredAvail.map(av => {
+                              const assigned = assignedForEvent.find(a => a.freelancer_name === av.freelancer_name);
+                              const registeredRoles = freelancerRoles[av.freelancer_name] || [];
+                              const autoRole = registeredRoles.length === 1 ? registeredRoles[0] : "";
+                              return (
+                                <div key={av.id} className={`flex items-center gap-3 p-2.5 rounded-lg border transition-colors ${assigned ? "bg-primary/5 border-primary/15" : "bg-muted/30 border-transparent"}`}>
+                                  <Checkbox
+                                    checked={!!assigned}
+                                    onCheckedChange={() => onToggleAssignment(schedule.id, eventId, av.freelancer_name, assigned?.role || autoRole)}
+                                    disabled={savingAssignment}
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1">
+                                      <p className={`text-sm ${assigned ? "font-semibold" : "font-medium"}`}>{av.freelancer_name}</p>
+                                      {companyId && (
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-5 w-5 rounded-full text-muted-foreground hover:text-primary shrink-0"
+                                          onClick={() => handleOpenFreelancerEdit(av.freelancer_name)}
+                                          title="Editar cadastro"
+                                        >
+                                          <Pencil className="h-3 w-3" />
+                                        </Button>
+                                      )}
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground">{av.freelancer_phone}</p>
+                                    {registeredRoles.length > 0 && (
+                                      <p className="text-[11px] text-primary/70 font-medium mt-0.5">{registeredRoles.join(", ")}</p>
+                                    )}
+                                  </div>
+                                  {assigned && (
+                                    <Select value={assigned.role || "none"} onValueChange={v => onUpdateRole(assigned.id, v === "none" ? "" : v)}>
+                                      <SelectTrigger className="w-32 h-8 text-xs rounded-lg">
+                                        <SelectValue placeholder="Função" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="none">Sem função</SelectItem>
+                                        {registeredRoles.length > 0 && (
+                                          <>
+                                            {registeredRoles.map(r => <SelectItem key={`reg-${r}`} value={r}>{r}</SelectItem>)}
+                                            <Separator className="my-1" />
+                                          </>
+                                        )}
+                                        {roles.filter(r => !registeredRoles.includes(r)).map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                  )}
+                                  {assigned && <Check className="h-4 w-4 text-primary shrink-0" />}
+                                </div>
+                              );
+                            })}
+                            {filteredAvail.length === 0 && (
+                              <p className="text-xs text-muted-foreground/60 italic pl-1">Nenhum freelancer com este cargo.</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {availForEvent.length === 0 && (
+                      <p className="text-xs text-muted-foreground/60 italic pl-1">Nenhum freelancer disponível ainda.</p>
+                    )}
+                  </div>
                 )}
               </div>
             );
