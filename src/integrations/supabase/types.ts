@@ -234,6 +234,54 @@ export type Database = {
           },
         ]
       }
+      campaign_images: {
+        Row: {
+          campaign_id: string | null
+          campaign_name: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          image_url: string
+          source: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          campaign_name?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          image_url: string
+          source?: string
+        }
+        Update: {
+          campaign_id?: string | null
+          campaign_name?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          image_url?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_images_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_images_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_leads: {
         Row: {
           campaign_id: string

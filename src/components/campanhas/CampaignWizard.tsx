@@ -109,6 +109,16 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
 
       if (recipErr) throw recipErr;
 
+      // Link image to campaign in gallery
+      if (draft.imageUrl && campaign.id) {
+        await (supabase as any)
+          .from("campaign_images")
+          .update({ campaign_id: campaign.id })
+          .eq("company_id", companyId)
+          .eq("image_url", draft.imageUrl)
+          .is("campaign_id", null);
+      }
+
       toast.success("Campanha criada!");
       setStep(0);
       setDraft({ name: "", campaignType: "", description: "", variations: [], imageUrl: null, selectedLeadIds: [], leads: [], delaySeconds: 60 });

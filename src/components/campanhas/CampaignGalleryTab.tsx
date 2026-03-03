@@ -8,17 +8,16 @@ import { ptBR } from "date-fns/locale";
 
 interface GalleryImage {
   id: string;
-  name: string;
   image_url: string;
-  status: string;
+  source: string;
+  campaign_name: string | null;
   created_at: string;
 }
 
-const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  draft: { label: "Rascunho", variant: "secondary" },
-  sending: { label: "Enviando", variant: "default" },
-  completed: { label: "Concluída", variant: "outline" },
-  cancelled: { label: "Cancelada", variant: "destructive" },
+const sourceConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  ai_compose: { label: "IA", variant: "default" },
+  upload: { label: "Upload", variant: "secondary" },
+  logo: { label: "Logo", variant: "outline" },
 };
 
 export function CampaignGalleryTab({ companyId }: { companyId: string }) {
@@ -30,11 +29,10 @@ export function CampaignGalleryTab({ companyId }: { companyId: string }) {
     if (!companyId) return;
     const load = async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from("campaigns")
-        .select("id, name, image_url, status, created_at")
+      const { data } = await (supabase as any)
+        .from("campaign_images")
+        .select("id, image_url, source, campaign_name, created_at")
         .eq("company_id", companyId)
-        .not("image_url", "is", null)
         .order("created_at", { ascending: false });
       setImages((data as GalleryImage[]) || []);
       setLoading(false);
@@ -66,7 +64,7 @@ export function CampaignGalleryTab({ companyId }: { companyId: string }) {
     <>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {images.map((img, idx) => {
-          const sc = statusConfig[img.status] || statusConfig.draft;
+          const sc = sourceConfig[img.source] || sourceConfig.upload;
           return (
             <div
               key={img.id}
@@ -76,7 +74,7 @@ export function CampaignGalleryTab({ companyId }: { companyId: string }) {
               <div className="aspect-square">
                 <img
                   src={img.image_url}
-                  alt={img.name}
+                  alt={img.campaign_name || "Imagem"}
                   className="w-full h-full object-cover"
                   loading="lazy"
                 />
@@ -84,7 +82,7 @@ export function CampaignGalleryTab({ companyId }: { companyId: string }) {
               {/* Hover overlay */}
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-end">
                 <div className="w-full p-2.5 translate-y-full group-hover:translate-y-0 transition-transform">
-                  <p className="text-white text-xs font-semibold truncate">{img.name}</p>
+                  <p className="text-white text-xs font-semibold truncate">{img.campaign_name || "Sem título"}</p>
                 </div>
               </div>
               {/* Badge */}
