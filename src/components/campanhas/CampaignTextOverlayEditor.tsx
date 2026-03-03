@@ -78,13 +78,18 @@ const CANVAS_SIZE = 1080;
 const DPR = typeof window !== "undefined" ? Math.min(window.devicePixelRatio || 1, 2) : 1;
 
 const COLOR_PRESETS = [
+  { value: "#FFFFFF", label: "Branco" },
   { value: "#FF3333", label: "Vermelho" },
   { value: "#FF6B00", label: "Laranja" },
   { value: "#FFD700", label: "Amarelo" },
   { value: "#00CC66", label: "Verde" },
+  { value: "#00CED1", label: "Turquesa" },
   { value: "#3399FF", label: "Azul" },
+  { value: "#1E3A8A", label: "Azul Escuro" },
   { value: "#9B59B6", label: "Roxo" },
   { value: "#FF69B4", label: "Rosa" },
+  { value: "#000000", label: "Preto" },
+  { value: "#C0C0C0", label: "Prata" },
 ];
 
 const FONT_OPTIONS = [
