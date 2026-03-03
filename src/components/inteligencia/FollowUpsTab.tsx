@@ -33,6 +33,7 @@ interface FollowUpsTabProps {
 interface InstanceDelays {
   unit: string;
   delays: Record<number, number>;
+  enabled: Record<number, boolean>;
 }
 
 const COLUMN_CONFIG = [
@@ -72,7 +73,7 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
       // Fetch ALL bot settings + instances for this company
       const { data: allSettings } = await supabase
         .from("wapi_bot_settings" as any)
-        .select("instance_id, follow_up_delay_hours, follow_up_2_delay_hours, follow_up_3_delay_hours, follow_up_4_delay_hours")
+        .select("instance_id, follow_up_enabled, follow_up_delay_hours, follow_up_2_enabled, follow_up_2_delay_hours, follow_up_3_enabled, follow_up_3_delay_hours, follow_up_4_enabled, follow_up_4_delay_hours")
         .eq("company_id", currentCompany.id);
 
       const { data: instances } = await supabase
@@ -99,6 +100,12 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
               2: s.follow_up_2_delay_hours ?? 48,
               3: s.follow_up_3_delay_hours ?? 72,
               4: s.follow_up_4_delay_hours ?? 96,
+            },
+            enabled: {
+              1: s.follow_up_enabled !== false,
+              2: s.follow_up_2_enabled !== false,
+              3: s.follow_up_3_enabled !== false,
+              4: s.follow_up_4_enabled !== false,
             },
           });
         }
@@ -226,9 +233,28 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
     return `${formatDelayLabel(min)}–${formatDelayLabel(max)}`;
   }
 
+  // Check if a follow-up column is enabled (across selected unit or all instances)
+  function isColumnEnabled(fuNumber: number): boolean {
+    if (instanceDelaysMap.size === 0) return true; // no settings loaded yet, show all
+
+    if (selectedUnit && selectedUnit !== "all") {
+      for (const [, data] of instanceDelaysMap) {
+        if (data.unit === selectedUnit) {
+          return data.enabled[fuNumber] !== false;
+        }
+      }
+    }
+
+    // Show column if ANY instance has it enabled
+    return [...instanceDelaysMap.values()].some(d => d.enabled[fuNumber] !== false);
+  }
+
+  const visibleColumns = COLUMN_CONFIG.filter(col => isColumnEnabled(col.fuNumber));
+  const gridCols = visibleColumns.length <= 2 ? `md:grid-cols-${visibleColumns.length}` : visibleColumns.length === 3 ? "md:grid-cols-3" : "md:grid-cols-2 lg:grid-cols-4";
+
   if (isLoading) {
     return (
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className={`grid gap-6 ${gridCols}`}>
         {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton key={i} className="h-64 rounded-xl" />
         ))}
@@ -237,8 +263,8 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-      {COLUMN_CONFIG.map(col => {
+    <div className={`grid gap-6 ${gridCols}`}>
+      {visibleColumns.map(col => {
         const columnLeads = followUpLeads.filter(l => l.fuNumber === col.fuNumber);
         return (
           <Card key={col.fuNumber} className={`border-l-4 ${col.color} shadow-card`}>
