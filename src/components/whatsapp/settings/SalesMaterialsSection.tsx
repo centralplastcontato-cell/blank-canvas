@@ -19,7 +19,24 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { FileText, Image, Video, Plus, Pencil, Trash2, Loader2, Upload, FolderOpen, Images, X } from "lucide-react";
+import { FileText, Image, Video, Plus, Pencil, Trash2, Loader2, Upload, FolderOpen, Images, X, GripVertical } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface SalesMaterial {
   id: string;
@@ -40,9 +57,105 @@ interface SalesMaterialsSectionProps {
 }
 
 const GUEST_OPTIONS = [50, 60, 70, 80, 90, 100];
-// UNITS loaded dynamically via useCompanyUnits
 const MAX_PHOTOS_PER_COLLECTION = 10;
 const MAX_COLLECTIONS_PER_UNIT = 5;
+
+// Sortable material item for drag-and-drop
+function SortableMaterialItem({ 
+  material, canManage, isImageFile, getTypeIcon, onToggleActive, onEdit, onDelete, onPreview 
+}: {
+  material: SalesMaterial;
+  canManage: boolean;
+  isImageFile: (url: string, filePath?: string | null) => boolean;
+  getTypeIcon: (type: string) => React.ReactNode;
+  onToggleActive: (m: SalesMaterial) => void;
+  onEdit: (m: SalesMaterial) => void;
+  onDelete: (m: SalesMaterial) => void;
+  onPreview: (url: string) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: material.id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-2 p-2 border rounded-lg ${!material.is_active ? 'opacity-50' : ''} ${isDragging ? 'shadow-lg ring-2 ring-primary/20' : ''}`}
+    >
+      {canManage && (
+        <button
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing touch-none p-0.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          tabIndex={-1}
+        >
+          <GripVertical className="w-4 h-4" />
+        </button>
+      )}
+      {material.type === "pdf_package" && material.file_url && isImageFile(material.file_url, material.file_path) ? (
+        <img 
+          src={material.file_url} 
+          alt={material.name} 
+          className="w-8 h-8 object-cover rounded border shrink-0 cursor-pointer hover:ring-2 hover:ring-primary transition-all" 
+          onClick={(e) => { e.stopPropagation(); onPreview(material.file_url); }}
+        />
+      ) : (
+        getTypeIcon(material.type)
+      )}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate">{material.name}</p>
+        {material.type === "photo_collection" && material.photo_urls && (
+          <p className="text-xs text-muted-foreground">
+            {material.photo_urls.length} foto{material.photo_urls.length !== 1 ? 's' : ''}
+          </p>
+        )}
+        {material.type === "pdf_package" && (
+          <p className="text-xs text-muted-foreground">
+            {material.guest_count ? `${material.guest_count} pessoas` : "Todos os pacotes"}
+          </p>
+        )}
+      </div>
+      {canManage && (
+        <div className="flex items-center gap-1 shrink-0">
+          <Switch
+            checked={material.is_active}
+            onCheckedChange={() => onToggleActive(material)}
+            className="scale-75"
+          />
+          <Button 
+            variant="ghost" 
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => onEdit(material)}
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon"
+            className="h-8 w-8 text-destructive hover:text-destructive"
+            onClick={() => onDelete(material)}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSectionProps) {
   const { unitNames: UNITS } = useCompanyUnits();
@@ -626,6 +739,36 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
     }
   };
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleMaterialDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = filteredMaterials.findIndex(m => m.id === active.id);
+    const newIndex = filteredMaterials.findIndex(m => m.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(filteredMaterials, oldIndex, newIndex);
+    
+    // Update local state immediately
+    const updatedMaterials = materials.map(m => {
+      const newPos = reordered.findIndex(r => r.id === m.id);
+      if (newPos !== -1) return { ...m, sort_order: newPos };
+      return m;
+    });
+    setMaterials(updatedMaterials);
+
+    // Persist to DB
+    const updates = reordered.map((m, i) => 
+      supabase.from("sales_materials").update({ sort_order: i }).eq("id", m.id)
+    );
+    await Promise.all(updates);
+  };
+
   const filteredMaterials = materials.filter(
     m => m.unit === selectedUnit && m.type === selectedType
   );
@@ -717,63 +860,25 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                   )}
                 </div>
               ) : (
-                <div className="space-y-1.5">
-                  {filteredMaterials.map((material) => (
-                    <div 
-                      key={material.id} 
-                      className={`flex items-center gap-2 p-2 border rounded-lg ${!material.is_active ? 'opacity-50' : ''}`}
-                    >
-                      {material.type === "pdf_package" && material.file_url && isImageFile(material.file_url, material.file_path) ? (
-                        <img 
-                          src={material.file_url} 
-                          alt={material.name} 
-                          className="w-8 h-8 object-cover rounded border shrink-0 cursor-pointer hover:ring-2 hover:ring-primary transition-all" 
-                          onClick={(e) => { e.stopPropagation(); setPreviewImageUrl(material.file_url); }}
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleMaterialDragEnd}>
+                  <SortableContext items={filteredMaterials.map(m => m.id)} strategy={verticalListSortingStrategy}>
+                    <div className="space-y-1.5">
+                      {filteredMaterials.map((material) => (
+                        <SortableMaterialItem
+                          key={material.id}
+                          material={material}
+                          canManage={canManage}
+                          isImageFile={isImageFile}
+                          getTypeIcon={getTypeIcon}
+                          onToggleActive={handleToggleActive}
+                          onEdit={handleOpenDialog}
+                          onDelete={handleDeleteMaterial}
+                          onPreview={setPreviewImageUrl}
                         />
-                      ) : (
-                        getTypeIcon(material.type)
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{material.name}</p>
-                        {material.type === "photo_collection" && material.photo_urls && (
-                          <p className="text-xs text-muted-foreground">
-                            {material.photo_urls.length} foto{material.photo_urls.length !== 1 ? 's' : ''}
-                          </p>
-                        )}
-                        {material.type === "pdf_package" && (
-                          <p className="text-xs text-muted-foreground">
-                            {material.guest_count ? `${material.guest_count} pessoas` : "Todos os pacotes"}
-                          </p>
-                        )}
-                      </div>
-                      {canManage && (
-                        <div className="flex items-center gap-1 shrink-0">
-                          <Switch
-                            checked={material.is_active}
-                            onCheckedChange={() => handleToggleActive(material)}
-                            className="scale-75"
-                          />
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleOpenDialog(material)}
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                            onClick={() => handleDeleteMaterial(material)}
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
-                        </div>
-                      )}
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </SortableContext>
+                </DndContext>
               )}
             </TabsContent>
           </Tabs>
