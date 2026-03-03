@@ -1,6 +1,14 @@
 import { motion } from "framer-motion";
 import { castleBenefits } from "@/config/campaignConfig";
-import { Star, PartyPopper, Heart } from "lucide-react";
+import { Star, PartyPopper, Heart, UtensilsCrossed, Users, Sparkles, Gamepad2 } from "lucide-react";
+
+const iconMap: Record<string, React.ComponentType<any>> = {
+  "🎠": Gamepad2,
+  "🎉": PartyPopper,
+  "🍟": UtensilsCrossed,
+  "👨‍👩‍👧‍👦": Users,
+  "✨": Sparkles,
+};
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -49,31 +57,34 @@ export function BenefitsSection() {
           viewport={{ once: true }}
           className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto"
         >
-          {castleBenefits.map((benefit, index) => (
-            <motion.div
-              key={index}
-              variants={cardVariants}
-              whileHover={{ y: -8, scale: 1.02 }}
-              className="relative card-festive p-6 text-center group cursor-default overflow-hidden"
-            >
-              <div className={`absolute inset-0 bg-gradient-to-br ${colorClasses[index % colorClasses.length]} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
-              
+          {castleBenefits.map((benefit, index) => {
+            const IconComponent = iconMap[benefit.icon] || Sparkles;
+            return (
               <motion.div
-                whileHover={{ scale: 1.1, rotate: 5 }}
-                transition={{ type: "spring", stiffness: 300 }}
-                className={`relative mx-auto w-20 h-20 rounded-2xl bg-gradient-to-br ${colorClasses[index % colorClasses.length]} flex items-center justify-center mb-5 shadow-lg group-hover:shadow-xl transition-shadow duration-300`}
+                key={index}
+                variants={cardVariants}
+                whileHover={{ y: -8, scale: 1.02 }}
+                className="relative card-festive p-6 text-center group cursor-default overflow-hidden"
               >
-                <span className="text-4xl">{benefit.icon}</span>
+                <div className={`absolute inset-0 bg-gradient-to-br ${colorClasses[index % colorClasses.length]} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
+                
+                <motion.div
+                  whileHover={{ scale: 1.1, rotate: 5 }}
+                  transition={{ type: "spring", stiffness: 300 }}
+                  className={`relative mx-auto w-20 h-20 rounded-2xl bg-gradient-to-br ${colorClasses[index % colorClasses.length]} flex items-center justify-center mb-5 shadow-lg group-hover:shadow-xl transition-shadow duration-300`}
+                >
+                  <IconComponent className="w-10 h-10 text-white" strokeWidth={1.5} />
+                </motion.div>
+                
+                <h3 className="text-xl font-display font-bold text-foreground mb-2 group-hover:text-primary transition-colors">
+                  {benefit.title}
+                </h3>
+                <p className="text-muted-foreground relative z-10">
+                  {benefit.description}
+                </p>
               </motion.div>
-              
-              <h3 className="text-xl font-display font-bold text-foreground mb-2 group-hover:text-primary transition-colors">
-                {benefit.title}
-              </h3>
-              <p className="text-muted-foreground relative z-10">
-                {benefit.description}
-              </p>
-            </motion.div>
-          ))}
+            );
+          })}
         </motion.div>
 
         {/* Trust Badges */}
