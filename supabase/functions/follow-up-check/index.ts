@@ -431,7 +431,7 @@ async function processFollowUp({
 
   console.log(`[follow-up-check] Processing follow-up #${followUpNumber} for instance ${settings.instance_id} with ${delayHours}h delay`);
 
-  // Get leads that chose "Analisar" within the time window
+  // === VIA 1: leads that chose "Analisar" within the time window ===
   const { data: analysisChoices, error: choicesError } = await supabase
     .from("lead_history")
     .select("lead_id, created_at")
@@ -445,13 +445,36 @@ async function processFollowUp({
     return { successCount: 0, errors: [String(choicesError)] };
   }
 
-  if (!analysisChoices || analysisChoices.length === 0) {
+  const via1LeadIds = (analysisChoices || []).map(c => c.lead_id);
+
+  // === VIA 2: inactive leads (bot/agent sent last, no reply) in this instance ===
+  const { data: inactiveConvs, error: inactiveError } = await supabase
+    .from("wapi_conversations")
+    .select("lead_id")
+    .eq("instance_id", settings.instance_id)
+    .eq("last_message_from_me", true)
+    .not("lead_id", "is", null)
+    .not("remote_jid", "like", "%@g.us%")
+    .gte("last_message_at", minTime.toISOString())
+    .lte("last_message_at", maxTime.toISOString());
+
+  if (inactiveError) {
+    console.error(`[follow-up-check] Error fetching inactive conversations:`, inactiveError);
+  }
+
+  const via2LeadIds = (inactiveConvs || []).map((c: { lead_id: string }) => c.lead_id);
+
+  // Merge both sources (deduplicate)
+  const allLeadIdsSet = new Set([...via1LeadIds, ...via2LeadIds]);
+
+  if (allLeadIdsSet.size === 0) {
     console.log(`[follow-up-check] No leads need follow-up #${followUpNumber} for instance ${settings.instance_id}`);
     return { successCount: 0, errors: [] };
   }
 
-  const allLeadIds = analysisChoices.map(c => c.lead_id);
-  console.log(`[follow-up-check] Found ${allLeadIds.length} potential leads for follow-up #${followUpNumber}`);
+  console.log(`[follow-up-check] Found ${allLeadIdsSet.size} potential leads for follow-up #${followUpNumber} (via1_analisar: ${via1LeadIds.length}, via2_inativos: ${via2LeadIds.length})`);
+
+  const allLeadIds = Array.from(allLeadIdsSet);
 
   // Filter only leads that have a conversation in THIS instance
   const { data: instanceConversations } = await supabase
@@ -527,7 +550,7 @@ async function processFollowUp({
     .from("campaign_leads")
     .select("id, name, whatsapp, unit, month, guests")
     .in("id", leadsNeedingFollowUp)
-    .eq("status", "aguardando_resposta");
+    .in("status", ["aguardando_resposta", "orcamento_enviado"]);
 
   if (leadsError) {
     console.error("[follow-up-check] Error fetching leads:", leadsError);
@@ -535,7 +558,7 @@ async function processFollowUp({
   }
 
   if (!leads || leads.length === 0) {
-    console.log("[follow-up-check] No leads in aguardando_resposta status need follow-up");
+    console.log("[follow-up-check] No leads in aguardando_resposta/orcamento_enviado status need follow-up");
     return { successCount: 0, errors: [] };
   }
 
