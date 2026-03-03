@@ -1,17 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageCircle, Timer, Power } from "lucide-react";
+import { MessageCircle, Timer, Power, Brain, ChevronDown } from "lucide-react";
 import { TemperatureBadge } from "./TemperatureBadge";
-import { InlineAISummary } from "./InlineAISummary";
 import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { LeadIntelligence } from "@/hooks/useLeadIntelligence";
 import { LEAD_STATUS_LABELS, LeadStatus } from "@/types/crm";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+const InlineAISummary = lazy(() => import("./InlineAISummary").then(m => ({ default: m.InlineAISummary })));
+
+const LEADS_PER_PAGE = 20;
 
 interface FollowUpLead {
   leadId: string;
@@ -62,6 +65,8 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
   const [isLoading, setIsLoading] = useState(true);
   const [followUpLeads, setFollowUpLeads] = useState<FollowUpLead[]>([]);
   const [instanceDelaysMap, setInstanceDelaysMap] = useState<Map<string, InstanceDelays>>(new Map());
+  const [visibleCounts, setVisibleCounts] = useState<Record<number, number>>({});
+  const [expandedSummaries, setExpandedSummaries] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!currentCompany?.id) return;
@@ -126,12 +131,17 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
         "Lead marcado como perdido automaticamente",
       ];
 
+      // Filter lead_history to last 90 days + limit 500
+      const last90days = subDays(new Date(), 90).toISOString();
+
       const { data: historyEvents } = await supabase
         .from("lead_history")
         .select("lead_id, action, created_at")
         .eq("company_id", currentCompany.id)
         .in("action", followUpActions)
-        .order("created_at", { ascending: false });
+        .gte("created_at", last90days)
+        .order("created_at", { ascending: false })
+        .limit(500);
 
       if (!historyEvents || historyEvents.length === 0) {
         setFollowUpLeads([]);
@@ -306,6 +316,9 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
     <div className={`grid gap-6 ${gridCols} ${minWidthClass}`}>
       {visibleColumns.map(col => {
         const columnLeads = followUpLeads.filter(l => l.fuNumber === col.fuNumber);
+        const visibleCount = visibleCounts[col.fuNumber] || LEADS_PER_PAGE;
+        const visibleLeads = columnLeads.slice(0, visibleCount);
+        const hasMore = columnLeads.length > visibleCount;
         return (
           <Card key={col.fuNumber} className={`border-l-4 ${col.color} shadow-card`}>
             <CardHeader className="pb-3">
@@ -332,38 +345,74 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
                   Nenhum lead nesta etapa
                 </p>
               ) : (
-                columnLeads.map(lead => (
-                  <div key={lead.leadId} className="p-4 rounded-lg border border-border/50 bg-card/50 hover:bg-card transition-colors">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{lead.leadName}</p>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          <span className="text-xs text-muted-foreground">
-                            Score: <span className="font-bold text-foreground">{lead.score}</span>
-                          </span>
-                          <TemperatureBadge temperature={lead.temperature} />
-                          <span className="text-xs text-muted-foreground">
-                            {LEAD_STATUS_LABELS[lead.status as LeadStatus] || lead.status}
-                          </span>
+                <>
+                  {visibleLeads.map(lead => {
+                    const isSummaryOpen = expandedSummaries.has(lead.leadId);
+                    return (
+                      <div key={lead.leadId} className="p-4 rounded-lg border border-border/50 bg-card/50 hover:bg-card transition-colors">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{lead.leadName}</p>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              <span className="text-xs text-muted-foreground">
+                                Score: <span className="font-bold text-foreground">{lead.score}</span>
+                              </span>
+                              <TemperatureBadge temperature={lead.temperature} />
+                              <span className="text-xs text-muted-foreground">
+                                {LEAD_STATUS_LABELS[lead.status as LeadStatus] || lead.status}
+                              </span>
+                            </div>
+                            {lead.lastCustomerMessageAt && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Última msg: {timeAgo(lead.lastCustomerMessageAt)}
+                              </p>
+                            )}
+                          </div>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="shrink-0 h-8 w-8"
+                            onClick={() => navigate(`/atendimento?phone=${lead.leadWhatsapp}`)}
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                          </Button>
                         </div>
-                        {lead.lastCustomerMessageAt && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Última msg: {timeAgo(lead.lastCustomerMessageAt)}
-                          </p>
+                        {isSummaryOpen ? (
+                          <Suspense fallback={<Skeleton className="h-20 mt-2 rounded-xl" />}>
+                            <InlineAISummary leadId={lead.leadId} leadWhatsapp={lead.leadWhatsapp} />
+                          </Suspense>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs gap-1 text-muted-foreground hover:text-primary mt-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedSummaries(prev => new Set(prev).add(lead.leadId));
+                            }}
+                          >
+                            <Brain className="h-3.5 w-3.5" />
+                            Resumo IA
+                            <ChevronDown className="h-3 w-3" />
+                          </Button>
                         )}
                       </div>
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        className="shrink-0 h-8 w-8"
-                        onClick={() => navigate(`/atendimento?phone=${lead.leadWhatsapp}`)}
-                      >
-                        <MessageCircle className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <InlineAISummary leadId={lead.leadId} leadWhatsapp={lead.leadWhatsapp} />
-                  </div>
-                ))
+                    );
+                  })}
+                  {hasMore && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full text-xs"
+                      onClick={() => setVisibleCounts(prev => ({
+                        ...prev,
+                        [col.fuNumber]: (prev[col.fuNumber] || LEADS_PER_PAGE) + LEADS_PER_PAGE,
+                      }))}
+                    >
+                      Ver mais ({columnLeads.length - visibleCount} restantes)
+                    </Button>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>

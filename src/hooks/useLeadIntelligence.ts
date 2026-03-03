@@ -38,17 +38,19 @@ export function useLeadIntelligence(enabled: boolean = true) {
         .from('lead_intelligence')
         .select('*')
         .eq('company_id', companyId)
-        .order('score', { ascending: false });
+        .order('score', { ascending: false })
+        .limit(500);
 
       if (intError) throw intError;
       if (!intelligence || intelligence.length === 0) return [];
 
-      // Get lead IDs and fetch lead details
+      // Get lead IDs and fetch lead details (exclude finished leads)
       const leadIds = intelligence.map(i => i.lead_id);
       const { data: leads, error: leadsError } = await supabase
         .from('campaign_leads')
         .select('id, name, status, whatsapp, unit, created_at')
-        .in('id', leadIds);
+        .in('id', leadIds)
+        .not('status', 'in', '("fechado","perdido")');
 
       if (leadsError) throw leadsError;
 
