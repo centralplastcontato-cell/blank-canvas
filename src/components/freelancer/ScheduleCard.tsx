@@ -292,11 +292,22 @@ export function ScheduleCard({
                   const sortedRoles = Array.from(eventRoles).sort();
 
                   // Filter by role
-                  const filteredAvail = roleFilter === "all"
+                  const filteredAvailUnsorted = roleFilter === "all"
                     ? availForEvent
                     : roleFilter === "sem_funcao"
                       ? availForEvent.filter(av => !(freelancerRoles[av.freelancer_name]?.length))
                       : availForEvent.filter(av => (freelancerRoles[av.freelancer_name] || []).includes(roleFilter));
+
+                  // Sort: group by primary role (alphabetical), then by name within each group
+                  // Freelancers without a role go to the end
+                  const filteredAvail = [...filteredAvailUnsorted].sort((a, b) => {
+                    const rolesA = freelancerRoles[a.freelancer_name] || [];
+                    const rolesB = freelancerRoles[b.freelancer_name] || [];
+                    const primaryA = rolesA.length > 0 ? rolesA[0] : "zzz";
+                    const primaryB = rolesB.length > 0 ? rolesB[0] : "zzz";
+                    if (primaryA !== primaryB) return primaryA.localeCompare(primaryB, "pt-BR");
+                    return a.freelancer_name.localeCompare(b.freelancer_name, "pt-BR");
+                  });
 
                   return (
                     <div className="space-y-2 pt-1">
