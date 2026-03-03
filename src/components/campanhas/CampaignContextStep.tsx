@@ -84,6 +84,7 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [textEditorOpen, setTextEditorOpen] = useState(false);
   const [pendingArtUrl, setPendingArtUrl] = useState<string | null>(null);
+  const [showArtReadyBanner, setShowArtReadyBanner] = useState(false);
 
   // Timer for composing elapsed
   useEffect(() => {
@@ -236,11 +237,11 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
       // Open text overlay editor instead of saving directly
       setPendingArtUrl(data.url);
       setArtDialogOpen(false);
-      toast("🎨 Sua imagem ficou pronta! Personalize ela com a sua preferência!", {
-        duration: 5000,
-        icon: "✨",
-      });
-      setTextEditorOpen(true);
+      setShowArtReadyBanner(true);
+      setTimeout(() => {
+        setShowArtReadyBanner(false);
+        setTextEditorOpen(true);
+      }, 5000);
     } catch (err: any) {
       console.error("campaign-image error:", err);
       toast.error(err.message || "Erro ao criar arte");
@@ -642,6 +643,23 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
             </div>
           </DialogContent>
         </Dialog>
+        {/* Art Ready Banner */}
+        {showArtReadyBanner && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 animate-in fade-in duration-300">
+            <div
+              className="w-80 h-80 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex flex-col items-center justify-center gap-6 shadow-2xl text-primary-foreground p-8 text-center animate-in zoom-in-90 duration-500 cursor-pointer"
+              onClick={() => {
+                setShowArtReadyBanner(false);
+                setTextEditorOpen(true);
+              }}
+            >
+              <span className="text-6xl">🎨</span>
+              <h2 className="text-2xl font-bold leading-tight">Sua imagem ficou pronta!</h2>
+              <p className="text-lg opacity-90">✨ Personalize ela com a sua preferência!</p>
+              <span className="text-xs opacity-60 mt-2">Clique para personalizar ou aguarde...</span>
+            </div>
+          </div>
+        )}
         {/* Text Overlay Editor */}
         {pendingArtUrl && (
           <CampaignTextOverlayEditor
