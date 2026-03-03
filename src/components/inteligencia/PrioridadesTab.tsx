@@ -72,7 +72,7 @@ export function PrioridadesTab({ data }: PrioridadesTabProps) {
   );
 
   return (
-    <div className="grid gap-6 md:grid-cols-3">
+    <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-3">
       {/* Atender Agora */}
       <Card className="border-green-500/20 shadow-card border-l-4 border-l-green-500">
         <CardHeader className="pb-3">
