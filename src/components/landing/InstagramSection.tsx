@@ -18,18 +18,19 @@ const manchesterPhotos = [
   `${SUPABASE_STORAGE}/manchester/collections/1772395763766_9.jpeg`,
 ];
 
-// Trujillo photos not yet migrated to current storage — using Manchester as fallback
+const COMPANY_STORAGE = "https://rsezgnkfhodltrsewlhz.supabase.co/storage/v1/object/public/sales-materials/a0000000-0000-0000-0000-000000000001";
+
 const trujilloPhotos = [
-  `${SUPABASE_STORAGE}/manchester/collections/1772395758130_0.jpeg`,
-  `${SUPABASE_STORAGE}/manchester/collections/1772395759058_1.jpeg`,
-  `${SUPABASE_STORAGE}/manchester/collections/1772395759570_2.jpeg`,
-  `${SUPABASE_STORAGE}/manchester/collections/1772395760275_3.jpeg`,
-  `${SUPABASE_STORAGE}/manchester/collections/1772395760979_4.jpeg`,
-  `${SUPABASE_STORAGE}/manchester/collections/1772395761599_5.jpeg`,
-  `${SUPABASE_STORAGE}/manchester/collections/1772395762150_6.jpeg`,
-  `${SUPABASE_STORAGE}/manchester/collections/1772395762643_7.jpeg`,
-  `${SUPABASE_STORAGE}/manchester/collections/1772395763126_8.jpeg`,
-  `${SUPABASE_STORAGE}/manchester/collections/1772395763766_9.jpeg`,
+  `${COMPANY_STORAGE}/Trujillo/1772397433865-ks2d8aotn8.jpeg`,
+  `${COMPANY_STORAGE}/Trujillo/1772397434726-7istdpq1jfo.jpeg`,
+  `${COMPANY_STORAGE}/Trujillo/1772397435228-t98o450962.jpeg`,
+  `${COMPANY_STORAGE}/Trujillo/1772397436004-o3kwqcwjud.jpeg`,
+  `${COMPANY_STORAGE}/Trujillo/1772397436722-g0tuzr72n4.jpeg`,
+  `${COMPANY_STORAGE}/Trujillo/1772397437514-qfhwloe10s.jpeg`,
+  `${COMPANY_STORAGE}/Trujillo/1772397438554-i1048mkjnaf.jpeg`,
+  `${COMPANY_STORAGE}/Trujillo/1772397439754-663ozv8ocie.jpeg`,
+  `${COMPANY_STORAGE}/Trujillo/1772397440533-70eyl884dx3.jpeg`,
+  `${COMPANY_STORAGE}/Trujillo/1772397441314-cvadllwqf7v.jpeg`,
 ];
 
 const units = [
