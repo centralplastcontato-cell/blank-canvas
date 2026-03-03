@@ -1,18 +1,30 @@
 
 
-## Problema
+## Problema Real
 
-O container da página Inteligência usa `max-w-7xl mx-auto` (1280px máximo), o que deixa espaço vazio nas laterais em telas grandes. As 5 colunas ficam comprimidas dentro desse limite.
+A margem negativa no `FollowUpsTab` só compensa o padding do `PullToRefresh` (`p-3 md:p-5`), mas **não escapa** do `max-w-7xl mx-auto` que está no `div` pai na linha 227 de `Inteligencia.tsx`. Esse é o verdadeiro gargalo -- os cards ficam limitados a 1280px mesmo em telas maiores.
 
 ## Solução
 
-Fazer a aba Follow-ups "escapar" do container `max-w-7xl` usando margens negativas, ocupando toda a largura disponível da área de conteúdo.
+**Arquivo: `src/pages/Inteligencia.tsx` (linha 227)**
+
+Tornar o `max-w-7xl` condicional: quando a aba ativa for `follow-ups`, remover o limite de largura para que o grid ocupe toda a área disponível.
+
+```tsx
+// De:
+<div className="max-w-7xl mx-auto space-y-4">
+
+// Para:
+<div className={`mx-auto space-y-4 ${activeTab === "follow-ups" ? "" : "max-w-7xl"}`}>
+```
 
 **Arquivo: `src/components/inteligencia/FollowUpsTab.tsx`**
 
-- Envolver o grid em um wrapper com margens negativas para cancelar o `max-w-7xl` do parent:
-  - Classes: `-mx-3 md:-mx-5 px-3 md:px-5` (corresponde ao padding do `PullToRefresh` parent)
-  - Isso faz o grid de colunas ocupar 100% da largura da viewport (menos a sidebar), aproveitando o espaço verde que o usuário indicou
+Reverter o `containerClass` para vazio (a expansão agora vem do parent):
 
-Essa é a única alteração necessária -- o grid `xl:grid-cols-5` já distribui as colunas uniformemente, só precisa de mais espaço horizontal.
+```tsx
+const containerClass = "";
+```
+
+Isso faz com que as 5 colunas ocupem 100% da largura da tela (menos a sidebar), ficando com tamanho similar ao layout de 4 colunas que o usuário aprovou na imagem 3.
 
