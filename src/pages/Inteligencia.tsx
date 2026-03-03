@@ -408,24 +408,25 @@ export default function Inteligencia() {
 
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <div className="overflow-x-auto -mx-2 px-2 pb-2 scrollbar-none">
-                <div className="inline-flex gap-1 md:gap-2 p-1 md:p-1.5 rounded-2xl bg-muted/50 border border-border/40 shadow-sm w-max">
+                <div className="flex md:inline-flex gap-1 md:gap-2 p-1 md:p-1.5 rounded-2xl bg-muted/50 border border-border/40 shadow-sm md:w-max">
                   {[
-                    { value: "resumo", label: "Resumo do Dia" },
-                    { value: "prioridades", label: "Prioridades" },
-                    { value: "follow-ups", label: "Follow-ups" },
-                    { value: "funil", label: "Funil" },
-                    { value: "leads-dia", label: "Leads do Dia" },
+                    { value: "resumo", label: "Resumo do Dia", mobileLabel: "Resumo" },
+                    { value: "prioridades", label: "Prioridades", mobileLabel: "Prior." },
+                    { value: "follow-ups", label: "Follow-ups", mobileLabel: "Follow" },
+                    { value: "funil", label: "Funil", mobileLabel: "Funil" },
+                    { value: "leads-dia", label: "Leads do Dia", mobileLabel: "Leads" },
                   ].map(t => (
                     <button
                       key={t.value}
                       onClick={() => setActiveTab(t.value)}
-                      className={`inline-flex items-center gap-1 md:gap-2.5 px-2.5 py-1.5 md:px-6 md:py-3 rounded-lg md:rounded-xl text-[11px] md:text-base font-semibold transition-all duration-200 whitespace-nowrap ${
+                      className={`flex-1 md:flex-none inline-flex items-center justify-center gap-1 md:gap-2.5 px-1.5 py-1.5 md:px-6 md:py-3 rounded-lg md:rounded-xl text-[11px] md:text-base font-semibold transition-all duration-200 whitespace-nowrap ${
                         activeTab === t.value
                           ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30 scale-[1.02]'
                           : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
                       }`}
                     >
-                      <span>{t.label}</span>
+                      <span className="md:hidden">{t.mobileLabel}</span>
+                      <span className="hidden md:inline">{t.label}</span>
                     </button>
                   ))}
                 </div>
