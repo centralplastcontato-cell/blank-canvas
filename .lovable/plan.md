@@ -1,56 +1,50 @@
 
 
-## Diagnóstico do Bug: Mensagens em Grupos Não Chegam no WhatsApp
+## Diagnóstico: Por que poucos leads aparecem no Follow-up
 
-### O que esta acontecendo
+### Dados encontrados
 
-O problema é claro: quando um usuário envia uma mensagem pela plataforma para uma **conversa de grupo** (como "Convites" no seu exemplo), a mensagem aparece na interface da plataforma (update otimista), mas **não é entregue no WhatsApp real**.
+| Empresa | Leads ativos | Escolheram "Analisar" | Receberam FU1 | Receberam FU2 |
+|---------|-------------|----------------------|---------------|---------------|
+| Castelo | 747 | 166 | 46 | 20 |
+| Aventura | 26 | 6 | 3 | 0 |
 
-### Causa raiz
+Os números no painel **estão corretos** em relação aos dados -- mas o problema real é que **pouquíssimos follow-ups estão sendo enviados** comparado ao volume de leads.
 
-No `WhatsAppChat.tsx`, todas as chamadas de envio usam `selectedConversation.contact_phone` como destino:
+### Causa raiz: Bug na janela de tempo do processamento
 
-```typescript
-phone: selectedConversation.contact_phone  // ex: "120363404198917681"
+No `supabase/functions/follow-up-check/index.ts` (linha 428-429), o processamento de follow-ups usa uma **janela máxima fixa de 72h**:
+
+```text
+minTime = agora - 72h      (limite inferior fixo)
+maxTime = agora - delayHours  (delay configurado)
 ```
 
-Para **grupos**, o identificador correto é o `remote_jid` que termina com `@g.us` (ex: `120363404198917681@g.us`).
+Ambas as empresas têm **delay de 72h** para o 1º follow-up. Isso faz:
+- FU1 (72h): janela = `agora-72h` até `agora-72h` → **janela de ~0 segundos**
+- FU2 (144h): janela = `agora-72h` até `agora-144h` → **impossível** (início > fim)
+- FU3 (216h): idem, **impossível**
+- FU4 (288h): idem, **impossível**
 
-A edge function `wapi-send` tem lógica especial para grupos -- ela detecta se o phone termina com `@g.us` e usa payloads específicos de grupo. Porém, como o frontend envia apenas o `contact_phone` (sem `@g.us`), a função trata como um número de telefone individual, normaliza removendo caracteres não-numéricos, e tenta enviar para `120363404198917681@s.whatsapp.net` -- que não existe como contato individual. A W-API retorna sucesso (aceita o request), mas a mensagem nunca chega.
+O sistema só encontra leads que escolheram "Analisar com calma" **exatamente** no momento de 72h atrás. Os 46 que receberam FU1 provavelmente foram processados em momentos onde o timing coincidiu por sorte.
 
-### Impacto
+### Segundo problema: apenas leads que escolheram "Analisar"
 
-Todas as ações de envio em conversas de grupo estão afetadas:
-- `send-text` (mensagem de texto)
-- `send-image` (imagem)
-- `send-audio` (áudio)
-- `send-video` (vídeo)
-- `send-document` (documento)
-- `send-contact` (contato)
-- `edit-text` (edição)
-- `send-reaction` (reação)
-
-São ~10 pontos no `WhatsAppChat.tsx` que usam `contact_phone` em vez de `remote_jid`.
+O sistema de follow-up **só envia mensagens para leads que escolheram a opção "Analisar com calma"** no bot. Dos 747 leads ativos do Castelo, 519 estão em "Orçamento enviado" mas nunca escolheram "Analisar", então **nunca entram no funil de follow-up**. Isso significa que a maioria dos leads inativos simplesmente fica sem acompanhamento.
 
 ### Correção planejada
 
-**Arquivo**: `src/components/whatsapp/WhatsAppChat.tsx`
+**Arquivo**: `supabase/functions/follow-up-check/index.ts`
 
-Criar um helper que resolve o destino correto:
-
-```typescript
-const getConversationPhone = (conv: Conversation): string => {
-  // Para grupos, usar remote_jid (que contém @g.us)
-  if (conv.remote_jid?.endsWith('@g.us')) {
-    return conv.remote_jid;
-  }
-  return conv.contact_phone;
-};
+1. **Corrigir a janela de tempo** (linhas 428-429): Trocar o `72h` fixo por uma janela dinâmica que garanta cobertura:
+```text
+minTime = agora - max(delayHours * 2, 168h)   // 2x o delay ou 7 dias, o que for maior
+maxTime = agora - delayHours                    // delay configurado
 ```
 
-Substituir todas as ~10 ocorrências de `phone: selectedConversation.contact_phone` e `phone: convPhone` (onde convPhone = contact_phone) por `phone: getConversationPhone(selectedConversation)`.
+2. **Ampliar o escopo de follow-up** (opcional, para decisão do usuário): Incluir leads que ficaram inativos em qualquer etapa do funil (não apenas os que escolheram "Analisar com calma"). Isso cobriria os 519 leads de "Orçamento enviado" que hoje não recebem nenhum follow-up.
 
-Isso fará com que a edge function `wapi-send` receba o JID completo do grupo e entre no branch correto de envio para grupos (linhas 179-198 do `wapi-send`).
+### Decisão necessária
 
-A edge function **não precisa de alterações** -- ela já suporta envio para grupos quando recebe o JID com `@g.us`.
+A correção 1 (janela de tempo) é urgente e deve ser implementada imediatamente. A correção 2 (ampliar escopo) é uma mudança de comportamento que pode gerar mensagens para muitos leads -- preciso saber se deseja incluí-la agora ou depois.
 
