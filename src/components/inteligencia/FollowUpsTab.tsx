@@ -286,7 +286,7 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
 
   const visibleColumns = COLUMN_CONFIG.filter(col => isColumnEnabled(col.fuNumber));
   const gridCols = visibleColumns.length <= 2 ? `md:grid-cols-${visibleColumns.length}` : visibleColumns.length === 3 ? "md:grid-cols-3" : visibleColumns.length === 4 ? "md:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5";
-  const containerClass = "-mx-3 md:-mx-5 px-3 md:px-5";
+  const containerClass = "";
   const minWidthClass = "";
 
   if (isLoading) {
