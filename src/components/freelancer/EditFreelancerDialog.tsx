@@ -271,14 +271,14 @@ export function EditFreelancerDialog({ open, onOpenChange, response, template, o
           )}
         </div>
 
-        {/* Sticky footer */}
-        <div className="sticky bottom-0 border-t border-border bg-background/80 backdrop-blur-sm px-6 py-4 flex justify-end gap-2">
+        {/* Fixed footer */}
+        <DialogFooter className="border-t border-border bg-background/80 backdrop-blur-sm px-6 py-4 shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
           <Button onClick={handleSave} disabled={saving} className="gap-2">
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             Salvar
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
