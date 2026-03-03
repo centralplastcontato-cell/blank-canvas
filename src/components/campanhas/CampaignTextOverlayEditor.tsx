@@ -9,6 +9,8 @@ import { Loader2, Type, Save, X, LayoutTemplate, Move, ALargeSmall, Square, Eye,
 import { Aplique, APLIQUE_CATALOG, APLIQUE_COLORS, MAX_APLIQUES, renderApliques } from "./apliques";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -1387,26 +1389,58 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
                 <PopoverContent className="w-72 p-0" align="start">
                   <ScrollArea className="max-h-64">
                     <div className="p-1">
-                      {Object.entries(CAMPAIGN_PRESETS).map(([key, presets]) => (
-                        <div key={key} className="mb-1">
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase px-3 py-1 block">{key}</span>
-                          {presets.map((preset, idx) => (
-                            <button key={`${key}-${idx}`} type="button"
-                              onClick={() => {
-                                setLayers((prev) => prev.map((l) => {
-                                  if (l.id === "title") return { ...l, content: preset.title };
-                                  if (l.id === "subtitle") return { ...l, content: preset.subtitle };
-                                  if (l.id === "cta") return { ...l, content: preset.cta };
-                                  return l;
-                                }));
-                              }}
-                              className="w-full text-left rounded-lg px-3 py-1.5 hover:bg-primary/10 transition-colors">
-                              <span className="text-xs font-semibold block">{preset.title}</span>
-                              <span className="text-[10px] text-muted-foreground line-clamp-1">{preset.subtitle} · {preset.cta}</span>
-                            </button>
-                          ))}
-                        </div>
-                      ))}
+                      {/* Current theme presets first */}
+                      {(() => {
+                        const allEntries = Object.entries(CAMPAIGN_PRESETS);
+                        const normalizedType = (campaignType || "").toLowerCase().trim();
+                        const currentPresets = allEntries.filter(([key]) => key.toLowerCase().trim() === normalizedType);
+                        const otherPresets = allEntries.filter(([key]) => key.toLowerCase().trim() !== normalizedType);
+
+                        const renderPresetGroup = (key: string, presets: typeof CAMPAIGN_PRESETS[string], highlight?: boolean) => (
+                          <div key={key} className={`mb-1 ${highlight ? "bg-primary/5 rounded-lg p-1" : ""}`}>
+                            <span className={`text-[10px] font-bold uppercase px-3 py-1 flex items-center gap-1.5 ${highlight ? "text-primary" : "text-muted-foreground"}`}>
+                              {key}
+                              {highlight && <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3.5 leading-none">Tema atual</Badge>}
+                            </span>
+                            {presets.map((preset, idx) => (
+                              <button key={`${key}-${idx}`} type="button"
+                                onClick={() => {
+                                  setLayers((prev) => prev.map((l) => {
+                                    if (l.id === "title") return { ...l, content: preset.title };
+                                    if (l.id === "subtitle") return { ...l, content: preset.subtitle };
+                                    if (l.id === "cta") return { ...l, content: preset.cta };
+                                    return l;
+                                  }));
+                                }}
+                                className="w-full text-left rounded-lg px-3 py-1.5 hover:bg-primary/10 transition-colors">
+                                <span className="text-xs font-semibold block">{preset.title}</span>
+                                <span className="text-[10px] text-muted-foreground line-clamp-1">{preset.subtitle} · {preset.cta}</span>
+                              </button>
+                            ))}
+                          </div>
+                        );
+
+                        return (
+                          <>
+                            {currentPresets.map(([key, presets]) => renderPresetGroup(key, presets, true))}
+
+                            {otherPresets.length > 0 && currentPresets.length > 0 && (
+                              <Collapsible>
+                                <CollapsibleTrigger className="w-full flex items-center justify-between px-3 py-1.5 text-[10px] font-bold text-muted-foreground uppercase hover:bg-muted/50 rounded-lg transition-colors">
+                                  <span>Outros temas</span>
+                                  <ChevronDown className="w-3 h-3" />
+                                </CollapsibleTrigger>
+                                <CollapsibleContent>
+                                  {otherPresets.map(([key, presets]) => renderPresetGroup(key, presets))}
+                                </CollapsibleContent>
+                              </Collapsible>
+                            )}
+
+                            {/* If no match, show all normally */}
+                            {currentPresets.length === 0 && allEntries.map(([key, presets]) => renderPresetGroup(key, presets))}
+                          </>
+                        );
+                      })()}
                     </div>
                   </ScrollArea>
                 </PopoverContent>
