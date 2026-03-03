@@ -5,6 +5,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { useUnitPermissions } from "@/hooks/useUnitPermissions";
+import { usePermissions } from "@/hooks/usePermissions";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
@@ -67,6 +68,8 @@ export default function Agenda() {
   const [periodLoading, setPeriodLoading] = useState(false);
 
   const { canViewAll, allowedUnits, unitAccess, isLoading: permUnitLoading } = useUnitPermissions(currentUser?.id, currentCompany?.id);
+  const { hasPermission: userHasPermission } = usePermissions(currentUser?.id);
+  const showRevenue = isAdmin || userHasPermission("agenda.faturamento");
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<EventFormData | null>(null);
@@ -432,6 +435,7 @@ export default function Agenda() {
                   month={month}
                   periodLabel={periodRange ? `${format(periodRange.from, "dd/MM/yyyy")} – ${format(periodRange.to, "dd/MM/yyyy")}` : undefined}
                   totalDaysOverride={periodRange ? differenceInDays(periodRange.to, periodRange.from) + 1 : undefined}
+                  showRevenue={showRevenue}
                 />
               </div>
 
@@ -510,7 +514,7 @@ export default function Agenda() {
                                   {ev.guest_count}
                                 </span>
                               )}
-                              {ev.total_value != null && ev.total_value > 0 && (
+                              {showRevenue && ev.total_value != null && ev.total_value > 0 && (
                                 <span className="flex items-center gap-1 font-medium text-foreground/80">
                                   <DollarSign className="h-3 w-3" />
                                   R$ {ev.total_value.toLocaleString("pt-BR")}
