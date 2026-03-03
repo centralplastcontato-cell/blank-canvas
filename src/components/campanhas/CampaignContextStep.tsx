@@ -126,13 +126,26 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
     try {
       const { data: user } = await supabase.auth.getUser();
       if (!user?.user?.id || !currentCompanyId) return;
-      await supabase.from("campaign_images" as any).insert({
+      const { data: insertedRow } = await (supabase as any).from("campaign_images").insert({
         company_id: currentCompanyId,
         image_url: imageUrl,
         source,
         campaign_name: draft.campaignType || draft.name || null,
         created_by: user.user.id,
-      });
+      }).select("id").single();
+
+      // Generate thumbnail in background
+      if (insertedRow?.id) {
+        supabase.functions.invoke("resize-image", {
+          body: { image_url: imageUrl, company_id: currentCompanyId },
+        }).then(({ data: thumbData }) => {
+          if (thumbData?.thumbnail_url) {
+            (supabase as any).from("campaign_images")
+              .update({ thumbnail_url: thumbData.thumbnail_url })
+              .eq("id", insertedRow.id);
+          }
+        }).catch((err: any) => console.error("Thumbnail generation failed:", err));
+      }
     } catch (err) {
       console.error("Error saving image to gallery:", err);
     }

@@ -20,6 +20,7 @@ import {
 interface GalleryImage {
   id: string;
   image_url: string;
+  thumbnail_url: string | null;
   source: string;
   campaign_name: string | null;
   created_at: string;
@@ -44,7 +45,7 @@ export function CampaignGalleryTab({ companyId }: { companyId: string }) {
       setLoading(true);
       const { data } = await (supabase as any)
         .from("campaign_images")
-        .select("id, image_url, source, campaign_name, created_at")
+        .select("id, image_url, thumbnail_url, source, campaign_name, created_at")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false });
       setImages((data as GalleryImage[]) || []);
@@ -103,7 +104,7 @@ export function CampaignGalleryTab({ companyId }: { companyId: string }) {
             >
               <div className="aspect-square">
                 <img
-                  src={img.image_url}
+                  src={img.thumbnail_url || img.image_url}
                   alt={img.campaign_name || "Imagem"}
                   className="w-full h-full object-cover"
                   loading="lazy"

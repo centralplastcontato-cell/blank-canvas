@@ -244,6 +244,7 @@ export type Database = {
           id: string
           image_url: string
           source: string
+          thumbnail_url: string | null
         }
         Insert: {
           campaign_id?: string | null
@@ -254,6 +255,7 @@ export type Database = {
           id?: string
           image_url: string
           source?: string
+          thumbnail_url?: string | null
         }
         Update: {
           campaign_id?: string | null
@@ -264,6 +266,7 @@ export type Database = {
           id?: string
           image_url?: string
           source?: string
+          thumbnail_url?: string | null
         }
         Relationships: [
           {
