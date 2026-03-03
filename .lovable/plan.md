@@ -1,62 +1,42 @@
 
 
-## Diagnóstico: Abas da Inteligência em branco
+## Plan: Otimização de Thumbnails para Galeria de Campanhas
 
-### Causa raiz identificada
+### Problema
+As imagens da galeria são carregadas em resolução original (1-5MB cada), consumindo muitos dados do usuário. Como o Supabase Image Transformation é recurso pago (plano Pro), a solução é gerar thumbnails no momento do upload/geração.
 
-O problema é uma **condição de corrida** entre o controle do `enabled` do react-query e a renderização das abas.
+### Abordagem
+Criar uma **Edge Function `resize-image`** que recebe a URL de uma imagem, faz download, redimensiona para ~400px de largura usando a API Canvas do Deno, e faz upload do thumbnail no mesmo bucket. O `thumbnail_url` é salvo na tabela `campaign_images`.
 
-Quando o usuário está na aba "Resumo do Dia", a query `useLeadIntelligence` fica **desabilitada** (`enabled: false`). Nesse estado, react-query v5 retorna:
-- `isLoading = false` (não está carregando porque está desabilitada)
-- `data = undefined` (nunca buscou dados)
+### Mudanças
 
-Ao trocar para qualquer outra aba, `enabled` vira `true`, mas no **mesmo ciclo de render**, `isLoading` ainda é `false` e `data` continua `undefined`. O código atual verifica apenas `isLoading`:
-
-```tsx
-{isLoading ? <LoadingSkeleton /> : <PrioridadesTab data={filteredData} />}
+**1. Migration: adicionar coluna `thumbnail_url`**
+```sql
+ALTER TABLE public.campaign_images ADD COLUMN thumbnail_url text;
 ```
 
-Como `isLoading=false`, renderiza o componente com `filteredData = []` (vazio). Em seguida o react-query atualiza para `isLoading=true` (skeleton), mas se a query falhar ou demorar muito, a aba fica presa entre estados.
+**2. Edge Function `resize-image`**
+- Recebe `{ image_url, company_id }` 
+- Faz fetch da imagem original
+- Usa a lib `imagescript` (Deno-compatible) para redimensionar para 400px de largura mantendo proporção
+- Converte para JPEG com qualidade 75%
+- Upload no bucket `sales-materials` com path `campaigns/thumb-{timestamp}.jpg`
+- Retorna `{ thumbnail_url }`
 
-Além disso, `useLeadStageDurations` busca **TODO** o histórico de status_change sem limite, o que pode causar timeout em empresas com muitos leads.
+**3. Atualizar `CampaignContextStep.tsx`**
+- Após salvar imagem na galeria (`saveImageToGallery`), chamar a edge function `resize-image` em background
+- Atualizar o registro `campaign_images` com o `thumbnail_url` retornado
 
-### Plano de correção
+**4. Atualizar `CampaignGalleryTab.tsx`**
+- Na grid da galeria, usar `img.thumbnail_url || img.image_url` como `src` das imagens
+- No lightbox, continuar usando `img.image_url` (resolução original)
 
-#### 1. Corrigir condição de renderização em `src/pages/Inteligencia.tsx`
+**5. Atualizar `campaign-image` Edge Function**
+- Após gerar a arte via IA e fazer upload, gerar também o thumbnail chamando a mesma lógica de resize
+- Salvar ambos URLs
 
-Adicionar verificação `!data` junto com `isLoading` para garantir que o skeleton mostre enquanto dados não existem:
-
-```tsx
-// De:
-{isLoading || isLoadingUnitPerms || permLoading ? <LoadingSkeleton /> : <Tab ... />}
-
-// Para:
-{isLoading || !data || isLoadingUnitPerms || permLoading ? <LoadingSkeleton /> : <Tab ... />}
-```
-
-Aplicar em todas as 4 abas que dependem de `data` (Prioridades, Follow-ups, Funil, Leads do Dia).
-
-#### 2. Otimizar `useLeadStageDurations` em `src/hooks/useLeadStageDurations.ts`
-
-Adicionar filtro de 90 dias e limite de 2000 registros na query de `lead_history`, igual ao que fizemos no FollowUpsTab:
-
-```tsx
-.gte('created_at', subDays(new Date(), 90).toISOString())
-.limit(2000)
-```
-
-#### 3. Pré-carregar dados de inteligência
-
-Mudar `needsIntelligence` para sempre `true` após a primeira troca de aba, evitando o delay de habilitação. Alternativamente, simplesmente remover o gate `needsIntelligence` e sempre buscar os dados (o `staleTime: 60_000` já evita re-fetches desnecessários):
-
-```tsx
-// Remover: const needsIntelligence = activeTab !== "resumo";
-// Usar: useLeadIntelligence(true) — sempre habilitado
-```
-
-Isso garante que ao trocar de aba os dados já estejam disponíveis.
-
-### O que NÃO muda
-- Nenhuma Edge Function, tabela ou instância W-API
-- Apenas correções de lógica de renderização e otimização de queries frontend
+### Resultado esperado
+- Grid da galeria carrega imagens de ~30-50KB em vez de 1-5MB (redução de ~90%)
+- Lightbox continua mostrando qualidade original
+- Processo transparente para o usuário
 
