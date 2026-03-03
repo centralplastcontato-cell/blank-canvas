@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -108,6 +109,8 @@ export function ScheduleCard({
       });
       if (partial) {
         setEditingFreelancer(partial);
+      } else {
+        toast({ title: "Cadastro não encontrado", description: `Não foi possível localizar o cadastro de "${freelancerName}". O freelancer pode não ter se inscrito pelo formulário.`, variant: "destructive" });
       }
     }
   };
