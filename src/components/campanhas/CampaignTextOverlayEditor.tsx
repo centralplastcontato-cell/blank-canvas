@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Type, Save, X, LayoutTemplate, Move, ALargeSmall, Square, Eye, Maximize2, Sparkles, GripVertical, Sun, Contrast, Moon, Smile, Trash2, Shapes } from "lucide-react";
+import { Loader2, Type, Save, X, LayoutTemplate, Move, ALargeSmall, Square, Eye, Maximize2, Sparkles, GripVertical, Sun, Contrast, Moon, Smile, Trash2, Shapes, ImageIcon } from "lucide-react";
 import { Aplique, APLIQUE_CATALOG, APLIQUE_COLORS, MAX_APLIQUES, renderApliques } from "./apliques";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -39,6 +39,14 @@ interface Sticker {
   x: number;   // 0-1 ratio
   y: number;   // 0-1 ratio
   size: number; // 20-120 px on canvas
+}
+
+interface LogoLayer {
+  enabled: boolean;
+  x: number;      // 0-1 ratio
+  y: number;      // 0-1 ratio
+  size: number;    // 40-300 px on canvas
+  opacity: number; // 0-100
 }
 
 interface TemplateConfig {
@@ -783,6 +791,26 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
   // Apliques
   const [apliques, setApliques] = useState<Aplique[]>([]);
 
+  // Logo layer
+  const [logoLayer, setLogoLayer] = useState<LogoLayer>({ enabled: false, x: 0.12, y: 0.12, size: 120, opacity: 100 });
+  const logoImgRef = useRef<HTMLImageElement | null>(null);
+  const [logoLoaded, setLogoLoaded] = useState(false);
+
+  // Load company logo
+  useEffect(() => {
+    if (!open || !companyId) return;
+    setLogoLoaded(false);
+    supabase.from("companies").select("logo_url").eq("id", companyId).single().then(({ data }) => {
+      if (data?.logo_url) {
+        const img = new window.Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => { logoImgRef.current = img; setLogoLoaded(true); };
+        img.onerror = () => { logoImgRef.current = null; setLogoLoaded(false); };
+        img.src = data.logo_url;
+      }
+    });
+  }, [open, companyId]);
+
   // Reset appliedPresetRef when dialog closes so it re-applies on reopen
   useEffect(() => {
     if (!open) {
@@ -811,7 +839,7 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
   useEffect(() => {
     if (!open || !imageUrl) return;
     setImageLoaded(false);
-    const img = new Image();
+    const img = new window.Image();
     img.crossOrigin = "anonymous";
     img.onload = () => { imgRef.current = img; setImageLoaded(true); };
     img.onerror = () => toast.error("Erro ao carregar imagem base");
@@ -902,7 +930,22 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
       ctx.fillText(s.emoji, s.x * size, s.y * size);
       ctx.restore();
     });
-  }, [layers, imageLoaded, template, positionY, positionX, cardSettings, brightness, contrast, darken, stickers, apliques]);
+
+    // 7. Render logo
+    if (logoLayer.enabled && logoImgRef.current && logoLoaded) {
+      ctx.save();
+      ctx.globalAlpha = logoLayer.opacity / 100;
+      const logoImg = logoImgRef.current;
+      const aspect = logoImg.width / logoImg.height;
+      const logoW = logoLayer.size;
+      const logoH = logoW / aspect;
+      const lx = logoLayer.x * size - logoW / 2;
+      const ly = logoLayer.y * size - logoH / 2;
+      ctx.drawImage(logoImg, lx, ly, logoW, logoH);
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+  }, [layers, imageLoaded, template, positionY, positionX, cardSettings, brightness, contrast, darken, stickers, apliques, logoLayer, logoLoaded]);
 
   useEffect(() => { renderCanvas(); }, [renderCanvas]);
 
@@ -911,7 +954,7 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
   };
 
   /* ── Drag-to-reposition logic (text layers + stickers) ── */
-  const draggingRef = useRef<{ type: "layer" | "sticker"; id: string; startMouseY: number; startCustomY: number; startMouseX: number; startCustomX: number } | null>(null);
+  const draggingRef = useRef<{ type: "layer" | "sticker" | "logo"; id: string; startMouseY: number; startCustomY: number; startMouseX: number; startCustomX: number } | null>(null);
 
   const getCanvasCoords = useCallback((e: React.MouseEvent | React.TouchEvent): { x: number; y: number } => {
     const canvas = canvasRef.current;
@@ -925,11 +968,20 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
     };
   }, []);
 
-  const findClosestDraggable = useCallback((xRatio: number, yRatio: number): { type: "layer" | "sticker"; id: string } | null => {
-    let closest: { type: "layer" | "sticker"; id: string } | null = null;
+  const findClosestDraggable = useCallback((xRatio: number, yRatio: number): { type: "layer" | "sticker" | "logo"; id: string } | null => {
+    let closest: { type: "layer" | "sticker" | "logo"; id: string } | null = null;
     let minDist = 0.08;
 
-    // Check stickers first (they're on top)
+    // Check logo first (top layer)
+    if (logoLayer.enabled && logoLoaded && logoImgRef.current) {
+      const dist = Math.sqrt((xRatio - logoLayer.x) ** 2 + (yRatio - logoLayer.y) ** 2);
+      if (dist < minDist) {
+        minDist = dist;
+        closest = { type: "logo", id: "logo" };
+      }
+    }
+
+    // Check stickers
     for (const s of stickers) {
       const dist = Math.sqrt((xRatio - s.x) ** 2 + (yRatio - s.y) ** 2);
       if (dist < minDist) {
@@ -951,7 +1003,7 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
       }
     }
     return closest;
-  }, [layers, positionY, positionX, stickers]);
+  }, [layers, positionY, positionX, stickers, logoLayer, logoLoaded]);
 
   const handleCanvasPointerDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     const { x, y } = getCanvasCoords(e);
@@ -959,7 +1011,9 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
     if (!target) return;
     e.preventDefault();
 
-    if (target.type === "sticker") {
+    if (target.type === "logo") {
+      draggingRef.current = { type: "logo", id: "logo", startMouseY: y, startCustomY: logoLayer.y, startMouseX: x, startCustomX: logoLayer.x };
+    } else if (target.type === "sticker") {
       const s = stickers.find((st) => st.id === target.id)!;
       draggingRef.current = { type: "sticker", id: s.id, startMouseY: y, startCustomY: s.y, startMouseX: x, startCustomX: s.x };
     } else {
@@ -969,7 +1023,7 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
       draggingRef.current = { type: "layer", id: layer.id, startMouseY: y, startCustomY: currentY, startMouseX: x, startCustomX: currentX };
     }
     if (canvasRef.current) canvasRef.current.style.cursor = "grabbing";
-  }, [getCanvasCoords, findClosestDraggable, positionY, positionX, layers, stickers]);
+  }, [getCanvasCoords, findClosestDraggable, positionY, positionX, layers, stickers, logoLayer]);
 
   const handleCanvasPointerMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     if (!draggingRef.current) {
@@ -985,7 +1039,9 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
     const newY = Math.max(0.05, Math.min(0.95, draggingRef.current.startCustomY + deltaY));
     const newX = Math.max(0.05, Math.min(0.95, draggingRef.current.startCustomX + deltaX));
 
-    if (draggingRef.current.type === "sticker") {
+    if (draggingRef.current.type === "logo") {
+      setLogoLayer((prev) => ({ ...prev, x: newX, y: newY }));
+    } else if (draggingRef.current.type === "sticker") {
       setStickers((prev) => prev.map((s) => s.id === draggingRef.current!.id ? { ...s, x: newX, y: newY } : s));
     } else {
       updateLayer(draggingRef.current.id, { customY: newY, customX: newX });
@@ -1211,6 +1267,35 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
                 </div>
               )}
             </div>
+
+            {/* Logo layer */}
+            {logoLoaded && logoImgRef.current && (
+              <div className="space-y-3 p-3 rounded-xl border border-border/40 bg-muted/5">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                    <ImageIcon className="w-3.5 h-3.5" /> Logotipo
+                  </p>
+                  <Switch checked={logoLayer.enabled} onCheckedChange={(v) => setLogoLayer((prev) => ({ ...prev, enabled: v }))} />
+                </div>
+                {logoLayer.enabled && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Maximize2 className="w-3 h-3 text-muted-foreground shrink-0" />
+                      <span className="text-[10px] text-muted-foreground shrink-0 w-12">Tamanho</span>
+                      <Slider value={[logoLayer.size]} onValueChange={([v]) => setLogoLayer((prev) => ({ ...prev, size: v }))} min={40} max={300} step={5} className="flex-1" />
+                      <span className="text-[10px] text-muted-foreground w-8 text-right">{logoLayer.size}px</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Eye className="w-3 h-3 text-muted-foreground shrink-0" />
+                      <span className="text-[10px] text-muted-foreground shrink-0 w-12">Opacidade</span>
+                      <Slider value={[logoLayer.opacity]} onValueChange={([v]) => setLogoLayer((prev) => ({ ...prev, opacity: v }))} min={10} max={100} step={5} className="flex-1" />
+                      <span className="text-[10px] text-muted-foreground w-8 text-right">{logoLayer.opacity}%</span>
+                    </div>
+                    <p className="text-[9px] text-muted-foreground">Arraste o logo no canvas para reposicionar</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Canvas preview */}
@@ -1230,7 +1315,7 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
             <div className="flex items-center justify-between mt-1.5 px-1">
               <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                 <GripVertical className="w-3 h-3" />
-                Arraste textos e stickers para reposicionar
+                Arraste textos, stickers e logo para reposicionar
               </p>
               {layers.some((l) => l.customY !== undefined || l.customX !== undefined) && (
                 <button type="button" onClick={resetPositions} className="text-[10px] text-primary hover:underline">Resetar posições</button>
@@ -1500,6 +1585,29 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
                   </div>
                 )}
               </div>
+              {/* Mobile logo */}
+              {logoLoaded && logoImgRef.current && (
+                <div className="space-y-3 p-3 rounded-xl border border-border/40 bg-muted/5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><ImageIcon className="w-3.5 h-3.5" /> Logotipo</p>
+                    <Switch checked={logoLayer.enabled} onCheckedChange={(v) => setLogoLayer((prev) => ({ ...prev, enabled: v }))} />
+                  </div>
+                  {logoLayer.enabled && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Maximize2 className="w-3 h-3 text-muted-foreground shrink-0" />
+                        <Slider value={[logoLayer.size]} onValueChange={([v]) => setLogoLayer((prev) => ({ ...prev, size: v }))} min={40} max={300} step={5} className="flex-1" />
+                        <span className="text-[10px] text-muted-foreground w-8 text-right">{logoLayer.size}px</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Eye className="w-3 h-3 text-muted-foreground shrink-0" />
+                        <Slider value={[logoLayer.opacity]} onValueChange={([v]) => setLogoLayer((prev) => ({ ...prev, opacity: v }))} min={10} max={100} step={5} className="flex-1" />
+                        <span className="text-[10px] text-muted-foreground w-8 text-right">{logoLayer.opacity}%</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
