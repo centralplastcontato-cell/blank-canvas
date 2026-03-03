@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -74,6 +74,7 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
   const [editText, setEditText] = useState("");
   const [uploading, setUploading] = useState(false);
   const [composing, setComposing] = useState(false);
+  const [composeElapsed, setComposeElapsed] = useState(0);
   const [includeLogo, setIncludeLogo] = useState(true);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [artDialogOpen, setArtDialogOpen] = useState(false);
@@ -83,6 +84,19 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [textEditorOpen, setTextEditorOpen] = useState(false);
   const [pendingArtUrl, setPendingArtUrl] = useState<string | null>(null);
+
+  // Timer for composing elapsed
+  useEffect(() => {
+    if (!composing) {
+      setComposeElapsed(0);
+      return;
+    }
+    const start = Date.now();
+    const interval = setInterval(() => {
+      setComposeElapsed(Math.floor((Date.now() - start) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [composing]);
 
   const handleGenerate = async () => {
     if (!draft.description.trim()) {
@@ -603,10 +617,11 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
                 disabled={composing || !selectedPhoto}
               >
                 {composing ? (
-                  <>
+                  <span className="flex items-center gap-2">
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Criando arte profissional...
-                  </>
+                    <span className="tabular-nums text-xs opacity-80">({composeElapsed}s)</span>
+                  </span>
                 ) : (
                   <>
                     <Wand2 className="w-4 h-4" />
