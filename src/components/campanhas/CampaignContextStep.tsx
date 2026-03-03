@@ -104,6 +104,22 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
     }
   };
 
+  const saveImageToGallery = async (imageUrl: string, source: string) => {
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user?.user?.id || !currentCompanyId) return;
+      await supabase.from("campaign_images" as any).insert({
+        company_id: currentCompanyId,
+        image_url: imageUrl,
+        source,
+        campaign_name: draft.campaignType || draft.name || null,
+        created_by: user.user.id,
+      });
+    } catch (err) {
+      console.error("Error saving image to gallery:", err);
+    }
+  };
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -115,6 +131,7 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
       if (error) throw error;
       const { data: urlData } = supabase.storage.from("sales-materials").getPublicUrl(path);
       setDraft((prev) => ({ ...prev, imageUrl: urlData.publicUrl }));
+      await saveImageToGallery(urlData.publicUrl, "upload");
       toast.success("Imagem carregada!");
     } catch (err: any) {
       toast.error("Erro no upload: " + err.message);
@@ -142,9 +159,10 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
     }
   };
 
-  const handleUseLogo = () => {
+  const handleUseLogo = async () => {
     if (currentCompany?.logo_url) {
       setDraft((prev) => ({ ...prev, imageUrl: currentCompany.logo_url }));
+      await saveImageToGallery(currentCompany.logo_url, "logo");
       toast.success("Logotipo aplicado!");
     }
   };
@@ -199,6 +217,7 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
       if (!data?.url) throw new Error("Nenhuma imagem retornada");
 
       setDraft((prev) => ({ ...prev, imageUrl: data.url }));
+      await saveImageToGallery(data.url, "ai_compose");
       setArtDialogOpen(false);
       toast.success("Arte profissional criada com IA! 🎨");
     } catch (err: any) {
