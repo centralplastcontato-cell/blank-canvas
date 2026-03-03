@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/contexts/CompanyContext';
+import { subDays } from 'date-fns';
 
 /**
  * Calculates average time leads spend in each CRM stage
@@ -15,13 +16,17 @@ export function useLeadStageDurations(enabled: boolean = true) {
     queryFn: async () => {
       if (!companyId) return {};
 
-      // Get all status_change entries ordered by lead and time
+      const last90days = subDays(new Date(), 90).toISOString();
+
+      // Get status_change entries from last 90 days
       const { data: history, error } = await supabase
         .from('lead_history')
         .select('lead_id, action, old_value, new_value, created_at')
         .eq('company_id', companyId)
         .eq('action', 'status_change')
-        .order('created_at', { ascending: true });
+        .gte('created_at', last90days)
+        .order('created_at', { ascending: true })
+        .limit(2000);
 
       if (error) throw error;
       if (!history || history.length === 0) return {};
