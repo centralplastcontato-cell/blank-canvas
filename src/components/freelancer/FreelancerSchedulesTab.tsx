@@ -319,6 +319,24 @@ export function FreelancerSchedulesTab() {
     toast({ title: "Festa removida da escala" });
   };
 
+  const removeAvailability = async (availId: string, freelancerName: string) => {
+    const { error } = await supabase.from("freelancer_availability").delete().eq("id", availId);
+    if (error) {
+      toast({ title: "Erro ao remover freelancer", variant: "destructive" });
+      return;
+    }
+    // Also remove any assignments for this freelancer in this schedule
+    const avail = availability.find(a => a.id === availId);
+    if (avail) {
+      await supabase.from("freelancer_assignments").delete()
+        .eq("schedule_id", avail.schedule_id)
+        .eq("freelancer_name", freelancerName);
+      setAssignments(prev => prev.filter(a => !(a.schedule_id === avail.schedule_id && a.freelancer_name === freelancerName)));
+    }
+    setAvailability(prev => prev.filter(a => a.id !== availId));
+    toast({ title: `${freelancerName} removido(a) da lista` });
+  };
+
   const updateDisplayName = async (scheduleId: string, eventId: string, displayName: string) => {
     const schedule = schedules.find(s => s.id === scheduleId);
     if (!schedule) return;
@@ -458,6 +476,7 @@ export function FreelancerSchedulesTab() {
                         toast({ title: "Observação da festa atualizada" });
                       }}
                       onRemoveEvent={removeEventFromSchedule}
+                      onRemoveAvailability={removeAvailability}
                       onUpdateDisplayName={updateDisplayName}
                       onSendToGroups={() => setSendToGroupsSchedule(schedule)}
                       onSendAssignmentsToGroups={() => setSendAssignmentsSchedule(schedule)}
@@ -507,6 +526,7 @@ export function FreelancerSchedulesTab() {
                   toast({ title: "Observação da festa atualizada" });
                 }}
                 onRemoveEvent={removeEventFromSchedule}
+                onRemoveAvailability={removeAvailability}
                 onUpdateDisplayName={updateDisplayName}
                 onSendToGroups={() => setSendToGroupsSchedule(schedule)}
                 onSendAssignmentsToGroups={() => setSendAssignmentsSchedule(schedule)}
