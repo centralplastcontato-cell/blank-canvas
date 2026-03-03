@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import { Copy, ChevronDown, ChevronUp, FileDown, Trash2, Check, MessageSquare, P
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { EventData, Availability, Assignment } from "./FreelancerSchedulesTab";
+import { EditFreelancerDialog } from "./EditFreelancerDialog";
 
 interface Schedule {
   id: string;
@@ -37,6 +39,7 @@ interface ScheduleCardProps {
   assignments: Assignment[];
   savingAssignment: boolean;
   roles: string[];
+  companyId?: string;
   onToggleExpand: () => void;
   onCopyLink: () => void;
   onGeneratePDF: () => void;
@@ -53,7 +56,7 @@ interface ScheduleCardProps {
 }
 
 export function ScheduleCard({
-  schedule, isExpanded, events, availability, assignments, savingAssignment, roles,
+  schedule, isExpanded, events, availability, assignments, savingAssignment, roles, companyId,
   onToggleExpand, onCopyLink, onGeneratePDF, onDelete, onToggleAssignment, onUpdateRole, onUpdateNotes,
   onRemoveEvent, onUpdateDisplayName, onSendToGroups, onSendAssignmentsToGroups, scheduleAssignmentCount,
   freelancerRoles = {},
@@ -61,6 +64,30 @@ export function ScheduleCard({
   const [editingNotesFor, setEditingNotesFor] = useState<string | null>(null);
   const [notesValue, setNotesValue] = useState("");
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null);
+  const [editingFreelancer, setEditingFreelancer] = useState<any>(null);
+
+  const handleOpenFreelancerEdit = async (freelancerName: string) => {
+    if (!companyId) return;
+    const normalize = (s: string) => s.trim().toLowerCase();
+    const { data } = await supabase
+      .from("freelancer_responses")
+      .select("*")
+      .eq("company_id", companyId);
+    const match = (data || []).find((r: any) => normalize(r.respondent_name || "") === normalize(freelancerName));
+    if (match) {
+      setEditingFreelancer(match);
+    } else {
+      // Try partial match
+      const partial = (data || []).find((r: any) => {
+        const a = normalize(r.respondent_name || "");
+        const b = normalize(freelancerName);
+        return a.startsWith(b) || b.startsWith(a);
+      });
+      if (partial) {
+        setEditingFreelancer(partial);
+      }
+    }
+  };
   const startStr = format(parseISO(schedule.start_date), "dd/MM", { locale: ptBR });
   const endStr = format(parseISO(schedule.end_date), "dd/MM", { locale: ptBR });
   const availCount = availability.filter(a => a.schedule_id === schedule.id).length;
@@ -269,7 +296,20 @@ export function ScheduleCard({
                             disabled={savingAssignment}
                           />
                           <div className="flex-1 min-w-0">
-                            <p className={`text-sm ${assigned ? "font-semibold" : "font-medium"}`}>{av.freelancer_name}</p>
+                            <div className="flex items-center gap-1">
+                              <p className={`text-sm ${assigned ? "font-semibold" : "font-medium"}`}>{av.freelancer_name}</p>
+                              {companyId && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-5 w-5 rounded-full text-muted-foreground hover:text-primary shrink-0"
+                                  onClick={() => handleOpenFreelancerEdit(av.freelancer_name)}
+                                  title="Editar cadastro"
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
                             <p className="text-[11px] text-muted-foreground">{av.freelancer_phone}</p>
                             {registeredRoles.length > 0 && (
                               <p className="text-[11px] text-primary/70 font-medium mt-0.5">{registeredRoles.join(", ")}</p>
@@ -339,6 +379,14 @@ export function ScheduleCard({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit freelancer dialog */}
+      <EditFreelancerDialog
+        open={!!editingFreelancer}
+        onOpenChange={(v) => { if (!v) setEditingFreelancer(null); }}
+        response={editingFreelancer}
+        onSaved={() => setEditingFreelancer(null)}
+      />
     </Card>
   );
 }
