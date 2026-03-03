@@ -437,6 +437,7 @@ export function FreelancerSchedulesTab() {
                       schedule={schedule}
                       isExpanded={expandedId === schedule.id}
                       events={events}
+                      companyId={companyId || undefined}
                       availability={availability}
                       assignments={assignments}
                       savingAssignment={savingAssignment}
@@ -485,6 +486,7 @@ export function FreelancerSchedulesTab() {
                 schedule={schedule}
                 isExpanded={expandedId === schedule.id}
                 events={events}
+                companyId={companyId || undefined}
                 availability={availability}
                 assignments={assignments}
                 savingAssignment={savingAssignment}
