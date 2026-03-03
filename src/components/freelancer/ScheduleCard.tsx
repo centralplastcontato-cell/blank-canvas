@@ -238,24 +238,27 @@ export function ScheduleCard({
               <div key={eventId} className="border rounded-xl bg-card shadow-sm overflow-hidden">
                 {/* Clickable event header */}
                 <div
-                  className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/30 transition-colors"
+                  className="p-3 sm:p-4 cursor-pointer hover:bg-muted/30 transition-colors"
                   onClick={() => toggleEvent(eventId)}
                 >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="flex items-center gap-2 sm:gap-3">
                     <div className="h-10 w-10 rounded-lg bg-primary/8 flex flex-col items-center justify-center shrink-0">
                       <span className="text-[10px] font-bold text-primary uppercase leading-none">{dayName}</span>
                       <span className="text-sm font-extrabold text-primary leading-tight">{format(dateObj, "dd")}</span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm truncate">{displayName}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground truncate">
                         {format(dateObj, "dd/MM")}
                         {ev.start_time && ` · ${ev.start_time.slice(0, 5)}`}
                         {ev.unit && ` · ${ev.unit}`}
                       </p>
                     </div>
+                    <div className="h-5 w-5 rounded-full bg-muted/60 flex items-center justify-center shrink-0">
+                      {isEventExpanded ? <ChevronUp className="h-3 w-3 text-muted-foreground" /> : <ChevronDown className="h-3 w-3 text-muted-foreground" />}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-1.5 mt-2 pl-12 sm:pl-[52px] flex-wrap">
                     {onUpdateDisplayName && (
                       <div onClick={e => e.stopPropagation()}>
                         <Select
@@ -265,7 +268,7 @@ export function ScheduleCard({
                             onUpdateDisplayName(schedule.id, eventId, newName);
                           }}
                         >
-                          <SelectTrigger className="w-28 h-7 text-[10px] rounded-lg border-dashed">
+                          <SelectTrigger className="w-[120px] h-7 text-[10px] rounded-lg border-dashed">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -291,9 +294,6 @@ export function ScheduleCard({
                         <X className="h-3.5 w-3.5" />
                       </Button>
                     )}
-                    <div className="h-5 w-5 rounded-full bg-muted/60 flex items-center justify-center ml-1">
-                      {isEventExpanded ? <ChevronUp className="h-3 w-3 text-muted-foreground" /> : <ChevronDown className="h-3 w-3 text-muted-foreground" />}
-                    </div>
                   </div>
                 </div>
 
