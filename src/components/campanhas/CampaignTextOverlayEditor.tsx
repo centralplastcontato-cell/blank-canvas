@@ -3,19 +3,24 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Type, Save, X, LayoutTemplate } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Type, Save, X, LayoutTemplate, Move, ALargeSmall } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 /* ── Types ──────────────────────────────────────────────── */
 
 type TemplateId = "oferta" | "escassez" | "sazonal";
+type PositionY = "top" | "center" | "bottom";
 
 interface TextLayer {
   id: string;
   label: string;
   content: string;
   placeholder: string;
+  fontSize: number;        // 0-100 slider → mapped to px range per layer
+  fontFamily: string;
 }
 
 interface TemplateConfig {
@@ -37,7 +42,6 @@ interface Props {
 
 const CANVAS_SIZE = 1080;
 const DPR = typeof window !== "undefined" ? Math.min(window.devicePixelRatio || 1, 2) : 1;
-const SAFE_AREA = 120; // px reserved for logo corners
 
 const COLOR_PRESETS = [
   { value: "#FF3333", label: "Vermelho" },
@@ -49,15 +53,47 @@ const COLOR_PRESETS = [
   { value: "#FF69B4", label: "Rosa" },
 ];
 
+const FONT_OPTIONS = [
+  { value: "Montserrat", label: "Montserrat" },
+  { value: "Arial Black", label: "Arial Black" },
+  { value: "Georgia", label: "Georgia" },
+  { value: "Impact", label: "Impact" },
+  { value: "Courier New", label: "Courier New" },
+  { value: "Trebuchet MS", label: "Trebuchet MS" },
+  { value: "Verdana", label: "Verdana" },
+];
+
+const POSITION_OPTIONS: { value: PositionY; label: string }[] = [
+  { value: "top", label: "Topo" },
+  { value: "center", label: "Centro" },
+  { value: "bottom", label: "Base" },
+];
+
+// Font size ranges per layer type (min, max px at CANVAS_SIZE)
+const FONT_RANGES: Record<string, [number, number]> = {
+  title: [40, 140],
+  subtitle: [28, 80],
+  cta: [24, 60],
+};
+
+function layerFontPx(layerId: string, sliderVal: number): number {
+  const [min, max] = FONT_RANGES[layerId] ?? [28, 80];
+  return Math.round(min + (sliderVal / 100) * (max - min));
+}
+
+const defaultLayer = (id: string, label: string, placeholder: string, defaultSize = 50): TextLayer => ({
+  id, label, content: "", placeholder, fontSize: defaultSize, fontFamily: "Montserrat",
+});
+
 const TEMPLATES: TemplateConfig[] = [
   {
     id: "oferta",
     label: "Oferta Forte",
     description: "Gradiente + CTA botão",
     layers: [
-      { id: "title", label: "Título", content: "", placeholder: "PROMOÇÃO ESPECIAL" },
-      { id: "subtitle", label: "Subtítulo", content: "", placeholder: "Até 20% OFF em todos os pacotes" },
-      { id: "cta", label: "Botão CTA", content: "", placeholder: "GARANTA SUA VAGA" },
+      defaultLayer("title", "Título", "PROMOÇÃO ESPECIAL", 55),
+      defaultLayer("subtitle", "Subtítulo", "Até 20% OFF em todos os pacotes", 50),
+      defaultLayer("cta", "Botão CTA", "GARANTA SUA VAGA", 50),
     ],
   },
   {
@@ -65,9 +101,9 @@ const TEMPLATES: TemplateConfig[] = [
     label: "Escassez",
     description: "Card central + validade",
     layers: [
-      { id: "title", label: "Título", content: "", placeholder: "ÚLTIMAS VAGAS" },
-      { id: "subtitle", label: "Subtítulo", content: "", placeholder: "Apenas 3 datas disponíveis em Abril" },
-      { id: "cta", label: "Validade", content: "", placeholder: "Válido até 30/04" },
+      defaultLayer("title", "Título", "ÚLTIMAS VAGAS", 55),
+      defaultLayer("subtitle", "Subtítulo", "Apenas 3 datas disponíveis em Abril", 50),
+      defaultLayer("cta", "Validade", "Válido até 30/04", 50),
     ],
   },
   {
@@ -75,9 +111,9 @@ const TEMPLATES: TemplateConfig[] = [
     label: "Sazonal",
     description: "Título topo + botão inferior",
     layers: [
-      { id: "title", label: "Título", content: "", placeholder: "FÉRIAS DE JULHO" },
-      { id: "subtitle", label: "Subtítulo", content: "", placeholder: "Diversão garantida para toda família" },
-      { id: "cta", label: "Botão CTA", content: "", placeholder: "RESERVE AGORA" },
+      defaultLayer("title", "Título", "FÉRIAS DE JULHO", 55),
+      defaultLayer("subtitle", "Subtítulo", "Diversão garantida para toda família", 50),
+      defaultLayer("cta", "Botão CTA", "RESERVE AGORA", 50),
     ],
   },
 ];
@@ -99,24 +135,17 @@ function drawRoundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w:
 }
 
 function drawTextWithShadow(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  x: number,
-  y: number,
-  color: string,
-  strokeColor = "rgba(0,0,0,0.6)",
-  strokeWidth = 2
+  ctx: CanvasRenderingContext2D, text: string, x: number, y: number,
+  color: string, strokeColor = "rgba(0,0,0,0.6)", strokeWidth = 2
 ) {
   ctx.save();
   ctx.shadowColor = "rgba(0,0,0,0.5)";
   ctx.shadowBlur = 8;
   ctx.shadowOffsetX = 2;
   ctx.shadowOffsetY = 2;
-
   ctx.strokeStyle = strokeColor;
   ctx.lineWidth = strokeWidth;
   ctx.strokeText(text, x, y);
-
   ctx.shadowBlur = 0;
   ctx.shadowOffsetX = 0;
   ctx.shadowOffsetY = 0;
@@ -126,15 +155,11 @@ function drawTextWithShadow(
 }
 
 function drawCTAButton(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  centerX: number,
-  centerY: number,
-  bgColor: string,
-  textColor: string,
-  fontSize: number
+  ctx: CanvasRenderingContext2D, text: string, centerX: number, centerY: number,
+  bgColor: string, textColor: string, fontSize: number, fontFamily: string
 ) {
-  ctx.font = `bold ${fontSize}px Montserrat, "Arial Black", sans-serif`;
+  const font = `bold ${fontSize}px ${fontFamily}, sans-serif`;
+  ctx.font = font;
   const metrics = ctx.measureText(text);
   const paddingH = 40;
   const paddingV = 22;
@@ -144,20 +169,17 @@ function drawCTAButton(
   const btnY = centerY - btnH / 2;
   const radius = 18;
 
-  // Shadow
   ctx.save();
   ctx.shadowColor = "rgba(0,0,0,0.35)";
   ctx.shadowBlur = 16;
   ctx.shadowOffsetY = 6;
-
   ctx.fillStyle = bgColor;
   drawRoundedRect(ctx, btnX, btnY, btnW, btnH, radius);
   ctx.fill();
   ctx.restore();
 
-  // Text
   ctx.fillStyle = textColor;
-  ctx.font = `bold ${fontSize}px Montserrat, "Arial Black", sans-serif`;
+  ctx.font = font;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(text, centerX, centerY + 2);
@@ -182,51 +204,50 @@ function drawGradientOverlay(ctx: CanvasRenderingContext2D, size: number, positi
   }
 }
 
+/* ── Y position map ──────────────────────────────────────── */
+
+const POS_MAP: Record<PositionY, { title: number; subtitle: number; cta: number }> = {
+  top:    { title: 0.15, subtitle: 0.26, cta: 0.40 },
+  center: { title: 0.38, subtitle: 0.50, cta: 0.64 },
+  bottom: { title: 0.60, subtitle: 0.72, cta: 0.86 },
+};
+
 /* ── Render functions per template ───────────────────────── */
 
-function renderOferta(
-  ctx: CanvasRenderingContext2D,
-  size: number,
-  layers: TextLayer[],
-  accentColor: string
-) {
-  const title = layers.find((l) => l.id === "title")?.content.trim() || "";
-  const subtitle = layers.find((l) => l.id === "subtitle")?.content.trim() || "";
-  const cta = layers.find((l) => l.id === "cta")?.content.trim() || "";
+function renderOferta(ctx: CanvasRenderingContext2D, size: number, layers: TextLayer[], accentColor: string, posY: PositionY) {
+  const title = layers.find((l) => l.id === "title")!;
+  const subtitle = layers.find((l) => l.id === "subtitle")!;
+  const cta = layers.find((l) => l.id === "cta")!;
+  const pos = POS_MAP[posY];
 
   drawGradientOverlay(ctx, size, "both");
-
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
-  if (title) {
-    ctx.font = `bold 92px Montserrat, "Arial Black", sans-serif`;
-    drawTextWithShadow(ctx, title.toUpperCase(), size / 2, size * 0.18, "#FFFFFF");
+  if (title.content.trim()) {
+    const px = layerFontPx("title", title.fontSize);
+    ctx.font = `bold ${px}px ${title.fontFamily}, sans-serif`;
+    drawTextWithShadow(ctx, title.content.trim().toUpperCase(), size / 2, size * pos.title, "#FFFFFF");
   }
-  if (subtitle) {
-    ctx.font = `600 54px Montserrat, "Arial Black", sans-serif`;
-    drawTextWithShadow(ctx, subtitle, size / 2, size * 0.28, "rgba(255,255,255,0.9)", "rgba(0,0,0,0.4)", 1);
+  if (subtitle.content.trim()) {
+    const px = layerFontPx("subtitle", subtitle.fontSize);
+    ctx.font = `600 ${px}px ${subtitle.fontFamily}, sans-serif`;
+    drawTextWithShadow(ctx, subtitle.content.trim(), size / 2, size * pos.subtitle, "rgba(255,255,255,0.9)", "rgba(0,0,0,0.4)", 1);
   }
-  if (cta) {
-    drawCTAButton(ctx, cta.toUpperCase(), size / 2, size * 0.84, accentColor, "#FFFFFF", 44);
+  if (cta.content.trim()) {
+    const px = layerFontPx("cta", cta.fontSize);
+    drawCTAButton(ctx, cta.content.trim().toUpperCase(), size / 2, size * pos.cta, accentColor, "#FFFFFF", px, cta.fontFamily);
   }
 }
 
-function renderEscassez(
-  ctx: CanvasRenderingContext2D,
-  size: number,
-  layers: TextLayer[],
-  accentColor: string
-) {
-  const title = layers.find((l) => l.id === "title")?.content.trim() || "";
-  const subtitle = layers.find((l) => l.id === "subtitle")?.content.trim() || "";
-  const cta = layers.find((l) => l.id === "cta")?.content.trim() || "";
+function renderEscassez(ctx: CanvasRenderingContext2D, size: number, layers: TextLayer[], accentColor: string, _posY: PositionY) {
+  const title = layers.find((l) => l.id === "title")!;
+  const subtitle = layers.find((l) => l.id === "subtitle")!;
+  const cta = layers.find((l) => l.id === "cta")!;
 
-  // Dim overlay
   ctx.fillStyle = "rgba(0,0,0,0.3)";
   ctx.fillRect(0, 0, size, size);
 
-  // Central card
   const cardW = size * 0.78;
   const cardH = size * 0.48;
   const cardX = (size - cardW) / 2;
@@ -241,7 +262,6 @@ function renderEscassez(
   ctx.fill();
   ctx.restore();
 
-  // Accent top bar inside card
   ctx.fillStyle = accentColor;
   drawRoundedRect(ctx, cardX, cardY, cardW, 6, 20);
   ctx.fill();
@@ -250,52 +270,54 @@ function renderEscassez(
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
-  if (title) {
-    ctx.font = `bold 86px Montserrat, "Arial Black", sans-serif`;
+  if (title.content.trim()) {
+    const px = layerFontPx("title", title.fontSize);
+    ctx.font = `bold ${px}px ${title.fontFamily}, sans-serif`;
     ctx.fillStyle = "#FFFFFF";
-    ctx.fillText(title.toUpperCase(), size / 2, cardY + cardH * 0.32);
+    ctx.fillText(title.content.trim().toUpperCase(), size / 2, cardY + cardH * 0.32);
   }
-  if (subtitle) {
-    ctx.font = `500 42px Montserrat, "Arial Black", sans-serif`;
+  if (subtitle.content.trim()) {
+    const px = layerFontPx("subtitle", subtitle.fontSize);
+    ctx.font = `500 ${px}px ${subtitle.fontFamily}, sans-serif`;
     ctx.fillStyle = "rgba(255,255,255,0.85)";
-    ctx.fillText(subtitle, size / 2, cardY + cardH * 0.55);
+    ctx.fillText(subtitle.content.trim(), size / 2, cardY + cardH * 0.55);
   }
-  if (cta) {
-    ctx.font = `bold 36px Montserrat, "Arial Black", sans-serif`;
+  if (cta.content.trim()) {
+    const px = layerFontPx("cta", cta.fontSize);
+    ctx.font = `bold ${px}px ${cta.fontFamily}, sans-serif`;
     ctx.fillStyle = accentColor;
-    ctx.fillText(cta, size / 2, cardY + cardH * 0.78);
+    ctx.fillText(cta.content.trim(), size / 2, cardY + cardH * 0.78);
   }
 }
 
-function renderSazonal(
-  ctx: CanvasRenderingContext2D,
-  size: number,
-  layers: TextLayer[],
-  accentColor: string
-) {
-  const title = layers.find((l) => l.id === "title")?.content.trim() || "";
-  const subtitle = layers.find((l) => l.id === "subtitle")?.content.trim() || "";
-  const cta = layers.find((l) => l.id === "cta")?.content.trim() || "";
+function renderSazonal(ctx: CanvasRenderingContext2D, size: number, layers: TextLayer[], accentColor: string, posY: PositionY) {
+  const title = layers.find((l) => l.id === "title")!;
+  const subtitle = layers.find((l) => l.id === "subtitle")!;
+  const cta = layers.find((l) => l.id === "cta")!;
+  const pos = POS_MAP[posY];
 
   drawGradientOverlay(ctx, size, "both");
-
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
-  if (title) {
-    ctx.font = `bold 96px Montserrat, "Arial Black", sans-serif`;
-    drawTextWithShadow(ctx, title.toUpperCase(), size / 2, size * 0.15, "#FFFFFF");
+  if (title.content.trim()) {
+    const px = layerFontPx("title", title.fontSize);
+    ctx.font = `bold ${px}px ${title.fontFamily}, sans-serif`;
+    drawTextWithShadow(ctx, title.content.trim().toUpperCase(), size / 2, size * pos.title, "#FFFFFF");
   }
-  if (subtitle) {
-    ctx.font = `500 48px Montserrat, "Arial Black", sans-serif`;
-    drawTextWithShadow(ctx, subtitle, size / 2, size * 0.26, "rgba(255,255,255,0.88)", "rgba(0,0,0,0.3)", 1);
+  if (subtitle.content.trim()) {
+    const px = layerFontPx("subtitle", subtitle.fontSize);
+    ctx.font = `500 ${px}px ${subtitle.fontFamily}, sans-serif`;
+    drawTextWithShadow(ctx, subtitle.content.trim(), size / 2, size * pos.subtitle, "rgba(255,255,255,0.88)", "rgba(0,0,0,0.3)", 1);
   }
-  if (cta) {
-    drawCTAButton(ctx, cta.toUpperCase(), size / 2, size * 0.86, accentColor, "#FFFFFF", 42);
+  if (cta.content.trim()) {
+    const px = layerFontPx("cta", cta.fontSize);
+    drawCTAButton(ctx, cta.content.trim().toUpperCase(), size / 2, size * pos.cta, accentColor, "#FFFFFF", px, cta.fontFamily);
   }
 }
 
-const RENDER_MAP: Record<TemplateId, typeof renderOferta> = {
+type RenderFn = (ctx: CanvasRenderingContext2D, size: number, layers: TextLayer[], accent: string, posY: PositionY) => void;
+const RENDER_MAP: Record<TemplateId, RenderFn> = {
   oferta: renderOferta,
   escassez: renderEscassez,
   sazonal: renderSazonal,
@@ -308,6 +330,7 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
   const [template, setTemplate] = useState<TemplateId>("oferta");
   const [layers, setLayers] = useState<TextLayer[]>(TEMPLATES[0].layers.map((l) => ({ ...l })));
   const [accentColor, setAccentColor] = useState(COLOR_PRESETS[0].value);
+  const [positionY, setPositionY] = useState<PositionY>("top");
   const [saving, setSaving] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -323,7 +346,7 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
     img.src = imageUrl;
   }, [open, imageUrl]);
 
-  // Load Montserrat
+  // Load fonts
   useEffect(() => {
     if (!open) return;
     const weights = [
@@ -337,7 +360,6 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
     })).catch(() => {});
   }, [open]);
 
-  // Switch template
   const switchTemplate = (id: TemplateId) => {
     setTemplate(id);
     const tpl = TEMPLATES.find((t) => t.id === id)!;
@@ -360,20 +382,18 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
     canvas.style.height = "";
     ctx.scale(DPR, DPR);
 
-    // Draw base image (cover)
     const scale = Math.max(size / img.width, size / img.height);
     const w = img.width * scale;
     const h = img.height * scale;
     ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
 
-    // Render template overlay
-    RENDER_MAP[template](ctx, size, layers, accentColor);
-  }, [layers, imageLoaded, template, accentColor]);
+    RENDER_MAP[template](ctx, size, layers, accentColor, positionY);
+  }, [layers, imageLoaded, template, accentColor, positionY]);
 
   useEffect(() => { renderCanvas(); }, [renderCanvas]);
 
-  const updateLayer = (id: string, content: string) => {
-    setLayers((prev) => prev.map((l) => (l.id === id ? { ...l, content } : l)));
+  const updateLayer = (id: string, updates: Partial<TextLayer>) => {
+    setLayers((prev) => prev.map((l) => (l.id === id ? { ...l, ...updates } : l)));
   };
 
   const handleSaveWithText = async () => {
@@ -415,15 +435,15 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
         </DialogHeader>
 
         <div className="flex flex-col md:flex-row gap-4">
-          {/* Canvas preview — left side on desktop */}
+          {/* Canvas preview */}
           <div className="flex-1 min-w-0">
             <div className="rounded-xl border overflow-hidden bg-muted/20">
               <canvas ref={canvasRef} className="w-full h-auto block" />
             </div>
           </div>
 
-          {/* Controls — right side on desktop */}
-          <div className="md:w-72 shrink-0 space-y-4">
+          {/* Controls sidebar */}
+          <div className="md:w-80 shrink-0 space-y-4 overflow-y-auto md:max-h-[65vh] pr-1">
             {/* Template selector */}
             <div>
               <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
@@ -448,6 +468,29 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
               </div>
             </div>
 
+            {/* Position */}
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
+                <Move className="w-3.5 h-3.5" /> Posição do texto
+              </p>
+              <div className="flex gap-1.5">
+                {POSITION_OPTIONS.map((p) => (
+                  <button
+                    key={p.value}
+                    type="button"
+                    onClick={() => setPositionY(p.value)}
+                    className={`flex-1 text-xs font-medium py-1.5 rounded-lg border transition-all ${
+                      positionY === p.value
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border/60 text-muted-foreground hover:border-primary/40"
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Accent color */}
             <div>
               <p className="text-xs font-semibold text-muted-foreground mb-2">Cor de destaque</p>
@@ -467,17 +510,53 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
               </div>
             </div>
 
-            {/* Text inputs */}
-            <div className="space-y-2.5">
+            {/* Text inputs with font controls */}
+            <div className="space-y-4">
               {layers.map((layer) => (
-                <div key={layer.id} className="space-y-1">
+                <div key={layer.id} className="space-y-2 p-3 rounded-xl border border-border/40 bg-muted/5">
                   <Badge variant="outline" className="text-[10px]">{layer.label}</Badge>
                   <Input
                     placeholder={layer.placeholder}
                     value={layer.content}
-                    onChange={(e) => updateLayer(layer.id, e.target.value)}
+                    onChange={(e) => updateLayer(layer.id, { content: e.target.value })}
                     className="h-9 text-sm"
                   />
+
+                  {/* Font family */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-muted-foreground shrink-0 w-10">Fonte</span>
+                    <Select
+                      value={layer.fontFamily}
+                      onValueChange={(v) => updateLayer(layer.id, { fontFamily: v })}
+                    >
+                      <SelectTrigger className="h-7 text-xs flex-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {FONT_OPTIONS.map((f) => (
+                          <SelectItem key={f.value} value={f.value} className="text-xs">
+                            <span style={{ fontFamily: f.value }}>{f.label}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Font size slider */}
+                  <div className="flex items-center gap-2">
+                    <ALargeSmall className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    <Slider
+                      value={[layer.fontSize]}
+                      onValueChange={([v]) => updateLayer(layer.id, { fontSize: v })}
+                      min={0}
+                      max={100}
+                      step={1}
+                      className="flex-1"
+                    />
+                    <span className="text-[10px] text-muted-foreground w-8 text-right">
+                      {layerFontPx(layer.id, layer.fontSize)}px
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
