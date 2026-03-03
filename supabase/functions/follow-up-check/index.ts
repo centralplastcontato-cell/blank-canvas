@@ -425,7 +425,8 @@ async function processFollowUp({
   let successCount = 0;
 
   const now = new Date();
-  const minTime = new Date(now.getTime() - 72 * 60 * 60 * 1000); // 72 hours ago (max window)
+  const lookbackHours = Math.max(delayHours * 2, 168); // 2x delay or 7 days minimum
+  const minTime = new Date(now.getTime() - lookbackHours * 60 * 60 * 1000);
   const maxTime = new Date(now.getTime() - delayHours * 60 * 60 * 1000); // configured delay
 
   console.log(`[follow-up-check] Processing follow-up #${followUpNumber} for instance ${settings.instance_id} with ${delayHours}h delay`);
