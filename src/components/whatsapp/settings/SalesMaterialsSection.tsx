@@ -754,7 +754,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
 
     const reordered = arrayMove(filteredMaterials, oldIndex, newIndex);
     
-    // Update local state immediately
+    // Update local state immediately for optimistic UI
     const updatedMaterials = materials.map(m => {
       const newPos = reordered.findIndex(r => r.id === m.id);
       if (newPos !== -1) return { ...m, sort_order: newPos };
@@ -763,10 +763,25 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
     setMaterials(updatedMaterials);
 
     // Persist to DB
-    const updates = reordered.map((m, i) => 
-      supabase.from("sales_materials").update({ sort_order: i }).eq("id", m.id)
-    );
-    await Promise.all(updates);
+    try {
+      const results = await Promise.all(
+        reordered.map((m, i) => 
+          supabase.from("sales_materials").update({ sort_order: i }).eq("id", m.id).select("id")
+        )
+      );
+      
+      const hasError = results.some(r => r.error || !r.data?.length);
+      if (hasError) {
+        console.error("[SalesMaterials] Reorder errors:", results.filter(r => r.error).map(r => r.error));
+        toast({ title: "Erro ao reordenar", description: "Não foi possível salvar a nova ordem. Verifique suas permissões.", variant: "destructive" });
+        // Revert by refetching
+        fetchMaterials();
+      }
+    } catch (err) {
+      console.error("[SalesMaterials] Reorder failed:", err);
+      toast({ title: "Erro ao reordenar", variant: "destructive" });
+      fetchMaterials();
+    }
   };
 
   const filteredMaterials = materials.filter(
