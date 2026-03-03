@@ -1,24 +1,24 @@
 
 
-## Ocultar Faturamento na Agenda por Permissão
+## Expandir/Recolher festas individualmente dentro da escala
 
-### O que será feito
-Adicionar uma permissão `agenda.faturamento` no sistema. Quando **não concedida**, o card de "Faturamento Confirmado" ficará oculto na Agenda. O campo "Valor total (R$)" no formulário de criação/edição de festa continuará visível para todos.
+Atualmente, quando a escala é expandida, **todas as festas** são mostradas abertas de uma vez. A ideia é que cada festa tenha seu próprio controle de expandir/recolher, permitindo ao usuário abrir uma por uma.
 
-### Como funciona
+### Como será feito
 
-1. **Nova permissão no banco** — Inserir uma linha em `permission_definitions`:
-   - `code: 'agenda.faturamento'`, `category: 'agenda'`, `name: 'Ver faturamento'`
-   - Admins/owners ignoram essa restrição (já é o comportamento padrão do sistema de permissões)
+**Arquivo**: `src/components/freelancer/ScheduleCard.tsx`
 
-2. **Agenda.tsx** — Buscar se o usuário tem `agenda.faturamento` usando o hook `useConfigPermissions` ou `useUserPermissions`. Passar uma prop `showRevenue` para `MonthSummaryCards`.
+1. **Novo estado local** — Adicionar `expandedEvents: Set<string>` para rastrear quais festas estão abertas individualmente.
 
-3. **MonthSummaryCards.tsx** — Receber `showRevenue?: boolean` (default `true`). Quando `false`, ocultar o card de faturamento confirmado. A ocupação e os 4 KPI cards continuam visíveis.
+2. **Header clicável por festa** — O bloco de cada festa (data, nome, badge de disponíveis) vira um header clicável com ícone de chevron. Ao clicar, alterna aquela festa no `expandedEvents`.
 
-4. **EventFormDialog.tsx** — Nenhuma alteração. O campo "Valor total (R$)" permanece disponível para todos os usuários.
+3. **Conteúdo colapsável** — As seções abaixo do header da festa (observação, filtros de cargo, lista de freelancers) só aparecem quando o `eventId` está no `expandedEvents`.
 
-### Arquivos modificados
-- `supabase/migrations/` — Nova migration para inserir a `permission_definition`
-- `src/pages/Agenda.tsx` — Checar permissão e passar `showRevenue` prop
-- `src/components/agenda/MonthSummaryCards.tsx` — Aceitar e usar `showRevenue` prop
+4. **Expandir todas** — O header "Festas da escala" ganha um botão "Expandir todas / Recolher todas" para conveniência quando há muitas festas.
+
+5. **Visual** — Cada festa mostra um resumo compacto quando recolhida (data, nome, contagem de disponíveis) e o conteúdo completo quando expandida, com uma transição suave via chevron.
+
+### Resultado
+- Com 1 festa: abre automaticamente expandida
+- Com 2+ festas: todas começam recolhidas, usuário expande uma a uma ou usa "Expandir todas"
 
