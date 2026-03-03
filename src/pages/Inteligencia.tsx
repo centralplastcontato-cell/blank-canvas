@@ -407,7 +407,7 @@ export default function Inteligencia() {
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <div className="overflow-x-auto -mx-2 px-2 pb-2 scrollbar-none">
+              <div className="overflow-x-auto -mx-2 px-2 pb-2 scrollbar-none flex justify-center">
                 <div className="flex md:inline-flex gap-1 md:gap-2 p-1 md:p-1.5 rounded-2xl bg-muted/50 border border-border/40 shadow-sm md:w-max">
                   {[
                     { value: "resumo", label: "Resumo do Dia", mobileLabel: "Resumo" },
