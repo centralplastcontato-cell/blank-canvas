@@ -646,6 +646,7 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
             imageUrl={pendingArtUrl}
             onSave={handleTextEditorSave}
             companyId={currentCompanyId || ""}
+            campaignType={draft.campaignType}
           />
         )}
       </div>
