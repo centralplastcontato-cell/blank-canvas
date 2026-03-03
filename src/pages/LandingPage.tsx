@@ -3,10 +3,8 @@ import { Helmet } from "react-helmet-async";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { OfferSection } from "@/components/landing/OfferSection";
 import { BenefitsSection } from "@/components/landing/BenefitsSection";
-import { TestimonialsSection } from "@/components/landing/TestimonialsSection";
-import { UrgencySection } from "@/components/landing/UrgencySection";
-import { VideoGallerySection } from "@/components/landing/VideoGallerySection";
 import { InstagramSection } from "@/components/landing/InstagramSection";
+import { UrgencySection } from "@/components/landing/UrgencySection";
 import { LeadChatbot } from "@/components/landing/LeadChatbot";
 import { FloatingCTA } from "@/components/landing/FloatingCTA";
 import { Footer } from "@/components/landing/Footer";
@@ -20,15 +18,13 @@ const LandingPage = () => {
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
-        <title>Castelo da Diversão | Buffet Infantil</title>
-        <meta property="og:title" content="Castelo da Diversão | Buffet Infantil" />
+        <title>Castelo da Diversão | Mês do Consumidor</title>
+        <meta property="og:title" content="Castelo da Diversão | Mês do Consumidor" />
         <meta property="og:url" content="https://www.castelodadiversao.online" />
       </Helmet>
       <HeroSection onCtaClick={openChat} />
-      <OfferSection onCtaClick={openChat} />
       <BenefitsSection />
-      <TestimonialsSection />
-      <VideoGallerySection />
+      <OfferSection onCtaClick={openChat} />
       <InstagramSection />
       <UrgencySection onCtaClick={openChat} />
       <Footer />

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Clock, AlertTriangle, CalendarClock } from "lucide-react";
+import { CalendarClock, Sparkles } from "lucide-react";
 import { campaignConfig } from "@/config/campaignConfig";
 
 interface UrgencySectionProps {
@@ -37,13 +37,11 @@ export function UrgencySection({ onCtaClick }: UrgencySectionProps) {
 
     calculateTimeLeft();
     const timer = setInterval(calculateTimeLeft, 1000);
-
     return () => clearInterval(timer);
   }, []);
 
   return (
     <section className="py-16 bg-gradient-to-br from-accent via-accent/90 to-accent/70 relative overflow-hidden">
-      {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(10)].map((_, i) => (
           <motion.div
@@ -53,15 +51,8 @@ export function UrgencySection({ onCtaClick }: UrgencySectionProps) {
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
             }}
-            animate={{
-              scale: [1, 1.5, 1],
-              opacity: [0.1, 0.3, 0.1],
-            }}
-            transition={{
-              duration: 3 + Math.random() * 2,
-              repeat: Infinity,
-              delay: Math.random() * 2,
-            }}
+            animate={{ scale: [1, 1.5, 1], opacity: [0.1, 0.3, 0.1] }}
+            transition={{ duration: 3 + Math.random() * 2, repeat: Infinity, delay: Math.random() * 2 }}
           />
         ))}
       </div>
@@ -79,28 +70,20 @@ export function UrgencySection({ onCtaClick }: UrgencySectionProps) {
             transition={{ duration: 1.5, repeat: Infinity }}
             className="inline-flex items-center gap-2 bg-accent-foreground/20 backdrop-blur-sm text-accent-foreground px-6 py-3 rounded-full mb-6"
           >
-            <AlertTriangle className="w-5 h-5" />
-            <span className="font-bold text-lg">ATENÇÃO!</span>
+            <Sparkles className="w-5 h-5" />
+            <span className="font-bold text-lg">MÊS DO CONSUMIDOR</span>
           </motion.div>
 
           <h2 className="text-3xl md:text-5xl font-display font-bold text-accent-foreground mb-4">
-            {campaignConfig.urgency.message}
+            Garanta agora a data da festa do seu filho
           </h2>
 
-          <div className="flex flex-wrap justify-center gap-4 md:gap-6 mb-8">
-            {/* Vagas Restantes */}
-            <motion.div
-              animate={{ y: [0, -5, 0] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="bg-accent-foreground/20 backdrop-blur-sm rounded-2xl p-6 text-center min-w-[150px]"
-            >
-              <p className="text-5xl font-display font-bold text-accent-foreground">
-                {campaignConfig.urgency.spotsLeft}
-              </p>
-              <p className="text-accent-foreground/80 font-medium">festas restantes</p>
-            </motion.div>
+          <p className="text-lg md:text-xl text-accent-foreground/80 max-w-2xl mx-auto mb-8">
+            Datas para festas infantis costumam esgotar rapidamente. Clique no botão abaixo e verifique agora as datas disponíveis.
+          </p>
 
-            {/* Contagem Regressiva */}
+          <div className="flex flex-wrap justify-center gap-4 md:gap-6 mb-8">
+            {/* Countdown */}
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
@@ -112,30 +95,19 @@ export function UrgencySection({ onCtaClick }: UrgencySectionProps) {
                 <p className="text-sm font-medium text-accent-foreground/80">Promoção termina em:</p>
               </div>
               <div className="flex gap-2 md:gap-3">
-                <div className="bg-accent-foreground/30 rounded-xl px-3 py-2 md:px-4 md:py-3 text-center min-w-[50px] md:min-w-[60px]">
-                  <p className="text-2xl md:text-3xl font-display font-bold text-accent-foreground">
-                    {String(timeLeft.days).padStart(2, '0')}
-                  </p>
-                  <p className="text-xs text-accent-foreground/70">dias</p>
-                </div>
-                <div className="bg-accent-foreground/30 rounded-xl px-3 py-2 md:px-4 md:py-3 text-center min-w-[50px] md:min-w-[60px]">
-                  <p className="text-2xl md:text-3xl font-display font-bold text-accent-foreground">
-                    {String(timeLeft.hours).padStart(2, '0')}
-                  </p>
-                  <p className="text-xs text-accent-foreground/70">horas</p>
-                </div>
-                <div className="bg-accent-foreground/30 rounded-xl px-3 py-2 md:px-4 md:py-3 text-center min-w-[50px] md:min-w-[60px]">
-                  <p className="text-2xl md:text-3xl font-display font-bold text-accent-foreground">
-                    {String(timeLeft.minutes).padStart(2, '0')}
-                  </p>
-                  <p className="text-xs text-accent-foreground/70">min</p>
-                </div>
-                <div className="bg-accent-foreground/30 rounded-xl px-3 py-2 md:px-4 md:py-3 text-center min-w-[50px] md:min-w-[60px]">
-                  <p className="text-2xl md:text-3xl font-display font-bold text-accent-foreground">
-                    {String(timeLeft.seconds).padStart(2, '0')}
-                  </p>
-                  <p className="text-xs text-accent-foreground/70">seg</p>
-                </div>
+                {[
+                  { value: timeLeft.days, label: "dias" },
+                  { value: timeLeft.hours, label: "horas" },
+                  { value: timeLeft.minutes, label: "min" },
+                  { value: timeLeft.seconds, label: "seg" },
+                ].map((item, i) => (
+                  <div key={i} className="bg-accent-foreground/30 rounded-xl px-3 py-2 md:px-4 md:py-3 text-center min-w-[50px] md:min-w-[60px]">
+                    <p className="text-2xl md:text-3xl font-display font-bold text-accent-foreground">
+                      {String(item.value).padStart(2, '0')}
+                    </p>
+                    <p className="text-xs text-accent-foreground/70">{item.label}</p>
+                  </div>
+                ))}
               </div>
             </motion.div>
           </div>
@@ -146,7 +118,7 @@ export function UrgencySection({ onCtaClick }: UrgencySectionProps) {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.98 }}
           >
-            Garantir Minha Vaga Agora! 🚀
+            📅 Consultar datas no WhatsApp
           </motion.button>
         </motion.div>
       </div>

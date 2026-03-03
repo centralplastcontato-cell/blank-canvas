@@ -5,50 +5,48 @@
 
 export const campaignConfig = {
   // HERO
-  title: "Esquenta de Carnaval",
-  subtitle: "Sua festa com vantagem de verdade!",
-  tagline: "🎭 O Carnaval chegou mais cedo!",
+  title: "Mês do Consumidor",
+  subtitle: "Feche sua festa agora e os 10 primeiros contratos ganham bônus especiais para deixar a comemoração ainda mais completa.",
+  tagline: "🎉 Mês do Consumidor no Castelo da Diversão",
   
   // OFERTA PRINCIPAL
   offer: {
-    headline: "Oferta Especial por Tempo Limitado",
-    description: "Vai fazer festa em fevereiro ou março de 2026? Então essa oferta é pra você!",
+    headline: "Promoção especial do mês do consumidor",
+    description: "Para comemorar o mês do consumidor, o Castelo da Diversão preparou um presente especial para as famílias. Os 10 primeiros contratos fechados garantem bônus exclusivos!",
     benefits: [
-      "10% de desconto à vista",
-      "10 convidados grátis no seu pacote",
-      "Válida para pacotes Castelo, Super e Premium",
-      "Festas realizadas em Fevereiro e Março de 2026",
+      "🎁 Decoração completa",
+      "🍬 Docinhos para mesa de decoração",
+      "🪑 Toalhas para as mesas dos convidados",
     ],
-    validUntil: "28 de Fevereiro de 2026",
+    validUntil: "31 de Março de 2026",
     conditions: [
-      "Válida para os 10 primeiros contratos fechados ou até 28/02",
-      "Pacotes elegíveis: Castelo, Super e Premium",
-      "Festas realizadas em Fevereiro e Março de 2026",
+      "Válida para os 10 primeiros contratos fechados",
+      "Bônus sem custo adicional",
       "Promoção não cumulativa com outras ofertas",
     ],
   },
 
   // URGÊNCIA
   urgency: {
-    message: "⏰ Vagas limitadas! Corra antes que acabe!",
-    spotsLeft: 4,
-    deadline: "Válida para os 10 primeiros contratos ou até 28/02",
-    endDate: "2026-02-28T23:59:59", // Data final da promoção para contagem regressiva
+    message: "Garanta agora a data da festa do seu filho",
+    spotsLeft: 10,
+    deadline: "Apenas 10 bônus disponíveis",
+    endDate: "2026-03-31T23:59:59",
   },
 
   // CHATBOT - Opções configuráveis
   chatbot: {
     unitOptions: ["Manchester", "Trujillo", "As duas"],
-    monthOptions: ["Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"],
-    promoMonths: ["Fevereiro", "Março"],
-    nonPromoMessage: "Atenção: A promoção Esquenta de Carnaval é válida apenas para festas realizadas em Fevereiro e Março de 2026. Para outros meses, entre em contato para conhecer nossas condições especiais! 😊",
+    monthOptions: ["Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"],
+    promoMonths: ["Março"],
+    nonPromoMessage: "Atenção: A promoção do Mês do Consumidor é válida apenas para contratos fechados em Março de 2026. Para outros meses, entre em contato para conhecer nossas condições especiais! 😊",
     dayOptions: ["Segunda a Quinta", "Sexta", "Sábado", "Domingo"],
     guestOptions: ["50 pessoas", "60 pessoas", "70 pessoas", "80 pessoas", "90 pessoas", "100 pessoas"],
   },
 
   // IDENTIFICAÇÃO
-  campaignId: "carnaval-2026",
-  campaignName: "Esquenta de Carnaval 2026",
+  campaignId: "mes-consumidor-2026",
+  campaignName: "Mês do Consumidor 2026",
   
   // EMPRESA (multi-tenant) - ID da empresa padrão para leads da landing page
   companyId: "a0000000-0000-0000-0000-000000000001",
@@ -57,33 +55,28 @@ export const campaignConfig = {
 // BENEFÍCIOS DO CASTELO (fixos)
 export const castleBenefits = [
   {
-    icon: "🏰",
-    title: "Estrutura Completa",
-    description: "Espaço amplo e climatizado com capacidade para até 150 convidados",
-  },
-  {
-    icon: "🎪",
+    icon: "🎠",
     title: "Brinquedos Incríveis",
-    description: "Pula-pula, piscina de bolinhas, playground e muito mais diversão",
-  },
-  {
-    icon: "👨‍🍳",
-    title: "Buffet Completo",
-    description: "Cardápio delicioso para crianças e adultos com opções variadas",
-  },
-  {
-    icon: "🎭",
-    title: "Monitores Profissionais",
-    description: "Equipe treinada para cuidar da diversão e segurança das crianças",
-  },
-  {
-    icon: "📸",
-    title: "Espaço Instagramável",
-    description: "Cenários decorados perfeitos para fotos memoráveis",
+    description: "Brinquedos incríveis para as crianças se divertirem durante toda a festa",
   },
   {
     icon: "🎉",
-    title: "+10 Anos na Cidade",
-    description: "Milhares de festas realizadas com excelência e alegria",
+    title: "Ambiente Festivo",
+    description: "Ambiente preparado especialmente para festas infantis inesquecíveis",
+  },
+  {
+    icon: "🍟",
+    title: "Cardápio Delicioso",
+    description: "Cardápio delicioso para crianças e adultos com opções variadas",
+  },
+  {
+    icon: "👨‍👩‍👧‍👦",
+    title: "Espaço Familiar",
+    description: "Espaço confortável para toda a família curtir junto",
+  },
+  {
+    icon: "✨",
+    title: "Equipe Dedicada",
+    description: "Equipe preparada para cuidar de todos os detalhes da sua festa",
   },
 ];
