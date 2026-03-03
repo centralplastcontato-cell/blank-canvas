@@ -494,7 +494,7 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
             {/* Accent color */}
             <div>
               <p className="text-xs font-semibold text-muted-foreground mb-2">Cor de destaque</p>
-              <div className="flex gap-1.5 flex-wrap">
+              <div className="flex gap-1.5 flex-wrap justify-start">
                 {COLOR_PRESETS.map((c) => (
                   <button
                     key={c.value}
