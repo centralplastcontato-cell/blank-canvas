@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Type, Save, X, LayoutTemplate, Move, ALargeSmall, Square, Eye, Maximize2, Sparkles, GripVertical, Sun, Contrast, Moon, Smile, Trash2 } from "lucide-react";
+import { Loader2, Type, Save, X, LayoutTemplate, Move, ALargeSmall, Square, Eye, Maximize2, Sparkles, GripVertical, Sun, Contrast, Moon, Smile, Trash2, Shapes } from "lucide-react";
+import { Aplique, APLIQUE_CATALOG, APLIQUE_COLORS, MAX_APLIQUES, renderApliques } from "./apliques";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
@@ -779,6 +780,9 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
   // Stickers
   const [stickers, setStickers] = useState<Sticker[]>([]);
 
+  // Apliques
+  const [apliques, setApliques] = useState<Aplique[]>([]);
+
   // Reset appliedPresetRef when dialog closes so it re-applies on reopen
   useEffect(() => {
     if (!open) {
@@ -881,10 +885,15 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
       ctx.fillRect(0, 0, size, size);
     }
 
-    // 4. Render template (text layers)
+    // 4. Render apliques (between photo and text)
+    if (apliques.length > 0) {
+      renderApliques(ctx, size, apliques);
+    }
+
+    // 5. Render template (text layers)
     RENDER_MAP[template](ctx, size, layers, accentColor, positionY, cardSettings, positionX);
 
-    // 5. Render stickers
+    // 6. Render stickers
     stickers.forEach((s) => {
       ctx.save();
       ctx.font = `${s.size}px serif`;
@@ -893,7 +902,7 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
       ctx.fillText(s.emoji, s.x * size, s.y * size);
       ctx.restore();
     });
-  }, [layers, imageLoaded, template, positionY, positionX, cardSettings, brightness, contrast, darken, stickers]);
+  }, [layers, imageLoaded, template, positionY, positionX, cardSettings, brightness, contrast, darken, stickers, apliques]);
 
   useEffect(() => { renderCanvas(); }, [renderCanvas]);
 
@@ -1098,6 +1107,73 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
                 <Slider value={[darken]} onValueChange={([v]) => setDarken(v)} min={0} max={80} step={1} className="flex-1" />
                 <span className="text-[10px] text-muted-foreground w-6 text-right">{darken}%</span>
               </div>
+            </div>
+
+            {/* Apliques */}
+            <div className="space-y-3 p-3 rounded-xl border border-border/40 bg-muted/5">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                  <Shapes className="w-3.5 h-3.5" /> Apliques ({apliques.length}/{MAX_APLIQUES})
+                </p>
+                {apliques.length > 0 && (
+                  <button type="button" onClick={() => setApliques([])} className="text-[10px] text-primary hover:underline">Limpar</button>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {APLIQUE_CATALOG.map((def) => {
+                  const active = apliques.find((a) => a.type === def.type);
+                  return (
+                    <button
+                      key={def.type}
+                      type="button"
+                      disabled={!active && apliques.length >= MAX_APLIQUES}
+                      onClick={() => {
+                        if (active) {
+                          setApliques((prev) => prev.filter((a) => a.type !== def.type));
+                        } else {
+                          setApliques((prev) => [...prev, { id: `aplique-${def.type}-${Date.now()}`, type: def.type, color: "#FFD700", opacity: 80 }]);
+                        }
+                      }}
+                      className={`rounded-lg border p-1.5 text-center transition-all text-xs ${
+                        active
+                          ? "border-primary bg-primary/10 ring-1 ring-primary/30"
+                          : "border-border/50 hover:border-primary/40 disabled:opacity-30 disabled:cursor-not-allowed"
+                      }`}
+                    >
+                      <span className="text-base block">{def.icon}</span>
+                      <span className="text-[9px] leading-tight block mt-0.5">{def.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {apliques.length > 0 && (
+                <div className="space-y-3 pt-2 border-t border-border/30">
+                  {apliques.map((a) => {
+                    const def = APLIQUE_CATALOG.find((d) => d.type === a.type);
+                    return (
+                      <div key={a.id} className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-medium">{def?.icon} {def?.label}</span>
+                          <button type="button" onClick={() => setApliques((prev) => prev.filter((x) => x.id !== a.id))} className="text-destructive hover:text-destructive/80"><Trash2 className="w-3 h-3" /></button>
+                        </div>
+                        <div className="flex gap-1 flex-wrap">
+                          {APLIQUE_COLORS.map((c) => (
+                            <button key={c} type="button"
+                              className={`rounded-full border-2 transition-transform ${a.color === c ? "scale-125 border-primary ring-1 ring-primary/30" : "border-border/50 hover:scale-110"}`}
+                              style={{ backgroundColor: c, width: 18, height: 18 }}
+                              onClick={() => setApliques((prev) => prev.map((x) => x.id === a.id ? { ...x, color: c } : x))} />
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Eye className="w-3 h-3 text-muted-foreground shrink-0" />
+                          <Slider value={[a.opacity]} onValueChange={([v]) => setApliques((prev) => prev.map((x) => x.id === a.id ? { ...x, opacity: v } : x))} min={10} max={100} step={5} className="flex-1" />
+                          <span className="text-[10px] text-muted-foreground w-7 text-right">{a.opacity}%</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Stickers */}
@@ -1349,6 +1425,52 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
                   <Slider value={[darken]} onValueChange={([v]) => setDarken(v)} min={0} max={80} step={1} className="flex-1" />
                   <span className="text-[10px] text-muted-foreground w-6 text-right">{darken}%</span>
                 </div>
+               </div>
+              {/* Mobile apliques */}
+              <div className="space-y-3 p-3 rounded-xl border border-border/40 bg-muted/5">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Shapes className="w-3.5 h-3.5" /> Apliques ({apliques.length}/{MAX_APLIQUES})</p>
+                  {apliques.length > 0 && <button type="button" onClick={() => setApliques([])} className="text-[10px] text-primary hover:underline">Limpar</button>}
+                </div>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {APLIQUE_CATALOG.map((def) => {
+                    const active = apliques.find((a) => a.type === def.type);
+                    return (
+                      <button key={def.type} type="button" disabled={!active && apliques.length >= MAX_APLIQUES}
+                        onClick={() => active ? setApliques((prev) => prev.filter((a) => a.type !== def.type)) : setApliques((prev) => [...prev, { id: `aplique-${def.type}-${Date.now()}`, type: def.type, color: "#FFD700", opacity: 80 }])}
+                        className={`rounded-lg border p-1.5 text-center transition-all text-xs ${active ? "border-primary bg-primary/10 ring-1 ring-primary/30" : "border-border/50 hover:border-primary/40 disabled:opacity-30"}`}>
+                        <span className="text-base block">{def.icon}</span>
+                        <span className="text-[9px] leading-tight block mt-0.5">{def.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {apliques.length > 0 && (
+                  <div className="space-y-3 pt-2 border-t border-border/30">
+                    {apliques.map((a) => {
+                      const def = APLIQUE_CATALOG.find((d) => d.type === a.type);
+                      return (
+                        <div key={a.id} className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-medium">{def?.icon} {def?.label}</span>
+                            <button type="button" onClick={() => setApliques((prev) => prev.filter((x) => x.id !== a.id))} className="text-destructive hover:text-destructive/80"><Trash2 className="w-3 h-3" /></button>
+                          </div>
+                          <div className="flex gap-1 flex-wrap">
+                            {APLIQUE_COLORS.map((c) => (
+                              <button key={c} type="button" className={`rounded-full border-2 transition-transform ${a.color === c ? "scale-125 border-primary ring-1 ring-primary/30" : "border-border/50 hover:scale-110"}`}
+                                style={{ backgroundColor: c, width: 18, height: 18 }} onClick={() => setApliques((prev) => prev.map((x) => x.id === a.id ? { ...x, color: c } : x))} />
+                            ))}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Eye className="w-3 h-3 text-muted-foreground shrink-0" />
+                            <Slider value={[a.opacity]} onValueChange={([v]) => setApliques((prev) => prev.map((x) => x.id === a.id ? { ...x, opacity: v } : x))} min={10} max={100} step={5} className="flex-1" />
+                            <span className="text-[10px] text-muted-foreground w-7 text-right">{a.opacity}%</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
               <div className="space-y-3 p-3 rounded-xl border border-border/40 bg-muted/5">
                 <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Smile className="w-3.5 h-3.5" /> Stickers ({stickers.length}/{MAX_STICKERS})</p>
