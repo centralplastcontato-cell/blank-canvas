@@ -52,6 +52,7 @@ interface ScheduleCardProps {
   onUpdateDisplayName?: (scheduleId: string, eventId: string, displayName: string) => void;
   onSendToGroups?: () => void;
   onSendAssignmentsToGroups?: () => void;
+  onRemoveAvailability?: (availId: string, freelancerName: string) => void;
   scheduleAssignmentCount?: number;
   freelancerRoles?: Record<string, string[]>;
 }
@@ -59,7 +60,8 @@ interface ScheduleCardProps {
 export function ScheduleCard({
   schedule, isExpanded, events, availability, assignments, savingAssignment, roles, companyId,
   onToggleExpand, onCopyLink, onGeneratePDF, onDelete, onToggleAssignment, onUpdateRole, onUpdateNotes,
-  onRemoveEvent, onUpdateDisplayName, onSendToGroups, onSendAssignmentsToGroups, scheduleAssignmentCount,
+  onRemoveEvent, onUpdateDisplayName, onSendToGroups, onSendAssignmentsToGroups, onRemoveAvailability,
+  scheduleAssignmentCount,
   freelancerRoles = {},
 }: ScheduleCardProps) {
   const [editingNotesFor, setEditingNotesFor] = useState<string | null>(null);
@@ -67,6 +69,8 @@ export function ScheduleCard({
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null);
   const [editingFreelancer, setEditingFreelancer] = useState<any>(null);
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [confirmDeleteAvail, setConfirmDeleteAvail] = useState<{ id: string; name: string } | null>(null);
+  const [deletingAvail, setDeletingAvail] = useState(false);
   const [expandedEvents, setExpandedEvents] = useState<Set<string>>(() => {
     // If only 1 event, start expanded
     return schedule.event_ids.length === 1 ? new Set(schedule.event_ids) : new Set();
@@ -477,6 +481,17 @@ export function ScheduleCard({
                                     </Select>
                                   )}
                                   {assigned && <Check className="h-4 w-4 text-primary shrink-0" />}
+                                  {onRemoveAvailability && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 rounded-full text-destructive/50 hover:text-destructive hover:bg-destructive/10 shrink-0"
+                                      onClick={() => setConfirmDeleteAvail({ id: av.id, name: av.freelancer_name })}
+                                      title="Remover da lista"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  )}
                                 </div>
                               );
                             })}
@@ -523,6 +538,34 @@ export function ScheduleCard({
                   }
                 }
                 setRemoveConfirm(null);
+              }}
+            >
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Remove freelancer availability confirmation dialog */}
+      <AlertDialog open={!!confirmDeleteAvail} onOpenChange={open => !open && setConfirmDeleteAvail(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover freelancer?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deseja remover <strong>{confirmDeleteAvail?.name}</strong> da lista de disponibilidade desta escala?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deletingAvail}
+              onClick={async () => {
+                if (!confirmDeleteAvail || !onRemoveAvailability) return;
+                setDeletingAvail(true);
+                onRemoveAvailability(confirmDeleteAvail.id, confirmDeleteAvail.name);
+                setDeletingAvail(false);
+                setConfirmDeleteAvail(null);
               }}
             >
               Remover
