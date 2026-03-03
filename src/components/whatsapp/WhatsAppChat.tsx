@@ -2,6 +2,28 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { formatMessageContent } from "@/lib/format-message";
 import { LEAD_STATUS_COLORS, type LeadStatus } from "@/types/crm";
 import { supabase } from "@/integrations/supabase/client";
+
+// Helper: retry automático para chamadas à Edge Function wapi-send
+async function invokeWithRetry(
+  body: Record<string, unknown>,
+  maxRetries = 2,
+  delayMs = 1500
+) {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await supabase.functions.invoke("wapi-send", { body });
+      return response;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      console.warn(`[invokeWithRetry] Attempt ${attempt + 1}/${maxRetries + 1} failed:`, lastError.message);
+      if (attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, delayMs));
+      }
+    }
+  }
+  throw lastError;
+}
 import { insertWithCompany, insertSingleWithCompany, getCurrentCompanyId } from "@/lib/supabase-helpers";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
@@ -1835,14 +1857,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
     // Send message immediately (no undo delay)
     try {
-      const response = await supabase.functions.invoke("wapi-send", {
-        body: {
+      const response = await invokeWithRetry({
           action: "send-text",
           phone: convPhone,
           message: messageToSend,
           conversationId: convId,
           instanceId: instId,
-        },
       });
 
       if (response.error) {
@@ -1907,15 +1927,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     setShowContactDialog(false);
     
     try {
-      const response = await supabase.functions.invoke("wapi-send", {
-        body: {
+      const response = await invokeWithRetry({
           action: "send-contact",
           phone: getConversationPhone(selectedConversation),
           contactName: contactName.trim(),
           contactPhone: contactPhone.trim(),
           conversationId: selectedConversation.id,
-           instanceId: selectedInstance.instance_id,
-        },
+          instanceId: selectedInstance.instance_id,
       });
 
       if (response.error) throw new Error(response.error.message);
@@ -2084,14 +2102,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const sendTextMessageDirect = async (message: string): Promise<void> => {
     if (!message.trim() || !selectedConversation || !selectedInstance) return;
 
-    const response = await supabase.functions.invoke("wapi-send", {
-      body: {
+    const response = await invokeWithRetry({
         action: "send-text",
         phone: getConversationPhone(selectedConversation),
         message: message,
         conversationId: selectedConversation.id,
         instanceId: selectedInstance.instance_id,
-      },
     });
 
     if (response.error) {
@@ -2388,14 +2404,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
       const mediaUrl = urlData.signedUrl;
 
-      const response = await supabase.functions.invoke("wapi-send", {
-        body: {
+      const response = await invokeWithRetry({
           action: 'send-audio',
           phone: getConversationPhone(selectedConversation),
           conversationId: selectedConversation.id,
           instanceId: selectedInstance.instance_id,
           mediaUrl,
-        },
       });
 
       if (response.error) {
@@ -2570,8 +2584,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         }
 
         // Send to W-API with base64 (fast) and include mediaUrl for display in chat
-        const response = await supabase.functions.invoke("wapi-send", {
-          body: {
+        const response = await invokeWithRetry({
             action: 'send-image',
             phone: getConversationPhone(selectedConversation),
             conversationId: selectedConversation.id,
@@ -2579,7 +2592,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             base64: base64Data,
             caption: captionToSend,
             mediaUrl: mediaUrl,
-          },
         });
 
         if (response.error) {
@@ -2611,15 +2623,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
         const mediaUrl = signedData.signedUrl;
 
-        const response = await supabase.functions.invoke("wapi-send", {
-          body: {
+        const response = await invokeWithRetry({
             action: 'send-document',
             phone: getConversationPhone(selectedConversation),
             conversationId: selectedConversation.id,
             instanceId: selectedInstance.instance_id,
             mediaUrl,
             fileName: file.name,
-          },
         });
 
         if (response.error) {
@@ -2653,15 +2663,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
         const mediaUrl = signedData.signedUrl;
 
-        const response = await supabase.functions.invoke("wapi-send", {
-          body: {
+        const response = await invokeWithRetry({
             action: 'send-video',
             phone: getConversationPhone(selectedConversation),
             conversationId: selectedConversation.id,
             instanceId: selectedInstance.instance_id,
             mediaUrl,
             caption: captionToSend,
-          },
         });
 
         if (response.error) {
@@ -2708,8 +2716,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         ? (fileName || url.split('/').pop()?.split('?')[0] || 'documento.pdf')
         : undefined;
 
-      const response = await supabase.functions.invoke("wapi-send", {
-        body: {
+      const response = await invokeWithRetry({
           action,
           phone: getConversationPhone(selectedConversation),
           conversationId: selectedConversation.id,
@@ -2717,7 +2724,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           mediaUrl: url,
           caption: caption || undefined,
           fileName: finalFileName,
-        },
       });
 
       if (response.error) {
