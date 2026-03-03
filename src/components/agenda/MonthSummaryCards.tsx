@@ -7,9 +7,10 @@ interface MonthSummaryCardsProps {
   periodLabel?: string;
   totalDaysOverride?: number;
   onClearPeriod?: () => void;
+  showRevenue?: boolean;
 }
 
-export function MonthSummaryCards({ events, month, periodLabel, totalDaysOverride }: MonthSummaryCardsProps) {
+export function MonthSummaryCards({ events, month, periodLabel, totalDaysOverride, showRevenue = true }: MonthSummaryCardsProps) {
   const total = events.length;
   const confirmados = events.filter(e => e.status === "confirmado").length;
   const pendentes = events.filter(e => e.status === "pendente").length;
@@ -56,8 +57,8 @@ export function MonthSummaryCards({ events, month, periodLabel, totalDaysOverrid
         ))}
       </div>
 
-      {/* Revenue card (shown when period is active or when there's revenue) */}
-      {(periodLabel || faturamento > 0) && (
+      {/* Revenue card (shown when period is active or when there's revenue, and permission allows) */}
+      {showRevenue && (periodLabel || faturamento > 0) && (
         <div className="rounded-2xl border border-border/30 border-l-[3px] border-l-emerald-500 bg-emerald-500/[0.02] shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-4 md:p-5">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-emerald-500/10 shrink-0">
