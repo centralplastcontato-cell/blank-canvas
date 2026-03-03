@@ -16,6 +16,7 @@ import { toast } from "sonner";
 
 type TemplateId = "oferta" | "escassez" | "sazonal" | "minimalista" | "neon";
 type PositionY = "top" | "center" | "bottom";
+type PositionX = "left" | "center" | "right";
 
 interface TextLayer {
   id: string;
@@ -25,6 +26,7 @@ interface TextLayer {
   fontSize: number;        // 0-100 slider → mapped to px range per layer
   fontFamily: string;
   customY?: number;        // 0-1 ratio for custom drag position
+  customX?: number;        // 0-1 ratio for custom horizontal drag position
   shadowEnabled?: boolean; // toggle text shadow
   shadowIntensity?: number; // 0-100 shadow strength
 }
@@ -267,6 +269,18 @@ const POSITION_OPTIONS: { value: PositionY; label: string }[] = [
   { value: "bottom", label: "Base" },
 ];
 
+const POSITION_X_OPTIONS: { value: PositionX; label: string }[] = [
+  { value: "left", label: "Esquerda" },
+  { value: "center", label: "Centro" },
+  { value: "right", label: "Direita" },
+];
+
+const POS_X_MAP: Record<PositionX, number> = {
+  left: 0.25,
+  center: 0.5,
+  right: 0.75,
+};
+
 // Font size ranges per layer type (min, max px at CANVAS_SIZE)
 const FONT_RANGES: Record<string, [number, number]> = {
   title: [40, 140],
@@ -462,39 +476,48 @@ function getLayerY(layer: TextLayer, layerId: string, pos: Record<string, number
   return size * (pos[layerId] ?? 0.5);
 }
 
-function renderOferta(ctx: CanvasRenderingContext2D, size: number, layers: TextLayer[], accentColor: string, posY: PositionY) {
+function getLayerX(layer: TextLayer, size: number, posX: PositionX): number {
+  if (layer.customX !== undefined) return size * layer.customX;
+  return size * POS_X_MAP[posX];
+}
+
+function renderOferta(ctx: CanvasRenderingContext2D, size: number, layers: TextLayer[], accentColor: string, posY: PositionY, _cs?: CardSettings, posX: PositionX = "center") {
   const title = layers.find((l) => l.id === "title")!;
   const subtitle = layers.find((l) => l.id === "subtitle")!;
   const cta = layers.find((l) => l.id === "cta")!;
   const pos = POS_MAP[posY];
 
   drawGradientOverlay(ctx, size, "both");
-  ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
   if (title.content.trim()) {
     const px = layerFontPx("title", title.fontSize);
     ctx.font = `bold ${px}px ${title.fontFamily}, sans-serif`;
-    drawTextWithShadow(ctx, title.content.trim().toUpperCase(), size / 2, getLayerY(title, "title", pos, size), "#FFFFFF", "rgba(0,0,0,0.6)", 2, title);
+    const x = getLayerX(title, size, posX);
+    ctx.textAlign = posX === "left" ? "left" : posX === "right" ? "right" : "center";
+    drawTextWithShadow(ctx, title.content.trim().toUpperCase(), x, getLayerY(title, "title", pos, size), "#FFFFFF", "rgba(0,0,0,0.6)", 2, title);
   }
   if (subtitle.content.trim()) {
     const px = layerFontPx("subtitle", subtitle.fontSize);
     ctx.font = `600 ${px}px ${subtitle.fontFamily}, sans-serif`;
-    drawTextWithShadow(ctx, subtitle.content.trim(), size / 2, getLayerY(subtitle, "subtitle", pos, size), "rgba(255,255,255,0.9)", "rgba(0,0,0,0.4)", 1, subtitle);
+    const x = getLayerX(subtitle, size, posX);
+    ctx.textAlign = posX === "left" ? "left" : posX === "right" ? "right" : "center";
+    drawTextWithShadow(ctx, subtitle.content.trim(), x, getLayerY(subtitle, "subtitle", pos, size), "rgba(255,255,255,0.9)", "rgba(0,0,0,0.4)", 1, subtitle);
   }
   if (cta.content.trim()) {
     const px = layerFontPx("cta", cta.fontSize);
-    drawCTAButton(ctx, cta.content.trim().toUpperCase(), size / 2, getLayerY(cta, "cta", pos, size), accentColor, "#FFFFFF", px, cta.fontFamily);
+    const x = getLayerX(cta, size, posX);
+    drawCTAButton(ctx, cta.content.trim().toUpperCase(), x, getLayerY(cta, "cta", pos, size), accentColor, "#FFFFFF", px, cta.fontFamily);
   }
 }
 
-function renderEscassez(ctx: CanvasRenderingContext2D, size: number, layers: TextLayer[], accentColor: string, posY: PositionY, cardSettings?: CardSettings) {
+function renderEscassez(ctx: CanvasRenderingContext2D, size: number, layers: TextLayer[], accentColor: string, posY: PositionY, cardSettings?: CardSettings, posX: PositionX = "center") {
   const title = layers.find((l) => l.id === "title")!;
   const subtitle = layers.find((l) => l.id === "subtitle")!;
   const cta = layers.find((l) => l.id === "cta")!;
   const showCard = cardSettings?.showCard ?? true;
   const cardOpacity = (cardSettings?.opacity ?? 65) / 100;
-  const cardSizeFactor = 0.5 + (cardSettings?.cardSize ?? 50) / 100 * 0.5; // 0.5 to 1.0
+  const cardSizeFactor = 0.5 + (cardSettings?.cardSize ?? 50) / 100 * 0.5;
 
   if (showCard) {
     ctx.fillStyle = `rgba(0,0,0,${(cardOpacity * 0.45).toFixed(2)})`;
@@ -541,144 +564,152 @@ function renderEscassez(ctx: CanvasRenderingContext2D, size: number, layers: Tex
       ctx.fillText(cta.content.trim(), size / 2, cardY + cardH * 0.78);
     }
   } else {
-    // No card — use gradient + text like other templates
     const pos = POS_MAP[posY];
     drawGradientOverlay(ctx, size, "both");
-    ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
     if (title.content.trim()) {
       const px = layerFontPx("title", title.fontSize);
       ctx.font = `bold ${px}px ${title.fontFamily}, sans-serif`;
-      drawTextWithShadow(ctx, title.content.trim().toUpperCase(), size / 2, getLayerY(title, "title", pos, size), "#FFFFFF", "rgba(0,0,0,0.6)", 2, title);
+      const x = getLayerX(title, size, posX);
+      ctx.textAlign = posX === "left" ? "left" : posX === "right" ? "right" : "center";
+      drawTextWithShadow(ctx, title.content.trim().toUpperCase(), x, getLayerY(title, "title", pos, size), "#FFFFFF", "rgba(0,0,0,0.6)", 2, title);
     }
     if (subtitle.content.trim()) {
       const px = layerFontPx("subtitle", subtitle.fontSize);
       ctx.font = `500 ${px}px ${subtitle.fontFamily}, sans-serif`;
-      drawTextWithShadow(ctx, subtitle.content.trim(), size / 2, getLayerY(subtitle, "subtitle", pos, size), "rgba(255,255,255,0.88)", "rgba(0,0,0,0.3)", 1, subtitle);
+      const x = getLayerX(subtitle, size, posX);
+      ctx.textAlign = posX === "left" ? "left" : posX === "right" ? "right" : "center";
+      drawTextWithShadow(ctx, subtitle.content.trim(), x, getLayerY(subtitle, "subtitle", pos, size), "rgba(255,255,255,0.88)", "rgba(0,0,0,0.3)", 1, subtitle);
     }
     if (cta.content.trim()) {
       const px = layerFontPx("cta", cta.fontSize);
       ctx.font = `bold ${px}px ${cta.fontFamily}, sans-serif`;
-      ctx.fillStyle = accentColor;
-      drawTextWithShadow(ctx, cta.content.trim(), size / 2, getLayerY(cta, "cta", pos, size), accentColor, "rgba(0,0,0,0.3)", 1, cta);
+      const x = getLayerX(cta, size, posX);
+      ctx.textAlign = posX === "left" ? "left" : posX === "right" ? "right" : "center";
+      drawTextWithShadow(ctx, cta.content.trim(), x, getLayerY(cta, "cta", pos, size), accentColor, "rgba(0,0,0,0.3)", 1, cta);
     }
   }
 }
-
-function renderSazonal(ctx: CanvasRenderingContext2D, size: number, layers: TextLayer[], accentColor: string, posY: PositionY) {
+function renderSazonal(ctx: CanvasRenderingContext2D, size: number, layers: TextLayer[], accentColor: string, posY: PositionY, _cs?: CardSettings, posX: PositionX = "center") {
   const title = layers.find((l) => l.id === "title")!;
   const subtitle = layers.find((l) => l.id === "subtitle")!;
   const cta = layers.find((l) => l.id === "cta")!;
   const pos = POS_MAP[posY];
 
   drawGradientOverlay(ctx, size, "both");
-  ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
   if (title.content.trim()) {
     const px = layerFontPx("title", title.fontSize);
     ctx.font = `bold ${px}px ${title.fontFamily}, sans-serif`;
-    drawTextWithShadow(ctx, title.content.trim().toUpperCase(), size / 2, getLayerY(title, "title", pos, size), "#FFFFFF", "rgba(0,0,0,0.6)", 2, title);
+    const x = getLayerX(title, size, posX);
+    ctx.textAlign = posX === "left" ? "left" : posX === "right" ? "right" : "center";
+    drawTextWithShadow(ctx, title.content.trim().toUpperCase(), x, getLayerY(title, "title", pos, size), "#FFFFFF", "rgba(0,0,0,0.6)", 2, title);
   }
   if (subtitle.content.trim()) {
     const px = layerFontPx("subtitle", subtitle.fontSize);
     ctx.font = `500 ${px}px ${subtitle.fontFamily}, sans-serif`;
-    drawTextWithShadow(ctx, subtitle.content.trim(), size / 2, getLayerY(subtitle, "subtitle", pos, size), "rgba(255,255,255,0.88)", "rgba(0,0,0,0.3)", 1, subtitle);
+    const x = getLayerX(subtitle, size, posX);
+    ctx.textAlign = posX === "left" ? "left" : posX === "right" ? "right" : "center";
+    drawTextWithShadow(ctx, subtitle.content.trim(), x, getLayerY(subtitle, "subtitle", pos, size), "rgba(255,255,255,0.88)", "rgba(0,0,0,0.3)", 1, subtitle);
   }
   if (cta.content.trim()) {
     const px = layerFontPx("cta", cta.fontSize);
-    drawCTAButton(ctx, cta.content.trim().toUpperCase(), size / 2, getLayerY(cta, "cta", pos, size), accentColor, "#FFFFFF", px, cta.fontFamily);
+    const x = getLayerX(cta, size, posX);
+    drawCTAButton(ctx, cta.content.trim().toUpperCase(), x, getLayerY(cta, "cta", pos, size), accentColor, "#FFFFFF", px, cta.fontFamily);
   }
 }
-
 interface CardSettings {
   showCard: boolean;
   opacity: number;   // 0-100
   cardSize: number;  // 0-100
 }
 
-type RenderFn = (ctx: CanvasRenderingContext2D, size: number, layers: TextLayer[], accent: string, posY: PositionY, cardSettings?: CardSettings) => void;
+type RenderFn = (ctx: CanvasRenderingContext2D, size: number, layers: TextLayer[], accent: string, posY: PositionY, cardSettings?: CardSettings, posX?: PositionX) => void;
 
-function renderMinimalista(ctx: CanvasRenderingContext2D, size: number, layers: TextLayer[], accentColor: string, posY: PositionY) {
+function renderMinimalista(ctx: CanvasRenderingContext2D, size: number, layers: TextLayer[], accentColor: string, posY: PositionY, _cs?: CardSettings, posX: PositionX = "center") {
   const title = layers.find((l) => l.id === "title")!;
   const subtitle = layers.find((l) => l.id === "subtitle")!;
   const cta = layers.find((l) => l.id === "cta")!;
   const pos = POS_MAP[posY];
 
-  // Subtle dark overlay at bottom only
   const grad = ctx.createLinearGradient(0, size * 0.6, 0, size);
   grad.addColorStop(0, "rgba(0,0,0,0)");
   grad.addColorStop(1, "rgba(0,0,0,0.4)");
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, size, size);
 
-  ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
   if (title.content.trim()) {
     const px = layerFontPx("title", title.fontSize);
     ctx.font = `bold ${px}px ${title.fontFamily}, sans-serif`;
-    // Clean white text, minimal shadow
-    drawTextWithShadow(ctx, title.content.trim().toUpperCase(), size / 2, getLayerY(title, "title", pos, size), "#FFFFFF", "rgba(0,0,0,0.2)", 1, title);
+    const x = getLayerX(title, size, posX);
+    ctx.textAlign = posX === "left" ? "left" : posX === "right" ? "right" : "center";
+    drawTextWithShadow(ctx, title.content.trim().toUpperCase(), x, getLayerY(title, "title", pos, size), "#FFFFFF", "rgba(0,0,0,0.2)", 1, title);
   }
   if (subtitle.content.trim()) {
     const px = layerFontPx("subtitle", subtitle.fontSize);
     ctx.font = `400 ${px}px ${subtitle.fontFamily}, sans-serif`;
-    drawTextWithShadow(ctx, subtitle.content.trim(), size / 2, getLayerY(subtitle, "subtitle", pos, size), "rgba(255,255,255,0.85)", "rgba(0,0,0,0.15)", 0.5, subtitle);
+    const x = getLayerX(subtitle, size, posX);
+    ctx.textAlign = posX === "left" ? "left" : posX === "right" ? "right" : "center";
+    drawTextWithShadow(ctx, subtitle.content.trim(), x, getLayerY(subtitle, "subtitle", pos, size), "rgba(255,255,255,0.85)", "rgba(0,0,0,0.15)", 0.5, subtitle);
   }
   if (cta.content.trim()) {
     const px = layerFontPx("cta", cta.fontSize);
-    // Simple underlined text instead of button
     ctx.font = `600 ${px}px ${cta.fontFamily}, sans-serif`;
+    const x = getLayerX(cta, size, posX);
     const y = getLayerY(cta, "cta", pos, size);
-    drawTextWithShadow(ctx, cta.content.trim().toUpperCase(), size / 2, y, accentColor, "rgba(0,0,0,0.15)", 0.5, cta);
-    // Underline
+    ctx.textAlign = posX === "left" ? "left" : posX === "right" ? "right" : "center";
+    drawTextWithShadow(ctx, cta.content.trim().toUpperCase(), x, y, accentColor, "rgba(0,0,0,0.15)", 0.5, cta);
     const metrics = ctx.measureText(cta.content.trim().toUpperCase());
     ctx.strokeStyle = accentColor;
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(size / 2 - metrics.width / 2, y + px * 0.4);
-    ctx.lineTo(size / 2 + metrics.width / 2, y + px * 0.4);
+    const underlineX = posX === "left" ? x : posX === "right" ? x - metrics.width : x - metrics.width / 2;
+    ctx.moveTo(underlineX, y + px * 0.4);
+    ctx.lineTo(underlineX + metrics.width, y + px * 0.4);
     ctx.stroke();
   }
 }
 
-function renderNeon(ctx: CanvasRenderingContext2D, size: number, layers: TextLayer[], accentColor: string, posY: PositionY) {
+function renderNeon(ctx: CanvasRenderingContext2D, size: number, layers: TextLayer[], accentColor: string, posY: PositionY, _cs?: CardSettings, posX: PositionX = "center") {
   const title = layers.find((l) => l.id === "title")!;
   const subtitle = layers.find((l) => l.id === "subtitle")!;
   const cta = layers.find((l) => l.id === "cta")!;
   const pos = POS_MAP[posY];
 
-  // Dark overlay for neon effect
   ctx.fillStyle = "rgba(0,0,0,0.55)";
   ctx.fillRect(0, 0, size, size);
 
-  ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
   if (title.content.trim()) {
     const px = layerFontPx("title", title.fontSize);
     ctx.font = `bold ${px}px ${title.fontFamily}, sans-serif`;
-    drawNeonText(ctx, title.content.trim().toUpperCase(), size / 2, getLayerY(title, "title", pos, size), "#FFFFFF", accentColor, title);
+    const x = getLayerX(title, size, posX);
+    ctx.textAlign = posX === "left" ? "left" : posX === "right" ? "right" : "center";
+    drawNeonText(ctx, title.content.trim().toUpperCase(), x, getLayerY(title, "title", pos, size), "#FFFFFF", accentColor, title);
   }
   if (subtitle.content.trim()) {
     const px = layerFontPx("subtitle", subtitle.fontSize);
     ctx.font = `500 ${px}px ${subtitle.fontFamily}, sans-serif`;
-    drawNeonText(ctx, subtitle.content.trim(), size / 2, getLayerY(subtitle, "subtitle", pos, size), "rgba(255,255,255,0.9)", accentColor, subtitle);
+    const x = getLayerX(subtitle, size, posX);
+    ctx.textAlign = posX === "left" ? "left" : posX === "right" ? "right" : "center";
+    drawNeonText(ctx, subtitle.content.trim(), x, getLayerY(subtitle, "subtitle", pos, size), "rgba(255,255,255,0.9)", accentColor, subtitle);
   }
   if (cta.content.trim()) {
     const px = layerFontPx("cta", cta.fontSize);
-    // Neon bordered button
     ctx.font = `bold ${px}px ${cta.fontFamily}, sans-serif`;
+    const x = getLayerX(cta, size, posX);
     const metrics = ctx.measureText(cta.content.trim().toUpperCase());
     const btnW = metrics.width + 80;
     const btnH = px + 44;
     const y = getLayerY(cta, "cta", pos, size);
-    const btnX = size / 2 - btnW / 2;
+    const btnX = x - btnW / 2;
     const btnY = y - btnH / 2;
 
-    // Neon glow border
     ctx.save();
     ctx.shadowColor = accentColor;
     ctx.shadowBlur = 20;
@@ -688,8 +719,8 @@ function renderNeon(ctx: CanvasRenderingContext2D, size: number, layers: TextLay
     ctx.stroke();
     ctx.restore();
 
-    // Text inside
-    drawNeonText(ctx, cta.content.trim().toUpperCase(), size / 2, y + 2, "#FFFFFF", accentColor, cta);
+    ctx.textAlign = "center";
+    drawNeonText(ctx, cta.content.trim().toUpperCase(), x, y + 2, "#FFFFFF", accentColor, cta);
   }
 }
 
@@ -709,6 +740,7 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
   const [layers, setLayers] = useState<TextLayer[]>(TEMPLATES[0].layers.map((l) => ({ ...l })));
   const [accentColor, setAccentColor] = useState(COLOR_PRESETS[0].value);
   const [positionY, setPositionY] = useState<PositionY>("top");
+  const [positionX, setPositionX] = useState<PositionX>("center");
   const [saving, setSaving] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -799,8 +831,8 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
     const h = img.height * scale;
     ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
 
-    RENDER_MAP[template](ctx, size, layers, accentColor, positionY, cardSettings);
-  }, [layers, imageLoaded, template, accentColor, positionY, cardSettings]);
+    RENDER_MAP[template](ctx, size, layers, accentColor, positionY, cardSettings, positionX);
+  }, [layers, imageLoaded, template, accentColor, positionY, positionX, cardSettings]);
 
   useEffect(() => { renderCanvas(); }, [renderCanvas]);
 
@@ -809,20 +841,24 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
   };
 
   /* ── Drag-to-reposition logic ─────────────────────────── */
-  const draggingRef = useRef<{ layerId: string; startMouseY: number; startCustomY: number } | null>(null);
+  const draggingRef = useRef<{ layerId: string; startMouseY: number; startCustomY: number; startMouseX: number; startCustomX: number } | null>(null);
 
-  const getCanvasY = useCallback((e: React.MouseEvent | React.TouchEvent): number => {
+  const getCanvasCoords = useCallback((e: React.MouseEvent | React.TouchEvent): { x: number; y: number } => {
     const canvas = canvasRef.current;
-    if (!canvas) return 0;
+    if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
     const clientY = "touches" in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
-    return (clientY - rect.top) / rect.height; // 0-1 ratio
+    const clientX = "touches" in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    return {
+      x: (clientX - rect.left) / rect.width,
+      y: (clientY - rect.top) / rect.height,
+    };
   }, []);
 
   const findClosestLayer = useCallback((yRatio: number): TextLayer | null => {
     const pos = POS_MAP[positionY];
     let closest: TextLayer | null = null;
-    let minDist = 0.08; // threshold: 8% of canvas height
+    let minDist = 0.08;
     for (const layer of layers) {
       if (!layer.content.trim()) continue;
       const layerYRatio = layer.customY ?? pos[layer.id as keyof typeof pos] ?? 0.5;
@@ -836,30 +872,31 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
   }, [layers, positionY]);
 
   const handleCanvasPointerDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    const yRatio = getCanvasY(e);
-    const layer = findClosestLayer(yRatio);
+    const { x, y } = getCanvasCoords(e);
+    const layer = findClosestLayer(y);
     if (!layer) return;
     e.preventDefault();
     const currentY = layer.customY ?? POS_MAP[positionY][layer.id as keyof (typeof POS_MAP)["top"]] ?? 0.5;
-    draggingRef.current = { layerId: layer.id, startMouseY: yRatio, startCustomY: currentY };
-    // Change cursor
+    const currentX = layer.customX ?? POS_X_MAP[positionX];
+    draggingRef.current = { layerId: layer.id, startMouseY: y, startCustomY: currentY, startMouseX: x, startCustomX: currentX };
     if (canvasRef.current) canvasRef.current.style.cursor = "grabbing";
-  }, [getCanvasY, findClosestLayer, positionY]);
+  }, [getCanvasCoords, findClosestLayer, positionY, positionX]);
 
   const handleCanvasPointerMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     if (!draggingRef.current) {
-      // Show grab cursor when hovering over text
-      const yRatio = getCanvasY(e);
-      const layer = findClosestLayer(yRatio);
+      const { y } = getCanvasCoords(e);
+      const layer = findClosestLayer(y);
       if (canvasRef.current) canvasRef.current.style.cursor = layer ? "grab" : "default";
       return;
     }
     e.preventDefault();
-    const yRatio = getCanvasY(e);
-    const delta = yRatio - draggingRef.current.startMouseY;
-    const newY = Math.max(0.05, Math.min(0.95, draggingRef.current.startCustomY + delta));
-    updateLayer(draggingRef.current.layerId, { customY: newY });
-  }, [getCanvasY, findClosestLayer]);
+    const { x, y } = getCanvasCoords(e);
+    const deltaY = y - draggingRef.current.startMouseY;
+    const deltaX = x - draggingRef.current.startMouseX;
+    const newY = Math.max(0.05, Math.min(0.95, draggingRef.current.startCustomY + deltaY));
+    const newX = Math.max(0.05, Math.min(0.95, draggingRef.current.startCustomX + deltaX));
+    updateLayer(draggingRef.current.layerId, { customY: newY, customX: newX });
+  }, [getCanvasCoords, findClosestLayer]);
 
   const handleCanvasPointerUp = useCallback(() => {
     draggingRef.current = null;
@@ -881,7 +918,7 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
   }, []);
 
   const resetPositions = useCallback(() => {
-    setLayers((prev) => prev.map((l) => ({ ...l, customY: undefined })));
+    setLayers((prev) => prev.map((l) => ({ ...l, customY: undefined, customX: undefined })));
   }, []);
 
   const handleSaveWithText = async () => {
@@ -942,7 +979,7 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
                 <GripVertical className="w-3 h-3" />
                 Arraste os textos na imagem para reposicionar
               </p>
-              {layers.some((l) => l.customY !== undefined) && (
+              {layers.some((l) => l.customY !== undefined || l.customX !== undefined) && (
                 <button
                   type="button"
                   onClick={resetPositions}
@@ -985,7 +1022,7 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
               <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
                 <Move className="w-3.5 h-3.5" /> Posição do texto
               </p>
-              <div className="flex gap-1.5">
+              <div className="flex gap-1.5 mb-1.5">
                 {POSITION_OPTIONS.map((p) => (
                   <button
                     key={p.value}
@@ -993,6 +1030,22 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
                     onClick={() => setPositionY(p.value)}
                     className={`flex-1 text-xs font-medium py-1.5 rounded-lg border transition-all ${
                       positionY === p.value
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border/60 text-muted-foreground hover:border-primary/40"
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-1.5">
+                {POSITION_X_OPTIONS.map((p) => (
+                  <button
+                    key={p.value}
+                    type="button"
+                    onClick={() => setPositionX(p.value)}
+                    className={`flex-1 text-xs font-medium py-1.5 rounded-lg border transition-all ${
+                      positionX === p.value
                         ? "border-primary bg-primary/10 text-primary"
                         : "border-border/60 text-muted-foreground hover:border-primary/40"
                     }`}
