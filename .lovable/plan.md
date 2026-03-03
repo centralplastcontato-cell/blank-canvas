@@ -1,90 +1,100 @@
 
 
-## Overlay de Texto com HTML Canvas sobre Artes de Campanha
+## Stickers/Emojis Posicionaveis e Filtros na Foto Base
 
-### Conceito
+### 1. Stickers/Emojis Posicionaveis
 
-Apos a IA gerar a arte visual (composicao com foto + logo + moldura), o usuario podera adicionar textos programaticamente usando HTML Canvas. Isso garante tipografia perfeita, sem erros de ortografia ou alucinacoes da IA.
+Adicionar uma nova camada de "stickers" ao editor, permitindo ao usuario colocar emojis decorativos (balao, bolo, confete, estrela, coracao, etc.) em qualquer posicao da imagem, com drag-to-reposition igual aos textos.
 
-### Fluxo do Usuario
+**Funcionalidades:**
+- Biblioteca de ~20 emojis tematicos para buffets infantis (festa, baloes, bolo, presentes, estrelas, coracoes, fogos, confete, etc.)
+- Cada sticker e arrastavel livremente no canvas (mesmo sistema de drag dos textos)
+- Controle de tamanho por sticker (slider de escala)
+- Botao "+" para adicionar stickers, botao "X" para remover cada um
+- Maximo de 5 stickers simultaneos para nao poluir a arte
+- Renderizacao no canvas usando `ctx.fillText()` com emoji (funciona nativamente no Canvas com fontes de emoji do sistema)
 
+**Estado novo:**
 ```text
-[IA gera arte visual] --> [Abre editor de texto Canvas] --> [Configura titulo, subtitulo, CTA] --> [Salva imagem final com texto]
+interface Sticker {
+  id: string
+  emoji: string
+  x: number      // 0-1 ratio
+  y: number      // 0-1 ratio
+  size: number   // slider 20-120px no canvas
+}
+stickers: Sticker[]  (estado no componente)
 ```
 
-1. Apos `handleComposeArt` retornar a imagem, em vez de salvar direto, abre um **editor de texto overlay**
-2. O usuario configura:
-   - **Titulo** (ex: "PROMOCAO DE ABRIL")
-   - **Subtitulo** (ex: "10% OFF em todos os pacotes")
-   - **CTA** (ex: "Garanta sua vaga!")
-   - **Posicao** de cada texto (topo, centro, rodape)
-   - **Cor** do texto (presets + seletor)
-   - **Tamanho** (P, M, G)
-3. O Canvas renderiza a imagem de fundo + textos em tempo real como preview
-4. Ao clicar "Salvar", o Canvas exporta como PNG, faz upload pro Storage e salva na galeria
-5. O usuario tambem pode pular essa etapa e salvar sem texto (botao "Salvar sem texto")
+**Emojis disponiveis:**
+Organizados em categorias:
+- Festa: 🎈 🎉 🎊 🎁 🎂 🧁
+- Decoracao: ⭐ 🌟 ✨ 💫 🎀 🎯
+- Coracoes: ❤️ 💛 💜 🩷 🧡
+- Natureza: 🌺 🌈 ☀️ 🦋
 
-### Arquitetura Tecnica
+**UI:** Nova secao "Stickers" na sidebar de controles, com grid de emojis clicaveis. Ao clicar, adiciona o sticker no centro da imagem. O usuario arrasta para posicionar.
 
-**1. Novo componente `CampaignTextOverlayEditor.tsx`**
+---
 
-Componente principal que recebe a `imageUrl` gerada pela IA e permite adicionar textos:
+### 2. Filtros na Foto Base
 
-- Usa um `<canvas>` para renderizar a imagem de fundo + textos sobrepostos
-- Estado local para cada campo de texto:
-  ```text
-  textLayers: [
-    { id, content, position ('top'|'center'|'bottom'), color, fontSize ('sm'|'md'|'lg'), bold }
-  ]
-  ```
-- Tres slots pre-definidos: Titulo (topo), Subtitulo (centro), CTA (rodape)
-- Cada slot tem uma faixa semi-transparente escura por tras para garantir legibilidade
-- Preview em tempo real: cada mudanca re-renderiza o canvas
-- Botoes: "Salvar com texto" (exporta canvas como PNG) e "Salvar sem texto" (usa imagem original)
+Adicionar controles de brilho, contraste e escurecimento da foto base, aplicados antes dos textos/stickers. Isso permite ao usuario ajustar a foto para melhorar a legibilidade do texto.
 
-**2. Fluxo de renderizacao do Canvas**
+**Funcionalidades:**
+- **Brilho** (slider -50 a +50, padrao 0)
+- **Contraste** (slider -50 a +50, padrao 0)
+- **Escurecer** (slider 0 a 80, padrao 0 - overlay preto com opacidade)
+
+**Implementacao tecnica:**
+- Aplicar `ctx.filter` do Canvas com `brightness()` e `contrast()` ao desenhar a imagem base
+- Para "escurecer": desenhar um `fillRect` preto com opacidade variavel sobre a imagem, antes dos textos
+- Os filtros sao aplicados na funcao `renderCanvas` entre o desenho da imagem e a chamada do template
+
+**UI:** Nova secao "Ajustes da foto" na sidebar, com 3 sliders (brilho, contraste, escurecer) e botao "Resetar" para voltar aos valores padrao.
+
+---
+
+### Detalhes Tecnicos
+
+**Arquivo a modificar:** `src/components/campanhas/CampaignTextOverlayEditor.tsx`
+
+**Mudancas no renderCanvas:**
 
 ```text
-1. Carregar imagem base (new Image() + crossOrigin)
-2. Desenhar imagem no canvas (dimensao fixa 1080x1080 para WhatsApp)
-3. Para cada textLayer com conteudo:
-   a. Calcular posicao Y baseado em position (top=15%, center=50%, bottom=85%)
-   b. Desenhar faixa semi-transparente (fillRect com rgba)
-   c. Configurar font (Impact/Montserrat, bold, tamanho)
-   d. Desenhar texto centralizado (fillText + strokeText para outline)
-4. canvas.toBlob() --> upload para Storage --> salvar URL
+1. Desenhar imagem base com ctx.filter = `brightness(X) contrast(Y)`
+2. Resetar ctx.filter
+3. Se escurecer > 0, desenhar fillRect preto com opacidade
+4. Chamar RENDER_MAP[template](...) (textos)
+5. Para cada sticker: ctx.font = `${size}px serif`; ctx.fillText(emoji, x, y)
 ```
 
-**3. Integracao com `CampaignContextStep.tsx`**
+**Mudancas no drag:**
+- Extender o sistema de drag para detectar proximidade com stickers alem de text layers
+- Stickers usam coordenadas absolutas (x, y em ratio 0-1), sem preset de posicao
 
-- Apos `handleComposeArt` gerar a imagem com sucesso, em vez de salvar direto no draft, abrir o `CampaignTextOverlayEditor` passando a URL gerada
-- O editor retorna a URL final (com ou sem texto) via callback `onSave(finalUrl)`
-- O callback atualiza `draft.imageUrl` e salva na galeria (`campaign_images`)
-- Adicionar estado `textEditorOpen` e `pendingArtUrl` para controlar o fluxo
+**Novos estados no componente:**
+```text
+// Filtros
+const [brightness, setBrightness] = useState(0)      // -50 a +50
+const [contrast, setContrast] = useState(0)           // -50 a +50
+const [darken, setDarken] = useState(0)               // 0 a 80
 
-**4. Fonte tipografica**
+// Stickers
+const [stickers, setStickers] = useState<Sticker[]>([])
+```
 
-- Usar fontes web-safe que funcionam no Canvas: `"Impact", "Arial Black", sans-serif` para titulos impactantes
-- Alternativa premium: carregar `Montserrat` (ja disponivel via Google Fonts) com `FontFace` API antes de renderizar
-- Fallback garantido para que o canvas nunca fique sem fonte
+**Nova secao na sidebar UI (ordem):**
+1. Template (existente)
+2. **Ajustes da foto** (NOVO - brilho, contraste, escurecer)
+3. Posicao do texto (existente)
+4. Cor de destaque (existente)
+5. Textos prontos (existente)
+6. **Stickers** (NOVO - grid de emojis + lista de adicionados)
+7. Card central / Layers (existente)
 
-**5. Presets de cor**
+**Dependencias no renderCanvas:**
+- Adicionar `brightness`, `contrast`, `darken`, `stickers` nas dependencias do `useCallback`
 
-Oferecer 6-8 presets rapidos + input de cor customizada:
-- Branco (#FFFFFF) - padrao
-- Amarelo (#FFD700)
-- Vermelho (#FF3333)
-- Verde (#00CC66)
-- Azul (#3399FF)
-- Rosa (#FF69B4)
-- Preto (#000000)
-
-### Arquivos a Criar/Modificar
-
-1. **CRIAR** `src/components/campanhas/CampaignTextOverlayEditor.tsx` -- Componente Canvas com editor de texto, preview em tempo real, e exportacao PNG
-2. **MODIFICAR** `src/components/campanhas/CampaignContextStep.tsx` -- Integrar o editor apos a geracao de arte: abrir overlay editor em vez de salvar direto
-
-### Resultado
-
-O usuario gera a arte visual com IA (foto + logo + moldura) e depois adiciona textos com tipografia perfeita via Canvas. Pode configurar titulo, subtitulo e CTA com posicao, cor e tamanho. O resultado final e uma arte profissional completa, pronta para WhatsApp, com zero risco de texto errado.
+**Icones Lucide a importar:** `Sun`, `Contrast`, `Moon`, `Smile` (ou `Sticker`)
 
