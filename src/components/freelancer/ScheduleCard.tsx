@@ -254,6 +254,16 @@ export function ScheduleCard({
                         {ev.unit && ` · ${ev.unit}`}
                       </p>
                     </div>
+                    {onRemoveEvent && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 rounded-full text-destructive/60 hover:text-destructive hover:bg-destructive/10 shrink-0"
+                        onClick={e => { e.stopPropagation(); setRemoveConfirm(eventId); }}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                     <div className="h-5 w-5 rounded-full bg-muted/60 flex items-center justify-center shrink-0">
                       {isEventExpanded ? <ChevronUp className="h-3 w-3 text-muted-foreground" /> : <ChevronDown className="h-3 w-3 text-muted-foreground" />}
                     </div>
@@ -284,16 +294,6 @@ export function ScheduleCard({
                     >
                       {availForEvent.length} disponível(is)
                     </Badge>
-                    {onRemoveEvent && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 rounded-full text-destructive/60 hover:text-destructive hover:bg-destructive/10"
-                        onClick={e => { e.stopPropagation(); setRemoveConfirm(eventId); }}
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
                   </div>
                 </div>
 
