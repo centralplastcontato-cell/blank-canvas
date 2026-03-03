@@ -1,57 +1,51 @@
 
 
-## Diagnostico: Funcoes de Freelancers Nao Aparecendo
+## Exibir Nome do Remetente em Mensagens de Grupo
 
-### Problema Identificado
+### Problema
+Nas conversas de grupo (@g.us), todas as mensagens aparecem sem identificacao de quem enviou. No WhatsApp Web, cada mensagem de grupo mostra o nome do remetente acima do conteudo.
 
-No arquivo `FreelancerSchedulesTab.tsx` (linhas 186-206), a busca de funcoes usa `.in("respondent_name", uniqueNames)` que e **case-sensitive e sensivel a espacos**. Quando o freelancer preenche o formulario de cadastro com um nome ligeiramente diferente do que usa ao marcar disponibilidade (ex: "Andrea Patrícia G Ramos" vs "andrea patrícia g ramos", ou espacos extras), a query do Supabase nao retorna resultado e a funcao nao aparece.
+### Causa Raiz
+O webhook (`wapi-webhook`) **nao armazena** a informacao do remetente (participant) nas mensagens de grupo. O W-API envia `key.participant` (JID do remetente) e `pushName` (nome do remetente), mas esses dados sao ignorados no momento da insercao em `wapi_messages`.
 
-Os freelancers destacados na screenshot (Andrea, Jamile, Mauricio, Solange) provavelmente tem pequenas diferencas de grafia entre o `respondent_name` na tabela `freelancer_responses` e o `freelancer_name` na tabela `freelancer_availability`.
+### Solucao em 2 Partes
 
-### Solucao
+**Parte 1 — Backend: Salvar participant no webhook**
 
-Mudar a estrategia de busca: em vez de usar `.in()` com match exato, buscar **todas** as respostas aprovadas da empresa e fazer matching normalizado no client-side (trim + lowercase).
+No `wapi-webhook/index.ts`, ao inserir mensagens de grupo, salvar `participant` e `pushName` no campo `metadata` (JSON) que ja existe na tabela:
 
-### Mudanca Tecnica
-
-**Arquivo:** `src/components/freelancer/FreelancerSchedulesTab.tsx`
-
-**Antes (linhas 184-206):**
 ```typescript
-const { data: frData } = await supabase
-  .from("freelancer_responses")
-  .select("respondent_name, answers")
-  .eq("company_id", companyId)
-  .in("respondent_name", uniqueNames);
+// Na insercao de wapi_messages (linhas ~3673-3686)
+// Para grupos, adicionar metadata com sender info
+const msgMetadata = isGrp ? {
+  participant: (msg.key?.participant || msg.participant || '').replace('@s.whatsapp.net',''),
+  sender_name: msg.pushName || msg.sender?.pushName || null
+} : null;
+
+// No insert:
+metadata: msgMetadata,
 ```
 
-**Depois:**
-```typescript
-// Buscar TODAS as respostas da empresa (sem filtro de nome exato)
-const { data: frData } = await supabase
-  .from("freelancer_responses")
-  .select("respondent_name, answers")
-  .eq("company_id", companyId);
+**Parte 2 — Frontend: Exibir nome do remetente no chat**
 
-// Matching normalizado (trim + lowercase) no client
-const normalize = (s: string) => s.trim().toLowerCase();
-const uniqueNamesNorm = new Set(uniqueNames.map(normalize));
+No `WhatsAppChat.tsx`, na renderizacao de cada mensagem:
+- Detectar se a conversa e grupo (`remote_jid` termina com `@g.us`)
+- Se for grupo e `!from_me`, exibir `msg.metadata?.sender_name` ou o numero do participant acima do conteudo
+- Usar cores distintas por remetente (hash do participant para cor)
 
-(frData || []).forEach((fr) => {
-  const rawName = fr.respondent_name?.trim();
-  if (!rawName) return;
-  // Encontrar o nome original na lista de disponibilidade que bate normalizado
-  const matchedOriginal = uniqueNames.find(n => normalize(n) === normalize(rawName));
-  const key = matchedOriginal || rawName;
-  // ... extrair roles normalmente
-});
+```tsx
+// Acima do conteudo da mensagem, dentro do bubble:
+{isGroupConversation && !msg.from_me && (
+  <p className="text-xs font-semibold mb-0.5" style={{ color: getSenderColor(msg.metadata?.participant) }}>
+    {msg.metadata?.sender_name || msg.metadata?.participant || 'Desconhecido'}
+  </p>
+)}
 ```
 
-Isso garante que "Andrea Patrícia G Ramos" match com "andrea patrícia g ramos" ou "Andrea Patrícia G Ramos " (com espaco extra).
+### Arquivos Modificados
+1. `supabase/functions/wapi-webhook/index.ts` — Extrair e salvar participant/pushName no metadata para mensagens de grupo
+2. `src/components/whatsapp/WhatsAppChat.tsx` — Renderizar nome do remetente em bolhas de grupo
 
-### Impacto
-
-- Modificacao apenas no `loadScheduleDetails` de `FreelancerSchedulesTab.tsx`
-- ~15 linhas alteradas
-- Nenhuma dependencia nova
+### Limitacao
+Mensagens de grupo **ja salvas** antes desta mudanca nao terao o nome do remetente (metadata vazio). Apenas novas mensagens passarao a exibir o nome.
 
