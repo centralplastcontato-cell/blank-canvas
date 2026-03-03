@@ -1,63 +1,86 @@
 
 
-## Eliminar Texto em Ingles das Imagens Geradas
+## Transformar o Gerador de Imagens em um Compositor de Artes Profissionais
 
-### Diagnostico
+### Problema Atual
 
-O DALL-E esta gerando texto em ingles ("LIGHTNING OPPORTUNITY", "LIMIT TACTTS", "CASTLE OF FUN") porque:
+O sistema gera ilustracoes digitais do zero usando IA, que ficam genericas, sem identidade visual do buffet, e frequentemente com textos indesejados. Isso nao se compara ao trabalho de uma agencia de marketing que usa **fotos reais** do espaco + **logo** + **tipografia** + **elementos decorativos** para criar artes profissionais.
 
-1. **O prompt inteiro esta em ingles** - o DALL-E interpreta o idioma do prompt e renderiza texto nesse idioma
-2. **O nome da empresa esta no prompt** (`"${company_name}"`) - o DALL-E tenta renderizar nomes entre aspas como texto visual
-3. **O tema da campanha esta entre aspas** (`"${campaign_theme}"`) - mesma razao acima
-4. Instrucoes de "nao coloque texto" sao frequentemente ignoradas pelo DALL-E quando o resto do prompt contem muitas palavras que parecem titulos
+### Nova Abordagem: "Design por Composicao"
 
-### Solucao
+Em vez de gerar imagens do zero, o fluxo passa a ser:
 
-Reescrever os prompts com 3 estrategias combinadas:
+1. **Obrigatoriamente selecionar uma foto base** (do buffet, dos brinquedos, da fachada, de uma festa anterior)
+2. **A IA compoe uma arte profissional** sobre essa foto: aplica o logo, adiciona moldura/elementos decorativos, ajusta cores e contraste
+3. **Eliminar o botao "Gerar Arte com IA" que cria do zero** -- manter apenas o fluxo baseado em foto real
 
-**1. Prompt 100% em portugues** - reduz drasticamente a chance de texto em ingles
-
-**2. Remover nomes proprios e textos entre aspas** - o DALL-E tende a renderizar qualquer string entre aspas como banner visual. Em vez de `called "${company_name}"`, descrever apenas "buffet infantil" genericamente
-
-**3. Descrever o tema como elementos visuais, nao como texto** - em vez de `Theme: "Volta as Aulas"`, usar `com elementos visuais de escola, mochilas, livros e cadernos coloridos`
-
-### Mudancas
-
-**`supabase/functions/campaign-image/index.ts`**
-
-Reescrever o bloco de construcao do prompt (linha 30-31):
+### Mudancas no Fluxo do Usuario
 
 ```text
-// Antes: prompt em ingles com nome da empresa e tema entre aspas
-const prompt = `Create a vibrant... called "${company_name}". Theme: "${campaign_theme}"...`
+ANTES:
+  [Gerar Arte com IA] --> ilustracao generica do zero (ruim)
+  [Fotos do Buffet] --> seleciona foto --> [Arte IA] --> composicao (bom, mas secundario)
 
-// Depois: prompt em portugues, sem nomes proprios, tema como elementos visuais
-const themeHint = campaign_theme 
-  ? `O tema visual deve representar "${campaign_theme}" usando simbolos, cores e elementos decorativos apropriados (sem escrever o nome do tema). ` 
-  : "";
-const prompt = `Crie uma ilustracao vibrante e festiva para um buffet de festas infantis. ${themeHint}Contexto: ${prompt_context}. Estilo: colorido, alegre, qualidade profissional de marketing. A imagem deve ser uma ilustracao artistica pura, SEM NENHUM texto, letra, palavra, numero, placa, faixa ou caractere escrito em qualquer idioma. Proibido qualquer elemento que contenha escrita. Formato quadrado, alto contraste, adequado para compartilhamento no WhatsApp.`;
+DEPOIS:
+  [Criar Arte] --> seleciona foto do buffet OU faz upload --> IA compoe arte profissional com logo + elementos
 ```
 
-**`supabase/functions/campaign-compose/index.ts`**
+O usuario sempre parte de uma foto real. A IA so faz o trabalho de "design grafico": moldura, logo, efeitos visuais, ajuste de cores.
 
-Reescrever o prompt do modo `enhance` (linhas 44-48) tambem em portugues:
+### Detalhes Tecnicos
 
+**1. Edge Function `campaign-image/index.ts` -- Reescrever como compositor**
+
+- Deixa de gerar do zero. Passa a receber `base_image_url` (obrigatorio) + `logo_url` (opcional) + `campaign_theme` + `context`
+- Usar o modelo `google/gemini-3-pro-image-preview` (maior qualidade, melhor para edicao de fotos reais)
+- Prompt otimizado para composicao no estilo agencia:
+  - Manter a foto como elemento principal (70%+ da imagem)
+  - Aplicar moldura/borda decorativa tematica
+  - Posicionar logo com fundo semi-transparente para legibilidade
+  - Ajustar saturacao e contraste para ficar vibrante
+  - Adicionar elementos sutis relacionados ao tema (confetes, baloes, estrelas)
+  - Regra absoluta: ZERO texto/letras/numeros
+
+**2. Unificar `campaign-compose` dentro de `campaign-image`**
+
+- Atualmente existem duas funcoes separadas (`campaign-image` para gerar do zero, `campaign-compose` para compor). Com a nova abordagem, ambas fazem a mesma coisa: compor sobre foto real
+- Mover toda a logica para `campaign-image` e remover `campaign-compose`
+
+**3. Frontend `CampaignContextStep.tsx` -- Simplificar o fluxo**
+
+- **Remover** o botao "Gerar Arte com IA" que cria ilustracoes do zero
+- **Novo fluxo principal**: botao "Criar Arte" que abre um dialog/popover com:
+  - Grid de fotos do buffet (carregadas de `sales_materials`)
+  - Opcao de upload de foto propria
+  - Seletor de posicao do logo (grid 3x3 existente)
+  - Checkbox "Incluir logotipo" (pre-marcado)
+  - Botao "Gerar Arte Profissional"
+- Quando o usuario clica "Gerar Arte Profissional", envia a foto + logo + tema para `campaign-image`
+- Manter botoes de acao secundarios: upload manual, usar logo sozinho
+
+**4. Prompt de composicao otimizado**
+
+O prompt sera algo como:
 ```text
-// Antes
-promptText = `Create a professional, eye-catching promotional image...`
-
-// Depois  
-promptText = `Aprimore esta foto para parecer uma arte promocional profissional de buffet infantil. Use a foto fornecida como elemento visual principal.${
-  logo_url ? ` Posicione o logotipo da empresa no ${posLabel} da imagem.` : ""
-} Adicione elementos decorativos sutis (confetes, baloes, estrelas, fitas) nas bordas. Realce as cores para ficarem vibrantes e convidativas.${
-  context ? ` Contexto da campanha: ${context}.` : ""
-} REGRA OBRIGATORIA: NAO adicione nenhum texto, letra, palavra, numero, faixa com texto ou caractere escrito de qualquer tipo na imagem. Apenas arte visual.`;
+Voce e um designer grafico profissional de buffet infantil.
+Transforme esta foto em uma arte promocional de alto impacto para WhatsApp.
+Instrucoes:
+- Use a foto fornecida como elemento visual PRINCIPAL (ocupe 70%+ da area)
+- Adicione uma moldura/borda decorativa elegante nas bordas
+- [Se logo] Posicione o logotipo no {posicao} com fundo semi-transparente
+- Ajuste cores para ficarem vibrantes e convidativas
+- Adicione elementos decorativos sutis relacionados ao tema: {tema_visual}
+- PROIBIDO: qualquer texto, letra, palavra, numero ou caractere
+- Formato: quadrado, alta resolucao, otimizado para WhatsApp
 ```
-
-E o prompt do modo overlay (linha 60) tambem em portugues.
 
 ### Arquivos Modificados
 
-1. `supabase/functions/campaign-image/index.ts` - prompt reescrito em portugues, sem nomes proprios
-2. `supabase/functions/campaign-compose/index.ts` - prompts reescritos em portugues
+1. `supabase/functions/campaign-image/index.ts` -- Reescrever para composicao sobre foto real (Gemini Pro Image)
+2. `supabase/functions/campaign-compose/index.ts` -- Deletar (logica unificada em campaign-image)
+3. `src/components/campanhas/CampaignContextStep.tsx` -- Novo fluxo: selecionar foto primeiro, depois IA compoe
+
+### Resultado Esperado
+
+O usuario seleciona uma foto real do seu buffet, clica "Gerar Arte", e recebe uma composicao profissional com moldura, logo e elementos decorativos -- igual ao que uma agencia faria, mas em segundos.
 
