@@ -1,30 +1,46 @@
 
 
-## Problema Real
+## Plano: Retry automático no envio de mensagens WhatsApp
 
-A margem negativa no `FollowUpsTab` só compensa o padding do `PullToRefresh` (`p-3 md:p-5`), mas **não escapa** do `max-w-7xl mx-auto` que está no `div` pai na linha 227 de `Inteligencia.tsx`. Esse é o verdadeiro gargalo -- os cards ficam limitados a 1280px mesmo em telas maiores.
+### O que muda
 
-## Solução
+**Arquivo: `src/components/whatsapp/WhatsAppChat.tsx`**
 
-**Arquivo: `src/pages/Inteligencia.tsx` (linha 227)**
-
-Tornar o `max-w-7xl` condicional: quando a aba ativa for `follow-ups`, remover o limite de largura para que o grid ocupe toda a área disponível.
+Criar uma função helper `invokeWithRetry` que encapsula `supabase.functions.invoke` com retry automático. Será usada no envio de texto (linha ~1838) e contato (linha ~1910).
 
 ```tsx
-// De:
-<div className="max-w-7xl mx-auto space-y-4">
-
-// Para:
-<div className={`mx-auto space-y-4 ${activeTab === "follow-ups" ? "" : "max-w-7xl"}`}>
+// Helper no topo do componente ou fora dele
+async function invokeWithRetry(
+  body: Record<string, unknown>,
+  maxRetries = 2,
+  delayMs = 1500
+) {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await supabase.functions.invoke("wapi-send", { body });
+      // Se chegou aqui, a chamada de rede funcionou (pode ter erro lógico no response)
+      return response;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      if (attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, delayMs));
+      }
+    }
+  }
+  throw lastError;
+}
 ```
 
-**Arquivo: `src/components/inteligencia/FollowUpsTab.tsx`**
+**Onde aplicar:**
+1. **Envio de texto** (~linha 1838): trocar `supabase.functions.invoke("wapi-send", {...})` por `invokeWithRetry({...})`
+2. **Envio de contato** (~linha 1910): mesma troca
 
-Reverter o `containerClass` para vazio (a expansão agora vem do parent):
+Os demais envios (áudio, imagem, documento, vídeo) também podem ser migrados, mas o foco principal é texto e contato que são os mais usados.
 
-```tsx
-const containerClass = "";
-```
-
-Isso faz com que as 5 colunas ocupem 100% da largura da tela (menos a sidebar), ficando com tamanho similar ao layout de 4 colunas que o usuário aprovou na imagem 3.
+### O que NÃO muda
+- Nenhuma Edge Function
+- Nenhuma instância W-API
+- Nenhuma tabela do banco
+- Apenas lógica frontend de retry no navegador
 
