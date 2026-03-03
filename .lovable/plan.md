@@ -1,60 +1,90 @@
 
 
-## Salvar imagens geradas na galeria imediatamente
+## Overlay de Texto com HTML Canvas sobre Artes de Campanha
 
-### Problema
-Hoje a galeria so mostra imagens de campanhas **finalizadas** (tabela `campaigns`). Se o usuario gera uma arte com IA mas nao completa o wizard, a imagem se perde e nao aparece na galeria.
+### Conceito
 
-### Solucao
-Criar uma tabela dedicada `campaign_images` para armazenar todas as artes geradas, independente de estarem vinculadas a uma campanha ou nao. A galeria passa a exibir imagens dessa tabela.
+Apos a IA gerar a arte visual (composicao com foto + logo + moldura), o usuario podera adicionar textos programaticamente usando HTML Canvas. Isso garante tipografia perfeita, sem erros de ortografia ou alucinacoes da IA.
 
-### Detalhes Tecnicos
-
-**1. Nova tabela `campaign_images`**
+### Fluxo do Usuario
 
 ```text
-campaign_images
-  id            uuid PK
-  company_id    uuid FK -> companies
-  image_url     text NOT NULL
-  source        text  ('ai_compose' | 'upload' | 'logo')
-  campaign_id   uuid FK -> campaigns (nullable, preenchido quando vinculada)
-  campaign_name text  (nome da campanha ou tipo, para exibicao)
-  created_by    uuid FK -> auth.users
-  created_at    timestamptz
+[IA gera arte visual] --> [Abre editor de texto Canvas] --> [Configura titulo, subtitulo, CTA] --> [Salva imagem final com texto]
 ```
 
-- RLS: usuarios so veem imagens da propria empresa
-- Quando uma campanha e criada com imagem, atualiza `campaign_id` no registro existente
+1. Apos `handleComposeArt` retornar a imagem, em vez de salvar direto, abre um **editor de texto overlay**
+2. O usuario configura:
+   - **Titulo** (ex: "PROMOCAO DE ABRIL")
+   - **Subtitulo** (ex: "10% OFF em todos os pacotes")
+   - **CTA** (ex: "Garanta sua vaga!")
+   - **Posicao** de cada texto (topo, centro, rodape)
+   - **Cor** do texto (presets + seletor)
+   - **Tamanho** (P, M, G)
+3. O Canvas renderiza a imagem de fundo + textos em tempo real como preview
+4. Ao clicar "Salvar", o Canvas exporta como PNG, faz upload pro Storage e salva na galeria
+5. O usuario tambem pode pular essa etapa e salvar sem texto (botao "Salvar sem texto")
 
-**2. Frontend - `CampaignContextStep.tsx`**
+### Arquitetura Tecnica
 
-Apos `handleComposeArt` gerar a imagem com sucesso, inserir um registro em `campaign_images` com:
-- `company_id` atual
-- `image_url` retornada pela IA
-- `source: 'ai_compose'`
-- `campaign_name: draft.campaignType || draft.name`
+**1. Novo componente `CampaignTextOverlayEditor.tsx`**
 
-Mesma logica para `handleImageUpload` (source: `upload`) e `handleUseLogo` (source: `logo`).
+Componente principal que recebe a `imageUrl` gerada pela IA e permite adicionar textos:
 
-**3. Frontend - `CampaignGalleryTab.tsx`**
+- Usa um `<canvas>` para renderizar a imagem de fundo + textos sobrepostos
+- Estado local para cada campo de texto:
+  ```text
+  textLayers: [
+    { id, content, position ('top'|'center'|'bottom'), color, fontSize ('sm'|'md'|'lg'), bold }
+  ]
+  ```
+- Tres slots pre-definidos: Titulo (topo), Subtitulo (centro), CTA (rodape)
+- Cada slot tem uma faixa semi-transparente escura por tras para garantir legibilidade
+- Preview em tempo real: cada mudanca re-renderiza o canvas
+- Botoes: "Salvar com texto" (exporta canvas como PNG) e "Salvar sem texto" (usa imagem original)
 
-Trocar a query de `campaigns` para `campaign_images`:
-- Buscar `campaign_images` da empresa, ordenadas por `created_at DESC`
-- Exibir badge "IA" vs "Upload" baseado no campo `source`
-- Mostrar nome da campanha vinculada quando houver
+**2. Fluxo de renderizacao do Canvas**
 
-**4. Frontend - `CampaignWizard.tsx`**
+```text
+1. Carregar imagem base (new Image() + crossOrigin)
+2. Desenhar imagem no canvas (dimensao fixa 1080x1080 para WhatsApp)
+3. Para cada textLayer com conteudo:
+   a. Calcular posicao Y baseado em position (top=15%, center=50%, bottom=85%)
+   b. Desenhar faixa semi-transparente (fillRect com rgba)
+   c. Configurar font (Impact/Montserrat, bold, tamanho)
+   d. Desenhar texto centralizado (fillText + strokeText para outline)
+4. canvas.toBlob() --> upload para Storage --> salvar URL
+```
 
-Ao criar a campanha com `handleCreate`, atualizar o registro em `campaign_images` com o `campaign_id` para vincular a arte a campanha criada.
+**3. Integracao com `CampaignContextStep.tsx`**
 
-### Arquivos Modificados
+- Apos `handleComposeArt` gerar a imagem com sucesso, em vez de salvar direto no draft, abrir o `CampaignTextOverlayEditor` passando a URL gerada
+- O editor retorna a URL final (com ou sem texto) via callback `onSave(finalUrl)`
+- O callback atualiza `draft.imageUrl` e salva na galeria (`campaign_images`)
+- Adicionar estado `textEditorOpen` e `pendingArtUrl` para controlar o fluxo
 
-1. **Nova migration SQL** - Criar tabela `campaign_images` com RLS
-2. **`src/components/campanhas/CampaignContextStep.tsx`** - Inserir em `campaign_images` ao gerar/upload imagem
-3. **`src/components/campanhas/CampaignGalleryTab.tsx`** - Query de `campaign_images` em vez de `campaigns`
-4. **`src/components/campanhas/CampaignWizard.tsx`** - Vincular `campaign_id` ao criar campanha
+**4. Fonte tipografica**
+
+- Usar fontes web-safe que funcionam no Canvas: `"Impact", "Arial Black", sans-serif` para titulos impactantes
+- Alternativa premium: carregar `Montserrat` (ja disponivel via Google Fonts) com `FontFace` API antes de renderizar
+- Fallback garantido para que o canvas nunca fique sem fonte
+
+**5. Presets de cor**
+
+Oferecer 6-8 presets rapidos + input de cor customizada:
+- Branco (#FFFFFF) - padrao
+- Amarelo (#FFD700)
+- Vermelho (#FF3333)
+- Verde (#00CC66)
+- Azul (#3399FF)
+- Rosa (#FF69B4)
+- Preto (#000000)
+
+### Arquivos a Criar/Modificar
+
+1. **CRIAR** `src/components/campanhas/CampaignTextOverlayEditor.tsx` -- Componente Canvas com editor de texto, preview em tempo real, e exportacao PNG
+2. **MODIFICAR** `src/components/campanhas/CampaignContextStep.tsx` -- Integrar o editor apos a geracao de arte: abrir overlay editor em vez de salvar direto
 
 ### Resultado
-Toda imagem gerada pela IA, uploaded ou logo aplicado aparece imediatamente na galeria, mesmo que o usuario nao finalize a campanha.
+
+O usuario gera a arte visual com IA (foto + logo + moldura) e depois adiciona textos com tipografia perfeita via Canvas. Pode configurar titulo, subtitulo e CTA com posicao, cor e tamanho. O resultado final e uma arte profissional completa, pronta para WhatsApp, com zero risco de texto errado.
 
