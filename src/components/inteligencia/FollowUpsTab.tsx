@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageCircle, Timer } from "lucide-react";
+import { MessageCircle, Timer, Power } from "lucide-react";
 import { TemperatureBadge } from "./TemperatureBadge";
 import { InlineAISummary } from "./InlineAISummary";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -34,6 +34,8 @@ interface InstanceDelays {
   unit: string;
   delays: Record<number, number>;
   enabled: Record<number, boolean>;
+  autoLostEnabled: boolean;
+  autoLostDelay: number;
 }
 
 const COLUMN_CONFIG = [
@@ -41,6 +43,7 @@ const COLUMN_CONFIG = [
   { fuNumber: 2, label: "2º Follow-up", color: "border-l-sky-500", iconBg: "bg-sky-500/10", iconColor: "text-sky-500" },
   { fuNumber: 3, label: "3º Follow-up", color: "border-l-orange-500", iconBg: "bg-orange-500/10", iconColor: "text-orange-500" },
   { fuNumber: 4, label: "4º Follow-up", color: "border-l-red-500", iconBg: "bg-red-500/10", iconColor: "text-red-500" },
+  { fuNumber: 5, label: "Auto-Perdido", color: "border-l-rose-700", iconBg: "bg-rose-700/10", iconColor: "text-rose-700", icon: "power" },
 ];
 
 function timeAgo(date: string | null) {
@@ -73,7 +76,7 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
       // Fetch ALL bot settings + instances for this company
       const { data: allSettings } = await supabase
         .from("wapi_bot_settings" as any)
-        .select("instance_id, follow_up_enabled, follow_up_delay_hours, follow_up_2_enabled, follow_up_2_delay_hours, follow_up_3_enabled, follow_up_3_delay_hours, follow_up_4_enabled, follow_up_4_delay_hours")
+        .select("instance_id, follow_up_enabled, follow_up_delay_hours, follow_up_2_enabled, follow_up_2_delay_hours, follow_up_3_enabled, follow_up_3_delay_hours, follow_up_4_enabled, follow_up_4_delay_hours, auto_lost_enabled, auto_lost_delay_hours")
         .eq("company_id", currentCompany.id);
 
       const { data: instances } = await supabase
@@ -107,6 +110,8 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
               3: s.follow_up_3_enabled !== false,
               4: s.follow_up_4_enabled !== false,
             },
+            autoLostEnabled: s.auto_lost_enabled === true,
+            autoLostDelay: s.auto_lost_delay_hours ?? 48,
           });
         }
       }
@@ -118,6 +123,7 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
         "Follow-up #2 automático enviado",
         "Follow-up #3 automático enviado",
         "Follow-up #4 automático enviado",
+        "Lead marcado como perdido automaticamente",
       ];
 
       const { data: historyEvents } = await supabase
@@ -137,30 +143,39 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
       const leadMaxFu = new Map<string, number>();
       for (const ev of historyEvents) {
         let fuNum = 1;
-        if (ev.action.includes("#2")) fuNum = 2;
-        else if (ev.action.includes("#3")) fuNum = 3;
+        if (ev.action.includes("perdido automaticamente")) fuNum = 5;
         else if (ev.action.includes("#4")) fuNum = 4;
+        else if (ev.action.includes("#3")) fuNum = 3;
+        else if (ev.action.includes("#2")) fuNum = 2;
         const current = leadMaxFu.get(ev.lead_id) || 0;
         if (fuNum > current) leadMaxFu.set(ev.lead_id, fuNum);
       }
 
       const leadIds = [...leadMaxFu.keys()];
       
-      // Fetch leads and their conversations (for instance_id) in parallel
-      const [leadsResult, conversationsResult] = await Promise.all([
-        supabase
-          .from("campaign_leads")
-          .select("id, name, whatsapp, status")
-          .in("id", leadIds)
-          .not("status", "in", '("fechado","perdido")'),
-        supabase
-          .from("wapi_conversations" as any)
-          .select("lead_id, instance_id")
-          .eq("company_id", currentCompany.id)
-          .in("lead_id", leadIds),
+      const autoLostLeadIds = [...leadMaxFu.entries()].filter(([, fu]) => fu === 5).map(([id]) => id);
+      const activeLeadIds = [...leadMaxFu.entries()].filter(([, fu]) => fu < 5).map(([id]) => id);
+
+      // Fetch leads in parallel: active (exclude fechado/perdido) + auto-lost (only perdido)
+      const activeLeadsPromise = activeLeadIds.length > 0
+        ? supabase.from("campaign_leads").select("id, name, whatsapp, status").in("id", activeLeadIds).not("status", "in", '("fechado","perdido")')
+        : Promise.resolve({ data: [] as any[] });
+
+      const autoLostLeadsPromise = autoLostLeadIds.length > 0
+        ? supabase.from("campaign_leads").select("id, name, whatsapp, status").in("id", autoLostLeadIds).eq("status", "perdido")
+        : Promise.resolve({ data: [] as any[] });
+
+      const conversationsPromise = supabase
+        .from("wapi_conversations" as any)
+        .select("lead_id, instance_id")
+        .eq("company_id", currentCompany.id)
+        .in("lead_id", leadIds);
+
+      const [activeResult, autoLostResult, conversationsResult] = await Promise.all([
+        activeLeadsPromise, autoLostLeadsPromise, conversationsPromise,
       ]);
 
-      const leads = leadsResult.data;
+      const leads = [...(activeResult.data || []), ...(autoLostResult.data || [])];
       const conversations = conversationsResult.data as any[] | null;
 
       if (!leads || leads.length === 0) {
@@ -207,11 +222,24 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
 
   // Compute delay labels for each column based on selected unit or all instances
   function getDelayLabel(fuNumber: number): string {
+    if (fuNumber === 5) {
+      // Auto-lost delay
+      if (instanceDelaysMap.size === 0) return "48h";
+      if (selectedUnit && selectedUnit !== "all") {
+        for (const [, data] of instanceDelaysMap) {
+          if (data.unit === selectedUnit) return formatDelayLabel(data.autoLostDelay);
+        }
+      }
+      const allDelays = [...instanceDelaysMap.values()].map(d => d.autoLostDelay);
+      const unique = [...new Set(allDelays)];
+      if (unique.length === 1) return formatDelayLabel(unique[0]);
+      return `${formatDelayLabel(Math.min(...unique))}–${formatDelayLabel(Math.max(...unique))}`;
+    }
+
     if (instanceDelaysMap.size === 0) {
       return `${fuNumber * 24}h`;
     }
 
-    // If a unit is selected, find the matching instance
     if (selectedUnit && selectedUnit !== "all") {
       for (const [, data] of instanceDelaysMap) {
         if (data.unit === selectedUnit) {
@@ -220,14 +248,12 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
       }
     }
 
-    // If only one instance or all have same delay, show single value
     const allDelays = [...instanceDelaysMap.values()].map(d => d.delays[fuNumber]);
     const unique = [...new Set(allDelays)];
     if (unique.length === 1) {
       return formatDelayLabel(unique[0]);
     }
 
-    // Multiple different delays: show range
     const min = Math.min(...unique);
     const max = Math.max(...unique);
     return `${formatDelayLabel(min)}–${formatDelayLabel(max)}`;
@@ -235,7 +261,17 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
 
   // Check if a follow-up column is enabled (across selected unit or all instances)
   function isColumnEnabled(fuNumber: number): boolean {
-    if (instanceDelaysMap.size === 0) return true; // no settings loaded yet, show all
+    if (instanceDelaysMap.size === 0) return fuNumber <= 4; // no settings loaded yet, show FU columns only
+
+    if (fuNumber === 5) {
+      // Auto-lost column
+      if (selectedUnit && selectedUnit !== "all") {
+        for (const [, data] of instanceDelaysMap) {
+          if (data.unit === selectedUnit) return data.autoLostEnabled;
+        }
+      }
+      return [...instanceDelaysMap.values()].some(d => d.autoLostEnabled);
+    }
 
     if (selectedUnit && selectedUnit !== "all") {
       for (const [, data] of instanceDelaysMap) {
@@ -245,12 +281,11 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
       }
     }
 
-    // Show column if ANY instance has it enabled
     return [...instanceDelaysMap.values()].some(d => d.enabled[fuNumber] !== false);
   }
 
   const visibleColumns = COLUMN_CONFIG.filter(col => isColumnEnabled(col.fuNumber));
-  const gridCols = visibleColumns.length <= 2 ? `md:grid-cols-${visibleColumns.length}` : visibleColumns.length === 3 ? "md:grid-cols-3" : "md:grid-cols-2 lg:grid-cols-4";
+  const gridCols = visibleColumns.length <= 2 ? `md:grid-cols-${visibleColumns.length}` : visibleColumns.length === 3 ? "md:grid-cols-3" : visibleColumns.length === 4 ? "md:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-2 lg:grid-cols-5";
 
   if (isLoading) {
     return (
@@ -271,7 +306,11 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 <div className={`p-1.5 rounded-lg ${col.iconBg}`}>
-                  <Timer className={`h-4 w-4 ${col.iconColor}`} />
+                  {(col as any).icon === "power" ? (
+                    <Power className={`h-4 w-4 ${col.iconColor}`} />
+                  ) : (
+                    <Timer className={`h-4 w-4 ${col.iconColor}`} />
+                  )}
                 </div>
                 <div className="flex flex-col">
                   <span>{col.label}</span>
