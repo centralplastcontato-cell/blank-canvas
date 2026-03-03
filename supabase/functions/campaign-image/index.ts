@@ -159,6 +159,30 @@ REGRA ABSOLUTA: NAO adicione NENHUM texto, letra, palavra, numero, faixa com tex
 
     const { data: urlData } = supabase.storage.from("sales-materials").getPublicUrl(filePath);
 
+    // Generate thumbnail in background
+    let thumbnailUrl: string | null = null;
+    try {
+      const resizeResp = await fetch(
+        `${Deno.env.get("SUPABASE_URL")}/functions/v1/resize-image`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          },
+          body: JSON.stringify({ image_url: urlData.publicUrl, company_id }),
+        }
+      );
+      if (resizeResp.ok) {
+        const resizeData = await resizeResp.json();
+        thumbnailUrl = resizeData.thumbnail_url || null;
+      } else {
+        await resizeResp.text(); // consume body
+      }
+    } catch (thumbErr) {
+      console.error("Thumbnail generation failed:", thumbErr);
+    }
+
     // Log AI usage
     const tokens = data.usage?.total_tokens || 500;
     await supabase.from("ai_usage_logs").insert({
@@ -172,7 +196,7 @@ REGRA ABSOLUTA: NAO adicione NENHUM texto, letra, palavra, numero, faixa com tex
     });
 
     return new Response(
-      JSON.stringify({ url: urlData.publicUrl }),
+      JSON.stringify({ url: urlData.publicUrl, thumbnail_url: thumbnailUrl }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
