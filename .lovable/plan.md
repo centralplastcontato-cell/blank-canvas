@@ -1,24 +1,56 @@
 
 
-## Expandir/Recolher festas individualmente dentro da escala
+## Diagnóstico do Bug: Mensagens em Grupos Não Chegam no WhatsApp
 
-Atualmente, quando a escala é expandida, **todas as festas** são mostradas abertas de uma vez. A ideia é que cada festa tenha seu próprio controle de expandir/recolher, permitindo ao usuário abrir uma por uma.
+### O que esta acontecendo
 
-### Como será feito
+O problema é claro: quando um usuário envia uma mensagem pela plataforma para uma **conversa de grupo** (como "Convites" no seu exemplo), a mensagem aparece na interface da plataforma (update otimista), mas **não é entregue no WhatsApp real**.
 
-**Arquivo**: `src/components/freelancer/ScheduleCard.tsx`
+### Causa raiz
 
-1. **Novo estado local** — Adicionar `expandedEvents: Set<string>` para rastrear quais festas estão abertas individualmente.
+No `WhatsAppChat.tsx`, todas as chamadas de envio usam `selectedConversation.contact_phone` como destino:
 
-2. **Header clicável por festa** — O bloco de cada festa (data, nome, badge de disponíveis) vira um header clicável com ícone de chevron. Ao clicar, alterna aquela festa no `expandedEvents`.
+```typescript
+phone: selectedConversation.contact_phone  // ex: "120363404198917681"
+```
 
-3. **Conteúdo colapsável** — As seções abaixo do header da festa (observação, filtros de cargo, lista de freelancers) só aparecem quando o `eventId` está no `expandedEvents`.
+Para **grupos**, o identificador correto é o `remote_jid` que termina com `@g.us` (ex: `120363404198917681@g.us`).
 
-4. **Expandir todas** — O header "Festas da escala" ganha um botão "Expandir todas / Recolher todas" para conveniência quando há muitas festas.
+A edge function `wapi-send` tem lógica especial para grupos -- ela detecta se o phone termina com `@g.us` e usa payloads específicos de grupo. Porém, como o frontend envia apenas o `contact_phone` (sem `@g.us`), a função trata como um número de telefone individual, normaliza removendo caracteres não-numéricos, e tenta enviar para `120363404198917681@s.whatsapp.net` -- que não existe como contato individual. A W-API retorna sucesso (aceita o request), mas a mensagem nunca chega.
 
-5. **Visual** — Cada festa mostra um resumo compacto quando recolhida (data, nome, contagem de disponíveis) e o conteúdo completo quando expandida, com uma transição suave via chevron.
+### Impacto
 
-### Resultado
-- Com 1 festa: abre automaticamente expandida
-- Com 2+ festas: todas começam recolhidas, usuário expande uma a uma ou usa "Expandir todas"
+Todas as ações de envio em conversas de grupo estão afetadas:
+- `send-text` (mensagem de texto)
+- `send-image` (imagem)
+- `send-audio` (áudio)
+- `send-video` (vídeo)
+- `send-document` (documento)
+- `send-contact` (contato)
+- `edit-text` (edição)
+- `send-reaction` (reação)
+
+São ~10 pontos no `WhatsAppChat.tsx` que usam `contact_phone` em vez de `remote_jid`.
+
+### Correção planejada
+
+**Arquivo**: `src/components/whatsapp/WhatsAppChat.tsx`
+
+Criar um helper que resolve o destino correto:
+
+```typescript
+const getConversationPhone = (conv: Conversation): string => {
+  // Para grupos, usar remote_jid (que contém @g.us)
+  if (conv.remote_jid?.endsWith('@g.us')) {
+    return conv.remote_jid;
+  }
+  return conv.contact_phone;
+};
+```
+
+Substituir todas as ~10 ocorrências de `phone: selectedConversation.contact_phone` e `phone: convPhone` (onde convPhone = contact_phone) por `phone: getConversationPhone(selectedConversation)`.
+
+Isso fará com que a edge function `wapi-send` receba o JID completo do grupo e entre no branch correto de envio para grupos (linhas 179-198 do `wapi-send`).
+
+A edge function **não precisa de alterações** -- ela já suporta envio para grupos quando recebe o JID com `@g.us`.
 
