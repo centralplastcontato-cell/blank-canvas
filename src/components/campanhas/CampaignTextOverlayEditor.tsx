@@ -25,6 +25,7 @@ interface TextLayer {
   placeholder: string;
   fontSize: number;
   fontFamily: string;
+  color: string;           // per-layer text color
   customY?: number;
   customX?: number;
   shadowEnabled?: boolean;
@@ -299,8 +300,14 @@ function layerFontPx(layerId: string, sliderVal: number): number {
   return Math.round(min + (sliderVal / 100) * (max - min));
 }
 
+const DEFAULT_LAYER_COLORS: Record<string, string> = {
+  title: "#FFFFFF",
+  subtitle: "#FFFFFF",
+  cta: "#00CED1",
+};
+
 const defaultLayer = (id: string, label: string, placeholder: string, defaultSize = 50): TextLayer => ({
-  id, label, content: "", placeholder, fontSize: defaultSize, fontFamily: "Montserrat", shadowEnabled: true, shadowIntensity: 50,
+  id, label, content: "", placeholder, fontSize: defaultSize, fontFamily: "Montserrat", color: DEFAULT_LAYER_COLORS[id] ?? "#FFFFFF", shadowEnabled: true, shadowIntensity: 50,
 });
 
 const TEMPLATES: TemplateConfig[] = [
@@ -510,19 +517,19 @@ function renderOferta(ctx: CanvasRenderingContext2D, size: number, layers: TextL
     ctx.font = `bold ${px}px ${title.fontFamily}, sans-serif`;
     const x = getLayerX(title, size, posX);
     ctx.textAlign = posX === "left" ? "left" : posX === "right" ? "right" : "center";
-    drawTextWithShadow(ctx, title.content.trim().toUpperCase(), x, getLayerY(title, "title", pos, size), "#FFFFFF", "rgba(0,0,0,0.6)", 2, title);
+    drawTextWithShadow(ctx, title.content.trim().toUpperCase(), x, getLayerY(title, "title", pos, size), title.color, "rgba(0,0,0,0.6)", 2, title);
   }
   if (subtitle.content.trim()) {
     const px = layerFontPx("subtitle", subtitle.fontSize);
     ctx.font = `600 ${px}px ${subtitle.fontFamily}, sans-serif`;
     const x = getLayerX(subtitle, size, posX);
     ctx.textAlign = posX === "left" ? "left" : posX === "right" ? "right" : "center";
-    drawTextWithShadow(ctx, subtitle.content.trim(), x, getLayerY(subtitle, "subtitle", pos, size), "rgba(255,255,255,0.9)", "rgba(0,0,0,0.4)", 1, subtitle);
+    drawTextWithShadow(ctx, subtitle.content.trim(), x, getLayerY(subtitle, "subtitle", pos, size), subtitle.color, "rgba(0,0,0,0.4)", 1, subtitle);
   }
   if (cta.content.trim()) {
     const px = layerFontPx("cta", cta.fontSize);
     const x = getLayerX(cta, size, posX);
-    drawCTAButton(ctx, cta.content.trim().toUpperCase(), x, getLayerY(cta, "cta", pos, size), accentColor, "#FFFFFF", px, cta.fontFamily);
+    drawCTAButton(ctx, cta.content.trim().toUpperCase(), x, getLayerY(cta, "cta", pos, size), cta.color, "#FFFFFF", px, cta.fontFamily);
   }
 }
 
@@ -552,7 +559,7 @@ function renderEscassez(ctx: CanvasRenderingContext2D, size: number, layers: Tex
     ctx.fill();
     ctx.restore();
 
-    ctx.fillStyle = accentColor;
+    ctx.fillStyle = cta.color;
     drawRoundedRect(ctx, cardX, cardY, cardW, 6, 20);
     ctx.fill();
     ctx.fillRect(cardX + 20, cardY, cardW - 40, 6);
@@ -563,19 +570,19 @@ function renderEscassez(ctx: CanvasRenderingContext2D, size: number, layers: Tex
     if (title.content.trim()) {
       const px = layerFontPx("title", title.fontSize);
       ctx.font = `bold ${px}px ${title.fontFamily}, sans-serif`;
-      ctx.fillStyle = "#FFFFFF";
+      ctx.fillStyle = title.color;
       ctx.fillText(title.content.trim().toUpperCase(), size / 2, cardY + cardH * 0.32);
     }
     if (subtitle.content.trim()) {
       const px = layerFontPx("subtitle", subtitle.fontSize);
       ctx.font = `500 ${px}px ${subtitle.fontFamily}, sans-serif`;
-      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.fillStyle = subtitle.color;
       ctx.fillText(subtitle.content.trim(), size / 2, cardY + cardH * 0.55);
     }
     if (cta.content.trim()) {
       const px = layerFontPx("cta", cta.fontSize);
       ctx.font = `bold ${px}px ${cta.fontFamily}, sans-serif`;
-      ctx.fillStyle = accentColor;
+      ctx.fillStyle = cta.color;
       ctx.fillText(cta.content.trim(), size / 2, cardY + cardH * 0.78);
     }
   } else {
@@ -588,21 +595,21 @@ function renderEscassez(ctx: CanvasRenderingContext2D, size: number, layers: Tex
       ctx.font = `bold ${px}px ${title.fontFamily}, sans-serif`;
       const x = getLayerX(title, size, posX);
       ctx.textAlign = posX === "left" ? "left" : posX === "right" ? "right" : "center";
-      drawTextWithShadow(ctx, title.content.trim().toUpperCase(), x, getLayerY(title, "title", pos, size), "#FFFFFF", "rgba(0,0,0,0.6)", 2, title);
+      drawTextWithShadow(ctx, title.content.trim().toUpperCase(), x, getLayerY(title, "title", pos, size), title.color, "rgba(0,0,0,0.6)", 2, title);
     }
     if (subtitle.content.trim()) {
       const px = layerFontPx("subtitle", subtitle.fontSize);
       ctx.font = `500 ${px}px ${subtitle.fontFamily}, sans-serif`;
       const x = getLayerX(subtitle, size, posX);
       ctx.textAlign = posX === "left" ? "left" : posX === "right" ? "right" : "center";
-      drawTextWithShadow(ctx, subtitle.content.trim(), x, getLayerY(subtitle, "subtitle", pos, size), "rgba(255,255,255,0.88)", "rgba(0,0,0,0.3)", 1, subtitle);
+      drawTextWithShadow(ctx, subtitle.content.trim(), x, getLayerY(subtitle, "subtitle", pos, size), subtitle.color, "rgba(0,0,0,0.3)", 1, subtitle);
     }
     if (cta.content.trim()) {
       const px = layerFontPx("cta", cta.fontSize);
       ctx.font = `bold ${px}px ${cta.fontFamily}, sans-serif`;
       const x = getLayerX(cta, size, posX);
       ctx.textAlign = posX === "left" ? "left" : posX === "right" ? "right" : "center";
-      drawTextWithShadow(ctx, cta.content.trim(), x, getLayerY(cta, "cta", pos, size), accentColor, "rgba(0,0,0,0.3)", 1, cta);
+      drawTextWithShadow(ctx, cta.content.trim(), x, getLayerY(cta, "cta", pos, size), cta.color, "rgba(0,0,0,0.3)", 1, cta);
     }
   }
 }
@@ -621,19 +628,19 @@ function renderSazonal(ctx: CanvasRenderingContext2D, size: number, layers: Text
     ctx.font = `bold ${px}px ${title.fontFamily}, sans-serif`;
     const x = getLayerX(title, size, posX);
     ctx.textAlign = posX === "left" ? "left" : posX === "right" ? "right" : "center";
-    drawTextWithShadow(ctx, title.content.trim().toUpperCase(), x, getLayerY(title, "title", pos, size), "#FFFFFF", "rgba(0,0,0,0.6)", 2, title);
+    drawTextWithShadow(ctx, title.content.trim().toUpperCase(), x, getLayerY(title, "title", pos, size), title.color, "rgba(0,0,0,0.6)", 2, title);
   }
   if (subtitle.content.trim()) {
     const px = layerFontPx("subtitle", subtitle.fontSize);
     ctx.font = `500 ${px}px ${subtitle.fontFamily}, sans-serif`;
     const x = getLayerX(subtitle, size, posX);
     ctx.textAlign = posX === "left" ? "left" : posX === "right" ? "right" : "center";
-    drawTextWithShadow(ctx, subtitle.content.trim(), x, getLayerY(subtitle, "subtitle", pos, size), "rgba(255,255,255,0.88)", "rgba(0,0,0,0.3)", 1, subtitle);
+    drawTextWithShadow(ctx, subtitle.content.trim(), x, getLayerY(subtitle, "subtitle", pos, size), subtitle.color, "rgba(0,0,0,0.3)", 1, subtitle);
   }
   if (cta.content.trim()) {
     const px = layerFontPx("cta", cta.fontSize);
     const x = getLayerX(cta, size, posX);
-    drawCTAButton(ctx, cta.content.trim().toUpperCase(), x, getLayerY(cta, "cta", pos, size), accentColor, "#FFFFFF", px, cta.fontFamily);
+    drawCTAButton(ctx, cta.content.trim().toUpperCase(), x, getLayerY(cta, "cta", pos, size), cta.color, "#FFFFFF", px, cta.fontFamily);
   }
 }
 
@@ -664,14 +671,14 @@ function renderMinimalista(ctx: CanvasRenderingContext2D, size: number, layers: 
     ctx.font = `bold ${px}px ${title.fontFamily}, sans-serif`;
     const x = getLayerX(title, size, posX);
     ctx.textAlign = posX === "left" ? "left" : posX === "right" ? "right" : "center";
-    drawTextWithShadow(ctx, title.content.trim().toUpperCase(), x, getLayerY(title, "title", pos, size), "#FFFFFF", "rgba(0,0,0,0.2)", 1, title);
+    drawTextWithShadow(ctx, title.content.trim().toUpperCase(), x, getLayerY(title, "title", pos, size), title.color, "rgba(0,0,0,0.2)", 1, title);
   }
   if (subtitle.content.trim()) {
     const px = layerFontPx("subtitle", subtitle.fontSize);
     ctx.font = `400 ${px}px ${subtitle.fontFamily}, sans-serif`;
     const x = getLayerX(subtitle, size, posX);
     ctx.textAlign = posX === "left" ? "left" : posX === "right" ? "right" : "center";
-    drawTextWithShadow(ctx, subtitle.content.trim(), x, getLayerY(subtitle, "subtitle", pos, size), "rgba(255,255,255,0.85)", "rgba(0,0,0,0.15)", 0.5, subtitle);
+    drawTextWithShadow(ctx, subtitle.content.trim(), x, getLayerY(subtitle, "subtitle", pos, size), subtitle.color, "rgba(0,0,0,0.15)", 0.5, subtitle);
   }
   if (cta.content.trim()) {
     const px = layerFontPx("cta", cta.fontSize);
@@ -679,9 +686,9 @@ function renderMinimalista(ctx: CanvasRenderingContext2D, size: number, layers: 
     const x = getLayerX(cta, size, posX);
     const y = getLayerY(cta, "cta", pos, size);
     ctx.textAlign = posX === "left" ? "left" : posX === "right" ? "right" : "center";
-    drawTextWithShadow(ctx, cta.content.trim().toUpperCase(), x, y, accentColor, "rgba(0,0,0,0.15)", 0.5, cta);
+    drawTextWithShadow(ctx, cta.content.trim().toUpperCase(), x, y, cta.color, "rgba(0,0,0,0.15)", 0.5, cta);
     const metrics = ctx.measureText(cta.content.trim().toUpperCase());
-    ctx.strokeStyle = accentColor;
+    ctx.strokeStyle = cta.color;
     ctx.lineWidth = 3;
     ctx.beginPath();
     const underlineX = posX === "left" ? x : posX === "right" ? x - metrics.width : x - metrics.width / 2;
@@ -707,14 +714,14 @@ function renderNeon(ctx: CanvasRenderingContext2D, size: number, layers: TextLay
     ctx.font = `bold ${px}px ${title.fontFamily}, sans-serif`;
     const x = getLayerX(title, size, posX);
     ctx.textAlign = posX === "left" ? "left" : posX === "right" ? "right" : "center";
-    drawNeonText(ctx, title.content.trim().toUpperCase(), x, getLayerY(title, "title", pos, size), "#FFFFFF", accentColor, title);
+    drawNeonText(ctx, title.content.trim().toUpperCase(), x, getLayerY(title, "title", pos, size), title.color, cta.color, title);
   }
   if (subtitle.content.trim()) {
     const px = layerFontPx("subtitle", subtitle.fontSize);
     ctx.font = `500 ${px}px ${subtitle.fontFamily}, sans-serif`;
     const x = getLayerX(subtitle, size, posX);
     ctx.textAlign = posX === "left" ? "left" : posX === "right" ? "right" : "center";
-    drawNeonText(ctx, subtitle.content.trim(), x, getLayerY(subtitle, "subtitle", pos, size), "rgba(255,255,255,0.9)", accentColor, subtitle);
+    drawNeonText(ctx, subtitle.content.trim(), x, getLayerY(subtitle, "subtitle", pos, size), subtitle.color, cta.color, subtitle);
   }
   if (cta.content.trim()) {
     const px = layerFontPx("cta", cta.fontSize);
@@ -728,16 +735,16 @@ function renderNeon(ctx: CanvasRenderingContext2D, size: number, layers: TextLay
     const btnY = y - btnH / 2;
 
     ctx.save();
-    ctx.shadowColor = accentColor;
+    ctx.shadowColor = cta.color;
     ctx.shadowBlur = 20;
-    ctx.strokeStyle = accentColor;
+    ctx.strokeStyle = cta.color;
     ctx.lineWidth = 3;
     drawRoundedRect(ctx, btnX, btnY, btnW, btnH, 14);
     ctx.stroke();
     ctx.restore();
 
     ctx.textAlign = "center";
-    drawNeonText(ctx, cta.content.trim().toUpperCase(), x, y + 2, "#FFFFFF", accentColor, cta);
+    drawNeonText(ctx, cta.content.trim().toUpperCase(), x, y + 2, "#FFFFFF", cta.color, cta);
   }
 }
 
@@ -755,7 +762,7 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [template, setTemplate] = useState<TemplateId>("oferta");
   const [layers, setLayers] = useState<TextLayer[]>(TEMPLATES[0].layers.map((l) => ({ ...l })));
-  const [accentColor, setAccentColor] = useState(COLOR_PRESETS[0].value);
+  const accentColor = "#FFFFFF"; // kept for type compatibility, per-layer colors now used
   const [positionY, setPositionY] = useState<PositionY>("top");
   const [positionX, setPositionX] = useState<PositionX>("center");
   const [saving, setSaving] = useState(false);
@@ -879,7 +886,7 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
       ctx.fillText(s.emoji, s.x * size, s.y * size);
       ctx.restore();
     });
-  }, [layers, imageLoaded, template, accentColor, positionY, positionX, cardSettings, brightness, contrast, darken, stickers]);
+  }, [layers, imageLoaded, template, positionY, positionX, cardSettings, brightness, contrast, darken, stickers]);
 
   useEffect(() => { renderCanvas(); }, [renderCanvas]);
 
@@ -1209,24 +1216,6 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
               </div>
             </div>
 
-            {/* Accent color */}
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground mb-2">Cor de destaque</p>
-              <div className="flex gap-1.5 flex-wrap justify-start">
-                {COLOR_PRESETS.map((c) => (
-                  <button
-                    key={c.value}
-                    type="button"
-                    title={c.label}
-                    className={`w-7 h-7 rounded-full border-2 transition-transform ${
-                      accentColor === c.value ? "scale-125 border-primary ring-2 ring-primary/30" : "border-border/50 hover:scale-110"
-                    }`}
-                    style={{ backgroundColor: c.value }}
-                    onClick={() => setAccentColor(c.value)}
-                  />
-                ))}
-              </div>
-            </div>
 
             {/* Preset texts */}
             <div>
@@ -1408,6 +1397,24 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
                     </Select>
                   </div>
 
+                  {/* Per-layer color */}
+                  <div>
+                    <span className="text-[10px] text-muted-foreground mb-1 block">Cor</span>
+                    <div className="flex gap-1 flex-wrap">
+                      {COLOR_PRESETS.map((c) => (
+                        <button
+                          key={c.value}
+                          type="button"
+                          title={c.label}
+                          className={`w-5.5 h-5.5 rounded-full border-2 transition-transform ${
+                            layer.color === c.value ? "scale-125 border-primary ring-2 ring-primary/30" : "border-border/50 hover:scale-110"
+                          }`}
+                          style={{ backgroundColor: c.value, width: 22, height: 22 }}
+                          onClick={() => updateLayer(layer.id, { color: c.value })}
+                        />
+                      ))}
+                    </div>
+                  </div>
                   <div className="flex items-center gap-2">
                     <ALargeSmall className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                     <Slider
