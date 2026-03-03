@@ -43,34 +43,186 @@ interface Props {
   campaignType?: string;
 }
 
-/* ── Preset texts by campaign type ──────────────────────── */
+/* ── Preset texts by campaign type (5 variations each) ──── */
 
-const CAMPAIGN_PRESETS: Record<string, { title: string; subtitle: string; cta: string }> = {
-  "Esquenta de Carnaval": { title: "ESQUENTA DE CARNAVAL", subtitle: "Descontos especiais para sua festa!", cta: "GARANTA SUA VAGA" },
-  "Volta às Aulas": { title: "VOLTA ÀS AULAS", subtitle: "Celebre o novo ciclo com diversão!", cta: "RESERVE AGORA" },
-  "Dia das Mães": { title: "ESPECIAL DIA DAS MÃES", subtitle: "Uma festa inesquecível para as mamães!", cta: "AGENDE JÁ" },
-  "Dia dos Pais": { title: "ESPECIAL DIA DOS PAIS", subtitle: "Comemore com quem você ama!", cta: "GARANTA SUA DATA" },
-  "Férias de Julho": { title: "FÉRIAS DE JULHO", subtitle: "Diversão garantida para toda família!", cta: "RESERVE AGORA" },
-  "Mês das Crianças": { title: "MÊS DAS CRIANÇAS", subtitle: "O mês mais divertido do ano!", cta: "APROVEITE" },
-  "Black Friday": { title: "BLACK FRIDAY", subtitle: "Os melhores preços do ano!", cta: "GARANTA JÁ" },
-  "Natal Mágico": { title: "NATAL MÁGICO", subtitle: "A magia do Natal na sua festa!", cta: "RESERVE SUA DATA" },
-  "Promoção de Natal": { title: "PROMOÇÃO DE NATAL", subtitle: "Descontos especiais de fim de ano!", cta: "APROVEITE AGORA" },
-  "Liquidação de Verão": { title: "LIQUIDAÇÃO DE VERÃO", subtitle: "Os melhores preços da temporada!", cta: "CONFIRA" },
-  "Especial Primavera": { title: "ESPECIAL PRIMAVERA", subtitle: "Festas floridas com preços especiais!", cta: "RESERVE JÁ" },
-  "Feriado Prolongado": { title: "FERIADO PROLONGADO", subtitle: "Aproveite o feriado para festejar!", cta: "GARANTA SUA VAGA" },
-  "Mês do Consumidor": { title: "MÊS DO CONSUMIDOR", subtitle: "Condições exclusivas para você!", cta: "APROVEITE" },
-  "Semana do Cliente": { title: "SEMANA DO CLIENTE", subtitle: "Ofertas especiais só esta semana!", cta: "RESERVE AGORA" },
-  "Promo Aniversário": { title: "ANIVERSÁRIO DO BUFFET", subtitle: "Comemore com a gente com descontos!", cta: "GARANTA JÁ" },
-  "Super Promoção": { title: "SUPER PROMOÇÃO", subtitle: "Condições imperdíveis por tempo limitado!", cta: "NÃO PERCA" },
-  "Festival de Descontos": { title: "FESTIVAL DE DESCONTOS", subtitle: "Até 15% OFF em pacotes selecionados!", cta: "CONFIRA AGORA" },
-  "Oportunidade Relâmpago": { title: "OPORTUNIDADE RELÂMPAGO", subtitle: "Vagas limitadas com desconto!", cta: "FECHE AGORA" },
-  "Últimos Contratos": { title: "ÚLTIMOS CONTRATOS", subtitle: "Poucas vagas restantes no mês!", cta: "GARANTA A SUA" },
-  "Última Chance": { title: "ÚLTIMA CHANCE", subtitle: "Antes do reajuste de preços!", cta: "APROVEITE AGORA" },
-  "Queima de Estoque": { title: "QUEIMA DE DATAS", subtitle: "Descontos agressivos para fechar!", cta: "CONFIRA" },
-  "Fecha em 25": { title: "FECHA EM R$25", subtitle: "Entrada especial por convidado!", cta: "SAIBA MAIS" },
-  "Lote Promocional": { title: "LOTE PROMOCIONAL", subtitle: "Vagas limitadas com desconto!", cta: "GARANTA JÁ" },
-  "Convite Especial": { title: "CONVITE ESPECIAL", subtitle: "Uma oferta exclusiva para você!", cta: "AGENDE SUA VISITA" },
-  "Reativação de Leads": { title: "OFERTA EXCLUSIVA", subtitle: "Voltamos com uma proposta especial!", cta: "ENTRE EM CONTATO" },
+type TextPreset = { title: string; subtitle: string; cta: string };
+
+const CAMPAIGN_PRESETS: Record<string, TextPreset[]> = {
+  "Esquenta de Carnaval": [
+    { title: "ESQUENTA DE CARNAVAL", subtitle: "Descontos especiais para sua festa!", cta: "GARANTA SUA VAGA" },
+    { title: "CARNAVAL ANTECIPADO", subtitle: "Festa com preço especial de carnaval!", cta: "RESERVE AGORA" },
+    { title: "PRÉ-CARNAVAL", subtitle: "Comece a folia com desconto!", cta: "APROVEITE JÁ" },
+    { title: "FOLIA GARANTIDA", subtitle: "Pacotes promocionais de carnaval!", cta: "CONFIRA" },
+    { title: "CARNAVAL NO BUFFET", subtitle: "A diversão começa aqui!", cta: "AGENDE SUA FESTA" },
+  ],
+  "Volta às Aulas": [
+    { title: "VOLTA ÀS AULAS", subtitle: "Celebre o novo ciclo com diversão!", cta: "RESERVE AGORA" },
+    { title: "ANO NOVO, FESTA NOVA", subtitle: "Comece o ano festejando!", cta: "GARANTA SUA DATA" },
+    { title: "ESPECIAL VOLTA ÀS AULAS", subtitle: "Descontos para começar bem o ano!", cta: "APROVEITE" },
+    { title: "PROMOÇÃO ESCOLAR", subtitle: "Festas com preços especiais!", cta: "AGENDE JÁ" },
+    { title: "NOVO CICLO", subtitle: "Uma festa para celebrar o recomeço!", cta: "CONFIRA" },
+  ],
+  "Dia das Mães": [
+    { title: "ESPECIAL DIA DAS MÃES", subtitle: "Uma festa inesquecível para as mamães!", cta: "AGENDE JÁ" },
+    { title: "MAMÃE MERECE", subtitle: "Comemore com quem mais ama!", cta: "RESERVE AGORA" },
+    { title: "FESTA DAS MÃES", subtitle: "O presente perfeito é uma festa!", cta: "GARANTA SUA VAGA" },
+    { title: "MÃE, EU TE AMO", subtitle: "Surpreenda com uma festa especial!", cta: "APROVEITE" },
+    { title: "HOMENAGEM ÀS MÃES", subtitle: "Descontos exclusivos neste mês!", cta: "CONFIRA" },
+  ],
+  "Dia dos Pais": [
+    { title: "ESPECIAL DIA DOS PAIS", subtitle: "Comemore com quem você ama!", cta: "GARANTA SUA DATA" },
+    { title: "PAPAI MERECE", subtitle: "Uma festa para o melhor pai!", cta: "RESERVE AGORA" },
+    { title: "FESTA DOS PAIS", subtitle: "Celebre em grande estilo!", cta: "AGENDE JÁ" },
+    { title: "SUPER PAI", subtitle: "Descontos imperdíveis para papai!", cta: "APROVEITE" },
+    { title: "PAI HERÓI", subtitle: "O presente que ele merece!", cta: "CONFIRA" },
+  ],
+  "Férias de Julho": [
+    { title: "FÉRIAS DE JULHO", subtitle: "Diversão garantida para toda família!", cta: "RESERVE AGORA" },
+    { title: "FÉRIAS NO BUFFET", subtitle: "A melhor diversão das férias!", cta: "GARANTA SUA VAGA" },
+    { title: "JULHO DIVERTIDO", subtitle: "Pacotes especiais de férias!", cta: "APROVEITE JÁ" },
+    { title: "ESPECIAL FÉRIAS", subtitle: "Preços imperdíveis neste julho!", cta: "CONFIRA" },
+    { title: "DIVERSÃO DE FÉRIAS", subtitle: "As crianças merecem festejar!", cta: "AGENDE AGORA" },
+  ],
+  "Mês das Crianças": [
+    { title: "MÊS DAS CRIANÇAS", subtitle: "O mês mais divertido do ano!", cta: "APROVEITE" },
+    { title: "OUTUBRO MÁGICO", subtitle: "Festas com preços especiais!", cta: "RESERVE AGORA" },
+    { title: "DIA DAS CRIANÇAS", subtitle: "O melhor presente é diversão!", cta: "GARANTA JÁ" },
+    { title: "FESTA DA CRIANÇADA", subtitle: "Descontos exclusivos de outubro!", cta: "AGENDE JÁ" },
+    { title: "FELIZ DIA DAS CRIANÇAS", subtitle: "Uma festa inesquecível!", cta: "CONFIRA" },
+  ],
+  "Black Friday": [
+    { title: "BLACK FRIDAY", subtitle: "Os melhores preços do ano!", cta: "GARANTA JÁ" },
+    { title: "BLACK FRIDAY KIDS", subtitle: "Descontos de até 30%!", cta: "APROVEITE AGORA" },
+    { title: "MEGA BLACK FRIDAY", subtitle: "Oportunidade única para festejar!", cta: "RESERVE AGORA" },
+    { title: "FRIDAY ESPECIAL", subtitle: "Pacotes com preços imbatíveis!", cta: "CONFIRA" },
+    { title: "BLACK NOVEMBER", subtitle: "O mês inteiro de ofertas!", cta: "NÃO PERCA" },
+  ],
+  "Natal Mágico": [
+    { title: "NATAL MÁGICO", subtitle: "A magia do Natal na sua festa!", cta: "RESERVE SUA DATA" },
+    { title: "FELIZ NATAL", subtitle: "Festas encantadas de fim de ano!", cta: "AGENDE JÁ" },
+    { title: "NATAL ENCANTADO", subtitle: "Celebre com diversão e magia!", cta: "GARANTA SUA VAGA" },
+    { title: "ESPECIAL DE NATAL", subtitle: "Pacotes natalinos imperdíveis!", cta: "APROVEITE" },
+    { title: "NOITE FELIZ", subtitle: "A festa mais mágica do ano!", cta: "CONFIRA" },
+  ],
+  "Promoção de Natal": [
+    { title: "PROMOÇÃO DE NATAL", subtitle: "Descontos especiais de fim de ano!", cta: "APROVEITE AGORA" },
+    { title: "NATAL COM DESCONTO", subtitle: "Preços especiais para sua festa!", cta: "RESERVE AGORA" },
+    { title: "OFERTA NATALINA", subtitle: "Condições exclusivas de dezembro!", cta: "GARANTA JÁ" },
+    { title: "PROMO DE NATAL", subtitle: "As melhores ofertas do ano!", cta: "CONFIRA" },
+    { title: "PRESENTE DE NATAL", subtitle: "Desconto que é presente!", cta: "AGENDE AGORA" },
+  ],
+  "Liquidação de Verão": [
+    { title: "LIQUIDAÇÃO DE VERÃO", subtitle: "Os melhores preços da temporada!", cta: "CONFIRA" },
+    { title: "VERÃO COM DESCONTO", subtitle: "Festas refrescantes a preços quentes!", cta: "APROVEITE" },
+    { title: "SUPER VERÃO", subtitle: "Pacotes promocionais de verão!", cta: "RESERVE AGORA" },
+    { title: "FÉRIAS DE VERÃO", subtitle: "Diversão garantida com desconto!", cta: "GARANTA JÁ" },
+    { title: "PROMOÇÃO VERÃO", subtitle: "Condições imperdíveis!", cta: "AGENDE JÁ" },
+  ],
+  "Especial Primavera": [
+    { title: "ESPECIAL PRIMAVERA", subtitle: "Festas floridas com preços especiais!", cta: "RESERVE JÁ" },
+    { title: "PRIMAVERA EM FESTA", subtitle: "A estação mais colorida do ano!", cta: "GARANTA SUA DATA" },
+    { title: "FLORES E FESTAS", subtitle: "Celebre com descontos de primavera!", cta: "APROVEITE" },
+    { title: "PROMOÇÃO PRIMAVERA", subtitle: "Pacotes especiais da estação!", cta: "CONFIRA" },
+    { title: "PRIMAVERA KIDS", subtitle: "Diversão que floresce!", cta: "AGENDE AGORA" },
+  ],
+  "Feriado Prolongado": [
+    { title: "FERIADO PROLONGADO", subtitle: "Aproveite o feriado para festejar!", cta: "GARANTA SUA VAGA" },
+    { title: "FERIADÃO DE FESTA", subtitle: "Diversão garantida no feriado!", cta: "RESERVE AGORA" },
+    { title: "ESPECIAL FERIADO", subtitle: "Pacotes promocionais para o feriado!", cta: "APROVEITE" },
+    { title: "FESTÃO NO FERIADO", subtitle: "As melhores datas estão acabando!", cta: "GARANTA JÁ" },
+    { title: "PROMO FERIADO", subtitle: "Não perca essa oportunidade!", cta: "AGENDE AGORA" },
+  ],
+  "Mês do Consumidor": [
+    { title: "MÊS DO CONSUMIDOR", subtitle: "Condições exclusivas para você!", cta: "APROVEITE" },
+    { title: "SEMANA DO CONSUMIDOR", subtitle: "Descontos especiais de março!", cta: "GARANTA JÁ" },
+    { title: "ESPECIAL CONSUMIDOR", subtitle: "Ofertas imperdíveis para sua festa!", cta: "RESERVE AGORA" },
+    { title: "CONSUMIDOR VIP", subtitle: "Você merece o melhor preço!", cta: "CONFIRA" },
+    { title: "PROMO MARÇO", subtitle: "O mês do consumidor no buffet!", cta: "AGENDE JÁ" },
+  ],
+  "Semana do Cliente": [
+    { title: "SEMANA DO CLIENTE", subtitle: "Ofertas especiais só esta semana!", cta: "RESERVE AGORA" },
+    { title: "CLIENTE ESPECIAL", subtitle: "Descontos exclusivos para você!", cta: "GARANTA JÁ" },
+    { title: "VOCÊ MERECE", subtitle: "Condições únicas esta semana!", cta: "APROVEITE" },
+    { title: "ESPECIAL CLIENTES", subtitle: "Uma semana de ofertas incríveis!", cta: "CONFIRA" },
+    { title: "VIP DA SEMANA", subtitle: "Preços especiais por tempo limitado!", cta: "AGENDE AGORA" },
+  ],
+  "Promo Aniversário": [
+    { title: "ANIVERSÁRIO DO BUFFET", subtitle: "Comemore com a gente com descontos!", cta: "GARANTA JÁ" },
+    { title: "NIVER DO BUFFET", subtitle: "Quem ganha o presente é você!", cta: "APROVEITE" },
+    { title: "ANIVERSÁRIO ESPECIAL", subtitle: "Festejamos juntos com descontos!", cta: "RESERVE AGORA" },
+    { title: "PARABÉNS PRA NÓS", subtitle: "O presente é para você!", cta: "CONFIRA" },
+    { title: "FESTA DE ANIVERSÁRIO", subtitle: "Descontos de aniversário do buffet!", cta: "AGENDE JÁ" },
+  ],
+  "Super Promoção": [
+    { title: "SUPER PROMOÇÃO", subtitle: "Condições imperdíveis por tempo limitado!", cta: "NÃO PERCA" },
+    { title: "MEGA PROMOÇÃO", subtitle: "Os melhores preços que você já viu!", cta: "GARANTA JÁ" },
+    { title: "PROMOÇÃO IMPERDÍVEL", subtitle: "Desconto especial para sua festa!", cta: "APROVEITE AGORA" },
+    { title: "OFERTA ESPECIAL", subtitle: "Condições únicas para você!", cta: "RESERVE AGORA" },
+    { title: "PROMO RELÂMPAGO", subtitle: "Só hoje com preço especial!", cta: "CONFIRA" },
+  ],
+  "Festival de Descontos": [
+    { title: "FESTIVAL DE DESCONTOS", subtitle: "Até 15% OFF em pacotes selecionados!", cta: "CONFIRA AGORA" },
+    { title: "MEGA FESTIVAL", subtitle: "Descontos de até 20% em tudo!", cta: "GARANTA JÁ" },
+    { title: "FESTIVAL KIDS", subtitle: "Pacotes com preços imbatíveis!", cta: "APROVEITE" },
+    { title: "DESCONTÃO", subtitle: "As melhores ofertas do mês!", cta: "RESERVE AGORA" },
+    { title: "FESTIVAL DE OFERTAS", subtitle: "Condições exclusivas!", cta: "AGENDE JÁ" },
+  ],
+  "Oportunidade Relâmpago": [
+    { title: "OPORTUNIDADE RELÂMPAGO", subtitle: "Vagas limitadas com desconto!", cta: "FECHE AGORA" },
+    { title: "FLASH SALE", subtitle: "Oferta por tempo limitado!", cta: "GARANTA JÁ" },
+    { title: "OFERTA RELÂMPAGO", subtitle: "Desconto exclusivo hoje!", cta: "APROVEITE" },
+    { title: "ÚLTIMAS HORAS", subtitle: "Preço especial acabando!", cta: "NÃO PERCA" },
+    { title: "CORRA!", subtitle: "Poucas vagas com desconto!", cta: "RESERVE AGORA" },
+  ],
+  "Últimos Contratos": [
+    { title: "ÚLTIMOS CONTRATOS", subtitle: "Poucas vagas restantes no mês!", cta: "GARANTA A SUA" },
+    { title: "VAGAS ACABANDO", subtitle: "Não fique de fora!", cta: "RESERVE AGORA" },
+    { title: "RESTAM POUCAS", subtitle: "Últimas oportunidades do mês!", cta: "FECHE AGORA" },
+    { title: "CORRA QUE ACABA", subtitle: "Agenda quase lotada!", cta: "GARANTA JÁ" },
+    { title: "ÚLTIMA CHANCE", subtitle: "Restam poucas datas disponíveis!", cta: "APROVEITE" },
+  ],
+  "Última Chance": [
+    { title: "ÚLTIMA CHANCE", subtitle: "Antes do reajuste de preços!", cta: "APROVEITE AGORA" },
+    { title: "ÚLTIMOS DIAS", subtitle: "Preço antigo só até amanhã!", cta: "GARANTA JÁ" },
+    { title: "NÃO PERCA", subtitle: "Última oportunidade com desconto!", cta: "RESERVE AGORA" },
+    { title: "AVISO FINAL", subtitle: "Depois não tem mais esse preço!", cta: "FECHE AGORA" },
+    { title: "ATENÇÃO!", subtitle: "Preços vão subir, aproveite agora!", cta: "CONFIRA" },
+  ],
+  "Queima de Estoque": [
+    { title: "QUEIMA DE DATAS", subtitle: "Descontos agressivos para fechar!", cta: "CONFIRA" },
+    { title: "QUEIMÃO DE DATAS", subtitle: "Preços que você nunca viu!", cta: "GARANTA JÁ" },
+    { title: "LIQUIDAÇÃO TOTAL", subtitle: "Tudo com desconto para fechar!", cta: "APROVEITE" },
+    { title: "DATAS EM PROMOÇÃO", subtitle: "Pacotes com preço de custo!", cta: "RESERVE AGORA" },
+    { title: "MEGA QUEIMA", subtitle: "Descontos de até 25%!", cta: "AGENDE JÁ" },
+  ],
+  "Fecha em 25": [
+    { title: "FECHA EM R$25", subtitle: "Entrada especial por convidado!", cta: "SAIBA MAIS" },
+    { title: "R$25 POR PESSOA", subtitle: "Pacote completo a partir de R$25!", cta: "GARANTA JÁ" },
+    { title: "A PARTIR DE R$25", subtitle: "O melhor custo-benefício!", cta: "RESERVE AGORA" },
+    { title: "OFERTA R$25", subtitle: "Festa completa por convidado!", cta: "CONFIRA" },
+    { title: "SÓ R$25", subtitle: "Preço imbatível por pessoa!", cta: "APROVEITE" },
+  ],
+  "Lote Promocional": [
+    { title: "LOTE PROMOCIONAL", subtitle: "Vagas limitadas com desconto!", cta: "GARANTA JÁ" },
+    { title: "1º LOTE", subtitle: "Preços do primeiro lote!", cta: "RESERVE AGORA" },
+    { title: "LOTE ESPECIAL", subtitle: "Condições exclusivas deste lote!", cta: "APROVEITE" },
+    { title: "ÚLTIMO LOTE", subtitle: "Não perca o lote promocional!", cta: "FECHE AGORA" },
+    { title: "LOTE VIP", subtitle: "Pacote premium com desconto!", cta: "CONFIRA" },
+  ],
+  "Convite Especial": [
+    { title: "CONVITE ESPECIAL", subtitle: "Uma oferta exclusiva para você!", cta: "AGENDE SUA VISITA" },
+    { title: "VOCÊ FOI CONVIDADO", subtitle: "Venha conhecer nosso espaço!", cta: "AGENDE AGORA" },
+    { title: "CONVITE VIP", subtitle: "Condição especial para convidados!", cta: "RESERVE SUA DATA" },
+    { title: "EXCLUSIVO PARA VOCÊ", subtitle: "Um convite que não pode recusar!", cta: "CONFIRA" },
+    { title: "VENHA NOS VISITAR", subtitle: "Descubra o espaço perfeito!", cta: "AGENDE JÁ" },
+  ],
+  "Reativação de Leads": [
+    { title: "OFERTA EXCLUSIVA", subtitle: "Voltamos com uma proposta especial!", cta: "ENTRE EM CONTATO" },
+    { title: "SENTIMOS SUA FALTA", subtitle: "Preparamos algo especial!", cta: "FALE CONOSCO" },
+    { title: "VOLTAMOS!", subtitle: "Uma nova proposta para você!", cta: "CONFIRA AGORA" },
+    { title: "PROPOSTA ESPECIAL", subtitle: "Condições melhores que antes!", cta: "GARANTA JÁ" },
+    { title: "SEGUNDA CHANCE", subtitle: "Desconto exclusivo de reativação!", cta: "APROVEITE" },
+  ],
 };
 
 /* ── Constants ──────────────────────────────────────────── */
@@ -420,8 +572,9 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
   useEffect(() => {
     if (!open || !campaignType) return;
     if (appliedPresetRef.current === campaignType) return;
-    const preset = CAMPAIGN_PRESETS[campaignType];
-    if (preset) {
+    const presets = CAMPAIGN_PRESETS[campaignType];
+    if (presets && presets.length > 0) {
+      const preset = presets[0];
       setLayers((prev) => prev.map((l) => {
         if (l.id === "title") return { ...l, content: preset.title };
         if (l.id === "subtitle") return { ...l, content: preset.subtitle };
@@ -722,23 +875,28 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
                 <PopoverContent className="w-72 p-0" align="start">
                   <ScrollArea className="max-h-64">
                     <div className="p-1">
-                      {Object.entries(CAMPAIGN_PRESETS).map(([key, preset]) => (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() => {
-                            setLayers((prev) => prev.map((l) => {
-                              if (l.id === "title") return { ...l, content: preset.title };
-                              if (l.id === "subtitle") return { ...l, content: preset.subtitle };
-                              if (l.id === "cta") return { ...l, content: preset.cta };
-                              return l;
-                            }));
-                          }}
-                          className="w-full text-left rounded-lg px-3 py-2 hover:bg-primary/10 transition-colors"
-                        >
-                          <span className="text-xs font-semibold block">{key}</span>
-                          <span className="text-[10px] text-muted-foreground line-clamp-1">{preset.title} · {preset.subtitle}</span>
-                        </button>
+                      {Object.entries(CAMPAIGN_PRESETS).map(([key, presets]) => (
+                        <div key={key} className="mb-1">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase px-3 py-1 block">{key}</span>
+                          {presets.map((preset, idx) => (
+                            <button
+                              key={`${key}-${idx}`}
+                              type="button"
+                              onClick={() => {
+                                setLayers((prev) => prev.map((l) => {
+                                  if (l.id === "title") return { ...l, content: preset.title };
+                                  if (l.id === "subtitle") return { ...l, content: preset.subtitle };
+                                  if (l.id === "cta") return { ...l, content: preset.cta };
+                                  return l;
+                                }));
+                              }}
+                              className="w-full text-left rounded-lg px-3 py-1.5 hover:bg-primary/10 transition-colors"
+                            >
+                              <span className="text-xs font-semibold block">{preset.title}</span>
+                              <span className="text-[10px] text-muted-foreground line-clamp-1">{preset.subtitle} · {preset.cta}</span>
+                            </button>
+                          ))}
+                        </div>
                       ))}
                     </div>
                   </ScrollArea>
