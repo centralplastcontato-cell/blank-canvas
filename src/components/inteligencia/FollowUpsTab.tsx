@@ -286,8 +286,8 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
 
   const visibleColumns = COLUMN_CONFIG.filter(col => isColumnEnabled(col.fuNumber));
   const gridCols = visibleColumns.length <= 2 ? `md:grid-cols-${visibleColumns.length}` : visibleColumns.length === 3 ? "md:grid-cols-3" : visibleColumns.length === 4 ? "md:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5";
-  const containerClass = visibleColumns.length >= 5 ? "overflow-x-auto" : "";
-  const minWidthClass = visibleColumns.length >= 5 ? "min-w-[1100px]" : "";
+  const containerClass = visibleColumns.length >= 5 ? "overflow-x-auto -mx-4 px-4 lg:-mx-6 lg:px-6" : "";
+  const minWidthClass = visibleColumns.length >= 5 ? "min-w-[1300px]" : "";
 
   if (isLoading) {
     return (
