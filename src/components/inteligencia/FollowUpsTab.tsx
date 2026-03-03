@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, lazy, Suspense } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -295,14 +295,18 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
   }
 
   const visibleColumns = COLUMN_CONFIG.filter(col => isColumnEnabled(col.fuNumber));
-  const gridCols = visibleColumns.length <= 2 ? `md:grid-cols-${visibleColumns.length}` : visibleColumns.length === 3 ? "md:grid-cols-3" : visibleColumns.length === 4 ? "md:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5";
-  const containerClass = "";
-  const minWidthClass = "";
+  const gridCols = visibleColumns.length <= 2
+    ? `grid-cols-1 md:grid-cols-${visibleColumns.length}`
+    : visibleColumns.length === 3
+    ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+    : visibleColumns.length === 4
+    ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-4"
+    : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5";
 
   if (isLoading) {
     return (
-      <div className={containerClass}>
-        <div className={`grid gap-6 ${gridCols} ${minWidthClass}`}>
+      <div>
+        <div className={`grid gap-4 md:gap-6 ${gridCols}`}>
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-64 rounded-xl" />
           ))}
@@ -312,8 +316,8 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
   }
 
   return (
-    <div className={containerClass}>
-    <div className={`grid gap-6 ${gridCols} ${minWidthClass}`}>
+    <div>
+    <div className={`grid gap-4 md:gap-6 ${gridCols}`}>
       {visibleColumns.map(col => {
         const columnLeads = followUpLeads.filter(l => l.fuNumber === col.fuNumber);
         const visibleCount = visibleCounts[col.fuNumber] || LEADS_PER_PAGE;
