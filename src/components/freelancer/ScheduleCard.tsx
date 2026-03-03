@@ -65,6 +65,7 @@ export function ScheduleCard({
   const [notesValue, setNotesValue] = useState("");
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null);
   const [editingFreelancer, setEditingFreelancer] = useState<any>(null);
+  const [roleFilter, setRoleFilter] = useState<string>("all");
 
   const handleOpenFreelancerEdit = async (freelancerName: string) => {
     if (!companyId) return;
@@ -282,62 +283,125 @@ export function ScheduleCard({
                   )}
                 </div>
 
-                {availForEvent.length > 0 && (
-                  <div className="space-y-1.5 pt-1">
-                    {availForEvent.map(av => {
-                      const assigned = assignedForEvent.find(a => a.freelancer_name === av.freelancer_name);
-                      const registeredRoles = freelancerRoles[av.freelancer_name] || [];
-                      const autoRole = registeredRoles.length === 1 ? registeredRoles[0] : "";
-                      return (
-                        <div key={av.id} className={`flex items-center gap-3 p-2.5 rounded-lg border transition-colors ${assigned ? "bg-primary/5 border-primary/15" : "bg-muted/30 border-transparent"}`}>
-                          <Checkbox
-                            checked={!!assigned}
-                            onCheckedChange={() => onToggleAssignment(schedule.id, eventId, av.freelancer_name, assigned?.role || autoRole)}
-                            disabled={savingAssignment}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1">
-                              <p className={`text-sm ${assigned ? "font-semibold" : "font-medium"}`}>{av.freelancer_name}</p>
-                              {companyId && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-5 w-5 rounded-full text-muted-foreground hover:text-primary shrink-0"
-                                  onClick={() => handleOpenFreelancerEdit(av.freelancer_name)}
-                                  title="Editar cadastro"
-                                >
-                                  <Pencil className="h-3 w-3" />
-                                </Button>
-                              )}
-                            </div>
-                            <p className="text-[11px] text-muted-foreground">{av.freelancer_phone}</p>
-                            {registeredRoles.length > 0 && (
-                              <p className="text-[11px] text-primary/70 font-medium mt-0.5">{registeredRoles.join(", ")}</p>
-                            )}
-                          </div>
-                          {assigned && (
-                            <Select value={assigned.role || "none"} onValueChange={v => onUpdateRole(assigned.id, v === "none" ? "" : v)}>
-                              <SelectTrigger className="w-32 h-8 text-xs rounded-lg">
-                                <SelectValue placeholder="Função" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">Sem função</SelectItem>
-                                {registeredRoles.length > 0 && (
-                                  <>
-                                    {registeredRoles.map(r => <SelectItem key={`reg-${r}`} value={r}>{r}</SelectItem>)}
-                                    <Separator className="my-1" />
-                                  </>
-                                )}
-                                {roles.filter(r => !registeredRoles.includes(r)).map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
+                {availForEvent.length > 0 && (() => {
+                  // Collect all roles present in this event's availability
+                  const eventRoles = new Set<string>();
+                  availForEvent.forEach(av => {
+                    (freelancerRoles[av.freelancer_name] || []).forEach(r => eventRoles.add(r));
+                  });
+                  const sortedRoles = Array.from(eventRoles).sort();
+
+                  // Filter by role
+                  const filteredAvail = roleFilter === "all"
+                    ? availForEvent
+                    : roleFilter === "sem_funcao"
+                      ? availForEvent.filter(av => !(freelancerRoles[av.freelancer_name]?.length))
+                      : availForEvent.filter(av => (freelancerRoles[av.freelancer_name] || []).includes(roleFilter));
+
+                  return (
+                    <div className="space-y-2 pt-1">
+                      {/* Role filter chips */}
+                      {sortedRoles.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setRoleFilter("all")}
+                            className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
+                              roleFilter === "all" ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 text-muted-foreground border-border hover:bg-muted"
+                            }`}
+                          >
+                            Todos ({availForEvent.length})
+                          </button>
+                          {sortedRoles.map(r => {
+                            const count = availForEvent.filter(av => (freelancerRoles[av.freelancer_name] || []).includes(r)).length;
+                            return (
+                              <button
+                                key={r}
+                                type="button"
+                                onClick={() => setRoleFilter(prev => prev === r ? "all" : r)}
+                                className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
+                                  roleFilter === r ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 text-muted-foreground border-border hover:bg-muted"
+                                }`}
+                              >
+                                {r} ({count})
+                              </button>
+                            );
+                          })}
+                          {availForEvent.some(av => !(freelancerRoles[av.freelancer_name]?.length)) && (
+                            <button
+                              type="button"
+                              onClick={() => setRoleFilter(prev => prev === "sem_funcao" ? "all" : "sem_funcao")}
+                              className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
+                                roleFilter === "sem_funcao" ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 text-muted-foreground border-border hover:bg-muted"
+                              }`}
+                            >
+                              Sem função ({availForEvent.filter(av => !(freelancerRoles[av.freelancer_name]?.length)).length})
+                            </button>
                           )}
-                          {assigned && <Check className="h-4 w-4 text-primary shrink-0" />}
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+                      )}
+
+                      {/* Freelancer list */}
+                      <div className="space-y-1.5">
+                        {filteredAvail.map(av => {
+                          const assigned = assignedForEvent.find(a => a.freelancer_name === av.freelancer_name);
+                          const registeredRoles = freelancerRoles[av.freelancer_name] || [];
+                          const autoRole = registeredRoles.length === 1 ? registeredRoles[0] : "";
+                          return (
+                            <div key={av.id} className={`flex items-center gap-3 p-2.5 rounded-lg border transition-colors ${assigned ? "bg-primary/5 border-primary/15" : "bg-muted/30 border-transparent"}`}>
+                              <Checkbox
+                                checked={!!assigned}
+                                onCheckedChange={() => onToggleAssignment(schedule.id, eventId, av.freelancer_name, assigned?.role || autoRole)}
+                                disabled={savingAssignment}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1">
+                                  <p className={`text-sm ${assigned ? "font-semibold" : "font-medium"}`}>{av.freelancer_name}</p>
+                                  {companyId && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-5 w-5 rounded-full text-muted-foreground hover:text-primary shrink-0"
+                                      onClick={() => handleOpenFreelancerEdit(av.freelancer_name)}
+                                      title="Editar cadastro"
+                                    >
+                                      <Pencil className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                </div>
+                                <p className="text-[11px] text-muted-foreground">{av.freelancer_phone}</p>
+                                {registeredRoles.length > 0 && (
+                                  <p className="text-[11px] text-primary/70 font-medium mt-0.5">{registeredRoles.join(", ")}</p>
+                                )}
+                              </div>
+                              {assigned && (
+                                <Select value={assigned.role || "none"} onValueChange={v => onUpdateRole(assigned.id, v === "none" ? "" : v)}>
+                                  <SelectTrigger className="w-32 h-8 text-xs rounded-lg">
+                                    <SelectValue placeholder="Função" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="none">Sem função</SelectItem>
+                                    {registeredRoles.length > 0 && (
+                                      <>
+                                        {registeredRoles.map(r => <SelectItem key={`reg-${r}`} value={r}>{r}</SelectItem>)}
+                                        <Separator className="my-1" />
+                                      </>
+                                    )}
+                                    {roles.filter(r => !registeredRoles.includes(r)).map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                              )}
+                              {assigned && <Check className="h-4 w-4 text-primary shrink-0" />}
+                            </div>
+                          );
+                        })}
+                        {filteredAvail.length === 0 && (
+                          <p className="text-xs text-muted-foreground/60 italic pl-1">Nenhum freelancer com este cargo.</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {availForEvent.length === 0 && (
                   <p className="text-xs text-muted-foreground/60 italic pl-1">Nenhum freelancer disponível ainda.</p>
