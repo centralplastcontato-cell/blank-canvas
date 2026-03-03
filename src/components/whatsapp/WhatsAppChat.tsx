@@ -126,6 +126,15 @@ const getConversationDisplayName = (
   return conv.contact_phone;
 };
 
+// Helper: resolve the correct phone/JID for sending messages
+// Groups use remote_jid (ends with @g.us), individuals use contact_phone
+const getConversationPhone = (conv: Conversation): string => {
+  if (conv.remote_jid?.endsWith('@g.us')) {
+    return conv.remote_jid;
+  }
+  return conv.contact_phone;
+};
+
 interface Lead {
   id: string;
   name: string;
@@ -1817,7 +1826,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
     // Undo Send: delay actual sending by 5 seconds
     const convId = selectedConversation.id;
-    const convPhone = selectedConversation.contact_phone;
+    const convPhone = getConversationPhone(selectedConversation);
     const instId = selectedInstance.instance_id;
 
     // Send message immediately (no undo delay)
@@ -1901,7 +1910,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       const response = await supabase.functions.invoke("wapi-send", {
         body: {
           action: "send-contact",
-          phone: selectedConversation.contact_phone,
+          phone: getConversationPhone(selectedConversation),
           contactName: contactName.trim(),
           contactPhone: contactPhone.trim(),
           conversationId: selectedConversation.id,
@@ -1942,7 +1951,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         const response = await supabase.functions.invoke("wapi-send", {
           body: {
             action: "edit-text",
-            phone: selectedConversation.contact_phone,
+            phone: getConversationPhone(selectedConversation),
             messageId: messageId,
             newContent: trimmedContent,
             conversationId: selectedConversation.id,
@@ -2078,7 +2087,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     const response = await supabase.functions.invoke("wapi-send", {
       body: {
         action: "send-text",
-        phone: selectedConversation.contact_phone,
+        phone: getConversationPhone(selectedConversation),
         message: message,
         conversationId: selectedConversation.id,
         instanceId: selectedInstance.instance_id,
@@ -2231,7 +2240,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       const { error } = await supabase.functions.invoke('wapi-send', {
         body: {
           action: 'send-text',
-          phone: conv.contact_phone.replace(/\D/g, ''),
+          phone: getConversationPhone(conv),
           message: promptMsg,
           unit: selectedInstance?.unit || undefined,
           conversation_id: conv.id,
@@ -2382,7 +2391,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       const response = await supabase.functions.invoke("wapi-send", {
         body: {
           action: 'send-audio',
-          phone: selectedConversation.contact_phone,
+          phone: getConversationPhone(selectedConversation),
           conversationId: selectedConversation.id,
           instanceId: selectedInstance.instance_id,
           mediaUrl,
@@ -2564,7 +2573,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         const response = await supabase.functions.invoke("wapi-send", {
           body: {
             action: 'send-image',
-            phone: selectedConversation.contact_phone,
+            phone: getConversationPhone(selectedConversation),
             conversationId: selectedConversation.id,
             instanceId: selectedInstance.instance_id,
             base64: base64Data,
@@ -2605,7 +2614,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         const response = await supabase.functions.invoke("wapi-send", {
           body: {
             action: 'send-document',
-            phone: selectedConversation.contact_phone,
+            phone: getConversationPhone(selectedConversation),
             conversationId: selectedConversation.id,
             instanceId: selectedInstance.instance_id,
             mediaUrl,
@@ -2647,7 +2656,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         const response = await supabase.functions.invoke("wapi-send", {
           body: {
             action: 'send-video',
-            phone: selectedConversation.contact_phone,
+            phone: getConversationPhone(selectedConversation),
             conversationId: selectedConversation.id,
             instanceId: selectedInstance.instance_id,
             mediaUrl,
@@ -2702,7 +2711,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       const response = await supabase.functions.invoke("wapi-send", {
         body: {
           action,
-          phone: selectedConversation.contact_phone,
+          phone: getConversationPhone(selectedConversation),
           conversationId: selectedConversation.id,
           instanceId: selectedInstance.instance_id,
           mediaUrl: url,
