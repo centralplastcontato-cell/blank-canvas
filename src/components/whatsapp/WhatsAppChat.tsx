@@ -1824,6 +1824,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     
     setMessages(prev => [...prev, optimisticMessage]);
 
+    // Re-enable send button immediately after optimistic update
+    setIsSending(false);
+    setTimeout(() => messageTextareaRef.current?.focus(), 50);
+
     // Undo Send: delay actual sending by 5 seconds
     const convId = selectedConversation.id;
     const convPhone = getConversationPhone(selectedConversation);
@@ -1856,7 +1860,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           description: "A instância está conectada sem sessão válida. Vá em Configurações > Conexão e reconecte.",
           variant: "destructive",
         });
-        setIsSending(false);
+        // isSending already false from optimistic path
         return;
       }
 
@@ -1876,11 +1880,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       });
     }
 
-    setIsSending(false);
-    // Refocus textarea after sending so user can type immediately
-    setTimeout(() => {
-      messageTextareaRef.current?.focus();
-    }, 50);
+    // isSending already reset after optimistic update above
   };
 
   // Send contact (vCard) handler
