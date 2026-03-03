@@ -181,7 +181,7 @@ export function FreelancerSchedulesTab() {
       .eq("schedule_id", schedule.id);
     setAssignments((asData as any[]) || []);
 
-    // Fetch freelancer registered roles from freelancer_responses (normalized matching)
+    // Fetch freelancer registered roles from freelancer_responses (fuzzy matching)
     const uniqueNames = [...new Set(avList.map((a: any) => a.freelancer_name))];
     if (uniqueNames.length > 0 && companyId) {
       const normalize = (s: string) => s.trim().toLowerCase();
@@ -193,8 +193,12 @@ export function FreelancerSchedulesTab() {
       (frData || []).forEach((fr: any) => {
         const rawName = fr.respondent_name?.trim();
         if (!rawName) return;
-        // Find the original availability name that matches (case/space insensitive)
-        const matchedOriginal = uniqueNames.find(n => normalize(n) === normalize(rawName));
+        const normRaw = normalize(rawName);
+        // Fuzzy match: exact, or one name starts with the other (handles "Jamile" vs "Jamile Barros")
+        const matchedOriginal = uniqueNames.find(n => {
+          const normN = normalize(n);
+          return normN === normRaw || normN.startsWith(normRaw) || normRaw.startsWith(normN);
+        });
         if (!matchedOriginal) return;
         const answers = Array.isArray(fr.answers) ? fr.answers : [];
         const funcaoAnswer = answers.find((a: any) => a.questionId === "funcao");
