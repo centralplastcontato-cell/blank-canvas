@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, RefreshCw, Pencil, ImagePlus, ZoomIn, Trash2, Building2, Image, Wand2 } from "lucide-react";
+import { Loader2, Sparkles, RefreshCw, Pencil, ImagePlus, ZoomIn, Trash2, Building2, Image, Wand2, Type } from "lucide-react";
+import { CampaignTextOverlayEditor } from "./CampaignTextOverlayEditor";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
@@ -80,6 +81,8 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [logoPosition, setLogoPosition] = useState<string>("bottom-right");
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [textEditorOpen, setTextEditorOpen] = useState(false);
+  const [pendingArtUrl, setPendingArtUrl] = useState<string | null>(null);
 
   const handleGenerate = async () => {
     if (!draft.description.trim()) {
@@ -216,16 +219,24 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
       if (data?.error) throw new Error(data.error);
       if (!data?.url) throw new Error("Nenhuma imagem retornada");
 
-      setDraft((prev) => ({ ...prev, imageUrl: data.url }));
-      await saveImageToGallery(data.url, "ai_compose");
+      // Open text overlay editor instead of saving directly
+      setPendingArtUrl(data.url);
       setArtDialogOpen(false);
-      toast.success("Arte profissional criada com IA! 🎨");
+      setTextEditorOpen(true);
     } catch (err: any) {
       console.error("campaign-image error:", err);
       toast.error(err.message || "Erro ao criar arte");
     } finally {
       setComposing(false);
     }
+  };
+
+  const handleTextEditorSave = async (finalUrl: string) => {
+    setDraft((prev) => ({ ...prev, imageUrl: finalUrl }));
+    const source = finalUrl === pendingArtUrl ? "ai_compose" : "ai_compose_text";
+    await saveImageToGallery(finalUrl, source);
+    setPendingArtUrl(null);
+    toast.success("Arte salva com sucesso! 🎨");
   };
 
   const saveEdit = (index: number) => {
@@ -612,6 +623,16 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
             </div>
           </DialogContent>
         </Dialog>
+        {/* Text Overlay Editor */}
+        {pendingArtUrl && (
+          <CampaignTextOverlayEditor
+            open={textEditorOpen}
+            onOpenChange={setTextEditorOpen}
+            imageUrl={pendingArtUrl}
+            onSave={handleTextEditorSave}
+            companyId={currentCompanyId || ""}
+          />
+        )}
       </div>
     </div>
   );
