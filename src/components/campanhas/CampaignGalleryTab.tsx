@@ -2,9 +2,20 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
-import { Loader2, ImageIcon } from "lucide-react";
+import { Loader2, ImageIcon, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface GalleryImage {
   id: string;
@@ -24,6 +35,8 @@ export function CampaignGalleryTab({ companyId }: { companyId: string }) {
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<GalleryImage | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!companyId) return;
@@ -39,6 +52,23 @@ export function CampaignGalleryTab({ companyId }: { companyId: string }) {
     };
     load();
   }, [companyId]);
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const { error } = await (supabase as any)
+      .from("campaign_images")
+      .delete()
+      .eq("id", deleteTarget.id);
+    setDeleting(false);
+    if (error) {
+      toast.error("Erro ao apagar imagem");
+    } else {
+      setImages((prev) => prev.filter((i) => i.id !== deleteTarget.id));
+      toast.success("Imagem apagada");
+    }
+    setDeleteTarget(null);
+  };
 
   if (loading) {
     return (
@@ -86,11 +116,22 @@ export function CampaignGalleryTab({ companyId }: { companyId: string }) {
                 </div>
               </div>
               {/* Badge */}
-              <div className="absolute top-2 right-2">
+              <div className="absolute top-2 right-2 flex items-center gap-1">
                 <Badge variant={sc.variant} className="text-[9px] px-1.5 py-0.5">
                   {sc.label}
                 </Badge>
               </div>
+              {/* Delete button */}
+              <button
+                className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity bg-destructive text-destructive-foreground rounded-full p-1.5 shadow-lg hover:scale-110 active:scale-95"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeleteTarget(img);
+                }}
+                title="Apagar imagem"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
               {/* Date footer */}
               <div className="px-2.5 py-2 border-t border-border">
                 <p className="text-[10px] text-muted-foreground">
@@ -110,6 +151,24 @@ export function CampaignGalleryTab({ companyId }: { companyId: string }) {
           onNavigate={setLightboxIndex}
         />
       )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apagar imagem?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Essa ação não pode ser desfeita. A imagem será removida permanentemente da galeria.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deleting ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+              Apagar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
