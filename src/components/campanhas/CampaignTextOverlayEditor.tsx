@@ -406,7 +406,7 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[90vw] md:max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Type className="w-5 h-5 text-primary" />
@@ -414,68 +414,73 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {/* Template selector */}
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
-              <LayoutTemplate className="w-3.5 h-3.5" /> Template
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              {TEMPLATES.map((tpl) => (
-                <button
-                  key={tpl.id}
-                  type="button"
-                  onClick={() => switchTemplate(tpl.id)}
-                  className={`rounded-xl border p-2.5 text-left transition-all ${
-                    template === tpl.id
-                      ? "border-primary bg-primary/10 ring-1 ring-primary/30"
-                      : "border-border/60 bg-muted/10 hover:border-primary/40"
-                  }`}
-                >
-                  <span className="text-[11px] font-bold block">{tpl.label}</span>
-                  <span className="text-[10px] text-muted-foreground">{tpl.description}</span>
-                </button>
-              ))}
+        <div className="flex flex-col md:flex-row gap-4">
+          {/* Canvas preview — left side on desktop */}
+          <div className="flex-1 min-w-0">
+            <div className="rounded-xl border overflow-hidden bg-muted/20">
+              <canvas ref={canvasRef} className="w-full h-auto block" />
             </div>
           </div>
 
-          {/* Canvas preview */}
-          <div className="rounded-xl border overflow-hidden bg-muted/20">
-            <canvas ref={canvasRef} className="w-full h-auto block" />
-          </div>
-
-          {/* Accent color */}
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground mb-2">Cor de destaque</p>
-            <div className="flex gap-1.5">
-              {COLOR_PRESETS.map((c) => (
-                <button
-                  key={c.value}
-                  type="button"
-                  title={c.label}
-                  className={`w-7 h-7 rounded-full border-2 transition-transform ${
-                    accentColor === c.value ? "scale-125 border-primary ring-2 ring-primary/30" : "border-border/50 hover:scale-110"
-                  }`}
-                  style={{ backgroundColor: c.value }}
-                  onClick={() => setAccentColor(c.value)}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Text inputs */}
-          <div className="space-y-2.5">
-            {layers.map((layer) => (
-              <div key={layer.id} className="space-y-1">
-                <Badge variant="outline" className="text-[10px]">{layer.label}</Badge>
-                <Input
-                  placeholder={layer.placeholder}
-                  value={layer.content}
-                  onChange={(e) => updateLayer(layer.id, e.target.value)}
-                  className="h-9 text-sm"
-                />
+          {/* Controls — right side on desktop */}
+          <div className="md:w-72 shrink-0 space-y-4">
+            {/* Template selector */}
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
+                <LayoutTemplate className="w-3.5 h-3.5" /> Template
+              </p>
+              <div className="grid grid-cols-3 md:grid-cols-1 gap-2">
+                {TEMPLATES.map((tpl) => (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    onClick={() => switchTemplate(tpl.id)}
+                    className={`rounded-xl border p-2.5 text-left transition-all ${
+                      template === tpl.id
+                        ? "border-primary bg-primary/10 ring-1 ring-primary/30"
+                        : "border-border/60 bg-muted/10 hover:border-primary/40"
+                    }`}
+                  >
+                    <span className="text-[11px] font-bold block">{tpl.label}</span>
+                    <span className="text-[10px] text-muted-foreground">{tpl.description}</span>
+                  </button>
+                ))}
               </div>
-            ))}
+            </div>
+
+            {/* Accent color */}
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground mb-2">Cor de destaque</p>
+              <div className="flex gap-1.5 flex-wrap">
+                {COLOR_PRESETS.map((c) => (
+                  <button
+                    key={c.value}
+                    type="button"
+                    title={c.label}
+                    className={`w-7 h-7 rounded-full border-2 transition-transform ${
+                      accentColor === c.value ? "scale-125 border-primary ring-2 ring-primary/30" : "border-border/50 hover:scale-110"
+                    }`}
+                    style={{ backgroundColor: c.value }}
+                    onClick={() => setAccentColor(c.value)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Text inputs */}
+            <div className="space-y-2.5">
+              {layers.map((layer) => (
+                <div key={layer.id} className="space-y-1">
+                  <Badge variant="outline" className="text-[10px]">{layer.label}</Badge>
+                  <Input
+                    placeholder={layer.placeholder}
+                    value={layer.content}
+                    onChange={(e) => updateLayer(layer.id, e.target.value)}
+                    className="h-9 text-sm"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
