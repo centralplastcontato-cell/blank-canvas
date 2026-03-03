@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, User, KeyRound, Briefcase } from "lucide-react";
 
 interface FreelancerQuestion {
   id: string;
@@ -52,11 +52,17 @@ interface EditFreelancerDialogProps {
   onSaved: () => void;
 }
 
+// Section definitions for grouping questions
+const SECTIONS = [
+  { key: "dados", label: "DADOS PESSOAIS", icon: User, questionIds: ["nome", "data_nascimento", "telefone", "endereco"] },
+  { key: "pix", label: "DADOS PIX", icon: KeyRound, questionIds: ["pix_tipo", "pix_chave"] },
+  { key: "trabalho", label: "INFORMAÇÕES PROFISSIONAIS", icon: Briefcase, questionIds: ["ja_trabalha", "tempo_trabalho", "funcao", "sobre"] },
+];
+
 export function EditFreelancerDialog({ open, onOpenChange, response, template, onSaved }: EditFreelancerDialogProps) {
   const [answers, setAnswers] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
 
-  // If no template provided, use default questions as a fallback template
   const effectiveQuestions = template?.questions || DEFAULT_QUESTIONS;
 
   useEffect(() => {
@@ -110,80 +116,169 @@ export function EditFreelancerDialog({ open, onOpenChange, response, template, o
     }
   };
 
+  const renderField = (q: FreelancerQuestion) => {
+    const answer = answers.find((a: any) => a.questionId === q.id);
+    const value = answer?.value ?? "";
+
+    if (q.type === "date") {
+      return (
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">{q.text}{q.required && " *"}</Label>
+          <Input
+            value={formatDateDisplay(String(value || ""))}
+            onChange={(e) => handleDateInput(q.id, e.target.value)}
+            placeholder="dd/mm/aaaa"
+            className="text-sm"
+            maxLength={10}
+          />
+        </div>
+      );
+    }
+    if (q.type === "text") {
+      return (
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">{q.text}{q.required && " *"}</Label>
+          <Input value={String(value || "")} onChange={(e) => updateAnswer(q.id, e.target.value)} className="text-sm" />
+        </div>
+      );
+    }
+    if (q.type === "textarea") {
+      return (
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">{q.text}{q.required && " *"}</Label>
+          <Textarea value={String(value || "")} onChange={(e) => updateAnswer(q.id, e.target.value)} className="text-sm" rows={2} />
+        </div>
+      );
+    }
+    if (q.type === "yesno") {
+      return (
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">{q.text}{q.required && " *"}</Label>
+          <Select value={value === true ? "sim" : value === false ? "nao" : ""} onValueChange={(v) => updateAnswer(q.id, v === "sim")}>
+            <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="sim">Sim</SelectItem>
+              <SelectItem value="nao">Não</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      );
+    }
+    if (q.type === "select") {
+      return (
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">{q.text}{q.required && " *"}</Label>
+          <Select value={String(value || "")} onValueChange={(v) => updateAnswer(q.id, v)}>
+            <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+            <SelectContent>
+              {(q.options || []).map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      );
+    }
+    if (q.type === "multiselect") {
+      return (
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">{q.text}{q.required && " *"}</Label>
+          <div className="flex flex-wrap gap-1.5">
+            {(q.options || []).map(opt => {
+              const selected = Array.isArray(value) && value.includes(opt);
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => {
+                    const arr = Array.isArray(value) ? [...value] : [];
+                    updateAnswer(q.id, selected ? arr.filter(v => v !== opt) : [...arr, opt]);
+                  }}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                    selected ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 text-muted-foreground border-border"
+                  }`}
+                >
+                  {opt}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  // Group questions into sections; ungrouped questions go at the end
+  const groupedSectionIds = SECTIONS.flatMap(s => s.questionIds);
+  const ungroupedQuestions = effectiveQuestions.filter(q => q.type !== "photo" && !groupedSectionIds.includes(q.id));
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-lg max-h-[90dvh] flex flex-col p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-4">
           <DialogTitle>Editar Cadastro</DialogTitle>
           <DialogDescription>Corrija os dados do freelancer conforme necessário.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-3">
-          {effectiveQuestions.filter(q => q.type !== "photo").map((q) => {
-            const answer = answers.find((a: any) => a.questionId === q.id);
-            const value = answer?.value ?? "";
+
+        <div className="flex-1 overflow-y-auto px-6 pb-4 space-y-5">
+          {SECTIONS.map(section => {
+            const sectionQuestions = section.questionIds
+              .map(id => effectiveQuestions.find(q => q.id === id))
+              .filter((q): q is FreelancerQuestion => !!q && q.type !== "photo");
+            if (sectionQuestions.length === 0) return null;
+
+            const Icon = section.icon;
             return (
-              <div key={q.id} className="rounded-xl border border-border p-4 space-y-2">
-                <Label className="text-sm font-medium">{q.text}</Label>
-                {q.type === "date" ? (
-                  <Input
-                    value={formatDateDisplay(String(value || ""))}
-                    onChange={(e) => handleDateInput(q.id, e.target.value)}
-                    placeholder="dd/mm/aaaa"
-                    className="text-sm"
-                    maxLength={10}
-                  />
-                ) : q.type === "text" ? (
-                  <Input value={String(value || "")} onChange={(e) => updateAnswer(q.id, e.target.value)} className="text-sm" />
-                ) : q.type === "textarea" ? (
-                  <Textarea value={String(value || "")} onChange={(e) => updateAnswer(q.id, e.target.value)} className="text-sm" rows={2} />
-                ) : q.type === "yesno" ? (
-                  <Select value={value === true ? "sim" : value === false ? "nao" : ""} onValueChange={(v) => updateAnswer(q.id, v === "sim")}>
-                    <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="sim">Sim</SelectItem>
-                      <SelectItem value="nao">Não</SelectItem>
-                    </SelectContent>
-                  </Select>
-                ) : q.type === "select" ? (
-                  <Select value={String(value || "")} onValueChange={(v) => updateAnswer(q.id, v)}>
-                    <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>
-                      {(q.options || []).map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                ) : q.type === "multiselect" ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    {(q.options || []).map(opt => {
-                      const selected = Array.isArray(value) && value.includes(opt);
-                      return (
-                        <button
-                          key={opt}
-                          type="button"
-                          onClick={() => {
-                            const arr = Array.isArray(value) ? [...value] : [];
-                            updateAnswer(q.id, selected ? arr.filter(v => v !== opt) : [...arr, opt]);
-                          }}
-                          className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                            selected ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 text-muted-foreground border-border"
-                          }`}
-                        >
-                          {opt}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : null}
+              <div key={section.key} className="rounded-xl border border-border bg-card p-4 space-y-4">
+                {/* Section header */}
+                <div className="flex items-center gap-2">
+                  <Icon className="w-4 h-4 text-primary" />
+                  <span className="text-xs font-bold tracking-wide text-muted-foreground">{section.label}</span>
+                  <div className="flex-1 h-px bg-border/50" />
+                </div>
+
+                {/* Fields grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {sectionQuestions.map(q => {
+                    // Full width for textarea, address, multiselect
+                    const fullWidth = q.type === "textarea" || q.type === "multiselect" || q.id === "endereco";
+                    return (
+                      <div key={q.id} className={fullWidth ? "sm:col-span-2" : ""}>
+                        {renderField(q)}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             );
           })}
+
+          {/* Ungrouped questions (from custom templates) */}
+          {ungroupedQuestions.length > 0 && (
+            <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 text-primary" />
+                <span className="text-xs font-bold tracking-wide text-muted-foreground">OUTROS DADOS</span>
+                <div className="flex-1 h-px bg-border/50" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {ungroupedQuestions.map(q => (
+                  <div key={q.id} className={q.type === "textarea" || q.type === "multiselect" ? "sm:col-span-2" : ""}>
+                    {renderField(q)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-        <DialogFooter>
+
+        {/* Sticky footer */}
+        <div className="sticky bottom-0 border-t border-border bg-background/80 backdrop-blur-sm px-6 py-4 flex justify-end gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
           <Button onClick={handleSave} disabled={saving} className="gap-2">
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             Salvar
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
