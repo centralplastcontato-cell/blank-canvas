@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Type, Save, X, LayoutTemplate, Move, ALargeSmall, Square, Eye, Maximize2, Sparkles, GripVertical } from "lucide-react";
+import { Loader2, Type, Save, X, LayoutTemplate, Move, ALargeSmall, Square, Eye, Maximize2, Sparkles, GripVertical, Sun, Contrast, Moon, Smile, Trash2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
@@ -23,12 +23,20 @@ interface TextLayer {
   label: string;
   content: string;
   placeholder: string;
-  fontSize: number;        // 0-100 slider → mapped to px range per layer
+  fontSize: number;
   fontFamily: string;
-  customY?: number;        // 0-1 ratio for custom drag position
-  customX?: number;        // 0-1 ratio for custom horizontal drag position
-  shadowEnabled?: boolean; // toggle text shadow
-  shadowIntensity?: number; // 0-100 shadow strength
+  customY?: number;
+  customX?: number;
+  shadowEnabled?: boolean;
+  shadowIntensity?: number;
+}
+
+interface Sticker {
+  id: string;
+  emoji: string;
+  x: number;   // 0-1 ratio
+  y: number;   // 0-1 ratio
+  size: number; // 20-120 px on canvas
 }
 
 interface TemplateConfig {
@@ -46,8 +54,6 @@ interface Props {
   companyId: string;
   campaignType?: string;
 }
-
-/* ── Preset texts by campaign type (5 variations each) ──── */
 
 type TextPreset = { title: string; subtitle: string; cta: string };
 
@@ -233,6 +239,7 @@ const CAMPAIGN_PRESETS: Record<string, TextPreset[]> = {
 
 const CANVAS_SIZE = 1080;
 const DPR = typeof window !== "undefined" ? Math.min(window.devicePixelRatio || 1, 2) : 1;
+const MAX_STICKERS = 5;
 
 const COLOR_PRESETS = [
   { value: "#FFFFFF", label: "Branco" },
@@ -281,7 +288,6 @@ const POS_X_MAP: Record<PositionX, number> = {
   right: 0.75,
 };
 
-// Font size ranges per layer type (min, max px at CANVAS_SIZE)
 const FONT_RANGES: Record<string, [number, number]> = {
   title: [40, 140],
   subtitle: [28, 80],
@@ -350,6 +356,17 @@ const TEMPLATES: TemplateConfig[] = [
   },
 ];
 
+/* ── Sticker emoji library ──────────────────────────────── */
+
+const STICKER_CATEGORIES: { label: string; emojis: string[] }[] = [
+  { label: "Festa", emojis: ["🎈", "🎉", "🎊", "🎁", "🎂", "🧁"] },
+  { label: "Decoração", emojis: ["⭐", "🌟", "✨", "💫", "🎀", "🎯"] },
+  { label: "Corações", emojis: ["❤️", "💛", "💜", "🩷", "🧡"] },
+  { label: "Natureza", emojis: ["🌺", "🌈", "☀️", "🦋"] },
+];
+
+/* ── Drawing helpers ────────────────────────────────────── */
+
 function drawRoundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -395,7 +412,6 @@ function drawNeonText(
 ) {
   ctx.save();
   const intensity = (layer?.shadowIntensity ?? 70) / 100;
-  // Multi-pass glow
   for (let i = 3; i >= 1; i--) {
     ctx.shadowColor = glowColor;
     ctx.shadowBlur = (20 * i) * intensity;
@@ -404,7 +420,6 @@ function drawNeonText(
     ctx.fillStyle = i === 1 ? color : "transparent";
     ctx.fillText(text, x, y);
   }
-  // Final crisp text
   ctx.shadowBlur = 0;
   ctx.fillStyle = color;
   ctx.fillText(text, x, y);
@@ -591,6 +606,7 @@ function renderEscassez(ctx: CanvasRenderingContext2D, size: number, layers: Tex
     }
   }
 }
+
 function renderSazonal(ctx: CanvasRenderingContext2D, size: number, layers: TextLayer[], accentColor: string, posY: PositionY, _cs?: CardSettings, posX: PositionX = "center") {
   const title = layers.find((l) => l.id === "title")!;
   const subtitle = layers.find((l) => l.id === "subtitle")!;
@@ -620,10 +636,11 @@ function renderSazonal(ctx: CanvasRenderingContext2D, size: number, layers: Text
     drawCTAButton(ctx, cta.content.trim().toUpperCase(), x, getLayerY(cta, "cta", pos, size), accentColor, "#FFFFFF", px, cta.fontFamily);
   }
 }
+
 interface CardSettings {
   showCard: boolean;
-  opacity: number;   // 0-100
-  cardSize: number;  // 0-100
+  opacity: number;
+  cardSize: number;
 }
 
 type RenderFn = (ctx: CanvasRenderingContext2D, size: number, layers: TextLayer[], accent: string, posY: PositionY, cardSettings?: CardSettings, posX?: PositionX) => void;
@@ -747,6 +764,14 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
   const [cardSettings, setCardSettings] = useState<CardSettings>({ showCard: true, opacity: 65, cardSize: 50 });
   const appliedPresetRef = useRef<string | null>(null);
 
+  // Photo filters
+  const [brightness, setBrightness] = useState(0);     // -50 to +50
+  const [contrast, setContrast] = useState(0);          // -50 to +50
+  const [darken, setDarken] = useState(0);              // 0 to 80
+
+  // Stickers
+  const [stickers, setStickers] = useState<Sticker[]>([]);
+
   // Pre-fill layers from campaign type when editor opens
   useEffect(() => {
     if (!open || !campaignType) return;
@@ -788,7 +813,6 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
       { family: "Poppins", weights: ["400", "600", "700"], url: "https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" },
       { family: "Roboto Condensed", weights: ["400", "700"], url: "https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&display=swap" },
     ];
-    // Inject link tags for Google Fonts (CSS approach for canvas compatibility)
     googleFonts.forEach((gf) => {
       if (!document.querySelector(`link[href="${gf.url}"]`)) {
         const link = document.createElement("link");
@@ -797,9 +821,7 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
         document.head.appendChild(link);
       }
     });
-    // Wait for fonts to be ready
     document.fonts.ready.then(() => {
-      // Force re-render after fonts load
       renderCanvas();
     });
   }, [open]);
@@ -826,13 +848,38 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
     canvas.style.height = "";
     ctx.scale(DPR, DPR);
 
+    // 1. Draw base image with brightness/contrast filters
+    const bVal = 100 + brightness;
+    const cVal = 100 + contrast;
+    ctx.filter = `brightness(${bVal}%) contrast(${cVal}%)`;
+
     const scale = Math.max(size / img.width, size / img.height);
     const w = img.width * scale;
     const h = img.height * scale;
     ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
 
+    // 2. Reset filter
+    ctx.filter = "none";
+
+    // 3. Darken overlay
+    if (darken > 0) {
+      ctx.fillStyle = `rgba(0,0,0,${darken / 100})`;
+      ctx.fillRect(0, 0, size, size);
+    }
+
+    // 4. Render template (text layers)
     RENDER_MAP[template](ctx, size, layers, accentColor, positionY, cardSettings, positionX);
-  }, [layers, imageLoaded, template, accentColor, positionY, positionX, cardSettings]);
+
+    // 5. Render stickers
+    stickers.forEach((s) => {
+      ctx.save();
+      ctx.font = `${s.size}px serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(s.emoji, s.x * size, s.y * size);
+      ctx.restore();
+    });
+  }, [layers, imageLoaded, template, accentColor, positionY, positionX, cardSettings, brightness, contrast, darken, stickers]);
 
   useEffect(() => { renderCanvas(); }, [renderCanvas]);
 
@@ -840,8 +887,8 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
     setLayers((prev) => prev.map((l) => (l.id === id ? { ...l, ...updates } : l)));
   };
 
-  /* ── Drag-to-reposition logic ─────────────────────────── */
-  const draggingRef = useRef<{ layerId: string; startMouseY: number; startCustomY: number; startMouseX: number; startCustomX: number } | null>(null);
+  /* ── Drag-to-reposition logic (text layers + stickers) ── */
+  const draggingRef = useRef<{ type: "layer" | "sticker"; id: string; startMouseY: number; startCustomY: number; startMouseX: number; startCustomX: number } | null>(null);
 
   const getCanvasCoords = useCallback((e: React.MouseEvent | React.TouchEvent): { x: number; y: number } => {
     const canvas = canvasRef.current;
@@ -855,38 +902,57 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
     };
   }, []);
 
-  const findClosestLayer = useCallback((yRatio: number): TextLayer | null => {
-    const pos = POS_MAP[positionY];
-    let closest: TextLayer | null = null;
+  const findClosestDraggable = useCallback((xRatio: number, yRatio: number): { type: "layer" | "sticker"; id: string } | null => {
+    let closest: { type: "layer" | "sticker"; id: string } | null = null;
     let minDist = 0.08;
+
+    // Check stickers first (they're on top)
+    for (const s of stickers) {
+      const dist = Math.sqrt((xRatio - s.x) ** 2 + (yRatio - s.y) ** 2);
+      if (dist < minDist) {
+        minDist = dist;
+        closest = { type: "sticker", id: s.id };
+      }
+    }
+
+    // Check text layers
+    const pos = POS_MAP[positionY];
     for (const layer of layers) {
       if (!layer.content.trim()) continue;
       const layerYRatio = layer.customY ?? pos[layer.id as keyof typeof pos] ?? 0.5;
-      const dist = Math.abs(yRatio - layerYRatio);
+      const layerXRatio = layer.customX ?? POS_X_MAP[positionX];
+      const dist = Math.sqrt((xRatio - layerXRatio) ** 2 + (yRatio - layerYRatio) ** 2);
       if (dist < minDist) {
         minDist = dist;
-        closest = layer;
+        closest = { type: "layer", id: layer.id };
       }
     }
     return closest;
-  }, [layers, positionY]);
+  }, [layers, positionY, positionX, stickers]);
 
   const handleCanvasPointerDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     const { x, y } = getCanvasCoords(e);
-    const layer = findClosestLayer(y);
-    if (!layer) return;
+    const target = findClosestDraggable(x, y);
+    if (!target) return;
     e.preventDefault();
-    const currentY = layer.customY ?? POS_MAP[positionY][layer.id as keyof (typeof POS_MAP)["top"]] ?? 0.5;
-    const currentX = layer.customX ?? POS_X_MAP[positionX];
-    draggingRef.current = { layerId: layer.id, startMouseY: y, startCustomY: currentY, startMouseX: x, startCustomX: currentX };
+
+    if (target.type === "sticker") {
+      const s = stickers.find((st) => st.id === target.id)!;
+      draggingRef.current = { type: "sticker", id: s.id, startMouseY: y, startCustomY: s.y, startMouseX: x, startCustomX: s.x };
+    } else {
+      const layer = layers.find((l) => l.id === target.id)!;
+      const currentY = layer.customY ?? POS_MAP[positionY][layer.id as keyof (typeof POS_MAP)["top"]] ?? 0.5;
+      const currentX = layer.customX ?? POS_X_MAP[positionX];
+      draggingRef.current = { type: "layer", id: layer.id, startMouseY: y, startCustomY: currentY, startMouseX: x, startCustomX: currentX };
+    }
     if (canvasRef.current) canvasRef.current.style.cursor = "grabbing";
-  }, [getCanvasCoords, findClosestLayer, positionY, positionX]);
+  }, [getCanvasCoords, findClosestDraggable, positionY, positionX, layers, stickers]);
 
   const handleCanvasPointerMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     if (!draggingRef.current) {
-      const { y } = getCanvasCoords(e);
-      const layer = findClosestLayer(y);
-      if (canvasRef.current) canvasRef.current.style.cursor = layer ? "grab" : "default";
+      const { x, y } = getCanvasCoords(e);
+      const target = findClosestDraggable(x, y);
+      if (canvasRef.current) canvasRef.current.style.cursor = target ? "grab" : "default";
       return;
     }
     e.preventDefault();
@@ -895,15 +961,20 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
     const deltaX = x - draggingRef.current.startMouseX;
     const newY = Math.max(0.05, Math.min(0.95, draggingRef.current.startCustomY + deltaY));
     const newX = Math.max(0.05, Math.min(0.95, draggingRef.current.startCustomX + deltaX));
-    updateLayer(draggingRef.current.layerId, { customY: newY, customX: newX });
-  }, [getCanvasCoords, findClosestLayer]);
+
+    if (draggingRef.current.type === "sticker") {
+      setStickers((prev) => prev.map((s) => s.id === draggingRef.current!.id ? { ...s, x: newX, y: newY } : s));
+    } else {
+      updateLayer(draggingRef.current.id, { customY: newY, customX: newX });
+    }
+  }, [getCanvasCoords, findClosestDraggable]);
 
   const handleCanvasPointerUp = useCallback(() => {
     draggingRef.current = null;
     if (canvasRef.current) canvasRef.current.style.cursor = "default";
   }, []);
 
-  // Global mouseup/touchend to handle drag release outside canvas
+  // Global mouseup/touchend
   useEffect(() => {
     const handleUp = () => {
       draggingRef.current = null;
@@ -919,6 +990,28 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
 
   const resetPositions = useCallback(() => {
     setLayers((prev) => prev.map((l) => ({ ...l, customY: undefined, customX: undefined })));
+  }, []);
+
+  const resetFilters = useCallback(() => {
+    setBrightness(0);
+    setContrast(0);
+    setDarken(0);
+  }, []);
+
+  const addSticker = useCallback((emoji: string) => {
+    if (stickers.length >= MAX_STICKERS) {
+      toast.error(`Máximo de ${MAX_STICKERS} stickers`);
+      return;
+    }
+    setStickers((prev) => [...prev, { id: `sticker-${Date.now()}`, emoji, x: 0.5, y: 0.5, size: 60 }]);
+  }, [stickers.length]);
+
+  const removeSticker = useCallback((id: string) => {
+    setStickers((prev) => prev.filter((s) => s.id !== id));
+  }, []);
+
+  const updateStickerSize = useCallback((id: string, size: number) => {
+    setStickers((prev) => prev.map((s) => s.id === id ? { ...s, size } : s));
   }, []);
 
   const handleSaveWithText = async () => {
@@ -948,6 +1041,7 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
   };
 
   const hasAnyText = layers.some((l) => l.content.trim());
+  const hasFilters = brightness !== 0 || contrast !== 0 || darken !== 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -977,7 +1071,7 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
             <div className="flex items-center justify-between mt-1.5 px-1">
               <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                 <GripVertical className="w-3 h-3" />
-                Arraste os textos na imagem para reposicionar
+                Arraste textos e stickers para reposicionar
               </p>
               {layers.some((l) => l.customY !== undefined || l.customX !== undefined) && (
                 <button
@@ -1014,6 +1108,65 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
                     <span className="text-[10px] text-muted-foreground">{tpl.description}</span>
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Photo filters */}
+            <div className="space-y-3 p-3 rounded-xl border border-border/40 bg-muted/5">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                  <Sun className="w-3.5 h-3.5" /> Ajustes da foto
+                </p>
+                {hasFilters && (
+                  <button type="button" onClick={resetFilters} className="text-[10px] text-primary hover:underline">
+                    Resetar
+                  </button>
+                )}
+              </div>
+
+              {/* Brightness */}
+              <div className="flex items-center gap-2">
+                <Sun className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <span className="text-[10px] text-muted-foreground shrink-0 w-14">Brilho</span>
+                <Slider
+                  value={[brightness]}
+                  onValueChange={([v]) => setBrightness(v)}
+                  min={-50}
+                  max={50}
+                  step={1}
+                  className="flex-1"
+                />
+                <span className="text-[10px] text-muted-foreground w-8 text-right">{brightness > 0 ? "+" : ""}{brightness}</span>
+              </div>
+
+              {/* Contrast */}
+              <div className="flex items-center gap-2">
+                <Contrast className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <span className="text-[10px] text-muted-foreground shrink-0 w-14">Contraste</span>
+                <Slider
+                  value={[contrast]}
+                  onValueChange={([v]) => setContrast(v)}
+                  min={-50}
+                  max={50}
+                  step={1}
+                  className="flex-1"
+                />
+                <span className="text-[10px] text-muted-foreground w-8 text-right">{contrast > 0 ? "+" : ""}{contrast}</span>
+              </div>
+
+              {/* Darken */}
+              <div className="flex items-center gap-2">
+                <Moon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <span className="text-[10px] text-muted-foreground shrink-0 w-14">Escurecer</span>
+                <Slider
+                  value={[darken]}
+                  onValueChange={([v]) => setDarken(v)}
+                  min={0}
+                  max={80}
+                  step={1}
+                  className="flex-1"
+                />
+                <span className="text-[10px] text-muted-foreground w-8 text-right">{darken}%</span>
               </div>
             </div>
 
@@ -1119,6 +1272,62 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
               </Popover>
             </div>
 
+            {/* Stickers */}
+            <div className="space-y-3 p-3 rounded-xl border border-border/40 bg-muted/5">
+              <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                <Smile className="w-3.5 h-3.5" /> Stickers ({stickers.length}/{MAX_STICKERS})
+              </p>
+
+              {/* Emoji grid */}
+              <div className="space-y-2">
+                {STICKER_CATEGORIES.map((cat) => (
+                  <div key={cat.label}>
+                    <span className="text-[10px] text-muted-foreground font-medium">{cat.label}</span>
+                    <div className="flex gap-1 flex-wrap mt-0.5">
+                      {cat.emojis.map((emoji) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => addSticker(emoji)}
+                          disabled={stickers.length >= MAX_STICKERS}
+                          className="w-8 h-8 flex items-center justify-center text-lg rounded-lg hover:bg-primary/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Active stickers list */}
+              {stickers.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-border/30">
+                  {stickers.map((s) => (
+                    <div key={s.id} className="flex items-center gap-2">
+                      <span className="text-lg">{s.emoji}</span>
+                      <Slider
+                        value={[s.size]}
+                        onValueChange={([v]) => updateStickerSize(s.id, v)}
+                        min={20}
+                        max={120}
+                        step={2}
+                        className="flex-1"
+                      />
+                      <span className="text-[10px] text-muted-foreground w-8 text-right">{s.size}px</span>
+                      <button
+                        type="button"
+                        onClick={() => removeSticker(s.id)}
+                        className="text-destructive hover:text-destructive/80 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Card settings — only for Escassez */}
             {template === "escassez" && (
               <div className="space-y-3 p-3 rounded-xl border border-border/40 bg-muted/5">
@@ -1126,7 +1335,6 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
                   <Square className="w-3.5 h-3.5" /> Card central
                 </p>
 
-                {/* Toggle card on/off */}
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">Exibir card</span>
                   <Switch
@@ -1137,7 +1345,6 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
 
                 {cardSettings.showCard && (
                   <>
-                    {/* Opacity */}
                     <div className="flex items-center gap-2">
                       <Eye className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                       <span className="text-[10px] text-muted-foreground shrink-0 w-14">Opacidade</span>
@@ -1152,7 +1359,6 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
                       <span className="text-[10px] text-muted-foreground w-8 text-right">{cardSettings.opacity}%</span>
                     </div>
 
-                    {/* Size */}
                     <div className="flex items-center gap-2">
                       <Maximize2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                       <span className="text-[10px] text-muted-foreground shrink-0 w-14">Tamanho</span>
@@ -1170,6 +1376,8 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
                 )}
               </div>
             )}
+
+            {/* Text layers */}
             <div className="space-y-4">
               {layers.map((layer) => (
                 <div key={layer.id} className="space-y-2 p-3 rounded-xl border border-border/40 bg-muted/5">
@@ -1181,7 +1389,6 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
                     className="h-9 text-sm"
                   />
 
-                  {/* Font family */}
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] text-muted-foreground shrink-0 w-10">Fonte</span>
                     <Select
@@ -1201,7 +1408,6 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
                     </Select>
                   </div>
 
-                  {/* Font size slider */}
                   <div className="flex items-center gap-2">
                     <ALargeSmall className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                     <Slider
@@ -1217,7 +1423,6 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
                     </span>
                   </div>
 
-                  {/* Shadow controls */}
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] text-muted-foreground shrink-0">Sombra</span>
                     <Switch
