@@ -779,6 +779,13 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
   // Stickers
   const [stickers, setStickers] = useState<Sticker[]>([]);
 
+  // Reset appliedPresetRef when dialog closes so it re-applies on reopen
+  useEffect(() => {
+    if (!open) {
+      appliedPresetRef.current = null;
+    }
+  }, [open]);
+
   // Pre-fill layers from campaign type when editor opens
   useEffect(() => {
     if (!open || !campaignType) return;
