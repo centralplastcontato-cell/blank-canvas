@@ -221,8 +221,11 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
+    let leadId: string;
+
     if (existingLead) {
       // Lead already exists — update created_at to move to top + log return in history
+      leadId = existingLead.id;
       const newData = {
         name: name.trim(),
         unit: unit || null,
@@ -265,8 +268,8 @@ Deno.serve(async (req) => {
 
       console.log(`Returning lead updated: ${name.trim()} - ${normalizedPhone} (company: ${company_id})`);
     } else {
-      // New lead — insert
-      const { error: insertError } = await supabase
+      // New lead — insert and retrieve the ID
+      const { data: newLead, error: insertError } = await supabase
         .from('campaign_leads')
         .insert({
           name: name.trim(),
@@ -280,9 +283,11 @@ Deno.serve(async (req) => {
           status: customStatus || 'novo',
           company_id: company_id,
           observacoes: observacoes || null,
-        });
+        })
+        .select('id')
+        .single();
 
-      if (insertError) {
+      if (insertError || !newLead) {
         console.error('Error inserting lead:', insertError);
         return new Response(
           JSON.stringify({ error: 'Erro ao salvar. Tente novamente.' }),
@@ -290,7 +295,36 @@ Deno.serve(async (req) => {
         );
       }
 
+      leadId = newLead.id;
       console.log(`New lead created: ${name.trim()} - ${normalizedPhone} (company: ${company_id})`);
+    }
+
+    // Link lead to existing WhatsApp conversation (if any)
+    try {
+      const { data: conversation } = await supabase
+        .from('wapi_conversations')
+        .select('id')
+        .like('phone', `%${normalizedPhone}`)
+        .eq('company_id', company_id)
+        .order('last_message_at', { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (conversation) {
+        const { error: linkError } = await supabase
+          .from('wapi_conversations')
+          .update({ lead_id: leadId, contact_name: name.trim() })
+          .eq('id', conversation.id);
+
+        if (linkError) {
+          console.error('Error linking lead to conversation:', linkError);
+        } else {
+          console.log(`Lead ${leadId} linked to conversation ${conversation.id}`);
+        }
+      }
+    } catch (linkErr) {
+      // Non-blocking — don't fail the lead submission
+      console.error('Error searching for conversation to link:', linkErr);
     }
 
     return new Response(
