@@ -436,6 +436,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
         body: {
           action: 'send-text',
           phone: phoneWithCountry,
+          contactName: leadInfo.name,
           message,
           unit: normalizedUnit,
           lpMode: true,
