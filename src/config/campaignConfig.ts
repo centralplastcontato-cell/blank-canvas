@@ -14,9 +14,9 @@ export const campaignConfig = {
     headline: "Promoção especial do mês do consumidor",
     description: "Para comemorar o mês do consumidor, o Castelo da Diversão preparou um presente especial para as famílias. Os 10 primeiros contratos fechados garantem bônus exclusivos!",
     benefits: [
-      "🎁 Decoração completa",
-      "🍬 Docinhos para mesa de decoração",
-      "🪑 Toalhas para as mesas dos convidados",
+      "Decoração temática encantadora",
+      "Docinhos para mesa de decoração",
+      "Toalhas para as mesas dos convidados",
     ],
     validUntil: "31 de Março de 2026",
     conditions: [
