@@ -1,4 +1,3 @@
-import { campaignConfig } from "@/config/campaignConfig";
 import logoCastelo from "@/assets/logo-castelo.png";
  import { Instagram, Facebook, MessageCircle, MapPin, Building2 } from "lucide-react";
  import { Link } from "react-router-dom";
@@ -72,7 +71,7 @@ export function Footer() {
                </Link>
              </div>
             <p className="text-sm text-primary-foreground/50">
-              Campanha: {campaignConfig.campaignName}
+              Buffet infantil em Sorocaba - SP
             </p>
             <p className="text-sm text-primary-foreground/50 mt-1">
               © {new Date().getFullYear()} Castelo da Diversão. Todos os direitos reservados.
