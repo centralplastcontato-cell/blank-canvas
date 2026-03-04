@@ -28,7 +28,7 @@ const LandingPage = () => {
       {/* Dark mode toggle */}
       <button
         onClick={() => setIsDark(!isDark)}
-        className="fixed top-4 right-4 z-50 bg-card/80 backdrop-blur-md border border-border rounded-full p-3 shadow-lg hover:scale-110 transition-transform"
+        className="fixed bottom-4 left-4 z-50 bg-card/80 backdrop-blur-md border border-border rounded-full p-3 shadow-lg hover:scale-110 transition-transform"
         aria-label="Alternar modo escuro"
       >
         {isDark ? <Sun className="w-5 h-5 text-secondary" /> : <Moon className="w-5 h-5 text-foreground" />}
