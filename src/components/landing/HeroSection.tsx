@@ -12,8 +12,8 @@ interface HeroSectionProps {
 const bonusCards = [
   {
     icon: Sparkles,
-    title: "Decoração completa",
-    description: "Mesa principal decorada para deixar a festa ainda mais especial.",
+    title: "Decoração temática encantadora",
+    description: "Escolha entre mais de 30 temas incríveis para transformar a festa em um momento mágico.",
     gradient: "from-primary/15 to-primary/5",
     border: "border-primary/25",
     iconBg: "bg-primary/15",
