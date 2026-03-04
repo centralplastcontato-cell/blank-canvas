@@ -1,7 +1,10 @@
 import { getCanonicalHost, isHubDomain, isPreviewDomain, getKnownBuffetDomain } from "@/hooks/useDomainDetection";
 import HubLandingPage from "./HubLandingPage";
+import LandingPage from "./LandingPage";
 import DynamicLandingPage from "./DynamicLandingPage";
 import NotFound from "./NotFound";
+
+const CASTELO_DOMAINS = ["castelodadiversao.com.br", "castelodadiversao.online"];
 
 /**
  * Routes the root "/" path based on domain:
@@ -24,9 +27,9 @@ export default function RootPage() {
     return <HubLandingPage />;
   }
 
-  // Preview / localhost → Castelo dynamic LP (same as .com.br)
-  if (isPreviewDomain()) {
-    return <DynamicLandingPage domain="castelodadiversao.com.br" />;
+  // Preview / localhost or Castelo domains → static promo LP
+  if (isPreviewDomain() || CASTELO_DOMAINS.includes(canonical)) {
+    return <LandingPage />;
   }
 
   // Known buffet domains — explicitly mapped, prevents LP crossover
