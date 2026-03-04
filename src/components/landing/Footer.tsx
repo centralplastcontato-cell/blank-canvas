@@ -4,7 +4,7 @@ import logoCastelo from "@/assets/logo-castelo.png";
 
 export function Footer() {
   return (
-    <footer className="bg-foreground text-primary-foreground py-12">
+    <footer className="bg-[hsl(260_30%_15%)] text-white py-12">
       <div className="section-container">
         <div className="text-center">
           <img 
@@ -12,7 +12,7 @@ export function Footer() {
             alt="Castelo da Diversão" 
             className="w-32 md:w-40 mx-auto mb-4"
           />
-          <p className="text-primary-foreground/70 mb-6 max-w-md mx-auto">
+          <p className="text-white/70 mb-6 max-w-md mx-auto">
             Buffet infantil especializado em festas inesquecíveis.
           </p>
           
@@ -21,7 +21,7 @@ export function Footer() {
               href="https://www.instagram.com/castelodadiversao?igsh=bXFiaHU5dmxjdGsz&utm_source=qr"
               target="_blank"
               rel="noopener noreferrer"
-              className="group flex items-center gap-2 text-primary-foreground/70 hover:text-primary-foreground transition-all duration-300 text-lg"
+               className="group flex items-center gap-2 text-white/70 hover:text-white transition-all duration-300 text-lg"
             >
               <Instagram size={24} className="transition-transform duration-300 group-hover:scale-125 group-hover:rotate-6" />
               <span>Instagram</span>
@@ -30,7 +30,7 @@ export function Footer() {
               href="https://www.facebook.com/share/1G4d6VRmrF/?mibextid=wwXIfr"
               target="_blank"
               rel="noopener noreferrer"
-              className="group flex items-center gap-2 text-primary-foreground/70 hover:text-primary-foreground transition-all duration-300 text-lg"
+              className="group flex items-center gap-2 text-white/70 hover:text-white transition-all duration-300 text-lg"
             >
               <Facebook size={24} className="transition-transform duration-300 group-hover:scale-125 group-hover:rotate-6" />
               <span>Facebook</span>
@@ -60,20 +60,20 @@ export function Footer() {
             </a>
           </div>
 
-          <div className="border-t border-primary-foreground/20 pt-6">
+          <div className="border-t border-white/20 pt-6">
              <div className="mb-4">
                <Link
                  to="/para-buffets"
-                 className="inline-flex items-center gap-2 text-primary-foreground/70 hover:text-primary-foreground transition-colors text-sm"
+                  className="inline-flex items-center gap-2 text-white/70 hover:text-white transition-colors text-sm"
                >
                  <Building2 size={16} />
                  <span>Tem um buffet? Conheça nossa plataforma de gestão</span>
                </Link>
              </div>
-            <p className="text-sm text-primary-foreground/50">
+            <p className="text-sm text-white/50">
               Buffet infantil em Sorocaba - SP
             </p>
-            <p className="text-sm text-primary-foreground/50 mt-1">
+            <p className="text-sm text-white/50 mt-1">
               © {new Date().getFullYear()} Castelo da Diversão. Todos os direitos reservados.
             </p>
           </div>
