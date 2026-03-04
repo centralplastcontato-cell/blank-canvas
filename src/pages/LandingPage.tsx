@@ -5,6 +5,7 @@ import { OfferSection } from "@/components/landing/OfferSection";
 import { BenefitsSection } from "@/components/landing/BenefitsSection";
 import { InstagramSection } from "@/components/landing/InstagramSection";
 import { UrgencySection } from "@/components/landing/UrgencySection";
+import { VideoGallerySection } from "@/components/landing/VideoGallerySection";
 import { LeadChatbot } from "@/components/landing/LeadChatbot";
 import { FloatingCTA } from "@/components/landing/FloatingCTA";
 import { Footer } from "@/components/landing/Footer";
@@ -25,6 +26,7 @@ const LandingPage = () => {
       <HeroSection onCtaClick={openChat} />
       <BenefitsSection />
       <OfferSection onCtaClick={openChat} />
+      <VideoGallerySection />
       <InstagramSection />
       <UrgencySection onCtaClick={openChat} />
       <Footer />
