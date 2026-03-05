@@ -42,7 +42,7 @@ import {
   Image as ImageIcon, Mic, Paperclip, Loader2, X,
   Users, ArrowRightLeft, Trash2, Eraser,
   CalendarCheck, Briefcase, FileCheck, ArrowDown, Video,
-  Pencil, Copy, ChevronDown, ChevronUp, Download, Pin, PinOff, Reply, Monitor
+  Pencil, Copy, ChevronDown, ChevronUp, Download, Pin, PinOff, Reply
 } from "lucide-react";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { LinkPreviewCard, extractFirstUrl } from "@/components/whatsapp/LinkPreviewCard";
