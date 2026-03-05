@@ -4206,6 +4206,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                   msg.from_me ? "justify-end" : "justify-start",
                                   (msg.message_type === 'image' || msg.message_type === 'video') && "px-2 pb-1"
                                 )}>
+                                  {msg.from_me && msg.metadata?.source === 'platform' && !msg.metadata?.type && (
+                                    <span className="w-2 h-2 rounded-full bg-yellow-400 inline-block shrink-0" title="Enviado pela plataforma" />
+                                  )}
                                   <span className={cn(
                                     "text-[10px]",
                                     msg.from_me ? "text-primary-foreground/70" : "text-muted-foreground"
@@ -4316,11 +4319,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                      msg.metadata.type === 'bot_inactive' ? 'Reenvio por inatividade' :
                                      'Enviado automaticamente'}
                                   </span>
-                                </div>
-                              )}
-                              {msg.from_me && msg.metadata?.source === 'platform' && !msg.metadata?.type && (
-                                <div className="flex items-center justify-end mr-1 mt-0.5">
-                                  <span className="w-3 h-3 rounded-full bg-yellow-400 inline-block" title="Enviado pela plataforma" />
                                 </div>
                               )}
                             </div>
@@ -5117,6 +5115,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                               msg.from_me ? "justify-end" : "justify-start",
                               (msg.message_type === 'image' || msg.message_type === 'video') && "px-2 pb-1"
                             )}>
+                              {msg.from_me && msg.metadata?.source === 'platform' && !msg.metadata?.type && (
+                                <span className="w-2 h-2 rounded-full bg-yellow-400 inline-block shrink-0" title="Enviado pela plataforma" />
+                              )}
                               <span className={cn(
                                 "text-[10px]",
                                 msg.from_me ? "text-primary-foreground/70" : "text-muted-foreground"
@@ -5227,11 +5228,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                  msg.metadata.type === 'bot_inactive' ? 'Reenvio por inatividade' :
                                  'Enviado automaticamente'}
                               </span>
-                            </div>
-                          )}
-                          {msg.from_me && msg.metadata?.source === 'platform' && !msg.metadata?.type && (
-                            <div className="flex items-center justify-end mr-1 mt-0.5">
-                              <span className="w-3 h-3 rounded-full bg-yellow-400 inline-block" title="Enviado pela plataforma" />
                             </div>
                           )}
                         </div>
