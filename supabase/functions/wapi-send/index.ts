@@ -532,6 +532,7 @@ Deno.serve(async (req) => {
             status: 'sent',
             timestamp: new Date().toISOString(),
             company_id: resolvedCompanyId,
+            metadata: { source: 'platform' },
           });
           await supabase.from('wapi_conversations').update({
             last_message_at: new Date().toISOString(),
@@ -597,6 +598,7 @@ Deno.serve(async (req) => {
             status: 'sent',
             timestamp: new Date().toISOString(),
             company_id: companyId,
+            metadata: { source: 'platform' },
           });
           await supabase.from('wapi_conversations').update({ 
             last_message_at: new Date().toISOString(),
@@ -668,6 +670,7 @@ Deno.serve(async (req) => {
             status: 'sent',
             timestamp: new Date().toISOString(),
             company_id: companyId,
+            metadata: { source: 'platform' },
           });
           await supabase.from('wapi_conversations').update({ 
             last_message_at: new Date().toISOString(),
@@ -719,6 +722,7 @@ Deno.serve(async (req) => {
             status: 'sent',
             timestamp: new Date().toISOString(),
             company_id: companyId,
+            metadata: { source: 'platform' },
           });
           await supabase.from('wapi_conversations').update({ 
             last_message_at: new Date().toISOString(),
@@ -767,6 +771,7 @@ Deno.serve(async (req) => {
             status: 'sent',
             timestamp: new Date().toISOString(),
             company_id: companyId,
+            metadata: { source: 'platform' },
           });
           await supabase.from('wapi_conversations').update({ 
             last_message_at: new Date().toISOString(),
@@ -833,6 +838,7 @@ Deno.serve(async (req) => {
             status: 'sent',
             timestamp: new Date().toISOString(),
             company_id: companyId,
+            metadata: { source: 'platform' },
           });
           await supabase.from('wapi_conversations').update({ 
             last_message_at: new Date().toISOString(),

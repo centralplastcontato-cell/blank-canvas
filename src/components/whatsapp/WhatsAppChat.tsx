@@ -42,7 +42,7 @@ import {
   Image as ImageIcon, Mic, Paperclip, Loader2, X,
   Users, ArrowRightLeft, Trash2, Eraser,
   CalendarCheck, Briefcase, FileCheck, ArrowDown, Video,
-  Pencil, Copy, ChevronDown, ChevronUp, Download, Pin, PinOff, Reply
+  Pencil, Copy, ChevronDown, ChevronUp, Download, Pin, PinOff, Reply, Monitor
 } from "lucide-react";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { LinkPreviewCard, extractFirstUrl } from "@/components/whatsapp/LinkPreviewCard";
@@ -1842,6 +1842,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       status: 'pending',
       timestamp: new Date().toISOString(),
       quoted_message_id: quotedMsg?.id || null,
+      metadata: { source: 'platform' },
     };
     
     setMessages(prev => [...prev, optimisticMessage]);
@@ -1921,6 +1922,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       media_url: null,
       status: 'pending',
       timestamp: new Date().toISOString(),
+      metadata: { source: 'platform' },
     };
     
     setMessages(prev => [...prev, optimisticMessage]);
@@ -2369,9 +2371,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       from_me: true,
       message_type: 'audio',
       content: '[Áudio]',
-      media_url: null, // Will be updated when upload completes
+      media_url: null,
       status: 'pending',
       timestamp: new Date().toISOString(),
+      metadata: { source: 'platform' },
     };
     
     setMessages(prev => [...prev, optimisticMessage]);
@@ -4300,7 +4303,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                   </DropdownMenu>
                                 )}
                               </div>
-                              {msg.metadata?.source === 'auto_reminder' && (
+                               {msg.metadata?.source === 'auto_reminder' && (
                                 <div className={cn(
                                   "flex items-center gap-1 mt-0.5 text-[10px] text-muted-foreground/70",
                                   msg.from_me ? "justify-end mr-1" : "justify-start ml-1"
@@ -4313,6 +4316,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                      msg.metadata.type === 'bot_inactive' ? 'Reenvio por inatividade' :
                                      'Enviado automaticamente'}
                                   </span>
+                                </div>
+                              )}
+                              {msg.from_me && msg.metadata?.source === 'platform' && (
+                                <div className="flex items-center gap-1 mt-0.5 text-[10px] text-muted-foreground/70 justify-end mr-1">
+                                  <Monitor className="w-2.5 h-2.5" />
+                                  <span>Enviado pela plataforma</span>
                                 </div>
                               )}
                             </div>
@@ -5219,6 +5228,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                  msg.metadata.type === 'bot_inactive' ? 'Reenvio por inatividade' :
                                  'Enviado automaticamente'}
                               </span>
+                            </div>
+                          )}
+                          {msg.from_me && msg.metadata?.source === 'platform' && (
+                            <div className="flex items-center gap-1 mt-0.5 text-[10px] text-muted-foreground/70 justify-end mr-1">
+                              <Monitor className="w-2.5 h-2.5" />
+                              <span>Enviado pela plataforma</span>
                             </div>
                           )}
                         </div>
