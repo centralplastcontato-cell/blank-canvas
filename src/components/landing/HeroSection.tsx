@@ -184,10 +184,10 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
               className="mt-4 inline-flex flex-col items-center gap-1 bg-secondary/20 backdrop-blur-md border border-secondary/30 rounded-xl px-6 py-3"
             >
               <span className="text-lg md:text-xl font-extrabold text-secondary-foreground">
-                Valor estimado dos bônus: <span className="text-secondary">R$ 1.000,00</span>
+                🎁 Bônus exclusivos para você!
               </span>
               <span className="text-sm text-primary-foreground/80 font-medium">
-                Você ganha tudo isso sem custo adicional.
+                Garanta vantagens especiais ao fechar sua festa agora.
               </span>
             </motion.div>
           </motion.div>
