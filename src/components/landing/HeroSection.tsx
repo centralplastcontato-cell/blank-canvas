@@ -21,8 +21,8 @@ const bonusCards = [
   },
   {
     icon: Cake,
-    title: "Docinhos para mesa decorativa",
-    description: "Docinhos decorativos para uma mesa linda e encantadora.",
+    title: "120 Docinhos decorativos",
+    description: "Mesa de doces completa com 120 docinhos finos para encantar seus convidados.",
     gradient: "from-secondary/20 to-secondary/5",
     border: "border-secondary/30",
     iconBg: "bg-secondary/20",
