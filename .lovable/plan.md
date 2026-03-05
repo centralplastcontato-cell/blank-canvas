@@ -1,42 +1,64 @@
 
 
-## Plano: Vincular lead à conversa e passar nome no wapi-send
+## Bolinha amarela permanente DENTRO do balão
 
-### Alterações
+### Problema atual
+A bolinha amarela está posicionada **fora** do balão azul (após o `</div>` que fecha o balão). Isso causa dois problemas:
+- Visualmente aparece separada, abaixo do balão
+- Pode "sumir" visualmente dependendo do layout
 
-**1. `src/components/landing/LeadChatbot.tsx`** (linha ~436-442)
-- Adicionar `contactName: leadInfo.name` ao body da chamada `wapi-send` para que a conversa seja criada/atualizada com o nome correto.
+### Solução
+Mover a bolinha para **dentro do balão**, ao lado do horário e dos checkmarks de status. Assim fica permanente, discreto e integrado — igual na referência que você mostrou (imagem 3).
 
-**2. `supabase/functions/submit-lead/index.ts`** (após criação/atualização do lead)
-- Após o insert ou update do lead, buscar a conversa correspondente em `wapi_conversations` pelo telefone normalizado + `company_id`.
-- Se encontrar, fazer UPDATE com `lead_id` e `contact_name` do lead.
-- Isso funciona tanto para leads novos quanto retornantes.
-- Para o lead novo, preciso recuperar o `id` do insert (usar `.select('id').single()`).
-- Para o lead existente, já temos `existingLead.id`.
+### Mudança visual
 
-### Detalhes técnicos
-
-A busca da conversa será feita com:
-```sql
-SELECT id FROM wapi_conversations
-WHERE phone LIKE '%{normalizedPhone}'
-  AND company_id = '{company_id}'
-ORDER BY last_message_at DESC
-LIMIT 1
+Antes:
+```
+┌──────────────────────┐
+│ Mensagem de texto    │
+│              10:41 ✓✓│
+└──────────────────────┘
+  🟡  (fora do balão)
 ```
 
-O UPDATE será:
-```sql
-UPDATE wapi_conversations
-SET lead_id = '{lead_id}', contact_name = '{name}'
-WHERE id = '{conversation_id}'
+Depois:
+```
+┌──────────────────────┐
+│ Mensagem de texto    │
+│         🟡 10:41 ✓✓  │
+└──────────────────────┘
 ```
 
-Nenhuma alteração em webhooks, instâncias ou lógica de conexão WhatsApp. Apenas leitura + update de dados na tabela `wapi_conversations`.
+### Alterações — `src/components/whatsapp/WhatsAppChat.tsx`
 
-### Arquivos alterados
-| Arquivo | Tipo |
+**1. Desktop (linha ~4204-4216)** — Adicionar a bolinha dentro da `div` de timestamp/status, antes do horário:
+
+```tsx
+<div className={cn("flex items-center gap-1 mt-1", ...)}>
+  {/* NOVO: bolinha amarela dentro do balão */}
+  {msg.from_me && msg.metadata?.source === 'platform' && msg.metadata?.source !== 'auto_reminder' && (
+    <span className="w-2 h-2 rounded-full bg-yellow-400 inline-block shrink-0" title="Enviado pela plataforma" />
+  )}
+  <span className="text-[10px] ...">{formatMessageTime(msg.timestamp)}</span>
+  {msg.from_me && getStatusIcon(msg.status)}
+</div>
+```
+
+**2. Mobile (linha ~5115-5127)** — Mesma alteração no bloco de timestamp mobile.
+
+**3. Remover** os blocos antigos da bolinha que ficam fora do balão (linhas ~4321-4325 e ~5232-5236).
+
+### Por que não vai sumir
+- Os dados `metadata: { source: 'platform' }` já estão salvos no banco pelo `wapi-send`
+- O `SELECT` inicial já busca o campo `metadata`
+- O realtime já inclui `metadata` na interface `Message`
+- Ao recarregar a página ou trocar de conversa, a bolinha continua aparecendo porque vem do banco
+
+### Tamanho da bolinha
+Reduzida de `w-3 h-3` para `w-2 h-2` para caber harmoniosamente ao lado do horário, sem poluir visualmente.
+
+### Arquivo alterado
+| Arquivo | Mudança |
 |---|---|
-| `src/components/landing/LeadChatbot.tsx` | Frontend |
-| `supabase/functions/submit-lead/index.ts` | Edge Function |
+| `src/components/whatsapp/WhatsAppChat.tsx` | Mover bolinha para dentro do timestamp (desktop + mobile), remover blocos antigos |
 
