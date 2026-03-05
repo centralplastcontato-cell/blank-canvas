@@ -42,7 +42,7 @@ import {
   Image as ImageIcon, Mic, Paperclip, Loader2, X,
   Users, ArrowRightLeft, Trash2, Eraser,
   CalendarCheck, Briefcase, FileCheck, ArrowDown, Video,
-  Pencil, Copy, ChevronDown, ChevronUp, Download, Pin, PinOff, Reply, Monitor
+  Pencil, Copy, ChevronDown, ChevronUp, Download, Pin, PinOff, Reply
 } from "lucide-react";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { LinkPreviewCard, extractFirstUrl } from "@/components/whatsapp/LinkPreviewCard";
@@ -4318,10 +4318,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                   </span>
                                 </div>
                               )}
-                              {msg.from_me && msg.metadata?.source === 'platform' && (
-                                <div className="flex items-center gap-1 mt-0.5 text-[10px] text-muted-foreground/70 justify-end mr-1">
-                                  <Monitor className="w-2.5 h-2.5" />
-                                  <span>Enviado pela plataforma</span>
+                              {msg.from_me && msg.metadata?.source === 'platform' && !msg.metadata?.type && (
+                                <div className="flex items-center justify-end mr-1 mt-0.5">
+                                  <span className="w-3 h-3 rounded-full bg-yellow-400 inline-block" title="Enviado pela plataforma" />
                                 </div>
                               )}
                             </div>
@@ -5230,10 +5229,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                               </span>
                             </div>
                           )}
-                          {msg.from_me && msg.metadata?.source === 'platform' && (
-                            <div className="flex items-center gap-1 mt-0.5 text-[10px] text-muted-foreground/70 justify-end mr-1">
-                              <Monitor className="w-2.5 h-2.5" />
-                              <span>Enviado pela plataforma</span>
+                          {msg.from_me && msg.metadata?.source === 'platform' && !msg.metadata?.type && (
+                            <div className="flex items-center justify-end mr-1 mt-0.5">
+                              <span className="w-3 h-3 rounded-full bg-yellow-400 inline-block" title="Enviado pela plataforma" />
                             </div>
                           )}
                         </div>

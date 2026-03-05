@@ -12,6 +12,7 @@ interface Message {
   media_url: string | null;
   status: string;
   timestamp: string;
+  metadata?: Record<string, string> | null;
 }
 
 interface UseMessagesRealtimeOptions {
