@@ -9,7 +9,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { LeadIntelligence } from "@/hooks/useLeadIntelligence";
 import { LEAD_STATUS_LABELS, LeadStatus } from "@/types/crm";
-import { formatDistanceToNow, subDays } from "date-fns";
+import { formatDistanceToNow, subDays, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 const InlineAISummary = lazy(() => import("./InlineAISummary").then(m => ({ default: m.InlineAISummary })));
