@@ -372,8 +372,13 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
                                 {LEAD_STATUS_LABELS[lead.status as LeadStatus] || lead.status}
                               </span>
                             </div>
-                            {lead.lastCustomerMessageAt && (
+                            {lead.fuSentAt && (
                               <p className="text-xs text-muted-foreground mt-1">
+                                📩 Enviado: {format(new Date(lead.fuSentAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                              </p>
+                            )}
+                            {lead.lastCustomerMessageAt && (
+                              <p className="text-xs text-muted-foreground mt-0.5">
                                 Última msg: {timeAgo(lead.lastCustomerMessageAt)}
                               </p>
                             )}
