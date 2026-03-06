@@ -223,6 +223,7 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
           lastCustomerMessageAt: intel?.last_customer_message_at ?? null,
           fuNumber: leadMaxFu.get(lead.id) || 1,
           instanceUnit,
+          fuSentAt: leadFuSentAt.get(lead.id) || null,
         };
       });
 
