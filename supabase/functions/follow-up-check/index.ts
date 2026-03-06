@@ -161,6 +161,12 @@ Deno.serve(async (req) => {
 
     // Process each instance with follow-up enabled
     for (const settings of allSettings) {
+      // Check time window before processing follow-ups for this instance
+      if (isOutsideSendWindow(settings)) {
+        console.log(`[follow-up-check] ⏰ Outside send window (${settings.follow_up_min_hour ?? 8}h-${settings.follow_up_max_hour ?? 22}h) for instance ${settings.instance_id} — skipping`);
+        continue;
+      }
+
       // Process bot inactive follow-up (leads who stopped responding during bot flow)
       if (settings.bot_inactive_followup_enabled) {
         const result = await processBotInactiveFollowUp({
