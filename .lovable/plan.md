@@ -1,37 +1,42 @@
 
 
-## Plano: Horário limite para envio de Follow-ups
+## Plano: Vincular lead à conversa e passar nome no wapi-send
 
-### Problema
-Os follow-ups automáticos podem ser enviados a qualquer hora, inclusive de madrugada, o que é inconveniente para os clientes.
+### Alterações
 
-### Solução
-Adicionar um campo configurável `follow_up_max_hour` (padrão: 22) na tabela `wapi_bot_settings` e respeitar esse limite na Edge Function `follow-up-check`. Se estiver fora do horário permitido, o envio é adiado para o próximo dia útil dentro do horário.
+**1. `src/components/landing/LeadChatbot.tsx`** (linha ~436-442)
+- Adicionar `contactName: leadInfo.name` ao body da chamada `wapi-send` para que a conversa seja criada/atualizada com o nome correto.
 
-### Etapas
+**2. `supabase/functions/submit-lead/index.ts`** (após criação/atualização do lead)
+- Após o insert ou update do lead, buscar a conversa correspondente em `wapi_conversations` pelo telefone normalizado + `company_id`.
+- Se encontrar, fazer UPDATE com `lead_id` e `contact_name` do lead.
+- Isso funciona tanto para leads novos quanto retornantes.
+- Para o lead novo, preciso recuperar o `id` do insert (usar `.select('id').single()`).
+- Para o lead existente, já temos `existingLead.id`.
 
-**1. Migração de banco de dados**
-- Adicionar coluna `follow_up_max_hour` (integer, default 22) e `follow_up_min_hour` (integer, default 8) na tabela `wapi_bot_settings`.
-- Isso permite definir uma janela de envio (ex: 8h às 22h).
+### Detalhes técnicos
 
-**2. UI — Configurações > Automações > Follow-ups**
-- No card "Follow-up Automático" do `AutomationsSection.tsx`, adicionar um bloco no topo com dois campos numéricos:
-  - "Horário mínimo para envio" (padrão 8h)
-  - "Horário máximo para envio" (padrão 22h)
-- Usar o mesmo padrão de Input + onBlur + `updateBotSettings` já existente.
-- Exibir uma nota explicativa: "Follow-ups fora deste horário serão adiados para o próximo período permitido."
+A busca da conversa será feita com:
+```sql
+SELECT id FROM wapi_conversations
+WHERE phone LIKE '%{normalizedPhone}'
+  AND company_id = '{company_id}'
+ORDER BY last_message_at DESC
+LIMIT 1
+```
 
-**3. Edge Function `follow-up-check`**
-- No select de `allSettings`, incluir `follow_up_max_hour` e `follow_up_min_hour`.
-- Antes de enviar cada follow-up (nas funções `processFollowUp`, `processBotInactiveFollowUp`, `processNextStepReminder`), verificar a hora atual (timezone America/Sao_Paulo):
-  - Se hora atual < `min_hour` ou hora atual >= `max_hour`, pular o envio (o cron rodará novamente no próximo ciclo e enviará quando estiver no horário).
-- Isso é simples e seguro: não altera a lógica de elegibilidade, apenas adia o disparo.
+O UPDATE será:
+```sql
+UPDATE wapi_conversations
+SET lead_id = '{lead_id}', contact_name = '{name}'
+WHERE id = '{conversation_id}'
+```
 
-**4. Atualizar interface `BotSettings` e `FollowUpSettings`**
-- Adicionar os campos `follow_up_max_hour` e `follow_up_min_hour` nas interfaces TypeScript do frontend (`AutomationsSection.tsx`) e da Edge Function.
+Nenhuma alteração em webhooks, instâncias ou lógica de conexão WhatsApp. Apenas leitura + update de dados na tabela `wapi_conversations`.
 
-### Arquivos impactados
-- `supabase/migrations/` — nova migração (ALTER TABLE)
-- `src/components/whatsapp/settings/AutomationsSection.tsx` — UI dos campos
-- `supabase/functions/follow-up-check/index.ts` — lógica de horário
+### Arquivos alterados
+| Arquivo | Tipo |
+|---|---|
+| `src/components/landing/LeadChatbot.tsx` | Frontend |
+| `supabase/functions/submit-lead/index.ts` | Edge Function |
 
