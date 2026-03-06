@@ -26,6 +26,7 @@ interface FollowUpLead {
   lastCustomerMessageAt: string | null;
   fuNumber: number;
   instanceUnit: string | null;
+  fuSentAt: string | null;
 }
 
 interface FollowUpsTabProps {
