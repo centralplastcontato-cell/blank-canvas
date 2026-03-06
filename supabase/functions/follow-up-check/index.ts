@@ -35,6 +35,8 @@ interface FollowUpSettings {
   follow_up_4_enabled: boolean;
   follow_up_4_delay_hours: number;
   follow_up_4_message: string | null;
+  follow_up_min_hour: number;
+  follow_up_max_hour: number;
   auto_lost_enabled: boolean;
   auto_lost_delay_hours: number;
   next_step_reminder_enabled: boolean;
@@ -46,6 +48,15 @@ interface FollowUpSettings {
   instance_id: string;
   test_mode_enabled?: boolean;
   test_mode_number?: string | null;
+}
+
+/** Returns true if current time in America/Sao_Paulo is outside the allowed send window */
+function isOutsideSendWindow(settings: FollowUpSettings): boolean {
+  const minHour = settings.follow_up_min_hour ?? 8;
+  const maxHour = settings.follow_up_max_hour ?? 22;
+  const nowSP = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+  const currentHour = nowSP.getHours();
+  return currentHour < minHour || currentHour >= maxHour;
 }
 
 // Helper: checks if a conversation phone should be skipped due to test mode
@@ -116,7 +127,7 @@ Deno.serve(async (req) => {
     // Fetch all bot settings with any follow-up enabled
     const { data: allSettings, error: settingsError } = await supabase
       .from("wapi_bot_settings")
-      .select("instance_id, test_mode_enabled, test_mode_number, follow_up_enabled, follow_up_delay_hours, follow_up_message, follow_up_2_enabled, follow_up_2_delay_hours, follow_up_2_message, follow_up_3_enabled, follow_up_3_delay_hours, follow_up_3_message, follow_up_4_enabled, follow_up_4_delay_hours, follow_up_4_message, auto_lost_enabled, auto_lost_delay_hours, next_step_reminder_enabled, next_step_reminder_delay_minutes, next_step_reminder_message, bot_inactive_followup_enabled, bot_inactive_followup_delay_minutes, bot_inactive_followup_message")
+      .select("instance_id, test_mode_enabled, test_mode_number, follow_up_enabled, follow_up_delay_hours, follow_up_message, follow_up_2_enabled, follow_up_2_delay_hours, follow_up_2_message, follow_up_3_enabled, follow_up_3_delay_hours, follow_up_3_message, follow_up_4_enabled, follow_up_4_delay_hours, follow_up_4_message, follow_up_min_hour, follow_up_max_hour, auto_lost_enabled, auto_lost_delay_hours, next_step_reminder_enabled, next_step_reminder_delay_minutes, next_step_reminder_message, bot_inactive_followup_enabled, bot_inactive_followup_delay_minutes, bot_inactive_followup_message")
       .or("follow_up_enabled.eq.true,follow_up_2_enabled.eq.true,follow_up_3_enabled.eq.true,follow_up_4_enabled.eq.true,next_step_reminder_enabled.eq.true,bot_inactive_followup_enabled.eq.true,auto_lost_enabled.eq.true");
 
     if (settingsError) {

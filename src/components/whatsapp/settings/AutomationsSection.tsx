@@ -107,6 +107,8 @@ interface BotSettings {
   follow_up_4_enabled: boolean;
   follow_up_4_delay_hours: number;
   follow_up_4_message: string | null;
+  follow_up_min_hour: number;
+  follow_up_max_hour: number;
   auto_lost_enabled: boolean;
   auto_lost_delay_hours: number;
   next_step_reminder_enabled: boolean;
@@ -1606,6 +1608,61 @@ export function AutomationsSection() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Janela de horário */}
+              <div className="p-4 border rounded-lg bg-muted/30 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-primary" />
+                  <Label className="font-medium">Janela de envio</Label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Follow-ups fora deste horário serão adiados para o próximo período permitido.
+                </p>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="fu-min-hour" className="text-sm whitespace-nowrap">Das</Label>
+                    <Input
+                      id="fu-min-hour"
+                      type="number"
+                      min={0}
+                      max={23}
+                      value={botSettings?.follow_up_min_hour ?? 8}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value);
+                        if (!isNaN(v)) setBotSettings(prev => prev ? { ...prev, follow_up_min_hour: v } : prev);
+                      }}
+                      onBlur={(e) => {
+                        const v = Math.max(0, Math.min(23, parseInt(e.target.value) || 8));
+                        updateBotSettings({ follow_up_min_hour: v });
+                      }}
+                      className="w-20"
+                      disabled={isSaving}
+                    />
+                    <span className="text-sm text-muted-foreground">h</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="fu-max-hour" className="text-sm whitespace-nowrap">até</Label>
+                    <Input
+                      id="fu-max-hour"
+                      type="number"
+                      min={1}
+                      max={24}
+                      value={botSettings?.follow_up_max_hour ?? 22}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value);
+                        if (!isNaN(v)) setBotSettings(prev => prev ? { ...prev, follow_up_max_hour: v } : prev);
+                      }}
+                      onBlur={(e) => {
+                        const v = Math.max(1, Math.min(24, parseInt(e.target.value) || 22));
+                        updateBotSettings({ follow_up_max_hour: v });
+                      }}
+                      className="w-20"
+                      disabled={isSaving}
+                    />
+                    <span className="text-sm text-muted-foreground">h</span>
+                  </div>
+                </div>
+              </div>
+
               {/* First Follow-up */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
