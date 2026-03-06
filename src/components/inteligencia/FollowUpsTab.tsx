@@ -150,8 +150,9 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
         return;
       }
 
-      // For each lead, find the highest follow-up number
+      // For each lead, find the highest follow-up number and its sent date
       const leadMaxFu = new Map<string, number>();
+      const leadFuSentAt = new Map<string, string>();
       for (const ev of historyEvents) {
         let fuNum = 1;
         if (ev.action.includes("perdido automaticamente")) fuNum = 5;
@@ -159,7 +160,10 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
         else if (ev.action.includes("#3")) fuNum = 3;
         else if (ev.action.includes("#2")) fuNum = 2;
         const current = leadMaxFu.get(ev.lead_id) || 0;
-        if (fuNum > current) leadMaxFu.set(ev.lead_id, fuNum);
+        if (fuNum > current) {
+          leadMaxFu.set(ev.lead_id, fuNum);
+          leadFuSentAt.set(ev.lead_id, ev.created_at);
+        }
       }
 
       const leadIds = [...leadMaxFu.keys()];
