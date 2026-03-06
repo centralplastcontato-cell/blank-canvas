@@ -9,7 +9,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { LeadIntelligence } from "@/hooks/useLeadIntelligence";
 import { LEAD_STATUS_LABELS, LeadStatus } from "@/types/crm";
-import { formatDistanceToNow, subDays } from "date-fns";
+import { formatDistanceToNow, subDays, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 const InlineAISummary = lazy(() => import("./InlineAISummary").then(m => ({ default: m.InlineAISummary })));
@@ -26,6 +26,7 @@ interface FollowUpLead {
   lastCustomerMessageAt: string | null;
   fuNumber: number;
   instanceUnit: string | null;
+  fuSentAt: string | null;
 }
 
 interface FollowUpsTabProps {
@@ -149,8 +150,9 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
         return;
       }
 
-      // For each lead, find the highest follow-up number
+      // For each lead, find the highest follow-up number and its sent date
       const leadMaxFu = new Map<string, number>();
+      const leadFuSentAt = new Map<string, string>();
       for (const ev of historyEvents) {
         let fuNum = 1;
         if (ev.action.includes("perdido automaticamente")) fuNum = 5;
@@ -158,7 +160,10 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
         else if (ev.action.includes("#3")) fuNum = 3;
         else if (ev.action.includes("#2")) fuNum = 2;
         const current = leadMaxFu.get(ev.lead_id) || 0;
-        if (fuNum > current) leadMaxFu.set(ev.lead_id, fuNum);
+        if (fuNum > current) {
+          leadMaxFu.set(ev.lead_id, fuNum);
+          leadFuSentAt.set(ev.lead_id, ev.created_at);
+        }
       }
 
       const leadIds = [...leadMaxFu.keys()];
@@ -218,6 +223,7 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
           lastCustomerMessageAt: intel?.last_customer_message_at ?? null,
           fuNumber: leadMaxFu.get(lead.id) || 1,
           instanceUnit,
+          fuSentAt: leadFuSentAt.get(lead.id) || null,
         };
       });
 
@@ -366,8 +372,13 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
                                 {LEAD_STATUS_LABELS[lead.status as LeadStatus] || lead.status}
                               </span>
                             </div>
-                            {lead.lastCustomerMessageAt && (
+                            {lead.fuSentAt && (
                               <p className="text-xs text-muted-foreground mt-1">
+                                📩 Enviado: {format(new Date(lead.fuSentAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                              </p>
+                            )}
+                            {lead.lastCustomerMessageAt && (
+                              <p className="text-xs text-muted-foreground mt-0.5">
                                 Última msg: {timeAgo(lead.lastCustomerMessageAt)}
                               </p>
                             )}
