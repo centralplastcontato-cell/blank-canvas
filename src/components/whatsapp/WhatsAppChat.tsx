@@ -3375,7 +3375,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                             userId={userId}
                             currentUserName={currentUserName}
                             onStatusChange={handleConversationLeadStatusChange}
-                            className=""
+                            className="hidden md:inline-flex"
                           />
                           <span className="text-[11px] text-muted-foreground whitespace-nowrap">
                             {formatConversationDate(conv.last_message_at)}
