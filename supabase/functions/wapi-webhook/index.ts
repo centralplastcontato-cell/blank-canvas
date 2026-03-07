@@ -1933,7 +1933,7 @@ async function processBotQualification(
   // Then when the lead responds, bot_enabled is still false but we need to activate the flow
   if ((conv.bot_enabled === false || conv.bot_step === 'lp_sent') && botSettingsAllow) {
     // ✅ GUARD: Don't re-activate bot if the flow was already completed
-    const completedBotSteps = ['complete_final', 'flow_complete', 'flow_handoff', 'flow_ai_disabled', 'flow_no_followup', 'qualified_from_lp', 'transferred', 'work_interest', 'sending_materials'];
+    const completedBotSteps = ['complete_final', 'flow_complete', 'flow_handoff', 'flow_ai_disabled', 'flow_no_followup', 'qualified_from_lp', 'transferred', 'work_interest', 'sending_materials', 'human_takeover'];
     if (completedBotSteps.includes(conv.bot_step || '') || (conv.bot_step || '').startsWith('flow_')) {
       console.log(`[Bot] Flow already completed (step: ${conv.bot_step}), not re-activating bot for ${contactPhone}`);
       return;
@@ -3565,7 +3565,7 @@ async function processWebhookEvent(body: Record<string, unknown>) {
             // Message not in DB → sent from phone by human → disable bot
             console.log(`[Bot] Human phone message detected (msgId ${msgId}), disabling bot for conv ${ex.id}`);
             upd.bot_enabled = false;
-            upd.bot_step = null;
+            upd.bot_step = 'human_takeover';
           }
         }
         if (isGrp) { 
