@@ -1,44 +1,42 @@
 
 
-## Diagnóstico: Overflow horizontal na lista de conversas (todas as unidades/clientes)
+## Plano: Vincular lead à conversa e passar nome no wapi-send
 
-### O que encontrei
+### Alterações
 
-Olhando o screenshot com atenção, **TODAS** as conversas estão com o lado direito cortado (timestamps "18:", "17:", "15:" e badges parcialmente visíveis), **inclusive** conversas sem lead vinculado (como "Mylena" sem ícone de link). O problema **não é** o `ConversationStatusActions` — é um overflow horizontal no container da lista.
+**1. `src/components/landing/LeadChatbot.tsx`** (linha ~436-442)
+- Adicionar `contactName: leadInfo.name` ao body da chamada `wapi-send` para que a conversa seja criada/atualizada com o nome correto.
 
-### Causa provável
+**2. `supabase/functions/submit-lead/index.ts`** (após criação/atualização do lead)
+- Após o insert ou update do lead, buscar a conversa correspondente em `wapi_conversations` pelo telefone normalizado + `company_id`.
+- Se encontrar, fazer UPDATE com `lead_id` e `contact_name` do lead.
+- Isso funciona tanto para leads novos quanto retornantes.
+- Para o lead novo, preciso recuperar o `id` do insert (usar `.select('id').single()`).
+- Para o lead existente, já temos `existingLead.id`.
 
-O componente `ScrollArea` do Radix UI internamente ajusta a largura do viewport quando há barra de rolagem vertical ativa. Quando há muitas conversas (como na Manchester ou nesse outro cliente), a barra de rolagem aparece e o viewport fica ligeiramente menor que o container. Os itens com `shrink-0` no lado direito (timestamp) não encolhem, causando o corte de ~15-20px na borda direita.
+### Detalhes técnicos
 
-Na Trujillo, pode haver menos conversas (sem necessidade de scroll) ou simplesmente o conteúdo caber dentro da largura reduzida.
-
-### Correção
-
-**Arquivo:** `src/components/whatsapp/WhatsAppChat.tsx`
-
-**1. Adicionar `overflow-hidden` no botão de cada conversa (linha 3326):**
-```tsx
-// De:
-"w-full px-3 py-2.5 flex items-center gap-2.5 hover:bg-primary/5 ..."
-// Para:
-"w-full px-3 py-2.5 flex items-center gap-2.5 overflow-hidden hover:bg-primary/5 ..."
+A busca da conversa será feita com:
+```sql
+SELECT id FROM wapi_conversations
+WHERE phone LIKE '%{normalizedPhone}'
+  AND company_id = '{company_id}'
+ORDER BY last_message_at DESC
+LIMIT 1
 ```
 
-**2. Garantir constraints de largura no container de conteúdo (linha 3358):**
-```tsx
-// De:
-"flex-1 min-w-0 overflow-hidden"
-// Para:
-"flex-1 min-w-0 overflow-hidden max-w-full"
+O UPDATE será:
+```sql
+UPDATE wapi_conversations
+SET lead_id = '{lead_id}', contact_name = '{name}'
+WHERE id = '{conversation_id}'
 ```
 
-**3. Adicionar `overflow-hidden` ao ScrollArea mobile (linha 3312):**
-```tsx
-// De:
-<ScrollArea className="flex-1">
-// Para:
-<ScrollArea className="flex-1 w-full">
-```
+Nenhuma alteração em webhooks, instâncias ou lógica de conexão WhatsApp. Apenas leitura + update de dados na tabela `wapi_conversations`.
 
-Essas mudanças garantem que nenhum filho do botão de conversa extrapole o viewport, independentemente do estado da barra de rolagem do ScrollArea.
+### Arquivos alterados
+| Arquivo | Tipo |
+|---|---|
+| `src/components/landing/LeadChatbot.tsx` | Frontend |
+| `supabase/functions/submit-lead/index.ts` | Edge Function |
 
