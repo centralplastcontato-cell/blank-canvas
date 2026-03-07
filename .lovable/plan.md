@@ -1,42 +1,29 @@
 
 
-## Plano: Vincular lead à conversa e passar nome no wapi-send
+## Análise de Impacto da Correção
 
-### Alterações
+A correção proposta **não afeta as conexões das instâncias do WhatsApp de nenhum cliente**. Aqui está o porquê:
 
-**1. `src/components/landing/LeadChatbot.tsx`** (linha ~436-442)
-- Adicionar `contactName: leadInfo.name` ao body da chamada `wapi-send` para que a conversa seja criada/atualizada com o nome correto.
+### O que a correção altera
 
-**2. `supabase/functions/submit-lead/index.ts`** (após criação/atualização do lead)
-- Após o insert ou update do lead, buscar a conversa correspondente em `wapi_conversations` pelo telefone normalizado + `company_id`.
-- Se encontrar, fazer UPDATE com `lead_id` e `contact_name` do lead.
-- Isso funciona tanto para leads novos quanto retornantes.
-- Para o lead novo, preciso recuperar o `id` do insert (usar `.select('id').single()`).
-- Para o lead existente, já temos `existingLead.id`.
+Apenas **um campo de texto** (`bot_step`) na tabela `wapi_conversations` — que controla o estado do chatbot, não a conexão.
 
-### Detalhes técnicos
+### O que NÃO é alterado
 
-A busca da conversa será feita com:
-```sql
-SELECT id FROM wapi_conversations
-WHERE phone LIKE '%{normalizedPhone}'
-  AND company_id = '{company_id}'
-ORDER BY last_message_at DESC
-LIMIT 1
-```
+- Nenhuma modificação em `wapi_instances` (tabela de conexões)
+- Nenhuma modificação na lógica de QR code, pairing, ou status de conexão
+- Nenhuma modificação no `wapi-send` (envio de mensagens)
+- Nenhuma modificação na infraestrutura de webhooks
+- Nenhuma modificação no `ConnectionSection.tsx` ou `useWhatsAppConnection.ts`
 
-O UPDATE será:
-```sql
-UPDATE wapi_conversations
-SET lead_id = '{lead_id}', contact_name = '{name}'
-WHERE id = '{conversation_id}'
-```
+### Resumo técnico
 
-Nenhuma alteração em webhooks, instâncias ou lógica de conexão WhatsApp. Apenas leitura + update de dados na tabela `wapi_conversations`.
+| Componente | Modificado? | Risco para conexão |
+|---|---|---|
+| `wapi-webhook/index.ts` — lógica do bot | Sim | Nenhum |
+| `WhatsAppChat.tsx` — envio pela plataforma | Sim | Nenhum |
+| Conexões / instâncias / sessões | Não | Zero |
+| QR code / pairing / status | Não | Zero |
 
-### Arquivos alterados
-| Arquivo | Tipo |
-|---|---|
-| `src/components/landing/LeadChatbot.tsx` | Frontend |
-| `supabase/functions/submit-lead/index.ts` | Edge Function |
+A mudança é equivalente a trocar uma "etiqueta" interna de `null` para `'human_takeover'` — apenas uma string que o bot consulta para decidir se deve responder ou não. Não toca em nenhum endpoint de conexão, credencial, ou sessão do W-API.
 
