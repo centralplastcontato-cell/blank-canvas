@@ -1,22 +1,42 @@
 
 
-## Diagnóstico: Layout quebrado na lista de conversas (Manchester)
+## Plano: Vincular lead à conversa e passar nome no wapi-send
 
-### O que aconteceu
+### Alterações
 
-Na linha **3378** do `WhatsAppChat.tsx`, o componente `ConversationStatusActions` recebeu `className="opacity-100"`, que força o botão de três pontos (⋮) a ficar **sempre visível**. 
+**1. `src/components/landing/LeadChatbot.tsx`** (linha ~436-442)
+- Adicionar `contactName: leadInfo.name` ao body da chamada `wapi-send` para que a conversa seja criada/atualizada com o nome correto.
 
-O componente por padrão usa `opacity-0 group-hover:opacity-100` (só aparece no hover). Com o override `opacity-100`, o botão fica permanentemente visível e **ocupa espaço no layout**, empurrando o timestamp para fora da tela no mobile.
+**2. `supabase/functions/submit-lead/index.ts`** (após criação/atualização do lead)
+- Após o insert ou update do lead, buscar a conversa correspondente em `wapi_conversations` pelo telefone normalizado + `company_id`.
+- Se encontrar, fazer UPDATE com `lead_id` e `contact_name` do lead.
+- Isso funciona tanto para leads novos quanto retornantes.
+- Para o lead novo, preciso recuperar o `id` do insert (usar `.select('id').single()`).
+- Para o lead existente, já temos `existingLead.id`.
 
-Na unidade Trujillo funcionava porque as conversas não têm leads vinculados — o componente retorna `null` e não renderiza nada. Na Manchester, com leads vinculados, o botão aparece e quebra o layout.
+### Detalhes técnicos
 
-**Isso provavelmente foi adicionado em algum momento recente para facilitar o acesso ao menu de status, mas não foi testado no mobile com conversas que têm leads.**
+A busca da conversa será feita com:
+```sql
+SELECT id FROM wapi_conversations
+WHERE phone LIKE '%{normalizedPhone}'
+  AND company_id = '{company_id}'
+ORDER BY last_message_at DESC
+LIMIT 1
+```
 
-### Correção
+O UPDATE será:
+```sql
+UPDATE wapi_conversations
+SET lead_id = '{lead_id}', contact_name = '{name}'
+WHERE id = '{conversation_id}'
+```
 
-**Arquivo:** `src/components/whatsapp/WhatsAppChat.tsx`, linha 3378
+Nenhuma alteração em webhooks, instâncias ou lógica de conexão WhatsApp. Apenas leitura + update de dados na tabela `wapi_conversations`.
 
-- **Remover** `className="opacity-100"` do `ConversationStatusActions`
-- Isso restaura o comportamento padrão: botão invisível, aparece só no hover (desktop), e não ocupa espaço no mobile
-- No mobile, o usuário acessa o status ao abrir a conversa, não precisa do botão na lista
+### Arquivos alterados
+| Arquivo | Tipo |
+|---|---|
+| `src/components/landing/LeadChatbot.tsx` | Frontend |
+| `supabase/functions/submit-lead/index.ts` | Edge Function |
 
