@@ -35,7 +35,7 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/s
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
-import { LayoutList, Columns, Menu, Bell, BellOff, MessageSquare, BarChart3, Filter, ChevronDown, ChevronLeft, ChevronRight, Building2, Brain } from "lucide-react";
+import { LayoutList, Columns, Menu, Bell, BellOff, MessageSquare, BarChart3, Filter, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Building2, Brain } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
@@ -96,6 +96,7 @@ export default function CentralAtendimento() {
   const [newLeadsCount, setNewLeadsCount] = useState(0);
   const [showMetrics, setShowMetrics] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [isTabBarCollapsed, setIsTabBarCollapsed] = useState(false);
   const [initialPhone, setInitialPhone] = useState<string | null>(null);
   const [initialDraft, setInitialDraft] = useState<string | null>(null);
   const [chatInstances, setChatInstances] = useState<{ id: string; unit: string | null; status: string | null }[]>([]);
@@ -760,105 +761,127 @@ export default function CentralAtendimento() {
 
         <main className="flex-1 flex flex-col overflow-hidden min-h-0">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "chat" | "leads")} className="flex-1 flex flex-col overflow-hidden min-h-0">
-            <div className="mx-3 mt-3 flex items-center gap-2">
-              <TabsList className="flex-shrink-0">
-                <TabsTrigger value="chat" className="flex items-center gap-1.5 text-xs relative">
-                  <MessageSquare className="w-4 h-4" />
-                  Chat
-                  {unreadCount > 0 && (
-                    <AnimatedBadge 
-                      value={unreadCount > 99 ? "99+" : unreadCount}
-                      className="absolute -top-1.5 -right-1.5 h-5 min-w-5 px-1 text-[10px] flex items-center justify-center rounded-full bg-primary text-primary-foreground"
-                    />
+            <Collapsible open={!isTabBarCollapsed} onOpenChange={(open) => setIsTabBarCollapsed(!open)}>
+              <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+                <div className="mx-3 mt-3 flex items-center gap-2">
+                  <TabsList className="flex-shrink-0">
+                    <TabsTrigger value="chat" className="flex items-center gap-1.5 text-xs relative">
+                      <MessageSquare className="w-4 h-4" />
+                      Chat
+                      {unreadCount > 0 && (
+                        <AnimatedBadge 
+                          value={unreadCount > 99 ? "99+" : unreadCount}
+                          className="absolute -top-1.5 -right-1.5 h-5 min-w-5 px-1 text-[10px] flex items-center justify-center rounded-full bg-primary text-primary-foreground"
+                        />
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="leads" className="flex items-center gap-1.5 text-xs relative">
+                      <LayoutList className="w-4 h-4" />
+                      Leads
+                      {newLeadsCount > 0 && (
+                        <AnimatedBadge 
+                          value={newLeadsCount > 99 ? "99+" : newLeadsCount}
+                          className="absolute -top-1.5 -right-1.5 h-5 min-w-5 px-1 text-[10px] flex items-center justify-center rounded-full bg-primary text-primary-foreground"
+                        />
+                      )}
+                    </TabsTrigger>
+                  </TabsList>
+
+                  {/* Unit selector - same row (chat tab) */}
+                  {chatInstances.length > 1 && activeTab === "chat" && (
+                    <div className="flex items-center gap-1 bg-border rounded-lg p-0.5">
+                      {chatInstances.map((inst) => (
+                        <Button
+                          key={inst.id}
+                          variant={selectedChatUnit === inst.unit ? "default" : "ghost"}
+                          size="sm"
+                          onClick={() => setSelectedChatUnit(inst.unit)}
+                          className={`h-7 px-2.5 rounded-md transition-all text-xs ${
+                            selectedChatUnit === inst.unit ? "shadow-sm" : "hover:bg-background/80"
+                          }`}
+                        >
+                          <Building2 className="w-3.5 h-3.5 mr-1" />
+                          {inst.unit}
+                        </Button>
+                      ))}
+                    </div>
                   )}
-                </TabsTrigger>
-                <TabsTrigger value="leads" className="flex items-center gap-1.5 text-xs relative">
-                  <LayoutList className="w-4 h-4" />
-                  Leads
-                  {newLeadsCount > 0 && (
-                    <AnimatedBadge 
-                      value={newLeadsCount > 99 ? "99+" : newLeadsCount}
-                      className="absolute -top-1.5 -right-1.5 h-5 min-w-5 px-1 text-[10px] flex items-center justify-center rounded-full bg-primary text-primary-foreground"
-                    />
+
+                  {/* Leads toolbar - same row (leads tab) */}
+                  {activeTab === "leads" && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-1 bg-border rounded-lg p-0.5">
+                        <Button
+                          variant={viewMode === "list" ? "default" : "ghost"}
+                          size="sm"
+                          onClick={() => setViewMode("list")}
+                          className={`h-7 px-2.5 rounded-md text-xs ${viewMode === "list" ? "shadow-sm" : ""}`}
+                        >
+                          <LayoutList className="w-3.5 h-3.5 mr-1" />
+                          Lista
+                        </Button>
+                        <Button
+                          variant={viewMode === "kanban" ? "default" : "ghost"}
+                          size="sm"
+                          onClick={() => setViewMode("kanban")}
+                          className={`h-7 px-2.5 rounded-md text-xs ${viewMode === "kanban" ? "shadow-sm" : ""}`}
+                        >
+                          <Columns className="w-3.5 h-3.5 mr-1" />
+                          CRM
+                        </Button>
+                      </div>
+
+                      <Button
+                        variant={showMetrics ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setShowMetrics(!showMetrics)}
+                        className="gap-1 h-7 text-xs px-2"
+                      >
+                        <BarChart3 className="w-3.5 h-3.5" />
+                        <Badge variant="secondary" className="h-4 px-1 text-[9px] bg-primary/10 text-primary border-0">
+                          {leadMetrics.total}
+                        </Badge>
+                        <ChevronDown className={`w-3 h-3 transition-transform ${showMetrics ? 'rotate-180' : ''}`} />
+                      </Button>
+
+                      <Button
+                        variant={showFilters ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setShowFilters(!showFilters)}
+                        className="gap-1 h-7 text-xs px-2"
+                      >
+                        <Filter className="w-3.5 h-3.5" />
+                        Filtros
+                        {activeFiltersCount > 0 && (
+                          <Badge variant="destructive" className="h-4 px-1 text-[9px]">
+                            {activeFiltersCount}
+                          </Badge>
+                        )}
+                        <ChevronDown className={`w-3 h-3 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+                      </Button>
+                    </div>
                   )}
-                </TabsTrigger>
-              </TabsList>
-
-              {/* Unit selector - same row (chat tab) */}
-              {chatInstances.length > 1 && activeTab === "chat" && (
-                <div className="flex items-center gap-1 bg-border rounded-lg p-0.5">
-                  {chatInstances.map((inst) => (
-                    <Button
-                      key={inst.id}
-                      variant={selectedChatUnit === inst.unit ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => setSelectedChatUnit(inst.unit)}
-                      className={`h-7 px-2.5 rounded-md transition-all text-xs ${
-                        selectedChatUnit === inst.unit ? "shadow-sm" : "hover:bg-background/80"
-                      }`}
-                    >
-                      <Building2 className="w-3.5 h-3.5 mr-1" />
-                      {inst.unit}
-                    </Button>
-                  ))}
                 </div>
-              )}
+              </CollapsibleContent>
 
-              {/* Leads toolbar - same row (leads tab) */}
-              {activeTab === "leads" && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <div className="flex items-center gap-1 bg-border rounded-lg p-0.5">
-                    <Button
-                      variant={viewMode === "list" ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => setViewMode("list")}
-                      className={`h-7 px-2.5 rounded-md text-xs ${viewMode === "list" ? "shadow-sm" : ""}`}
-                    >
-                      <LayoutList className="w-3.5 h-3.5 mr-1" />
-                      Lista
-                    </Button>
-                    <Button
-                      variant={viewMode === "kanban" ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => setViewMode("kanban")}
-                      className={`h-7 px-2.5 rounded-md text-xs ${viewMode === "kanban" ? "shadow-sm" : ""}`}
-                    >
-                      <Columns className="w-3.5 h-3.5 mr-1" />
-                      CRM
-                    </Button>
-                  </div>
-
-                  <Button
-                    variant={showMetrics ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setShowMetrics(!showMetrics)}
-                    className="gap-1 h-7 text-xs px-2"
-                  >
-                    <BarChart3 className="w-3.5 h-3.5" />
-                    <Badge variant="secondary" className="h-4 px-1 text-[9px] bg-primary/10 text-primary border-0">
-                      {leadMetrics.total}
-                    </Badge>
-                    <ChevronDown className={`w-3 h-3 transition-transform ${showMetrics ? 'rotate-180' : ''}`} />
-                  </Button>
-
-                  <Button
-                    variant={showFilters ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setShowFilters(!showFilters)}
-                    className="gap-1 h-7 text-xs px-2"
-                  >
-                    <Filter className="w-3.5 h-3.5" />
-                    Filtros
-                    {activeFiltersCount > 0 && (
-                      <Badge variant="destructive" className="h-4 px-1 text-[9px]">
-                        {activeFiltersCount}
-                      </Badge>
-                    )}
-                    <ChevronDown className={`w-3 h-3 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
-                  </Button>
-                </div>
-              )}
-            </div>
+              {/* Compact toggle bar */}
+              <button
+                onClick={() => setIsTabBarCollapsed(!isTabBarCollapsed)}
+                className="w-full flex items-center justify-center gap-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {isTabBarCollapsed ? (
+                  <>
+                    <span className="font-medium">
+                      {activeTab === "chat" ? "💬 Chat" : "📋 Leads"}
+                      {activeTab === "chat" && chatInstances.length > 1 && ` · ${selectedChatUnit}`}
+                    </span>
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </>
+                ) : (
+                  <ChevronUp className="w-3.5 h-3.5" />
+                )}
+              </button>
+            </Collapsible>
 
             <TabsContent value="chat" className="flex-1 overflow-hidden min-h-0 mt-0 p-0">
               {!isLoadingUnitPerms && (
