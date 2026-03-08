@@ -7,8 +7,8 @@ import React from "react";
 export function formatMessageContent(text: string | null | undefined): React.ReactNode {
   if (!text) return text;
 
-  // Combined regex: URLs first (greedy), then phone numbers (10-13 consecutive digits)
-  const combinedRegex = /(https?:\/\/[^\s]+)|\b(\d{10,13})\b/g;
+  // Combined regex: URLs first (with or without protocol), then phone numbers (10-13 consecutive digits)
+  const combinedRegex = /(https?:\/\/[^\s]+)|((?:www\.)[^\s]+)|\b(\d{10,13})\b/g;
 
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
