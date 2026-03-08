@@ -3269,10 +3269,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
       {/* Chat Area - Premium Container */}
       {(selectedInstance?.status === 'connected' || selectedInstance?.status === 'degraded') && (
-        <div className="flex flex-1 border-0 md:border border-border/60 rounded-none md:rounded-xl overflow-hidden bg-gradient-to-br from-card via-card to-muted/20 min-h-0 md:shadow-lg">
+        <div className="flex flex-1 min-w-0 border-0 md:border border-border/60 rounded-none md:rounded-xl overflow-hidden bg-gradient-to-br from-card via-card to-muted/20 min-h-0 md:shadow-lg">
           {/* Mobile: Show full width list or chat */}
           <div className={cn(
-            "w-full flex flex-col overflow-hidden md:hidden",
+            "w-full min-w-0 flex flex-col overflow-hidden md:hidden",
             selectedConversation && "hidden"
           )}>
             <div className="p-3 border-b border-border/60 space-y-2 bg-card/80 backdrop-blur-sm">
