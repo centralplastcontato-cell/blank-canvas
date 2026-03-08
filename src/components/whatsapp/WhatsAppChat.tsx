@@ -3323,7 +3323,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                     key={conv.id}
                     onClick={() => setSelectedConversation(conv)}
                     className={cn(
-                      "w-full px-3 py-2.5 flex items-center gap-2.5 overflow-hidden hover:bg-primary/5 transition-all text-left border-b border-border/40 group",
+                      "w-full px-3 py-2.5 flex items-center gap-2.5 hover:bg-primary/5 transition-all text-left border-b border-border/40 group",
                       selectedConversation?.id === conv.id && "bg-primary/10 border-l-2 border-l-primary",
                       conv.unread_count > 0 && "bg-gradient-to-r from-primary/10 to-transparent"
                     )}
