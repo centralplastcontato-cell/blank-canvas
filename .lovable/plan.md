@@ -1,26 +1,42 @@
 
 
-## Plan: Tornar o cabeçalho da conversa expansível no mobile
+## Plano: Vincular lead à conversa e passar nome no wapi-send
 
-### O que será feito
+### Alterações
 
-No chat mobile, o bloco do cabeçalho da conversa (nome do contato + ícones de ação + painel de status) será envolvido em um `Collapsible`. Quando recolhido, apenas a linha principal (voltar, avatar, nome, info, fechar) permanece visível — os ícones de ação (Row 2) e o painel de status ficam ocultos, liberando espaço para as mensagens.
+**1. `src/components/landing/LeadChatbot.tsx`** (linha ~436-442)
+- Adicionar `contactName: leadInfo.name` ao body da chamada `wapi-send` para que a conversa seja criada/atualizada com o nome correto.
 
-### Implementação
+**2. `supabase/functions/submit-lead/index.ts`** (após criação/atualização do lead)
+- Após o insert ou update do lead, buscar a conversa correspondente em `wapi_conversations` pelo telefone normalizado + `company_id`.
+- Se encontrar, fazer UPDATE com `lead_id` e `contact_name` do lead.
+- Isso funciona tanto para leads novos quanto retornantes.
+- Para o lead novo, preciso recuperar o `id` do insert (usar `.select('id').single()`).
+- Para o lead existente, já temos `existingLead.id`.
 
-**Arquivo**: `src/components/whatsapp/WhatsAppChat.tsx`
+### Detalhes técnicos
 
-1. Adicionar estado `isChatHeaderCollapsed` (inicia como `false`, expandido)
-2. A Row 1 (back + avatar + nome + botões info/fechar) permanece **sempre visível** — é o trigger
-3. Adicionar um pequeno chevron na Row 1 para indicar que é expansível
-4. Envolver a Row 2 (ícones de ação) e o painel de status (linhas ~4649-4764) em `CollapsibleContent`
-5. Quando recolhido: só aparece o nome do contato com chevron
-6. Quando expandido: layout atual sem mudanças
-7. Usar animação `animate-accordion-down/up` do `CollapsibleContent`
+A busca da conversa será feita com:
+```sql
+SELECT id FROM wapi_conversations
+WHERE phone LIKE '%{normalizedPhone}'
+  AND company_id = '{company_id}'
+ORDER BY last_message_at DESC
+LIMIT 1
+```
 
-### Escopo
+O UPDATE será:
+```sql
+UPDATE wapi_conversations
+SET lead_id = '{lead_id}', contact_name = '{name}'
+WHERE id = '{conversation_id}'
+```
 
-- Apenas o bloco mobile (dentro do `selectedConversation` mobile, linhas ~4573-4764)
-- Desktop não é afetado
-- O `Collapsible` já está importado no arquivo
+Nenhuma alteração em webhooks, instâncias ou lógica de conexão WhatsApp. Apenas leitura + update de dados na tabela `wapi_conversations`.
+
+### Arquivos alterados
+| Arquivo | Tipo |
+|---|---|
+| `src/components/landing/LeadChatbot.tsx` | Frontend |
+| `supabase/functions/submit-lead/index.ts` | Edge Function |
 
