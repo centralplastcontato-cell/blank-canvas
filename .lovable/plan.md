@@ -1,42 +1,41 @@
 
 
-## Plano: Vincular lead à conversa e passar nome no wapi-send
+## Diagnóstico
 
-### Alterações
+O problema está na **linha 3358** do `WhatsAppChat.tsx`:
 
-**1. `src/components/landing/LeadChatbot.tsx`** (linha ~436-442)
-- Adicionar `contactName: leadInfo.name` ao body da chamada `wapi-send` para que a conversa seja criada/atualizada com o nome correto.
-
-**2. `supabase/functions/submit-lead/index.ts`** (após criação/atualização do lead)
-- Após o insert ou update do lead, buscar a conversa correspondente em `wapi_conversations` pelo telefone normalizado + `company_id`.
-- Se encontrar, fazer UPDATE com `lead_id` e `contact_name` do lead.
-- Isso funciona tanto para leads novos quanto retornantes.
-- Para o lead novo, preciso recuperar o `id` do insert (usar `.select('id').single()`).
-- Para o lead existente, já temos `existingLead.id`.
-
-### Detalhes técnicos
-
-A busca da conversa será feita com:
-```sql
-SELECT id FROM wapi_conversations
-WHERE phone LIKE '%{normalizedPhone}'
-  AND company_id = '{company_id}'
-ORDER BY last_message_at DESC
-LIMIT 1
+```tsx
+<div className="flex-1 min-w-0 overflow-hidden">
 ```
 
-O UPDATE será:
-```sql
-UPDATE wapi_conversations
-SET lead_id = '{lead_id}', contact_name = '{name}'
-WHERE id = '{conversation_id}'
+Este `overflow-hidden` no div de conteúdo principal (que contém nome, timestamp, preview e badge) **corta fisicamente** qualquer pixel que ultrapasse a largura calculada do flex item. Em viewports onde o cálculo de subpixel do Safari resulta em 1-2px a menos de espaço (varia por modelo de iPhone, presença de safe-area insets, e conteúdo específico do tenant), o timestamp e o badge à direita são cortados.
+
+**Por que só afeta Aventura Kids:** Este tenant tem conversas com `lead_id` (ícone Link2 ao lado do nome), nomes mais longos, e possivelmente mais banners ativos — tudo junto empurra a coluna direita para mais perto da borda do container. O arredondamento de subpixel do Safari faz os últimos pixels desaparecerem sob o `overflow-hidden`.
+
+**Por que a remoção é segura:** Os textos que precisam truncar já têm seus próprios mecanismos de truncamento:
+- Nome (linha 3361): `truncate` + container com `overflow-hidden` (linha 3360)
+- Preview (linha 3389): `truncate block`
+
+O `overflow-hidden` na linha 3358 é redundante — `min-w-0` sozinho já permite que o flex item encolha corretamente sem cortar conteúdo renderizado.
+
+## Correção (1 linha)
+
+**Arquivo:** `src/components/whatsapp/WhatsAppChat.tsx`, linha 3358
+
+```tsx
+// De:
+<div className="flex-1 min-w-0 overflow-hidden">
+
+// Para:
+<div className="flex-1 min-w-0">
 ```
 
-Nenhuma alteração em webhooks, instâncias ou lógica de conexão WhatsApp. Apenas leitura + update de dados na tabela `wapi_conversations`.
+Remove `overflow-hidden` do wrapper de conteúdo. O `min-w-0` continua permitindo o flex shrink correto. Os filhos (nome, preview) já têm truncamento próprio. O timestamp (`shrink-0 whitespace-nowrap`) e o badge (`min-w-6`) ficam livres do clipping.
 
-### Arquivos alterados
-| Arquivo | Tipo |
-|---|---|
-| `src/components/landing/LeadChatbot.tsx` | Frontend |
-| `supabase/functions/submit-lead/index.ts` | Edge Function |
+## Impacto
+
+- **Aventura Kids:** timestamp e badge param de ser cortados
+- **Outros tenants:** sem alteração visual (o `overflow-hidden` já não estava atuando neles porque o conteúdo cabia)
+- **Desktop:** não afetado (usa ResizablePanel separado)
+- **Nenhuma** alteração em header, tabs, filtros, banners ou botão flutuante
 
