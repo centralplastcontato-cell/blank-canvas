@@ -1,34 +1,42 @@
 
 
-## Diagnóstico final
+## Plano: Vincular lead à conversa e passar nome no wapi-send
 
-O problema persiste porque a correção anterior trocou `px-3` por `px-3 pr-1` — resultando em apenas **4px** de padding à direita. Em dispositivos onde o cálculo de largura do viewport do ScrollArea tem arredondamento de subpixel ligeiramente diferente (varia por modelo de iPhone, versão do Safari, e presença/ausência de scrollbar overlay), esses 4px não são suficientes e o conteúdo vaza pela borda direita.
+### Alterações
 
-Na Castelo/Planeta funciona porque a combinação de tamanho de tela + conteúdo resulta em cálculo de flex que cabe. Na Aventura, não.
+**1. `src/components/landing/LeadChatbot.tsx`** (linha ~436-442)
+- Adicionar `contactName: leadInfo.name` ao body da chamada `wapi-send` para que a conversa seja criada/atualizada com o nome correto.
 
-## Correção (1 linha, conservadora)
+**2. `supabase/functions/submit-lead/index.ts`** (após criação/atualização do lead)
+- Após o insert ou update do lead, buscar a conversa correspondente em `wapi_conversations` pelo telefone normalizado + `company_id`.
+- Se encontrar, fazer UPDATE com `lead_id` e `contact_name` do lead.
+- Isso funciona tanto para leads novos quanto retornantes.
+- Para o lead novo, preciso recuperar o `id` do insert (usar `.select('id').single()`).
+- Para o lead existente, já temos `existingLead.id`.
 
-**Arquivo:** `src/components/whatsapp/WhatsAppChat.tsx`
+### Detalhes técnicos
 
-**Linha 3326** — Restaurar padding simétrico e adicionar `overflow-hidden` de volta:
-
+A busca da conversa será feita com:
+```sql
+SELECT id FROM wapi_conversations
+WHERE phone LIKE '%{normalizedPhone}'
+  AND company_id = '{company_id}'
+ORDER BY last_message_at DESC
+LIMIT 1
 ```
-// De:
-"w-full px-3 pr-1 py-2.5 flex items-center gap-2.5 hover:bg-primary/5 ..."
 
-// Para:
-"w-full px-3 py-2.5 flex items-center gap-2.5 overflow-hidden hover:bg-primary/5 ..."
+O UPDATE será:
+```sql
+UPDATE wapi_conversations
+SET lead_id = '{lead_id}', contact_name = '{name}'
+WHERE id = '{conversation_id}'
 ```
 
-- Remove `pr-1` → restaura o `px-3` original (12px ambos os lados)
-- Adiciona `overflow-hidden` como safety net
+Nenhuma alteração em webhooks, instâncias ou lógica de conexão WhatsApp. Apenas leitura + update de dados na tabela `wapi_conversations`.
 
-**Por que funciona agora (e não funcionava antes):**
-- Antes, `overflow-hidden` + `pr-1` = badge a 4px da borda de clipping → cortava
-- Agora, `overflow-hidden` + `px-3` = badge a 12px da borda de clipping → sobra espaço
-- O conteúdo interno já tem `flex-1 min-w-0 overflow-hidden` para truncar texto corretamente
-- O timestamp tem `shrink-0` e `whitespace-nowrap` para não comprimir
-- O badge tem `min-w-6` garantindo largura mínima
-
-**Segurança:** Alteração de uma única classe CSS em um único arquivo. Não afeta desktop (usa ResizablePanel separado). Não altera header, tabs, filtros nem botão flutuante.
+### Arquivos alterados
+| Arquivo | Tipo |
+|---|---|
+| `src/components/landing/LeadChatbot.tsx` | Frontend |
+| `supabase/functions/submit-lead/index.ts` | Edge Function |
 
