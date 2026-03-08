@@ -249,7 +249,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [isSending, setIsSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<FilterType>('all');
-  const [isSearchBarCollapsed, setIsSearchBarCollapsed] = useState(false);
+  const [isSearchBarCollapsed, setIsSearchBarCollapsed] = useState(true);
   const [isChatHeaderCollapsed, setIsChatHeaderCollapsed] = useState(false);
   const { filterOrder, setFilterOrder: saveFilterOrder } = useFilterOrder(userId);
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
