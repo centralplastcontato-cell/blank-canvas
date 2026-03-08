@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { formatMessageContent } from "@/lib/format-message";
 import { LEAD_STATUS_COLORS, type LeadStatus } from "@/types/crm";
 import { supabase } from "@/integrations/supabase/client";
@@ -248,6 +249,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [isSending, setIsSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<FilterType>('all');
+  const [isSearchBarCollapsed, setIsSearchBarCollapsed] = useState(false);
   const { filterOrder, setFilterOrder: saveFilterOrder } = useFilterOrder(userId);
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -3275,39 +3277,57 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             "w-full min-w-0 flex flex-col overflow-hidden md:hidden",
             selectedConversation && "hidden"
           )}>
-            <div className="p-3 border-b border-border/60 space-y-2 bg-card/80 backdrop-blur-sm">
-              <div className="flex items-center gap-2">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Buscar conversa..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 bg-background/80 border-border/60 focus:border-primary/50 focus:ring-primary/20"
+            <Collapsible open={!isSearchBarCollapsed} onOpenChange={(open) => setIsSearchBarCollapsed(!open)}>
+              <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+                <div className="p-3 pb-0 border-b-0 space-y-2 bg-card/80 backdrop-blur-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar conversa..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-9 bg-background/80 border-border/60 focus:border-primary/50 focus:ring-primary/20"
+                      />
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0 h-10 w-10"
+                      onClick={() => setShowCreateContactDialog(true)}
+                      title="Novo Contato"
+                    >
+                      <Users className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <ConversationFilters
+                    filter={filter}
+                    onFilterChange={setFilter}
+                    conversations={conversations}
+                    closedLeadCount={closedLeadConversationIds.size}
+                    orcamentoEnviadoCount={orcamentoEnviadoConversationIds.size}
+                    collapsible={true}
+                    defaultOpen={false}
+                    filterOrder={filterOrder}
+                    onFilterOrderChange={saveFilterOrder}
                   />
                 </div>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="shrink-0 h-10 w-10"
-                  onClick={() => setShowCreateContactDialog(true)}
-                  title="Novo Contato"
-                >
-                  <Users className="w-4 h-4" />
-                </Button>
-              </div>
-              <ConversationFilters
-                filter={filter}
-                onFilterChange={setFilter}
-                conversations={conversations}
-                closedLeadCount={closedLeadConversationIds.size}
-                orcamentoEnviadoCount={orcamentoEnviadoConversationIds.size}
-                collapsible={true}
-                defaultOpen={false}
-                filterOrder={filterOrder}
-                onFilterOrderChange={saveFilterOrder}
-              />
-            </div>
+              </CollapsibleContent>
+              <button
+                onClick={() => setIsSearchBarCollapsed(!isSearchBarCollapsed)}
+                className="w-full flex items-center justify-center gap-2 py-1 border-b border-border/60 text-xs text-muted-foreground hover:text-foreground transition-colors bg-card/80"
+              >
+                {isSearchBarCollapsed ? (
+                  <>
+                    <Search className="w-3 h-3" />
+                    <span className="font-medium">Busca e Filtros</span>
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </>
+                ) : (
+                  <ChevronUp className="w-3.5 h-3.5" />
+                )}
+              </button>
+            </Collapsible>
             
             <ScrollArea className="flex-1 w-full">
               {filteredConversations.length === 0 ? (
