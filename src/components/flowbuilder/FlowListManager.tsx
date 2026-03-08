@@ -456,15 +456,15 @@ export function FlowListManager() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="min-w-0">
           <h3 className="text-lg font-semibold">Fluxos de Conversa</h3>
           <p className="text-sm text-muted-foreground">
             Crie fluxos visuais para guiar as conversas
           </p>
         </div>
         {canManageFlows && (
-          <Button onClick={() => handleOpenDialog()} className="gap-2">
+          <Button onClick={() => handleOpenDialog()} className="gap-2 shrink-0 w-full sm:w-auto">
             <Plus className="h-4 w-4" />
             Novo Fluxo
           </Button>
@@ -529,7 +529,7 @@ export function FlowListManager() {
                 )}
               </CardHeader>
               <CardContent className="pt-0 pb-4">
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <Switch
                       checked={flow.is_active}
