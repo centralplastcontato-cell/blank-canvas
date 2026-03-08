@@ -3355,50 +3355,39 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         <X className="absolute -bottom-1 -right-1 w-3 h-3 text-destructive bg-background rounded-full" />
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
-                          <p className={cn(
-                            "truncate text-sm",
-                            conv.unread_count > 0 ? "font-bold" : "font-medium"
-                          )}>
-                            {getConversationDisplayName(conv, conversationLeadsMap)}
-                          </p>
-                          {conv.lead_id && (
-                            <Link2 className="w-3 h-3 text-primary shrink-0" />
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <ConversationStatusActions
-                            conversation={conv}
-                            linkedLead={conversationLeadsMap[conv.id] || null}
-                            userId={userId}
-                            currentUserName={currentUserName}
-                            onStatusChange={handleConversationLeadStatusChange}
-                            className="hidden md:inline-flex"
-                          />
-                          <span className="text-[11px] text-muted-foreground whitespace-nowrap">
-                            {formatConversationDate(conv.last_message_at)}
-                          </span>
-                        </div>
-                      </div>
-                      <div className={cn(
-                        "grid mt-0.5 items-center gap-2",
-                        conv.unread_count > 0 ? "grid-cols-[1fr_auto]" : "grid-cols-1"
-                      )}>
-                        <span className={cn(
-                          "text-xs truncate block",
-                          conv.unread_count > 0 ? "text-foreground font-medium" : "text-muted-foreground"
+                    <div className="flex-1 min-w-0 grid grid-cols-[minmax(0,1fr)_auto] gap-x-2 items-center">
+                      {/* Row 1, Col 1: Name */}
+                      <div className="flex items-center gap-1 min-w-0 overflow-hidden">
+                        <p className={cn(
+                          "truncate text-sm",
+                          conv.unread_count > 0 ? "font-bold" : "font-medium"
                         )}>
-                          {conv.last_message_from_me && (
-                            <CheckCheck className="w-3 h-3 shrink-0 text-primary inline mr-1 align-text-bottom" />
-                          )}
-                          {conv.last_message_content || conv.contact_phone}
-                        </span>
+                          {getConversationDisplayName(conv, conversationLeadsMap)}
+                        </p>
+                        {conv.lead_id && (
+                          <Link2 className="w-3 h-3 text-primary shrink-0" />
+                        )}
+                      </div>
+                      {/* Row 1, Col 2: Timestamp */}
+                      <span className="text-[11px] text-muted-foreground whitespace-nowrap text-right">
+                        {formatConversationDate(conv.last_message_at)}
+                      </span>
+                      {/* Row 2, Col 1: Preview */}
+                      <span className={cn(
+                        "text-xs truncate block mt-0.5",
+                        conv.unread_count > 0 ? "text-foreground font-medium" : "text-muted-foreground"
+                      )}>
+                        {conv.last_message_from_me && (
+                          <CheckCheck className="w-3 h-3 shrink-0 text-primary inline mr-1 align-text-bottom" />
+                        )}
+                        {conv.last_message_content || conv.contact_phone}
+                      </span>
+                      {/* Row 2, Col 2: Badge */}
+                      <div className="flex justify-end items-center mt-0.5">
                         {conv.unread_count > 0 && (
                           <AnimatedBadge 
                             value={conv.unread_count > 99 ? "99+" : conv.unread_count}
-                           className="h-5 min-w-6 px-1.5 flex items-center justify-center text-[11px] font-bold rounded-full bg-primary text-primary-foreground"
+                            className="h-5 min-w-6 px-1.5 flex items-center justify-center text-[11px] font-bold rounded-full bg-primary text-primary-foreground"
                           />
                         )}
                       </div>
