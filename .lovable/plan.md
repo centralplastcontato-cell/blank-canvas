@@ -1,42 +1,28 @@
 
 
-## Plano: Vincular lead à conversa e passar nome no wapi-send
+## Plan: Tornar a barra de tabs/unidades expansível no mobile
 
-### Alterações
+### O que será feito
 
-**1. `src/components/landing/LeadChatbot.tsx`** (linha ~436-442)
-- Adicionar `contactName: leadInfo.name` ao body da chamada `wapi-send` para que a conversa seja criada/atualizada com o nome correto.
+Na Central de Atendimento mobile, a barra que contém as tabs (Chat/Leads) e o seletor de unidade (Manchester/Trujillo) será envolvida em um `Collapsible`, permitindo recolher e expandir com um toque — liberando mais espaço vertical para a lista de conversas.
 
-**2. `supabase/functions/submit-lead/index.ts`** (após criação/atualização do lead)
-- Após o insert ou update do lead, buscar a conversa correspondente em `wapi_conversations` pelo telefone normalizado + `company_id`.
-- Se encontrar, fazer UPDATE com `lead_id` e `contact_name` do lead.
-- Isso funciona tanto para leads novos quanto retornantes.
-- Para o lead novo, preciso recuperar o `id` do insert (usar `.select('id').single()`).
-- Para o lead existente, já temos `existingLead.id`.
+### Implementação
+
+**Arquivo**: `src/pages/CentralAtendimento.tsx`
+
+1. Adicionar um estado `isTabBarCollapsed` (inicia expandido)
+2. Envolver o bloco das tabs + seletor de unidade (linhas ~762-861) em um `Collapsible`
+3. Adicionar um botão fino/discreto de toggle (chevron) abaixo da barra, que ao clicar recolhe ou expande
+4. Quando recolhido:
+   - As tabs e o seletor de unidade ficam ocultos
+   - Um indicador compacto mostra a aba ativa (ex: "Chat · Manchester") + botão para expandir
+5. Quando expandido: layout atual sem mudanças
+6. A transição usa a animação nativa do `CollapsibleContent` (accordion-down/up)
 
 ### Detalhes técnicos
 
-A busca da conversa será feita com:
-```sql
-SELECT id FROM wapi_conversations
-WHERE phone LIKE '%{normalizedPhone}'
-  AND company_id = '{company_id}'
-ORDER BY last_message_at DESC
-LIMIT 1
-```
-
-O UPDATE será:
-```sql
-UPDATE wapi_conversations
-SET lead_id = '{lead_id}', contact_name = '{name}'
-WHERE id = '{conversation_id}'
-```
-
-Nenhuma alteração em webhooks, instâncias ou lógica de conexão WhatsApp. Apenas leitura + update de dados na tabela `wapi_conversations`.
-
-### Arquivos alterados
-| Arquivo | Tipo |
-|---|---|
-| `src/components/landing/LeadChatbot.tsx` | Frontend |
-| `supabase/functions/submit-lead/index.ts` | Edge Function |
+- O `Collapsible` já é usado no mesmo arquivo (métricas, filtros) — segue o mesmo padrão
+- As `TabsContent` continuam fora do collapsible (só a barra de controles recolhe)
+- O estado da tab ativa (`activeTab`) e da unidade (`selectedChatUnit`) continuam funcionando normalmente mesmo recolhido
+- Desktop não é afetado (o collapsible só aparece no bloco mobile `if (isMobile)`)
 
