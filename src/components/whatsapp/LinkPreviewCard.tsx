@@ -15,7 +15,7 @@ interface OGData {
 const ogCache = new Map<string, OGData | null>();
 
 // URL regex - matches common URLs in text
-const URL_REGEX = /https?:\/\/[^\s<>"')\]]+/gi;
+const URL_REGEX = /https?:\/\/[^\s<>"')\]]+|(?:www\.)[^\s<>"')\]]+/gi;
 
 /** Extract the first URL from a text message */
 export function extractFirstUrl(text: string | null): string | null {

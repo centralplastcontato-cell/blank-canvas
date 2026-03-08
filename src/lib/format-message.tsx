@@ -7,8 +7,8 @@ import React from "react";
 export function formatMessageContent(text: string | null | undefined): React.ReactNode {
   if (!text) return text;
 
-  // Combined regex: URLs first (greedy), then phone numbers (10-13 consecutive digits)
-  const combinedRegex = /(https?:\/\/[^\s]+)|\b(\d{10,13})\b/g;
+  // Combined regex: URLs first (with or without protocol), then phone numbers (10-13 consecutive digits)
+  const combinedRegex = /(https?:\/\/[^\s]+)|((?:www\.)[^\s]+)|\b(\d{10,13})\b/g;
 
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
@@ -21,7 +21,7 @@ export function formatMessageContent(text: string | null | undefined): React.Rea
     }
 
     if (match[1]) {
-      // URL match
+      // URL match (with protocol)
       parts.push(
         <a
           key={match.index}
@@ -34,8 +34,21 @@ export function formatMessageContent(text: string | null | undefined): React.Rea
         </a>
       );
     } else if (match[2]) {
+      // www. URL match (without protocol)
+      parts.push(
+        <a
+          key={match.index}
+          href={`https://${match[2]}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-400 underline hover:text-blue-300"
+        >
+          {match[2]}
+        </a>
+      );
+    } else if (match[3]) {
       // Phone number match
-      const raw = match[2];
+      const raw = match[3];
       const waNumber = raw.length <= 11 ? `55${raw}` : raw;
       parts.push(
         <a

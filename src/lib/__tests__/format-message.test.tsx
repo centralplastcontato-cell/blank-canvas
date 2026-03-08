@@ -46,4 +46,13 @@ describe("formatMessageContent", () => {
     const links = container.querySelectorAll("a");
     expect(links.length).toBe(2);
   });
+
+  it("converts www. URLs to clickable links with https", () => {
+    const result = formatMessageContent("Visit www.example.com now");
+    const { container } = render(<>{result}</>);
+    const link = container.querySelector("a");
+    expect(link).toBeTruthy();
+    expect(link!.href).toBe("https://www.example.com/");
+    expect(link!.textContent).toBe("www.example.com");
+  });
 });
