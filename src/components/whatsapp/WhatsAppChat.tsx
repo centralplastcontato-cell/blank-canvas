@@ -4571,8 +4571,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           )}>
             {selectedConversation && (
               <>
+                <Collapsible open={!isChatHeaderCollapsed} onOpenChange={(open) => setIsChatHeaderCollapsed(!open)}>
                 <div className="border-b shrink-0">
-                  {/* Row 1: Back + Avatar + Name + Info + Close */}
+                  {/* Row 1: Back + Avatar + Name + Info + Close + Toggle */}
                   <div className="p-3 pb-1 flex items-center gap-2">
                     <Button
                       variant="ghost"
@@ -4594,12 +4595,16 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                           .toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="flex-1 min-w-0">
+                    <div 
+                      className="flex-1 min-w-0 cursor-pointer" 
+                      onClick={() => setIsChatHeaderCollapsed(!isChatHeaderCollapsed)}
+                    >
                       <p className="font-medium text-sm leading-tight">
                         {selectedConversation.contact_name || selectedConversation.contact_phone}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
                         {selectedConversation.contact_phone}
+                        <ChevronDown className={cn("w-3 h-3 transition-transform", !isChatHeaderCollapsed && "rotate-180")} />
                       </p>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
@@ -4647,7 +4652,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                       </Button>
                     </div>
                   </div>
-                  {/* Row 2: Action icons */}
+                  <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
                   <div className="px-3 pb-2 flex items-center gap-1 overflow-x-auto">
                     <Button
                       variant="ghost"
