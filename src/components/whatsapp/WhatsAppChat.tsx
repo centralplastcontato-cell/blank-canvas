@@ -250,6 +250,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<FilterType>('all');
   const [isSearchBarCollapsed, setIsSearchBarCollapsed] = useState(false);
+  const [isChatHeaderCollapsed, setIsChatHeaderCollapsed] = useState(false);
   const { filterOrder, setFilterOrder: saveFilterOrder } = useFilterOrder(userId);
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
