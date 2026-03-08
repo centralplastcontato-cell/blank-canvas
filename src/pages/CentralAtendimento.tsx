@@ -96,7 +96,7 @@ export default function CentralAtendimento() {
   const [newLeadsCount, setNewLeadsCount] = useState(0);
   const [showMetrics, setShowMetrics] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [isTabBarCollapsed, setIsTabBarCollapsed] = useState(false);
+  const [isTabBarCollapsed, setIsTabBarCollapsed] = useState(true);
   const [initialPhone, setInitialPhone] = useState<string | null>(null);
   const [initialDraft, setInitialDraft] = useState<string | null>(null);
   const [chatInstances, setChatInstances] = useState<{ id: string; unit: string | null; status: string | null }[]>([]);
