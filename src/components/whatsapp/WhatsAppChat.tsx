@@ -4767,7 +4767,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                       <Search className="w-4 h-4 text-muted-foreground" />
                     </Button>
                   </div>
+                  </CollapsibleContent>
                 </div>
+                </Collapsible>
 
                 {/* Message Search Bar - Mobile */}
                 {messageSearchActive && (
