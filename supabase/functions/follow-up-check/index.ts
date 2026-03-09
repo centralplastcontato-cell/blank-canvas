@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
     // Fetch all bot settings with any follow-up enabled
     const { data: allSettings, error: settingsError } = await supabase
       .from("wapi_bot_settings")
-      .select("instance_id, test_mode_enabled, test_mode_number, follow_up_enabled, follow_up_delay_hours, follow_up_message, follow_up_2_enabled, follow_up_2_delay_hours, follow_up_2_message, follow_up_3_enabled, follow_up_3_delay_hours, follow_up_3_message, follow_up_4_enabled, follow_up_4_delay_hours, follow_up_4_message, follow_up_min_hour, follow_up_max_hour, auto_lost_enabled, auto_lost_delay_hours, next_step_reminder_enabled, next_step_reminder_delay_minutes, next_step_reminder_message, bot_inactive_followup_enabled, bot_inactive_followup_delay_minutes, bot_inactive_followup_message")
+      .select("instance_id, test_mode_enabled, test_mode_number, follow_up_enabled, follow_up_delay_hours, follow_up_message, follow_up_2_enabled, follow_up_2_delay_hours, follow_up_2_message, follow_up_3_enabled, follow_up_3_delay_hours, follow_up_3_message, follow_up_4_enabled, follow_up_4_delay_hours, follow_up_4_message, follow_up_min_hour, follow_up_max_hour, follow_up_send_min_delay, follow_up_send_max_delay, auto_lost_enabled, auto_lost_delay_hours, next_step_reminder_enabled, next_step_reminder_delay_minutes, next_step_reminder_message, bot_inactive_followup_enabled, bot_inactive_followup_delay_minutes, bot_inactive_followup_message")
       .or("follow_up_enabled.eq.true,follow_up_2_enabled.eq.true,follow_up_3_enabled.eq.true,follow_up_4_enabled.eq.true,next_step_reminder_enabled.eq.true,bot_inactive_followup_enabled.eq.true,auto_lost_enabled.eq.true");
 
     if (settingsError) {
