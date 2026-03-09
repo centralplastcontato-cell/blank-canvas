@@ -455,7 +455,8 @@ async function processFollowUp({
     .eq("action", "Próximo passo escolhido")
     .or("new_value.ilike.%Analisar%,new_value.eq.3")
     .gte("created_at", minTime.toISOString())
-    .lte("created_at", maxTime.toISOString());
+    .lte("created_at", maxTime.toISOString())
+    .limit(5000);
 
   if (choicesError) {
     console.error(`[follow-up-check] Error fetching analysis choices:`, choicesError);
@@ -513,7 +514,8 @@ async function processFollowUp({
     .from("lead_history")
     .select("lead_id")
     .in("lead_id", leadIds)
-    .eq("action", historyAction);
+    .eq("action", historyAction)
+    .limit(5000);
 
   if (followUpError) {
     console.error("[follow-up-check] Error checking existing follow-ups:", followUpError);
@@ -529,7 +531,8 @@ async function processFollowUp({
       .from("lead_history")
       .select("lead_id")
       .in("lead_id", leadsNeedingFollowUp)
-      .eq("action", checkPreviousAction);
+      .eq("action", checkPreviousAction)
+      .limit(5000);
 
     if (prevError) {
       console.error("[follow-up-check] Error checking previous follow-ups:", prevError);

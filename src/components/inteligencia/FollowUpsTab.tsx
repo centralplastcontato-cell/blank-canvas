@@ -142,7 +142,7 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
         .in("action", followUpActions)
         .gte("created_at", last90days)
         .order("created_at", { ascending: false })
-        .limit(500);
+        .limit(2000);
 
       if (!historyEvents || historyEvents.length === 0) {
         setFollowUpLeads([]);
