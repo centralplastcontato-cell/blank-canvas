@@ -153,6 +153,7 @@ serve(async (req) => {
       .gte("created_at", targetStartISO)
       .in("action", ["status_change", "Alteracao de status"]);
     if (isHistoricalDate) histQuery = histQuery.lt("created_at", targetEndISO);
+    histQuery = histQuery.limit(5000);
     const { data: statusChanges } = await histQuery;
 
     // Count transitions by new_value
