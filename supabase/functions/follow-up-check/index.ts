@@ -37,6 +37,8 @@ interface FollowUpSettings {
   follow_up_4_message: string | null;
   follow_up_min_hour: number;
   follow_up_max_hour: number;
+  follow_up_send_min_delay: number;
+  follow_up_send_max_delay: number;
   auto_lost_enabled: boolean;
   auto_lost_delay_hours: number;
   next_step_reminder_enabled: boolean;
@@ -48,6 +50,12 @@ interface FollowUpSettings {
   instance_id: string;
   test_mode_enabled?: boolean;
   test_mode_number?: string | null;
+}
+
+/** Returns a promise that resolves after a random delay between minSec and maxSec seconds */
+function randomSafeDelay(minSec: number, maxSec: number): Promise<void> {
+  const ms = Math.floor(Math.random() * (maxSec - minSec + 1) + minSec) * 1000;
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /** Returns true if current time in America/Sao_Paulo is outside the allowed send window */
@@ -127,7 +135,7 @@ Deno.serve(async (req) => {
     // Fetch all bot settings with any follow-up enabled
     const { data: allSettings, error: settingsError } = await supabase
       .from("wapi_bot_settings")
-      .select("instance_id, test_mode_enabled, test_mode_number, follow_up_enabled, follow_up_delay_hours, follow_up_message, follow_up_2_enabled, follow_up_2_delay_hours, follow_up_2_message, follow_up_3_enabled, follow_up_3_delay_hours, follow_up_3_message, follow_up_4_enabled, follow_up_4_delay_hours, follow_up_4_message, follow_up_min_hour, follow_up_max_hour, auto_lost_enabled, auto_lost_delay_hours, next_step_reminder_enabled, next_step_reminder_delay_minutes, next_step_reminder_message, bot_inactive_followup_enabled, bot_inactive_followup_delay_minutes, bot_inactive_followup_message")
+      .select("instance_id, test_mode_enabled, test_mode_number, follow_up_enabled, follow_up_delay_hours, follow_up_message, follow_up_2_enabled, follow_up_2_delay_hours, follow_up_2_message, follow_up_3_enabled, follow_up_3_delay_hours, follow_up_3_message, follow_up_4_enabled, follow_up_4_delay_hours, follow_up_4_message, follow_up_min_hour, follow_up_max_hour, follow_up_send_min_delay, follow_up_send_max_delay, auto_lost_enabled, auto_lost_delay_hours, next_step_reminder_enabled, next_step_reminder_delay_minutes, next_step_reminder_message, bot_inactive_followup_enabled, bot_inactive_followup_delay_minutes, bot_inactive_followup_message")
       .or("follow_up_enabled.eq.true,follow_up_2_enabled.eq.true,follow_up_3_enabled.eq.true,follow_up_4_enabled.eq.true,next_step_reminder_enabled.eq.true,bot_inactive_followup_enabled.eq.true,auto_lost_enabled.eq.true");
 
     if (settingsError) {
@@ -408,6 +416,14 @@ async function processNextStepReminder({
         .eq("id", conv.id);
 
       successCount++;
+
+      // Safe delay between sends to avoid WhatsApp rate limiting
+      const minDelay = settings.follow_up_send_min_delay ?? 8;
+      const maxDelay = settings.follow_up_send_max_delay ?? 15;
+      if (successCount < stuckConversations.length) {
+        console.log(`[follow-up-check] ⏳ Waiting ${minDelay}-${maxDelay}s before next send...`);
+        await randomSafeDelay(minDelay, maxDelay);
+      }
     } catch (err) {
       console.error(`[follow-up-check] Error processing reminder for conv ${conv.id}:`, err);
       errors.push(`Error with conv ${conv.id}: ${String(err)}`);
@@ -765,6 +781,14 @@ async function processFollowUp({
       }
 
       successCount++;
+
+      // Safe delay between sends to avoid WhatsApp rate limiting
+      const minDelay = settings.follow_up_send_min_delay ?? 8;
+      const maxDelay = settings.follow_up_send_max_delay ?? 15;
+      if (successCount < leads.length) {
+        console.log(`[follow-up-check] ⏳ Waiting ${minDelay}-${maxDelay}s before next follow-up send...`);
+        await randomSafeDelay(minDelay, maxDelay);
+      }
     } catch (leadError) {
       console.error(`[follow-up-check] Error processing lead ${lead.id}:`, leadError);
       errors.push(`Error with ${lead.name}: ${String(leadError)}`);
@@ -997,6 +1021,14 @@ Podemos continuar de onde paramos?`;
         .eq("id", conv.id);
 
       successCount++;
+
+      // Safe delay between sends to avoid WhatsApp rate limiting
+      const minDelay = settings.follow_up_send_min_delay ?? 8;
+      const maxDelay = settings.follow_up_send_max_delay ?? 15;
+      if (successCount < stuckConversations.length) {
+        console.log(`[follow-up-check] ⏳ Waiting ${minDelay}-${maxDelay}s before next bot-inactive send...`);
+        await randomSafeDelay(minDelay, maxDelay);
+      }
     } catch (err) {
       console.error(`[follow-up-check] Error processing bot-inactive follow-up for conv ${conv.id}:`, err);
       errors.push(`Error with conv ${conv.id}: ${String(err)}`);
@@ -1690,7 +1722,15 @@ async function processStuckBotRecovery({
 
   console.log(`[follow-up-check] 🔄 Found ${stuckConversations.length} stuck bot conversations to recover`);
 
+  let recoveryMessagesSent = 0;
+
   for (const conv of stuckConversations) {
+    // Safe delay between sends to avoid WhatsApp rate limiting
+    if (recoveryMessagesSent > 0) {
+      console.log(`[follow-up-check] ⏳ Waiting 8-15s before next stuck bot recovery send...`);
+      await randomSafeDelay(8, 15);
+    }
+
     try {
       // Test mode guard: fetch settings for this instance and skip if not test number
       {
@@ -1845,6 +1885,7 @@ async function processStuckBotRecovery({
 
         console.log(`[follow-up-check] 🔄 Recovered welcome step for conv ${conv.id}`);
         successCount++;
+        recoveryMessagesSent++;
         continue;
       }
 
@@ -1885,6 +1926,7 @@ async function processStuckBotRecovery({
 
         console.log(`[follow-up-check] 🔄 Invalid answer for conv ${conv.id}, re-sent question`);
         successCount++;
+        recoveryMessagesSent++;
         continue;
       }
 
@@ -1925,6 +1967,7 @@ async function processStuckBotRecovery({
 
           console.log(`[follow-up-check] 🔄 Recovered conv ${conv.id} - client transfer`);
           successCount++;
+          recoveryMessagesSent++;
           continue;
         }
 
@@ -1971,6 +2014,7 @@ async function processStuckBotRecovery({
 
           console.log(`[follow-up-check] 🔄 Recovered conv ${conv.id} - work interest`);
           successCount++;
+          recoveryMessagesSent++;
           continue;
         }
         // Option 2 (quote) - continue normal flow below
@@ -2079,6 +2123,7 @@ async function processStuckBotRecovery({
 
         console.log(`[follow-up-check] 🔄 Recovered conv ${conv.id} - qualification complete, materials sent, next step question sent`);
         successCount++;
+        recoveryMessagesSent++;
         continue;
       }
 
@@ -2117,6 +2162,7 @@ async function processStuckBotRecovery({
 
       console.log(`[follow-up-check] 🔄 Recovered conv ${conv.id}: ${step} → ${nextStepKey}`);
       successCount++;
+      recoveryMessagesSent++;
     } catch (err) {
       console.error(`[follow-up-check] 🔄 Error recovering conv ${conv.id}:`, err);
       errors.push(`Recovery error conv ${conv.id}: ${String(err)}`);

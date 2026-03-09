@@ -3208,6 +3208,8 @@ export type Database = {
           follow_up_max_hour: number
           follow_up_message: string | null
           follow_up_min_hour: number
+          follow_up_send_max_delay: number
+          follow_up_send_min_delay: number
           guest_limit: number | null
           guest_limit_message: string | null
           guest_limit_redirect_name: string | null
@@ -3263,6 +3265,8 @@ export type Database = {
           follow_up_max_hour?: number
           follow_up_message?: string | null
           follow_up_min_hour?: number
+          follow_up_send_max_delay?: number
+          follow_up_send_min_delay?: number
           guest_limit?: number | null
           guest_limit_message?: string | null
           guest_limit_redirect_name?: string | null
@@ -3318,6 +3322,8 @@ export type Database = {
           follow_up_max_hour?: number
           follow_up_message?: string | null
           follow_up_min_hour?: number
+          follow_up_send_max_delay?: number
+          follow_up_send_min_delay?: number
           guest_limit?: number | null
           guest_limit_message?: string | null
           guest_limit_redirect_name?: string | null

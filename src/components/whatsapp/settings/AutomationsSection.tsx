@@ -117,6 +117,8 @@ interface BotSettings {
   bot_inactive_followup_enabled: boolean;
   bot_inactive_followup_delay_minutes: number;
   bot_inactive_followup_message: string | null;
+  follow_up_send_min_delay: number;
+  follow_up_send_max_delay: number;
   use_flow_builder: boolean;
 }
 
@@ -1663,7 +1665,68 @@ export function AutomationsSection() {
                 </div>
               </div>
 
-              {/* First Follow-up */}
+              {/* Intervalo de segurança entre envios */}
+              <div className="p-4 border rounded-lg bg-muted/30 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-primary" />
+                  <Label className="font-medium">Intervalo de segurança entre envios</Label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Tempo aleatório entre cada mensagem enviada para leads diferentes. Protege contra bloqueio do WhatsApp.
+                </p>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="fu-send-min-delay" className="text-sm whitespace-nowrap">Mín</Label>
+                    <Input
+                      id="fu-send-min-delay"
+                      type="number"
+                      min={5}
+                      max={30}
+                      value={botSettings?.follow_up_send_min_delay ?? 8}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value);
+                        if (!isNaN(v)) setBotSettings(prev => prev ? { ...prev, follow_up_send_min_delay: v } : prev);
+                      }}
+                      onBlur={(e) => {
+                        const v = Math.max(5, Math.min(30, parseInt(e.target.value) || 8));
+                        setBotSettings(prev => prev ? { ...prev, follow_up_send_min_delay: v } : prev);
+                        updateBotSettings({ follow_up_send_min_delay: v });
+                      }}
+                      className="w-20"
+                      disabled={isSaving}
+                    />
+                    <span className="text-sm text-muted-foreground">s</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="fu-send-max-delay" className="text-sm whitespace-nowrap">Máx</Label>
+                    <Input
+                      id="fu-send-max-delay"
+                      type="number"
+                      min={5}
+                      max={30}
+                      value={botSettings?.follow_up_send_max_delay ?? 15}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value);
+                        if (!isNaN(v)) setBotSettings(prev => prev ? { ...prev, follow_up_send_max_delay: v } : prev);
+                      }}
+                      onBlur={(e) => {
+                        const minVal = botSettings?.follow_up_send_min_delay ?? 8;
+                        const v = Math.max(minVal, Math.min(30, parseInt(e.target.value) || 15));
+                        setBotSettings(prev => prev ? { ...prev, follow_up_send_max_delay: v } : prev);
+                        updateBotSettings({ follow_up_send_max_delay: v });
+                      }}
+                      className="w-20"
+                      disabled={isSaving}
+                    />
+                    <span className="text-sm text-muted-foreground">s</span>
+                  </div>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Recomendado: 8-15 segundos. Valores muito baixos podem causar bloqueio.
+                </p>
+              </div>
+
+
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">1ª Mensagem</Badge>
