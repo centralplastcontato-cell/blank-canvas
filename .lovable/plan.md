@@ -1,42 +1,30 @@
 
 
-## Plano: Vincular lead à conversa e passar nome no wapi-send
+## Plano: Redesign do banner "Lead quer tirar dúvidas"
 
-### Alterações
+### Mudanças
 
-**1. `src/components/landing/LeadChatbot.tsx`** (linha ~436-442)
-- Adicionar `contactName: leadInfo.name` ao body da chamada `wapi-send` para que a conversa seja criada/atualizada com o nome correto.
+**1. Layout mais compacto**
+- Remover exibição da unidade
+- Botão "Abrir Chat" menor (icon-only ou `size="xs"`)
+- Ícone do círculo menor (w-8 h-8)
+- Padding reduzido (`py-2` em vez de `py-3`)
 
-**2. `supabase/functions/submit-lead/index.ts`** (após criação/atualização do lead)
-- Após o insert ou update do lead, buscar a conversa correspondente em `wapi_conversations` pelo telefone normalizado + `company_id`.
-- Se encontrar, fazer UPDATE com `lead_id` e `contact_name` do lead.
-- Isso funciona tanto para leads novos quanto retornantes.
-- Para o lead novo, preciso recuperar o `id` do insert (usar `.select('id').single()`).
-- Para o lead existente, já temos `existingLead.id`.
+**2. Painel expandível com informações do lead**
+- Ao clicar no banner (área do nome/título), expande uma seção abaixo com:
+  - **Dados do lead**: nome, telefone, status no CRM, data de criação
+  - **Última mensagem**: preview da última mensagem enviada pelo lead no WhatsApp
+- Toggle com chevron para abrir/fechar
+- Dados buscados do `campaign_leads` (via `conversation_id` → `wapi_conversations.lead_id`) e `wapi_messages` (última mensagem `from_me = false`)
 
-### Detalhes técnicos
+**3. Fluxo de dados**
+- Quando o banner aparece, faz fetch lazy (só ao expandir) de:
+  - `wapi_conversations` pelo `conversation_id` → pega `lead_id`
+  - `campaign_leads` pelo `lead_id` → nome, status, created_at
+  - `wapi_messages` filtrado por `conversation_id`, `from_me = false`, order `timestamp desc`, limit 1 → conteúdo da última mensagem
 
-A busca da conversa será feita com:
-```sql
-SELECT id FROM wapi_conversations
-WHERE phone LIKE '%{normalizedPhone}'
-  AND company_id = '{company_id}'
-ORDER BY last_message_at DESC
-LIMIT 1
-```
-
-O UPDATE será:
-```sql
-UPDATE wapi_conversations
-SET lead_id = '{lead_id}', contact_name = '{name}'
-WHERE id = '{conversation_id}'
-```
-
-Nenhuma alteração em webhooks, instâncias ou lógica de conexão WhatsApp. Apenas leitura + update de dados na tabela `wapi_conversations`.
-
-### Arquivos alterados
-| Arquivo | Tipo |
+### Arquivo alterado
+| Arquivo | Mudança |
 |---|---|
-| `src/components/landing/LeadChatbot.tsx` | Frontend |
-| `supabase/functions/submit-lead/index.ts` | Edge Function |
+| `src/components/admin/QuestionsAlertBanner.tsx` | Layout compacto + painel expansível com dados do lead e última mensagem |
 
