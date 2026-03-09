@@ -455,7 +455,8 @@ async function processFollowUp({
     .eq("action", "Próximo passo escolhido")
     .or("new_value.ilike.%Analisar%,new_value.eq.3")
     .gte("created_at", minTime.toISOString())
-    .lte("created_at", maxTime.toISOString());
+    .lte("created_at", maxTime.toISOString())
+    .limit(5000);
 
   if (choicesError) {
     console.error(`[follow-up-check] Error fetching analysis choices:`, choicesError);
