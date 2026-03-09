@@ -1744,7 +1744,7 @@ export function AutomationsSection() {
                     disabled={isSaving || !botSettings?.follow_up_enabled}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Variáveis: {"{nome}"}, {"{unidade}"}, {"{mes}"}, {"{convidados}"}
+                    Variáveis: {"{nome}"}, {"{empresa}"}, {"{unidade}"}, {"{mes}"}, {"{convidados}"}
                   </p>
                 </div>
               </div>
