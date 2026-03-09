@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentCompanyId } from "@/lib/supabase-helpers";
 import { HelpCircle, X, MessageSquare, ChevronDown, ChevronUp, Phone, Calendar, Tag } from "lucide-react";
-import { useCompany } from "@/contexts/CompanyContext";
+
 import { Button } from "@/components/ui/button";
 import { useNotificationSounds } from "@/hooks/useNotificationSounds";
 import { useChatNotificationToggle } from "@/hooks/useChatNotificationToggle";
