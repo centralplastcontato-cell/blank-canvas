@@ -2123,6 +2123,7 @@ async function processStuckBotRecovery({
 
         console.log(`[follow-up-check] 🔄 Recovered conv ${conv.id} - qualification complete, materials sent, next step question sent`);
         successCount++;
+        recoveryMessagesSent++;
         continue;
       }
 
