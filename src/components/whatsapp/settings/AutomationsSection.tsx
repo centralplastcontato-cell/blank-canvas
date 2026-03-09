@@ -1732,7 +1732,7 @@ export function AutomationsSection() {
                   </Label>
                   <Textarea
                     id="follow-up-message"
-                    placeholder="Olá, {nome}! 👋 Passando para saber se teve a chance de analisar as informações..."
+                    placeholder="Olá, {nome}! 👋 Passando para saber se teve a chance de analisar as informações sobre a {empresa}..."
                     value={botSettings?.follow_up_message || ""}
                     onChange={(e) => {
                       setBotSettings(prev => prev ? { ...prev, follow_up_message: e.target.value } : prev);
@@ -1744,7 +1744,7 @@ export function AutomationsSection() {
                     disabled={isSaving || !botSettings?.follow_up_enabled}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Variáveis: {"{nome}"}, {"{unidade}"}, {"{mes}"}, {"{convidados}"}
+                    Variáveis: {"{nome}"}, {"{empresa}"}, {"{unidade}"}, {"{mes}"}, {"{convidados}"}
                   </p>
                 </div>
               </div>
@@ -1825,7 +1825,7 @@ export function AutomationsSection() {
                   </Label>
                   <Textarea
                     id="follow-up-2-message"
-                    placeholder="Olá, {nome}! 👋 Ainda não tivemos retorno sobre a festa..."
+                    placeholder="Olá, {nome}! 👋 Ainda não tivemos retorno sobre a festa na {empresa}..."
                     value={botSettings?.follow_up_2_message || ""}
                     onChange={(e) => {
                       setBotSettings(prev => prev ? { ...prev, follow_up_2_message: e.target.value } : prev);
@@ -1837,7 +1837,7 @@ export function AutomationsSection() {
                     disabled={isSaving || !botSettings?.follow_up_2_enabled}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Variáveis: {"{nome}"}, {"{unidade}"}, {"{mes}"}, {"{convidados}"}
+                    Variáveis: {"{nome}"}, {"{empresa}"}, {"{unidade}"}, {"{mes}"}, {"{convidados}"}
                   </p>
                 </div>
 
@@ -1925,7 +1925,7 @@ export function AutomationsSection() {
                     disabled={isSaving || !botSettings?.follow_up_3_enabled}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Variáveis: {"{nome}"}, {"{unidade}"}, {"{mes}"}, {"{convidados}"}
+                    Variáveis: {"{nome}"}, {"{empresa}"}, {"{unidade}"}, {"{mes}"}, {"{convidados}"}
                   </p>
                 </div>
 
@@ -2013,7 +2013,7 @@ export function AutomationsSection() {
                     disabled={isSaving || !botSettings?.follow_up_4_enabled}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Variáveis: {"{nome}"}, {"{unidade}"}, {"{mes}"}, {"{convidados}"}
+                    Variáveis: {"{nome}"}, {"{empresa}"}, {"{unidade}"}, {"{mes}"}, {"{convidados}"}
                   </p>
                 </div>
               </div>

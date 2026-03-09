@@ -622,10 +622,22 @@ async function processFollowUp({
         continue;
       }
 
+      // Fetch company name for {empresa} variable
+      let companyName = "nosso buffet";
+      if (instance.company_id) {
+        const { data: companyData } = await supabase
+          .from("companies")
+          .select("name")
+          .eq("id", instance.company_id)
+          .single();
+        if (companyData?.name) companyName = companyData.name;
+      }
+
       // Compose follow-up message with variable replacements
       const firstName = resolveFirstName({} as Record<string, unknown>, null, lead.name);
       let personalizedMessage = message
         .replace(/\{nome\}/g, firstName)
+        .replace(/\{empresa\}/g, companyName)
         .replace(/\{unidade\}/g, lead.unit || "nossa unidade")
         .replace(/\{mes\}/g, lead.month || "")
         .replace(/\{convidados\}/g, lead.guests || "");
@@ -763,23 +775,21 @@ function getDefaultFollowUpMessage(number: number): string {
   if (number === 1) {
     return `Olá, {nome}! 👋
 
-Passando para saber se teve a chance de analisar as informações que enviamos sobre o Castelo da Diversão! 🏰
+Passando para saber se teve a chance de analisar as informações que enviamos sobre a {empresa}!
 
-Estamos à disposição para esclarecer qualquer dúvida ou agendar uma visita para conhecer pessoalmente nossos espaços. 
-
-Podemos te ajudar? 😊`;
+Estamos à disposição para esclarecer qualquer dúvida ou agendar uma visita. Podemos te ajudar? 😊`;
   } else if (number === 2) {
     return `Olá, {nome}! 👋
 
-Ainda não tivemos retorno sobre a festa no Castelo da Diversão! 🏰
+Ainda não tivemos retorno sobre a festa na {empresa}!
 
-Temos pacotes especiais e datas disponíveis para {mes}. Que tal agendar uma visita para conhecer nosso espaço? 
+Temos pacotes especiais e datas disponíveis para {mes}. Que tal agendar uma visita?
 
 Estamos aqui para te ajudar! 😊`;
   } else if (number === 3) {
     return `Oi, {nome}! 😊
 
-Sei que a decisão de uma festa leva tempo, mas quero garantir que você não perca as melhores datas para {mes}! 📅
+Sei que a decisão leva tempo, mas quero garantir que você não perca as melhores datas para {mes}! 📅
 
 Posso te ajudar com alguma dúvida ou enviar mais informações sobre nossos pacotes?`;
   } else {
@@ -787,7 +797,7 @@ Posso te ajudar com alguma dúvida ou enviar mais informações sobre nossos pac
 
 As datas para {mes} estão quase esgotadas! Se ainda estiver pensando na festa, esse é o momento ideal para garantir.
 
-Posso reservar um horário para você conhecer nosso espaço? 🏰`;
+Posso reservar um horário para você conhecer nosso espaço?`;
   }
 }
 
