@@ -2359,6 +2359,20 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     setMediaCaption("");
   };
 
+  // Safe chunked base64 conversion (avoids stack overflow)
+  function arrayBufferToBase64(buffer: ArrayBuffer): string {
+    const bytes = new Uint8Array(buffer);
+    const chunkSize = 8192;
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+      for (let j = 0; j < chunk.length; j++) {
+        binary += String.fromCharCode(chunk[j]);
+      }
+    }
+    return btoa(binary);
+  }
+
   // Send recorded audio
   const sendRecordedAudio = async () => {
     if (!audioBlob || !selectedConversation || !selectedInstance || isUploading) return;
@@ -2382,50 +2396,63 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     
     setMessages(prev => [...prev, optimisticMessage]);
     
+    // Capture blob before clearing recording UI
+    const capturedBlob = audioBlob;
+    const mimeType = capturedBlob.type || 'audio/webm';
+    
     // Clear the recording UI immediately for better UX
     cancelRecording();
 
     try {
-      // Create file from blob
+      // Convert blob to base64 directly (eliminates Storage round-trip)
+      const audioBuffer = await capturedBlob.arrayBuffer();
+      const base64Audio = arrayBufferToBase64(audioBuffer);
+
+      // Storage upload in parallel for history persistence (non-blocking)
       const fileName = `${selectedConversation.id}/${Date.now()}.webm`;
-      
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const storagePromise = supabase.storage
         .from('whatsapp-media')
-        .upload(fileName, audioBlob, {
-          contentType: audioBlob.type,
+        .upload(fileName, capturedBlob, { contentType: mimeType })
+        .then(({ error: uploadError }) => {
+          if (uploadError) {
+            console.warn('Audio storage upload failed (non-blocking):', uploadError.message);
+            return null;
+          }
+          return supabase.storage
+            .from('whatsapp-media')
+            .createSignedUrl(fileName, 31536000)
+            .then(({ data }) => data?.signedUrl || null);
         });
 
-      if (uploadError) {
-        throw new Error(uploadError.message);
-      }
-
-      // Get signed URL (bucket is private)
-      const { data: urlData, error: urlError } = await supabase.storage
-        .from('whatsapp-media')
-        .createSignedUrl(fileName, 31536000); // 1 year expiry
-
-      if (urlError || !urlData?.signedUrl) {
-        throw new Error('Erro ao gerar URL do áudio');
-      }
-
-      const mediaUrl = urlData.signedUrl;
-
+      // Send base64 directly to edge function (main path)
       const response = await invokeWithRetry({
           action: 'send-audio',
           phone: getConversationPhone(selectedConversation),
           conversationId: selectedConversation.id,
           instanceId: selectedInstance.instance_id,
-          mediaUrl,
+          base64: base64Audio,
+          mimeType,
       });
 
       if (response.error) {
         throw new Error(response.error.message);
       }
 
+      // Wait for storage URL and update message for history
+      const mediaUrl = await storagePromise;
+      
       // Update optimistic message to sent status
       setMessages(prev => prev.map(m => 
         m.id === optimisticId ? { ...m, status: 'sent', media_url: mediaUrl } : m
       ));
+
+      // Update media_url in database if storage succeeded
+      if (mediaUrl && response.data?.messageId) {
+        supabase.from('wapi_messages')
+          .update({ media_url: mediaUrl })
+          .eq('message_id', response.data.messageId)
+          .then(() => {});
+      }
 
       toast({
         title: "Áudio enviado",

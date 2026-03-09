@@ -613,30 +613,38 @@ Deno.serve(async (req) => {
       }
 
       case 'send-audio': {
-        const { base64: audioBase64, mediaUrl: audioMediaUrl } = body;
+        const { base64: audioBase64, mediaUrl: audioMediaUrl, mimeType: clientMimeType } = body;
         
         let audioPayload: Record<string, unknown> = { phone };
 
         if (audioBase64) {
-          // Se já veio base64, usar diretamente (com prefixo)
+          // Determine correct MIME prefix for W-API
+          // W-API expects audio/ogg for voice messages, but we must use the right container
+          // If client sends webm, we still label as ogg (W-API requirement for voice notes)
           let finalAudio = audioBase64;
           if (!finalAudio.startsWith('data:')) {
-            finalAudio = `data:audio/ogg;base64,${finalAudio}`;
+            // Always use audio/ogg;codecs=opus prefix — W-API requires it for voice messages
+            finalAudio = `data:audio/ogg;codecs=opus;base64,${finalAudio}`;
           }
+          console.log('send-audio: using direct base64, mimeType from client:', clientMimeType || 'not provided');
           audioPayload.audio = finalAudio;
         } else if (audioMediaUrl) {
-          // W-API rejeita URLs sem extensão .mp3/.ogg — sempre converter para base64
+          // Fallback: W-API rejeita URLs sem extensão .mp3/.ogg — converter para base64
           console.log('send-audio: fetching and converting to base64:', audioMediaUrl.substring(0, 80));
           const audioRes = await fetch(audioMediaUrl);
           if (!audioRes.ok) throw new Error('Falha ao baixar audio: ' + audioRes.status);
           const buf = await audioRes.arrayBuffer();
           const bytes = new Uint8Array(buf);
+          // Safe chunked base64 conversion (avoids stack overflow)
           let bin = '';
-          for (let i = 0; i < bytes.length; i += 32768) {
-            const chunk = bytes.subarray(i, Math.min(i + 32768, bytes.length));
-            bin += String.fromCharCode.apply(null, Array.from(chunk));
+          const chunkSize = 8192;
+          for (let i = 0; i < bytes.length; i += chunkSize) {
+            const end = Math.min(i + chunkSize, bytes.length);
+            for (let j = i; j < end; j++) {
+              bin += String.fromCharCode(bytes[j]);
+            }
           }
-          audioPayload.audio = `data:audio/ogg;base64,${btoa(bin)}`;
+          audioPayload.audio = `data:audio/ogg;codecs=opus;base64,${btoa(bin)}`;
         } else {
           return new Response(JSON.stringify({ error: 'Áudio é obrigatório' }), {
             status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -651,7 +659,7 @@ Deno.serve(async (req) => {
         );
         
         if (!res.ok) {
-          console.error('send-audio failed:', res.error, 'mediaUrl:', audioMediaUrl?.substring(0, 80));
+          console.error('send-audio failed:', res.error, 'hadBase64:', !!audioBase64, 'mediaUrl:', audioMediaUrl?.substring(0, 80));
           return new Response(JSON.stringify({ error: res.error }), {
             status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
