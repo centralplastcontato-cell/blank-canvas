@@ -1,42 +1,42 @@
 
 
-## Plano: Vincular lead à conversa e passar nome no wapi-send
+## Plano: Intervalo de segurança configurável entre envios de follow-up
+
+### Problema
+O `follow-up-check` envia mensagens para múltiplos leads em rajada, sem intervalo entre eles, arriscando bloqueio do WhatsApp.
+
+### Solução
+Adicionar dois campos configuráveis (`follow_up_send_min_delay` e `follow_up_send_max_delay`) na tabela `wapi_bot_settings` e na UI de Automações, com defaults seguros (8s e 15s). A edge function usará esses valores para inserir um delay aleatório entre envios.
 
 ### Alterações
 
-**1. `src/components/landing/LeadChatbot.tsx`** (linha ~436-442)
-- Adicionar `contactName: leadInfo.name` ao body da chamada `wapi-send` para que a conversa seja criada/atualizada com o nome correto.
+**1. Migration — nova coluna na `wapi_bot_settings`**
+```sql
+ALTER TABLE wapi_bot_settings
+  ADD COLUMN follow_up_send_min_delay integer NOT NULL DEFAULT 8,
+  ADD COLUMN follow_up_send_max_delay integer NOT NULL DEFAULT 15;
+```
 
-**2. `supabase/functions/submit-lead/index.ts`** (após criação/atualização do lead)
-- Após o insert ou update do lead, buscar a conversa correspondente em `wapi_conversations` pelo telefone normalizado + `company_id`.
-- Se encontrar, fazer UPDATE com `lead_id` e `contact_name` do lead.
-- Isso funciona tanto para leads novos quanto retornantes.
-- Para o lead novo, preciso recuperar o `id` do insert (usar `.select('id').single()`).
-- Para o lead existente, já temos `existingLead.id`.
+**2. `supabase/functions/follow-up-check/index.ts`**
+- Adicionar helper `randomSafeDelay(minSec, maxSec)` que retorna uma Promise com setTimeout aleatório.
+- Ler os novos campos do `wapi_bot_settings` (já vêm na query existente de settings).
+- Adicionar `FollowUpSettings` com `follow_up_send_min_delay` e `follow_up_send_max_delay`.
+- Nos 4 loops de envio (`processFollowUp`, `processNextStepReminder`, `processBotInactiveFollowUp`, `processStuckBotRecovery`), após cada envio bem-sucedido (exceto o último), chamar `await randomSafeDelay(min, max)`.
+
+**3. `src/components/whatsapp/settings/AutomationsSection.tsx`**
+- Adicionar seção "Intervalo de segurança entre envios" com dois inputs (Mín e Máx, em segundos), range 5-30s, similar ao padrão já usado no `SendBotDialog`.
+- Posicionar na área de Follow-ups, abaixo das configurações de horário.
 
 ### Detalhes técnicos
 
-A busca da conversa será feita com:
-```sql
-SELECT id FROM wapi_conversations
-WHERE phone LIKE '%{normalizedPhone}'
-  AND company_id = '{company_id}'
-ORDER BY last_message_at DESC
-LIMIT 1
-```
+Os defaults (8-15s) são seguros e já validados pelo padrão do `SendBotDialog`. Com 20 leads, o ciclo levaria ~3-5 minutos, dentro do timeout da edge function.
 
-O UPDATE será:
-```sql
-UPDATE wapi_conversations
-SET lead_id = '{lead_id}', contact_name = '{name}'
-WHERE id = '{conversation_id}'
-```
-
-Nenhuma alteração em webhooks, instâncias ou lógica de conexão WhatsApp. Apenas leitura + update de dados na tabela `wapi_conversations`.
+A UI terá validação: mín entre 5-30, máx entre mín-30, com clamp no `onBlur`.
 
 ### Arquivos alterados
 | Arquivo | Tipo |
 |---|---|
-| `src/components/landing/LeadChatbot.tsx` | Frontend |
-| `supabase/functions/submit-lead/index.ts` | Edge Function |
+| Migration SQL | DB |
+| `supabase/functions/follow-up-check/index.ts` | Edge Function |
+| `src/components/whatsapp/settings/AutomationsSection.tsx` | Frontend |
 
