@@ -1967,6 +1967,7 @@ async function processStuckBotRecovery({
 
           console.log(`[follow-up-check] 🔄 Recovered conv ${conv.id} - client transfer`);
           successCount++;
+          recoveryMessagesSent++;
           continue;
         }
 
