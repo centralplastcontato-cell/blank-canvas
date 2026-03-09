@@ -37,6 +37,8 @@ interface FollowUpSettings {
   follow_up_4_message: string | null;
   follow_up_min_hour: number;
   follow_up_max_hour: number;
+  follow_up_send_min_delay: number;
+  follow_up_send_max_delay: number;
   auto_lost_enabled: boolean;
   auto_lost_delay_hours: number;
   next_step_reminder_enabled: boolean;
@@ -48,6 +50,12 @@ interface FollowUpSettings {
   instance_id: string;
   test_mode_enabled?: boolean;
   test_mode_number?: string | null;
+}
+
+/** Returns a promise that resolves after a random delay between minSec and maxSec seconds */
+function randomSafeDelay(minSec: number, maxSec: number): Promise<void> {
+  const ms = Math.floor(Math.random() * (maxSec - minSec + 1) + minSec) * 1000;
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /** Returns true if current time in America/Sao_Paulo is outside the allowed send window */
