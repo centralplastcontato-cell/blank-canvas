@@ -117,6 +117,8 @@ interface BotSettings {
   bot_inactive_followup_enabled: boolean;
   bot_inactive_followup_delay_minutes: number;
   bot_inactive_followup_message: string | null;
+  follow_up_send_min_delay: number;
+  follow_up_send_max_delay: number;
   use_flow_builder: boolean;
 }
 
