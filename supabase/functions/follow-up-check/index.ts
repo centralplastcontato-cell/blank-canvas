@@ -416,6 +416,14 @@ async function processNextStepReminder({
         .eq("id", conv.id);
 
       successCount++;
+
+      // Safe delay between sends to avoid WhatsApp rate limiting
+      const minDelay = settings.follow_up_send_min_delay ?? 8;
+      const maxDelay = settings.follow_up_send_max_delay ?? 15;
+      if (successCount < stuckConversations.length) {
+        console.log(`[follow-up-check] ⏳ Waiting ${minDelay}-${maxDelay}s before next send...`);
+        await randomSafeDelay(minDelay, maxDelay);
+      }
     } catch (err) {
       console.error(`[follow-up-check] Error processing reminder for conv ${conv.id}:`, err);
       errors.push(`Error with conv ${conv.id}: ${String(err)}`);
