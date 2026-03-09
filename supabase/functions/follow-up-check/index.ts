@@ -622,10 +622,22 @@ async function processFollowUp({
         continue;
       }
 
+      // Fetch company name for {empresa} variable
+      let companyName = "nosso buffet";
+      if (instance.company_id) {
+        const { data: companyData } = await supabase
+          .from("companies")
+          .select("name")
+          .eq("id", instance.company_id)
+          .single();
+        if (companyData?.name) companyName = companyData.name;
+      }
+
       // Compose follow-up message with variable replacements
       const firstName = resolveFirstName({} as Record<string, unknown>, null, lead.name);
       let personalizedMessage = message
         .replace(/\{nome\}/g, firstName)
+        .replace(/\{empresa\}/g, companyName)
         .replace(/\{unidade\}/g, lead.unit || "nossa unidade")
         .replace(/\{mes\}/g, lead.month || "")
         .replace(/\{convidados\}/g, lead.guests || "");
