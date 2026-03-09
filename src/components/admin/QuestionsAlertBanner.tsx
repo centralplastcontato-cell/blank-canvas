@@ -160,15 +160,15 @@ export function QuestionsAlertBanner({ userId, onOpenConversation }: QuestionsAl
       // Get last message from lead
       const { data: msg } = await supabase
         .from("wapi_messages")
-        .select("body")
+        .select("content")
         .eq("conversation_id", conversationId)
         .eq("from_me", false)
         .order("timestamp", { ascending: false })
         .limit(1)
         .single();
 
-      if (msg?.body) {
-        setLastMessage(msg.body);
+      if (msg?.content) {
+        setLastMessage(msg.content);
       }
     } catch {
       // silently fail
