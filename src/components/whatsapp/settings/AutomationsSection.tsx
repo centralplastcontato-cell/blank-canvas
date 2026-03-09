@@ -1681,14 +1681,19 @@ export function AutomationsSection() {
                       id="fu-send-min-delay"
                       type="number"
                       min={5}
-                      max={30}
+                      max={120}
                       value={botSettings?.follow_up_send_min_delay ?? 8}
                       onChange={(e) => {
-                        const v = parseInt(e.target.value);
+                        const raw = e.target.value;
+                        if (raw === '') {
+                          setBotSettings(prev => prev ? { ...prev, follow_up_send_min_delay: 0 } : prev);
+                          return;
+                        }
+                        const v = parseInt(raw);
                         if (!isNaN(v)) setBotSettings(prev => prev ? { ...prev, follow_up_send_min_delay: v } : prev);
                       }}
-                      onBlur={(e) => {
-                        const v = Math.max(5, Math.min(30, parseInt(e.target.value) || 8));
+                      onBlur={() => {
+                        const v = Math.max(5, Math.min(120, botSettings?.follow_up_send_min_delay || 8));
                         setBotSettings(prev => prev ? { ...prev, follow_up_send_min_delay: v } : prev);
                         updateBotSettings({ follow_up_send_min_delay: v });
                       }}
@@ -1703,15 +1708,20 @@ export function AutomationsSection() {
                       id="fu-send-max-delay"
                       type="number"
                       min={5}
-                      max={30}
+                      max={120}
                       value={botSettings?.follow_up_send_max_delay ?? 15}
                       onChange={(e) => {
-                        const v = parseInt(e.target.value);
+                        const raw = e.target.value;
+                        if (raw === '') {
+                          setBotSettings(prev => prev ? { ...prev, follow_up_send_max_delay: 0 } : prev);
+                          return;
+                        }
+                        const v = parseInt(raw);
                         if (!isNaN(v)) setBotSettings(prev => prev ? { ...prev, follow_up_send_max_delay: v } : prev);
                       }}
-                      onBlur={(e) => {
+                      onBlur={() => {
                         const minVal = botSettings?.follow_up_send_min_delay ?? 8;
-                        const v = Math.max(minVal, Math.min(30, parseInt(e.target.value) || 15));
+                        const v = Math.max(minVal, Math.min(120, botSettings?.follow_up_send_max_delay || 15));
                         setBotSettings(prev => prev ? { ...prev, follow_up_send_max_delay: v } : prev);
                         updateBotSettings({ follow_up_send_max_delay: v });
                       }}
@@ -1722,7 +1732,7 @@ export function AutomationsSection() {
                   </div>
                 </div>
                 <p className="text-[11px] text-muted-foreground">
-                  Recomendado: 8-15 segundos. Valores muito baixos podem causar bloqueio.
+                  Recomendado: 8-15 segundos. Máximo: 120s. Valores muito baixos podem causar bloqueio.
                 </p>
               </div>
 
