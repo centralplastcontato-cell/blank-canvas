@@ -781,6 +781,14 @@ async function processFollowUp({
       }
 
       successCount++;
+
+      // Safe delay between sends to avoid WhatsApp rate limiting
+      const minDelay = settings.follow_up_send_min_delay ?? 8;
+      const maxDelay = settings.follow_up_send_max_delay ?? 15;
+      if (successCount < leads.length) {
+        console.log(`[follow-up-check] ⏳ Waiting ${minDelay}-${maxDelay}s before next follow-up send...`);
+        await randomSafeDelay(minDelay, maxDelay);
+      }
     } catch (leadError) {
       console.error(`[follow-up-check] Error processing lead ${lead.id}:`, leadError);
       errors.push(`Error with ${lead.name}: ${String(leadError)}`);
