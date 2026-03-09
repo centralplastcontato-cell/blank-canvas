@@ -1722,7 +1722,15 @@ async function processStuckBotRecovery({
 
   console.log(`[follow-up-check] 🔄 Found ${stuckConversations.length} stuck bot conversations to recover`);
 
+  let recoveryMessagesSent = 0;
+
   for (const conv of stuckConversations) {
+    // Safe delay between sends to avoid WhatsApp rate limiting
+    if (recoveryMessagesSent > 0) {
+      console.log(`[follow-up-check] ⏳ Waiting 8-15s before next stuck bot recovery send...`);
+      await randomSafeDelay(8, 15);
+    }
+
     try {
       // Test mode guard: fetch settings for this instance and skip if not test number
       {
