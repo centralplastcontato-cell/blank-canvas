@@ -1732,7 +1732,7 @@ export function AutomationsSection() {
                   </Label>
                   <Textarea
                     id="follow-up-message"
-                    placeholder="Olá, {nome}! 👋 Passando para saber se teve a chance de analisar as informações..."
+                    placeholder="Olá, {nome}! 👋 Passando para saber se teve a chance de analisar as informações sobre a {empresa}..."
                     value={botSettings?.follow_up_message || ""}
                     onChange={(e) => {
                       setBotSettings(prev => prev ? { ...prev, follow_up_message: e.target.value } : prev);
