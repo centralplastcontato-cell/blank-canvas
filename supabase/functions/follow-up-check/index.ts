@@ -2014,6 +2014,7 @@ async function processStuckBotRecovery({
 
           console.log(`[follow-up-check] 🔄 Recovered conv ${conv.id} - work interest`);
           successCount++;
+          recoveryMessagesSent++;
           continue;
         }
         // Option 2 (quote) - continue normal flow below
