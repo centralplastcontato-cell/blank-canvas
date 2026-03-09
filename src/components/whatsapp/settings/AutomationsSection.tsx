@@ -1825,7 +1825,7 @@ export function AutomationsSection() {
                   </Label>
                   <Textarea
                     id="follow-up-2-message"
-                    placeholder="Olá, {nome}! 👋 Ainda não tivemos retorno sobre a festa..."
+                    placeholder="Olá, {nome}! 👋 Ainda não tivemos retorno sobre a festa na {empresa}..."
                     value={botSettings?.follow_up_2_message || ""}
                     onChange={(e) => {
                       setBotSettings(prev => prev ? { ...prev, follow_up_2_message: e.target.value } : prev);
