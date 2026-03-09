@@ -2162,6 +2162,7 @@ async function processStuckBotRecovery({
 
       console.log(`[follow-up-check] 🔄 Recovered conv ${conv.id}: ${step} → ${nextStepKey}`);
       successCount++;
+      recoveryMessagesSent++;
     } catch (err) {
       console.error(`[follow-up-check] 🔄 Error recovering conv ${conv.id}:`, err);
       errors.push(`Recovery error conv ${conv.id}: ${String(err)}`);
