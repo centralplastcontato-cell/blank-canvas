@@ -1885,6 +1885,7 @@ async function processStuckBotRecovery({
 
         console.log(`[follow-up-check] 🔄 Recovered welcome step for conv ${conv.id}`);
         successCount++;
+        recoveryMessagesSent++;
         continue;
       }
 
