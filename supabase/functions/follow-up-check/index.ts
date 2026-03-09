@@ -1926,6 +1926,7 @@ async function processStuckBotRecovery({
 
         console.log(`[follow-up-check] 🔄 Invalid answer for conv ${conv.id}, re-sent question`);
         successCount++;
+        recoveryMessagesSent++;
         continue;
       }
 
