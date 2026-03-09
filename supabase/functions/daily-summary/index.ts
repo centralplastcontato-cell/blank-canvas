@@ -593,6 +593,7 @@ Gere um resumo de 3-5 parágrafos curtos com:
       .gte("created_at", targetStartISO)
       .in("action", FOLLOW_UP_ACTIONS);
     if (isHistoricalDate) followUpQuery = followUpQuery.lt("created_at", targetEndISO);
+    followUpQuery = followUpQuery.limit(5000);
     const { data: followUpEvents } = await followUpQuery;
 
     let followUpLeads: any[] = [];

@@ -531,7 +531,8 @@ async function processFollowUp({
       .from("lead_history")
       .select("lead_id")
       .in("lead_id", leadsNeedingFollowUp)
-      .eq("action", checkPreviousAction);
+      .eq("action", checkPreviousAction)
+      .limit(5000);
 
     if (prevError) {
       console.error("[follow-up-check] Error checking previous follow-ups:", prevError);
