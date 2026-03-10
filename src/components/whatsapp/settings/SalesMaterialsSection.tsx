@@ -93,66 +93,66 @@ function SortableMaterialItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-2 p-2 border rounded-lg ${!material.is_active ? 'opacity-50' : ''} ${isDragging ? 'shadow-lg ring-2 ring-primary/20' : ''}`}
+      className={`border rounded-lg ${!material.is_active ? 'opacity-50' : ''} ${isDragging ? 'shadow-lg ring-2 ring-primary/20' : ''}`}
     >
-      {canManage && (
-        <button
-          {...attributes}
-          {...listeners}
-          className="cursor-grab active:cursor-grabbing touch-none p-0.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
-          tabIndex={-1}
-        >
-          <GripVertical className="w-4 h-4" />
-        </button>
-      )}
-      {material.type === "pdf_package" && material.file_url && isImageFile(material.file_url, material.file_path) ? (
-        <img 
-          src={material.file_url} 
-          alt={material.name} 
-          className="w-8 h-8 object-cover rounded border shrink-0 cursor-pointer hover:ring-2 hover:ring-primary transition-all" 
-          onClick={(e) => { e.stopPropagation(); onPreview(material.file_url); }}
-        />
-      ) : (
-        getTypeIcon(material.type)
-      )}
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium truncate">{material.name}</p>
-        {material.type === "photo_collection" && material.photo_urls && (
-          <p className="text-xs text-muted-foreground">
-            {material.photo_urls.length} foto{material.photo_urls.length !== 1 ? 's' : ''}
-          </p>
+      <div className="flex items-center gap-1.5 p-2">
+        {canManage && (
+          <button
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing touch-none p-0.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            tabIndex={-1}
+          >
+            <GripVertical className="w-4 h-4" />
+          </button>
         )}
-        {material.type === "pdf_package" && (
-          <p className="text-xs text-muted-foreground">
-            {material.guest_count ? `${material.guest_count} pessoas` : "Todos os pacotes"}
+        {material.type === "pdf_package" && material.file_url && isImageFile(material.file_url, material.file_path) ? (
+          <img 
+            src={material.file_url} 
+            alt={material.name} 
+            className="w-8 h-8 object-cover rounded border shrink-0 cursor-pointer hover:ring-2 hover:ring-primary transition-all" 
+            onClick={(e) => { e.stopPropagation(); onPreview(material.file_url); }}
+          />
+        ) : (
+          <span className="shrink-0">{getTypeIcon(material.type)}</span>
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium truncate">{material.name}</p>
+          <p className="text-xs text-muted-foreground truncate">
+            {material.type === "photo_collection" && material.photo_urls
+              ? `${material.photo_urls.length} foto${material.photo_urls.length !== 1 ? 's' : ''}`
+              : material.type === "pdf_package"
+                ? (material.guest_count ? `${material.guest_count} pessoas` : "Todos os pacotes")
+                : null
+            }
           </p>
+        </div>
+        {canManage && (
+          <div className="flex items-center gap-0.5 shrink-0">
+            <Switch
+              checked={material.is_active}
+              onCheckedChange={() => onToggleActive(material)}
+              className="scale-[0.65]"
+            />
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => onEdit(material)}
+            >
+              <Pencil className="w-3 h-3" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="h-7 w-7 text-destructive hover:text-destructive"
+              onClick={() => onDelete(material)}
+            >
+              <Trash2 className="w-3 h-3" />
+            </Button>
+          </div>
         )}
       </div>
-      {canManage && (
-        <div className="hidden md:flex items-center gap-0.5 shrink-0 ml-auto">
-          <Switch
-            checked={material.is_active}
-            onCheckedChange={() => onToggleActive(material)}
-            className="scale-75"
-          />
-          <Button 
-            variant="ghost" 
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => onEdit(material)}
-          >
-            <Pencil className="w-3.5 h-3.5" />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="icon"
-            className="h-8 w-8 text-destructive hover:text-destructive"
-            onClick={() => onDelete(material)}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
