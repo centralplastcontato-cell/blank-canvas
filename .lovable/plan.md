@@ -1,22 +1,42 @@
 
 
-## Plano: Corrigir responsivo das Configurações WhatsApp no mobile
-
-### Problemas identificados
-
-1. **Tabs de navegação sem texto no mobile**: A classe `hidden sm:inline` esconde todos os labels dos botões, deixando apenas ícones -- o usuário não sabe onde está.
-2. **ScrollArea com altura fixa**: `h-[calc(100vh-340px)]` corta o conteúdo no mobile, especialmente com o header e as tabs ocupando espaço.
-3. **Seção "Conteúdo" tem sub-tabs aninhadas** (Templates/Materiais) que adicionam mais uma camada de navegação desnecessária no mobile.
+## Plano: Vincular lead à conversa e passar nome no wapi-send
 
 ### Alterações
 
-| Arquivo | Mudança |
-|---|---|
-| `src/components/whatsapp/WhatsAppConfig.tsx` | Mostrar labels nos tabs mobile (remover `hidden sm:inline`), reduzir tamanho do texto (`text-[10px]`), ajustar ScrollArea para altura mais generosa no mobile (`h-[calc(100vh-260px)]`), remover header da seção no mobile para economizar espaço |
-| `src/components/whatsapp/settings/SalesMaterialsSection.tsx` | Remover Card wrapper desnecessário no mobile (padding extra), compactar type tabs |
+**1. `src/components/landing/LeadChatbot.tsx`** (linha ~436-442)
+- Adicionar `contactName: leadInfo.name` ao body da chamada `wapi-send` para que a conversa seja criada/atualizada com o nome correto.
 
-### Resultado esperado
-- Tabs com ícone + label visíveis em todas as telas
-- Área de conteúdo usa mais espaço vertical
-- Materiais visíveis sem scroll excessivo
+**2. `supabase/functions/submit-lead/index.ts`** (após criação/atualização do lead)
+- Após o insert ou update do lead, buscar a conversa correspondente em `wapi_conversations` pelo telefone normalizado + `company_id`.
+- Se encontrar, fazer UPDATE com `lead_id` e `contact_name` do lead.
+- Isso funciona tanto para leads novos quanto retornantes.
+- Para o lead novo, preciso recuperar o `id` do insert (usar `.select('id').single()`).
+- Para o lead existente, já temos `existingLead.id`.
+
+### Detalhes técnicos
+
+A busca da conversa será feita com:
+```sql
+SELECT id FROM wapi_conversations
+WHERE phone LIKE '%{normalizedPhone}'
+  AND company_id = '{company_id}'
+ORDER BY last_message_at DESC
+LIMIT 1
+```
+
+O UPDATE será:
+```sql
+UPDATE wapi_conversations
+SET lead_id = '{lead_id}', contact_name = '{name}'
+WHERE id = '{conversation_id}'
+```
+
+Nenhuma alteração em webhooks, instâncias ou lógica de conexão WhatsApp. Apenas leitura + update de dados na tabela `wapi_conversations`.
+
+### Arquivos alterados
+| Arquivo | Tipo |
+|---|---|
+| `src/components/landing/LeadChatbot.tsx` | Frontend |
+| `supabase/functions/submit-lead/index.ts` | Edge Function |
 

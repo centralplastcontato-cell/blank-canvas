@@ -172,7 +172,7 @@ export function WhatsAppConfig({ userId, isAdmin, isGestor = false }: WhatsAppCo
     <div className="flex flex-col h-full gap-4">
       {/* Horizontal Tabs - scrollable on mobile */}
       <div className="shrink-0 -mx-3 px-3 md:mx-0 md:px-0">
-        <div className="flex gap-1.5 p-1 rounded-2xl bg-muted/50 border border-border/40 shadow-sm overflow-x-auto scrollbar-thin md:flex-wrap md:justify-center md:gap-2 md:p-1.5">
+        <div className="flex gap-1 p-0.5 rounded-xl bg-muted/50 border border-border/40 shadow-sm overflow-x-auto scrollbar-thin md:flex-wrap md:justify-center md:gap-2 md:p-1.5 md:rounded-2xl">
           {configSections.map((section) => (
             <button
               key={section.id}
@@ -184,14 +184,14 @@ export function WhatsAppConfig({ userId, isAdmin, isGestor = false }: WhatsAppCo
                 }
               }}
               className={cn(
-                "inline-flex items-center gap-1.5 px-3 py-2 rounded-xl whitespace-nowrap transition-all duration-200 text-xs font-semibold shrink-0 md:px-4 md:py-2.5 md:text-sm md:gap-2",
+                "inline-flex items-center gap-1 px-2 py-1.5 rounded-lg whitespace-nowrap transition-all duration-200 text-[10px] font-semibold shrink-0 md:px-4 md:py-2.5 md:text-sm md:gap-2 md:rounded-xl",
                 activeSection === section.id
                   ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30 scale-[1.02]"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                  : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
               )}
             >
-              <section.icon className="w-4 h-4" />
-              <span className="hidden sm:inline">{section.title}</span>
+              <section.icon className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              <span>{section.title}</span>
               {(section as any).isLink && (
                 <span className="text-xs opacity-50">↗</span>
               )}
@@ -202,8 +202,8 @@ export function WhatsAppConfig({ userId, isAdmin, isGestor = false }: WhatsAppCo
 
       {/* Content Area */}
       <div className="flex-1 min-w-0">
-        {/* Section Header */}
-        <div className="mb-5 pb-3 border-b border-border">
+        {/* Section Header - hidden on mobile to save space */}
+        <div className="hidden md:block mb-5 pb-3 border-b border-border">
           <div className="flex items-center gap-3">
             {activeConfig && (
               <>
@@ -220,7 +220,7 @@ export function WhatsAppConfig({ userId, isAdmin, isGestor = false }: WhatsAppCo
         </div>
 
         {/* Section Content */}
-        <ScrollArea className="h-[calc(100vh-340px)] md:h-[calc(100vh-320px)]">
+        <ScrollArea className="h-[calc(100vh-230px)] md:h-[calc(100vh-320px)]">
           {renderContent()}
         </ScrollArea>
       </div>
