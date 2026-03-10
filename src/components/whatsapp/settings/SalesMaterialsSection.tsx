@@ -838,19 +838,19 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
             <TabsList className="flex w-full mb-3 h-9 p-1">
               <TabsTrigger value="pdf_package" className="flex-1 text-xs px-1 gap-1">
                 <FileText className="w-3.5 h-3.5 shrink-0" />
-                <span className="hidden sm:inline">PDFs</span>
+                <span>PDFs</span>
               </TabsTrigger>
               <TabsTrigger value="photo_collection" className="flex-1 text-xs px-1 gap-1">
                 <Images className="w-3.5 h-3.5 shrink-0" />
-                <span className="hidden sm:inline">Coleções</span>
+                <span>Coleções</span>
               </TabsTrigger>
               <TabsTrigger value="photo" className="flex-1 text-xs px-1 gap-1">
                 <Image className="w-3.5 h-3.5 shrink-0" />
-                <span className="hidden sm:inline">Fotos</span>
+                <span>Fotos</span>
               </TabsTrigger>
               <TabsTrigger value="video" className="flex-1 text-xs px-1 gap-1">
                 <Video className="w-3.5 h-3.5 shrink-0" />
-                <span className="hidden sm:inline">Vídeos</span>
+                <span>Vídeos</span>
               </TabsTrigger>
             </TabsList>
 

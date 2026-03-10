@@ -202,8 +202,8 @@ export function WhatsAppConfig({ userId, isAdmin, isGestor = false }: WhatsAppCo
 
       {/* Content Area */}
       <div className="flex-1 min-w-0">
-        {/* Section Header */}
-        <div className="mb-5 pb-3 border-b border-border">
+        {/* Section Header - hidden on mobile to save space */}
+        <div className="hidden md:block mb-5 pb-3 border-b border-border">
           <div className="flex items-center gap-3">
             {activeConfig && (
               <>
@@ -220,7 +220,7 @@ export function WhatsAppConfig({ userId, isAdmin, isGestor = false }: WhatsAppCo
         </div>
 
         {/* Section Content */}
-        <ScrollArea className="h-[calc(100vh-340px)] md:h-[calc(100vh-320px)]">
+        <ScrollArea className="h-[calc(100vh-230px)] md:h-[calc(100vh-320px)]">
           {renderContent()}
         </ScrollArea>
       </div>
