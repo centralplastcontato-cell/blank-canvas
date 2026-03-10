@@ -835,22 +835,22 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
 
           {/* Type tabs */}
           <Tabs value={selectedType} onValueChange={setSelectedType}>
-            <TabsList className="flex w-full mb-3 h-9 p-1">
-              <TabsTrigger value="pdf_package" className="flex-1 text-xs px-1 gap-1">
+            <TabsList className="flex w-full mb-3 h-9 p-1 overflow-x-auto scrollbar-thin">
+              <TabsTrigger value="pdf_package" className="flex-1 text-[11px] px-1.5 gap-1 shrink-0">
                 <FileText className="w-3.5 h-3.5 shrink-0" />
-                <span>PDFs</span>
+                PDFs
               </TabsTrigger>
-              <TabsTrigger value="photo_collection" className="flex-1 text-xs px-1 gap-1">
+              <TabsTrigger value="photo_collection" className="flex-1 text-[11px] px-1.5 gap-1 shrink-0">
                 <Images className="w-3.5 h-3.5 shrink-0" />
-                <span>Coleções</span>
+                Coleções
               </TabsTrigger>
-              <TabsTrigger value="photo" className="flex-1 text-xs px-1 gap-1">
+              <TabsTrigger value="photo" className="flex-1 text-[11px] px-1.5 gap-1 shrink-0">
                 <Image className="w-3.5 h-3.5 shrink-0" />
-                <span>Fotos</span>
+                Fotos
               </TabsTrigger>
-              <TabsTrigger value="video" className="flex-1 text-xs px-1 gap-1">
+              <TabsTrigger value="video" className="flex-1 text-[11px] px-1.5 gap-1 shrink-0">
                 <Video className="w-3.5 h-3.5 shrink-0" />
-                <span>Vídeos</span>
+                Vídeos
               </TabsTrigger>
             </TabsList>
 
