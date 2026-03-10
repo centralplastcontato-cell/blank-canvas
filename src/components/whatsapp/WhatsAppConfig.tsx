@@ -170,9 +170,9 @@ export function WhatsAppConfig({ userId, isAdmin, isGestor = false }: WhatsAppCo
 
   return (
     <div className="flex flex-col h-full gap-4">
-      {/* Horizontal Tabs with wrap */}
-      <div className="shrink-0">
-        <div className="flex flex-wrap justify-center gap-2 p-1.5 rounded-2xl bg-muted/50 border border-border/40 shadow-sm">
+      {/* Horizontal Tabs - scrollable on mobile */}
+      <div className="shrink-0 -mx-3 px-3 md:mx-0 md:px-0">
+        <div className="flex gap-1.5 p-1 rounded-2xl bg-muted/50 border border-border/40 shadow-sm overflow-x-auto scrollbar-thin md:flex-wrap md:justify-center md:gap-2 md:p-1.5">
           {configSections.map((section) => (
             <button
               key={section.id}
@@ -184,14 +184,14 @@ export function WhatsAppConfig({ userId, isAdmin, isGestor = false }: WhatsAppCo
                 }
               }}
               className={cn(
-                "inline-flex items-center gap-2 px-4 py-2.5 rounded-xl whitespace-nowrap transition-all duration-200 text-sm font-semibold",
+                "inline-flex items-center gap-1.5 px-3 py-2 rounded-xl whitespace-nowrap transition-all duration-200 text-xs font-semibold shrink-0 md:px-4 md:py-2.5 md:text-sm md:gap-2",
                 activeSection === section.id
                   ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30 scale-[1.02]"
                   : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
               )}
             >
               <section.icon className="w-4 h-4" />
-              <span>{section.title}</span>
+              <span className="hidden sm:inline">{section.title}</span>
               {(section as any).isLink && (
                 <span className="text-xs opacity-50">↗</span>
               )}
