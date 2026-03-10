@@ -115,7 +115,7 @@ function SortableMaterialItem({
       ) : (
         getTypeIcon(material.type)
       )}
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="text-sm font-medium truncate">{material.name}</p>
         {material.type === "photo_collection" && material.photo_urls && (
           <p className="text-xs text-muted-foreground">
@@ -129,7 +129,7 @@ function SortableMaterialItem({
         )}
       </div>
       {canManage && (
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-0.5 shrink-0 ml-auto">
           <Switch
             checked={material.is_active}
             onCheckedChange={() => onToggleActive(material)}
@@ -138,7 +138,7 @@ function SortableMaterialItem({
           <Button 
             variant="ghost" 
             size="icon"
-            className="h-8 w-8"
+            className="h-7 w-7 md:h-8 md:w-8"
             onClick={() => onEdit(material)}
           >
             <Pencil className="w-3.5 h-3.5" />
@@ -146,7 +146,7 @@ function SortableMaterialItem({
           <Button 
             variant="ghost" 
             size="icon"
-            className="h-8 w-8 text-destructive hover:text-destructive"
+            className="h-7 w-7 md:h-8 md:w-8 text-destructive hover:text-destructive"
             onClick={() => onDelete(material)}
           >
             <Trash2 className="w-3.5 h-3.5" />
