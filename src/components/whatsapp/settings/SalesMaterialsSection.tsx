@@ -129,7 +129,7 @@ function SortableMaterialItem({
         )}
       </div>
       {canManage && (
-        <div className="flex items-center gap-0.5 shrink-0 ml-auto">
+        <div className="hidden md:flex items-center gap-0.5 shrink-0 ml-auto">
           <Switch
             checked={material.is_active}
             onCheckedChange={() => onToggleActive(material)}
@@ -138,7 +138,7 @@ function SortableMaterialItem({
           <Button 
             variant="ghost" 
             size="icon"
-            className="h-7 w-7 md:h-8 md:w-8"
+            className="h-8 w-8"
             onClick={() => onEdit(material)}
           >
             <Pencil className="w-3.5 h-3.5" />
@@ -146,7 +146,7 @@ function SortableMaterialItem({
           <Button 
             variant="ghost" 
             size="icon"
-            className="h-7 w-7 md:h-8 md:w-8 text-destructive hover:text-destructive"
+            className="h-8 w-8 text-destructive hover:text-destructive"
             onClick={() => onDelete(material)}
           >
             <Trash2 className="w-3.5 h-3.5" />
