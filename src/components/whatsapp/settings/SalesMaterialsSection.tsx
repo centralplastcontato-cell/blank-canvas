@@ -93,7 +93,7 @@ function SortableMaterialItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`border rounded-lg ${!material.is_active ? 'opacity-50' : ''} ${isDragging ? 'shadow-lg ring-2 ring-primary/20' : ''}`}
+      className={`border rounded-lg overflow-hidden ${!material.is_active ? 'opacity-50' : ''} ${isDragging ? 'shadow-lg ring-2 ring-primary/20' : ''}`}
     >
       <div className="flex items-center gap-1.5 p-2">
         {canManage && (
