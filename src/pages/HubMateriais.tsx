@@ -49,6 +49,7 @@ function getTypeIcon(type: string) {
 function getTypeLabel(type: string) {
   switch (type) {
     case "pdf": return "PDF";
+    case "pdf_package": return "Pacote PDF";
     case "video": return "Vídeo";
     case "photo_collection": return "Coleção de Fotos";
     case "photo": return "Foto";
