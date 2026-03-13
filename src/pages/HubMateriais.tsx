@@ -265,19 +265,28 @@ function MateriaisContent({ userId }: { userId: string }) {
           </Badge>
         </div>
 
-        {brokenCount > 0 && (
-          <Badge variant="destructive" className="flex items-center gap-1 w-fit">
-            <AlertTriangle className="h-3 w-3" />
-            {brokenCount} com URL quebrada
-          </Badge>
-        )}
-      </div>
-
-      {/* Material Cards */}
-      {filteredMaterials.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground">
-          Nenhum material encontrado.
-        </CardContent></Card>
+        {/* Type Tabs */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+          {visibleTabs.map((tab) => (
+            <Button
+              key={tab.value}
+              variant={selectedType === tab.value ? "default" : "outline"}
+              size="sm"
+              className="shrink-0 text-xs h-7"
+              onClick={() => setSelectedType(tab.value)}
+            >
+              {tab.label}
+              {tab.value !== "all" && (
+                <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">
+                  {materials.filter((m) => {
+                    const companyMatch = selectedCompany === "all" || m.company_id === selectedCompany;
+                    return companyMatch && m.type === tab.value;
+                  }).length}
+                </Badge>
+              )}
+            </Button>
+          ))}
+        </div>
       ) : (
         <div className="grid gap-2 grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {paginatedMaterials.map((material) => (
