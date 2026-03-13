@@ -409,12 +409,12 @@ function MaterialPreview({
     );
   }
 
-  return (
-    <div className="aspect-video bg-muted/30 flex flex-col items-center justify-center gap-1 rounded-t-2xl border-b border-border">
-      {getTypeIcon(material.type)}
-      <span className="text-xs text-muted-foreground">Preview indisponível</span>
-    </div>
-  );
+    return (
+      <div className="aspect-[4/3] bg-muted/30 flex flex-col items-center justify-center gap-1 rounded-t-2xl border-b border-border">
+        {getTypeIcon(material.type)}
+        <span className="text-[10px] text-muted-foreground">Preview indisponível</span>
+      </div>
+    );
 }
 
 function MaterialCard({
