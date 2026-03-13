@@ -2064,6 +2064,30 @@ export type Database = {
           },
         ]
       }
+      hub_recruitment_responses: {
+        Row: {
+          age: number | null
+          answers: Json
+          created_at: string
+          id: string
+          respondent_name: string
+        }
+        Insert: {
+          age?: number | null
+          answers?: Json
+          created_at?: string
+          id?: string
+          respondent_name: string
+        }
+        Update: {
+          age?: number | null
+          answers?: Json
+          created_at?: string
+          id?: string
+          respondent_name?: string
+        }
+        Relationships: []
+      }
       lead_history: {
         Row: {
           action: string
