@@ -447,9 +447,9 @@ function MaterialCard({
   return (
     <Card className={`transition-all overflow-hidden min-w-0 ${isBroken ? "border-destructive/50 bg-destructive/5" : ""}`}>
       <MaterialPreview material={material} onOpenLightbox={onOpenLightbox} />
-      <CardContent className="p-4 space-y-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
+      <CardContent className="p-2.5 space-y-2">
+        <div className="flex items-start justify-between gap-1">
+          <div className="flex items-center gap-1.5 min-w-0">
             {getTypeIcon(material.type)}
             <div className="min-w-0">
               <p className="font-medium text-sm truncate">{material.name}</p>
