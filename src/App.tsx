@@ -28,6 +28,7 @@ import HubTreinamento from "./pages/HubTreinamento";
 import HubLeads from "./pages/HubLeads";
 import HubSuporte from "./pages/HubSuporte";
 import HubMateriais from "./pages/HubMateriais";
+import HubRecruitment from "./pages/HubRecruitment";
 import Treinamento from "./pages/Treinamento";
 import Onboarding from "./pages/Onboarding";
 import Inteligencia from "./pages/Inteligencia";
