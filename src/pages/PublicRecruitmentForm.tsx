@@ -124,6 +124,22 @@ export default function PublicRecruitmentForm() {
       case 0:
         return (
           <div className="space-y-5">
+            {/* Photo upload */}
+            <div className="flex flex-col items-center gap-2">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-24 h-24 rounded-full border-2 border-dashed border-primary/40 hover:border-primary flex items-center justify-center overflow-hidden transition-colors bg-muted/30"
+              >
+                {photoPreview ? (
+                  <img src={photoPreview} alt="Sua foto" className="w-full h-full object-cover" />
+                ) : (
+                  <Camera className="w-8 h-8 text-muted-foreground" />
+                )}
+              </button>
+              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handlePhotoChange} />
+              <p className="text-xs text-muted-foreground">{photoFile ? "Toque para trocar" : "Adicione sua foto *"}</p>
+            </div>
             <div>
               <label className="text-sm font-semibold text-foreground mb-1.5 block">1. Nome completo</label>
               <Input value={answers.nome || ""} onChange={(e) => set("nome", e.target.value)} placeholder="Seu nome completo" maxLength={100} />
