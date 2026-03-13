@@ -371,7 +371,7 @@ function MaterialPreview({
 
   if (material.type === "video" && material.file_url) {
     return (
-      <div className="aspect-video rounded-t-2xl overflow-hidden border-b border-border bg-black">
+      <div className="aspect-[4/3] rounded-t-2xl overflow-hidden border-b border-border bg-black">
         <video
           src={material.file_url}
           preload="metadata"
