@@ -402,7 +402,7 @@ function MaterialPreview({
     return (
       <button
         onClick={() => onOpenLightbox([material.file_url!], 0)}
-        className="aspect-video rounded-t-2xl overflow-hidden border-b border-border hover:opacity-90 transition-opacity"
+        className="aspect-[4/3] rounded-t-2xl overflow-hidden border-b border-border hover:opacity-90 transition-opacity"
       >
         <img src={material.file_url} alt={material.name} className="w-full h-full object-cover" loading="lazy" />
       </button>
