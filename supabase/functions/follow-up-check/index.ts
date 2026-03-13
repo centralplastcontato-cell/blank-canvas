@@ -1423,6 +1423,13 @@ async function processFlowTimerTimeouts({
         continue;
       }
 
+      // === HEALTH GATE for flow timer timeouts (per-instance) ===
+      const timerHealth = await checkInstanceHealth(supabase, instance.id);
+      if (!timerHealth.healthy) {
+        console.log(`[follow-up-check] 🛡️ Flow timer timeout BLOCKED for conv ${conv.id}: ${timerHealth.reason}`);
+        continue;
+      }
+
       // Get target node
       const { data: targetNode } = await supabase
         .from('flow_nodes')
