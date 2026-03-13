@@ -1873,6 +1873,13 @@ async function processStuckBotRecovery({
         continue;
       }
 
+      // === HEALTH GATE for stuck bot recovery (per-instance) ===
+      const recoveryHealth = await checkInstanceHealth(supabase, instance.id);
+      if (!recoveryHealth.healthy) {
+        console.log(`[follow-up-check] 🛡️ Stuck bot recovery BLOCKED for conv ${conv.id}: ${recoveryHealth.reason}`);
+        continue;
+      }
+
       // Fetch company name for variable injection
       let companyName = '';
       if (instance.company_id) {
