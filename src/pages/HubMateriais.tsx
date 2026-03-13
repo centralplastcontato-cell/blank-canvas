@@ -76,6 +76,7 @@ function MateriaisContent({ userId }: { userId: string }) {
   const [lightboxImages, setLightboxImages] = useState<string[] | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedType, setSelectedType] = useState<string>("all");
 
   const handleOpenLightbox = (images: string[], index: number) => {
     setLightboxImages(images);
