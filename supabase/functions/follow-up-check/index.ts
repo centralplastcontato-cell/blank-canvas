@@ -252,6 +252,13 @@ Deno.serve(async (req) => {
 
     // Process each instance with follow-up enabled
     for (const settings of allSettings) {
+      // === PRE-FLIGHT HEALTH GATE: check instance is truly connected + not in quarantine ===
+      const health = await checkInstanceHealth(supabase, settings.instance_id);
+      if (!health.healthy) {
+        console.log(`[follow-up-check] 🛡️ Instance ${settings.instance_id} BLOCKED: ${health.reason} — skipping ALL automations for this instance`);
+        continue;
+      }
+
       // Check time window before processing follow-ups for this instance
       if (isOutsideSendWindow(settings)) {
         console.log(`[follow-up-check] ⏰ Outside send window (${settings.follow_up_min_hour ?? 8}h-${settings.follow_up_max_hour ?? 22}h) for instance ${settings.instance_id} — skipping`);
