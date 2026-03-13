@@ -63,10 +63,22 @@ export default function PublicRecruitmentForm() {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
+      let photo_url: string | null = null;
+      if (photoFile) {
+        const ext = photoFile.name.split(".").pop() || "jpg";
+        const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error: uploadErr } = await supabase.storage
+          .from("recruitment-photos")
+          .upload(path, photoFile, { contentType: photoFile.type });
+        if (uploadErr) throw uploadErr;
+        const { data: urlData } = supabase.storage.from("recruitment-photos").getPublicUrl(path);
+        photo_url = urlData.publicUrl;
+      }
       const { error } = await supabase.from("hub_recruitment_responses" as any).insert({
         respondent_name: answers.nome?.trim(),
         age: parseInt(answers.idade) || null,
         answers,
+        photo_url,
       } as any);
       if (error) throw error;
       setSubmitted(true);
