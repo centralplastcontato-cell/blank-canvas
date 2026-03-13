@@ -100,7 +100,8 @@ export default function HubRecruitment() {
   };
 
   return (
-    <HubLayout currentPage="recrutamento">
+    <HubLayout currentPage="recrutamento" header={<h2 className="font-semibold text-foreground">Recrutamento</h2>}>
+      {() => (
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
