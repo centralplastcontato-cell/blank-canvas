@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
-import { BarChart3, Building2, LogOut, ChevronLeft, Pin, PinOff, Smartphone, Target, Presentation, Brain, GraduationCap, Users, Headset, Package } from "lucide-react";
+import { BarChart3, Building2, LogOut, ChevronLeft, Pin, PinOff, Smartphone, Target, Presentation, Brain, GraduationCap, Users, Headset, Package, UserSearch } from "lucide-react";
 import logoCelebrei from "@/assets/logo-celebrei-2.png";
 import { NavLink } from "@/components/NavLink";
 import { cn } from "@/lib/utils";
