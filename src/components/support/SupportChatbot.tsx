@@ -375,6 +375,7 @@ export function SupportChatbot() {
     "/equipe", "/manutencao", "/acompanhamento",
     "/lista-presenca", "/informacoes", "/freelancer",
     "/escala", "/festa", "/hub-landing", "/hub-login",
+    "/recrutamento-comercial",
   ];
   const isPublicPage = location.pathname === "/" || PUBLIC_PREFIXES.some((p) => location.pathname.startsWith(p));
 
