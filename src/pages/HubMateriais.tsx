@@ -382,7 +382,7 @@ function MaterialPreview({
     );
   }
 
-  if (material.type === "pdf" && material.file_url) {
+  if ((material.type === "pdf" || material.type === "pdf_package") && material.file_url) {
     return (
       <a
         href={material.file_url}
