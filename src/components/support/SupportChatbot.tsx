@@ -295,6 +295,11 @@ export function SupportChatbot() {
   const [btnPosition, setBtnPosition] = useState<BtnPosition>(loadPosition);
   const errorsRef = useConsoleErrors();
   const { currentCompany, currentRole } = useCompany();
+  const pathname = window.location.pathname;
+
+  // Only show on admin/buffet routes (not public pages)
+  const isAdminRoute = pathname.startsWith("/admin") || pathname.startsWith("/hub") || pathname === "/whatsapp" || pathname === "/agenda" || pathname === "/campanhas" || pathname === "/inteligencia" || pathname === "/configuracoes" || pathname === "/contatos" || pathname === "/usuarios" || pathname === "/treinamento" || pathname === "/avaliacoes" || pathname === "/freelancers" || pathname === "/comercial-b2b" || pathname === "/formularios" || pathname === "/cardapio" || pathname === "/contrato" || pathname === "/pre-festa" || pathname === "/central-atendimento" || pathname === "/perfil";
+  if (!isAdminRoute) return null;
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
