@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { BarChart3, Building2, Users, LogOut, Smartphone, ClipboardList, Presentation, Brain, GraduationCap, Contact, Headset, Package } from "lucide-react";
+import { BarChart3, Building2, Users, LogOut, Smartphone, ClipboardList, Presentation, Brain, GraduationCap, Contact, Headset, Package, UserSearch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
