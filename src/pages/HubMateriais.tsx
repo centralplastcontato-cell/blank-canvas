@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Upload, FileText, Video, Image, Images, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Upload, FileText, Video, Image, Images, Loader2, AlertTriangle, CheckCircle2, ExternalLink } from "lucide-react";
+import { ImageLightbox } from "@/components/ui/image-lightbox";
 
 const CURRENT_DOMAIN = "rsezgnkfhodltrsewlhz";
 
@@ -69,6 +70,13 @@ function MateriaisContent({ userId }: { userId: string }) {
   const [selectedCompany, setSelectedCompany] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<string | null>(null);
+  const [lightboxImages, setLightboxImages] = useState<string[] | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+
+  const handleOpenLightbox = (images: string[], index: number) => {
+    setLightboxImages(images);
+    setLightboxIndex(index);
+  };
 
   const fetchMaterials = async () => {
     setLoading(true);
@@ -247,10 +255,121 @@ function MateriaisContent({ userId }: { userId: string }) {
               uploading={uploading === material.id}
               onToggleActive={handleToggleActive}
               onUpload={handleFileUpload}
+              onOpenLightbox={handleOpenLightbox}
             />
           ))}
         </div>
       )}
+
+      {lightboxImages && (
+        <ImageLightbox
+          images={lightboxImages}
+          currentIndex={lightboxIndex}
+          onClose={() => setLightboxImages(null)}
+          onNavigate={setLightboxIndex}
+        />
+      )}
+    </div>
+  );
+}
+
+function isImageUrl(url: string | null): boolean {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  if (/\.(jpg|jpeg|png|webp|gif|avif|svg)(\?|$)/.test(lower)) return true;
+  if (lower.includes("/storage/v1/object/public/") && !lower.includes(".pdf") && !lower.includes(".mp4") && !lower.includes(".mov") && !lower.includes(".webm")) return true;
+  return false;
+}
+
+function MaterialPreview({
+  material,
+  onOpenLightbox,
+}: {
+  material: Material;
+  onOpenLightbox: (images: string[], index: number) => void;
+}) {
+  const isBroken = material.type === "photo_collection"
+    ? !material.photo_urls?.length || material.photo_urls.some((u) => isUrlBroken(u))
+    : isUrlBroken(material.file_url);
+
+  if (isBroken) {
+    return (
+      <div className="aspect-video bg-muted/50 flex flex-col items-center justify-center gap-1 rounded-t-2xl border-b border-border">
+        <AlertTriangle className="h-6 w-6 text-destructive/60" />
+        <span className="text-xs text-muted-foreground">Sem preview</span>
+      </div>
+    );
+  }
+
+  if (material.type === "photo_collection" && material.photo_urls?.length) {
+    const photos = material.photo_urls.filter((u) => !isUrlBroken(u));
+    const visible = photos.slice(0, 3);
+    const remaining = photos.length - visible.length;
+
+    return (
+      <div className="grid grid-cols-3 gap-0.5 rounded-t-2xl overflow-hidden border-b border-border">
+        {visible.map((url, i) => (
+          <button
+            key={i}
+            onClick={() => onOpenLightbox(photos, i)}
+            className="aspect-square overflow-hidden hover:opacity-80 transition-opacity relative"
+          >
+            <img src={url} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
+            {i === visible.length - 1 && remaining > 0 && (
+              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                <span className="text-white font-semibold text-sm">+{remaining}</span>
+              </div>
+            )}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  if (material.type === "video" && material.file_url) {
+    return (
+      <div className="aspect-video rounded-t-2xl overflow-hidden border-b border-border bg-black">
+        <video
+          src={material.file_url}
+          preload="metadata"
+          controls
+          className="w-full h-full object-contain"
+        />
+      </div>
+    );
+  }
+
+  if (material.type === "pdf" && material.file_url) {
+    return (
+      <a
+        href={material.file_url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="aspect-video bg-muted/30 flex flex-col items-center justify-center gap-2 rounded-t-2xl border-b border-border hover:bg-muted/50 transition-colors group"
+      >
+        <FileText className="h-10 w-10 text-muted-foreground group-hover:text-primary transition-colors" />
+        <span className="text-xs text-muted-foreground flex items-center gap-1 group-hover:text-primary transition-colors">
+          Abrir PDF <ExternalLink className="h-3 w-3" />
+        </span>
+      </a>
+    );
+  }
+
+  if (material.file_url && isImageUrl(material.file_url)) {
+    return (
+      <button
+        onClick={() => onOpenLightbox([material.file_url!], 0)}
+        className="aspect-video rounded-t-2xl overflow-hidden border-b border-border hover:opacity-90 transition-opacity"
+      >
+        <img src={material.file_url} alt={material.name} className="w-full h-full object-cover" loading="lazy" />
+      </button>
+    );
+  }
+
+  return (
+    <div className="aspect-video bg-muted/30 flex flex-col items-center justify-center gap-1 rounded-t-2xl border-b border-border">
+      {getTypeIcon(material.type)}
+      <span className="text-xs text-muted-foreground">Preview indisponível</span>
     </div>
   );
 }
@@ -260,11 +379,13 @@ function MaterialCard({
   uploading,
   onToggleActive,
   onUpload,
+  onOpenLightbox,
 }: {
   material: Material;
   uploading: boolean;
   onToggleActive: (m: Material) => void;
   onUpload: (m: Material, files: FileList) => void;
+  onOpenLightbox: (images: string[], index: number) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -282,6 +403,7 @@ function MaterialCard({
 
   return (
     <Card className={`transition-all overflow-hidden min-w-0 ${isBroken ? "border-destructive/50 bg-destructive/5" : ""}`}>
+      <MaterialPreview material={material} onOpenLightbox={onOpenLightbox} />
       <CardContent className="p-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
@@ -317,7 +439,6 @@ function MaterialCard({
           )}
         </div>
 
-        {/* Upload button */}
         <input
           ref={fileInputRef}
           type="file"
