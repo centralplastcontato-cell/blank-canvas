@@ -287,7 +287,6 @@ function MateriaisContent({ userId }: { userId: string }) {
             </Button>
           ))}
         </div>
-        </div>
 
         {brokenCount > 0 && (
           <Badge variant="destructive" className="flex items-center gap-1 w-fit">
