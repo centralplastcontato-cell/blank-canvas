@@ -121,11 +121,28 @@ function MateriaisContent({ userId }: { userId: string }) {
   // Reset page when filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedCompany]);
+  }, [selectedCompany, selectedType]);
 
-  const filteredMaterials = selectedCompany === "all"
-    ? materials
-    : materials.filter((m) => m.company_id === selectedCompany);
+  const TYPE_TABS = [
+    { value: "all", label: "Todos" },
+    { value: "pdf_package", label: "Pacotes PDF" },
+    { value: "photo_collection", label: "Fotos" },
+    { value: "video", label: "Vídeos" },
+    { value: "pdf", label: "PDFs" },
+    { value: "photo", label: "Imagens" },
+  ];
+
+  // Only show tabs that have materials
+  const availableTypes = new Set(materials.map((m) => m.type));
+  const visibleTabs = TYPE_TABS.filter(
+    (t) => t.value === "all" || availableTypes.has(t.value)
+  );
+
+  const filteredMaterials = materials.filter((m) => {
+    const companyMatch = selectedCompany === "all" || m.company_id === selectedCompany;
+    const typeMatch = selectedType === "all" || m.type === selectedType;
+    return companyMatch && typeMatch;
+  });
 
   const totalPages = Math.ceil(filteredMaterials.length / PAGE_SIZE);
   const paginatedMaterials = filteredMaterials.slice(
