@@ -37,6 +37,7 @@ const menuItems = [
   { id: "consumo-ia", label: "Consumo IA", icon: Brain, path: "/hub/consumo-ia" },
   { id: "treinamento", label: "Treinamento", icon: GraduationCap, path: "/hub/treinamento" },
   { id: "materiais", label: "Materiais", icon: Package, path: "/hub/materiais" },
+  { id: "recrutamento", label: "Recrutamento", icon: UserSearch, path: "/hub/recrutamento" },
   { id: "suporte", label: "Suporte", icon: Headset, path: "/hub/suporte" },
 ];
 

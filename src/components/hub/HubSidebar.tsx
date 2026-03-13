@@ -31,6 +31,7 @@ const hubMenuItems = [
   { title: "Consumo IA", url: "/hub/consumo-ia", icon: Brain },
   { title: "Treinamento", url: "/hub/treinamento", icon: GraduationCap },
   { title: "Materiais", url: "/hub/materiais", icon: Package },
+  { title: "Recrutamento", url: "/hub/recrutamento", icon: UserSearch },
   { title: "Suporte", url: "/hub/suporte", icon: Headset },
 ];
 
