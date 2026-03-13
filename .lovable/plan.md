@@ -1,22 +1,50 @@
 
 
+# Formulário de Seleção de Monitor para Prospecção
 
-## ✅ Implementado: Blindagem anti-rajada no follow-up-check
+## O que será construído
 
-### Alterações realizadas
+Um formulário público com 15 perguntas (organizadas em 7 seções) que você poderá compartilhar via link no grupo de WhatsApp dos monitores. As respostas ficam salvas e visíveis numa nova página do Hub para análise do perfil comercial de cada monitor.
 
-**1. `supabase/functions/follow-up-check/index.ts`**
-- Adicionada função `checkInstanceHealth()` com cache por ciclo de execução
-- **Quarentena pós-reconexão**: 60 minutos após `connected_at` antes de permitir qualquer automação
-- **Pre-flight live check**: verifica status real via `wapi-send get-status` antes de processar cada instância
-- **Circuit breaker**: se instância não está saudável, TODAS as automações são bloqueadas (follow-ups, next-step reminder, bot-inactive, auto-lost)
-- **Cobertura global**: health gate aplicado também em `processFlowTimerTimeouts` e `processStuckBotRecovery` (funções que rodam cross-instance)
+## Estrutura
 
-**2. `src/components/whatsapp/settings/AutomationsSection.tsx`**
-- **Guardrail no switch principal**: desligar "Primeiro Follow-up" agora desativa em lote: FU2, FU3, FU4, next_step_reminder, bot_inactive_followup e auto_lost
-- Toast explícito: "Todas as automações pausadas"
+### 1. Banco de dados (Supabase)
+Nova tabela `hub_recruitment_responses` para armazenar as respostas:
+- `id`, `respondent_name`, `age`, `answers` (JSONB com todas as respostas), `created_at`
+- RLS aberta para INSERT (formulário público) e restrita para SELECT (apenas admins do Hub)
 
-### Resultado
-- Reconectar uma instância NÃO dispara automações por 60 minutos
-- Instâncias com sessão ruim (unauthorized, disconnected) são bloqueadas automaticamente
-- Desligar follow-up principal realmente pausa toda a régua
+### 2. Página pública do formulário
+- **Rota**: `/recrutamento-comercial`
+- Multi-step animado (mesmo padrão visual do formulário de freelancer)
+- 7 seções: Informações básicas, Comunicação, Perfil comercial, Iniciativa, Motivação, Disponibilidade, Pergunta chave
+- As 15 perguntas com os tipos: text, number, select, textarea, e campo condicional ("Se sim, onde?")
+- Tela de agradecimento após envio
+- Logo do Castelo da Diversão no topo
+
+### 3. Página no Hub para ver respostas
+- **Rota**: `/hub/recrutamento`
+- Dentro do `HubLayout`
+- Tabela com todas as respostas recebidas
+- Possibilidade de expandir cada resposta para ver detalhes completos
+- Contador de respostas e busca por nome
+
+### 4. Navegação
+- Novo item "Recrutamento" no sidebar do Hub (`HubSidebar.tsx` e `HubMobileMenu.tsx`)
+- Nova rota em `App.tsx`
+
+## Arquivos a criar/editar
+
+| Ação | Arquivo |
+|------|---------|
+| Criar | `src/pages/PublicRecruitmentForm.tsx` (formulário público) |
+| Criar | `src/pages/HubRecruitment.tsx` (painel de respostas no Hub) |
+| Editar | `src/App.tsx` (adicionar rotas) |
+| Editar | `src/components/hub/HubSidebar.tsx` (novo item menu) |
+| Editar | `src/components/hub/HubMobileMenu.tsx` (novo item menu mobile) |
+| Migration | Nova tabela `hub_recruitment_responses` |
+
+## Fluxo do usuário
+1. Você copia o link `/recrutamento-comercial` e envia no grupo do WhatsApp
+2. O monitor abre, preenche as 15 perguntas step-by-step e envia
+3. Você acessa `/hub/recrutamento` e vê todas as respostas para avaliar perfil comercial
+
