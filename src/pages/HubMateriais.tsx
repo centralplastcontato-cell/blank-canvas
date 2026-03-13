@@ -76,6 +76,7 @@ function MateriaisContent({ userId }: { userId: string }) {
   const [lightboxImages, setLightboxImages] = useState<string[] | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedType, setSelectedType] = useState<string>("all");
 
   const handleOpenLightbox = (images: string[], index: number) => {
     setLightboxImages(images);
@@ -120,11 +121,28 @@ function MateriaisContent({ userId }: { userId: string }) {
   // Reset page when filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedCompany]);
+  }, [selectedCompany, selectedType]);
 
-  const filteredMaterials = selectedCompany === "all"
-    ? materials
-    : materials.filter((m) => m.company_id === selectedCompany);
+  const TYPE_TABS = [
+    { value: "all", label: "Todos" },
+    { value: "pdf_package", label: "Pacotes PDF" },
+    { value: "photo_collection", label: "Fotos" },
+    { value: "video", label: "Vídeos" },
+    { value: "pdf", label: "PDFs" },
+    { value: "photo", label: "Imagens" },
+  ];
+
+  // Only show tabs that have materials
+  const availableTypes = new Set(materials.map((m) => m.type));
+  const visibleTabs = TYPE_TABS.filter(
+    (t) => t.value === "all" || availableTypes.has(t.value)
+  );
+
+  const filteredMaterials = materials.filter((m) => {
+    const companyMatch = selectedCompany === "all" || m.company_id === selectedCompany;
+    const typeMatch = selectedType === "all" || m.type === selectedType;
+    return companyMatch && typeMatch;
+  });
 
   const totalPages = Math.ceil(filteredMaterials.length / PAGE_SIZE);
   const paginatedMaterials = filteredMaterials.slice(
@@ -245,6 +263,29 @@ function MateriaisContent({ userId }: { userId: string }) {
           <Badge variant="secondary" className="whitespace-nowrap shrink-0">
             {filteredMaterials.length} materiais
           </Badge>
+        </div>
+
+        {/* Type Tabs */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+          {visibleTabs.map((tab) => (
+            <Button
+              key={tab.value}
+              variant={selectedType === tab.value ? "default" : "outline"}
+              size="sm"
+              className="shrink-0 text-xs h-7"
+              onClick={() => setSelectedType(tab.value)}
+            >
+              {tab.label}
+              {tab.value !== "all" && (
+                <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">
+                  {materials.filter((m) => {
+                    const companyMatch = selectedCompany === "all" || m.company_id === selectedCompany;
+                    return companyMatch && m.type === tab.value;
+                  }).length}
+                </Badge>
+              )}
+            </Button>
+          ))}
         </div>
 
         {brokenCount > 0 && (
