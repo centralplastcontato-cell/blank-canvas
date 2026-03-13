@@ -64,6 +64,8 @@ export default function HubMateriais() {
   );
 }
 
+const PAGE_SIZE = 12;
+
 function MateriaisContent({ userId }: { userId: string }) {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
@@ -72,6 +74,7 @@ function MateriaisContent({ userId }: { userId: string }) {
   const [uploading, setUploading] = useState<string | null>(null);
   const [lightboxImages, setLightboxImages] = useState<string[] | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const handleOpenLightbox = (images: string[], index: number) => {
     setLightboxImages(images);
@@ -97,7 +100,6 @@ function MateriaisContent({ userId }: { userId: string }) {
     }));
     setMaterials(mapped);
 
-    // Extract unique companies
     const uniqueCompanies = new Map<string, string>();
     mapped.forEach((m: Material) => {
       if (m.company_id && m.company_name) {
@@ -114,9 +116,20 @@ function MateriaisContent({ userId }: { userId: string }) {
     fetchMaterials();
   }, []);
 
+  // Reset page when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCompany]);
+
   const filteredMaterials = selectedCompany === "all"
     ? materials
     : materials.filter((m) => m.company_id === selectedCompany);
+
+  const totalPages = Math.ceil(filteredMaterials.length / PAGE_SIZE);
+  const paginatedMaterials = filteredMaterials.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
 
   const handleToggleActive = async (material: Material) => {
     const newActive = !material.is_active;
@@ -247,8 +260,8 @@ function MateriaisContent({ userId }: { userId: string }) {
           Nenhum material encontrado.
         </CardContent></Card>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {filteredMaterials.map((material) => (
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {paginatedMaterials.map((material) => (
             <MaterialCard
               key={material.id}
               material={material}
@@ -258,6 +271,36 @@ function MateriaisContent({ userId }: { userId: string }) {
               onOpenLightbox={handleOpenLightbox}
             />
           ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-xs text-muted-foreground">
+            {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredMaterials.length)} de {filteredMaterials.length}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage <= 1}
+              onClick={() => setCurrentPage((p) => p - 1)}
+            >
+              Anterior
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              {currentPage}/{totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage((p) => p + 1)}
+            >
+              Próximo
+            </Button>
+          </div>
         </div>
       )}
 
