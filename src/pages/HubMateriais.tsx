@@ -64,6 +64,8 @@ export default function HubMateriais() {
   );
 }
 
+const PAGE_SIZE = 12;
+
 function MateriaisContent({ userId }: { userId: string }) {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
@@ -72,6 +74,7 @@ function MateriaisContent({ userId }: { userId: string }) {
   const [uploading, setUploading] = useState<string | null>(null);
   const [lightboxImages, setLightboxImages] = useState<string[] | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const handleOpenLightbox = (images: string[], index: number) => {
     setLightboxImages(images);
@@ -97,7 +100,6 @@ function MateriaisContent({ userId }: { userId: string }) {
     }));
     setMaterials(mapped);
 
-    // Extract unique companies
     const uniqueCompanies = new Map<string, string>();
     mapped.forEach((m: Material) => {
       if (m.company_id && m.company_name) {
@@ -114,9 +116,20 @@ function MateriaisContent({ userId }: { userId: string }) {
     fetchMaterials();
   }, []);
 
+  // Reset page when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCompany]);
+
   const filteredMaterials = selectedCompany === "all"
     ? materials
     : materials.filter((m) => m.company_id === selectedCompany);
+
+  const totalPages = Math.ceil(filteredMaterials.length / PAGE_SIZE);
+  const paginatedMaterials = filteredMaterials.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
 
   const handleToggleActive = async (material: Material) => {
     const newActive = !material.is_active;
@@ -247,8 +260,8 @@ function MateriaisContent({ userId }: { userId: string }) {
           Nenhum material encontrado.
         </CardContent></Card>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {filteredMaterials.map((material) => (
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {paginatedMaterials.map((material) => (
             <MaterialCard
               key={material.id}
               material={material}
@@ -258,6 +271,36 @@ function MateriaisContent({ userId }: { userId: string }) {
               onOpenLightbox={handleOpenLightbox}
             />
           ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-xs text-muted-foreground">
+            {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredMaterials.length)} de {filteredMaterials.length}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage <= 1}
+              onClick={() => setCurrentPage((p) => p - 1)}
+            >
+              Anterior
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              {currentPage}/{totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage((p) => p + 1)}
+            >
+              Próximo
+            </Button>
+          </div>
         </div>
       )}
 
@@ -294,9 +337,9 @@ function MaterialPreview({
 
   if (isBroken) {
     return (
-      <div className="aspect-video bg-muted/50 flex flex-col items-center justify-center gap-1 rounded-t-2xl border-b border-border">
-        <AlertTriangle className="h-6 w-6 text-destructive/60" />
-        <span className="text-xs text-muted-foreground">Sem preview</span>
+      <div className="aspect-[4/3] bg-muted/50 flex flex-col items-center justify-center gap-1 rounded-t-2xl border-b border-border">
+        <AlertTriangle className="h-5 w-5 text-destructive/60" />
+        <span className="text-[10px] text-muted-foreground">Sem preview</span>
       </div>
     );
   }
@@ -328,7 +371,7 @@ function MaterialPreview({
 
   if (material.type === "video" && material.file_url) {
     return (
-      <div className="aspect-video rounded-t-2xl overflow-hidden border-b border-border bg-black">
+      <div className="aspect-[4/3] rounded-t-2xl overflow-hidden border-b border-border bg-black">
         <video
           src={material.file_url}
           preload="metadata"
@@ -345,10 +388,10 @@ function MaterialPreview({
         href={material.file_url}
         target="_blank"
         rel="noopener noreferrer"
-        className="aspect-video bg-muted/30 flex flex-col items-center justify-center gap-2 rounded-t-2xl border-b border-border hover:bg-muted/50 transition-colors group"
+        className="aspect-[4/3] bg-muted/30 flex flex-col items-center justify-center gap-1 rounded-t-2xl border-b border-border hover:bg-muted/50 transition-colors group"
       >
-        <FileText className="h-10 w-10 text-muted-foreground group-hover:text-primary transition-colors" />
-        <span className="text-xs text-muted-foreground flex items-center gap-1 group-hover:text-primary transition-colors">
+        <FileText className="h-8 w-8 text-muted-foreground group-hover:text-primary transition-colors" />
+        <span className="text-[10px] text-muted-foreground flex items-center gap-1 group-hover:text-primary transition-colors">
           Abrir PDF <ExternalLink className="h-3 w-3" />
         </span>
       </a>
@@ -359,19 +402,19 @@ function MaterialPreview({
     return (
       <button
         onClick={() => onOpenLightbox([material.file_url!], 0)}
-        className="aspect-video rounded-t-2xl overflow-hidden border-b border-border hover:opacity-90 transition-opacity"
+        className="aspect-[4/3] rounded-t-2xl overflow-hidden border-b border-border hover:opacity-90 transition-opacity"
       >
         <img src={material.file_url} alt={material.name} className="w-full h-full object-cover" loading="lazy" />
       </button>
     );
   }
 
-  return (
-    <div className="aspect-video bg-muted/30 flex flex-col items-center justify-center gap-1 rounded-t-2xl border-b border-border">
-      {getTypeIcon(material.type)}
-      <span className="text-xs text-muted-foreground">Preview indisponível</span>
-    </div>
-  );
+    return (
+      <div className="aspect-[4/3] bg-muted/30 flex flex-col items-center justify-center gap-1 rounded-t-2xl border-b border-border">
+        {getTypeIcon(material.type)}
+        <span className="text-[10px] text-muted-foreground">Preview indisponível</span>
+      </div>
+    );
 }
 
 function MaterialCard({
@@ -404,13 +447,13 @@ function MaterialCard({
   return (
     <Card className={`transition-all overflow-hidden min-w-0 ${isBroken ? "border-destructive/50 bg-destructive/5" : ""}`}>
       <MaterialPreview material={material} onOpenLightbox={onOpenLightbox} />
-      <CardContent className="p-4 space-y-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
+      <CardContent className="p-2.5 space-y-2">
+        <div className="flex items-start justify-between gap-1">
+          <div className="flex items-center gap-1.5 min-w-0">
             {getTypeIcon(material.type)}
             <div className="min-w-0">
-              <p className="font-medium text-sm truncate">{material.name}</p>
-              <p className="text-xs text-muted-foreground truncate">
+              <p className="font-medium text-xs truncate">{material.name}</p>
+              <p className="text-[10px] text-muted-foreground truncate">
                 {material.company_name} {material.unit ? `• ${material.unit}` : ""}
               </p>
             </div>
