@@ -1,42 +1,42 @@
 
 
-## Plano: Vincular lead à conversa e passar nome no wapi-send
+## Plano: Adicionar preview/visualização dos materiais nos cards do Hub
 
-### Alterações
+### Objetivo
+Adicionar uma área de preview visual em cada card de material na página `/hub/materiais`, permitindo que o admin veja o conteúdo (thumbnail de imagem/PDF, player de vídeo, grid de fotos) sem precisar abrir externamente.
 
-**1. `src/components/landing/LeadChatbot.tsx`** (linha ~436-442)
-- Adicionar `contactName: leadInfo.name` ao body da chamada `wapi-send` para que a conversa seja criada/atualizada com o nome correto.
+### Mudanças (1 arquivo)
 
-**2. `supabase/functions/submit-lead/index.ts`** (após criação/atualização do lead)
-- Após o insert ou update do lead, buscar a conversa correspondente em `wapi_conversations` pelo telefone normalizado + `company_id`.
-- Se encontrar, fazer UPDATE com `lead_id` e `contact_name` do lead.
-- Isso funciona tanto para leads novos quanto retornantes.
-- Para o lead novo, preciso recuperar o `id` do insert (usar `.select('id').single()`).
-- Para o lead existente, já temos `existingLead.id`.
+**`src/pages/HubMateriais.tsx`**
+
+1. **Preview de imagem/PDF** — Para materiais com `file_url` válida:
+   - Se for imagem (jpg/png/webp): mostrar thumbnail clicável com `<img>` e borda arredondada acima do nome
+   - Se for PDF: mostrar thumbnail do link com ícone de PDF e link "Abrir" em nova aba
+   - Se for vídeo: mostrar `<video>` compacto com controles nativos (poster frame)
+
+2. **Preview de coleção de fotos** — Para `photo_collection` com `photo_urls`:
+   - Mostrar grid compacto (2-3 thumbnails) das primeiras fotos + badge "+N" se houver mais
+
+3. **Lightbox** — Adicionar o componente `ImageLightbox` (já existe em `src/components/ui/image-lightbox.tsx`) para abrir imagens em tela cheia ao clicar
+
+4. **Estado quebrado** — Quando URL está quebrada, mostrar placeholder cinza com ícone de alerta em vez de tentar renderizar a mídia
+
+### Layout do card atualizado
+
+```text
+┌──────────────────────────────┐
+│  [Preview / Thumbnail]       │  ← NOVO: área de preview
+├──────────────────────────────┤
+│  📄 Nome do Material    [ON] │
+│  Empresa • Unidade           │
+│  [tipo] [50 pessoas] [✓ OK]  │
+│  [  Substituir arquivo     ] │
+└──────────────────────────────┘
+```
 
 ### Detalhes técnicos
-
-A busca da conversa será feita com:
-```sql
-SELECT id FROM wapi_conversations
-WHERE phone LIKE '%{normalizedPhone}'
-  AND company_id = '{company_id}'
-ORDER BY last_message_at DESC
-LIMIT 1
-```
-
-O UPDATE será:
-```sql
-UPDATE wapi_conversations
-SET lead_id = '{lead_id}', contact_name = '{name}'
-WHERE id = '{conversation_id}'
-```
-
-Nenhuma alteração em webhooks, instâncias ou lógica de conexão WhatsApp. Apenas leitura + update de dados na tabela `wapi_conversations`.
-
-### Arquivos alterados
-| Arquivo | Tipo |
-|---|---|
-| `src/components/landing/LeadChatbot.tsx` | Frontend |
-| `supabase/functions/submit-lead/index.ts` | Edge Function |
+- Helper `isImageFile(url)` para detectar se a URL é imagem (extensão ou padrão Supabase) — reutilizar lógica do `SalesMaterialsSection`
+- Preview de vídeo usa `<video>` com `preload="metadata"` para carregar apenas o primeiro frame
+- Thumbnails com `aspect-ratio: 16/9`, `object-cover`, e `max-h-32` para manter cards compactos
+- Clicar na preview abre lightbox (imagens) ou nova aba (PDF/vídeo)
 
