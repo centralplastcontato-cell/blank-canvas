@@ -255,9 +255,19 @@ function MateriaisContent({ userId }: { userId: string }) {
               uploading={uploading === material.id}
               onToggleActive={handleToggleActive}
               onUpload={handleFileUpload}
+              onOpenLightbox={handleOpenLightbox}
             />
           ))}
         </div>
+      )}
+
+      {lightboxImages && (
+        <ImageLightbox
+          images={lightboxImages}
+          currentIndex={lightboxIndex}
+          onClose={() => setLightboxImages(null)}
+          onNavigate={setLightboxIndex}
+        />
       )}
     </div>
   );
