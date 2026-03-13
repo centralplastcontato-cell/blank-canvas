@@ -388,10 +388,10 @@ function MaterialPreview({
         href={material.file_url}
         target="_blank"
         rel="noopener noreferrer"
-        className="aspect-video bg-muted/30 flex flex-col items-center justify-center gap-2 rounded-t-2xl border-b border-border hover:bg-muted/50 transition-colors group"
+        className="aspect-[4/3] bg-muted/30 flex flex-col items-center justify-center gap-1 rounded-t-2xl border-b border-border hover:bg-muted/50 transition-colors group"
       >
-        <FileText className="h-10 w-10 text-muted-foreground group-hover:text-primary transition-colors" />
-        <span className="text-xs text-muted-foreground flex items-center gap-1 group-hover:text-primary transition-colors">
+        <FileText className="h-8 w-8 text-muted-foreground group-hover:text-primary transition-colors" />
+        <span className="text-[10px] text-muted-foreground flex items-center gap-1 group-hover:text-primary transition-colors">
           Abrir PDF <ExternalLink className="h-3 w-3" />
         </span>
       </a>
