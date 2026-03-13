@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Search, Users, ChevronRight, Copy, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -164,7 +165,15 @@ export default function HubRecruitment() {
                   ) : (
                     filtered.map((r: any) => (
                       <TableRow key={r.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelected(r)}>
-                        <TableCell className="font-medium">{r.respondent_name}</TableCell>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              {r.photo_url && <AvatarImage src={r.photo_url} alt={r.respondent_name} />}
+                              <AvatarFallback className="text-xs">{r.respondent_name?.charAt(0)?.toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            {r.respondent_name}
+                          </div>
+                        </TableCell>
                         <TableCell>{r.age || "—"}</TableCell>
                         <TableCell className="hidden sm:table-cell">
                           <Badge variant="secondary" className="text-xs">{formatValue(r.answers?.tempo_trabalho || "")}</Badge>
@@ -192,6 +201,11 @@ export default function HubRecruitment() {
               </SheetHeader>
               {selected && (
                 <div className="mt-4 space-y-4">
+                  {selected.photo_url && (
+                    <div className="flex justify-center">
+                      <img src={selected.photo_url} alt={selected.respondent_name} className="w-28 h-28 rounded-full object-cover border-2 border-border" />
+                    </div>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     Enviado em {format(new Date(selected.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                   </p>

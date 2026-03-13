@@ -2070,6 +2070,7 @@ export type Database = {
           answers: Json
           created_at: string
           id: string
+          photo_url: string | null
           respondent_name: string
         }
         Insert: {
@@ -2077,6 +2078,7 @@ export type Database = {
           answers?: Json
           created_at?: string
           id?: string
+          photo_url?: string | null
           respondent_name: string
         }
         Update: {
@@ -2084,6 +2086,7 @@ export type Database = {
           answers?: Json
           created_at?: string
           id?: string
+          photo_url?: string | null
           respondent_name?: string
         }
         Relationships: []

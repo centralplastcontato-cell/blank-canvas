@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { CheckCircle2, ChevronLeft, ChevronRight, Send, User, MessageSquare, Target, Brain, DollarSign, Phone, Star } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Send, User, MessageSquare, Target, Brain, DollarSign, Phone, Star, Camera } from "lucide-react";
 import { toast } from "sonner";
 import logoCastelo from "@/assets/logo-castelo.png";
 
@@ -26,12 +26,30 @@ export default function PublicRecruitmentForm() {
   const [answers, setAnswers] = useState<Answers>({});
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Selecione uma imagem (JPG, PNG ou WebP)");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("A foto deve ter no máximo 5MB");
+      return;
+    }
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
 
   const set = (key: string, value: string) => setAnswers((prev) => ({ ...prev, [key]: value }));
 
   const canProceed = (): boolean => {
     switch (step) {
-      case 0: return !!(answers.nome?.trim() && answers.idade?.trim() && answers.tempo_trabalho);
+      case 0: return !!(answers.nome?.trim() && answers.idade?.trim() && answers.tempo_trabalho && photoFile);
       case 1: return !!(answers.conforto_pessoas && answers.conforto_ligar && answers.experiencia_vendas);
       case 2: return !!(answers.comunicatividade && answers.convencer && answers.ligar_20);
       case 3: return !!(answers.objetivo && answers.interesse_vendas);
@@ -45,10 +63,22 @@ export default function PublicRecruitmentForm() {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
+      let photo_url: string | null = null;
+      if (photoFile) {
+        const ext = photoFile.name.split(".").pop() || "jpg";
+        const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error: uploadErr } = await supabase.storage
+          .from("recruitment-photos")
+          .upload(path, photoFile, { contentType: photoFile.type });
+        if (uploadErr) throw uploadErr;
+        const { data: urlData } = supabase.storage.from("recruitment-photos").getPublicUrl(path);
+        photo_url = urlData.publicUrl;
+      }
       const { error } = await supabase.from("hub_recruitment_responses" as any).insert({
         respondent_name: answers.nome?.trim(),
         age: parseInt(answers.idade) || null,
         answers,
+        photo_url,
       } as any);
       if (error) throw error;
       setSubmitted(true);
@@ -94,6 +124,22 @@ export default function PublicRecruitmentForm() {
       case 0:
         return (
           <div className="space-y-5">
+            {/* Photo upload */}
+            <div className="flex flex-col items-center gap-2">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-24 h-24 rounded-full border-2 border-dashed border-primary/40 hover:border-primary flex items-center justify-center overflow-hidden transition-colors bg-muted/30"
+              >
+                {photoPreview ? (
+                  <img src={photoPreview} alt="Sua foto" className="w-full h-full object-cover" />
+                ) : (
+                  <Camera className="w-8 h-8 text-muted-foreground" />
+                )}
+              </button>
+              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handlePhotoChange} />
+              <p className="text-xs text-muted-foreground">{photoFile ? "Toque para trocar" : "Adicione sua foto *"}</p>
+            </div>
             <div>
               <label className="text-sm font-semibold text-foreground mb-1.5 block">1. Nome completo</label>
               <Input value={answers.nome || ""} onChange={(e) => set("nome", e.target.value)} placeholder="Seu nome completo" maxLength={100} />
