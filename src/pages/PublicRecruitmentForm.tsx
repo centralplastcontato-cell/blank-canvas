@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { CheckCircle2, ChevronLeft, ChevronRight, Send, User, MessageSquare, Target, Brain, DollarSign, Phone, Star } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Send, User, MessageSquare, Target, Brain, DollarSign, Phone, Star, Camera } from "lucide-react";
 import { toast } from "sonner";
 import logoCastelo from "@/assets/logo-castelo.png";
 
