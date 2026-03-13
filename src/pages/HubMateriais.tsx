@@ -337,9 +337,9 @@ function MaterialPreview({
 
   if (isBroken) {
     return (
-      <div className="aspect-video bg-muted/50 flex flex-col items-center justify-center gap-1 rounded-t-2xl border-b border-border">
-        <AlertTriangle className="h-6 w-6 text-destructive/60" />
-        <span className="text-xs text-muted-foreground">Sem preview</span>
+      <div className="aspect-[4/3] bg-muted/50 flex flex-col items-center justify-center gap-1 rounded-t-2xl border-b border-border">
+        <AlertTriangle className="h-5 w-5 text-destructive/60" />
+        <span className="text-[10px] text-muted-foreground">Sem preview</span>
       </div>
     );
   }
