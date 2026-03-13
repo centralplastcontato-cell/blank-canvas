@@ -287,6 +287,21 @@ function MateriaisContent({ userId }: { userId: string }) {
             </Button>
           ))}
         </div>
+        </div>
+
+        {brokenCount > 0 && (
+          <Badge variant="destructive" className="flex items-center gap-1 w-fit">
+            <AlertTriangle className="h-3 w-3" />
+            {brokenCount} com URL quebrada
+          </Badge>
+        )}
+      </div>
+
+      {/* Material Cards */}
+      {filteredMaterials.length === 0 ? (
+        <Card><CardContent className="py-12 text-center text-muted-foreground">
+          Nenhum material encontrado.
+        </CardContent></Card>
       ) : (
         <div className="grid gap-2 grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {paginatedMaterials.map((material) => (
