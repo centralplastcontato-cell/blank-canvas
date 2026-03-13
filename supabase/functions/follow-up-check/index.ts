@@ -116,12 +116,95 @@ interface LeadForFollowUp {
   instance_id: string | null;
 }
 
+// ============= INSTANCE HEALTH GATE (pre-flight + quarantine) =============
+
+const QUARANTINE_MINUTES = 60; // Minutes after connected_at before automations are allowed
+
+/** Cache of instance health per execution cycle to avoid redundant live checks */
+const instanceHealthCache = new Map<string, { healthy: boolean; reason?: string }>();
+
+async function checkInstanceHealth(
+  supabase: ReturnType<typeof createClient>,
+  instanceDbId: string,
+): Promise<{ healthy: boolean; reason?: string }> {
+  const cached = instanceHealthCache.get(instanceDbId);
+  if (cached !== undefined) return cached;
+
+  const { data: inst } = await supabase
+    .from("wapi_instances")
+    .select("instance_id, instance_token, status, connected_at")
+    .eq("id", instanceDbId)
+    .single();
+
+  if (!inst) {
+    const result = { healthy: false, reason: "instance_not_found" };
+    instanceHealthCache.set(instanceDbId, result);
+    return result;
+  }
+
+  // QUARANTINE: skip if connected less than QUARANTINE_MINUTES ago
+  if (inst.connected_at) {
+    const minutesSinceConnect = (Date.now() - new Date(inst.connected_at).getTime()) / (60 * 1000);
+    if (minutesSinceConnect < QUARANTINE_MINUTES) {
+      const result = { healthy: false, reason: `quarantine (connected ${Math.floor(minutesSinceConnect)}min ago, need ${QUARANTINE_MINUTES}min)` };
+      instanceHealthCache.set(instanceDbId, result);
+      console.log(`[follow-up-check] 🛡️ Instance ${instanceDbId} in quarantine — ${Math.floor(minutesSinceConnect)}/${QUARANTINE_MINUTES} min`);
+      return result;
+    }
+  }
+
+  // LIVE STATUS CHECK via wapi-send (uses same pre-flight as manual sends)
+  const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+  const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  try {
+    const statusResponse = await fetch(
+      `${SUPABASE_URL}/functions/v1/wapi-send`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "get-status",
+          instanceId: inst.instance_id,
+          instanceToken: inst.instance_token,
+        }),
+      }
+    );
+
+    if (statusResponse.ok) {
+      const statusData = await statusResponse.json();
+      const status = statusData?.status || "disconnected";
+      if (status === "connected") {
+        const result = { healthy: true };
+        instanceHealthCache.set(instanceDbId, result);
+        return result;
+      }
+      const result = { healthy: false, reason: `live_status=${status}` };
+      instanceHealthCache.set(instanceDbId, result);
+      console.log(`[follow-up-check] 🛡️ Instance ${instanceDbId} not healthy: ${status}`);
+      return result;
+    }
+  } catch (e) {
+    console.warn(`[follow-up-check] 🛡️ Health check fetch error for ${instanceDbId}:`, e);
+  }
+
+  const result = { healthy: false, reason: "health_check_failed" };
+  instanceHealthCache.set(instanceDbId, result);
+  return result;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
+    // Reset health cache for each invocation
+    instanceHealthCache.clear();
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
