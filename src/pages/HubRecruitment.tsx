@@ -165,7 +165,15 @@ export default function HubRecruitment() {
                   ) : (
                     filtered.map((r: any) => (
                       <TableRow key={r.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelected(r)}>
-                        <TableCell className="font-medium">{r.respondent_name}</TableCell>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              {r.photo_url && <AvatarImage src={r.photo_url} alt={r.respondent_name} />}
+                              <AvatarFallback className="text-xs">{r.respondent_name?.charAt(0)?.toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            {r.respondent_name}
+                          </div>
+                        </TableCell>
                         <TableCell>{r.age || "—"}</TableCell>
                         <TableCell className="hidden sm:table-cell">
                           <Badge variant="secondary" className="text-xs">{formatValue(r.answers?.tempo_trabalho || "")}</Badge>
