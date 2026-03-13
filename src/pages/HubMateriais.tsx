@@ -452,8 +452,8 @@ function MaterialCard({
           <div className="flex items-center gap-1.5 min-w-0">
             {getTypeIcon(material.type)}
             <div className="min-w-0">
-              <p className="font-medium text-sm truncate">{material.name}</p>
-              <p className="text-xs text-muted-foreground truncate">
+              <p className="font-medium text-xs truncate">{material.name}</p>
+              <p className="text-[10px] text-muted-foreground truncate">
                 {material.company_name} {material.unit ? `• ${material.unit}` : ""}
               </p>
             </div>
