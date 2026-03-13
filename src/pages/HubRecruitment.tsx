@@ -201,6 +201,11 @@ export default function HubRecruitment() {
               </SheetHeader>
               {selected && (
                 <div className="mt-4 space-y-4">
+                  {selected.photo_url && (
+                    <div className="flex justify-center">
+                      <img src={selected.photo_url} alt={selected.respondent_name} className="w-28 h-28 rounded-full object-cover border-2 border-border" />
+                    </div>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     Enviado em {format(new Date(selected.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                   </p>
