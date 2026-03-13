@@ -49,7 +49,7 @@ export default function PublicRecruitmentForm() {
 
   const canProceed = (): boolean => {
     switch (step) {
-      case 0: return !!(answers.nome?.trim() && answers.idade?.trim() && answers.tempo_trabalho);
+      case 0: return !!(answers.nome?.trim() && answers.idade?.trim() && answers.tempo_trabalho && photoFile);
       case 1: return !!(answers.conforto_pessoas && answers.conforto_ligar && answers.experiencia_vendas);
       case 2: return !!(answers.comunicatividade && answers.convencer && answers.ligar_20);
       case 3: return !!(answers.objetivo && answers.interesse_vendas);
