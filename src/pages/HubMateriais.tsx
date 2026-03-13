@@ -39,7 +39,7 @@ function isUrlBroken(url: string | null): boolean {
 
 function getTypeIcon(type: string) {
   switch (type) {
-    case "pdf": return <FileText className="h-5 w-5" />;
+    case "pdf": case "pdf_package": return <FileText className="h-5 w-5" />;
     case "video": return <Video className="h-5 w-5" />;
     case "photo_collection": return <Images className="h-5 w-5" />;
     default: return <Image className="h-5 w-5" />;
