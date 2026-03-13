@@ -39,7 +39,7 @@ function isUrlBroken(url: string | null): boolean {
 
 function getTypeIcon(type: string) {
   switch (type) {
-    case "pdf": return <FileText className="h-5 w-5" />;
+    case "pdf": case "pdf_package": return <FileText className="h-5 w-5" />;
     case "video": return <Video className="h-5 w-5" />;
     case "photo_collection": return <Images className="h-5 w-5" />;
     default: return <Image className="h-5 w-5" />;
@@ -49,6 +49,7 @@ function getTypeIcon(type: string) {
 function getTypeLabel(type: string) {
   switch (type) {
     case "pdf": return "PDF";
+    case "pdf_package": return "Pacote PDF";
     case "video": return "Vídeo";
     case "photo_collection": return "Coleção de Fotos";
     case "photo": return "Foto";
@@ -382,7 +383,7 @@ function MaterialPreview({
     );
   }
 
-  if (material.type === "pdf" && material.file_url) {
+  if ((material.type === "pdf" || material.type === "pdf_package") && material.file_url) {
     return (
       <a
         href={material.file_url}
