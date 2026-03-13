@@ -37,6 +37,7 @@ import Formularios from "./pages/Formularios";
 import Avaliacoes from "./pages/Avaliacoes";
 import PreFesta from "./pages/PreFesta";
 import Campanhas from "./pages/Campanhas";
+import PublicRecruitmentForm from "./pages/PublicRecruitmentForm";
 
 
 import DynamicLandingPage from "./pages/DynamicLandingPage";
