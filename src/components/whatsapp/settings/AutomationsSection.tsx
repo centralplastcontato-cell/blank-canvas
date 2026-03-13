@@ -1759,7 +1759,26 @@ export function AutomationsSection() {
                   </div>
                   <Switch
                     checked={botSettings?.follow_up_enabled || false}
-                    onCheckedChange={(checked) => updateBotSettings({ follow_up_enabled: checked })}
+                    onCheckedChange={(checked) => {
+                      if (!checked) {
+                        // GUARDRAIL: Disabling main follow-up also disables ALL sub-automations
+                        updateBotSettings({
+                          follow_up_enabled: false,
+                          follow_up_2_enabled: false,
+                          follow_up_3_enabled: false,
+                          follow_up_4_enabled: false,
+                          next_step_reminder_enabled: false,
+                          bot_inactive_followup_enabled: false,
+                          auto_lost_enabled: false,
+                        });
+                        toast({
+                          title: "⏸️ Todas as automações pausadas",
+                          description: "Todos os disparos automáticos foram desativados para esta instância.",
+                        });
+                      } else {
+                        updateBotSettings({ follow_up_enabled: true });
+                      }
+                    }}
                     disabled={isSaving}
                     className="shrink-0 self-end sm:self-auto"
                   />
