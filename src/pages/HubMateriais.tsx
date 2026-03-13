@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Upload, FileText, Video, Image, Images, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Upload, FileText, Video, Image, Images, Loader2, AlertTriangle, CheckCircle2, ExternalLink } from "lucide-react";
+import { ImageLightbox } from "@/components/ui/image-lightbox";
 
 const CURRENT_DOMAIN = "rsezgnkfhodltrsewlhz";
 
