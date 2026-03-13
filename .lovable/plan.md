@@ -1,42 +1,22 @@
 
 
-## Plano: Vincular lead à conversa e passar nome no wapi-send
 
-### Alterações
+## ✅ Implementado: Blindagem anti-rajada no follow-up-check
 
-**1. `src/components/landing/LeadChatbot.tsx`** (linha ~436-442)
-- Adicionar `contactName: leadInfo.name` ao body da chamada `wapi-send` para que a conversa seja criada/atualizada com o nome correto.
+### Alterações realizadas
 
-**2. `supabase/functions/submit-lead/index.ts`** (após criação/atualização do lead)
-- Após o insert ou update do lead, buscar a conversa correspondente em `wapi_conversations` pelo telefone normalizado + `company_id`.
-- Se encontrar, fazer UPDATE com `lead_id` e `contact_name` do lead.
-- Isso funciona tanto para leads novos quanto retornantes.
-- Para o lead novo, preciso recuperar o `id` do insert (usar `.select('id').single()`).
-- Para o lead existente, já temos `existingLead.id`.
+**1. `supabase/functions/follow-up-check/index.ts`**
+- Adicionada função `checkInstanceHealth()` com cache por ciclo de execução
+- **Quarentena pós-reconexão**: 60 minutos após `connected_at` antes de permitir qualquer automação
+- **Pre-flight live check**: verifica status real via `wapi-send get-status` antes de processar cada instância
+- **Circuit breaker**: se instância não está saudável, TODAS as automações são bloqueadas (follow-ups, next-step reminder, bot-inactive, auto-lost)
+- **Cobertura global**: health gate aplicado também em `processFlowTimerTimeouts` e `processStuckBotRecovery` (funções que rodam cross-instance)
 
-### Detalhes técnicos
+**2. `src/components/whatsapp/settings/AutomationsSection.tsx`**
+- **Guardrail no switch principal**: desligar "Primeiro Follow-up" agora desativa em lote: FU2, FU3, FU4, next_step_reminder, bot_inactive_followup e auto_lost
+- Toast explícito: "Todas as automações pausadas"
 
-A busca da conversa será feita com:
-```sql
-SELECT id FROM wapi_conversations
-WHERE phone LIKE '%{normalizedPhone}'
-  AND company_id = '{company_id}'
-ORDER BY last_message_at DESC
-LIMIT 1
-```
-
-O UPDATE será:
-```sql
-UPDATE wapi_conversations
-SET lead_id = '{lead_id}', contact_name = '{name}'
-WHERE id = '{conversation_id}'
-```
-
-Nenhuma alteração em webhooks, instâncias ou lógica de conexão WhatsApp. Apenas leitura + update de dados na tabela `wapi_conversations`.
-
-### Arquivos alterados
-| Arquivo | Tipo |
-|---|---|
-| `src/components/landing/LeadChatbot.tsx` | Frontend |
-| `supabase/functions/submit-lead/index.ts` | Edge Function |
-
+### Resultado
+- Reconectar uma instância NÃO dispara automações por 60 minutos
+- Instâncias com sessão ruim (unauthorized, disconnected) são bloqueadas automaticamente
+- Desligar follow-up principal realmente pausa toda a régua
