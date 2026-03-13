@@ -261,7 +261,7 @@ function MateriaisContent({ userId }: { userId: string }) {
           Nenhum material encontrado.
         </CardContent></Card>
       ) : (
-        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="grid gap-2 grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {paginatedMaterials.map((material) => (
             <MaterialCard
               key={material.id}
