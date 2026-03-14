@@ -17,6 +17,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 interface FunilTabProps {
   data: LeadIntelligence[];
   stageDurations?: Record<string, number>;
+  selectedUnit?: string;
 }
 
 const FUNNEL_STEPS: LeadStatus[] = [
@@ -50,10 +51,10 @@ const SCORE_RANGES = [
   { label: '81-100', min: 81, max: 100 },
 ];
 
-export function FunilTab({ data, stageDurations }: FunilTabProps) {
+export function FunilTab({ data, stageDurations, selectedUnit }: FunilTabProps) {
   const [trendDays, setTrendDays] = useState<number>(14);
   const { data: scoreTrend = [], isLoading: trendLoading } = useScoreSnapshots(trendDays);
-  const { data: responseTimeData, isLoading: rtLoading } = useResponseTime(30);
+  const { data: responseTimeData, isLoading: rtLoading } = useResponseTime(30, true, selectedUnit);
 
   const counts: Record<string, number> = {};
   FUNNEL_STEPS.forEach(s => { counts[s] = 0; });

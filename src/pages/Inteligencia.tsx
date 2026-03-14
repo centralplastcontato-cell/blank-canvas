@@ -456,7 +456,7 @@ export default function Inteligencia() {
                 {isLoading || !data || isLoadingUnitPerms || isDurationsLoading || permLoading ? (
                   <LoadingSkeleton />
                 ) : (
-                  <FunilTab data={filteredData} stageDurations={stageDurations} />
+                  <FunilTab data={filteredData} stageDurations={stageDurations} selectedUnit={selectedUnit} />
                 )}
               </TabsContent>
 
