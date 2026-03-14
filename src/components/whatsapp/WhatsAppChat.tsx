@@ -915,7 +915,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             if (debounceTimer) clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
               fetchConversations(undefined, true);
-            }, 10000);
+            }, 5000);
           }
         )
         .subscribe();
