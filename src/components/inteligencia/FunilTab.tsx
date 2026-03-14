@@ -17,6 +17,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 interface FunilTabProps {
   data: LeadIntelligence[];
   stageDurations?: Record<string, number>;
+  selectedUnit?: string;
 }
 
 const FUNNEL_STEPS: LeadStatus[] = [
