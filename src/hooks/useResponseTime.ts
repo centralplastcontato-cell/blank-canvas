@@ -85,7 +85,11 @@ export function useResponseTime(days: number = 30, enabled: boolean = true) {
 
         const firstMsg = firstMsgMap.get(convo.id);
         if (!firstMsg) {
-          pendingResponse++;
+          // Only count as pending if bot hasn't completed the flow
+          const botCompleted = convo.bot_step === 'complete_final' || convo.bot_step === 'complete';
+          if (!botCompleted) {
+            pendingResponse++;
+          }
           return;
         }
 
