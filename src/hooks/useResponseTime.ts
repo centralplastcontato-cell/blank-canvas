@@ -18,25 +18,46 @@ export interface ResponseTimeData {
  * agent message (from_me=true) in WhatsApp, using wapi_conversations.lead_id
  * to link leads to conversations.
  */
-export function useResponseTime(days: number = 30, enabled: boolean = true) {
+export function useResponseTime(days: number = 30, enabled: boolean = true, selectedUnit?: string) {
   const { currentCompany } = useCompany();
   const companyId = currentCompany?.id;
+  const unitFilter = selectedUnit && selectedUnit !== 'all' ? selectedUnit : undefined;
 
   return useQuery({
-    queryKey: ['response-time', companyId, days],
+    queryKey: ['response-time', companyId, days, unitFilter],
     queryFn: async (): Promise<ResponseTimeData> => {
       if (!companyId) throw new Error('No company');
 
       const since = subDays(new Date(), days).toISOString();
 
       // 1) Get recent leads with linked conversations
-      const { data: convos, error: convErr } = await supabase
+      // If unit filter active, first get instance IDs for that unit
+      let instanceIds: string[] | undefined;
+      if (unitFilter) {
+        const { data: instances } = await supabase
+          .from('wapi_instances')
+          .select('id')
+          .eq('company_id', companyId)
+          .eq('unit', unitFilter);
+        instanceIds = instances?.map(i => i.id);
+        if (!instanceIds || instanceIds.length === 0) {
+          return { averageHours: 0, medianHours: 0, respondedIn1h: 0, respondedIn24h: 0, totalAnalyzed: 0, pendingResponse: 0, byPeriod: [] };
+        }
+      }
+
+      let query = supabase
         .from('wapi_conversations')
         .select('id, lead_id, created_at, bot_step')
         .eq('company_id', companyId)
         .not('lead_id', 'is', null)
         .gte('created_at', since)
         .limit(500);
+
+      if (instanceIds) {
+        query = query.in('instance_id', instanceIds);
+      }
+
+      const { data: convos, error: convErr } = await query;
 
       if (convErr) throw convErr;
       if (!convos || convos.length === 0) {
