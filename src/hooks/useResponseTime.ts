@@ -32,7 +32,7 @@ export function useResponseTime(days: number = 30, enabled: boolean = true) {
       // 1) Get recent leads with linked conversations
       const { data: convos, error: convErr } = await supabase
         .from('wapi_conversations')
-        .select('id, lead_id, created_at')
+        .select('id, lead_id, created_at, bot_step')
         .eq('company_id', companyId)
         .not('lead_id', 'is', null)
         .gte('created_at', since)
@@ -85,7 +85,11 @@ export function useResponseTime(days: number = 30, enabled: boolean = true) {
 
         const firstMsg = firstMsgMap.get(convo.id);
         if (!firstMsg) {
-          pendingResponse++;
+          // Only count as pending if bot hasn't completed the flow
+          const botCompleted = convo.bot_step === 'complete_final' || convo.bot_step === 'complete';
+          if (!botCompleted) {
+            pendingResponse++;
+          }
           return;
         }
 
