@@ -5,6 +5,7 @@ import { LeadIntelligence } from "@/hooks/useLeadIntelligence";
 import { formatDuration } from "@/hooks/useLeadStageDurations";
 import { useScoreSnapshots } from "@/hooks/useScoreSnapshots";
 import { useResponseTime } from "@/hooks/useResponseTime";
+import { useLeadJourneyTimes } from "@/hooks/useLeadJourneyTimes";
 import { ResponseTimeCard } from "./ResponseTimeCard";
 import { ArrowDown, Clock } from "lucide-react";
 import {
