@@ -4,6 +4,8 @@ import { LEAD_STATUS_LABELS, LeadStatus } from "@/types/crm";
 import { LeadIntelligence } from "@/hooks/useLeadIntelligence";
 import { formatDuration } from "@/hooks/useLeadStageDurations";
 import { useScoreSnapshots } from "@/hooks/useScoreSnapshots";
+import { useResponseTime } from "@/hooks/useResponseTime";
+import { ResponseTimeCard } from "./ResponseTimeCard";
 import { ArrowDown, Clock } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
