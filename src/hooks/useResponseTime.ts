@@ -32,7 +32,7 @@ export function useResponseTime(days: number = 30, enabled: boolean = true) {
       // 1) Get recent leads with linked conversations
       const { data: convos, error: convErr } = await supabase
         .from('wapi_conversations')
-        .select('id, lead_id, created_at')
+        .select('id, lead_id, created_at, bot_step')
         .eq('company_id', companyId)
         .not('lead_id', 'is', null)
         .gte('created_at', since)
