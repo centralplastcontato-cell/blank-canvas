@@ -4,6 +4,8 @@ import { LEAD_STATUS_LABELS, LeadStatus } from "@/types/crm";
 import { LeadIntelligence } from "@/hooks/useLeadIntelligence";
 import { formatDuration } from "@/hooks/useLeadStageDurations";
 import { useScoreSnapshots } from "@/hooks/useScoreSnapshots";
+import { useResponseTime } from "@/hooks/useResponseTime";
+import { ResponseTimeCard } from "./ResponseTimeCard";
 import { ArrowDown, Clock } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -51,6 +53,7 @@ const SCORE_RANGES = [
 export function FunilTab({ data, stageDurations }: FunilTabProps) {
   const [trendDays, setTrendDays] = useState<number>(14);
   const { data: scoreTrend = [], isLoading: trendLoading } = useScoreSnapshots(trendDays);
+  const { data: responseTimeData, isLoading: rtLoading } = useResponseTime(30);
 
   const counts: Record<string, number> = {};
   FUNNEL_STEPS.forEach(s => { counts[s] = 0; });
@@ -98,6 +101,9 @@ export function FunilTab({ data, stageDurations }: FunilTabProps) {
 
   return (
     <div className="space-y-4">
+      {/* Response time card */}
+      <ResponseTimeCard data={responseTimeData} isLoading={rtLoading} />
+
       {/* Trend chart */}
       <Card>
         <CardHeader className="pb-2">
