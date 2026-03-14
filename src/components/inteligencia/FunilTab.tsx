@@ -56,6 +56,7 @@ export function FunilTab({ data, stageDurations, selectedUnit }: FunilTabProps) 
   const [trendDays, setTrendDays] = useState<number>(14);
   const { data: scoreTrend = [], isLoading: trendLoading } = useScoreSnapshots(trendDays);
   const { data: responseTimeData, isLoading: rtLoading } = useResponseTime(30, true, selectedUnit);
+  const { data: journeyData, isLoading: journeyLoading } = useLeadJourneyTimes(30, true, selectedUnit);
 
   const counts: Record<string, number> = {};
   FUNNEL_STEPS.forEach(s => { counts[s] = 0; });
