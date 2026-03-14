@@ -53,6 +53,7 @@ const SCORE_RANGES = [
 export function FunilTab({ data, stageDurations }: FunilTabProps) {
   const [trendDays, setTrendDays] = useState<number>(14);
   const { data: scoreTrend = [], isLoading: trendLoading } = useScoreSnapshots(trendDays);
+  const { data: responseTimeData, isLoading: rtLoading } = useResponseTime(30);
 
   const counts: Record<string, number> = {};
   FUNNEL_STEPS.forEach(s => { counts[s] = 0; });
