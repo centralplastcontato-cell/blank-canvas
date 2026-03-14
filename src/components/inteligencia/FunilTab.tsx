@@ -101,6 +101,9 @@ export function FunilTab({ data, stageDurations }: FunilTabProps) {
 
   return (
     <div className="space-y-4">
+      {/* Response time card */}
+      <ResponseTimeCard data={responseTimeData} isLoading={rtLoading} />
+
       {/* Trend chart */}
       <Card>
         <CardHeader className="pb-2">
