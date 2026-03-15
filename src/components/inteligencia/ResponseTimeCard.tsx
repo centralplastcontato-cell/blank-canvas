@@ -219,7 +219,7 @@ export function ResponseTimeCard({ data, isLoading, journeyData, journeyLoading 
                             <ArrowRight className="h-3 w-3 text-muted-foreground/40 rotate-90" />
                           </div>
                         )}
-                        <div className="flex items-center gap-3 p-3 rounded-xl border border-border/30 bg-card/50">
+                        <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-xl border border-border/30 bg-card/50">
                           <div
                             className="w-1.5 h-12 rounded-full shrink-0"
                             style={{ backgroundColor: color }}
