@@ -71,6 +71,7 @@ export function LeadDetailSheet({
   canDelete,
   onDelete,
   canViewContact = true,
+  onLeadClosed,
 }: LeadDetailSheetProps) {
   const navigate = useNavigate();
   const location = useLocation();
