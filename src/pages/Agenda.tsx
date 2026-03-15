@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -12,6 +12,7 @@ import { MobileMenu } from "@/components/admin/MobileMenu";
 import { NotificationBell } from "@/components/admin/NotificationBell";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +22,7 @@ import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDia
 import { EventDetailSheet } from "@/components/agenda/EventDetailSheet";
 import { MonthSummaryCards } from "@/components/agenda/MonthSummaryCards";
 import { PeriodFilterPopover } from "@/components/agenda/PeriodFilterPopover";
-import { CalendarDays, Plus, Loader2, ShieldAlert, Menu, Clock, AlertTriangle, List, ListChecks, MapPin, Users, DollarSign } from "lucide-react";
+import { CalendarDays, Plus, Loader2, ShieldAlert, Menu, Clock, AlertTriangle, List, ListChecks, MapPin, Users, DollarSign, Search, X, Phone } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, startOfMonth, endOfMonth, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
