@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { maskPhone } from "@/lib/mask-utils";
+import { LeadVisitHistory } from "./LeadVisitHistory";
 
 interface LeadDetailSheetProps {
   lead: Lead | null;
@@ -349,6 +350,11 @@ export function LeadDetailSheet({
               {canViewContact ? `Abrir Conversa (${lead.whatsapp})` : `Contato oculto (${maskPhone(lead.whatsapp)})`}
             </Button>
           </div>
+
+          <Separator />
+
+          {/* Visit History */}
+          <LeadVisitHistory leadId={lead.id} currentUserId={currentUserId} />
 
           <Separator />
 
