@@ -178,28 +178,41 @@ export function LeadVisitHistory({ leadId, currentUserId }: LeadVisitHistoryProp
 
       {/* Register Visit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Registrar Visita</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-2">
+        <DialogContent className="max-w-sm p-0 overflow-hidden border-0 shadow-[0_20px_60px_rgba(0,0,0,0.15)] rounded-2xl">
+          {/* Header gradient */}
+          <div className="px-6 pt-6 pb-4 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent">
+            <DialogHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-primary/15 ring-1 ring-primary/20 shadow-sm">
+                  <MapPin className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <DialogTitle className="text-lg font-bold tracking-tight">Registrar Visita</DialogTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">Adicione um registro de visita ao lead</p>
+                </div>
+              </div>
+            </DialogHeader>
+          </div>
+
+          <div className="px-6 pb-6 space-y-5">
+            {/* Data da visita */}
             <div className="space-y-2">
-              <Label className="text-sm">Data da visita *</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Data da visita *</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     type="button"
                     variant="outline"
                     className={cn(
-                      "w-full justify-start text-left font-normal",
+                      "w-full justify-start text-left font-normal h-11 rounded-xl border-border/60 hover:border-primary/40 transition-colors",
                       !visitDate && "text-muted-foreground"
                     )}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    <CalendarIcon className="mr-2.5 h-4 w-4 text-primary/60" />
                     {visitDate ? format(visitDate, "dd/MM/yyyy") : "Selecionar data"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0 rounded-xl shadow-lg" align="start">
                   <Calendar
                     mode="single"
                     selected={visitDate}
@@ -212,22 +225,29 @@ export function LeadVisitHistory({ leadId, currentUserId }: LeadVisitHistoryProp
               </Popover>
             </div>
 
+            {/* Horário */}
             <div className="space-y-2">
-              <Label className="text-sm">Horário</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Horário</Label>
               <Select value={visitTime || "none"} onValueChange={(v) => setVisitTime(v === "none" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="Selecionar horário" /></SelectTrigger>
-                <SelectContent>
+                <SelectTrigger className="h-11 rounded-xl border-border/60 hover:border-primary/40 transition-colors">
+                  <Clock className="h-4 w-4 mr-2.5 text-primary/60" />
+                  <SelectValue placeholder="Selecionar horário" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
                   <SelectItem value="none">Sem horário</SelectItem>
                   {TIME_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
 
+            {/* Status */}
             <div className="space-y-2">
-              <Label className="text-sm">Status *</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status *</Label>
               <Select value={visitStatus} onValueChange={setVisitStatus}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
+                <SelectTrigger className="h-11 rounded-xl border-border/60 hover:border-primary/40 transition-colors">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
                   {VISIT_STATUS.map((s) => (
                     <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
                   ))}
@@ -235,18 +255,21 @@ export function LeadVisitHistory({ leadId, currentUserId }: LeadVisitHistoryProp
               </Select>
             </div>
 
+            {/* Observações */}
             <div className="space-y-2">
-              <Label className="text-sm">Observações</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Observações</Label>
               <Textarea
                 value={visitNotes}
                 onChange={(e) => setVisitNotes(e.target.value)}
                 rows={3}
                 placeholder="Informações sobre a visita..."
+                className="rounded-xl border-border/60 hover:border-primary/40 focus:border-primary/40 transition-colors resize-none"
               />
             </div>
 
+            {/* Submit */}
             <Button
-              className="w-full"
+              className="w-full h-11 rounded-xl font-semibold shadow-sm hover:shadow-md transition-all duration-200"
               onClick={handleSubmit}
               disabled={saving || !visitDate}
             >
