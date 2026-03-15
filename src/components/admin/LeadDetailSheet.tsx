@@ -56,6 +56,7 @@ interface LeadDetailSheetProps {
   canDelete?: boolean;
   onDelete?: (leadId: string) => Promise<void>;
   canViewContact?: boolean;
+  onLeadClosed?: (lead: Lead) => void;
 }
 
 export function LeadDetailSheet({
