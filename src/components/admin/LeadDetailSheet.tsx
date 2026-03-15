@@ -56,6 +56,7 @@ interface LeadDetailSheetProps {
   canDelete?: boolean;
   onDelete?: (leadId: string) => Promise<void>;
   canViewContact?: boolean;
+  onLeadClosed?: (lead: Lead) => void;
 }
 
 export function LeadDetailSheet({
@@ -70,6 +71,7 @@ export function LeadDetailSheet({
   canDelete,
   onDelete,
   canViewContact = true,
+  onLeadClosed,
 }: LeadDetailSheetProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -79,6 +81,7 @@ export function LeadDetailSheet({
   const [isSaving, setIsSaving] = useState(false);
   const [history, setHistory] = useState<LeadHistory[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [hasLinkedEvent, setHasLinkedEvent] = useState<boolean | null>(null);
   const { data: aiSummary, isLoading: isLoadingSummary, isFetchingSaved, error: summaryError, fetchSummary } = useLeadSummary(lead?.id || null);
 
   // Navigate to WhatsApp chat with this lead's phone
@@ -103,6 +106,17 @@ export function LeadDetailSheet({
       setResponsavelId(lead.responsavel_id || "");
       setObservacoes(lead.observacoes || "");
       fetchHistory(lead.id);
+      // Check if lead has linked event
+      if (lead.status === "fechado") {
+        supabase
+          .from("company_events")
+          .select("id")
+          .eq("lead_id", lead.id)
+          .limit(1)
+          .then(({ data }) => setHasLinkedEvent((data || []).length > 0));
+      } else {
+        setHasLinkedEvent(null);
+      }
     }
   }, [lead]);
 
@@ -190,6 +204,12 @@ export function LeadDetailSheet({
 
       onUpdate();
       fetchHistory(lead.id);
+
+      // Trigger festa modal if status changed to fechado
+      if (status === "fechado" && lead.status !== "fechado" && onLeadClosed) {
+        console.log('[Lead:Fechado->NovaFesta]', { leadId: lead.id, leadName: lead.name });
+        onLeadClosed(lead);
+      }
     } catch (error: any) {
       console.error("Error updating lead:", error);
       toast({
@@ -236,6 +256,14 @@ export function LeadDetailSheet({
                   </p>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Festa pendente indicator */}
+          {lead.status === "fechado" && hasLinkedEvent === false && (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-300/30 text-sm">
+              <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+              <span className="text-amber-700 dark:text-amber-400 font-medium">⚠ Festa ainda não criada</span>
             </div>
           )}
 
