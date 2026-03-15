@@ -84,6 +84,7 @@ export default function Agenda() {
   const [searchResults, setSearchResults] = useState<(CompanyEvent & { lead_name?: string; lead_phone?: string })[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [searchStatusFilter, setSearchStatusFilter] = useState<"all" | "confirmado" | "pendente" | "cancelado">("all");
 
   const searchEvents = useCallback(async (term: string) => {
     if (!currentCompany?.id || term.trim().length < 2) {
