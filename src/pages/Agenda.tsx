@@ -511,6 +511,111 @@ export default function Agenda() {
                 </div>
               </div>
 
+              {/* Desktop search bar */}
+              <div className="hidden md:block">
+                <div className="relative max-w-md">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={searchTerm}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    placeholder="Buscar festa por nome ou telefone do lead..."
+                    className="pl-9 pr-9 h-10"
+                  />
+                  {searchTerm && (
+                    <button onClick={clearSearch} className="absolute right-3 top-1/2 -translate-y-1/2" aria-label="Limpar busca">
+                      <X className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Search results overlay */}
+              {searchTerm.trim().length >= 2 && (
+                <Card className="bg-card border-border/30 shadow-lg rounded-2xl">
+                  <CardContent className="p-4">
+                    {searchLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        <span className="ml-2 text-sm text-muted-foreground">Buscando...</span>
+                      </div>
+                    ) : searchResults.length === 0 ? (
+                      <div className="text-center py-8">
+                        <Search className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+                        <p className="text-sm text-muted-foreground">Nenhuma festa encontrada para "{searchTerm}"</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground mb-3">
+                          {searchResults.length} festa{searchResults.length > 1 ? "s" : ""} encontrada{searchResults.length > 1 ? "s" : ""}
+                        </p>
+                        {searchResults.map((ev) => {
+                          const statusColors = ev.status === "confirmado"
+                            ? "border-l-emerald-500 bg-emerald-500/[0.03]"
+                            : ev.status === "cancelado"
+                              ? "border-l-red-500 bg-red-500/[0.03]"
+                              : "border-l-amber-500 bg-amber-500/[0.03]";
+                          return (
+                            <button
+                              key={ev.id}
+                              onClick={() => {
+                                setDetailEvent(ev);
+                                setDetailOpen(true);
+                                clearSearch();
+                              }}
+                              className={`w-full text-left p-4 rounded-xl border border-border/30 border-l-[3px] ${statusColors} hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer`}
+                            >
+                              <div className="flex items-center justify-between gap-2 mb-1">
+                                <span className="font-semibold text-sm truncate">{ev.title}</span>
+                                <Badge
+                                  variant={ev.status === "confirmado" ? "default" : ev.status === "cancelado" ? "destructive" : "secondary"}
+                                  className="text-[10px] shrink-0 uppercase tracking-wider px-2 py-0.5"
+                                >
+                                  {ev.status}
+                                </Badge>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1">
+                                <span className="flex items-center gap-1">
+                                  <CalendarDays className="h-3 w-3" />
+                                  {format(new Date(ev.event_date + "T12:00:00"), "dd/MM/yyyy")}
+                                </span>
+                                {ev.start_time && (
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    {ev.start_time.slice(0, 5)}
+                                  </span>
+                                )}
+                                {ev.unit && (
+                                  <span className="flex items-center gap-1">
+                                    <MapPin className="h-3 w-3" />
+                                    {ev.unit}
+                                  </span>
+                                )}
+                              </div>
+                              {(ev.lead_name || ev.lead_phone) && (
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mt-1.5 text-primary/80">
+                                  {ev.lead_name && (
+                                    <span className="flex items-center gap-1 font-medium">
+                                      <Users className="h-3 w-3" />
+                                      {ev.lead_name}
+                                    </span>
+                                  )}
+                                  {ev.lead_phone && (
+                                    <span className="flex items-center gap-1">
+                                      <Phone className="h-3 w-3" />
+                                      {ev.lead_phone}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Period filter + Summary */}
               <div className="space-y-4">
                 <PeriodFilterPopover
