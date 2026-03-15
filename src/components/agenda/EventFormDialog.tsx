@@ -66,7 +66,7 @@ const MONTH_OPTIONS = [
   { value: "11", label: "Novembro" },
   { value: "12", label: "Dezembro" },
 ];
-const YEAR_OPTIONS = ["2024", "2025", "2026", "2027", "2028", "2029", "2030"];
+const YEAR_OPTIONS = ["2026", "2027", "2028", "2029", "2030"];
 
 const STATUS_OPTIONS = [
   { value: "pendente", label: "Pendente" },
