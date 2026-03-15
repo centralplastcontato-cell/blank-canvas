@@ -4940,9 +4940,20 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                   new_value: statusLabels[newStatus] || newStatus,
                                   user_id: userId,
                                 });
-                                
-                                setLinkedLead({ ...linkedLead, status: statusOption.value });
+
+                                const updatedLead = { ...linkedLead, status: statusOption.value };
+                                setLinkedLead(updatedLead);
                                 setMobileStatusExpanded(false);
+
+                                if (newStatus === 'fechado') {
+                                  console.log('[Lead:Fechado->NovaFesta:mobile]', {
+                                    leadId: updatedLead.id,
+                                    leadName: updatedLead.name,
+                                    source: 'whatsapp-mobile-status',
+                                  });
+                                  void onLeadClosedMobile?.(updatedLead);
+                                }
+
                                 toast({
                                   title: "Status atualizado",
                                   description: `Lead classificado como "${statusOption.label}"`,
