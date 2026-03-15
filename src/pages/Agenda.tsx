@@ -220,7 +220,7 @@ export default function Agenda() {
 
   const handleSubmit = async (data: EventFormData) => {
     if (!currentCompany?.id || !currentUser?.id) return;
-    const payload = {
+    const payload: any = {
       company_id: currentCompany.id,
       title: data.title,
       event_date: data.event_date,
@@ -235,7 +235,10 @@ export default function Agenda() {
       notes: data.notes || null,
       created_by: currentUser.id,
       lead_id: data.lead_id || null,
+      data_fechamento_venda: data.data_fechamento_venda || null,
+      vendedor_responsavel_id: data.vendedor_responsavel_id || null,
     };
+    console.log('[Evento:DadosComerciais]', { data_fechamento_venda: payload.data_fechamento_venda, vendedor_responsavel_id: payload.vendedor_responsavel_id });
 
     if (data.id) {
       const { error } = await supabase.from("company_events").update(payload).eq("id", data.id);
@@ -298,6 +301,8 @@ export default function Agenda() {
       total_value: ev.total_value,
       notes: ev.notes || "",
       lead_id: ev.lead_id || null,
+      data_fechamento_venda: (ev as any).data_fechamento_venda || null,
+      vendedor_responsavel_id: (ev as any).vendedor_responsavel_id || null,
     });
     setDetailOpen(false);
     setFormOpen(true);

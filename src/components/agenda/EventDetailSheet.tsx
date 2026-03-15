@@ -2,7 +2,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { CalendarDays, Clock, Users, MapPin, Package, DollarSign, Pencil, Trash2, AlertTriangle, UserCheck, Gamepad2, Copy, Check, ExternalLink } from "lucide-react";
+import { CalendarDays, Clock, Users, MapPin, Package, DollarSign, Pencil, Trash2, AlertTriangle, UserCheck, Gamepad2, Copy, Check, ExternalLink, Briefcase } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useEffect, useState } from "react";
@@ -24,6 +24,8 @@ interface EventData {
   notes: string | null;
   lead_id?: string | null;
   company_id?: string;
+  data_fechamento_venda?: string | null;
+  vendedor_responsavel_id?: string | null;
 }
 
 interface EventDetailSheetProps {
@@ -43,6 +45,7 @@ const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondar
 
 export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, conflicts = [] }: EventDetailSheetProps) {
   const [leadName, setLeadName] = useState<string | null>(null);
+  const [vendedorName, setVendedorName] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const getControlUrl = () => `${window.location.origin}/festa/${event?.id}`;
@@ -65,6 +68,12 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
     supabase.from("campaign_leads").select("name").eq("id", event.lead_id).single()
       .then(({ data }) => setLeadName(data?.name || null));
   }, [event?.lead_id]);
+
+  useEffect(() => {
+    if (!event?.vendedor_responsavel_id) { setVendedorName(null); return; }
+    supabase.from("profiles").select("full_name").eq("user_id", event.vendedor_responsavel_id).single()
+      .then(({ data }) => setVendedorName(data?.full_name || null));
+  }, [event?.vendedor_responsavel_id]);
 
   if (!event) return null;
 
@@ -164,6 +173,35 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
               </div>
             </>
           )}
+
+          {/* Dados Comerciais */}
+          <Separator />
+          <div className="space-y-3">
+            <div className="flex items-center gap-2.5 text-[11px] uppercase tracking-[0.18em] font-semibold text-muted-foreground pb-2 border-b border-border/40">
+              <div className="p-1.5 rounded-md bg-primary/10 ring-1 ring-primary/15">
+                <Briefcase className="h-3.5 w-3.5 text-primary" />
+              </div>
+              Dados Comerciais
+            </div>
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Data de fechamento</span>
+                {event.data_fechamento_venda ? (
+                  <span className="font-medium">
+                    {format(new Date(event.data_fechamento_venda + "T12:00:00"), "dd/MM/yyyy")}
+                  </span>
+                ) : (
+                  <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 text-[10px]">
+                    <AlertTriangle className="h-3 w-3 mr-1" /> Pendente
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Vendedor</span>
+                <span className="font-medium">{vendedorName || "Não definido"}</span>
+              </div>
+            </div>
+          </div>
 
           <Separator />
 

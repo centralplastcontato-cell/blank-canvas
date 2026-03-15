@@ -683,6 +683,7 @@ export type Database = {
           company_id: string
           created_at: string
           created_by: string
+          data_fechamento_venda: string | null
           end_time: string | null
           event_date: string
           event_type: string | null
@@ -697,11 +698,13 @@ export type Database = {
           total_value: number | null
           unit: string | null
           updated_at: string
+          vendedor_responsavel_id: string | null
         }
         Insert: {
           company_id: string
           created_at?: string
           created_by: string
+          data_fechamento_venda?: string | null
           end_time?: string | null
           event_date: string
           event_type?: string | null
@@ -716,11 +719,13 @@ export type Database = {
           total_value?: number | null
           unit?: string | null
           updated_at?: string
+          vendedor_responsavel_id?: string | null
         }
         Update: {
           company_id?: string
           created_at?: string
           created_by?: string
+          data_fechamento_venda?: string | null
           end_time?: string | null
           event_date?: string
           event_type?: string | null
@@ -735,6 +740,7 @@ export type Database = {
           total_value?: number | null
           unit?: string | null
           updated_at?: string
+          vendedor_responsavel_id?: string | null
         }
         Relationships: [
           {

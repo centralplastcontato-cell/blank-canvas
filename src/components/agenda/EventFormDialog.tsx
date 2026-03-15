@@ -6,7 +6,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search, X, UserCheck, ListChecks, User, CalendarDays, PartyPopper } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Loader2, Search, X, UserCheck, ListChecks, User, CalendarDays, PartyPopper, Briefcase, CalendarIcon, AlertTriangle } from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -27,6 +32,9 @@ export interface EventFormData {
   lead_id?: string | null;
   lead_name?: string | null;
   checklist_template_id?: string | null;
+  data_fechamento_venda?: string | null;
+  vendedor_responsavel_id?: string | null;
+  vendedor_responsavel_name?: string | null;
 }
 
 const EVENT_TYPES = [
@@ -88,6 +96,9 @@ const EMPTY: EventFormData = {
   notes: "",
   lead_id: null,
   lead_name: null,
+  data_fechamento_venda: null,
+  vendedor_responsavel_id: null,
+  vendedor_responsavel_name: null,
 };
 
 function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
@@ -119,6 +130,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [templates, setTemplates] = useState<Array<{ id: string; name: string; items: string[] }>>([]);
   const [packages, setPackages] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+  const [companyUsers, setCompanyUsers] = useState<Array<{ id: string; name: string }>>([]);
+  const [fechamentoDate, setFechamentoDate] = useState<Date | undefined>(undefined);
 
   useEffect(() => {
     if (open) {
@@ -137,6 +150,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       setLeadSearch("");
       setShowLeadDropdown(false);
       setSelectedTemplate("");
+      setFechamentoDate(data.data_fechamento_venda ? new Date(data.data_fechamento_venda + "T12:00:00") : undefined);
     }
   }, [open, initialData]);
 
@@ -166,6 +180,18 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       .order("sort_order")
       .then(({ data }) => {
         setPackages((data || []).map((p: any) => ({ id: p.id, name: p.name })));
+      });
+    // Fetch company users for vendedor select
+    supabase
+      .from("user_companies")
+      .select("user_id, profiles:user_id(full_name)")
+      .eq("company_id", currentCompany.id)
+      .then(({ data }) => {
+        setCompanyUsers(
+          (data || [])
+            .filter((d: any) => d.profiles?.full_name)
+            .map((d: any) => ({ id: d.user_id, name: d.profiles.full_name }))
+        );
       });
   }, [open, currentCompany?.id]);
 
@@ -397,6 +423,70 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               <div className="space-y-2.5 md:col-span-2">
                 <Label className="text-sm font-medium text-foreground/70">Observações</Label>
                 <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 4 – Dados Comerciais */}
+          <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
+            <SectionHeader icon={Briefcase} label="Dados Comerciais" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5">
+              <div className="space-y-2.5 md:pr-6">
+                <Label className="text-sm font-medium text-foreground/70">Data de fechamento da venda</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !fechamentoDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {fechamentoDate ? format(fechamentoDate, "dd/MM/yyyy") : "Selecionar data"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={fechamentoDate}
+                      onSelect={(d) => {
+                        setFechamentoDate(d);
+                        setForm({ ...form, data_fechamento_venda: d ? format(d, "yyyy-MM-dd") : null });
+                      }}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                      locale={ptBR}
+                    />
+                  </PopoverContent>
+                </Popover>
+                {!fechamentoDate && (
+                  <div className="flex items-center gap-1.5 text-xs text-amber-600">
+                    <AlertTriangle className="h-3 w-3" />
+                    <span>Data de fechamento pendente</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
+                <Label className="text-sm font-medium text-foreground/70">Vendedor responsável</Label>
+                <Select
+                  value={form.vendedor_responsavel_id || "none"}
+                  onValueChange={(v) => {
+                    const userId = v === "none" ? null : v;
+                    const userName = companyUsers.find(u => u.id === v)?.name || null;
+                    setForm({ ...form, vendedor_responsavel_id: userId, vendedor_responsavel_name: userName });
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecionar vendedor" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sem vendedor</SelectItem>
+                    {companyUsers.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
