@@ -353,6 +353,11 @@ export function LeadDetailSheet({
 
           <Separator />
 
+          {/* Visit History */}
+          <LeadVisitHistory leadId={lead.id} currentUserId={currentUserId} />
+
+          <Separator />
+
           {/* History */}
           <div className="space-y-3">
             <Label className="flex items-center gap-2">
