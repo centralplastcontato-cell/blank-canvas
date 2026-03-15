@@ -81,6 +81,7 @@ export function LeadDetailSheet({
   const [isSaving, setIsSaving] = useState(false);
   const [history, setHistory] = useState<LeadHistory[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [hasLinkedEvent, setHasLinkedEvent] = useState<boolean | null>(null);
   const { data: aiSummary, isLoading: isLoadingSummary, isFetchingSaved, error: summaryError, fetchSummary } = useLeadSummary(lead?.id || null);
 
   // Navigate to WhatsApp chat with this lead's phone
