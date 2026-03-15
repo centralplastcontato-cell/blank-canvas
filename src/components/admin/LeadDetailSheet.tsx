@@ -204,6 +204,12 @@ export function LeadDetailSheet({
 
       onUpdate();
       fetchHistory(lead.id);
+
+      // Trigger festa modal if status changed to fechado
+      if (status === "fechado" && lead.status !== "fechado" && onLeadClosed) {
+        console.log('[Lead:Fechado->NovaFesta]', { leadId: lead.id, leadName: lead.name });
+        onLeadClosed(lead);
+      }
     } catch (error: any) {
       console.error("Error updating lead:", error);
       toast({
