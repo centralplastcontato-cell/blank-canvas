@@ -461,7 +461,71 @@ export default function Admin() {
     );
   };
 
-  const handleExport = () => {
+  const handleLeadClosed = async (lead: Lead) => {
+    // Check if lead already has a linked event
+    const { data: existingEvents } = await supabase
+      .from("company_events")
+      .select("id")
+      .eq("lead_id", lead.id)
+      .limit(1);
+
+    if (existingEvents && existingEvents.length > 0) {
+      toast({
+        title: "Festa já vinculada",
+        description: "Este lead já possui uma festa vinculada.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    console.log('[Lead:Fechado->NovaFesta]', { leadId: lead.id, leadName: lead.name });
+    setFestaInitialData({
+      title: lead.name,
+      event_date: "",
+      start_time: "",
+      end_time: "",
+      event_type: "infantil",
+      guest_count: null,
+      unit: "",
+      status: "pendente",
+      package_name: "",
+      total_value: null,
+      notes: "",
+      lead_id: lead.id,
+      lead_name: lead.name,
+    });
+    setFestaFormOpen(true);
+  };
+
+  const handleFestaSubmit = async (data: EventFormData) => {
+    if (!currentCompany?.id || !user?.id) return;
+    const payload: any = {
+      company_id: currentCompany.id,
+      title: data.title,
+      event_date: data.event_date,
+      start_time: data.start_time || null,
+      end_time: data.end_time || null,
+      event_type: data.event_type || null,
+      guest_count: data.guest_count,
+      unit: data.unit || null,
+      status: data.status,
+      package_name: data.package_name || null,
+      total_value: data.total_value,
+      notes: data.notes || null,
+      created_by: user.id,
+      lead_id: data.lead_id || null,
+      data_fechamento_venda: data.data_fechamento_venda || null,
+      vendedor_responsavel_id: data.vendedor_responsavel_id || null,
+    };
+    console.log('[Lead:Fechado->NovaFesta] creating event', payload);
+    const { error } = await supabase.from("company_events").insert(payload);
+    if (error) {
+      toast({ title: "Erro ao criar festa", description: error.message, variant: "destructive" });
+      throw error;
+    }
+    toast({ title: "Festa criada com sucesso!" });
+  };
+
     exportLeadsToCSV({ leads, responsaveis, canViewContact });
     toast({
       title: "Exportação concluída",
