@@ -596,8 +596,12 @@ export default function CentralAtendimento() {
       return;
     }
 
-    console.log('[Lead:Fechado->NovaFesta]', { leadId: lead.id, leadName: lead.name });
-    setFestaInitialData({
+    console.log('[Lead:Fechado->NovaFesta:mobile]', { leadId: lead.id, leadName: lead.name });
+
+    // Close the detail sheet first so the modal is visible on mobile
+    setIsDetailOpen(false);
+
+    const initialData: EventFormData = {
       title: lead.name,
       event_date: "",
       start_time: "",
@@ -611,8 +615,13 @@ export default function CentralAtendimento() {
       notes: "",
       lead_id: lead.id,
       lead_name: lead.name,
-    });
-    setFestaFormOpen(true);
+    };
+
+    // Small delay to let the sheet close animation finish before opening the dialog
+    setTimeout(() => {
+      setFestaInitialData(initialData);
+      setFestaFormOpen(true);
+    }, 300);
   };
 
   const handleFestaSubmit = async (data: EventFormData) => {
