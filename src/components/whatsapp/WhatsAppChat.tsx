@@ -1706,7 +1706,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   };
 
   // Create a new lead and classify it directly
-  const createAndClassifyLead = async (status: string) => {
+  const createAndClassifyLead = async (status: string, triggerFestaOnClose = false) => {
     if (!selectedConversation || !selectedInstance || isCreatingLead) return;
 
     setIsCreatingLead(true);
@@ -1776,8 +1776,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       supabase.from('lead_history').insert({
         lead_id: leadToLink.id,
         action: existingLead ? 'status_update' : 'lead_created',
-        new_value: existingLead 
-          ? `Status atualizado para: ${statusLabels[status]}` 
+        new_value: existingLead
+          ? `Status atualizado para: ${statusLabels[status]}`
           : `Lead criado via WhatsApp com status: ${statusLabels[status]}`,
         user_id: userId,
       }).then(({ error }) => {
@@ -1786,10 +1786,19 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
       // Update local state
       setLinkedLead(leadToLink as Lead);
-      setConversations(prev => 
+      setConversations(prev =>
         prev.map(c => c.id === selectedConversation.id ? { ...c, lead_id: leadToLink.id } : c)
       );
       setSelectedConversation({ ...selectedConversation, lead_id: leadToLink.id });
+
+      if (triggerFestaOnClose && status === 'fechado') {
+        console.log('[Lead:Fechado->NovaFesta:mobile]', {
+          leadId: leadToLink.id,
+          leadName: leadToLink.name,
+          source: 'whatsapp-mobile-create',
+        });
+        void onLeadClosedMobile?.(leadToLink as Lead);
+      }
 
       toast({
         title: existingLead ? "Lead vinculado e atualizado" : "Lead criado e classificado",
