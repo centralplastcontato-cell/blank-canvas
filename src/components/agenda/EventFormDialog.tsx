@@ -130,6 +130,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [templates, setTemplates] = useState<Array<{ id: string; name: string; items: string[] }>>([]);
   const [packages, setPackages] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+  const [companyUsers, setCompanyUsers] = useState<Array<{ id: string; name: string }>>([]);
+  const [fechamentoDate, setFechamentoDate] = useState<Date | undefined>(undefined);
 
   useEffect(() => {
     if (open) {
