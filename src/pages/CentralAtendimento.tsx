@@ -1331,6 +1331,7 @@ export default function CentralAtendimento() {
                       initialDraft={initialDraft}
                       onPhoneHandled={handlePhoneHandled}
                       externalSelectedUnit={selectedChatUnit}
+                      onLeadClosedMobile={handleLeadClosed}
                       onInstancesLoaded={(instances) => {
                         setChatInstances(instances);
                         if (!selectedChatUnit && instances.length > 0) {
