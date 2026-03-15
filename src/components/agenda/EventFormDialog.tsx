@@ -96,6 +96,9 @@ const EMPTY: EventFormData = {
   notes: "",
   lead_id: null,
   lead_name: null,
+  data_fechamento_venda: null,
+  vendedor_responsavel_id: null,
+  vendedor_responsavel_name: null,
 };
 
 function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
