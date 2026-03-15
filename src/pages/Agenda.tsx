@@ -582,6 +582,11 @@ export default function Agenda() {
                         {filteredSearchResults.length === 0 ? (
                           <p className="text-xs text-muted-foreground/60 text-center py-4">Nenhuma festa com este status.</p>
                         ) : filteredSearchResults.map((ev) => {
+                          const statusColors = ev.status === "confirmado"
+                            ? "border-l-emerald-500 bg-emerald-500/[0.03]"
+                            : ev.status === "cancelado"
+                              ? "border-l-red-500 bg-red-500/[0.03]"
+                              : "border-l-amber-500 bg-amber-500/[0.03]";
                           return (
                             <button
                               key={ev.id}
