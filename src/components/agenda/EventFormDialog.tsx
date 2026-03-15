@@ -181,6 +181,18 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       .then(({ data }) => {
         setPackages((data || []).map((p: any) => ({ id: p.id, name: p.name })));
       });
+    // Fetch company users for vendedor select
+    supabase
+      .from("user_companies")
+      .select("user_id, profiles:user_id(full_name)")
+      .eq("company_id", currentCompany.id)
+      .then(({ data }) => {
+        setCompanyUsers(
+          (data || [])
+            .filter((d: any) => d.profiles?.full_name)
+            .map((d: any) => ({ id: d.user_id, name: d.profiles.full_name }))
+        );
+      });
   }, [open, currentCompany?.id]);
 
   useEffect(() => {
