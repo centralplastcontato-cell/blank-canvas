@@ -462,7 +462,6 @@ export default function Admin() {
   };
 
   const handleLeadClosed = async (lead: Lead) => {
-    // Check if lead already has a linked event
     const { data: existingEvents } = await supabase
       .from("company_events")
       .select("id")
@@ -478,8 +477,11 @@ export default function Admin() {
       return;
     }
 
-    console.log('[Lead:Fechado->NovaFesta]', { leadId: lead.id, leadName: lead.name });
-    setFestaInitialData({
+    console.log('[Lead:Fechado->NovaFesta:mobile]', { leadId: lead.id, leadName: lead.name });
+
+    setIsDetailOpen(false);
+
+    const initialData: EventFormData = {
       title: lead.name,
       event_date: "",
       start_time: "",
@@ -493,8 +495,12 @@ export default function Admin() {
       notes: "",
       lead_id: lead.id,
       lead_name: lead.name,
-    });
-    setFestaFormOpen(true);
+    };
+
+    setTimeout(() => {
+      setFestaInitialData(initialData);
+      setFestaFormOpen(true);
+    }, 300);
   };
 
   const handleFestaSubmit = async (data: EventFormData) => {
