@@ -426,6 +426,70 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               </div>
             </div>
           </div>
+
+          {/* Section 4 – Dados Comerciais */}
+          <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
+            <SectionHeader icon={Briefcase} label="Dados Comerciais" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5">
+              <div className="space-y-2.5 md:pr-6">
+                <Label className="text-sm font-medium text-foreground/70">Data de fechamento da venda</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !fechamentoDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {fechamentoDate ? format(fechamentoDate, "dd/MM/yyyy") : "Selecionar data"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={fechamentoDate}
+                      onSelect={(d) => {
+                        setFechamentoDate(d);
+                        setForm({ ...form, data_fechamento_venda: d ? format(d, "yyyy-MM-dd") : null });
+                      }}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                      locale={ptBR}
+                    />
+                  </PopoverContent>
+                </Popover>
+                {!fechamentoDate && (
+                  <div className="flex items-center gap-1.5 text-xs text-amber-600">
+                    <AlertTriangle className="h-3 w-3" />
+                    <span>Data de fechamento pendente</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
+                <Label className="text-sm font-medium text-foreground/70">Vendedor responsável</Label>
+                <Select
+                  value={form.vendedor_responsavel_id || "none"}
+                  onValueChange={(v) => {
+                    const userId = v === "none" ? null : v;
+                    const userName = companyUsers.find(u => u.id === v)?.name || null;
+                    setForm({ ...form, vendedor_responsavel_id: userId, vendedor_responsavel_name: userName });
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecionar vendedor" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sem vendedor</SelectItem>
+                    {companyUsers.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
         </form>
 
         {/* Fixed footer */}

@@ -301,6 +301,8 @@ export default function Agenda() {
       total_value: ev.total_value,
       notes: ev.notes || "",
       lead_id: ev.lead_id || null,
+      data_fechamento_venda: (ev as any).data_fechamento_venda || null,
+      vendedor_responsavel_id: (ev as any).vendedor_responsavel_id || null,
     });
     setDetailOpen(false);
     setFormOpen(true);

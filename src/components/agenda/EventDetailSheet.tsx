@@ -174,6 +174,35 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
             </>
           )}
 
+          {/* Dados Comerciais */}
+          <Separator />
+          <div className="space-y-3">
+            <div className="flex items-center gap-2.5 text-[11px] uppercase tracking-[0.18em] font-semibold text-muted-foreground pb-2 border-b border-border/40">
+              <div className="p-1.5 rounded-md bg-primary/10 ring-1 ring-primary/15">
+                <Briefcase className="h-3.5 w-3.5 text-primary" />
+              </div>
+              Dados Comerciais
+            </div>
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Data de fechamento</span>
+                {event.data_fechamento_venda ? (
+                  <span className="font-medium">
+                    {format(new Date(event.data_fechamento_venda + "T12:00:00"), "dd/MM/yyyy")}
+                  </span>
+                ) : (
+                  <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 text-[10px]">
+                    <AlertTriangle className="h-3 w-3 mr-1" /> Pendente
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Vendedor</span>
+                <span className="font-medium">{vendedorName || "Não definido"}</span>
+              </div>
+            </div>
+          </div>
+
           <Separator />
 
           {/* Checklist */}
