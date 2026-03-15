@@ -553,15 +553,35 @@ export default function Agenda() {
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground mb-3">
-                          {searchResults.length} festa{searchResults.length > 1 ? "s" : ""} encontrada{searchResults.length > 1 ? "s" : ""}
+                        {/* Status filter tabs */}
+                        <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+                          {([
+                            { value: "all", label: "Todos", count: searchResults.length },
+                            { value: "confirmado", label: "Confirmado", count: searchResults.filter(e => e.status === "confirmado").length },
+                            { value: "pendente", label: "Pendente", count: searchResults.filter(e => e.status === "pendente").length },
+                            { value: "cancelado", label: "Cancelado", count: searchResults.filter(e => e.status === "cancelado").length },
+                          ] as const).map((f) => (
+                            f.count > 0 || f.value === "all" ? (
+                              <button
+                                key={f.value}
+                                onClick={() => setSearchStatusFilter(f.value)}
+                                className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all duration-200 ${
+                                  searchStatusFilter === f.value
+                                    ? "bg-primary text-primary-foreground shadow-sm"
+                                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                                }`}
+                              >
+                                {f.label} ({f.count})
+                              </button>
+                            ) : null
+                          ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          {filteredSearchResults.length} festa{filteredSearchResults.length !== 1 ? "s" : ""} encontrada{filteredSearchResults.length !== 1 ? "s" : ""}
                         </p>
-                        {searchResults.map((ev) => {
-                          const statusColors = ev.status === "confirmado"
-                            ? "border-l-emerald-500 bg-emerald-500/[0.03]"
-                            : ev.status === "cancelado"
-                              ? "border-l-red-500 bg-red-500/[0.03]"
-                              : "border-l-amber-500 bg-amber-500/[0.03]";
+                        {filteredSearchResults.length === 0 ? (
+                          <p className="text-xs text-muted-foreground/60 text-center py-4">Nenhuma festa com este status.</p>
+                        ) : filteredSearchResults.map((ev) => {
                           return (
                             <button
                               key={ev.id}
