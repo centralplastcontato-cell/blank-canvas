@@ -152,8 +152,8 @@ export function ResponseTimeCard({ data, isLoading, journeyData, journeyLoading 
                       <YAxis
                         dataKey="name"
                         type="category"
-                        width={110}
-                        tick={{ fontSize: 11 }}
+                        width={80}
+                        tick={{ fontSize: 10 }}
                         className="fill-muted-foreground"
                       />
                       <Tooltip

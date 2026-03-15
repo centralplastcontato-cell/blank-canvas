@@ -204,7 +204,14 @@ export function FunilTab({ data, stageDurations, selectedUnit }: FunilTabProps) 
                     outerRadius={60}
                     dataKey="value"
                     nameKey="name"
-                    label={({ name, value }) => `${name} (${value})`}
+                    label={({ name, value, cx, x, y }) => {
+                      const isRight = x > cx;
+                      return (
+                        <text x={x} y={y} textAnchor={isRight ? 'start' : 'end'} dominantBaseline="central" className="fill-foreground" fontSize={10}>
+                          {`${name} (${value})`}
+                        </text>
+                      );
+                    }}
                     labelLine={false}
                   >
                     {temperatureData.map((entry, idx) => (
