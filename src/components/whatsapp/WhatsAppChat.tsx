@@ -4986,7 +4986,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                               size="sm"
                               className="h-6 text-[10px] gap-1 px-1.5"
                               disabled={isCreatingLead}
-                              onClick={() => createAndClassifyLead(statusOption.value)}
+                              onClick={() => createAndClassifyLead(statusOption.value, true)}
                             >
                               {isCreatingLead ? (
                                 <Loader2 className="w-2.5 h-2.5 animate-spin" />
