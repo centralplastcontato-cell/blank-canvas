@@ -252,8 +252,8 @@ export function FunilTab({ data, stageDurations, selectedUnit }: FunilTabProps) 
                     <ArrowDown className="h-4 w-4 text-muted-foreground/40" />
                   </div>
                 )}
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-card/50 border">
-                  <div className="w-28 shrink-0">
+                <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg bg-card/50 border">
+                  <div className="w-20 sm:w-28 shrink-0">
                     <p className="text-sm font-medium">
                       {LEAD_STATUS_LABELS[status]}
                     </p>
