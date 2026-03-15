@@ -838,9 +838,31 @@ export default function Agenda() {
         onOpenChange={setDetailOpen}
         event={detailEvent}
         onEdit={(ev) => handleEdit(ev as CompanyEvent)}
-        onDelete={handleDelete}
+        onDelete={(id) => setDeleteConfirmId(id)}
         conflicts={detailEvent ? getConflicts(detailEvent) : []}
       />
+
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir festa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Essa ação é irreversível. Todos os dados vinculados (checklist, equipe, avaliações) serão excluídos permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarProvider>
   );
 }
