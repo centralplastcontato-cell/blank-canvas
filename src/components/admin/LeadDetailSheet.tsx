@@ -259,6 +259,14 @@ export function LeadDetailSheet({
             </div>
           )}
 
+          {/* Festa pendente indicator */}
+          {lead.status === "fechado" && hasLinkedEvent === false && (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-300/30 text-sm">
+              <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+              <span className="text-amber-700 dark:text-amber-400 font-medium">⚠ Festa ainda não criada</span>
+            </div>
+          )}
+
           {/* Lead Info */}
           <div className="grid grid-cols-2 gap-3 bg-muted/30 rounded-xl p-4">
             <div className="flex items-center gap-2.5 text-sm">
