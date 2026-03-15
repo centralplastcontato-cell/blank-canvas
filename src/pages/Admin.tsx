@@ -526,6 +526,7 @@ export default function Admin() {
     toast({ title: "Festa criada com sucesso!" });
   };
 
+  const handleExport = () => {
     exportLeadsToCSV({ leads, responsaveis, canViewContact });
     toast({
       title: "Exportação concluída",
