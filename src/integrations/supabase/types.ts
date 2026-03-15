@@ -2253,6 +2253,57 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_visits: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          data_visita: string
+          horario_visita: string | null
+          id: string
+          lead_id: string
+          observacoes: string | null
+          status_visita: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          data_visita: string
+          horario_visita?: string | null
+          id?: string
+          lead_id: string
+          observacoes?: string | null
+          status_visita?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          data_visita?: string
+          horario_visita?: string | null
+          id?: string
+          lead_id?: string
+          observacoes?: string | null
+          status_visita?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_visits_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_visits_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lp_bot_settings: {
         Row: {
           auto_rotate_months: boolean
