@@ -142,7 +142,13 @@ export default function Agenda() {
   const clearSearch = useCallback(() => {
     setSearchTerm("");
     setSearchResults([]);
+    setSearchStatusFilter("all");
   }, []);
+
+  const filteredSearchResults = useMemo(() => {
+    if (searchStatusFilter === "all") return searchResults;
+    return searchResults.filter(ev => ev.status === searchStatusFilter);
+  }, [searchResults, searchStatusFilter]);
 
   // Auth check
   useEffect(() => {
