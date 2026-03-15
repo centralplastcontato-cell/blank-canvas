@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -681,12 +682,30 @@ export default function Agenda() {
                           >
                             <div className="flex items-center justify-between gap-2 mb-1.5">
                               <span className="font-semibold text-[13px] truncate">{ev.title}</span>
-                              <Badge
-                                variant={ev.status === "confirmado" ? "default" : ev.status === "cancelado" ? "destructive" : "secondary"}
-                                className="text-[10px] shrink-0 font-medium uppercase tracking-wider px-2 py-0.5"
-                              >
-                                {ev.status}
-                              </Badge>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {(!(ev as any).data_fechamento_venda || !(ev as any).vendedor_responsavel_id) && (
+                                  <TooltipProvider delayDuration={200}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span className="text-amber-500" aria-label="Dados comerciais incompletos">
+                                          <AlertTriangle className="h-3.5 w-3.5" />
+                                        </span>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="text-xs max-w-[200px]">
+                                        <p className="font-semibold mb-0.5">Dados comerciais incompletos</p>
+                                        {!(ev as any).data_fechamento_venda && <p>• Data de fechamento não definida</p>}
+                                        {!(ev as any).vendedor_responsavel_id && <p>• Vendedor não definido</p>}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                )}
+                                <Badge
+                                  variant={ev.status === "confirmado" ? "default" : ev.status === "cancelado" ? "destructive" : "secondary"}
+                                  className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5"
+                                >
+                                  {ev.status}
+                                </Badge>
+                              </div>
                             </div>
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1">
                               {ev.start_time && (

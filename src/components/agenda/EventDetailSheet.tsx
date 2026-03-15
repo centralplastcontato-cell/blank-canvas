@@ -184,6 +184,18 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
               Dados Comerciais
             </div>
             <div className="space-y-2 text-sm">
+              {(!event.data_fechamento_venda || !event.vendedor_responsavel_id) && (
+                <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 mb-2">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">Dados comerciais incompletos</p>
+                    <ul className="text-[11px] text-amber-600 dark:text-amber-500 mt-0.5 space-y-0.5">
+                      {!event.data_fechamento_venda && <li>• Data de fechamento não definida</li>}
+                      {!event.vendedor_responsavel_id && <li>• Vendedor não definido</li>}
+                    </ul>
+                  </div>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Data de fechamento</span>
                 {event.data_fechamento_venda ? (
@@ -191,14 +203,12 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
                     {format(new Date(event.data_fechamento_venda + "T12:00:00"), "dd/MM/yyyy")}
                   </span>
                 ) : (
-                  <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 text-[10px]">
-                    <AlertTriangle className="h-3 w-3 mr-1" /> Pendente
-                  </Badge>
+                  <span className="text-xs text-muted-foreground/60">—</span>
                 )}
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Vendedor</span>
-                <span className="font-medium">{vendedorName || "Não definido"}</span>
+                <span className={vendedorName ? "font-medium" : "text-xs text-muted-foreground/60"}>{vendedorName || "—"}</span>
               </div>
             </div>
           </div>
