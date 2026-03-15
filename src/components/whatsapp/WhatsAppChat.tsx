@@ -204,6 +204,7 @@ interface WhatsAppChatProps {
   onPhoneHandled?: () => void;
   externalSelectedUnit?: string | null;
   onInstancesLoaded?: (instances: { id: string; unit: string | null; status: string | null }[]) => void;
+  onLeadClosedMobile?: (lead: Lead) => void | Promise<void>;
 }
 
 // Component for displaying media with auto-download capability
@@ -215,7 +216,7 @@ import { SalesMaterialsMenu } from "@/components/whatsapp/SalesMaterialsMenu";
 import { ShareToGroupDialog } from "@/components/whatsapp/ShareToGroupDialog";
 import { useFilterOrder } from "@/hooks/useFilterOrder";
 
-export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft, onPhoneHandled, externalSelectedUnit, onInstancesLoaded }: WhatsAppChatProps) {
+export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft, onPhoneHandled, externalSelectedUnit, onInstancesLoaded, onLeadClosedMobile }: WhatsAppChatProps) {
   const { currentCompany } = useCompany();
   const [instances, setInstances] = useState<WapiInstance[]>([]);
   const [selectedInstance, setSelectedInstance] = useState<WapiInstance | null>(null);
