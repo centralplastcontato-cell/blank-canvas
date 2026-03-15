@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -12,6 +12,7 @@ import { MobileMenu } from "@/components/admin/MobileMenu";
 import { NotificationBell } from "@/components/admin/NotificationBell";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +22,7 @@ import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDia
 import { EventDetailSheet } from "@/components/agenda/EventDetailSheet";
 import { MonthSummaryCards } from "@/components/agenda/MonthSummaryCards";
 import { PeriodFilterPopover } from "@/components/agenda/PeriodFilterPopover";
-import { CalendarDays, Plus, Loader2, ShieldAlert, Menu, Clock, AlertTriangle, List, ListChecks, MapPin, Users, DollarSign } from "lucide-react";
+import { CalendarDays, Plus, Loader2, ShieldAlert, Menu, Clock, AlertTriangle, List, ListChecks, MapPin, Users, DollarSign, Search, X, Phone } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, startOfMonth, endOfMonth, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -76,6 +77,70 @@ export default function Agenda() {
   const [detailEvent, setDetailEvent] = useState<CompanyEvent | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
+
+  // Search state
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState<(CompanyEvent & { lead_name?: string; lead_phone?: string })[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const searchEvents = useCallback(async (term: string) => {
+    if (!currentCompany?.id || term.trim().length < 2) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      return;
+    }
+    setSearchLoading(true);
+    console.log('[Agenda:Search]', { term });
+
+    const cleanTerm = `%${term.trim()}%`;
+    const { data: leads, error: leadsErr } = await supabase
+      .from("campaign_leads")
+      .select("id, name, whatsapp")
+      .eq("company_id", currentCompany.id)
+      .or(`name.ilike.${cleanTerm},whatsapp.ilike.${cleanTerm}`)
+      .limit(50);
+
+    if (leadsErr || !leads?.length) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      return;
+    }
+
+    const leadIds = leads.map(l => l.id);
+    const { data: evts } = await supabase
+      .from("company_events")
+      .select("*")
+      .eq("company_id", currentCompany.id)
+      .in("lead_id", leadIds)
+      .order("event_date", { ascending: false })
+      .limit(30);
+
+    const leadMap = new Map(leads.map(l => [l.id, l]));
+    const results = (evts || []).map((ev: any) => {
+      const lead = leadMap.get(ev.lead_id);
+      return { ...ev, lead_name: lead?.name, lead_phone: lead?.whatsapp } as CompanyEvent & { lead_name?: string; lead_phone?: string };
+    });
+
+    setSearchResults(results);
+    setSearchLoading(false);
+  }, [currentCompany?.id]);
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchTerm(value);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    if (value.trim().length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    setSearchLoading(true);
+    searchTimerRef.current = setTimeout(() => searchEvents(value), 400);
+  }, [searchEvents]);
+
+  const clearSearch = useCallback(() => {
+    setSearchTerm("");
+    setSearchResults([]);
+  }, []);
 
   // Auth check
   useEffect(() => {
@@ -389,6 +454,24 @@ export default function Agenda() {
             );
           })()}
 
+          {/* Search bar - mobile */}
+          <div className="md:hidden px-3 pt-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={searchTerm}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                placeholder="Buscar por nome ou telefone do lead..."
+                className="pl-9 pr-9 h-10"
+              />
+              {searchTerm && (
+                <button onClick={clearSearch} className="absolute right-3 top-1/2 -translate-y-1/2" aria-label="Limpar busca">
+                  <X className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+                </button>
+              )}
+            </div>
+          </div>
+
           <PullToRefresh onRefresh={async () => { await fetchEvents(); }} className="flex-1 p-3 md:p-6 lg:p-8 overflow-x-hidden overflow-y-auto">
             <div className="max-w-7xl mx-auto space-y-6">
               {/* Desktop header */}
@@ -427,6 +510,111 @@ export default function Agenda() {
                   </Button>
                 </div>
               </div>
+
+              {/* Desktop search bar */}
+              <div className="hidden md:block">
+                <div className="relative max-w-md">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={searchTerm}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    placeholder="Buscar festa por nome ou telefone do lead..."
+                    className="pl-9 pr-9 h-10"
+                  />
+                  {searchTerm && (
+                    <button onClick={clearSearch} className="absolute right-3 top-1/2 -translate-y-1/2" aria-label="Limpar busca">
+                      <X className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Search results overlay */}
+              {searchTerm.trim().length >= 2 && (
+                <Card className="bg-card border-border/30 shadow-lg rounded-2xl">
+                  <CardContent className="p-4">
+                    {searchLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        <span className="ml-2 text-sm text-muted-foreground">Buscando...</span>
+                      </div>
+                    ) : searchResults.length === 0 ? (
+                      <div className="text-center py-8">
+                        <Search className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+                        <p className="text-sm text-muted-foreground">Nenhuma festa encontrada para "{searchTerm}"</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground mb-3">
+                          {searchResults.length} festa{searchResults.length > 1 ? "s" : ""} encontrada{searchResults.length > 1 ? "s" : ""}
+                        </p>
+                        {searchResults.map((ev) => {
+                          const statusColors = ev.status === "confirmado"
+                            ? "border-l-emerald-500 bg-emerald-500/[0.03]"
+                            : ev.status === "cancelado"
+                              ? "border-l-red-500 bg-red-500/[0.03]"
+                              : "border-l-amber-500 bg-amber-500/[0.03]";
+                          return (
+                            <button
+                              key={ev.id}
+                              onClick={() => {
+                                setDetailEvent(ev);
+                                setDetailOpen(true);
+                                clearSearch();
+                              }}
+                              className={`w-full text-left p-4 rounded-xl border border-border/30 border-l-[3px] ${statusColors} hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer`}
+                            >
+                              <div className="flex items-center justify-between gap-2 mb-1">
+                                <span className="font-semibold text-sm truncate">{ev.title}</span>
+                                <Badge
+                                  variant={ev.status === "confirmado" ? "default" : ev.status === "cancelado" ? "destructive" : "secondary"}
+                                  className="text-[10px] shrink-0 uppercase tracking-wider px-2 py-0.5"
+                                >
+                                  {ev.status}
+                                </Badge>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1">
+                                <span className="flex items-center gap-1">
+                                  <CalendarDays className="h-3 w-3" />
+                                  {format(new Date(ev.event_date + "T12:00:00"), "dd/MM/yyyy")}
+                                </span>
+                                {ev.start_time && (
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    {ev.start_time.slice(0, 5)}
+                                  </span>
+                                )}
+                                {ev.unit && (
+                                  <span className="flex items-center gap-1">
+                                    <MapPin className="h-3 w-3" />
+                                    {ev.unit}
+                                  </span>
+                                )}
+                              </div>
+                              {(ev.lead_name || ev.lead_phone) && (
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mt-1.5 text-primary/80">
+                                  {ev.lead_name && (
+                                    <span className="flex items-center gap-1 font-medium">
+                                      <Users className="h-3 w-3" />
+                                      {ev.lead_name}
+                                    </span>
+                                  )}
+                                  {ev.lead_phone && (
+                                    <span className="flex items-center gap-1">
+                                      <Phone className="h-3 w-3" />
+                                      {ev.lead_phone}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Period filter + Summary */}
               <div className="space-y-4">
