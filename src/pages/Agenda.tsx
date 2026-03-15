@@ -347,17 +347,21 @@ export default function Agenda() {
     fetchEvents();
   };
 
-  const handleDelete = async (id: string) => {
+  const confirmDelete = async () => {
+    if (!deleteConfirmId) return;
+    setDeleting(true);
     // Delete dependent records first to avoid foreign key violations
-    await (supabase as any).from("freelancer_evaluations").delete().eq("event_id", id);
-    await (supabase as any).from("event_checklist_items").delete().eq("event_id", id);
-    await (supabase as any).from("event_staff_entries").delete().eq("event_id", id);
-    await (supabase as any).from("event_info_entries").delete().eq("event_id", id);
-    await (supabase as any).from("attendance_entries").delete().eq("event_id", id);
+    await (supabase as any).from("freelancer_evaluations").delete().eq("event_id", deleteConfirmId);
+    await (supabase as any).from("event_checklist_items").delete().eq("event_id", deleteConfirmId);
+    await (supabase as any).from("event_staff_entries").delete().eq("event_id", deleteConfirmId);
+    await (supabase as any).from("event_info_entries").delete().eq("event_id", deleteConfirmId);
+    await (supabase as any).from("attendance_entries").delete().eq("event_id", deleteConfirmId);
 
-    const { error } = await supabase.from("company_events").delete().eq("id", id);
-    if (error) { toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "Festa excluída" });
+    const { error } = await supabase.from("company_events").delete().eq("id", deleteConfirmId);
+    if (error) { toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" }); }
+    else { toast({ title: "Festa excluída" }); }
+    setDeleting(false);
+    setDeleteConfirmId(null);
     setDetailOpen(false);
     fetchEvents();
   };
