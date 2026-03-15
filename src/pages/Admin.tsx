@@ -839,7 +839,15 @@ export default function Admin() {
             </Tabs>
           </main>
 
-          <LeadDetailSheet lead={selectedLead} isOpen={isDetailOpen} onClose={() => setIsDetailOpen(false)} onUpdate={handleRefresh} responsaveis={responsaveis} currentUserId={user.id} currentUserName={currentUserProfile?.full_name || user.email || ""} canEdit={canEditLeads} canViewContact={canViewContact} />
+          <LeadDetailSheet lead={selectedLead} isOpen={isDetailOpen} onClose={() => setIsDetailOpen(false)} onUpdate={handleRefresh} responsaveis={responsaveis} currentUserId={user.id} currentUserName={currentUserProfile?.full_name || user.email || ""} canEdit={canEditLeads} canViewContact={canViewContact} onLeadClosed={handleLeadClosed} />
+
+          <EventFormDialog
+            open={festaFormOpen}
+            onOpenChange={setFestaFormOpen}
+            onSubmit={handleFestaSubmit}
+            initialData={festaInitialData}
+            units={units.filter(u => u.slug !== "trabalhe-conosco").map(u => ({ name: u.name }))}
+          />
           
           <TransferLeadDialog
             lead={transferLead}
