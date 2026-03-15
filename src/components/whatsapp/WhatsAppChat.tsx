@@ -3740,7 +3740,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         onShowTransferDialog={() => setShowTransferDialog(true)}
                         onShowDeleteDialog={() => setShowDeleteConfirmDialog(true)}
                         onShowShareToGroupDialog={() => canShareToGroup && linkedLead && setShowShareToGroupDialog(true)}
-                        onCreateAndClassifyLead={createAndClassifyLead}
+                        onCreateAndClassifyLead={(status) => createAndClassifyLead(status, true)}
                         onToggleConversationBot={toggleConversationBot}
                         onReactivateBot={reactivateBot}
                         onToggleFavorite={toggleFavorite}
@@ -3991,7 +3991,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                     user_id: userId,
                                   });
                                   
-                                  setLinkedLead({ ...linkedLead, status: statusOption.value });
+                                  const updatedLead = { ...linkedLead, status: statusOption.value };
+                                  setLinkedLead(updatedLead);
+
+                                  if (newStatus === 'fechado') {
+                                    void onLeadClosedMobile?.(updatedLead);
+                                  }
+
                                   toast({
                                     title: "Status atualizado",
                                     description: `Lead classificado como "${statusOption.label}"`,
@@ -4034,7 +4040,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                             size="sm"
                             className="h-7 text-xs gap-1.5"
                             disabled={isCreatingLead}
-                            onClick={() => createAndClassifyLead(statusOption.value)}
+                            onClick={() => createAndClassifyLead(statusOption.value, true)}
                           >
                             {isCreatingLead ? (
                               <Loader2 className="w-3 h-3 animate-spin" />
