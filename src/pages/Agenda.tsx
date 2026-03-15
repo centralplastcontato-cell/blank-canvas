@@ -15,6 +15,7 @@ import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AgendaCalendar } from "@/components/agenda/AgendaCalendar";
@@ -78,6 +79,8 @@ export default function Agenda() {
   const [detailEvent, setDetailEvent] = useState<CompanyEvent | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Search state
   const [searchTerm, setSearchTerm] = useState("");
@@ -344,17 +347,21 @@ export default function Agenda() {
     fetchEvents();
   };
 
-  const handleDelete = async (id: string) => {
+  const confirmDelete = async () => {
+    if (!deleteConfirmId) return;
+    setDeleting(true);
     // Delete dependent records first to avoid foreign key violations
-    await (supabase as any).from("freelancer_evaluations").delete().eq("event_id", id);
-    await (supabase as any).from("event_checklist_items").delete().eq("event_id", id);
-    await (supabase as any).from("event_staff_entries").delete().eq("event_id", id);
-    await (supabase as any).from("event_info_entries").delete().eq("event_id", id);
-    await (supabase as any).from("attendance_entries").delete().eq("event_id", id);
+    await (supabase as any).from("freelancer_evaluations").delete().eq("event_id", deleteConfirmId);
+    await (supabase as any).from("event_checklist_items").delete().eq("event_id", deleteConfirmId);
+    await (supabase as any).from("event_staff_entries").delete().eq("event_id", deleteConfirmId);
+    await (supabase as any).from("event_info_entries").delete().eq("event_id", deleteConfirmId);
+    await (supabase as any).from("attendance_entries").delete().eq("event_id", deleteConfirmId);
 
-    const { error } = await supabase.from("company_events").delete().eq("id", id);
-    if (error) { toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "Festa excluída" });
+    const { error } = await supabase.from("company_events").delete().eq("id", deleteConfirmId);
+    if (error) { toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" }); }
+    else { toast({ title: "Festa excluída" }); }
+    setDeleting(false);
+    setDeleteConfirmId(null);
     setDetailOpen(false);
     fetchEvents();
   };
@@ -831,9 +838,31 @@ export default function Agenda() {
         onOpenChange={setDetailOpen}
         event={detailEvent}
         onEdit={(ev) => handleEdit(ev as CompanyEvent)}
-        onDelete={handleDelete}
+        onDelete={(id) => setDeleteConfirmId(id)}
         conflicts={detailEvent ? getConflicts(detailEvent) : []}
       />
+
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir festa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Essa ação é irreversível. Todos os dados vinculados (checklist, equipe, avaliações) serão excluídos permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarProvider>
   );
 }
