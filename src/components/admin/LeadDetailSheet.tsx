@@ -106,6 +106,17 @@ export function LeadDetailSheet({
       setResponsavelId(lead.responsavel_id || "");
       setObservacoes(lead.observacoes || "");
       fetchHistory(lead.id);
+      // Check if lead has linked event
+      if (lead.status === "fechado") {
+        supabase
+          .from("company_events")
+          .select("id")
+          .eq("lead_id", lead.id)
+          .limit(1)
+          .then(({ data }) => setHasLinkedEvent((data || []).length > 0));
+      } else {
+        setHasLinkedEvent(null);
+      }
     }
   }, [lead]);
 
