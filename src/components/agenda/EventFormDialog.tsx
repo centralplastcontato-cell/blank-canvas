@@ -32,6 +32,9 @@ export interface EventFormData {
   lead_id?: string | null;
   lead_name?: string | null;
   checklist_template_id?: string | null;
+  data_fechamento_venda?: string | null;
+  vendedor_responsavel_id?: string | null;
+  vendedor_responsavel_name?: string | null;
 }
 
 const EVENT_TYPES = [
