@@ -16,6 +16,8 @@ import { NotificationBell } from "@/components/admin/NotificationBell";
 import { TransferLeadDialog } from "@/components/admin/TransferLeadDialog";
 import { exportLeadsToCSV } from "@/components/admin/exportLeads";
 import { MetricsCards, LeadMetrics } from "@/components/admin/MetricsCards";
+import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
+import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
