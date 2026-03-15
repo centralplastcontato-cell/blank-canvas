@@ -152,8 +152,8 @@ export function ResponseTimeCard({ data, isLoading, journeyData, journeyLoading 
                       <YAxis
                         dataKey="name"
                         type="category"
-                        width={110}
-                        tick={{ fontSize: 11 }}
+                        width={80}
+                        tick={{ fontSize: 10 }}
                         className="fill-muted-foreground"
                       />
                       <Tooltip
@@ -219,7 +219,7 @@ export function ResponseTimeCard({ data, isLoading, journeyData, journeyLoading 
                             <ArrowRight className="h-3 w-3 text-muted-foreground/40 rotate-90" />
                           </div>
                         )}
-                        <div className="flex items-center gap-3 p-3 rounded-xl border border-border/30 bg-card/50">
+                        <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-xl border border-border/30 bg-card/50">
                           <div
                             className="w-1.5 h-12 rounded-full shrink-0"
                             style={{ backgroundColor: color }}
@@ -231,7 +231,7 @@ export function ResponseTimeCard({ data, isLoading, journeyData, journeyLoading 
                             </p>
                           </div>
                           <div className="text-right shrink-0">
-                            <p className={`text-lg font-bold ${isGood ? 'text-foreground' : 'text-amber-600'}`}>
+                            <p className={`text-base sm:text-lg font-bold ${isGood ? 'text-foreground' : 'text-amber-600'}`}>
                               {formatResponseTime(stage.medianHours)}
                             </p>
                             <p className="text-[10px] text-muted-foreground">

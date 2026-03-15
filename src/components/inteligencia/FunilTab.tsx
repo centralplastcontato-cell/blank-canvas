@@ -204,7 +204,14 @@ export function FunilTab({ data, stageDurations, selectedUnit }: FunilTabProps) 
                     outerRadius={60}
                     dataKey="value"
                     nameKey="name"
-                    label={({ name, value }) => `${name} (${value})`}
+                    label={({ name, value, cx, x, y }) => {
+                      const isRight = x > cx;
+                      return (
+                        <text x={x} y={y} textAnchor={isRight ? 'start' : 'end'} dominantBaseline="central" className="fill-foreground" fontSize={10}>
+                          {`${name} (${value})`}
+                        </text>
+                      );
+                    }}
                     labelLine={false}
                   >
                     {temperatureData.map((entry, idx) => (
@@ -252,8 +259,8 @@ export function FunilTab({ data, stageDurations, selectedUnit }: FunilTabProps) 
                     <ArrowDown className="h-4 w-4 text-muted-foreground/40" />
                   </div>
                 )}
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-card/50 border">
-                  <div className="w-28 shrink-0">
+                <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg bg-card/50 border">
+                  <div className="w-20 sm:w-28 shrink-0">
                     <p className="text-sm font-medium">
                       {LEAD_STATUS_LABELS[status]}
                     </p>
@@ -277,9 +284,9 @@ export function FunilTab({ data, stageDurations, selectedUnit }: FunilTabProps) 
                       />
                     </div>
                   </div>
-                  <div className="w-20 text-right shrink-0">
-                    <span className="text-base font-bold">{count}</span>
-                    <span className="text-xs text-muted-foreground ml-1">({pct}%)</span>
+                  <div className="w-14 sm:w-20 text-right shrink-0">
+                    <span className="text-sm sm:text-base font-bold">{count}</span>
+                    <span className="text-[10px] sm:text-xs text-muted-foreground ml-0.5">({pct}%)</span>
                   </div>
                 </div>
               </div>
