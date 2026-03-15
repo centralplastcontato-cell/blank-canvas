@@ -1478,7 +1478,15 @@ export default function CentralAtendimento() {
             </Tabs>
           </main>
 
-          <LeadDetailSheet lead={selectedLead} isOpen={isDetailOpen} onClose={() => setIsDetailOpen(false)} onUpdate={handleRefresh} responsaveis={responsaveis} currentUserId={user.id} currentUserName={currentUserProfile?.full_name || user.email || ""} canEdit={canEditLeads} canDelete={canDeleteLeads} onDelete={canDeleteLeads ? handleDeleteLead : undefined} canViewContact={canViewContact} />
+          <LeadDetailSheet lead={selectedLead} isOpen={isDetailOpen} onClose={() => setIsDetailOpen(false)} onUpdate={handleRefresh} responsaveis={responsaveis} currentUserId={user.id} currentUserName={currentUserProfile?.full_name || user.email || ""} canEdit={canEditLeads} canDelete={canDeleteLeads} onDelete={canDeleteLeads ? handleDeleteLead : undefined} canViewContact={canViewContact} onLeadClosed={handleLeadClosed} />
+
+          <EventFormDialog
+            open={festaFormOpen}
+            onOpenChange={setFestaFormOpen}
+            onSubmit={handleFestaSubmit}
+            initialData={festaInitialData}
+            units={units.filter(u => u.slug !== "trabalhe-conosco").map(u => ({ name: u.name }))}
+          />
         </SidebarInset>
       </div>
     </SidebarProvider>
