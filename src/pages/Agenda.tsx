@@ -79,6 +79,8 @@ export default function Agenda() {
   const [detailEvent, setDetailEvent] = useState<CompanyEvent | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Search state
   const [searchTerm, setSearchTerm] = useState("");
