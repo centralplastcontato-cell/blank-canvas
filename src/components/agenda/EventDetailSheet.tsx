@@ -45,6 +45,7 @@ const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondar
 
 export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, conflicts = [] }: EventDetailSheetProps) {
   const [leadName, setLeadName] = useState<string | null>(null);
+  const [vendedorName, setVendedorName] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const getControlUrl = () => `${window.location.origin}/festa/${event?.id}`;
@@ -67,6 +68,12 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
     supabase.from("campaign_leads").select("name").eq("id", event.lead_id).single()
       .then(({ data }) => setLeadName(data?.name || null));
   }, [event?.lead_id]);
+
+  useEffect(() => {
+    if (!event?.vendedor_responsavel_id) { setVendedorName(null); return; }
+    supabase.from("profiles").select("full_name").eq("user_id", event.vendedor_responsavel_id).single()
+      .then(({ data }) => setVendedorName(data?.full_name || null));
+  }, [event?.vendedor_responsavel_id]);
 
   if (!event) return null;
 
