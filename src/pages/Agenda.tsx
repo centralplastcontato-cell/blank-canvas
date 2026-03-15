@@ -78,6 +78,70 @@ export default function Agenda() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
 
+  // Search state
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState<(CompanyEvent & { lead_name?: string; lead_phone?: string })[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const searchEvents = useCallback(async (term: string) => {
+    if (!currentCompany?.id || term.trim().length < 2) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      return;
+    }
+    setSearchLoading(true);
+    console.log('[Agenda:Search]', { term });
+
+    const cleanTerm = `%${term.trim()}%`;
+    const { data: leads, error: leadsErr } = await supabase
+      .from("campaign_leads")
+      .select("id, name, whatsapp")
+      .eq("company_id", currentCompany.id)
+      .or(`name.ilike.${cleanTerm},whatsapp.ilike.${cleanTerm}`)
+      .limit(50);
+
+    if (leadsErr || !leads?.length) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      return;
+    }
+
+    const leadIds = leads.map(l => l.id);
+    const { data: evts } = await supabase
+      .from("company_events")
+      .select("*")
+      .eq("company_id", currentCompany.id)
+      .in("lead_id", leadIds)
+      .order("event_date", { ascending: false })
+      .limit(30);
+
+    const leadMap = new Map(leads.map(l => [l.id, l]));
+    const results = (evts || []).map((ev: any) => {
+      const lead = leadMap.get(ev.lead_id);
+      return { ...ev, lead_name: lead?.name, lead_phone: lead?.whatsapp } as CompanyEvent & { lead_name?: string; lead_phone?: string };
+    });
+
+    setSearchResults(results);
+    setSearchLoading(false);
+  }, [currentCompany?.id]);
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchTerm(value);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    if (value.trim().length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    setSearchLoading(true);
+    searchTimerRef.current = setTimeout(() => searchEvents(value), 400);
+  }, [searchEvents]);
+
+  const clearSearch = useCallback(() => {
+    setSearchTerm("");
+    setSearchResults([]);
+  }, []);
+
   // Auth check
   useEffect(() => {
     async function check() {
