@@ -3991,7 +3991,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                     user_id: userId,
                                   });
                                   
-                                  setLinkedLead({ ...linkedLead, status: statusOption.value });
+                                  const updatedLead = { ...linkedLead, status: statusOption.value };
+                                  setLinkedLead(updatedLead);
+
+                                  if (newStatus === 'fechado') {
+                                    void onLeadClosedMobile?.(updatedLead);
+                                  }
+
                                   toast({
                                     title: "Status atualizado",
                                     description: `Lead classificado como "${statusOption.label}"`,
