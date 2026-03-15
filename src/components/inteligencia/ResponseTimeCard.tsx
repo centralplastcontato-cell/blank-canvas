@@ -231,7 +231,7 @@ export function ResponseTimeCard({ data, isLoading, journeyData, journeyLoading 
                             </p>
                           </div>
                           <div className="text-right shrink-0">
-                            <p className={`text-lg font-bold ${isGood ? 'text-foreground' : 'text-amber-600'}`}>
+                            <p className={`text-base sm:text-lg font-bold ${isGood ? 'text-foreground' : 'text-amber-600'}`}>
                               {formatResponseTime(stage.medianHours)}
                             </p>
                             <p className="text-[10px] text-muted-foreground">
