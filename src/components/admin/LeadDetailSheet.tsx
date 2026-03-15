@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { maskPhone } from "@/lib/mask-utils";
+import { LeadVisitHistory } from "./LeadVisitHistory";
 
 interface LeadDetailSheetProps {
   lead: Lead | null;
