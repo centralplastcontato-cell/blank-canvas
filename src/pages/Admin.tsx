@@ -671,6 +671,11 @@ export default function Admin() {
                     const { error } = await supabase.from("campaign_leads").update({ status: newStatus }).eq("id", leadId);
                     if (error) throw error;
                     handleStatusChange(leadId, newStatus);
+                    // Trigger festa modal on fechado
+                    if (newStatus === "fechado") {
+                      const closedLead = leads.find((l) => l.id === leadId);
+                      if (closedLead) handleLeadClosed({ ...closedLead, status: "fechado" });
+                    }
                   } catch (error) {
                     console.error("Error updating status:", error);
                     toast({ title: "Erro ao atualizar status", description: "Tente novamente.", variant: "destructive" });
