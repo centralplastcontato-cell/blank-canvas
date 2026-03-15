@@ -150,6 +150,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       setLeadSearch("");
       setShowLeadDropdown(false);
       setSelectedTemplate("");
+      setFechamentoDate(data.data_fechamento_venda ? new Date(data.data_fechamento_venda + "T12:00:00") : undefined);
     }
   }, [open, initialData]);
 
