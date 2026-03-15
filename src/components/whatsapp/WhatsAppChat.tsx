@@ -4657,7 +4657,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         onShowTransferDialog={() => setShowTransferDialog(true)}
                         onShowDeleteDialog={() => setShowDeleteConfirmDialog(true)}
                         onShowShareToGroupDialog={() => canShareToGroup && linkedLead && setShowShareToGroupDialog(true)}
-                        onCreateAndClassifyLead={createAndClassifyLead}
+                        onCreateAndClassifyLead={(status) => createAndClassifyLead(status, true)}
                         onToggleConversationBot={toggleConversationBot}
                         onReactivateBot={reactivateBot}
                         onToggleFavorite={toggleFavorite}
