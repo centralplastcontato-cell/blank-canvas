@@ -24,6 +24,8 @@ interface EventData {
   notes: string | null;
   lead_id?: string | null;
   company_id?: string;
+  data_fechamento_venda?: string | null;
+  vendedor_responsavel_id?: string | null;
 }
 
 interface EventDetailSheetProps {
