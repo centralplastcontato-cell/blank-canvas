@@ -39,6 +39,8 @@ import { LayoutList, Columns, Menu, Bell, BellOff, MessageSquare, BarChart3, Fil
 import { toast } from "@/hooks/use-toast";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
+import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
+import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 
 export interface LeadFilters {
   campaign: string;
