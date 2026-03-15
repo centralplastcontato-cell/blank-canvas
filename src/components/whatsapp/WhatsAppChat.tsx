@@ -204,6 +204,7 @@ interface WhatsAppChatProps {
   onPhoneHandled?: () => void;
   externalSelectedUnit?: string | null;
   onInstancesLoaded?: (instances: { id: string; unit: string | null; status: string | null }[]) => void;
+  onLeadClosedMobile?: (lead: Lead) => void | Promise<void>;
 }
 
 // Component for displaying media with auto-download capability
@@ -215,7 +216,7 @@ import { SalesMaterialsMenu } from "@/components/whatsapp/SalesMaterialsMenu";
 import { ShareToGroupDialog } from "@/components/whatsapp/ShareToGroupDialog";
 import { useFilterOrder } from "@/hooks/useFilterOrder";
 
-export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft, onPhoneHandled, externalSelectedUnit, onInstancesLoaded }: WhatsAppChatProps) {
+export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft, onPhoneHandled, externalSelectedUnit, onInstancesLoaded, onLeadClosedMobile }: WhatsAppChatProps) {
   const { currentCompany } = useCompany();
   const [instances, setInstances] = useState<WapiInstance[]>([]);
   const [selectedInstance, setSelectedInstance] = useState<WapiInstance | null>(null);
@@ -1705,7 +1706,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   };
 
   // Create a new lead and classify it directly
-  const createAndClassifyLead = async (status: string) => {
+  const createAndClassifyLead = async (status: string, triggerFestaOnClose = false) => {
     if (!selectedConversation || !selectedInstance || isCreatingLead) return;
 
     setIsCreatingLead(true);
@@ -1775,8 +1776,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       supabase.from('lead_history').insert({
         lead_id: leadToLink.id,
         action: existingLead ? 'status_update' : 'lead_created',
-        new_value: existingLead 
-          ? `Status atualizado para: ${statusLabels[status]}` 
+        new_value: existingLead
+          ? `Status atualizado para: ${statusLabels[status]}`
           : `Lead criado via WhatsApp com status: ${statusLabels[status]}`,
         user_id: userId,
       }).then(({ error }) => {
@@ -1785,10 +1786,19 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
       // Update local state
       setLinkedLead(leadToLink as Lead);
-      setConversations(prev => 
+      setConversations(prev =>
         prev.map(c => c.id === selectedConversation.id ? { ...c, lead_id: leadToLink.id } : c)
       );
       setSelectedConversation({ ...selectedConversation, lead_id: leadToLink.id });
+
+      if (triggerFestaOnClose && status === 'fechado') {
+        console.log('[Lead:Fechado->NovaFesta:mobile]', {
+          leadId: leadToLink.id,
+          leadName: leadToLink.name,
+          source: 'whatsapp-mobile-create',
+        });
+        void onLeadClosedMobile?.(leadToLink as Lead);
+      }
 
       toast({
         title: existingLead ? "Lead vinculado e atualizado" : "Lead criado e classificado",
@@ -4930,9 +4940,20 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                   new_value: statusLabels[newStatus] || newStatus,
                                   user_id: userId,
                                 });
-                                
-                                setLinkedLead({ ...linkedLead, status: statusOption.value });
+
+                                const updatedLead = { ...linkedLead, status: statusOption.value };
+                                setLinkedLead(updatedLead);
                                 setMobileStatusExpanded(false);
+
+                                if (newStatus === 'fechado') {
+                                  console.log('[Lead:Fechado->NovaFesta:mobile]', {
+                                    leadId: updatedLead.id,
+                                    leadName: updatedLead.name,
+                                    source: 'whatsapp-mobile-status',
+                                  });
+                                  void onLeadClosedMobile?.(updatedLead);
+                                }
+
                                 toast({
                                   title: "Status atualizado",
                                   description: `Lead classificado como "${statusOption.label}"`,
@@ -4965,7 +4986,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                               size="sm"
                               className="h-6 text-[10px] gap-1 px-1.5"
                               disabled={isCreatingLead}
-                              onClick={() => createAndClassifyLead(statusOption.value)}
+                              onClick={() => createAndClassifyLead(statusOption.value, true)}
                             >
                               {isCreatingLead ? (
                                 <Loader2 className="w-2.5 h-2.5 animate-spin" />
