@@ -79,6 +79,10 @@ export default function Admin() {
   const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [festaFormOpen, setFestaFormOpen] = useState(false);
+  const [festaInitialData, setFestaInitialData] = useState<EventFormData | null>(null);
+
+  const { units } = useCompanyUnits(currentCompany?.id);
 
   const { role, isLoading: isLoadingRole, isAdmin, canEdit, canManageUsers } = useUserRole(user?.id);
   const { allowedUnits, canViewAll, isLoading: isLoadingUnitPerms } = useUnitPermissions(user?.id);
