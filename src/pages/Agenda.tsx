@@ -454,6 +454,24 @@ export default function Agenda() {
             );
           })()}
 
+          {/* Search bar - mobile */}
+          <div className="md:hidden px-3 pt-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={searchTerm}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                placeholder="Buscar por nome ou telefone do lead..."
+                className="pl-9 pr-9 h-10"
+              />
+              {searchTerm && (
+                <button onClick={clearSearch} className="absolute right-3 top-1/2 -translate-y-1/2" aria-label="Limpar busca">
+                  <X className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+                </button>
+              )}
+            </div>
+          </div>
+
           <PullToRefresh onRefresh={async () => { await fetchEvents(); }} className="flex-1 p-3 md:p-6 lg:p-8 overflow-x-hidden overflow-y-auto">
             <div className="max-w-7xl mx-auto space-y-6">
               {/* Desktop header */}
