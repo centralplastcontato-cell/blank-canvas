@@ -277,9 +277,9 @@ export function FunilTab({ data, stageDurations, selectedUnit }: FunilTabProps) 
                       />
                     </div>
                   </div>
-                  <div className="w-20 text-right shrink-0">
-                    <span className="text-base font-bold">{count}</span>
-                    <span className="text-xs text-muted-foreground ml-1">({pct}%)</span>
+                  <div className="w-14 sm:w-20 text-right shrink-0">
+                    <span className="text-sm sm:text-base font-bold">{count}</span>
+                    <span className="text-[10px] sm:text-xs text-muted-foreground ml-0.5">({pct}%)</span>
                   </div>
                 </div>
               </div>
