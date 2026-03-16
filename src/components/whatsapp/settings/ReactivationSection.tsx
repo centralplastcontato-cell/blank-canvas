@@ -217,7 +217,7 @@ export function ReactivationSection() {
         <div className="flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-primary" />
           <h3 className="font-semibold text-lg">Reativação Inteligente</h3>
-          <Badge variant="outline" className="text-xs">Fase 4</Badge>
+          
         </div>
         <Button onClick={saveSettings} disabled={isSaving} size="sm" className="gap-2">
           {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
