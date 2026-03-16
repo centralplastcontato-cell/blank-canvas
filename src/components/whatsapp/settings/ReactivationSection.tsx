@@ -606,7 +606,7 @@ export function ReactivationSection() {
           <CardTitle className="text-base flex items-center gap-2">
             <Reply className="w-4 h-4" />
             Reativação Conversacional
-            <Badge variant="outline" className="text-xs">Fase 4B</Badge>
+            
           </CardTitle>
           <CardDescription>
             Adiciona opções numeradas às mensagens de reativação para capturar respostas automáticas.
