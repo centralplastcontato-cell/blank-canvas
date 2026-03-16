@@ -369,13 +369,23 @@ export function ReactivationSection() {
               />
             </div>
             {settings.trigger_three_months_enabled && (
-              <div className="space-y-2">
-                <Label className="text-xs">Mensagem</Label>
-                <Textarea
-                  value={settings.message_three_months}
-                  onChange={(e) => updateField('message_three_months', e.target.value)}
-                  className="min-h-[100px] text-sm"
-                />
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label className="text-xs">Mensagem</Label>
+                  <Textarea
+                    value={settings.message_three_months}
+                    onChange={(e) => updateField('message_three_months', e.target.value)}
+                    className="min-h-[100px] text-sm"
+                  />
+                </div>
+                {settings.interactive_options_enabled && (
+                  <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-3 space-y-1">
+                    <p className="text-[10px] font-medium text-green-700 dark:text-green-400 uppercase tracking-wide">📱 Preview completo da mensagem</p>
+                    <div className="text-sm text-foreground whitespace-pre-line bg-background rounded-lg p-3 border shadow-sm">
+                      {settings.message_three_months || 'Sua mensagem aqui...'}{`\n\nMe responde com o número da opção 👇\n\n1️⃣ ${settings.option_1_label || 'Ainda tenho interesse na festa'}\n2️⃣ ${settings.option_2_label || 'Quero ver os valores'}\n3️⃣ ${settings.option_3_label || 'Ainda estou analisando'}`}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -398,13 +408,23 @@ export function ReactivationSection() {
               />
             </div>
             {settings.trigger_two_months_enabled && (
-              <div className="space-y-2">
-                <Label className="text-xs">Mensagem</Label>
-                <Textarea
-                  value={settings.message_two_months}
-                  onChange={(e) => updateField('message_two_months', e.target.value)}
-                  className="min-h-[100px] text-sm"
-                />
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label className="text-xs">Mensagem</Label>
+                  <Textarea
+                    value={settings.message_two_months}
+                    onChange={(e) => updateField('message_two_months', e.target.value)}
+                    className="min-h-[100px] text-sm"
+                  />
+                </div>
+                {settings.interactive_options_enabled && (
+                  <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-3 space-y-1">
+                    <p className="text-[10px] font-medium text-green-700 dark:text-green-400 uppercase tracking-wide">📱 Preview completo da mensagem</p>
+                    <div className="text-sm text-foreground whitespace-pre-line bg-background rounded-lg p-3 border shadow-sm">
+                      {settings.message_two_months || 'Sua mensagem aqui...'}{`\n\nMe responde com o número da opção 👇\n\n1️⃣ ${settings.option_1_label || 'Ainda tenho interesse na festa'}\n2️⃣ ${settings.option_2_label || 'Quero ver os valores'}\n3️⃣ ${settings.option_3_label || 'Ainda estou analisando'}`}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -427,13 +447,23 @@ export function ReactivationSection() {
               />
             </div>
             {settings.trigger_one_month_enabled && (
-              <div className="space-y-2">
-                <Label className="text-xs">Mensagem</Label>
-                <Textarea
-                  value={settings.message_one_month}
-                  onChange={(e) => updateField('message_one_month', e.target.value)}
-                  className="min-h-[100px] text-sm"
-                />
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label className="text-xs">Mensagem</Label>
+                  <Textarea
+                    value={settings.message_one_month}
+                    onChange={(e) => updateField('message_one_month', e.target.value)}
+                    className="min-h-[100px] text-sm"
+                  />
+                </div>
+                {settings.interactive_options_enabled && (
+                  <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-3 space-y-1">
+                    <p className="text-[10px] font-medium text-green-700 dark:text-green-400 uppercase tracking-wide">📱 Preview completo da mensagem</p>
+                    <div className="text-sm text-foreground whitespace-pre-line bg-background rounded-lg p-3 border shadow-sm">
+                      {settings.message_one_month || 'Sua mensagem aqui...'}{`\n\nMe responde com o número da opção 👇\n\n1️⃣ ${settings.option_1_label || 'Ainda tenho interesse na festa'}\n2️⃣ ${settings.option_2_label || 'Quero ver os valores'}\n3️⃣ ${settings.option_3_label || 'Ainda estou analisando'}`}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
