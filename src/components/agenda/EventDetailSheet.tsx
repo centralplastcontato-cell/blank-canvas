@@ -206,6 +206,13 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
                 </div>
               )}
 
+              {event.payment_method && (
+                <div className="flex items-center gap-3 text-foreground">
+                  <div className="p-1.5 rounded-lg bg-primary/10"><CreditCard className="h-4 w-4 text-primary" /></div>
+                  <span>{{ cartao: "Cartão", boleto: "Boleto", pix: "PIX", dinheiro: "Dinheiro", misto: "Misto" }[event.payment_method] || event.payment_method}</span>
+                </div>
+              )}
+
               {event.package_name && (
                 <div className="flex items-center gap-3 text-foreground">
                   <div className="p-1.5 rounded-lg bg-secondary/20"><Package className="h-4 w-4 text-secondary-foreground" /></div>
