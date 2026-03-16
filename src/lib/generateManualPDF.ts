@@ -456,6 +456,18 @@ function ch03(doc: jsPDF) {
     "Envio de imagens e vídeos com preview.",
     "Preview automático de links (link preview card).",
     "Envio de documentos PDF e outros arquivos.",
+    "Envio de vCards (contatos) com extração automática de nome e telefone.",
+    "Download em lote de imagens (ZIP ou individual) via multi-seleção.",
+  ]);
+
+  addSectionTitle(doc, "Alterar status do lead pelo chat");
+  addParagraph(doc, "Você pode mudar o status de um lead diretamente na tela de conversa, sem precisar ir ao CRM. Use o menu de ações rápidas na conversa para classificar o lead (Novo, Visita, Orçamento Enviado, Negociando, Fechado, Perdido, etc.). O toast de confirmação exibe uma borda colorida conforme o status escolhido.");
+
+  addSectionTitle(doc, "Favoritos e encerramento");
+  addBulletList(doc, [
+    "Marque conversas como favoritas (⭐) para acesso rápido — elas aparecem no topo da lista.",
+    "Encerre conversas finalizadas para mantê-las organizadas. Conversas encerradas ficam em um filtro separado.",
+    "Reabra conversas encerradas a qualquer momento se o cliente voltar a interagir.",
   ]);
 
   addSectionTitle(doc, "Materiais de venda");
@@ -469,7 +481,10 @@ function ch03(doc: jsPDF) {
   ]);
 
   addSectionTitle(doc, "Filtros de conversa");
-  addParagraph(doc, "Filtre conversas por status, por responsável e por texto de busca. Você pode arrastar os botões de filtro para reordená-los conforme sua preferência.");
+  addParagraph(doc, "Filtre conversas por status, por responsável e por texto de busca. Você pode arrastar os botões de filtro para reordená-los conforme sua preferência. Filtros por status do lead (Novo, Visita, O.E., Negociando, Fechado, Perdido) permitem encontrar rapidamente conversas específicas.");
+
+  addSectionTitle(doc, "Busca por conteúdo");
+  addParagraph(doc, "Use a busca por conteúdo dentro das mensagens para encontrar informações específicas em conversas longas. O sistema navega suavemente até a mensagem encontrada.");
 
   addTipBox(doc, "Use o botão de compartilhar para enviar mensagens diretamente para grupos do WhatsApp, útil para repassar informações para equipes.");
 }
