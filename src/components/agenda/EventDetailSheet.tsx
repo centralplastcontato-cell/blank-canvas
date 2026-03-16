@@ -57,6 +57,8 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
   const [leadName, setLeadName] = useState<string | null>(null);
   const [vendedorName, setVendedorName] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [savingField, setSavingField] = useState<string | null>(null);
 
   const getControlUrl = () => `${window.location.origin}/festa/${event?.id}`;
 
