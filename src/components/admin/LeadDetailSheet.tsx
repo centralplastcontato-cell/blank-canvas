@@ -515,5 +515,48 @@ export function LeadDetailSheet({
         </div>
       </SheetContent>
     </Sheet>
+
+    {/* Event Form Dialog */}
+    <EventFormDialog
+      open={eventFormOpen}
+      onOpenChange={setEventFormOpen}
+      initialData={linkedEventData}
+      units={units.filter(u => u.slug !== "trabalhe-conosco")}
+      onSubmit={async (data) => {
+        if (!currentCompany?.id) return;
+        const payload: any = {
+          company_id: currentCompany.id,
+          title: data.title,
+          event_date: data.event_date,
+          start_time: data.start_time || null,
+          end_time: data.end_time || null,
+          event_type: data.event_type || null,
+          guest_count: data.guest_count,
+          unit: data.unit || null,
+          status: data.status,
+          package_name: data.package_name || null,
+          total_value: data.total_value,
+          notes: data.notes || null,
+          created_by: currentUserId,
+          lead_id: data.lead_id || lead?.id || null,
+          data_fechamento_venda: data.data_fechamento_venda || null,
+          vendedor_responsavel_id: data.vendedor_responsavel_id || null,
+        };
+
+        if (data.id) {
+          const { error } = await supabase.from("company_events").update(payload).eq("id", data.id);
+          if (error) { toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" }); return; }
+          toast({ title: "Festa atualizada!" });
+        } else {
+          const { error } = await supabase.from("company_events").insert(payload);
+          if (error) { toast({ title: "Erro ao criar", description: error.message, variant: "destructive" }); return; }
+          toast({ title: "Festa criada!" });
+          setHasLinkedEvent(true);
+        }
+        setEventFormOpen(false);
+        onUpdate();
+      }}
+    />
+    </>
   );
 }
