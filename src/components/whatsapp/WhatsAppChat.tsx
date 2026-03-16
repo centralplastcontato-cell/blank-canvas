@@ -1404,20 +1404,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           });
           
           setConversationLeadsMap(leadsMap);
-          
-          const closedConvIds = new Set(
-            data
-              .filter((conv: Conversation) => conv.lead_id && closedLeadIds.has(conv.lead_id))
-              .map((conv: Conversation) => conv.id)
-          );
-          setClosedLeadConversationIds(closedConvIds);
-          
-          const oeConvIds = new Set(
-            data
-              .filter((conv: Conversation) => conv.lead_id && oeLeadIds.has(conv.lead_id))
-              .map((conv: Conversation) => conv.id)
-          );
-          setOrcamentoEnviadoConversationIds(oeConvIds);
         }
       }
       
