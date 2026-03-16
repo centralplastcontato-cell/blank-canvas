@@ -686,6 +686,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           const { data: leadByPhone } = await supabase
             .from('campaign_leads')
             .select('id')
+            .eq('company_id', getCurrentCompanyId())
             .or(`whatsapp.eq.${phone},whatsapp.eq.+${phone}`)
             .maybeSingle();
           if (leadByPhone) {
