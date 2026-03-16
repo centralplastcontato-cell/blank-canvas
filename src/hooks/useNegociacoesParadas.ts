@@ -228,6 +228,7 @@ export function useNegociacoesParadas(stalledDays: number = 10, selectedUnit?: s
           scoreFechamento,
           classificacao: getClassificacao(scoreFechamento),
           messageCount: conv.messageCount,
+          month: lead.month ?? null,
         });
       }
 
