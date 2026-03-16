@@ -43,8 +43,10 @@ import {
   Image as ImageIcon, Mic, Paperclip, Loader2, X,
   Users, ArrowRightLeft, Trash2, Eraser,
   CalendarCheck, Briefcase, FileCheck, ArrowDown, Video,
-  Pencil, Copy, ChevronDown, ChevronUp, Download, Pin, PinOff, Reply
+  Pencil, Copy, ChevronDown, ChevronUp, Download, Pin, PinOff, Reply,
+  CheckSquare
 } from "lucide-react";
+import JSZip from "jszip";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { LinkPreviewCard, extractFirstUrl } from "@/components/whatsapp/LinkPreviewCard";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -310,6 +312,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   // Reply (quote) state
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   
+  // Multi-select image download state
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedMediaIds, setSelectedMediaIds] = useState<Set<string>>(new Set());
+  const [isBatchDownloading, setIsBatchDownloading] = useState(false);
+  
   // Message search state
   const [messageSearchActive, setMessageSearchActive] = useState(false);
   const [messageSearchQuery, setMessageSearchQuery] = useState("");
@@ -320,12 +327,84 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     ? messages.filter(m => m.content && m.content.toLowerCase().includes(messageSearchQuery.toLowerCase())).map(m => m.id)
     : [];
   
-  // Clear message search when conversation changes
+  // Clear message search and select mode when conversation changes
   useEffect(() => {
     setMessageSearchActive(false);
     setMessageSearchQuery("");
     setCurrentSearchIndex(0);
+    setIsSelectMode(false);
+    setSelectedMediaIds(new Set());
   }, [selectedConversation?.id]);
+
+  // Toggle media selection
+  const toggleMediaSelection = useCallback((msgId: string) => {
+    setSelectedMediaIds(prev => {
+      const next = new Set(prev);
+      if (next.has(msgId)) next.delete(msgId);
+      else next.add(msgId);
+      return next;
+    });
+  }, []);
+
+  // Select all images in current conversation
+  const selectAllImages = useCallback(() => {
+    const imageIds = messages
+      .filter(m => m.message_type === 'image' && m.media_url && !m.media_url.includes('.enc'))
+      .map(m => m.id);
+    setSelectedMediaIds(new Set(imageIds));
+  }, [messages]);
+
+  // Batch download selected images as ZIP
+  const handleBatchDownload = useCallback(async () => {
+    if (selectedMediaIds.size === 0) return;
+    setIsBatchDownloading(true);
+
+    try {
+      const zip = new JSZip();
+      const selectedMessages = messages.filter(m => selectedMediaIds.has(m.id) && m.media_url);
+      let index = 0;
+
+      for (const msg of selectedMessages) {
+        try {
+          const response = await fetch(msg.media_url!);
+          if (!response.ok) continue;
+          const blob = await response.blob();
+          const ext = blob.type.includes('png') ? 'png' : blob.type.includes('webp') ? 'webp' : 'jpg';
+          const timestamp = format(new Date(msg.timestamp), 'yyyyMMdd_HHmmss');
+          zip.file(`imagem_${timestamp}_${index + 1}.${ext}`, blob);
+          index++;
+        } catch {
+          console.warn(`Failed to fetch image ${msg.id}`);
+        }
+      }
+
+      if (index === 0) {
+        toast({ title: "Nenhuma imagem disponível", description: "As imagens selecionadas não puderam ser baixadas.", variant: "destructive" });
+        return;
+      }
+
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const convName = selectedConversation?.contact_name || 'imagens';
+      const safeName = convName.replace(/[^a-zA-Z0-9À-ú]/g, '_').slice(0, 30);
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${safeName}_${format(new Date(), 'yyyyMMdd')}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({ title: "Download concluído", description: `${index} imagem(ns) baixada(s) com sucesso.` });
+      setIsSelectMode(false);
+      setSelectedMediaIds(new Set());
+    } catch (err) {
+      console.error('Batch download error:', err);
+      toast({ title: "Erro no download", description: "Ocorreu um erro ao baixar as imagens.", variant: "destructive" });
+    } finally {
+      setIsBatchDownloading(false);
+    }
+  }, [selectedMediaIds, messages, selectedConversation, toast]);
 
   // Navigate search results
   const navigateSearchResult = useCallback((direction: 'prev' | 'next') => {
@@ -3942,6 +4021,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                       <Button
                         variant="ghost"
                         size="icon"
+                        className={cn("h-8 w-8", isSelectMode && "bg-primary/10 text-primary")}
+                        onClick={() => { setIsSelectMode(prev => !prev); setSelectedMediaIds(new Set()); }}
+                        title="Selecionar imagens para download"
+                      >
+                        <CheckSquare className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         className="h-8 w-8"
                         onClick={openMessageSearch}
                         title="Buscar nas mensagens"
@@ -4247,7 +4335,19 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   </p>
 )}
 {(msg.message_type === 'image' || msg.message_type === 'video' || msg.message_type === 'audio' || msg.message_type === 'document') && (
-                                  <div className={(msg.message_type === 'image' || msg.message_type === 'video') ? "" : "mb-2"}>
+                                  <div className={cn(
+                                    "relative",
+                                    (msg.message_type === 'image' || msg.message_type === 'video') ? "" : "mb-2"
+                                  )}>
+                                    {isSelectMode && msg.message_type === 'image' && (
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); toggleMediaSelection(msg.id); }}
+                                        className="absolute top-2 left-2 z-10 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all bg-background/80 backdrop-blur-sm hover:bg-background"
+                                        style={{ borderColor: selectedMediaIds.has(msg.id) ? 'hsl(var(--primary))' : 'hsl(var(--border))' }}
+                                      >
+                                        {selectedMediaIds.has(msg.id) && <Check className="w-4 h-4 text-primary" />}
+                                      </button>
+                                    )}
                                     <MediaMessage
                                       messageId={msg.message_id}
                                       mediaType={msg.message_type as 'image' | 'video' | 'audio' | 'document'}
@@ -4562,6 +4662,42 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                       </Button>
                     )}
                   </div>
+
+                  {/* Batch download floating bar - Desktop */}
+                  {isSelectMode && (
+                    <div className="px-4 py-2 border-t border-border/40 bg-primary/5 flex items-center justify-between gap-2 shrink-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-foreground">
+                          {selectedMediaIds.size} imagem(ns) selecionada(s)
+                        </span>
+                        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={selectAllImages}>
+                          Selecionar todas
+                        </Button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => { setIsSelectMode(false); setSelectedMediaIds(new Set()); }}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs"
+                          disabled={selectedMediaIds.size === 0 || isBatchDownloading}
+                          onClick={handleBatchDownload}
+                        >
+                          {isBatchDownloading ? (
+                            <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Baixando...</>
+                          ) : (
+                            <><Download className="w-3 h-3 mr-1" /> Baixar ZIP</>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Message Input */}
                   <div className="px-4 py-3 border-t border-border/40 shrink-0 bg-card">
@@ -4965,6 +5101,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                     <Button
                       variant="ghost"
                       size="icon"
+                      className={cn("h-7 w-7 shrink-0", isSelectMode && "bg-primary/10 text-primary")}
+                      onClick={() => { setIsSelectMode(prev => !prev); setSelectedMediaIds(new Set()); }}
+                      title="Selecionar imagens"
+                    >
+                      <CheckSquare className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       className="h-7 w-7 shrink-0"
                       onClick={openMessageSearch}
                       title="Buscar nas mensagens"
@@ -5254,7 +5399,19 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                               )}
                             >
 {(msg.message_type === 'image' || msg.message_type === 'video' || msg.message_type === 'audio' || msg.message_type === 'document') && (
-                              <div className={(msg.message_type === 'image' || msg.message_type === 'video') ? "" : "mb-2"}>
+                              <div className={cn(
+                                "relative",
+                                (msg.message_type === 'image' || msg.message_type === 'video') ? "" : "mb-2"
+                              )}>
+                                {isSelectMode && msg.message_type === 'image' && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); toggleMediaSelection(msg.id); }}
+                                    className="absolute top-2 left-2 z-10 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all bg-background/80 backdrop-blur-sm hover:bg-background"
+                                    style={{ borderColor: selectedMediaIds.has(msg.id) ? 'hsl(var(--primary))' : 'hsl(var(--border))' }}
+                                  >
+                                    {selectedMediaIds.has(msg.id) && <Check className="w-4 h-4 text-primary" />}
+                                  </button>
+                                )}
                                 <MediaMessage
                                   messageId={msg.message_id}
                                   mediaType={msg.message_type as 'image' | 'video' | 'audio' | 'document'}
@@ -5562,6 +5719,41 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                     </Button>
                   )}
                 </div>
+
+                {/* Batch download floating bar - Mobile */}
+                {isSelectMode && (
+                  <div className="px-3 py-2 border-t bg-primary/5 flex items-center justify-between gap-2 shrink-0">
+                    <span className="text-xs font-medium text-foreground">
+                      {selectedMediaIds.size} selecionada(s)
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={selectAllImages}>
+                        Todas
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs px-2"
+                        onClick={() => { setIsSelectMode(false); setSelectedMediaIds(new Set()); }}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs px-2"
+                        disabled={selectedMediaIds.size === 0 || isBatchDownloading}
+                        onClick={handleBatchDownload}
+                      >
+                        {isBatchDownloading ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <><Download className="w-3 h-3 mr-1" /> ZIP</>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="p-3 border-t shrink-0">
                   {/* Reply preview bar - mobile */}
                   {replyingTo && (
