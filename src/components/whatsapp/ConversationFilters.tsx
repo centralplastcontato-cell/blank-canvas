@@ -70,6 +70,7 @@ export function ConversationFilters({
   conversations,
   closedLeadCount,
   orcamentoEnviadoCount,
+  visitasCount,
   collapsible = false,
   defaultOpen = false,
   filterOrder,
