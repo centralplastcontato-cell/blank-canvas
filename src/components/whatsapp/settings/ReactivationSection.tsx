@@ -138,16 +138,16 @@ export function ReactivationSection() {
 
     const { data: history } = await supabase
       .from('lead_reactivation_history')
-      .select('id, status, lead_id')
+      .select('id, status, lead_id, option_selected')
       .eq('company_id', currentCompanyId);
 
     if (history) {
-      const sent = history.filter(h => h.status === 'sent').length;
-      // Basic metrics from history data
+      const sent = history.filter(h => h.status === 'sent' || h.status === 'replied').length;
+      const replied = history.filter(h => h.status === 'replied').length;
       setMetrics({
         total_eligible: 0,
         total_sent: sent,
-        total_replied: 0,
+        total_replied: replied,
         total_closed: 0,
       });
     }
