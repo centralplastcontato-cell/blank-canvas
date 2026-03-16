@@ -592,7 +592,7 @@ Deno.serve(async (req) => {
       case 'send-image': {
         const { base64, caption, mediaUrl } = body;
         
-        let imagePayload: Record<string, string> = { phone, caption: caption || '' };
+        let imagePayload: Record<string, unknown> = { caption: caption || '' };
         
         // Prefer sending by URL directly (avoids base64 memory/size limits)
         if (mediaUrl && !base64) {
@@ -611,11 +611,12 @@ Deno.serve(async (req) => {
           });
         }
 
-        const res = await wapiRequest(
+        const res = await sendMediaWithGroupFallback(
           `${WAPI_BASE_URL}/message/send-image?instanceId=${instance_id}`,
           instance_token,
-          'POST',
-          imagePayload
+          phone,
+          imagePayload,
+          'send-image'
         );
         
         console.log('send-image response:', JSON.stringify(res));
