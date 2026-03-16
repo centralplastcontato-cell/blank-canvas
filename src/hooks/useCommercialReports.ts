@@ -121,16 +121,14 @@ export function useCommercialReports(filters: CommercialFilters) {
           return q;
         })(),
 
-        // 3. Events (sales) with data_fechamento_venda in the period
+        // 3. Events (sales) — use data_fechamento_venda if available, otherwise fall back to created_at
         (() => {
           let q = supabase
             .from('company_events')
-            .select('id, total_value, data_fechamento_venda, unit, status')
+            .select('id, total_value, data_fechamento_venda, unit, status, created_at')
             .eq('company_id', companyId)
-            .not('data_fechamento_venda', 'is', null)
-            .gte('data_fechamento_venda', fromDate)
-            .lte('data_fechamento_venda', toDate)
             .neq('status', 'cancelado')
+            .not('total_value', 'is', null)
             .limit(2000);
           if (filters.unit !== 'all') {
             q = q.or(`unit.eq.${filters.unit},unit.eq.As duas`);
