@@ -2807,10 +2807,14 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
   const filteredConversations = conversations
     .filter((conv) => {
-      // Apply text search
-      const matchesSearch = (conv.contact_name || conv.contact_phone)
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
+      // Apply text search (normalize phone digits for matching)
+      const searchLower = searchQuery.toLowerCase();
+      const nameMatch = (conv.contact_name || '').toLowerCase().includes(searchLower);
+      const phoneMatch = conv.contact_phone.toLowerCase().includes(searchLower);
+      const digitsOnly = searchQuery.replace(/\D/g, '');
+      const convDigits = conv.contact_phone.replace(/\D/g, '');
+      const digitMatch = digitsOnly.length >= 4 && (convDigits.includes(digitsOnly) || digitsOnly.includes(convDigits));
+      const matchesSearch = nameMatch || phoneMatch || digitMatch;
       
       // Apply filter
       if (filter === 'unread') return matchesSearch && conv.unread_count > 0;
