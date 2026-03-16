@@ -71,6 +71,13 @@ const DEFAULT_SETTINGS: Omit<ReactivationSettings, 'company_id'> = {
   exclude_existing_event: true,
   min_days_without_reply: 7,
   max_messages_per_lead: 2,
+  // Fase 4B
+  interactive_options_enabled: false,
+  capture_window_hours: 48,
+  pause_days_on_analyzing: 30,
+  option_1_label: 'Ainda tenho interesse na festa',
+  option_2_label: 'Quero ver os valores',
+  option_3_label: 'Ainda estou analisando',
 };
 
 const AVAILABLE_STATUSES = [
