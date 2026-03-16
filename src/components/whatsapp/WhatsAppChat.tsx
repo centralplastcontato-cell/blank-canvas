@@ -2477,8 +2477,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     );
 
     toast({
-      title: newValue ? "Adicionado aos favoritos" : "Removido dos favoritos",
+      title: newValue ? "Adicionado aos favoritos ⭐" : "Removido dos favoritos",
       description: conv.contact_name || conv.contact_phone,
+      className: "border-l-4",
+      style: { borderLeftColor: newValue ? '#eab308' : '#6b7280' },
     });
   };
 
