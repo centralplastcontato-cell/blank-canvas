@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
         .from("wapi_conversations")
         .select("id, contact_phone, contact_name, remote_jid, instance_key")
         .eq("company_id", company.id)
-        .is("lead_id", null)
+        .filter("lead_id", "is", "null")
         .not("remote_jid", "like", "%@g.us")
         .range(offset, offset + batchSize - 1);
 
