@@ -412,12 +412,12 @@ export default function Inteligencia() {
               <div className="overflow-x-auto -mx-2 px-2 pb-2 scrollbar-none flex justify-center">
                 <div className="flex md:inline-flex gap-1 md:gap-2 p-1 md:p-1.5 rounded-2xl bg-muted/50 border border-border/40 shadow-sm md:w-max">
                   {[
+                    { value: "relatorios", label: "Relatórios", mobileLabel: "Relat." },
                     { value: "resumo", label: "Resumo do Dia", mobileLabel: "Resumo" },
                     { value: "prioridades", label: "Prioridades", mobileLabel: "Prior." },
+                    { value: "negociacoes", label: "Neg. Paradas", mobileLabel: "Radar" },
                     { value: "follow-ups", label: "Follow-ups", mobileLabel: "Follow" },
                     { value: "funil", label: "Funil", mobileLabel: "Funil" },
-                    { value: "negociacoes", label: "Neg. Paradas", mobileLabel: "Radar" },
-                    { value: "relatorios", label: "Relatórios", mobileLabel: "Relat." },
                     { value: "leads-dia", label: "Leads do Dia", mobileLabel: "Leads" },
                   ].map(t => (
                     <button
