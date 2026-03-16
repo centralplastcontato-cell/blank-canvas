@@ -462,6 +462,10 @@ export default function Inteligencia() {
                 )}
               </TabsContent>
 
+              <TabsContent value="relatorios" className="animate-fade-up">
+                <RelatoriosComerciais selectedUnit={selectedUnit !== "all" ? selectedUnit : undefined} />
+              </TabsContent>
+
               <TabsContent value="leads-dia" className="animate-fade-up">
                 {isLoading || !data || isLoadingUnitPerms || permLoading ? (
                   <LoadingSkeleton />
