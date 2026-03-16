@@ -269,8 +269,7 @@ export default function Inteligencia() {
                       </DialogTitle>
                     </DialogHeader>
                     <Tabs defaultValue="relatorios-guide" className="w-full">
-                      <div className="overflow-x-auto -mx-2 px-2 pb-2 scrollbar-none">
-                        <div className="flex gap-1 p-1 rounded-xl bg-muted/50 border border-border/40 w-max">
+                      <TabsList className="overflow-x-auto -mx-2 px-2 pb-2 scrollbar-none h-auto flex gap-1 p-1 rounded-xl bg-muted/50 border border-border/40 w-max">
                           {[
                             { value: "relatorios-guide", label: "Relatórios" },
                             { value: "resumo-guide", label: "Resumo" },
@@ -285,8 +284,7 @@ export default function Inteligencia() {
                               {t.label}
                             </TabsTrigger>
                           ))}
-                        </div>
-                      </div>
+                      </TabsList>
 
                       <div className="text-sm mt-3">
                         <TabsContent value="relatorios-guide" className="space-y-3 mt-0">
