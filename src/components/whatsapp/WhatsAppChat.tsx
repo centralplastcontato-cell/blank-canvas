@@ -2848,9 +2848,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       // Apply filter
       if (filter === 'unread') return matchesSearch && conv.unread_count > 0;
       if (filter === 'closed') return matchesSearch && conv.is_closed;
-      if (filter === 'fechados') return matchesSearch && closedLeadConversationIds.has(conv.id);
-      if (filter === 'oe') return matchesSearch && orcamentoEnviadoConversationIds.has(conv.id);
-      if (filter === 'visitas') return matchesSearch && conv.has_scheduled_visit;
+      if (filter === 'fechados') return matchesSearch && leadStatusConversationIds.fechado.has(conv.id);
+      if (filter === 'oe') return matchesSearch && leadStatusConversationIds.orcamento_enviado.has(conv.id);
+      if (filter === 'visitas') return matchesSearch && leadStatusConversationIds.em_contato.has(conv.id);
       if (filter === 'freelancer') return matchesSearch && conv.is_freelancer;
       if (filter === 'equipe') return matchesSearch && conv.is_equipe;
       if (filter === 'favorites') return matchesSearch && conv.is_favorite;
