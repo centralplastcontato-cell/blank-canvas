@@ -1728,29 +1728,29 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
       if (data) {
         setLinkedLead(data as Lead);
+        if (conversation) {
+          setConversationLeadsMap(prev => ({ ...prev, [conversation.id]: data as Lead }));
+        }
       } else {
         setLinkedLead(null);
+        if (conversation) {
+          setConversationLeadsMap(prev => ({ ...prev, [conversation.id]: null }));
+        }
       }
       return;
     }
 
     // No lead linked - try to auto-link by phone number
     if (conversation && selectedInstance) {
-      const contactPhone = conversation.contact_phone.replace(/\D/g, '');
-      const phoneVariants = [
-        contactPhone,
-        contactPhone.replace(/^55/, ''), // Remove Brazil country code
-        `55${contactPhone}`, // Add Brazil country code
-      ];
+      const phoneVariants = getPhoneVariants(conversation.contact_phone);
 
-      // Search for a lead matching this phone number in the same unit
-      const { data: matchingLead } = await supabase
+      const { data: matchingLeads } = await supabase
         .from("campaign_leads")
         .select("id, name, whatsapp, unit, status, month, day_of_month, day_preference, guests, observacoes, created_at, responsavel_id, campaign_name")
-        .or(phoneVariants.map(p => `whatsapp.ilike.%${p}%`).join(','))
-        .eq("unit", selectedInstance.unit)
-        .limit(1)
-        .single();
+        .in("whatsapp", phoneVariants)
+        .order("created_at", { ascending: false });
+
+      const matchingLead = (matchingLeads as Lead[] | null)?.[0];
 
       if (matchingLead) {
         // Auto-link the conversation to the lead
@@ -1761,6 +1761,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
         if (!error) {
           setLinkedLead(matchingLead as Lead);
+          setConversationLeadsMap(prev => ({ ...prev, [conversation.id]: matchingLead as Lead }));
           // Update local state
           setConversations(prev => 
             prev.map(c => c.id === conversation.id ? { ...c, lead_id: matchingLead.id } : c)
@@ -1777,6 +1778,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     }
 
     setLinkedLead(null);
+    if (conversation) {
+      setConversationLeadsMap(prev => ({ ...prev, [conversation.id]: null }));
+    }
   };
 
   // Create a new lead and classify it directly
