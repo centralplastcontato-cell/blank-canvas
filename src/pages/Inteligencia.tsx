@@ -415,6 +415,7 @@ export default function Inteligencia() {
                     { value: "prioridades", label: "Prioridades", mobileLabel: "Prior." },
                     { value: "follow-ups", label: "Follow-ups", mobileLabel: "Follow" },
                     { value: "funil", label: "Funil", mobileLabel: "Funil" },
+                    { value: "relatorios", label: "Relatórios", mobileLabel: "Relat." },
                     { value: "leads-dia", label: "Leads do Dia", mobileLabel: "Leads" },
                   ].map(t => (
                     <button
