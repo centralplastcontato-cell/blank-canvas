@@ -7,7 +7,7 @@ import { useLeadStageDurations } from "@/hooks/useLeadStageDurations";
 import { useUnitPermissions } from "@/hooks/useUnitPermissions";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { useCompany } from "@/contexts/CompanyContext";
-import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -269,8 +269,7 @@ export default function Inteligencia() {
                       </DialogTitle>
                     </DialogHeader>
                     <Tabs defaultValue="relatorios-guide" className="w-full">
-                      <div className="overflow-x-auto -mx-2 px-2 pb-2 scrollbar-none">
-                        <div className="flex gap-1 p-1 rounded-xl bg-muted/50 border border-border/40 w-max">
+                      <TabsList className="overflow-x-auto -mx-2 px-2 pb-2 scrollbar-none h-auto flex gap-1 p-1 rounded-xl bg-muted/50 border border-border/40 w-max">
                           {[
                             { value: "relatorios-guide", label: "Relatórios" },
                             { value: "resumo-guide", label: "Resumo" },
@@ -285,8 +284,7 @@ export default function Inteligencia() {
                               {t.label}
                             </TabsTrigger>
                           ))}
-                        </div>
-                      </div>
+                      </TabsList>
 
                       <div className="text-sm mt-3">
                         <TabsContent value="relatorios-guide" className="space-y-3 mt-0">
