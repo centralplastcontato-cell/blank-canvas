@@ -313,6 +313,7 @@ export default function Agenda() {
       lead_id: data.lead_id || null,
       data_fechamento_venda: data.data_fechamento_venda || null,
       vendedor_responsavel_id: data.vendedor_responsavel_id || null,
+      payment_method: data.payment_method || null,
     };
     console.log('[Evento:DadosComerciais]', { data_fechamento_venda: payload.data_fechamento_venda, vendedor_responsavel_id: payload.vendedor_responsavel_id });
 

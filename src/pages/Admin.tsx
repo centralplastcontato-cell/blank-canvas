@@ -522,6 +522,7 @@ export default function Admin() {
       lead_id: data.lead_id || null,
       data_fechamento_venda: data.data_fechamento_venda || null,
       vendedor_responsavel_id: data.vendedor_responsavel_id || null,
+      payment_method: data.payment_method || null,
     };
     console.log('[Lead:Fechado->NovaFesta] creating event', payload);
     const { error } = await supabase.from("company_events").insert(payload);
