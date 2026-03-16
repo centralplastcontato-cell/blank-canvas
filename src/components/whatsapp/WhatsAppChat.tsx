@@ -348,8 +348,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   
   // Undo send state
   
-  const [closedLeadConversationIds, setClosedLeadConversationIds] = useState<Set<string>>(new Set());
-  const [orcamentoEnviadoConversationIds, setOrcamentoEnviadoConversationIds] = useState<Set<string>>(new Set());
+  const [conversationLeadsMap, setConversationLeadsMap] = useState<Record<string, Lead | null>>({});
   const [conversationLeadsMap, setConversationLeadsMap] = useState<Record<string, Lead | null>>({});
   const leadStatusConversationIds = useMemo(() => {
     const statusMap = {
