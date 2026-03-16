@@ -168,6 +168,50 @@ export function LeadInfoPopover({
   const [isEditingObs, setIsEditingObs] = useState(false);
   const [editedObs, setEditedObs] = useState("");
   const [isSavingObs, setIsSavingObs] = useState(false);
+  const [hasLinkedEvent, setHasLinkedEvent] = useState<boolean | null>(null);
+  const [linkedEventData, setLinkedEventData] = useState<EventFormData | null>(null);
+  const [eventFormOpen, setEventFormOpen] = useState(false);
+  const { currentCompany } = useCompany();
+  const { units } = useCompanyUnits(currentCompany?.id);
+
+  // Check if closed lead has linked event
+  useEffect(() => {
+    if (linkedLead && linkedLead.status === "fechado") {
+      supabase
+        .from("company_events")
+        .select("*")
+        .eq("lead_id", linkedLead.id)
+        .limit(1)
+        .then(({ data }) => {
+          setHasLinkedEvent((data || []).length > 0);
+          if (data && data.length > 0) {
+            const ev = data[0];
+            setLinkedEventData({
+              id: ev.id,
+              title: ev.title,
+              event_date: ev.event_date,
+              start_time: ev.start_time || "",
+              end_time: ev.end_time || "",
+              event_type: ev.event_type || "infantil",
+              guest_count: ev.guest_count,
+              unit: ev.unit || "",
+              status: ev.status,
+              package_name: ev.package_name || "",
+              total_value: ev.total_value,
+              notes: ev.notes || "",
+              lead_id: ev.lead_id || null,
+              data_fechamento_venda: ev.data_fechamento_venda || null,
+              vendedor_responsavel_id: ev.vendedor_responsavel_id || null,
+            });
+          } else {
+            setLinkedEventData(null);
+          }
+        });
+    } else {
+      setHasLinkedEvent(null);
+      setLinkedEventData(null);
+    }
+  }, [linkedLead?.id, linkedLead?.status]);
 
   const isGroup = selectedConversation.remote_jid.includes('@g.us');
 
