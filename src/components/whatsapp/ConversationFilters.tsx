@@ -93,13 +93,13 @@ export function ConversationFilters({
   const counts = useMemo(() => ({
     unread: conversations.filter(c => c.unread_count > 0).length,
     closed: conversations.filter(c => c.is_closed).length,
-    visitas: conversations.filter(c => c.has_scheduled_visit).length,
+    visitas: visitasCount,
     freelancer: conversations.filter(c => c.is_freelancer).length,
     equipe: conversations.filter(c => c.is_equipe).length,
     grupos: conversations.filter(c => c.remote_jid?.endsWith('@g.us')).length,
     fechados: closedLeadCount,
     oe: orcamentoEnviadoCount,
-  }), [conversations, closedLeadCount, orcamentoEnviadoCount]);
+  }), [conversations, closedLeadCount, orcamentoEnviadoCount, visitasCount]);
 
   const hasActiveFilter = filter !== 'all';
 
