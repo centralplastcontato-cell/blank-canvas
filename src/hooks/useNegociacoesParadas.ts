@@ -33,6 +33,10 @@ function getMotivo(status: string, hasVisit: boolean): string {
   return '⚠ Negociação parada';
 }
 
+// Bot steps that indicate the bot is no longer actively managing the conversation
+// These leads had human intervention or bot completed — negotiation is now manual
+const BOT_INACTIVE_STEPS = ['human_takeover', 'complete_final', 'transferred', 'proximo_passo_reminded', 'lp_sent'];
+
 export function useNegociacoesParadas(stalledDays: number = 10, selectedUnit?: string) {
   const { currentCompany } = useCompany();
   const companyId = currentCompany?.id;
@@ -41,6 +45,10 @@ export function useNegociacoesParadas(stalledDays: number = 10, selectedUnit?: s
     queryKey: ['negociacoes-paradas', companyId, stalledDays, selectedUnit],
     queryFn: async (): Promise<NegociacaoParada[]> => {
       if (!companyId) return [];
+
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - stalledDays);
+      const cutoffISO = cutoffDate.toISOString();
 
       // 1. Fetch leads in monitored statuses
       let leadsQuery = supabase
@@ -60,20 +68,29 @@ export function useNegociacoesParadas(stalledDays: number = 10, selectedUnit?: s
 
       const leadIds = leads.map(l => l.id);
 
-      // 2. Fetch conversations for these leads (only human_takeover)
+      // 2. Fetch conversations where bot is inactive AND last message is old
+      // Include: human_takeover, complete_final, null, transferred, etc.
       const { data: conversations, error: convErr } = await (supabase as any)
         .from('wapi_conversations')
-        .select('id, lead_id, bot_step, last_message_at')
+        .select('id, lead_id, bot_step, last_message_at, last_message_from_me')
         .eq('company_id', companyId)
         .in('lead_id', leadIds)
-        .eq('bot_step', 'human_takeover')
+        .lte('last_message_at', cutoffISO)
         .limit(2000);
 
       if (convErr) throw convErr;
       if (!conversations || conversations.length === 0) return [];
 
+      // Filter: only conversations where bot is not actively running
+      // Bot is inactive when: bot_step is null, or in BOT_INACTIVE_STEPS
+      const inactiveConvs = conversations.filter((c: any) =>
+        !c.bot_step || BOT_INACTIVE_STEPS.includes(c.bot_step)
+      );
+
+      if (inactiveConvs.length === 0) return [];
+
       // 3. Fetch visit data for these leads
-      const convLeadIds = conversations.map((c: any) => c.lead_id);
+      const convLeadIds = [...new Set(inactiveConvs.map((c: any) => c.lead_id))];
       const { data: visits } = await (supabase as any)
         .from('lead_visits')
         .select('lead_id, status_visita')
@@ -86,7 +103,7 @@ export function useNegociacoesParadas(stalledDays: number = 10, selectedUnit?: s
 
       // Build conv map (latest per lead)
       const convMap = new Map<string, { id: string; last_message_at: string }>();
-      for (const c of conversations) {
+      for (const c of inactiveConvs) {
         const existing = convMap.get(c.lead_id);
         if (!existing || (c.last_message_at && c.last_message_at > (existing.last_message_at || ''))) {
           convMap.set(c.lead_id, { id: c.id, last_message_at: c.last_message_at });
