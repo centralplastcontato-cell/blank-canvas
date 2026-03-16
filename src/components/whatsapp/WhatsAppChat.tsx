@@ -1801,6 +1801,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       const { data: existingLead } = await supabase
         .from('campaign_leads')
         .select('id, name, whatsapp, unit, status')
+        .eq('company_id', getCurrentCompanyId())
         .eq('whatsapp', cleanPhone)
         .order('created_at', { ascending: false })
         .limit(1)
