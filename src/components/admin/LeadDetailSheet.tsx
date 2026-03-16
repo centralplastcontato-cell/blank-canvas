@@ -115,16 +115,41 @@ export function LeadDetailSheet({
       setResponsavelId(lead.responsavel_id || "");
       setObservacoes(lead.observacoes || "");
       fetchHistory(lead.id);
-      // Check if lead has linked event
+      // Check if lead has linked event and fetch its data
       if (lead.status === "fechado") {
         supabase
           .from("company_events")
-          .select("id")
+          .select("*")
           .eq("lead_id", lead.id)
           .limit(1)
-          .then(({ data }) => setHasLinkedEvent((data || []).length > 0));
+          .then(({ data }) => {
+            setHasLinkedEvent((data || []).length > 0);
+            if (data && data.length > 0) {
+              const ev = data[0];
+              setLinkedEventData({
+                id: ev.id,
+                title: ev.title,
+                event_date: ev.event_date,
+                start_time: ev.start_time || "",
+                end_time: ev.end_time || "",
+                event_type: ev.event_type || "infantil",
+                guest_count: ev.guest_count,
+                unit: ev.unit || "",
+                status: ev.status,
+                package_name: ev.package_name || "",
+                total_value: ev.total_value,
+                notes: ev.notes || "",
+                lead_id: ev.lead_id || null,
+                data_fechamento_venda: ev.data_fechamento_venda || null,
+                vendedor_responsavel_id: ev.vendedor_responsavel_id || null,
+              });
+            } else {
+              setLinkedEventData(null);
+            }
+          });
       } else {
         setHasLinkedEvent(null);
+        setLinkedEventData(null);
       }
     }
   }, [lead]);
