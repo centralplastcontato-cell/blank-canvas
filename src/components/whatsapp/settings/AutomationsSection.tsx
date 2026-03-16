@@ -2370,6 +2370,11 @@ export function AutomationsSection() {
         <TabsContent value="bot-lp" className="mt-4">
           <LPBotSection />
         </TabsContent>
+
+        {/* ============ TAB: REATIVAÇÃO INTELIGENTE ============ */}
+        <TabsContent value="reativacao" className="mt-4">
+          <ReactivationSection />
+        </TabsContent>
       </Tabs>
     </div>
   );
