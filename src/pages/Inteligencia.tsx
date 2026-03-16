@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PrioridadesTab } from "@/components/inteligencia/PrioridadesTab";
 import { FollowUpsTab } from "@/components/inteligencia/FollowUpsTab";
 import { FunilTab } from "@/components/inteligencia/FunilTab";
+import { RelatoriosComerciais } from "@/components/inteligencia/RelatoriosComerciais";
 import { LeadsDoDiaTab } from "@/components/inteligencia/LeadsDoDiaTab";
 import { ResumoDiarioTab } from "@/components/inteligencia/ResumoDiarioTab";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -414,6 +415,7 @@ export default function Inteligencia() {
                     { value: "prioridades", label: "Prioridades", mobileLabel: "Prior." },
                     { value: "follow-ups", label: "Follow-ups", mobileLabel: "Follow" },
                     { value: "funil", label: "Funil", mobileLabel: "Funil" },
+                    { value: "relatorios", label: "Relatórios", mobileLabel: "Relat." },
                     { value: "leads-dia", label: "Leads do Dia", mobileLabel: "Leads" },
                   ].map(t => (
                     <button
@@ -458,6 +460,10 @@ export default function Inteligencia() {
                 ) : (
                   <FunilTab data={filteredData} stageDurations={stageDurations} selectedUnit={selectedUnit} />
                 )}
+              </TabsContent>
+
+              <TabsContent value="relatorios" className="animate-fade-up">
+                <RelatoriosComerciais selectedUnit={selectedUnit !== "all" ? selectedUnit : undefined} />
               </TabsContent>
 
               <TabsContent value="leads-dia" className="animate-fade-up">
