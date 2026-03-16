@@ -1597,17 +1597,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       });
 
       const pickBestLeadForConversation = (conv: Conversation): Lead | null => {
-        if (conv.lead_id && leadsById.has(conv.lead_id)) {
-          return leadsById.get(conv.lead_id) || null;
-        }
+        const candidates = [
+          ...(conv.lead_id && leadsById.has(conv.lead_id) ? [leadsById.get(conv.lead_id)!] : []),
+          ...getPhoneVariants(conv.contact_phone)
+            .flatMap((phone) => leadsByPhone.get(phone) || []),
+        ].filter((lead, index, array) => array.findIndex((item) => item.id === lead.id) === index);
 
-        const candidates = getPhoneVariants(conv.contact_phone)
-          .flatMap((phone) => leadsByPhone.get(phone) || [])
-          .filter((lead, index, array) => array.findIndex((item) => item.id === lead.id) === index);
-
-        if (candidates.length === 0) return null;
-
-        return candidates.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0] || null;
+        return resolveBestLeadForConversation(conv, candidates, selectedInstance.unit);
       };
 
       const leadsMap: Record<string, Lead | null> = {};
