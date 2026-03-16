@@ -211,7 +211,7 @@ export default function Inteligencia() {
                   />
                   <div className="flex items-center gap-2 min-w-0">
                     <img src={currentCompany?.logo_url || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-8 w-auto shrink-0" />
-                    <h1 className="font-display font-bold text-foreground text-sm truncate">Inteligência</h1>
+                    <h1 className="font-display font-bold text-foreground text-sm truncate">Inteligência Comercial</h1>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
