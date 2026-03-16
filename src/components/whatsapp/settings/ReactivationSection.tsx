@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Save, Sparkles, Clock, Shield, MessageSquare, CalendarClock, Target, BarChart3, Info } from "lucide-react";
+import { Loader2, Save, Sparkles, Clock, MessageSquare, CalendarClock, Target, Info, Reply, Zap } from "lucide-react";
 import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
