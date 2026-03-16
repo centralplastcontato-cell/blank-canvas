@@ -219,7 +219,14 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.title || !form.event_date) return;
+    if (!form.title) {
+      toast({ title: "Preencha o nome do cliente", variant: "destructive" });
+      return;
+    }
+    if (!dateDay || !dateMonth || !dateYear || !form.event_date) {
+      toast({ title: "Preencha a data completa (dia, mês e ano)", variant: "destructive" });
+      return;
+    }
     if (units.length > 1 && !form.unit) {
       toast({ title: "Selecione uma unidade", variant: "destructive" });
       return;
