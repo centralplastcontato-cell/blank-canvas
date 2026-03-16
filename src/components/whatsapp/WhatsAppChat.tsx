@@ -1552,6 +1552,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     const { data: leadData } = await supabase
       .from("campaign_leads")
       .select("id, name, whatsapp")
+      .eq("company_id", getCurrentCompanyId())
       .or(phoneVariants.map(p => `whatsapp.ilike.%${p}%`).join(','))
       .limit(1)
       .single();
