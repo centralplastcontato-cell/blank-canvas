@@ -685,6 +685,7 @@ export function LeadInfoPopover({
                   </Button>
                 )}
 
+                <Button 
                   variant="outline" 
                   size="sm" 
                   className="w-full text-xs h-8 gap-2 rounded-xl"
