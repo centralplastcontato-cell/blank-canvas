@@ -397,7 +397,7 @@ Deno.serve(async (req) => {
                   message_id: sentMsgId,
                   status: "sent",
                   timestamp: new Date().toISOString(),
-                  metadata: { source: "reactivation_engine", stage: stage.stage },
+                  metadata: { source: "reactivation_engine", stage: stage.stage, interactive: isInteractive },
                   company_id: settings.company_id,
                 });
 
