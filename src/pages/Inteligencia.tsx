@@ -7,7 +7,7 @@ import { useLeadStageDurations } from "@/hooks/useLeadStageDurations";
 import { useUnitPermissions } from "@/hooks/useUnitPermissions";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { useCompany } from "@/contexts/CompanyContext";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
