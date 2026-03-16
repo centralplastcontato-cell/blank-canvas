@@ -88,7 +88,7 @@ export function useNegociacoesParadas(stalledDays: number = 10, selectedUnit?: s
       // 1. Fetch leads in monitored statuses
       let leadsQuery = supabase
         .from('campaign_leads')
-        .select('id, name, whatsapp, unit, status')
+        .select('id, name, whatsapp, unit, status, month')
         .eq('company_id', companyId)
         .in('status', STATUS_MONITORED)
         .limit(2000);
