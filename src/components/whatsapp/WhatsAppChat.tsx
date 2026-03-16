@@ -3756,6 +3756,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         onLeadObsChange={(newObs) => {
                           setLinkedLead(prev => prev ? { ...prev, observacoes: newObs || null } : null);
                         }}
+                        onShowVisitDialog={() => linkedLead && setShowQuickVisitDialog(true)}
                       />
                       {/* O.E. (Orçamento Enviado) button - always visible, disabled without lead */}
                       <Button
