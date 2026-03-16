@@ -223,6 +223,64 @@ interface WhatsAppChatProps {
   onLeadClosedMobile?: (lead: Lead) => void | Promise<void>;
 }
 
+const isLeadCompatibleWithInstance = (lead: Lead, instanceUnit: string | null | undefined) => {
+  if (!instanceUnit || !lead.unit) return true;
+  return lead.unit === instanceUnit || lead.unit === "As duas";
+};
+
+const scoreLeadForConversation = (
+  lead: Lead,
+  conversation: Conversation,
+  instanceUnit: string | null | undefined
+) => {
+  let score = 0;
+  const normalizedConversationPhone = normalizePhoneDigits(conversation.contact_phone);
+  const normalizedLeadPhone = normalizePhoneDigits(lead.whatsapp);
+
+  if (conversation.lead_id && lead.id === conversation.lead_id) score += 3;
+  if (lead.unit === instanceUnit) score += 8;
+  else if (lead.unit === "As duas") score += 5;
+  else if (lead.unit) score -= 6;
+
+  if (normalizedConversationPhone && normalizedLeadPhone) {
+    if (normalizedConversationPhone === normalizedLeadPhone) score += 4;
+    else if (
+      normalizedConversationPhone.endsWith(normalizedLeadPhone) ||
+      normalizedLeadPhone.endsWith(normalizedConversationPhone)
+    ) {
+      score += 2;
+    }
+  }
+
+  if (lead.status === "transferido") score -= 4;
+
+  return score;
+};
+
+const resolveBestLeadForConversation = (
+  conversation: Conversation,
+  candidates: Lead[],
+  instanceUnit: string | null | undefined
+): Lead | null => {
+  const uniqueCandidates = candidates.filter(
+    (lead, index, array) => array.findIndex((item) => item.id === lead.id) === index
+  );
+
+  if (uniqueCandidates.length === 0) return null;
+
+  return (
+    uniqueCandidates.sort((a, b) => {
+      const scoreDiff = scoreLeadForConversation(b, conversation, instanceUnit) - scoreLeadForConversation(a, conversation, instanceUnit);
+      if (scoreDiff !== 0) return scoreDiff;
+
+      const compatibilityDiff = Number(isLeadCompatibleWithInstance(b, instanceUnit)) - Number(isLeadCompatibleWithInstance(a, instanceUnit));
+      if (compatibilityDiff !== 0) return compatibilityDiff;
+
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    })[0] || null
+  );
+};
+
 // Component for displaying media with auto-download capability
 import { MediaMessage } from "@/components/whatsapp/MediaMessage";
 import { ConversationStatusActions } from "@/components/whatsapp/ConversationStatusActions";
