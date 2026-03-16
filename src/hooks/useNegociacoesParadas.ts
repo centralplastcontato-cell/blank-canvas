@@ -15,10 +15,10 @@ export interface NegociacaoParada {
   motivo: string;
   conversationId: string | null;
   hasVisitRealized: boolean;
-  // Phase 3B - Closing probability score
   scoreFechamento: number;
   classificacao: 'alta' | 'media' | 'baixa';
   messageCount: number;
+  month: string | null;
 }
 
 const STATUS_MONITORED: Array<'em_contato' | 'orcamento_enviado' | 'aguardando_resposta'> = ['em_contato', 'orcamento_enviado', 'aguardando_resposta'];
@@ -88,7 +88,7 @@ export function useNegociacoesParadas(stalledDays: number = 10, selectedUnit?: s
       // 1. Fetch leads in monitored statuses
       let leadsQuery = supabase
         .from('campaign_leads')
-        .select('id, name, whatsapp, unit, status')
+        .select('id, name, whatsapp, unit, status, month')
         .eq('company_id', companyId)
         .in('status', STATUS_MONITORED)
         .limit(2000);
@@ -228,6 +228,7 @@ export function useNegociacoesParadas(stalledDays: number = 10, selectedUnit?: s
           scoreFechamento,
           classificacao: getClassificacao(scoreFechamento),
           messageCount: conv.messageCount,
+          month: lead.month ?? null,
         });
       }
 
