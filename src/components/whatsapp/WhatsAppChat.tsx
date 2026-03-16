@@ -1888,7 +1888,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         .in("whatsapp", phoneVariants)
         .order("created_at", { ascending: false });
 
-      const matchingLead = (matchingLeads as Lead[] | null)?.[0];
+      const matchingLead = resolveBestLeadForConversation(
+        conversation,
+        (matchingLeads as Lead[] | null) || [],
+        selectedInstance.unit
+      );
 
       if (matchingLead) {
         // Auto-link the conversation to the lead
