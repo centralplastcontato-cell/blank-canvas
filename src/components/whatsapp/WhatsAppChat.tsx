@@ -5195,18 +5195,39 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                     </div>
                                   </div>
                                   {contactPhoneNum && (
-                                    <button
-                                      className={cn(
-                                        "w-full flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors border-t",
-                                        msg.from_me
-                                          ? "border-primary-foreground/15 text-primary-foreground/80 hover:bg-primary-foreground/10"
-                                          : "border-border text-primary hover:bg-primary/5"
-                                      )}
-                                      onClick={() => { navigator.clipboard.writeText(contactPhoneNum); toast({ title: "Telefone copiado!", description: contactPhoneNum }); }}
-                                    >
-                                      <Copy className="w-3 h-3" />
-                                      Copiar telefone
-                                    </button>
+                                    <div className={cn(
+                                      "flex divide-x border-t",
+                                      msg.from_me ? "border-primary-foreground/15 divide-primary-foreground/15" : "border-border divide-border"
+                                    )}>
+                                      <button
+                                        className={cn(
+                                          "flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors",
+                                          msg.from_me
+                                            ? "text-primary-foreground/80 hover:bg-primary-foreground/10"
+                                            : "text-primary hover:bg-primary/5"
+                                        )}
+                                        onClick={() => { navigator.clipboard.writeText(contactPhoneNum); toast({ title: "Telefone copiado!", description: contactPhoneNum }); }}
+                                      >
+                                        <Copy className="w-3 h-3" />
+                                        Copiar
+                                      </button>
+                                      <button
+                                        className={cn(
+                                          "flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors",
+                                          msg.from_me
+                                            ? "text-primary-foreground/80 hover:bg-primary-foreground/10"
+                                            : "text-primary hover:bg-primary/5"
+                                        )}
+                                        onClick={() => {
+                                          const cleanPhone = contactPhoneNum.replace(/[^0-9+]/g, '');
+                                          setSearchQuery(cleanPhone);
+                                          setSelectedConversation(null);
+                                        }}
+                                      >
+                                        <MessageSquare className="w-3 h-3" />
+                                        Conversar
+                                      </button>
+                                    </div>
                                   )}
                                 </div>
                               );
