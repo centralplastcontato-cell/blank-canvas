@@ -22,6 +22,7 @@ import { LeadsDoDiaTab } from "@/components/inteligencia/LeadsDoDiaTab";
 import { ResumoDiarioTab } from "@/components/inteligencia/ResumoDiarioTab";
 import { NegociacoesParadasTab } from "@/components/inteligencia/NegociacoesParadasTab";
 import { AlertsPanel } from "@/components/inteligencia/AlertsPanel";
+import { SalesPriorities } from "@/components/inteligencia/SalesPriorities";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
