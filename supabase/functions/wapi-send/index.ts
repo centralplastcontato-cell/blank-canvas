@@ -173,6 +173,48 @@ function extractWapiMessageId(payload: unknown): string | null {
   return typeof id === 'string' && id.length > 0 ? id : null;
 }
 
+/**
+ * For group JIDs (@g.us), W-API needs chatId instead of phone.
+ * This helper tries multiple payload variants for media sends to groups.
+ */
+async function sendMediaWithGroupFallback(
+  endpoint: string,
+  token: string,
+  rawPhone: string,
+  basePayload: Record<string, unknown>,
+  actionName: string
+): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  const isGroup = rawPhone && rawPhone.endsWith('@g.us');
+  
+  if (!isGroup) {
+    // Normal individual send
+    const res = await wapiRequest(endpoint, token, 'POST', { ...basePayload, phone: String(rawPhone || '').replace(/\D/g, '') });
+    if (res.ok) {
+      console.log(`[${actionName}] Success (individual)`);
+      return { ok: true, data: res.data };
+    }
+    return { ok: false, error: res.error || `Falha ao enviar ${actionName}` };
+  }
+
+  // Group: try multiple payload formats
+  const groupAttempts = [
+    { name: 'phone', body: { ...basePayload, phone: rawPhone } },
+    { name: 'chatId', body: { ...basePayload, chatId: rawPhone } },
+    { name: 'number', body: { ...basePayload, number: rawPhone } },
+    { name: 'groupId', body: { ...basePayload, groupId: rawPhone } },
+  ];
+  
+  for (const attempt of groupAttempts) {
+    const res = await wapiRequest(endpoint, token, 'POST', attempt.body);
+    if (res.ok) {
+      console.log(`[${actionName}] Group success [${attempt.name}]`);
+      return { ok: true, data: res.data };
+    }
+    console.warn(`[${actionName}] Group failed [${attempt.name}]: ${res.error}`);
+  }
+  return { ok: false, error: `Falha ao enviar ${actionName} para grupo (W-API)` };
+}
+
 async function sendTextWithFallback(instanceId: string, token: string, rawPhone: string, message: string) {
   const endpoint = `${WAPI_BASE_URL}/message/send-text?instanceId=${instanceId}`;
 
