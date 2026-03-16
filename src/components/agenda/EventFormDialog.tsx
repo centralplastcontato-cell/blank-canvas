@@ -108,6 +108,7 @@ const EMPTY: EventFormData = {
   data_fechamento_venda: null,
   vendedor_responsavel_id: null,
   vendedor_responsavel_name: null,
+  payment_method: null,
 };
 
 function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
