@@ -1334,12 +1334,33 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const fetchConversations = async (selectPhone?: string, skipLeadRefresh?: boolean) => {
     if (!selectedInstance) return;
 
-    // Optimized: Select only necessary columns instead of "*"
-    const { data } = await supabase
-      .from("wapi_conversations")
-      .select("id, instance_id, lead_id, remote_jid, contact_name, contact_phone, contact_picture, last_message_at, unread_count, is_favorite, is_closed, has_scheduled_visit, is_freelancer, is_equipe, last_message_content, last_message_from_me, bot_enabled, bot_step, pinned_message_id, created_at")
-      .eq("instance_id", selectedInstance.id)
-      .order("last_message_at", { ascending: false, nullsFirst: true });
+    // Load all conversations in batches to avoid Supabase default row limits in large buffets
+    const allConversationRows: Conversation[] = [];
+    const batchSize = 1000;
+    let from = 0;
+
+    while (true) {
+      const { data: batch, error } = await supabase
+        .from("wapi_conversations")
+        .select("id, instance_id, lead_id, remote_jid, contact_name, contact_phone, contact_picture, last_message_at, unread_count, is_favorite, is_closed, has_scheduled_visit, is_freelancer, is_equipe, last_message_content, last_message_from_me, bot_enabled, bot_step, pinned_message_id, created_at")
+        .eq("instance_id", selectedInstance.id)
+        .order("last_message_at", { ascending: false, nullsFirst: true })
+        .range(from, from + batchSize - 1);
+
+      if (error) {
+        console.error("[WhatsAppChat] Error loading conversations:", error);
+        break;
+      }
+
+      if (!batch || batch.length === 0) break;
+
+      allConversationRows.push(...(batch as Conversation[]));
+
+      if (batch.length < batchSize) break;
+      from += batchSize;
+    }
+
+    const data = allConversationRows;
 
     if (data) {
       // Sort: conversations without last_message_at (new leads) first, then by most recent
