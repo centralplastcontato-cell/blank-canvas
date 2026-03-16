@@ -5043,6 +5043,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                   void onLeadClosedMobile?.(updatedLead);
                                 }
 
+                                if (newStatus === 'em_contato') {
+                                  setShowQuickVisitDialog(true);
+                                }
+
                                 toast({
                                   title: "Status atualizado",
                                   description: `Lead classificado como "${statusOption.label}"`,
