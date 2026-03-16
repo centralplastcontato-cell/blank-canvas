@@ -1793,6 +1793,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       );
       setSelectedConversation({ ...selectedConversation, lead_id: leadToLink.id });
 
+      // Sync has_scheduled_visit when creating/classifying as em_contato
+      if (status === 'em_contato') {
+        await supabase.from('wapi_conversations').update({ has_scheduled_visit: true }).eq('id', selectedConversation.id);
+        setConversations(prev => prev.map(c => c.id === selectedConversation.id ? { ...c, has_scheduled_visit: true } : c));
+        setSelectedConversation(prev => prev ? { ...prev, has_scheduled_visit: true } : prev);
+      }
+
       if (triggerFestaOnClose && status === 'fechado') {
         console.log('[Lead:Fechado->NovaFesta:mobile]', {
           leadId: leadToLink.id,
