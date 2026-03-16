@@ -259,6 +259,7 @@ export function LeadDetailSheet({
   if (!lead) return null;
 
   return (
+    <>
     <Sheet open={isOpen} onOpenChange={onClose}>
         <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
         <SheetHeader>
