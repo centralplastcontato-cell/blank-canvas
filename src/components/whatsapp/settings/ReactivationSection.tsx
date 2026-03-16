@@ -569,6 +569,114 @@ export function ReactivationSection() {
           </div>
         </CardContent>
       </Card>
+
+      {/* 5. Fase 4B — Reativação Conversacional */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Reply className="w-4 h-4" />
+            Reativação Conversacional
+            <Badge variant="outline" className="text-xs">Fase 4B</Badge>
+          </CardTitle>
+          <CardDescription>
+            Adiciona opções numeradas às mensagens de reativação para capturar respostas automáticas.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between p-3 border rounded-lg">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className={`p-2 rounded-full shrink-0 ${settings.interactive_options_enabled ? "bg-green-100 text-green-600" : "bg-muted text-muted-foreground"}`}>
+                <Zap className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium">Ativar respostas interativas</p>
+                <p className="text-xs text-muted-foreground">Inclui opções numeradas nas mensagens de reativação</p>
+              </div>
+            </div>
+            <Switch
+              checked={settings.interactive_options_enabled}
+              onCheckedChange={(checked) => updateField('interactive_options_enabled', checked)}
+            />
+          </div>
+
+          {settings.interactive_options_enabled && (
+            <div className="space-y-4">
+              {/* Option labels */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Opções exibidas para o lead</Label>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Badge className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-xs">1</Badge>
+                    <Input
+                      value={settings.option_1_label}
+                      onChange={(e) => updateField('option_1_label', e.target.value)}
+                      placeholder="Ainda tenho interesse na festa"
+                      className="text-sm"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground ml-8">Ação: Muda status para "Cliente Retorno" e notifica vendedor</p>
+                  
+                  <div className="flex items-center gap-2">
+                    <Badge className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-xs">2</Badge>
+                    <Input
+                      value={settings.option_2_label}
+                      onChange={(e) => updateField('option_2_label', e.target.value)}
+                      placeholder="Quero ver os valores"
+                      className="text-sm"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground ml-8">Ação: Envia PDF de valores automaticamente</p>
+                  
+                  <div className="flex items-center gap-2">
+                    <Badge className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-xs">3</Badge>
+                    <Input
+                      value={settings.option_3_label}
+                      onChange={(e) => updateField('option_3_label', e.target.value)}
+                      placeholder="Ainda estou analisando"
+                      className="text-sm"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground ml-8">Ação: Pausa reativação por período configurável</p>
+                </div>
+              </div>
+
+              {/* Capture window + Pause days */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-sm">Janela de captura (horas)</Label>
+                  <Input
+                    type="number"
+                    min={12}
+                    max={72}
+                    value={settings.capture_window_hours}
+                    onChange={(e) => updateField('capture_window_hours', parseInt(e.target.value) || 48)}
+                  />
+                  <p className="text-xs text-muted-foreground">Tempo para considerar a resposta válida</p>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm">Pausa na opção 3 (dias)</Label>
+                  <Input
+                    type="number"
+                    min={7}
+                    max={90}
+                    value={settings.pause_days_on_analyzing}
+                    onChange={(e) => updateField('pause_days_on_analyzing', parseInt(e.target.value) || 30)}
+                  />
+                  <p className="text-xs text-muted-foreground">Dias sem reativação quando lead escolhe "analisando"</p>
+                </div>
+              </div>
+
+              {/* Preview */}
+              <div className="bg-muted/50 rounded-lg p-3 space-y-1">
+                <p className="text-xs font-medium">📱 Preview das opções na mensagem</p>
+                <div className="text-sm text-muted-foreground whitespace-pre-line bg-background rounded p-3 border">
+                  {`Me responde com o número da opção 👇\n\n1️⃣ ${settings.option_1_label || 'Ainda tenho interesse na festa'}\n2️⃣ ${settings.option_2_label || 'Quero ver os valores'}\n3️⃣ ${settings.option_3_label || 'Ainda estou analisando'}`}
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
