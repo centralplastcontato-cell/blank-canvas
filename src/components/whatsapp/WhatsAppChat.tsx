@@ -1418,13 +1418,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
         if (allLeads.length > 0) {
           const leadsMap: Record<string, Lead | null> = {};
-          const closedLeadIds = new Set<string>();
-          const oeLeadIds = new Set<string>();
-          
-          allLeads.forEach((lead) => {
-            if (lead.status === 'fechado') closedLeadIds.add(lead.id);
-            if (lead.status === 'orcamento_enviado') oeLeadIds.add(lead.id);
-          });
           
           data.forEach((conv: Conversation) => {
             if (conv.lead_id) {
