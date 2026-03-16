@@ -587,6 +587,18 @@ export function LeadInfoPopover({
               </div>
 
               <div className="space-y-1.5 pt-1">
+                {onShowVisitDialog && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full text-xs h-8 gap-2 rounded-xl"
+                    onClick={onShowVisitDialog}
+                  >
+                    <MapPin className="w-3.5 h-3.5" />
+                    Registrar Visita
+                  </Button>
+                )}
+
                 <Button 
                   variant="outline" 
                   size="sm" 
