@@ -237,17 +237,67 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
               )}
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Data de fechamento</span>
-                {event.data_fechamento_venda ? (
-                  <span className="font-medium">
-                    {format(new Date(event.data_fechamento_venda + "T12:00:00"), "dd/MM/yyyy")}
-                  </span>
-                ) : (
-                  <span className="text-xs text-muted-foreground/60">—</span>
-                )}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={cn(
+                        "h-7 text-xs gap-1.5 rounded-lg px-2",
+                        event.data_fechamento_venda ? "font-medium" : "text-muted-foreground/60"
+                      )}
+                      disabled={savingField === 'data_fechamento_venda'}
+                    >
+                      {savingField === 'data_fechamento_venda' ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <CalendarIcon className="h-3 w-3" />
+                      )}
+                      {event.data_fechamento_venda
+                        ? format(new Date(event.data_fechamento_venda + "T12:00:00"), "dd/MM/yyyy")
+                        : "Selecionar"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 rounded-xl shadow-lg" align="end">
+                    <Calendar
+                      mode="single"
+                      selected={event.data_fechamento_venda ? new Date(event.data_fechamento_venda + "T12:00:00") : undefined}
+                      onSelect={(date) => {
+                        if (date) {
+                          const formatted = format(date, "yyyy-MM-dd");
+                          saveCommercialField('data_fechamento_venda', formatted);
+                        }
+                      }}
+                      locale={ptBR}
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Vendedor</span>
-                <span className={vendedorName ? "font-medium" : "text-xs text-muted-foreground/60"}>{vendedorName || "—"}</span>
+                <Select
+                  value={event.vendedor_responsavel_id || "none"}
+                  onValueChange={(v) => saveCommercialField('vendedor_responsavel_id', v === "none" ? null : v)}
+                  disabled={savingField === 'vendedor_responsavel_id'}
+                >
+                  <SelectTrigger className={cn(
+                    "h-7 w-auto min-w-[120px] max-w-[180px] text-xs rounded-lg border-0 bg-transparent hover:bg-muted/50 gap-1.5 px-2",
+                    event.vendedor_responsavel_id ? "font-medium" : "text-muted-foreground/60"
+                  )}>
+                    {savingField === 'vendedor_responsavel_id' ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <SelectValue placeholder="Selecionar" />
+                    )}
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    {teamMembers.map((m) => (
+                      <SelectItem key={m.user_id} value={m.user_id}>{m.full_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
