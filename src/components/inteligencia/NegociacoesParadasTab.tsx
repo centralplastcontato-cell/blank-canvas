@@ -40,6 +40,11 @@ const SCORE_FILTER_OPTIONS = [
   { value: "baixa", label: "⚪ Baixa chance" },
 ];
 
+const MONTH_OPTIONS = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
+
 const PAGE_SIZE = 10;
 
 export function NegociacoesParadasTab({ selectedUnit }: NegociacoesParadasTabProps) {
