@@ -86,6 +86,12 @@ export function NegociacoesParadasTab({ selectedUnit }: NegociacoesParadasTabPro
     setCurrentPage(1);
   };
 
+  const availableMonths = useMemo(() => {
+    const months = new Set<string>();
+    (data || []).forEach(l => { if (l.month) months.add(l.month); });
+    return MONTH_OPTIONS.filter(m => months.has(m));
+  }, [data]);
+
   const filteredLeads = useMemo(() => {
     let leads = data || [];
 
@@ -97,6 +103,10 @@ export function NegociacoesParadasTab({ selectedUnit }: NegociacoesParadasTabPro
       leads = leads.filter(l => l.classificacao === scoreFilter);
     }
 
+    if (monthFilter !== "all") {
+      leads = leads.filter(l => l.month === monthFilter);
+    }
+
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
       leads = leads.filter(l =>
@@ -106,7 +116,7 @@ export function NegociacoesParadasTab({ selectedUnit }: NegociacoesParadasTabPro
     }
 
     return leads;
-  }, [data, statusFilter, scoreFilter, searchQuery]);
+  }, [data, statusFilter, scoreFilter, monthFilter, searchQuery]);
 
   const totalPages = Math.max(1, Math.ceil(filteredLeads.length / PAGE_SIZE));
   const paginatedLeads = filteredLeads.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
