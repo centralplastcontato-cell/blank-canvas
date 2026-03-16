@@ -2,12 +2,22 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { CalendarDays, Clock, Users, MapPin, Package, DollarSign, Pencil, Trash2, AlertTriangle, UserCheck, Gamepad2, Copy, Check, ExternalLink, Briefcase } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CalendarDays, Clock, Users, MapPin, Package, DollarSign, Pencil, Trash2, AlertTriangle, UserCheck, Gamepad2, Copy, Check, ExternalLink, Briefcase, CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { EventChecklist } from "./EventChecklist";
+import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
+
+interface TeamMember {
+  user_id: string;
+  full_name: string;
+}
 
 interface EventData {
   id: string;
@@ -45,8 +55,17 @@ const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondar
 
 export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, conflicts = [] }: EventDetailSheetProps) {
   const [leadName, setLeadName] = useState<string | null>(null);
-  const [vendedorName, setVendedorName] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [savingField, setSavingField] = useState<string | null>(null);
+  const [localFechamento, setLocalFechamento] = useState<string | null>(null);
+  const [localVendedor, setLocalVendedor] = useState<string | null>(null);
+
+  // Sync local state with event prop
+  useEffect(() => {
+    setLocalFechamento(event?.data_fechamento_venda || null);
+    setLocalVendedor(event?.vendedor_responsavel_id || null);
+  }, [event?.data_fechamento_venda, event?.vendedor_responsavel_id, event?.id]);
 
   const getControlUrl = () => `${window.location.origin}/festa/${event?.id}`;
 
@@ -69,11 +88,45 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
       .then(({ data }) => setLeadName(data?.name || null));
   }, [event?.lead_id]);
 
+  // Fetch team members for vendedor selector
   useEffect(() => {
-    if (!event?.vendedor_responsavel_id) { setVendedorName(null); return; }
-    supabase.from("profiles").select("full_name").eq("user_id", event.vendedor_responsavel_id).single()
-      .then(({ data }) => setVendedorName(data?.full_name || null));
-  }, [event?.vendedor_responsavel_id]);
+    if (!event?.company_id) return;
+    supabase
+      .from("user_companies")
+      .select("user_id, profiles!inner(full_name)")
+      .eq("company_id", event.company_id)
+      .then(({ data }) => {
+        if (data) {
+          const members = (data as any[])
+            .filter(d => d.profiles?.full_name)
+            .map(d => ({ user_id: d.user_id, full_name: d.profiles.full_name }));
+          setTeamMembers(members);
+        }
+      });
+  }, [event?.company_id]);
+
+  const saveCommercialField = async (field: string, value: string | null) => {
+    if (!event) return;
+    // Optimistic update
+    if (field === 'data_fechamento_venda') setLocalFechamento(value);
+    if (field === 'vendedor_responsavel_id') setLocalVendedor(value);
+
+    setSavingField(field);
+    console.log('[EventDetail:CommercialUpdate]', { eventId: event.id, field, value });
+    const { error } = await supabase
+      .from("company_events")
+      .update({ [field]: value })
+      .eq("id", event.id);
+    if (error) {
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+      // Revert on error
+      if (field === 'data_fechamento_venda') setLocalFechamento(event.data_fechamento_venda || null);
+      if (field === 'vendedor_responsavel_id') setLocalVendedor(event.vendedor_responsavel_id || null);
+    } else {
+      toast({ title: "Dados comerciais atualizados!" });
+    }
+    setSavingField(null);
+  };
 
   if (!event) return null;
 
@@ -184,31 +237,81 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
               Dados Comerciais
             </div>
             <div className="space-y-2 text-sm">
-              {(!event.data_fechamento_venda || !event.vendedor_responsavel_id) && (
+              {(!localFechamento || !localVendedor) && (
                 <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 mb-2">
                   <AlertTriangle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
                   <div>
                     <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">Dados comerciais incompletos</p>
                     <ul className="text-[11px] text-amber-600 dark:text-amber-500 mt-0.5 space-y-0.5">
-                      {!event.data_fechamento_venda && <li>• Data de fechamento não definida</li>}
-                      {!event.vendedor_responsavel_id && <li>• Vendedor não definido</li>}
+                      {!localFechamento && <li>• Data de fechamento não definida</li>}
+                      {!localVendedor && <li>• Vendedor não definido</li>}
                     </ul>
                   </div>
                 </div>
               )}
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Data de fechamento</span>
-                {event.data_fechamento_venda ? (
-                  <span className="font-medium">
-                    {format(new Date(event.data_fechamento_venda + "T12:00:00"), "dd/MM/yyyy")}
-                  </span>
-                ) : (
-                  <span className="text-xs text-muted-foreground/60">—</span>
-                )}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={cn(
+                        "h-7 text-xs gap-1.5 rounded-lg px-2",
+                        localFechamento ? "font-medium" : "text-muted-foreground/60"
+                      )}
+                      disabled={savingField === 'data_fechamento_venda'}
+                    >
+                      {savingField === 'data_fechamento_venda' ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <CalendarIcon className="h-3 w-3" />
+                      )}
+                      {localFechamento
+                        ? format(new Date(localFechamento + "T12:00:00"), "dd/MM/yyyy")
+                        : "Selecionar"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 rounded-xl shadow-lg" align="end">
+                    <Calendar
+                      mode="single"
+                      selected={localFechamento ? new Date(localFechamento + "T12:00:00") : undefined}
+                      onSelect={(date) => {
+                        if (date) {
+                          const formatted = format(date, "yyyy-MM-dd");
+                          saveCommercialField('data_fechamento_venda', formatted);
+                        }
+                      }}
+                      locale={ptBR}
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Vendedor</span>
-                <span className={vendedorName ? "font-medium" : "text-xs text-muted-foreground/60"}>{vendedorName || "—"}</span>
+                <Select
+                  value={localVendedor || "none"}
+                  onValueChange={(v) => saveCommercialField('vendedor_responsavel_id', v === "none" ? null : v)}
+                  disabled={savingField === 'vendedor_responsavel_id'}
+                >
+                  <SelectTrigger className={cn(
+                    "h-7 w-auto min-w-[120px] max-w-[180px] text-xs rounded-lg border-0 bg-transparent hover:bg-muted/50 gap-1.5 px-2",
+                    localVendedor ? "font-medium" : "text-muted-foreground/60"
+                  )}>
+                    {savingField === 'vendedor_responsavel_id' ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <SelectValue placeholder="Selecionar" />
+                    )}
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    {teamMembers.map((m) => (
+                      <SelectItem key={m.user_id} value={m.user_id}>{m.full_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
