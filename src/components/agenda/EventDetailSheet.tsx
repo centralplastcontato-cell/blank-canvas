@@ -81,11 +81,38 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
       .then(({ data }) => setLeadName(data?.name || null));
   }, [event?.lead_id]);
 
+  // Fetch team members for vendedor selector
   useEffect(() => {
-    if (!event?.vendedor_responsavel_id) { setVendedorName(null); return; }
-    supabase.from("profiles").select("full_name").eq("user_id", event.vendedor_responsavel_id).single()
-      .then(({ data }) => setVendedorName(data?.full_name || null));
-  }, [event?.vendedor_responsavel_id]);
+    if (!event?.company_id) return;
+    supabase
+      .from("user_companies")
+      .select("user_id, profiles!inner(full_name)")
+      .eq("company_id", event.company_id)
+      .then(({ data }) => {
+        if (data) {
+          const members = (data as any[])
+            .filter(d => d.profiles?.full_name)
+            .map(d => ({ user_id: d.user_id, full_name: d.profiles.full_name }));
+          setTeamMembers(members);
+        }
+      });
+  }, [event?.company_id]);
+
+  const saveCommercialField = async (field: string, value: string | null) => {
+    if (!event) return;
+    setSavingField(field);
+    console.log('[EventDetail:CommercialUpdate]', { eventId: event.id, field, value });
+    const { error } = await supabase
+      .from("company_events")
+      .update({ [field]: value })
+      .eq("id", event.id);
+    if (error) {
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Dados comerciais atualizados!" });
+    }
+    setSavingField(null);
+  };
 
   if (!event) return null;
 
