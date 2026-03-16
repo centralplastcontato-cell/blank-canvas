@@ -63,3 +63,6 @@ verify_jwt = false
 [functions.resize-image]
 verify_jwt = false
 
+[functions.reactivation-engine]
+verify_jwt = false
+

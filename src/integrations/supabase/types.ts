@@ -112,6 +112,92 @@ export type Database = {
           },
         ]
       }
+      automation_reactivation_settings: {
+        Row: {
+          company_id: string
+          created_at: string
+          eligible_statuses: string[] | null
+          exclude_closed: boolean
+          exclude_existing_event: boolean
+          exclude_lost: boolean
+          id: string
+          is_enabled: boolean
+          max_messages_per_lead: number
+          message_one_month: string | null
+          message_three_months: string | null
+          message_two_months: string | null
+          min_days_without_reply: number
+          require_human_interaction: boolean
+          require_party_date: boolean
+          safety_interval_max_seconds: number
+          safety_interval_min_seconds: number
+          send_window_end: number
+          send_window_start: number
+          trigger_one_month_enabled: boolean
+          trigger_three_months_enabled: boolean
+          trigger_two_months_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          eligible_statuses?: string[] | null
+          exclude_closed?: boolean
+          exclude_existing_event?: boolean
+          exclude_lost?: boolean
+          id?: string
+          is_enabled?: boolean
+          max_messages_per_lead?: number
+          message_one_month?: string | null
+          message_three_months?: string | null
+          message_two_months?: string | null
+          min_days_without_reply?: number
+          require_human_interaction?: boolean
+          require_party_date?: boolean
+          safety_interval_max_seconds?: number
+          safety_interval_min_seconds?: number
+          send_window_end?: number
+          send_window_start?: number
+          trigger_one_month_enabled?: boolean
+          trigger_three_months_enabled?: boolean
+          trigger_two_months_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          eligible_statuses?: string[] | null
+          exclude_closed?: boolean
+          exclude_existing_event?: boolean
+          exclude_lost?: boolean
+          id?: string
+          is_enabled?: boolean
+          max_messages_per_lead?: number
+          message_one_month?: string | null
+          message_three_months?: string | null
+          message_two_months?: string | null
+          min_days_without_reply?: number
+          require_human_interaction?: boolean
+          require_party_date?: boolean
+          safety_interval_max_seconds?: number
+          safety_interval_min_seconds?: number
+          send_window_end?: number
+          send_window_start?: number
+          trigger_one_month_enabled?: boolean
+          trigger_three_months_enabled?: boolean
+          trigger_two_months_enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_reactivation_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       b2b_leads: {
         Row: {
           city: string | null
@@ -2221,6 +2307,73 @@ export type Database = {
             foreignKeyName: "lead_intelligence_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: true
+            referencedRelation: "campaign_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_reactivation_history: {
+        Row: {
+          company_id: string
+          conversation_id: string | null
+          created_at: string
+          failure_reason: string | null
+          id: string
+          lead_id: string
+          message_sent: string | null
+          reactivation_stage: string
+          reactivation_type: string
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          conversation_id?: string | null
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          lead_id: string
+          message_sent?: string | null
+          reactivation_stage: string
+          reactivation_type?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          conversation_id?: string | null
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          lead_id?: string
+          message_sent?: string | null
+          reactivation_stage?: string
+          reactivation_type?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_reactivation_history_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_reactivation_history_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "wapi_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_reactivation_history_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "campaign_leads"
             referencedColumns: ["id"]
           },

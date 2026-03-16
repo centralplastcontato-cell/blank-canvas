@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useNegociacoesParadas, type NegociacaoParada } from "@/hooks/useNegociacoesParadas";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageSquare, Clock, AlertTriangle, User, Calendar, Radar, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { MessageSquare, Clock, AlertTriangle, User, Calendar, Radar, Search, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ScoreBadge } from "./ScoreBadge";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
 
 interface NegociacoesParadasTabProps {
   selectedUnit?: string;
@@ -42,12 +44,36 @@ const PAGE_SIZE = 10;
 
 export function NegociacoesParadasTab({ selectedUnit }: NegociacoesParadasTabProps) {
   const navigate = useNavigate();
+  const { currentCompanyId } = useCompany();
   const [stalledDays, setStalledDays] = useState("10");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [scoreFilter, setScoreFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [reactivationMap, setReactivationMap] = useState<Record<string, { stage: string; sent_at: string }>>({});
   const { data, isLoading } = useNegociacoesParadas(Number(stalledDays), selectedUnit);
+
+  // Fetch reactivation history for visible leads
+  useEffect(() => {
+    if (!currentCompanyId || !data?.length) return;
+    const leadIds = data.map(d => d.leadId);
+    supabase
+      .from('lead_reactivation_history')
+      .select('lead_id, reactivation_stage, sent_at')
+      .eq('company_id', currentCompanyId)
+      .eq('status', 'sent')
+      .in('lead_id', leadIds)
+      .order('sent_at', { ascending: false })
+      .then(({ data: history }) => {
+        const map: Record<string, { stage: string; sent_at: string }> = {};
+        for (const h of (history || [])) {
+          if (!map[h.lead_id]) {
+            map[h.lead_id] = { stage: h.reactivation_stage, sent_at: h.sent_at };
+          }
+        }
+        setReactivationMap(map);
+      });
+  }, [currentCompanyId, data]);
 
   const handleFilterChange = (setter: (v: string) => void) => (value: string) => {
     setter(value);
@@ -212,6 +238,12 @@ export function NegociacoesParadasTab({ selectedUnit }: NegociacoesParadasTabPro
                         <span className="text-orange-600 dark:text-orange-400 font-medium">{lead.motivo}</span>
                       </div>
                       <ScoreBadge score={lead.scoreFechamento} classificacao={lead.classificacao} />
+                      {reactivationMap[lead.leadId] && (
+                        <Badge variant="outline" className="text-xs gap-1 border-primary/30 text-primary">
+                          <Sparkles className="h-3 w-3" />
+                          Reativação enviada
+                        </Badge>
+                      )}
                     </div>
                   </div>
 

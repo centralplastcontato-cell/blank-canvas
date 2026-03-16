@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bot, Clock, Forward, Zap, Plus, Trash2, Phone, Shield, Beaker, Power, Loader2, MessageSquare, Save, RotateCcw, Images, Video, FileText, Send, RefreshCw, GitBranch, Map, GripVertical, Workflow, Globe2 } from "lucide-react";
+import { Bot, Clock, Forward, Zap, Plus, Trash2, Phone, Shield, Beaker, Power, Loader2, MessageSquare, Save, RotateCcw, Images, Video, FileText, Send, RefreshCw, GitBranch, Map, GripVertical, Workflow, Globe2, Sparkles } from "lucide-react";
 import { LPBotSection } from "./LPBotSection";
 import { FreelancerApprovalMessageCard } from "./FreelancerApprovalMessageCard";
 import { ScheduleGroupMessageCard } from "./ScheduleGroupMessageCard";
@@ -20,6 +20,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { BotJourneyDiagram } from "./BotJourneyDiagram";
+import { ReactivationSection } from "./ReactivationSection";
 import { PartyBotMessagesCard } from "./PartyBotMessagesCard";
 import {
   DndContext,
@@ -799,6 +800,10 @@ export function AutomationsSection() {
           <TabsTrigger value="bot-lp" className="flex items-center gap-1.5 text-xs sm:text-sm">
             <Globe2 className="w-3.5 h-3.5" />
             <span>Bot LP</span>
+          </TabsTrigger>
+          <TabsTrigger value="reativacao" className="flex items-center gap-1.5 text-xs sm:text-sm">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Reativação</span>
           </TabsTrigger>
         </TabsList>
 
@@ -2364,6 +2369,11 @@ export function AutomationsSection() {
         {/* ============ TAB: BOT LP ============ */}
         <TabsContent value="bot-lp" className="mt-4">
           <LPBotSection />
+        </TabsContent>
+
+        {/* ============ TAB: REATIVAÇÃO INTELIGENTE ============ */}
+        <TabsContent value="reativacao" className="mt-4">
+          <ReactivationSection />
         </TabsContent>
       </Tabs>
     </div>
