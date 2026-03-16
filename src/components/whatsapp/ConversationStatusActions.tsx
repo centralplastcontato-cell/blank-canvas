@@ -171,24 +171,25 @@ export function ConversationStatusActions({
       // Update local state IMMEDIATELY after DB success to prevent double-clicks
       onStatusChange?.(linkedLead.id, newStatus);
 
-      const statusColors: Record<string, string> = {
-        novo: 'border-l-blue-500',
-        trabalhe_conosco: 'border-l-teal-500',
-        em_contato: 'border-l-yellow-500',
-        orcamento_enviado: 'border-l-purple-500',
-        aguardando_resposta: 'border-l-orange-500',
-        fechado: 'border-l-green-500',
-        perdido: 'border-l-red-500',
-        transferido: 'border-l-cyan-500',
-        fornecedor: 'border-l-indigo-500',
-        cliente_retorno: 'border-l-emerald-500',
-        outros: 'border-l-gray-500',
+      const statusHexColors: Record<string, string> = {
+        novo: '#3b82f6',
+        trabalhe_conosco: '#14b8a6',
+        em_contato: '#eab308',
+        orcamento_enviado: '#a855f7',
+        aguardando_resposta: '#f97316',
+        fechado: '#22c55e',
+        perdido: '#ef4444',
+        transferido: '#06b6d4',
+        fornecedor: '#6366f1',
+        cliente_retorno: '#ec4899',
+        outros: '#6b7280',
       };
 
       toast({
         title: "Status atualizado",
         description: `Lead movido para "${statusLabels[newStatus]}".`,
-        className: `border-l-4 ${statusColors[newStatus] || ''}`,
+        className: "border-l-4",
+        style: { borderLeftColor: statusHexColors[newStatus] || '#6b7280' },
       });
 
       // Add history entry in background (non-blocking)
