@@ -4180,43 +4180,52 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                   const raw = msg.content?.replace(/^\[Contato\]\s*/, '').replace(/^👤\s*/, '') || 'Contato';
                                   const parts = raw.split(' - ');
                                   const contactDisplayName = parts[0]?.trim() || 'Contato';
-                                  const contactPhoneNum = parts[1]?.trim() || '';
+                                  const contactPhoneNum = parts.slice(1).join(' - ')?.trim() || '';
                                   return (
                                     <div className={cn(
-                                      "flex items-center gap-3 p-2.5 rounded-lg border min-w-[200px]",
+                                      "rounded-xl overflow-hidden min-w-[220px] max-w-[280px]",
                                       msg.from_me
-                                        ? "border-primary-foreground/20 bg-primary-foreground/10"
-                                        : "border-border bg-muted/30"
+                                        ? "border border-primary-foreground/15"
+                                        : "border border-border shadow-sm"
                                     )}>
+                                      {/* Header */}
                                       <div className={cn(
-                                        "p-2 rounded-full",
-                                        msg.from_me ? "bg-primary-foreground/20" : "bg-primary/10"
+                                        "flex items-center gap-3 px-3 py-2.5",
+                                        msg.from_me ? "bg-primary-foreground/10" : "bg-muted/50"
                                       )}>
-                                        <Users className={cn("w-4 h-4", msg.from_me ? "text-primary-foreground" : "text-primary")} />
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                        <p className={cn("text-sm font-medium truncate", msg.from_me ? "text-primary-foreground" : "text-foreground")}>
-                                          {contactDisplayName}
-                                        </p>
-                                        {contactPhoneNum && (
-                                          <p
-                                            className={cn("text-xs truncate cursor-pointer hover:underline", msg.from_me ? "text-primary-foreground/70" : "text-muted-foreground")}
-                                            onClick={() => { navigator.clipboard.writeText(contactPhoneNum); toast({ title: "Telefone copiado!", description: contactPhoneNum }); }}
-                                            title="Clique para copiar"
-                                          >
-                                            📞 {contactPhoneNum}
+                                        <div className={cn(
+                                          "w-9 h-9 rounded-full flex items-center justify-center shrink-0",
+                                          msg.from_me
+                                            ? "bg-primary-foreground/20"
+                                            : "bg-gradient-to-br from-primary/20 to-primary/5"
+                                        )}>
+                                          <Users className={cn("w-4 h-4", msg.from_me ? "text-primary-foreground" : "text-primary")} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <p className={cn("text-sm font-semibold truncate leading-tight", msg.from_me ? "text-primary-foreground" : "text-foreground")}>
+                                            {contactDisplayName}
                                           </p>
-                                        )}
+                                          {contactPhoneNum && (
+                                            <p className={cn("text-xs truncate mt-0.5", msg.from_me ? "text-primary-foreground/60" : "text-muted-foreground")}>
+                                              {contactPhoneNum}
+                                            </p>
+                                          )}
+                                        </div>
                                       </div>
+                                      {/* Action footer */}
                                       {contactPhoneNum && (
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className={cn("h-7 w-7 shrink-0", msg.from_me ? "text-primary-foreground/70 hover:text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
+                                        <button
+                                          className={cn(
+                                            "w-full flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors border-t",
+                                            msg.from_me
+                                              ? "border-primary-foreground/15 text-primary-foreground/80 hover:bg-primary-foreground/10"
+                                              : "border-border text-primary hover:bg-primary/5"
+                                          )}
                                           onClick={() => { navigator.clipboard.writeText(contactPhoneNum); toast({ title: "Telefone copiado!", description: contactPhoneNum }); }}
                                         >
-                                          <Copy className="h-3.5 w-3.5" />
-                                        </Button>
+                                          <Copy className="w-3 h-3" />
+                                          Copiar telefone
+                                        </button>
                                       )}
                                     </div>
                                   );
