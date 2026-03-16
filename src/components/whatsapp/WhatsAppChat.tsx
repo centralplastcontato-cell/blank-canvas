@@ -5363,7 +5363,19 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                               )}
                             >
 {(msg.message_type === 'image' || msg.message_type === 'video' || msg.message_type === 'audio' || msg.message_type === 'document') && (
-                              <div className={(msg.message_type === 'image' || msg.message_type === 'video') ? "" : "mb-2"}>
+                              <div className={cn(
+                                "relative",
+                                (msg.message_type === 'image' || msg.message_type === 'video') ? "" : "mb-2"
+                              )}>
+                                {isSelectMode && msg.message_type === 'image' && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); toggleMediaSelection(msg.id); }}
+                                    className="absolute top-2 left-2 z-10 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all bg-background/80 backdrop-blur-sm hover:bg-background"
+                                    style={{ borderColor: selectedMediaIds.has(msg.id) ? 'hsl(var(--primary))' : 'hsl(var(--border))' }}
+                                  >
+                                    {selectedMediaIds.has(msg.id) && <Check className="w-4 h-4 text-primary" />}
+                                  </button>
+                                )}
                                 <MediaMessage
                                   messageId={msg.message_id}
                                   mediaType={msg.message_type as 'image' | 'video' | 'audio' | 'document'}
