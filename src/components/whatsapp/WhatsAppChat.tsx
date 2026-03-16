@@ -2965,33 +2965,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       return updated;
     });
 
-    // Update the closedLeadConversationIds and orcamentoEnviadoConversationIds
-    setClosedLeadConversationIds(prev => {
-      const updated = new Set(prev);
-      // Find the conversation with this lead
-      const conv = conversations.find(c => c.lead_id === leadId);
-      if (conv) {
-        if (newStatus === 'fechado') {
-          updated.add(conv.id);
-        } else {
-          updated.delete(conv.id);
-        }
-      }
-      return updated;
-    });
-
-    setOrcamentoEnviadoConversationIds(prev => {
-      const updated = new Set(prev);
-      const conv = conversations.find(c => c.lead_id === leadId);
-      if (conv) {
-        if (newStatus === 'orcamento_enviado') {
-          updated.add(conv.id);
-        } else {
-          updated.delete(conv.id);
-        }
-      }
-      return updated;
-    });
 
     // Update linkedLead if it's the same lead - use functional update to avoid stale closure
     setLinkedLead(prevLead => {
