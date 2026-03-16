@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
-import { X, Send, Loader2, Headset, Lightbulb, Bug, HelpCircle, TicketCheck } from "lucide-react";
+import { X, Send, Loader2, Bot, Lightbulb, Bug, HelpCircle, TicketCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 
