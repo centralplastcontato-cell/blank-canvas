@@ -330,7 +330,9 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
           {/* Checklist */}
           {event.company_id && (
             <div className="rounded-xl border border-border/40 bg-card shadow-sm overflow-hidden">
-              <EventChecklist eventId={event.id} companyId={event.company_id} />
+              <div className="p-4">
+                <EventChecklist eventId={event.id} companyId={event.company_id} />
+              </div>
             </div>
           )}
 
