@@ -86,12 +86,15 @@ Deno.serve(async (req) => {
     console.log(`[link-orphans] Processing ${company.name}...`);
 
     // Get orphan conversations (no lead_id, not groups)
+    // Use raw filter to ensure NULL check works correctly
     const { data: orphans } = await supabase
       .from("wapi_conversations")
       .select("id, contact_phone, contact_name, remote_jid, instance_key")
       .eq("company_id", company.id)
       .is("lead_id", null)
       .not("remote_jid", "like", "%@g.us");
+
+    console.log(`[link-orphans] ${company.name}: found ${orphans?.length ?? 0} orphan conversations`);
 
     if (!orphans || orphans.length === 0) {
       report.push({
