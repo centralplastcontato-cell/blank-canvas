@@ -20,6 +20,7 @@ import { FunilTab } from "@/components/inteligencia/FunilTab";
 import { RelatoriosComerciais } from "@/components/inteligencia/RelatoriosComerciais";
 import { LeadsDoDiaTab } from "@/components/inteligencia/LeadsDoDiaTab";
 import { ResumoDiarioTab } from "@/components/inteligencia/ResumoDiarioTab";
+import { NegociacoesParadasTab } from "@/components/inteligencia/NegociacoesParadasTab";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
