@@ -296,9 +296,19 @@ export function NegociacoesParadasTab({ selectedUnit }: NegociacoesParadasTabPro
                       </div>
                       <ScoreBadge score={lead.scoreFechamento} classificacao={lead.classificacao} />
                       {reactivationMap[lead.leadId] && (
-                        <Badge variant="outline" className="text-xs gap-1 border-primary/30 text-primary">
+                        <Badge 
+                          variant="outline" 
+                          className={`text-xs gap-1 ${
+                            reactivationMap[lead.leadId].replied 
+                              ? "border-green-500/30 text-green-600" 
+                              : "border-primary/30 text-primary"
+                          }`}
+                        >
                           <Sparkles className="h-3 w-3" />
-                          Reativação enviada
+                          {reactivationMap[lead.leadId].replied 
+                            ? `Respondeu: ${reactivationMap[lead.leadId].option_label || 'opção selecionada'}`
+                            : 'Reativação enviada'
+                          }
                         </Badge>
                       )}
                     </div>
