@@ -846,25 +846,27 @@ Deno.serve(async (req) => {
         
         const vcard = `BEGIN:VCARD\nVERSION:3.0\nFN:${contactName}\nTEL;type=CELL;waid=${cleanContactPhone}:+${cleanContactPhone}\nEND:VCARD`;
 
-        const res = await wapiRequest(
+        const contactPayload = {
+          contact: {
+            fullName: contactName,
+            organization: '',
+            phoneNumber: `+${cleanContactPhone}`,
+            wuid: cleanContactPhone,
+            displayName: contactName,
+          },
+          name: {
+            formatted_name: contactName,
+            first_name: contactName,
+          },
+          vcard,
+        };
+
+        const res = await sendMediaWithGroupFallback(
           `${WAPI_BASE_URL}/message/send-contact?instanceId=${instance_id}`,
           instance_token,
-          'POST',
-          {
-            phone,
-            contact: {
-              fullName: contactName,
-              organization: '',
-              phoneNumber: `+${cleanContactPhone}`,
-              wuid: cleanContactPhone,
-              displayName: contactName,
-            },
-            name: {
-              formatted_name: contactName,
-              first_name: contactName,
-            },
-            vcard,
-          }
+          phone,
+          contactPayload,
+          'send-contact'
         );
         
         if (!res.ok) {
