@@ -230,6 +230,11 @@ export function NegociacoesParadasTab({ selectedUnit }: NegociacoesParadasTabPro
                         <Calendar className="h-3.5 w-3.5" />
                         Última msg: {format(new Date(lead.lastMessageAt), "dd/MM/yy 'às' HH:mm", { locale: ptBR })}
                       </span>
+                      {lead.month && (
+                        <Badge variant="outline" className="text-xs gap-1">
+                          🎂 Festa: {lead.month}
+                        </Badge>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-3 flex-wrap">
