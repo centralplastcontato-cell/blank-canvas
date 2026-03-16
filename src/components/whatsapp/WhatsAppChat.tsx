@@ -2807,10 +2807,14 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
   const filteredConversations = conversations
     .filter((conv) => {
-      // Apply text search
-      const matchesSearch = (conv.contact_name || conv.contact_phone)
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
+      // Apply text search (normalize phone digits for matching)
+      const searchLower = searchQuery.toLowerCase();
+      const nameMatch = (conv.contact_name || '').toLowerCase().includes(searchLower);
+      const phoneMatch = conv.contact_phone.toLowerCase().includes(searchLower);
+      const digitsOnly = searchQuery.replace(/\D/g, '');
+      const convDigits = conv.contact_phone.replace(/\D/g, '');
+      const digitMatch = digitsOnly.length >= 4 && (convDigits.includes(digitsOnly) || digitsOnly.includes(convDigits));
+      const matchesSearch = nameMatch || phoneMatch || digitMatch;
       
       // Apply filter
       if (filter === 'unread') return matchesSearch && conv.unread_count > 0;
@@ -4238,9 +4242,19 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                                 : "text-primary hover:bg-primary/5"
                                             )}
                                             onClick={() => {
-                                              const cleanPhone = contactPhoneNum.replace(/[^0-9+]/g, '');
-                                              setSearchQuery(cleanPhone);
-                                              setSelectedConversation(null);
+                                              const cleanPhone = contactPhoneNum.replace(/\D/g, '');
+                                              // Try to find existing conversation by phone digits
+                                              const match = conversations.find(c => {
+                                                const cDigits = c.contact_phone.replace(/\D/g, '');
+                                                return cDigits.includes(cleanPhone) || cleanPhone.includes(cDigits);
+                                              });
+                                              if (match) {
+                                                setSelectedConversation(match);
+                                                setSearchQuery('');
+                                              } else {
+                                                setSearchQuery(cleanPhone);
+                                                setSelectedConversation(null);
+                                              }
                                             }}
                                           >
                                             <MessageSquare className="w-3 h-3" />
@@ -5219,9 +5233,18 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                             : "text-primary hover:bg-primary/5"
                                         )}
                                         onClick={() => {
-                                          const cleanPhone = contactPhoneNum.replace(/[^0-9+]/g, '');
-                                          setSearchQuery(cleanPhone);
-                                          setSelectedConversation(null);
+                                          const cleanPhone = contactPhoneNum.replace(/\D/g, '');
+                                          const match = conversations.find(c => {
+                                            const cDigits = c.contact_phone.replace(/\D/g, '');
+                                            return cDigits.includes(cleanPhone) || cleanPhone.includes(cDigits);
+                                          });
+                                          if (match) {
+                                            setSelectedConversation(match);
+                                            setSearchQuery('');
+                                          } else {
+                                            setSearchQuery(cleanPhone);
+                                            setSelectedConversation(null);
+                                          }
                                         }}
                                       >
                                         <MessageSquare className="w-3 h-3" />
