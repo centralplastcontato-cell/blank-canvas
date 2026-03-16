@@ -31,7 +31,7 @@ import { NotificationBell } from "@/components/admin/NotificationBell";
 export default function Inteligencia() {
   const navigate = useNavigate();
   const modules = useCompanyModules();
-  const [activeTab, setActiveTab] = useState("resumo");
+  const [activeTab, setActiveTab] = useState("relatorios");
   const { data, isLoading, refetch } = useLeadIntelligence(true);
   const { data: stageDurations, isLoading: isDurationsLoading } = useLeadStageDurations(activeTab === "funil");
   const { currentCompany } = useCompany();
