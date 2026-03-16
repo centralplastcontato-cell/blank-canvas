@@ -7,3 +7,4 @@ export { AdvancedSection } from './AdvancedSection';
 export { VisualGuideSection } from './VisualGuideSection';
 export { SalesMaterialsSection } from './SalesMaterialsSection';
 export { CaptionsCard } from './CaptionsCard';
+export { ReactivationSection } from './ReactivationSection';
