@@ -4663,6 +4663,42 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                     )}
                   </div>
 
+                  {/* Batch download floating bar - Desktop */}
+                  {isSelectMode && (
+                    <div className="px-4 py-2 border-t border-border/40 bg-primary/5 flex items-center justify-between gap-2 shrink-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-foreground">
+                          {selectedMediaIds.size} imagem(ns) selecionada(s)
+                        </span>
+                        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={selectAllImages}>
+                          Selecionar todas
+                        </Button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => { setIsSelectMode(false); setSelectedMediaIds(new Set()); }}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs"
+                          disabled={selectedMediaIds.size === 0 || isBatchDownloading}
+                          onClick={handleBatchDownload}
+                        >
+                          {isBatchDownloading ? (
+                            <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Baixando...</>
+                          ) : (
+                            <><Download className="w-3 h-3 mr-1" /> Baixar ZIP</>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Message Input */}
                   <div className="px-4 py-3 border-t border-border/40 shrink-0 bg-card">
                     {/* Reply preview bar */}
