@@ -327,12 +327,84 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     ? messages.filter(m => m.content && m.content.toLowerCase().includes(messageSearchQuery.toLowerCase())).map(m => m.id)
     : [];
   
-  // Clear message search when conversation changes
+  // Clear message search and select mode when conversation changes
   useEffect(() => {
     setMessageSearchActive(false);
     setMessageSearchQuery("");
     setCurrentSearchIndex(0);
+    setIsSelectMode(false);
+    setSelectedMediaIds(new Set());
   }, [selectedConversation?.id]);
+
+  // Toggle media selection
+  const toggleMediaSelection = useCallback((msgId: string) => {
+    setSelectedMediaIds(prev => {
+      const next = new Set(prev);
+      if (next.has(msgId)) next.delete(msgId);
+      else next.add(msgId);
+      return next;
+    });
+  }, []);
+
+  // Select all images in current conversation
+  const selectAllImages = useCallback(() => {
+    const imageIds = messages
+      .filter(m => m.message_type === 'image' && m.media_url && !m.media_url.includes('.enc'))
+      .map(m => m.id);
+    setSelectedMediaIds(new Set(imageIds));
+  }, [messages]);
+
+  // Batch download selected images as ZIP
+  const handleBatchDownload = useCallback(async () => {
+    if (selectedMediaIds.size === 0) return;
+    setIsBatchDownloading(true);
+
+    try {
+      const zip = new JSZip();
+      const selectedMessages = messages.filter(m => selectedMediaIds.has(m.id) && m.media_url);
+      let index = 0;
+
+      for (const msg of selectedMessages) {
+        try {
+          const response = await fetch(msg.media_url!);
+          if (!response.ok) continue;
+          const blob = await response.blob();
+          const ext = blob.type.includes('png') ? 'png' : blob.type.includes('webp') ? 'webp' : 'jpg';
+          const timestamp = format(new Date(msg.timestamp), 'yyyyMMdd_HHmmss');
+          zip.file(`imagem_${timestamp}_${index + 1}.${ext}`, blob);
+          index++;
+        } catch {
+          console.warn(`Failed to fetch image ${msg.id}`);
+        }
+      }
+
+      if (index === 0) {
+        toast({ title: "Nenhuma imagem disponível", description: "As imagens selecionadas não puderam ser baixadas.", variant: "destructive" });
+        return;
+      }
+
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const convName = selectedConversation?.contact_name || 'imagens';
+      const safeName = convName.replace(/[^a-zA-Z0-9À-ú]/g, '_').slice(0, 30);
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${safeName}_${format(new Date(), 'yyyyMMdd')}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({ title: "Download concluído", description: `${index} imagem(ns) baixada(s) com sucesso.` });
+      setIsSelectMode(false);
+      setSelectedMediaIds(new Set());
+    } catch (err) {
+      console.error('Batch download error:', err);
+      toast({ title: "Erro no download", description: "Ocorreu um erro ao baixar as imagens.", variant: "destructive" });
+    } finally {
+      setIsBatchDownloading(false);
+    }
+  }, [selectedMediaIds, messages, selectedConversation, toast]);
 
   // Navigate search results
   const navigateSearchResult = useCallback((direction: 'prev' | 'next') => {
