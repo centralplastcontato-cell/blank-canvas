@@ -465,6 +465,56 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     }
   }, [selectedMediaIds, messages, selectedConversation, toast]);
 
+  // Batch download selected images individually (one file per image)
+  const handleBatchDownloadIndividual = useCallback(async () => {
+    if (selectedMediaIds.size === 0) return;
+    setIsBatchDownloading(true);
+
+    try {
+      const selectedMessages = messages.filter(m => selectedMediaIds.has(m.id) && m.media_url);
+      let downloaded = 0;
+
+      for (const msg of selectedMessages) {
+        try {
+          const response = await fetch(msg.media_url!);
+          if (!response.ok) continue;
+          const blob = await response.blob();
+          const ext = blob.type.includes('png') ? 'png' : blob.type.includes('webp') ? 'webp' : 'jpg';
+          const timestamp = format(new Date(msg.timestamp), 'yyyyMMdd_HHmmss');
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `imagem_${timestamp}_${downloaded + 1}.${ext}`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          downloaded++;
+          // Small delay between downloads to avoid browser blocking
+          if (downloaded < selectedMessages.length) {
+            await new Promise(r => setTimeout(r, 300));
+          }
+        } catch {
+          console.warn(`Failed to fetch image ${msg.id}`);
+        }
+      }
+
+      if (downloaded === 0) {
+        toast({ title: "Nenhuma imagem disponível", description: "As imagens selecionadas não puderam ser baixadas.", variant: "destructive" });
+        return;
+      }
+
+      toast({ title: "Download concluído", description: `${downloaded} imagem(ns) salva(s) individualmente.` });
+      setIsSelectMode(false);
+      setSelectedMediaIds(new Set());
+    } catch (err) {
+      console.error('Individual download error:', err);
+      toast({ title: "Erro no download", description: "Ocorreu um erro ao baixar as imagens.", variant: "destructive" });
+    } finally {
+      setIsBatchDownloading(false);
+    }
+  }, [selectedMediaIds, messages, toast]);
+
   // Navigate search results
   const navigateSearchResult = useCallback((direction: 'prev' | 'next') => {
     if (messageSearchResults.length === 0) return;
