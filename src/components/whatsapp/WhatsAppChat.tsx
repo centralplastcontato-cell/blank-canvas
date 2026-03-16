@@ -1793,6 +1793,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       );
       setSelectedConversation({ ...selectedConversation, lead_id: leadToLink.id });
 
+      // Sync has_scheduled_visit when creating/classifying as em_contato
+      if (status === 'em_contato') {
+        await supabase.from('wapi_conversations').update({ has_scheduled_visit: true }).eq('id', selectedConversation.id);
+        setConversations(prev => prev.map(c => c.id === selectedConversation.id ? { ...c, has_scheduled_visit: true } : c));
+        setSelectedConversation(prev => prev ? { ...prev, has_scheduled_visit: true } : prev);
+      }
+
       if (triggerFestaOnClose && status === 'fechado') {
         console.log('[Lead:Fechado->NovaFesta:mobile]', {
           leadId: leadToLink.id,
@@ -4014,6 +4021,16 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                   const updatedLead = { ...linkedLead, status: statusOption.value };
                                   setLinkedLead(updatedLead);
 
+                                  // Sync has_scheduled_visit with em_contato status
+                                  if (newStatus === 'em_contato' || oldStatus === 'em_contato') {
+                                    const shouldHaveVisit = newStatus === 'em_contato';
+                                    if (selectedConversation) {
+                                      await supabase.from('wapi_conversations').update({ has_scheduled_visit: shouldHaveVisit }).eq('id', selectedConversation.id);
+                                      setConversations(prev => prev.map(c => c.id === selectedConversation.id ? { ...c, has_scheduled_visit: shouldHaveVisit } : c));
+                                      setSelectedConversation({ ...selectedConversation, has_scheduled_visit: shouldHaveVisit });
+                                    }
+                                  }
+
                                   if (newStatus === 'fechado') {
                                     void onLeadClosedMobile?.(updatedLead);
                                   }
@@ -5037,6 +5054,16 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                 const updatedLead = { ...linkedLead, status: statusOption.value };
                                 setLinkedLead(updatedLead);
                                 setMobileStatusExpanded(false);
+
+                                // Sync has_scheduled_visit with em_contato status
+                                if (newStatus === 'em_contato' || oldStatus === 'em_contato') {
+                                  const shouldHaveVisit = newStatus === 'em_contato';
+                                  if (selectedConversation) {
+                                    await supabase.from('wapi_conversations').update({ has_scheduled_visit: shouldHaveVisit }).eq('id', selectedConversation.id);
+                                    setConversations(prev => prev.map(c => c.id === selectedConversation.id ? { ...c, has_scheduled_visit: shouldHaveVisit } : c));
+                                    setSelectedConversation({ ...selectedConversation, has_scheduled_visit: shouldHaveVisit });
+                                  }
+                                }
 
                                 if (newStatus === 'fechado') {
                                   console.log('[Lead:Fechado->NovaFesta:mobile]', {
