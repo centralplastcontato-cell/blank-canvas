@@ -5719,6 +5719,41 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                     </Button>
                   )}
                 </div>
+
+                {/* Batch download floating bar - Mobile */}
+                {isSelectMode && (
+                  <div className="px-3 py-2 border-t bg-primary/5 flex items-center justify-between gap-2 shrink-0">
+                    <span className="text-xs font-medium text-foreground">
+                      {selectedMediaIds.size} selecionada(s)
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={selectAllImages}>
+                        Todas
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs px-2"
+                        onClick={() => { setIsSelectMode(false); setSelectedMediaIds(new Set()); }}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs px-2"
+                        disabled={selectedMediaIds.size === 0 || isBatchDownloading}
+                        onClick={handleBatchDownload}
+                      >
+                        {isBatchDownloading ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <><Download className="w-3 h-3 mr-1" /> ZIP</>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="p-3 border-t shrink-0">
                   {/* Reply preview bar - mobile */}
                   {replyingTo && (
