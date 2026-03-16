@@ -15,6 +15,10 @@ export interface NegociacaoParada {
   motivo: string;
   conversationId: string | null;
   hasVisitRealized: boolean;
+  // Phase 3B - Closing probability score
+  scoreFechamento: number;
+  classificacao: 'alta' | 'media' | 'baixa';
+  messageCount: number;
 }
 
 const STATUS_MONITORED: Array<'em_contato' | 'orcamento_enviado' | 'aguardando_resposta'> = ['em_contato', 'orcamento_enviado', 'aguardando_resposta'];
@@ -33,8 +37,39 @@ function getMotivo(status: string, hasVisit: boolean): string {
   return '⚠ Negociação parada';
 }
 
+function getClassificacao(score: number): 'alta' | 'media' | 'baixa' {
+  if (score >= 70) return 'alta';
+  if (score >= 40) return 'media';
+  return 'baixa';
+}
+
+function calculateScore(
+  status: string,
+  hasVisit: boolean,
+  diasParado: number,
+  messageCount: number,
+  eventValue: number | null,
+  avgEventValue: number | null,
+): number {
+  let score = 0;
+
+  // Positive criteria
+  if (hasVisit) score += 40;
+  if (status === 'aguardando_resposta') score += 30;
+  if (status === 'orcamento_enviado') score += 20;
+  if (diasParado <= 10) score += 20;
+  if (messageCount > 10) score += 10;
+  if (eventValue != null && avgEventValue != null && avgEventValue > 0 && eventValue > avgEventValue) score += 10;
+
+  // Negative criteria
+  if (diasParado > 30) score -= 30;
+  else if (diasParado > 20) score -= 20;
+  if (messageCount < 3) score -= 10;
+
+  return Math.max(0, Math.min(100, score));
+}
+
 // Bot steps that indicate the bot is no longer actively managing the conversation
-// These leads had human intervention or bot completed — negotiation is now manual
 const BOT_INACTIVE_STEPS = ['human_takeover', 'complete_final', 'transferred', 'proximo_passo_reminded', 'lp_sent'];
 
 export function useNegociacoesParadas(stalledDays: number = 10, selectedUnit?: string) {
@@ -69,10 +104,9 @@ export function useNegociacoesParadas(stalledDays: number = 10, selectedUnit?: s
       const leadIds = leads.map(l => l.id);
 
       // 2. Fetch conversations where bot is inactive AND last message is old
-      // Include: human_takeover, complete_final, null, transferred, etc.
       const { data: conversations, error: convErr } = await (supabase as any)
         .from('wapi_conversations')
-        .select('id, lead_id, bot_step, last_message_at, last_message_from_me')
+        .select('id, lead_id, bot_step, last_message_at, last_message_from_me, message_count')
         .eq('company_id', companyId)
         .in('lead_id', leadIds)
         .lte('last_message_at', cutoffISO)
@@ -82,7 +116,6 @@ export function useNegociacoesParadas(stalledDays: number = 10, selectedUnit?: s
       if (!conversations || conversations.length === 0) return [];
 
       // Filter: only conversations where bot is not actively running
-      // Bot is inactive when: bot_step is null, or in BOT_INACTIVE_STEPS
       const inactiveConvs = conversations.filter((c: any) =>
         !c.bot_step || BOT_INACTIVE_STEPS.includes(c.bot_step)
       );
@@ -90,7 +123,7 @@ export function useNegociacoesParadas(stalledDays: number = 10, selectedUnit?: s
       if (inactiveConvs.length === 0) return [];
 
       // 3. Fetch visit data for these leads
-      const convLeadIds = [...new Set(inactiveConvs.map((c: any) => c.lead_id))];
+      const convLeadIds = [...new Set(inactiveConvs.map((c: any) => c.lead_id))] as string[];
       const { data: visits } = await (supabase as any)
         .from('lead_visits')
         .select('lead_id, status_visita')
@@ -101,12 +134,63 @@ export function useNegociacoesParadas(stalledDays: number = 10, selectedUnit?: s
 
       const visitedLeadIds = new Set((visits || []).map((v: any) => v.lead_id));
 
+      // 4. Fetch event values for score calculation
+      const { data: events } = await (supabase as any)
+        .from('company_events')
+        .select('lead_id, total_value')
+        .eq('company_id', companyId)
+        .in('lead_id', convLeadIds)
+        .not('total_value', 'is', null)
+        .limit(2000);
+
+      const eventValueMap = new Map<string, number>();
+      let totalEventValue = 0;
+      let eventCount = 0;
+      for (const e of (events || [])) {
+        if (e.total_value && e.total_value > 0) {
+          eventValueMap.set(e.lead_id, e.total_value);
+          totalEventValue += e.total_value;
+          eventCount++;
+        }
+      }
+      const avgEventValue = eventCount > 0 ? totalEventValue / eventCount : null;
+
+      // 5. Fetch message counts if not available in conversation
+      // Try to get message counts from wapi_messages for conversations without message_count
+      const convIds = inactiveConvs.map((c: any) => c.id);
+      let msgCountMap = new Map<string, number>();
+
+      // Check if message_count exists in conversations
+      const hasMessageCount = inactiveConvs.some((c: any) => c.message_count != null);
+      
+      if (!hasMessageCount && convIds.length > 0) {
+        // Fallback: count messages per conversation (batch in chunks)
+        const chunks = [];
+        for (let i = 0; i < convIds.length; i += 100) {
+          chunks.push(convIds.slice(i, i + 100));
+        }
+        for (const chunk of chunks) {
+          const { data: msgs } = await (supabase as any)
+            .from('wapi_messages')
+            .select('conversation_id')
+            .in('conversation_id', chunk)
+            .limit(5000);
+          
+          if (msgs) {
+            for (const m of msgs) {
+              msgCountMap.set(m.conversation_id, (msgCountMap.get(m.conversation_id) || 0) + 1);
+            }
+          }
+        }
+      }
+
       // Build conv map (latest per lead)
-      const convMap = new Map<string, { id: string; last_message_at: string }>();
+      const convMap = new Map<string, { id: string; last_message_at: string; messageCount: number }>();
       for (const c of inactiveConvs) {
         const existing = convMap.get(c.lead_id);
         if (!existing || (c.last_message_at && c.last_message_at > (existing.last_message_at || ''))) {
-          convMap.set(c.lead_id, { id: c.id, last_message_at: c.last_message_at });
+          const count = c.message_count ?? msgCountMap.get(c.id) ?? 0;
+          convMap.set(c.lead_id, { id: c.id, last_message_at: c.last_message_at, messageCount: count });
         }
       }
 
@@ -123,6 +207,16 @@ export function useNegociacoesParadas(stalledDays: number = 10, selectedUnit?: s
         if (dias < stalledDays) continue;
 
         const hasVisit = visitedLeadIds.has(lead.id);
+        const eventValue = eventValueMap.get(lead.id) ?? null;
+
+        const scoreFechamento = calculateScore(
+          lead.status,
+          hasVisit,
+          dias,
+          conv.messageCount,
+          eventValue,
+          avgEventValue,
+        );
 
         result.push({
           leadId: lead.id,
@@ -136,11 +230,14 @@ export function useNegociacoesParadas(stalledDays: number = 10, selectedUnit?: s
           motivo: getMotivo(lead.status, hasVisit),
           conversationId: conv.id,
           hasVisitRealized: hasVisit,
+          scoreFechamento,
+          classificacao: getClassificacao(scoreFechamento),
+          messageCount: conv.messageCount,
         });
       }
 
-      // Sort by days stalled descending
-      result.sort((a, b) => b.diasParado - a.diasParado);
+      // Sort by score descending (highest probability first)
+      result.sort((a, b) => b.scoreFechamento - a.scoreFechamento);
 
       return result;
     },
