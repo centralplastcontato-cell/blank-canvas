@@ -3921,8 +3921,17 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         <X className="w-4 h-4" />
                       </Button>
                     </div>
-                  )}
+      )}
 
+      {/* Quick Visit Dialog */}
+      {linkedLead && (
+        <QuickVisitDialog
+          open={showQuickVisitDialog}
+          onOpenChange={setShowQuickVisitDialog}
+          leadId={linkedLead.id}
+          currentUserId={userId}
+        />
+      )}
 
                   {/* Lead Classification Panel - Always visible */}
                   <div className="border-b border-border/40 bg-muted/30 px-3 py-2 shrink-0 overflow-hidden">
