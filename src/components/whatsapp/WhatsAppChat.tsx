@@ -312,6 +312,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   // Reply (quote) state
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   
+  // Multi-select image download state
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedMediaIds, setSelectedMediaIds] = useState<Set<string>>(new Set());
+  const [isBatchDownloading, setIsBatchDownloading] = useState(false);
+  
   // Message search state
   const [messageSearchActive, setMessageSearchActive] = useState(false);
   const [messageSearchQuery, setMessageSearchQuery] = useState("");
