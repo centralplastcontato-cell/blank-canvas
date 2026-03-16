@@ -1802,6 +1802,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         void onLeadClosedMobile?.(leadToLink as Lead);
       }
 
+      if (status === 'em_contato') {
+        setShowQuickVisitDialog(true);
+      }
+
       toast({
         title: existingLead ? "Lead vinculado e atualizado" : "Lead criado e classificado",
         description: `${contactName} classificado como "${statusLabels[status]}"`,
