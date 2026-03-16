@@ -25,7 +25,7 @@ const STALLED_OPTIONS = [
 
 export function NegociacoesParadasTab({ selectedUnit }: NegociacoesParadasTabProps) {
   const navigate = useNavigate();
-  const { currentCompany } = useCompany();
+  
   const [stalledDays, setStalledDays] = useState("10");
   const { data, isLoading } = useNegociacoesParadas(Number(stalledDays), selectedUnit);
 

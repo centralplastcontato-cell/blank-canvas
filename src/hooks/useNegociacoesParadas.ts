@@ -17,7 +17,7 @@ export interface NegociacaoParada {
   hasVisitRealized: boolean;
 }
 
-const STATUS_MONITORED = ['em_contato', 'orcamento_enviado', 'aguardando_resposta'];
+const STATUS_MONITORED: Array<'em_contato' | 'orcamento_enviado' | 'aguardando_resposta'> = ['em_contato', 'orcamento_enviado', 'aguardando_resposta'];
 
 const STATUS_LABELS: Record<string, string> = {
   em_contato: 'Visita',
