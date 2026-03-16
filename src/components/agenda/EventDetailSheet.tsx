@@ -55,10 +55,17 @@ const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondar
 
 export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, conflicts = [] }: EventDetailSheetProps) {
   const [leadName, setLeadName] = useState<string | null>(null);
-  const [vendedorName, setVendedorName] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [savingField, setSavingField] = useState<string | null>(null);
+  const [localFechamento, setLocalFechamento] = useState<string | null>(null);
+  const [localVendedor, setLocalVendedor] = useState<string | null>(null);
+
+  // Sync local state with event prop
+  useEffect(() => {
+    setLocalFechamento(event?.data_fechamento_venda || null);
+    setLocalVendedor(event?.vendedor_responsavel_id || null);
+  }, [event?.data_fechamento_venda, event?.vendedor_responsavel_id, event?.id]);
 
   const getControlUrl = () => `${window.location.origin}/festa/${event?.id}`;
 
@@ -100,6 +107,10 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
 
   const saveCommercialField = async (field: string, value: string | null) => {
     if (!event) return;
+    // Optimistic update
+    if (field === 'data_fechamento_venda') setLocalFechamento(value);
+    if (field === 'vendedor_responsavel_id') setLocalVendedor(value);
+
     setSavingField(field);
     console.log('[EventDetail:CommercialUpdate]', { eventId: event.id, field, value });
     const { error } = await supabase
@@ -108,6 +119,9 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
       .eq("id", event.id);
     if (error) {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+      // Revert on error
+      if (field === 'data_fechamento_venda') setLocalFechamento(event.data_fechamento_venda || null);
+      if (field === 'vendedor_responsavel_id') setLocalVendedor(event.vendedor_responsavel_id || null);
     } else {
       toast({ title: "Dados comerciais atualizados!" });
     }
