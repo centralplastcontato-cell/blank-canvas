@@ -30,11 +30,11 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 function getMotivo(status: string, hasVisit: boolean): string {
-  if (status === 'em_contato' && hasVisit) return '⚠ Visita realizada sem evolução';
-  if (status === 'em_contato') return '⚠ Em contato sem evolução';
-  if (status === 'orcamento_enviado') return '⚠ Orçamento enviado sem resposta';
-  if (status === 'aguardando_resposta') return '⚠ Negociação parada';
-  return '⚠ Negociação parada';
+  if (status === 'em_contato' && hasVisit) return 'Visita realizada sem evolução';
+  if (status === 'em_contato') return 'Em contato sem evolução';
+  if (status === 'orcamento_enviado') return 'Orçamento enviado sem resposta';
+  if (status === 'aguardando_resposta') return 'Negociação parada';
+  return 'Negociação parada';
 }
 
 function getClassificacao(score: number): 'alta' | 'media' | 'baixa' {
