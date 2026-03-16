@@ -742,11 +742,12 @@ Deno.serve(async (req) => {
         const ext = fileName?.split('.').pop()?.toLowerCase() || 
                     docUrl.split('.').pop()?.split('?')[0]?.toLowerCase() || 'pdf';
 
-        const res = await wapiRequest(
+        const res = await sendMediaWithGroupFallback(
           `${WAPI_BASE_URL}/message/send-document?instanceId=${instance_id}`,
           instance_token,
-          'POST',
-          { phone, document: docUrl, fileName: fileName || 'document', extension: ext }
+          phone,
+          { document: docUrl, fileName: fileName || 'document', extension: ext },
+          'send-document'
         );
         
         if (!res.ok) {
