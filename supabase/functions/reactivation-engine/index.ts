@@ -324,13 +324,22 @@ Deno.serve(async (req) => {
               const firstName = resolveFirstName(lead.name);
               const partyMonthName = MONTH_NAMES[partyMonth] || lead.month || "";
 
-              const message = interpolateMessage(stage.message, {
+              let message = interpolateMessage(stage.message, {
                 nome: lead.name || "cliente",
                 primeiro_nome: firstName,
                 mes_festa: partyMonthName,
                 buffet: companyName,
                 telefone: lead.whatsapp || "",
               });
+
+              // Fase 4B: Append interactive options if enabled
+              const isInteractive = settings.interactive_options_enabled;
+              if (isInteractive) {
+                message += "\n\nMe responde com o número da opção 👇\n\n";
+                message += `1️⃣ ${settings.option_1_label || 'Ainda tenho interesse na festa'}\n`;
+                message += `2️⃣ ${settings.option_2_label || 'Quero ver os valores'}\n`;
+                message += `3️⃣ ${settings.option_3_label || 'Ainda estou analisando'}`;
+              }
 
               // Send message via W-API
               const phone = conv.remote_jid.replace("@s.whatsapp.net", "").replace("@c.us", "");
