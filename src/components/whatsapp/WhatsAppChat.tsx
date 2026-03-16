@@ -43,8 +43,10 @@ import {
   Image as ImageIcon, Mic, Paperclip, Loader2, X,
   Users, ArrowRightLeft, Trash2, Eraser,
   CalendarCheck, Briefcase, FileCheck, ArrowDown, Video,
-  Pencil, Copy, ChevronDown, ChevronUp, Download, Pin, PinOff, Reply
+  Pencil, Copy, ChevronDown, ChevronUp, Download, Pin, PinOff, Reply,
+  CheckSquare, Square
 } from "lucide-react";
+import JSZip from "jszip";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { LinkPreviewCard, extractFirstUrl } from "@/components/whatsapp/LinkPreviewCard";
 import { useNotifications } from "@/hooks/useNotifications";
