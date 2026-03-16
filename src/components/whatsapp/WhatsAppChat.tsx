@@ -237,22 +237,23 @@ const scoreLeadForConversation = (
   const normalizedConversationPhone = normalizePhoneDigits(conversation.contact_phone);
   const normalizedLeadPhone = normalizePhoneDigits(lead.whatsapp);
 
-  if (conversation.lead_id && lead.id === conversation.lead_id) score += 3;
-  if (lead.unit === instanceUnit) score += 8;
-  else if (lead.unit === "As duas") score += 5;
-  else if (lead.unit) score -= 6;
-
   if (normalizedConversationPhone && normalizedLeadPhone) {
-    if (normalizedConversationPhone === normalizedLeadPhone) score += 4;
-    else if (
+    if (normalizedConversationPhone === normalizedLeadPhone) {
+      score += 20;
+    } else if (
       normalizedConversationPhone.endsWith(normalizedLeadPhone) ||
       normalizedLeadPhone.endsWith(normalizedConversationPhone)
     ) {
-      score += 2;
+      score += 10;
     }
   }
 
-  if (lead.status === "transferido") score -= 4;
+  if (lead.unit === instanceUnit) score += 6;
+  else if (lead.unit === "As duas") score += 4;
+  else if (lead.unit) score -= 4;
+
+  if (conversation.lead_id && lead.id === conversation.lead_id) score += 4;
+  if (lead.status === "transferido") score -= 3;
 
   return score;
 };
