@@ -5,7 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarDays, Clock, Users, MapPin, Package, DollarSign, Pencil, Trash2, AlertTriangle, UserCheck, Gamepad2, Copy, Check, ExternalLink, Briefcase, CalendarIcon, Loader2 } from "lucide-react";
+import { CalendarDays, Clock, Users, MapPin, Package, DollarSign, Pencil, Trash2, AlertTriangle, UserCheck, Gamepad2, Copy, Check, ExternalLink, Briefcase, CalendarIcon, Loader2, CreditCard } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useEffect, useState } from "react";
@@ -36,6 +36,7 @@ interface EventData {
   company_id?: string;
   data_fechamento_venda?: string | null;
   vendedor_responsavel_id?: string | null;
+  payment_method?: string | null;
 }
 
 interface EventDetailSheetProps {
@@ -202,6 +203,13 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
                 <div className="flex items-center gap-3 text-foreground">
                   <div className="p-1.5 rounded-lg bg-primary/10"><DollarSign className="h-4 w-4 text-primary" /></div>
                   <span className="font-medium">{event.total_value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                </div>
+              )}
+
+              {event.payment_method && (
+                <div className="flex items-center gap-3 text-foreground">
+                  <div className="p-1.5 rounded-lg bg-primary/10"><CreditCard className="h-4 w-4 text-primary" /></div>
+                  <span>{{ cartao: "Cartão", boleto: "Boleto", pix: "PIX", dinheiro: "Dinheiro", misto: "Misto" }[event.payment_method] || event.payment_method}</span>
                 </div>
               )}
 

@@ -35,7 +35,16 @@ export interface EventFormData {
   data_fechamento_venda?: string | null;
   vendedor_responsavel_id?: string | null;
   vendedor_responsavel_name?: string | null;
+  payment_method?: string | null;
 }
+
+const PAYMENT_METHODS = [
+  { value: "cartao", label: "Cartão" },
+  { value: "boleto", label: "Boleto" },
+  { value: "pix", label: "PIX" },
+  { value: "dinheiro", label: "Dinheiro" },
+  { value: "misto", label: "Misto" },
+];
 
 const EVENT_TYPES = [
   { value: "infantil", label: "Infantil" },
@@ -99,6 +108,7 @@ const EMPTY: EventFormData = {
   data_fechamento_venda: null,
   vendedor_responsavel_id: null,
   vendedor_responsavel_name: null,
+  payment_method: null,
 };
 
 function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
@@ -407,8 +417,31 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               </div>
 
               <div className="space-y-2.5 md:pr-6">
-                <Label className="text-sm font-medium text-foreground/70">Valor total (R$)</Label>
-                <Input type="number" step="0.01" value={form.total_value ?? ""} onChange={(e) => setForm({ ...form, total_value: e.target.value ? Number(e.target.value) : null })} />
+                <Label className="text-sm font-medium text-foreground/70">Valor total</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">R$</span>
+                  <Input
+                    className="pl-10"
+                    placeholder="0,00"
+                    value={form.total_value != null ? form.total_value.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : ""}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/[^\d]/g, "");
+                      const num = raw ? Number(raw) / 100 : null;
+                      setForm({ ...form, total_value: num });
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
+                <Label className="text-sm font-medium text-foreground/70">Forma de pagamento</Label>
+                <Select value={form.payment_method || "none"} onValueChange={(v) => setForm({ ...form, payment_method: v === "none" ? null : v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Não informado</SelectItem>
+                    {PAYMENT_METHODS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Checklist template - only for new events */}
