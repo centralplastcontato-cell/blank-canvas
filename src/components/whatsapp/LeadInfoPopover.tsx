@@ -646,7 +646,45 @@ export function LeadInfoPopover({
                   </Button>
                 )}
 
-                <Button 
+                {/* Festa shortcut for closed leads */}
+                {linkedLead.status === "fechado" && hasLinkedEvent !== null && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className={cn(
+                      "w-full text-xs h-8 gap-2 rounded-xl",
+                      hasLinkedEvent 
+                        ? "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-200" 
+                        : "text-amber-600 hover:text-amber-700 hover:bg-amber-50 border-amber-200"
+                    )}
+                    onClick={() => {
+                      if (hasLinkedEvent && linkedEventData) {
+                        setEventFormOpen(true);
+                      } else {
+                        setLinkedEventData({
+                          title: linkedLead.name,
+                          event_date: "",
+                          start_time: "",
+                          end_time: "",
+                          event_type: "infantil",
+                          guest_count: linkedLead.guests ? parseInt(linkedLead.guests) || null : null,
+                          unit: linkedLead.unit || "",
+                          status: "pendente",
+                          package_name: "",
+                          total_value: null,
+                          notes: "",
+                          lead_id: linkedLead.id,
+                          lead_name: linkedLead.name,
+                        });
+                        setEventFormOpen(true);
+                      }
+                    }}
+                  >
+                    <PartyPopper className="w-3.5 h-3.5" />
+                    {hasLinkedEvent ? 'Ver Festa' : 'Criar Festa'}
+                  </Button>
+                )}
+
                   variant="outline" 
                   size="sm" 
                   className="w-full text-xs h-8 gap-2 rounded-xl"
