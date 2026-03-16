@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,8 +12,11 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { 
   Info, MessageSquare, Clock, MapPin, Calendar, Users, 
-  ArrowRightLeft, Bot, Loader2, Pencil, Check, X, Trash2, UsersRound, Star, RotateCcw
+  ArrowRightLeft, Bot, Loader2, Pencil, Check, X, Trash2, UsersRound, Star, RotateCcw, PartyPopper
 } from "lucide-react";
+import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
+import { useCompany } from "@/contexts/CompanyContext";
+import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -165,6 +168,50 @@ export function LeadInfoPopover({
   const [isEditingObs, setIsEditingObs] = useState(false);
   const [editedObs, setEditedObs] = useState("");
   const [isSavingObs, setIsSavingObs] = useState(false);
+  const [hasLinkedEvent, setHasLinkedEvent] = useState<boolean | null>(null);
+  const [linkedEventData, setLinkedEventData] = useState<EventFormData | null>(null);
+  const [eventFormOpen, setEventFormOpen] = useState(false);
+  const { currentCompany } = useCompany();
+  const { units } = useCompanyUnits(currentCompany?.id);
+
+  // Check if closed lead has linked event
+  useEffect(() => {
+    if (linkedLead && linkedLead.status === "fechado") {
+      supabase
+        .from("company_events")
+        .select("*")
+        .eq("lead_id", linkedLead.id)
+        .limit(1)
+        .then(({ data }) => {
+          setHasLinkedEvent((data || []).length > 0);
+          if (data && data.length > 0) {
+            const ev = data[0];
+            setLinkedEventData({
+              id: ev.id,
+              title: ev.title,
+              event_date: ev.event_date,
+              start_time: ev.start_time || "",
+              end_time: ev.end_time || "",
+              event_type: ev.event_type || "infantil",
+              guest_count: ev.guest_count,
+              unit: ev.unit || "",
+              status: ev.status,
+              package_name: ev.package_name || "",
+              total_value: ev.total_value,
+              notes: ev.notes || "",
+              lead_id: ev.lead_id || null,
+              data_fechamento_venda: ev.data_fechamento_venda || null,
+              vendedor_responsavel_id: ev.vendedor_responsavel_id || null,
+            });
+          } else {
+            setLinkedEventData(null);
+          }
+        });
+    } else {
+      setHasLinkedEvent(null);
+      setLinkedEventData(null);
+    }
+  }, [linkedLead?.id, linkedLead?.status]);
 
   const isGroup = selectedConversation.remote_jid.includes('@g.us');
 
@@ -288,6 +335,7 @@ export function LeadInfoPopover({
   };
 
   return (
+    <>
     <Popover>
       <PopoverTrigger asChild>
         <Button
@@ -599,6 +647,45 @@ export function LeadInfoPopover({
                   </Button>
                 )}
 
+                {/* Festa shortcut for closed leads */}
+                {linkedLead.status === "fechado" && hasLinkedEvent !== null && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className={cn(
+                      "w-full text-xs h-8 gap-2 rounded-xl",
+                      hasLinkedEvent 
+                        ? "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-200" 
+                        : "text-amber-600 hover:text-amber-700 hover:bg-amber-50 border-amber-200"
+                    )}
+                    onClick={() => {
+                      if (hasLinkedEvent && linkedEventData) {
+                        setEventFormOpen(true);
+                      } else {
+                        setLinkedEventData({
+                          title: linkedLead.name,
+                          event_date: "",
+                          start_time: "",
+                          end_time: "",
+                          event_type: "infantil",
+                          guest_count: linkedLead.guests ? parseInt(linkedLead.guests) || null : null,
+                          unit: linkedLead.unit || "",
+                          status: "pendente",
+                          package_name: "",
+                          total_value: null,
+                          notes: "",
+                          lead_id: linkedLead.id,
+                          lead_name: linkedLead.name,
+                        });
+                        setEventFormOpen(true);
+                      }
+                    }}
+                  >
+                    <PartyPopper className="w-3.5 h-3.5" />
+                    {hasLinkedEvent ? 'Ver Festa' : 'Criar Festa'}
+                  </Button>
+                )}
+
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -767,5 +854,63 @@ export function LeadInfoPopover({
         )}
       </PopoverContent>
     </Popover>
+
+    {/* Event Form Dialog */}
+    {linkedLead && (
+      <EventFormDialog
+        open={eventFormOpen}
+        onOpenChange={setEventFormOpen}
+        initialData={linkedEventData}
+        units={units.filter(u => u.slug !== "trabalhe-conosco")}
+        onSubmit={async (data) => {
+          const user = (await supabase.auth.getUser()).data.user;
+          if (!user || !currentCompany) return;
+          if (linkedEventData?.id) {
+            const { error } = await supabase
+              .from("company_events")
+              .update({
+                title: data.title,
+                event_date: data.event_date,
+                start_time: data.start_time || null,
+                end_time: data.end_time || null,
+                event_type: data.event_type,
+                guest_count: data.guest_count,
+                unit: data.unit || null,
+                status: data.status,
+                package_name: data.package_name || null,
+                total_value: data.total_value,
+                notes: data.notes || null,
+              })
+              .eq("id", linkedEventData.id);
+            if (error) { toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" }); return; }
+            toast({ title: "Festa atualizada!" });
+          } else {
+            const { error } = await supabase
+              .from("company_events")
+              .insert({
+                company_id: currentCompany.id,
+                created_by: user.id,
+                title: data.title,
+                event_date: data.event_date,
+                start_time: data.start_time || null,
+                end_time: data.end_time || null,
+                event_type: data.event_type,
+                guest_count: data.guest_count,
+                unit: data.unit || null,
+                status: data.status,
+                package_name: data.package_name || null,
+                total_value: data.total_value,
+                notes: data.notes || null,
+                lead_id: linkedLead.id,
+              });
+            if (error) { toast({ title: "Erro ao criar", description: error.message, variant: "destructive" }); return; }
+            toast({ title: "Festa criada!" });
+            setHasLinkedEvent(true);
+          }
+          setEventFormOpen(false);
+        }}
+      />
+    )}
+    </>
   );
 }
