@@ -3372,6 +3372,284 @@ function getPreview(mc: Record<string, unknown>, msg: Record<string, unknown>): 
   return (msg as Record<string, string>).body || (msg as Record<string, string>).text || '';
 }
 
+// ============= FASE 4B: REACTIVATION RESPONSE HANDLER =============
+
+async function handleReactivationResponse(
+  supabase: SupabaseClient,
+  instance: { id: string; instance_id: string; instance_token: string; unit: string | null; company_id: string },
+  conv: { id: string; remote_jid: string; bot_enabled: boolean | null; bot_step: string | null; bot_data: Record<string, unknown> | null; lead_id: string | null },
+  content: string
+): Promise<boolean> {
+  // Only handle if conversation has a lead
+  if (!conv.lead_id) return false;
+
+  // Parse option number from response (1, 2, 3 or emoji variants)
+  const normalized = content.trim().replace(/[^\d]/g, '');
+  let optionNum: number | null = null;
+  
+  // Try plain number
+  if (/^[123]$/.test(normalized)) {
+    optionNum = parseInt(normalized);
+  }
+  // Try emoji keycap
+  if (!optionNum) {
+    const emojiNum = emojiDigitsToNumber(content.trim());
+    if (emojiNum && emojiNum >= 1 && emojiNum <= 3) optionNum = emojiNum;
+  }
+  // Try "opção X" pattern
+  if (!optionNum) {
+    const match = content.trim().match(/op[çc][aã]o\s*(\d)/i);
+    if (match) {
+      const n = parseInt(match[1]);
+      if (n >= 1 && n <= 3) optionNum = n;
+    }
+  }
+
+  if (!optionNum) return false;
+
+  // Check for pending interactive reactivation on this conversation
+  const cutoff = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString(); // max 72h safety
+  const { data: pendingReactivation } = await supabase
+    .from('lead_reactivation_history')
+    .select('id, lead_id, company_id, reactivation_stage, sent_at')
+    .eq('conversation_id', conv.id)
+    .eq('status', 'sent')
+    .eq('is_interactive', true)
+    .gte('sent_at', cutoff)
+    .order('sent_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!pendingReactivation) return false;
+
+  // Check capture window from settings
+  const { data: reactivationSettings } = await supabase
+    .from('automation_reactivation_settings')
+    .select('capture_window_hours, pause_days_on_analyzing, option_1_label, option_2_label, option_3_label')
+    .eq('company_id', pendingReactivation.company_id)
+    .eq('interactive_options_enabled', true)
+    .maybeSingle();
+
+  if (!reactivationSettings) return false;
+
+  // Verify within capture window
+  const sentAt = new Date(pendingReactivation.sent_at).getTime();
+  const windowMs = (reactivationSettings.capture_window_hours || 48) * 60 * 60 * 1000;
+  if (Date.now() - sentAt > windowMs) {
+    console.log(`[Reactivation 4B] Response outside capture window for conv ${conv.id}`);
+    return false;
+  }
+
+  // Check if a human already replied after the reactivation
+  const { data: humanReply } = await supabase
+    .from('wapi_messages')
+    .select('id')
+    .eq('conversation_id', conv.id)
+    .eq('from_me', true)
+    .gt('timestamp', pendingReactivation.sent_at)
+    .is('metadata', null) // human messages don't have metadata.source
+    .limit(1)
+    .maybeSingle();
+
+  // Also check messages with metadata that don't have reactivation source
+  if (!humanReply) {
+    const { data: humanReply2 } = await supabase
+      .from('wapi_messages')
+      .select('id, metadata')
+      .eq('conversation_id', conv.id)
+      .eq('from_me', true)
+      .gt('timestamp', pendingReactivation.sent_at)
+      .limit(5);
+    
+    const hasHumanMsg = (humanReply2 || []).some(m => {
+      const meta = m.metadata as Record<string, unknown> | null;
+      return !meta || meta.source !== 'reactivation_engine';
+    });
+    if (hasHumanMsg) {
+      console.log(`[Reactivation 4B] Human already replied after reactivation, skipping auto-response`);
+      return false;
+    }
+  }
+
+  const optionLabels = [
+    reactivationSettings.option_1_label || 'Ainda tenho interesse na festa',
+    reactivationSettings.option_2_label || 'Quero ver os valores', 
+    reactivationSettings.option_3_label || 'Ainda estou analisando',
+  ];
+  const optionLabel = optionLabels[optionNum - 1];
+
+  console.log(`[Reactivation 4B] ✅ Lead ${conv.lead_id} chose option ${optionNum}: "${optionLabel}"`);
+
+  let actionExecuted = '';
+
+  // === OPTION 1: Ainda tenho interesse ===
+  if (optionNum === 1) {
+    actionExecuted = 'status_cliente_retorno';
+    
+    // Update lead status to cliente_retorno
+    await supabase.from('campaign_leads')
+      .update({ status: 'cliente_retorno' })
+      .eq('id', conv.lead_id);
+
+    // Record in lead_history
+    await supabase.from('lead_history').insert({
+      lead_id: conv.lead_id,
+      action: 'Lead reativado automaticamente',
+      new_value: 'Cliente Retorno (Reativação 4B)',
+      user_name: 'Sistema (Reativação Inteligente)',
+    });
+
+    // Notify responsavel
+    const { data: lead } = await supabase.from('campaign_leads')
+      .select('name, responsavel_id')
+      .eq('id', conv.lead_id)
+      .single();
+
+    if (lead) {
+      // Get company users to notify
+      const { data: companyUsers } = await supabase
+        .from('user_companies')
+        .select('user_id')
+        .eq('company_id', pendingReactivation.company_id);
+
+      const userIds = (companyUsers || []).map(u => u.user_id);
+      // Notify responsavel or all company users
+      const notifyIds = lead.responsavel_id ? [lead.responsavel_id] : userIds;
+
+      for (const userId of notifyIds) {
+        await supabase.from('notifications').insert({
+          user_id: userId,
+          company_id: pendingReactivation.company_id,
+          type: 'lead_reactivated',
+          title: '🔄 Lead reativado!',
+          message: `${lead.name || 'Lead'} respondeu à reativação: "${optionLabel}"`,
+          data: { lead_id: conv.lead_id, option: optionNum },
+        });
+      }
+    }
+  }
+
+  // === OPTION 2: Quero ver os valores ===
+  if (optionNum === 2) {
+    actionExecuted = 'send_pdf_values';
+    
+    // Send PDF values - reuse existing sales_materials mechanism
+    const unit = instance.unit;
+    if (unit) {
+      const { data: pdfMats } = await supabase.from('sales_materials')
+        .select('*')
+        .eq('company_id', instance.company_id)
+        .eq('type', 'pdf_package')
+        .eq('unit', unit)
+        .eq('is_active', true)
+        .order('guest_count');
+
+      const pdfsToSend = pdfMats?.filter(p => p.guest_count === null) || // universal first
+        (pdfMats && pdfMats.length > 0 ? [pdfMats[0]] : []);
+
+      for (const pdf of pdfsToSend) {
+        const fileExt = pdf.file_url.split('?')[0].split('.').pop()?.toLowerCase() || '';
+        const isImage = ['jpg', 'jpeg', 'png', 'webp'].includes(fileExt);
+        
+        if (isImage) {
+          const caption = pdf.name || 'Valores';
+          const msgId = await sendBotImage(instance.instance_id, instance.instance_token, conv.remote_jid, pdf.file_url, caption);
+          if (msgId) {
+            await supabase.from('wapi_messages').insert({
+              conversation_id: conv.id, message_id: msgId, from_me: true,
+              message_type: 'image', content: caption, media_url: pdf.file_url,
+              status: 'sent', timestamp: new Date().toISOString(),
+              company_id: instance.company_id,
+              metadata: { source: 'reactivation_4b', action: 'send_values' },
+            });
+          }
+        } else {
+          const fileName = (pdf.name?.replace(/[^a-zA-Z0-9\s\-]/g, '').trim() || 'Valores') + '.pdf';
+          const msgId = await sendBotDocument(instance.instance_id, instance.instance_token, conv.remote_jid, pdf.file_url, fileName);
+          if (msgId) {
+            await supabase.from('wapi_messages').insert({
+              conversation_id: conv.id, message_id: msgId, from_me: true,
+              message_type: 'document', content: fileName, media_url: pdf.file_url,
+              status: 'sent', timestamp: new Date().toISOString(),
+              company_id: instance.company_id,
+              metadata: { source: 'reactivation_4b', action: 'send_values' },
+            });
+          }
+        }
+        await new Promise(r => setTimeout(r, 1500));
+      }
+
+      if (pdfsToSend.length === 0) {
+        // No PDFs available, send text fallback
+        const fallbackMsg = 'Opa! Vou verificar os valores atualizados e já te envio. Aguarda só um momento! 😊';
+        const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, fallbackMsg);
+        if (msgId) {
+          await supabase.from('wapi_messages').insert({
+            conversation_id: conv.id, message_id: msgId, from_me: true,
+            message_type: 'text', content: fallbackMsg,
+            status: 'sent', timestamp: new Date().toISOString(),
+            company_id: instance.company_id,
+            metadata: { source: 'reactivation_4b', action: 'send_values_fallback' },
+          });
+        }
+      }
+    }
+
+    // Record in lead_history
+    await supabase.from('lead_history').insert({
+      lead_id: conv.lead_id,
+      action: 'Reativação: lead pediu valores',
+      new_value: 'PDF de valores enviado automaticamente',
+      user_name: 'Sistema (Reativação Inteligente)',
+    });
+  }
+
+  // === OPTION 3: Ainda estou analisando ===
+  if (optionNum === 3) {
+    actionExecuted = 'pause_reactivation';
+    
+    // Send acknowledgment
+    const ackMsg = 'Sem problemas! 😊 Qualquer dúvida, é só chamar. Estamos aqui!';
+    const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, ackMsg);
+    if (msgId) {
+      await supabase.from('wapi_messages').insert({
+        conversation_id: conv.id, message_id: msgId, from_me: true,
+        message_type: 'text', content: ackMsg,
+        status: 'sent', timestamp: new Date().toISOString(),
+        company_id: instance.company_id,
+        metadata: { source: 'reactivation_4b', action: 'pause_ack' },
+      });
+    }
+
+    // Record in lead_history
+    await supabase.from('lead_history').insert({
+      lead_id: conv.lead_id,
+      action: 'Reativação: lead analisando',
+      new_value: `Reativação pausada por ${reactivationSettings.pause_days_on_analyzing} dias`,
+      user_name: 'Sistema (Reativação Inteligente)',
+    });
+  }
+
+  // Update reactivation history with response
+  await supabase.from('lead_reactivation_history')
+    .update({
+      status: 'replied',
+      option_selected: optionNum,
+      option_label: optionLabel,
+      selected_at: new Date().toISOString(),
+      action_executed: actionExecuted,
+    })
+    .eq('id', pendingReactivation.id);
+
+  // Update conversation
+  await supabase.from('wapi_conversations').update({
+    last_message_at: new Date().toISOString(),
+    last_message_from_me: optionNum !== 1, // for option 1, let human take over
+  }).eq('id', conv.id);
+
+  return true;
+}
+
 // Background processor - runs after response is sent
 async function processWebhookEvent(body: Record<string, unknown>) {
   const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
