@@ -178,13 +178,41 @@ export function MediaMessage({
       case 'image':
         if (hasValidUrl && !imageLoadError) {
           return (
-            <img
-              src={currentUrl!}
-              alt={content || "Imagem"}
-              className="max-w-full max-h-64 object-contain cursor-pointer block"
-              onClick={() => window.open(currentUrl!, '_blank')}
-              onError={handleImageError}
-            />
+            <div className="relative group/img inline-block">
+              <img
+                src={currentUrl!}
+                alt={content || "Imagem"}
+                className="max-w-full max-h-64 object-contain cursor-pointer block"
+                onClick={() => window.open(currentUrl!, '_blank')}
+                onError={handleImageError}
+              />
+              <Button
+                size="icon"
+                variant="secondary"
+                className="absolute top-1.5 right-1.5 h-7 w-7 opacity-0 group-hover/img:opacity-100 transition-opacity shadow-md"
+                title="Salvar imagem"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  try {
+                    const res = await fetch(currentUrl!);
+                    const blob = await res.blob();
+                    const ext = blob.type.includes('png') ? 'png' : blob.type.includes('webp') ? 'webp' : 'jpg';
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `imagem_${Date.now()}.${ext}`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                  } catch {
+                    window.open(currentUrl!, '_blank');
+                  }
+                }}
+              >
+                <Download className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           );
         }
         return renderPlaceholder();
