@@ -5408,6 +5408,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                 toast({
                                   title: "Status atualizado",
                                   description: `Lead classificado como "${statusOption.label}"`,
+                                  className: `border-l-4 ${statusOption.color.replace('bg-', 'border-l-')}`,
                                 });
                               }}
                             >
