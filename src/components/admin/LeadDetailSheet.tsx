@@ -43,6 +43,10 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { maskPhone } from "@/lib/mask-utils";
 import { LeadVisitHistory } from "./LeadVisitHistory";
+import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
+import { useCompany } from "@/contexts/CompanyContext";
+import { useCompanyUnits } from "@/hooks/useCompanyUnits";
+import { PartyPopper } from "lucide-react";
 
 interface LeadDetailSheetProps {
   lead: Lead | null;
