@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MessageSquare, Clock, AlertTriangle, User, Calendar, Radar, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { ScoreBadge } from "./ScoreBadge";
 
 interface NegociacoesParadasTabProps {
   selectedUnit?: string;
@@ -30,6 +31,13 @@ const STATUS_FILTER_OPTIONS = [
   { value: "aguardando_resposta", label: "Negociando" },
 ];
 
+const SCORE_FILTER_OPTIONS = [
+  { value: "all", label: "Todos os scores" },
+  { value: "alta", label: "🔥 Alta chance" },
+  { value: "media", label: "🟡 Chance média" },
+  { value: "baixa", label: "⚪ Baixa chance" },
+];
+
 const PAGE_SIZE = 10;
 
 export function NegociacoesParadasTab({ selectedUnit }: NegociacoesParadasTabProps) {
@@ -37,10 +45,10 @@ export function NegociacoesParadasTab({ selectedUnit }: NegociacoesParadasTabPro
   const [stalledDays, setStalledDays] = useState("10");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [scoreFilter, setScoreFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const { data, isLoading } = useNegociacoesParadas(Number(stalledDays), selectedUnit);
 
-  // Reset page when filters change
   const handleFilterChange = (setter: (v: string) => void) => (value: string) => {
     setter(value);
     setCurrentPage(1);
@@ -49,12 +57,14 @@ export function NegociacoesParadasTab({ selectedUnit }: NegociacoesParadasTabPro
   const filteredLeads = useMemo(() => {
     let leads = data || [];
 
-    // Status filter
     if (statusFilter !== "all") {
       leads = leads.filter(l => l.status === statusFilter);
     }
 
-    // Search filter
+    if (scoreFilter !== "all") {
+      leads = leads.filter(l => l.classificacao === scoreFilter);
+    }
+
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
       leads = leads.filter(l =>
@@ -64,7 +74,7 @@ export function NegociacoesParadasTab({ selectedUnit }: NegociacoesParadasTabPro
     }
 
     return leads;
-  }, [data, statusFilter, searchQuery]);
+  }, [data, statusFilter, scoreFilter, searchQuery]);
 
   const totalPages = Math.max(1, Math.ceil(filteredLeads.length / PAGE_SIZE));
   const paginatedLeads = filteredLeads.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
@@ -135,6 +145,16 @@ export function NegociacoesParadasTab({ selectedUnit }: NegociacoesParadasTabPro
             ))}
           </SelectContent>
         </Select>
+        <Select value={scoreFilter} onValueChange={handleFilterChange(setScoreFilter)}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SCORE_FILTER_OPTIONS.map(o => (
+              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Empty state */}
@@ -146,7 +166,7 @@ export function NegociacoesParadasTab({ selectedUnit }: NegociacoesParadasTabPro
             </div>
             <h3 className="font-semibold text-lg">Nenhuma negociação parada!</h3>
             <p className="text-sm text-muted-foreground mt-1 max-w-md">
-              {searchQuery || statusFilter !== "all"
+              {searchQuery || statusFilter !== "all" || scoreFilter !== "all"
                 ? "Nenhum resultado encontrado com os filtros aplicados."
                 : `Não existem leads parados há mais de ${stalledDays} dias nos estágios monitorados.`}
             </p>
@@ -186,9 +206,12 @@ export function NegociacoesParadasTab({ selectedUnit }: NegociacoesParadasTabPro
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-1.5 text-sm">
-                      <AlertTriangle className="h-3.5 w-3.5 text-orange-500 shrink-0" />
-                      <span className="text-orange-600 dark:text-orange-400 font-medium">{lead.motivo}</span>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <div className="flex items-center gap-1.5 text-sm">
+                        <AlertTriangle className="h-3.5 w-3.5 text-orange-500 shrink-0" />
+                        <span className="text-orange-600 dark:text-orange-400 font-medium">{lead.motivo}</span>
+                      </div>
+                      <ScoreBadge score={lead.scoreFechamento} classificacao={lead.classificacao} />
                     </div>
                   </div>
 
