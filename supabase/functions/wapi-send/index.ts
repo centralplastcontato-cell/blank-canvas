@@ -792,11 +792,12 @@ Deno.serve(async (req) => {
           });
         }
 
-        const res = await wapiRequest(
+        const res = await sendMediaWithGroupFallback(
           `${WAPI_BASE_URL}/message/send-video?instanceId=${instance_id}`,
           instance_token,
-          'POST',
-          { phone, video: videoUrl, caption: caption || '' }
+          phone,
+          { video: videoUrl, caption: caption || '' },
+          'send-video'
         );
         
         if (!res.ok) {
