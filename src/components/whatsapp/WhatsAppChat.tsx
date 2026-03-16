@@ -1864,6 +1864,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
       // Update local state
       setLinkedLead(leadToLink as Lead);
+      setConversationLeadsMap(prev => ({ ...prev, [selectedConversation.id]: leadToLink as Lead }));
       setConversations(prev =>
         prev.map(c => c.id === selectedConversation.id ? { ...c, lead_id: leadToLink.id } : c)
       );
