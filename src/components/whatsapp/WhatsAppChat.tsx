@@ -1802,6 +1802,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         void onLeadClosedMobile?.(leadToLink as Lead);
       }
 
+      if (status === 'em_contato') {
+        setShowQuickVisitDialog(true);
+      }
+
       toast({
         title: existingLead ? "Lead vinculado e atualizado" : "Lead criado e classificado",
         description: `${contactName} classificado como "${statusLabels[status]}"`,
@@ -4014,6 +4018,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                     void onLeadClosedMobile?.(updatedLead);
                                   }
 
+                                  if (newStatus === 'em_contato') {
+                                    setShowQuickVisitDialog(true);
+                                  }
+
                                   toast({
                                     title: "Status atualizado",
                                     description: `Lead classificado como "${statusOption.label}"`,
@@ -5037,6 +5045,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                     source: 'whatsapp-mobile-status',
                                   });
                                   void onLeadClosedMobile?.(updatedLead);
+                                }
+
+                                if (newStatus === 'em_contato') {
+                                  setShowQuickVisitDialog(true);
                                 }
 
                                 toast({
