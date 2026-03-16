@@ -3099,18 +3099,21 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       const digitMatch = digitsOnly.length >= 4 && (convDigits.includes(digitsOnly) || digitsOnly.includes(convDigits));
       const matchesSearch = nameMatch || phoneMatch || digitMatch;
       
+      // When searching, bypass filters to find leads across all conversations
+      if (searchQuery.trim().length > 0) return matchesSearch;
+      
       // Apply filter
-      if (filter === 'unread') return matchesSearch && conv.unread_count > 0;
-      if (filter === 'closed') return matchesSearch && conv.is_closed;
-      if (filter === 'fechados') return matchesSearch && leadStatusConversationIds.fechado.has(conv.id);
-      if (filter === 'oe') return matchesSearch && leadStatusConversationIds.orcamento_enviado.has(conv.id);
-      if (filter === 'visitas') return matchesSearch && leadStatusConversationIds.em_contato.has(conv.id);
-      if (filter === 'freelancer') return matchesSearch && conv.is_freelancer;
-      if (filter === 'equipe') return matchesSearch && conv.is_equipe;
-      if (filter === 'favorites') return matchesSearch && conv.is_favorite;
-      if (filter === 'grupos') return matchesSearch && conv.remote_jid?.endsWith('@g.us');
+      if (filter === 'unread') return conv.unread_count > 0;
+      if (filter === 'closed') return conv.is_closed;
+      if (filter === 'fechados') return leadStatusConversationIds.fechado.has(conv.id);
+      if (filter === 'oe') return leadStatusConversationIds.orcamento_enviado.has(conv.id);
+      if (filter === 'visitas') return leadStatusConversationIds.em_contato.has(conv.id);
+      if (filter === 'freelancer') return conv.is_freelancer;
+      if (filter === 'equipe') return conv.is_equipe;
+      if (filter === 'favorites') return conv.is_favorite;
+      if (filter === 'grupos') return conv.remote_jid?.endsWith('@g.us');
       // 'all' filter - show non-closed conversations only
-      return matchesSearch && !conv.is_closed;
+      return !conv.is_closed;
     })
     .sort((a, b) => {
       // Favorites first, then by last message
