@@ -5862,6 +5862,19 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         Cancelar
                       </Button>
                       <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs px-2"
+                        disabled={selectedMediaIds.size === 0 || isBatchDownloading}
+                        onClick={handleBatchDownloadIndividual}
+                      >
+                        {isBatchDownloading ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <><Download className="w-3 h-3 mr-0.5" /> Salvar</>
+                        )}
+                      </Button>
+                      <Button
                         size="sm"
                         className="h-7 text-xs px-2"
                         disabled={selectedMediaIds.size === 0 || isBatchDownloading}
@@ -5870,7 +5883,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         {isBatchDownloading ? (
                           <Loader2 className="w-3 h-3 animate-spin" />
                         ) : (
-                          <><Download className="w-3 h-3 mr-1" /> ZIP</>
+                          <><Download className="w-3 h-3 mr-0.5" /> ZIP</>
                         )}
                       </Button>
                     </div>
