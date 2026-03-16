@@ -86,30 +86,45 @@ Deno.serve(async (req) => {
     console.log(`[link-orphans] Processing ${company.name}...`);
 
     // Get orphan conversations (no lead_id, not groups)
-    // Fetch in batches to handle large datasets
-    let allOrphans: Array<{id: string; contact_phone: string; contact_name: string; remote_jid: string; instance_key: string}> = [];
+    // First, get total count to verify
+    const { count: totalCount } = await supabase
+      .from("wapi_conversations")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", company.id);
+    
+    console.log(`[link-orphans] ${company.name}: total conversations = ${totalCount}`);
+
+    // Try getting ALL conversations and filter in JS
+    let allConvs: Array<{id: string; contact_phone: string; contact_name: string; remote_jid: string; instance_key: string; lead_id: string | null}> = [];
     let offset = 0;
     const batchSize = 1000;
     while (true) {
       const { data: batch, error: batchErr } = await supabase
         .from("wapi_conversations")
-        .select("id, contact_phone, contact_name, remote_jid, instance_key")
+        .select("id, contact_phone, contact_name, remote_jid, instance_key, lead_id")
         .eq("company_id", company.id)
-        .filter("lead_id", "is", "null")
-        .not("remote_jid", "like", "%@g.us")
         .range(offset, offset + batchSize - 1);
 
       if (batchErr) {
-        console.error(`[link-orphans] Error fetching orphans for ${company.name}:`, batchErr);
+        console.error(`[link-orphans] Error fetching for ${company.name}:`, JSON.stringify(batchErr));
         break;
       }
       if (!batch || batch.length === 0) break;
-      allOrphans = allOrphans.concat(batch);
+      allConvs = allConvs.concat(batch);
       if (batch.length < batchSize) break;
       offset += batchSize;
     }
-    const orphans = allOrphans;
-    console.log(`[link-orphans] ${company.name}: found ${orphans.length} orphan conversations`);
+
+    console.log(`[link-orphans] ${company.name}: fetched ${allConvs.length} conversations total`);
+
+    // Filter in JS for orphans
+    const orphans = allConvs.filter(c => 
+      !c.lead_id && 
+      c.remote_jid && 
+      !c.remote_jid.endsWith('@g.us')
+    );
+    
+    console.log(`[link-orphans] ${company.name}: found ${orphans.length} orphan conversations (filtered in JS)`);
 
     if (!orphans || orphans.length === 0) {
       report.push({
