@@ -3512,6 +3512,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                     closedLeadCount={leadStatusConversationIds.fechado.size}
                     orcamentoEnviadoCount={leadStatusConversationIds.orcamento_enviado.size}
                     visitasCount={leadStatusConversationIds.em_contato.size}
+                    collapsible={true}
                     defaultOpen={false}
                     filterOrder={filterOrder}
                     onFilterOrderChange={saveFilterOrder}
