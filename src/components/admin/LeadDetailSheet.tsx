@@ -43,6 +43,10 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { maskPhone } from "@/lib/mask-utils";
 import { LeadVisitHistory } from "./LeadVisitHistory";
+import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
+import { useCompany } from "@/contexts/CompanyContext";
+import { useCompanyUnits } from "@/hooks/useCompanyUnits";
+import { PartyPopper } from "lucide-react";
 
 interface LeadDetailSheetProps {
   lead: Lead | null;
@@ -82,7 +86,12 @@ export function LeadDetailSheet({
   const [history, setHistory] = useState<LeadHistory[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [hasLinkedEvent, setHasLinkedEvent] = useState<boolean | null>(null);
+  const [linkedEventData, setLinkedEventData] = useState<EventFormData | null>(null);
+  const [eventFormOpen, setEventFormOpen] = useState(false);
+  const [isLoadingEvent, setIsLoadingEvent] = useState(false);
   const { data: aiSummary, isLoading: isLoadingSummary, isFetchingSaved, error: summaryError, fetchSummary } = useLeadSummary(lead?.id || null);
+  const { currentCompany } = useCompany();
+  const { units } = useCompanyUnits(currentCompany?.id);
 
   // Navigate to WhatsApp chat with this lead's phone
   const openWhatsAppChat = () => {
@@ -106,16 +115,41 @@ export function LeadDetailSheet({
       setResponsavelId(lead.responsavel_id || "");
       setObservacoes(lead.observacoes || "");
       fetchHistory(lead.id);
-      // Check if lead has linked event
+      // Check if lead has linked event and fetch its data
       if (lead.status === "fechado") {
         supabase
           .from("company_events")
-          .select("id")
+          .select("*")
           .eq("lead_id", lead.id)
           .limit(1)
-          .then(({ data }) => setHasLinkedEvent((data || []).length > 0));
+          .then(({ data }) => {
+            setHasLinkedEvent((data || []).length > 0);
+            if (data && data.length > 0) {
+              const ev = data[0];
+              setLinkedEventData({
+                id: ev.id,
+                title: ev.title,
+                event_date: ev.event_date,
+                start_time: ev.start_time || "",
+                end_time: ev.end_time || "",
+                event_type: ev.event_type || "infantil",
+                guest_count: ev.guest_count,
+                unit: ev.unit || "",
+                status: ev.status,
+                package_name: ev.package_name || "",
+                total_value: ev.total_value,
+                notes: ev.notes || "",
+                lead_id: ev.lead_id || null,
+                data_fechamento_venda: ev.data_fechamento_venda || null,
+                vendedor_responsavel_id: ev.vendedor_responsavel_id || null,
+              });
+            } else {
+              setLinkedEventData(null);
+            }
+          });
       } else {
         setHasLinkedEvent(null);
+        setLinkedEventData(null);
       }
     }
   }, [lead]);
@@ -225,6 +259,7 @@ export function LeadDetailSheet({
   if (!lead) return null;
 
   return (
+    <>
     <Sheet open={isOpen} onOpenChange={onClose}>
         <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
         <SheetHeader>
@@ -259,11 +294,61 @@ export function LeadDetailSheet({
             </div>
           )}
 
-          {/* Festa pendente indicator */}
-          {lead.status === "fechado" && hasLinkedEvent === false && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-300/30 text-sm">
-              <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
-              <span className="text-amber-700 dark:text-amber-400 font-medium">⚠ Festa ainda não criada</span>
+          {/* Festa shortcut for closed leads */}
+          {lead.status === "fechado" && (
+            <div className={`flex items-center justify-between gap-2 p-3 rounded-xl border text-sm ${
+              hasLinkedEvent === false
+                ? 'bg-amber-500/10 border-amber-300/30'
+                : 'bg-emerald-500/10 border-emerald-300/30'
+            }`}>
+              <div className="flex items-center gap-2">
+                {hasLinkedEvent === false ? (
+                  <>
+                    <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                    <span className="text-amber-700 dark:text-amber-400 font-medium">⚠ Festa ainda não criada</span>
+                  </>
+                ) : hasLinkedEvent === true ? (
+                  <>
+                    <PartyPopper className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span className="text-emerald-700 dark:text-emerald-400 font-medium">🎉 Festa vinculada</span>
+                  </>
+                ) : null}
+              </div>
+              {hasLinkedEvent !== null && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs shrink-0"
+                  disabled={isLoadingEvent}
+                  onClick={() => {
+                    if (hasLinkedEvent && linkedEventData) {
+                      setEventFormOpen(true);
+                    } else {
+                      // Pre-fill with lead data for new event
+                      setLinkedEventData({
+                        title: lead.name,
+                        event_date: "",
+                        start_time: "",
+                        end_time: "",
+                        event_type: "infantil",
+                        guest_count: lead.guests ? parseInt(lead.guests) || null : null,
+                        unit: lead.unit || "",
+                        status: "pendente",
+                        package_name: "",
+                        total_value: null,
+                        notes: "",
+                        lead_id: lead.id,
+                        lead_name: lead.name,
+                      });
+                      setEventFormOpen(true);
+                    }
+                  }}
+                >
+                  {isLoadingEvent ? <Loader2 className="w-3 h-3 animate-spin" /> : (
+                    <>{hasLinkedEvent ? 'Ver Festa' : 'Criar Festa'}</>
+                  )}
+                </Button>
+              )}
             </div>
           )}
 
@@ -431,5 +516,48 @@ export function LeadDetailSheet({
         </div>
       </SheetContent>
     </Sheet>
+
+    {/* Event Form Dialog */}
+    <EventFormDialog
+      open={eventFormOpen}
+      onOpenChange={setEventFormOpen}
+      initialData={linkedEventData}
+      units={units.filter(u => u.slug !== "trabalhe-conosco")}
+      onSubmit={async (data) => {
+        if (!currentCompany?.id) return;
+        const payload: any = {
+          company_id: currentCompany.id,
+          title: data.title,
+          event_date: data.event_date,
+          start_time: data.start_time || null,
+          end_time: data.end_time || null,
+          event_type: data.event_type || null,
+          guest_count: data.guest_count,
+          unit: data.unit || null,
+          status: data.status,
+          package_name: data.package_name || null,
+          total_value: data.total_value,
+          notes: data.notes || null,
+          created_by: currentUserId,
+          lead_id: data.lead_id || lead?.id || null,
+          data_fechamento_venda: data.data_fechamento_venda || null,
+          vendedor_responsavel_id: data.vendedor_responsavel_id || null,
+        };
+
+        if (data.id) {
+          const { error } = await supabase.from("company_events").update(payload).eq("id", data.id);
+          if (error) { toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" }); return; }
+          toast({ title: "Festa atualizada!" });
+        } else {
+          const { error } = await supabase.from("company_events").insert(payload);
+          if (error) { toast({ title: "Erro ao criar", description: error.message, variant: "destructive" }); return; }
+          toast({ title: "Festa criada!" });
+          setHasLinkedEvent(true);
+        }
+        setEventFormOpen(false);
+        onUpdate();
+      }}
+    />
+    </>
   );
 }
