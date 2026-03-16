@@ -191,7 +191,34 @@ export function NegociacoesParadasTab({ selectedUnit }: NegociacoesParadasTabPro
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Reactivation Metrics */}
+      {reactivationMetrics && reactivationMetrics.sent > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          <Card className="p-3">
+            <p className="text-xs text-muted-foreground">Reativações</p>
+            <p className="text-xl font-bold">{reactivationMetrics.sent}</p>
+          </Card>
+          <Card className="p-3">
+            <p className="text-xs text-muted-foreground">Respostas</p>
+            <p className="text-xl font-bold">{reactivationMetrics.replied}</p>
+          </Card>
+          <Card className="p-3">
+            <p className="text-xs text-muted-foreground">Taxa Resposta</p>
+            <p className="text-xl font-bold">
+              {Math.round((reactivationMetrics.replied / reactivationMetrics.sent) * 100)}%
+            </p>
+          </Card>
+          <Card className="p-3">
+            <p className="text-xs text-muted-foreground">Interessados</p>
+            <p className="text-xl font-bold text-green-600">{reactivationMetrics.option1}</p>
+          </Card>
+          <Card className="p-3">
+            <p className="text-xs text-muted-foreground">Pediram valores</p>
+            <p className="text-xl font-bold text-blue-600">{reactivationMetrics.option2}</p>
+          </Card>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
