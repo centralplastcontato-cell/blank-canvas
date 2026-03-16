@@ -197,6 +197,17 @@ export function NegociacoesParadasTab({ selectedUnit }: NegociacoesParadasTabPro
             ))}
           </SelectContent>
         </Select>
+        <Select value={monthFilter} onValueChange={handleFilterChange(setMonthFilter)}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Mês da festa" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os meses</SelectItem>
+            {availableMonths.map(m => (
+              <SelectItem key={m} value={m}>🎂 {m}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Empty state */}
