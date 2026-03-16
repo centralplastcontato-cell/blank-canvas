@@ -4149,60 +4149,64 @@ async function processWebhookEvent(body: Record<string, unknown>) {
           const phone = jid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@g.us', '').replace('@lid', '');
           const isGrp = jid.includes('@g.us');
           
-          // Skip group messages
-          if (!isGrp) {
-            const { data: existingConv } = await supabase.from('wapi_conversations').select('*').eq('instance_id', instance.id).eq('remote_jid', jid).single();
+          // Process both individual and group messages (previously groups were skipped)
+          const { data: existingConv } = await supabase.from('wapi_conversations').select('*').eq('instance_id', instance.id).eq('remote_jid', jid).maybeSingle();
+          
+          if (existingConv) {
+            // Check if message already exists
+            const { data: existingMsg } = await supabase.from('wapi_messages').select('id').eq('message_id', msgId).maybeSingle();
             
-            if (existingConv) {
-              // Check if message already exists
-              const { data: existingMsg } = await supabase.from('wapi_messages').select('id').eq('message_id', msgId).single();
+            if (!existingMsg) {
+              // Extract content from unknown message
+              let content = '';
+              let type = 'text';
+              let mediaUrl = null;
               
-              if (!existingMsg) {
-                // Extract content from unknown message
-                let content = '';
-                let type = 'text';
-                let mediaUrl = null;
+              if ((unknownMc as Record<string, unknown>).conversation) content = (unknownMc as Record<string, string>).conversation;
+              else if ((unknownMc as Record<string, unknown>).extendedTextMessage?.text) content = ((unknownMc as Record<string, unknown>).extendedTextMessage as Record<string, unknown>).text as string;
+              else if ((unknownMc as Record<string, unknown>).imageMessage) { type = 'image'; content = ((unknownMc as Record<string, unknown>).imageMessage as Record<string, unknown>).caption as string || '[Imagem]'; mediaUrl = ((unknownMc as Record<string, unknown>).imageMessage as Record<string, unknown>).url as string; }
+              else if ((unknownMc as Record<string, unknown>).documentMessage) { type = 'document'; content = ((unknownMc as Record<string, unknown>).documentMessage as Record<string, unknown>).fileName as string || '[Documento]'; mediaUrl = ((unknownMc as Record<string, unknown>).documentMessage as Record<string, unknown>).url as string; }
+              else if ((unknownMc as Record<string, unknown>).videoMessage) { type = 'video'; content = ((unknownMc as Record<string, unknown>).videoMessage as Record<string, unknown>).caption as string || '[Vídeo]'; mediaUrl = ((unknownMc as Record<string, unknown>).videoMessage as Record<string, unknown>).url as string; }
+              else if ((unknownMc as Record<string, unknown>).audioMessage) { type = 'audio'; content = '[Áudio]'; mediaUrl = ((unknownMc as Record<string, unknown>).audioMessage as Record<string, unknown>).url as string; }
+              else if ((unknownMsg as Record<string, string>).body) content = (unknownMsg as Record<string, string>).body;
+              else if ((unknownMsg as Record<string, string>).text) content = (unknownMsg as Record<string, string>).text;
+              
+              if (content) {
+                console.log(`[Unknown event] Saving fromMe message (isGroup: ${isGrp}): ${content.substring(0, 50)}...`);
                 
-                if ((unknownMc as Record<string, unknown>).conversation) content = (unknownMc as Record<string, string>).conversation;
-                else if ((unknownMc as Record<string, unknown>).extendedTextMessage?.text) content = ((unknownMc as Record<string, unknown>).extendedTextMessage as Record<string, unknown>).text as string;
-                else if ((unknownMc as Record<string, unknown>).imageMessage) { type = 'image'; content = ((unknownMc as Record<string, unknown>).imageMessage as Record<string, unknown>).caption as string || '[Imagem]'; mediaUrl = ((unknownMc as Record<string, unknown>).imageMessage as Record<string, unknown>).url as string; }
-                else if ((unknownMc as Record<string, unknown>).documentMessage) { type = 'document'; content = ((unknownMc as Record<string, unknown>).documentMessage as Record<string, unknown>).fileName as string || '[Documento]'; mediaUrl = ((unknownMc as Record<string, unknown>).documentMessage as Record<string, unknown>).url as string; }
-                else if ((unknownMc as Record<string, unknown>).videoMessage) { type = 'video'; content = ((unknownMc as Record<string, unknown>).videoMessage as Record<string, unknown>).caption as string || '[Vídeo]'; mediaUrl = ((unknownMc as Record<string, unknown>).videoMessage as Record<string, unknown>).url as string; }
-                else if ((unknownMc as Record<string, unknown>).audioMessage) { type = 'audio'; content = '[Áudio]'; mediaUrl = ((unknownMc as Record<string, unknown>).audioMessage as Record<string, unknown>).url as string; }
-                else if ((unknownMsg as Record<string, string>).body) content = (unknownMsg as Record<string, string>).body;
-                else if ((unknownMsg as Record<string, string>).text) content = (unknownMsg as Record<string, string>).text;
+                const grpMeta = isGrp ? {
+                  participant: ((unknownMsg as Record<string, unknown>).key?.participant || (unknownMsg as Record<string, unknown>).participant || '').replace('@s.whatsapp.net',''),
+                  sender_name: (unknownMsg as Record<string, unknown>).pushName || null
+                } : { source: 'platform' };
                 
-                if (content) {
-                  console.log(`[Unknown event] Saving fromMe message: ${content.substring(0, 50)}...`);
-                  
-                  await supabase.from('wapi_messages').insert({
-                    conversation_id: existingConv.id,
-                    message_id: msgId,
-                    from_me: true,
-                    message_type: type,
-                    content,
-                    media_url: mediaUrl,
-                    status: 'sent',
-                    timestamp: (unknownMsg as Record<string, unknown>).messageTimestamp 
-                      ? new Date(((unknownMsg as Record<string, unknown>).messageTimestamp as number) * 1000).toISOString() 
-                      : new Date().toISOString(),
-                    company_id: instance.company_id,
-                  });
-                  
-                  // Update conversation - but don't disable bot during active steps
-                  const unknownActiveBotSteps = ['welcome', 'tipo', 'nome', 'mes', 'dia', 'convidados', 'sending_materials', 'proximo_passo', 'proximo_passo_reminded'];
-                  const unknownIsFlowStep = (existingConv.bot_step || '').startsWith('flow_');
-                  const unknownIsBotActive = unknownActiveBotSteps.includes(existingConv.bot_step || '') || unknownIsFlowStep;
-                  
-                  await supabase.from('wapi_conversations').update({
-                    last_message_at: new Date().toISOString(),
-                    last_message_content: content.substring(0, 100),
-                    last_message_from_me: true,
-                    ...(existingConv.bot_step && existingConv.bot_step !== 'complete' && !unknownIsBotActive ? { bot_enabled: false } : {})
-                  }).eq('id', existingConv.id);
-                  
-                  console.log(`[Unknown event] Message saved successfully`);
-                }
+                await supabase.from('wapi_messages').insert({
+                  conversation_id: existingConv.id,
+                  message_id: msgId,
+                  from_me: true,
+                  message_type: type,
+                  content,
+                  media_url: mediaUrl,
+                  status: 'sent',
+                  timestamp: (unknownMsg as Record<string, unknown>).messageTimestamp 
+                    ? new Date(((unknownMsg as Record<string, unknown>).messageTimestamp as number) * 1000).toISOString() 
+                    : new Date().toISOString(),
+                  company_id: instance.company_id,
+                  metadata: grpMeta,
+                });
+                
+                // Update conversation - but don't disable bot during active steps (only for non-groups)
+                const unknownActiveBotSteps = ['welcome', 'tipo', 'nome', 'mes', 'dia', 'convidados', 'sending_materials', 'proximo_passo', 'proximo_passo_reminded'];
+                const unknownIsFlowStep = (existingConv.bot_step || '').startsWith('flow_');
+                const unknownIsBotActive = unknownActiveBotSteps.includes(existingConv.bot_step || '') || unknownIsFlowStep;
+                
+                await supabase.from('wapi_conversations').update({
+                  last_message_at: new Date().toISOString(),
+                  last_message_content: content.substring(0, 100),
+                  last_message_from_me: true,
+                  ...(isGrp ? {} : (existingConv.bot_step && existingConv.bot_step !== 'complete' && !unknownIsBotActive ? { bot_enabled: false } : {}))
+                }).eq('id', existingConv.id);
+                
+                console.log(`[Unknown event] Message saved successfully`);
               }
             }
           }
