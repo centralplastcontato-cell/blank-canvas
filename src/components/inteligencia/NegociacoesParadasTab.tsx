@@ -56,25 +56,50 @@ export function NegociacoesParadasTab({ selectedUnit }: NegociacoesParadasTabPro
   const [scoreFilter, setScoreFilter] = useState("all");
   const [monthFilter, setMonthFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [reactivationMap, setReactivationMap] = useState<Record<string, { stage: string; sent_at: string }>>({});
+  const [reactivationMap, setReactivationMap] = useState<Record<string, { stage: string; sent_at: string; replied?: boolean; option_label?: string }>>({});
+  const [reactivationMetrics, setReactivationMetrics] = useState<{ sent: number; replied: number; option1: number; option2: number; option3: number } | null>(null);
   const { data, isLoading } = useNegociacoesParadas(Number(stalledDays), selectedUnit);
 
-  // Fetch reactivation history for visible leads
+  // Fetch reactivation history for visible leads + metrics
   useEffect(() => {
-    if (!currentCompanyId || !data?.length) return;
+    if (!currentCompanyId) return;
+    
+    // Fetch metrics for company
+    supabase
+      .from('lead_reactivation_history')
+      .select('id, status, option_selected')
+      .eq('company_id', currentCompanyId)
+      .in('status', ['sent', 'replied'])
+      .then(({ data: allHistory }) => {
+        if (allHistory) {
+          const sent = allHistory.length;
+          const replied = allHistory.filter(h => h.status === 'replied').length;
+          const option1 = allHistory.filter(h => h.option_selected === 1).length;
+          const option2 = allHistory.filter(h => h.option_selected === 2).length;
+          const option3 = allHistory.filter(h => h.option_selected === 3).length;
+          setReactivationMetrics({ sent, replied, option1, option2, option3 });
+        }
+      });
+
+    if (!data?.length) return;
     const leadIds = data.map(d => d.leadId);
     supabase
       .from('lead_reactivation_history')
-      .select('lead_id, reactivation_stage, sent_at')
+      .select('lead_id, reactivation_stage, sent_at, status, option_label')
       .eq('company_id', currentCompanyId)
-      .eq('status', 'sent')
+      .in('status', ['sent', 'replied'])
       .in('lead_id', leadIds)
       .order('sent_at', { ascending: false })
       .then(({ data: history }) => {
-        const map: Record<string, { stage: string; sent_at: string }> = {};
+        const map: Record<string, { stage: string; sent_at: string; replied?: boolean; option_label?: string }> = {};
         for (const h of (history || [])) {
           if (!map[h.lead_id]) {
-            map[h.lead_id] = { stage: h.reactivation_stage, sent_at: h.sent_at };
+            map[h.lead_id] = { 
+              stage: h.reactivation_stage, 
+              sent_at: h.sent_at,
+              replied: h.status === 'replied',
+              option_label: h.option_label,
+            };
           }
         }
         setReactivationMap(map);
@@ -166,7 +191,34 @@ export function NegociacoesParadasTab({ selectedUnit }: NegociacoesParadasTabPro
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Reactivation Metrics */}
+      {reactivationMetrics && reactivationMetrics.sent > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          <Card className="p-3">
+            <p className="text-xs text-muted-foreground">Reativações</p>
+            <p className="text-xl font-bold">{reactivationMetrics.sent}</p>
+          </Card>
+          <Card className="p-3">
+            <p className="text-xs text-muted-foreground">Respostas</p>
+            <p className="text-xl font-bold">{reactivationMetrics.replied}</p>
+          </Card>
+          <Card className="p-3">
+            <p className="text-xs text-muted-foreground">Taxa Resposta</p>
+            <p className="text-xl font-bold">
+              {Math.round((reactivationMetrics.replied / reactivationMetrics.sent) * 100)}%
+            </p>
+          </Card>
+          <Card className="p-3">
+            <p className="text-xs text-muted-foreground">Interessados</p>
+            <p className="text-xl font-bold text-green-600">{reactivationMetrics.option1}</p>
+          </Card>
+          <Card className="p-3">
+            <p className="text-xs text-muted-foreground">Pediram valores</p>
+            <p className="text-xl font-bold text-blue-600">{reactivationMetrics.option2}</p>
+          </Card>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -271,9 +323,19 @@ export function NegociacoesParadasTab({ selectedUnit }: NegociacoesParadasTabPro
                       </div>
                       <ScoreBadge score={lead.scoreFechamento} classificacao={lead.classificacao} />
                       {reactivationMap[lead.leadId] && (
-                        <Badge variant="outline" className="text-xs gap-1 border-primary/30 text-primary">
+                        <Badge 
+                          variant="outline" 
+                          className={`text-xs gap-1 ${
+                            reactivationMap[lead.leadId].replied 
+                              ? "border-green-500/30 text-green-600" 
+                              : "border-primary/30 text-primary"
+                          }`}
+                        >
                           <Sparkles className="h-3 w-3" />
-                          Reativação enviada
+                          {reactivationMap[lead.leadId].replied 
+                            ? `Respondeu: ${reactivationMap[lead.leadId].option_label || 'opção selecionada'}`
+                            : 'Reativação enviada'
+                          }
                         </Badge>
                       )}
                     </div>

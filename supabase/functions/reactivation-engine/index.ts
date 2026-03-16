@@ -99,6 +99,13 @@ interface ReactivationSettings {
   exclude_existing_event: boolean;
   min_days_without_reply: number;
   max_messages_per_lead: number;
+  // Fase 4B
+  interactive_options_enabled: boolean;
+  capture_window_hours: number;
+  pause_days_on_analyzing: number;
+  option_1_label: string;
+  option_2_label: string;
+  option_3_label: string;
 }
 
 Deno.serve(async (req) => {
@@ -317,13 +324,22 @@ Deno.serve(async (req) => {
               const firstName = resolveFirstName(lead.name);
               const partyMonthName = MONTH_NAMES[partyMonth] || lead.month || "";
 
-              const message = interpolateMessage(stage.message, {
+              let message = interpolateMessage(stage.message, {
                 nome: lead.name || "cliente",
                 primeiro_nome: firstName,
                 mes_festa: partyMonthName,
                 buffet: companyName,
                 telefone: lead.whatsapp || "",
               });
+
+              // Fase 4B: Append interactive options if enabled
+              const isInteractive = settings.interactive_options_enabled;
+              if (isInteractive) {
+                message += "\n\nMe responde com o número da opção 👇\n\n";
+                message += `1️⃣ ${settings.option_1_label || 'Ainda tenho interesse na festa'}\n`;
+                message += `2️⃣ ${settings.option_2_label || 'Quero ver os valores'}\n`;
+                message += `3️⃣ ${settings.option_3_label || 'Ainda estou analisando'}`;
+              }
 
               // Send message via W-API
               const phone = conv.remote_jid.replace("@s.whatsapp.net", "").replace("@c.us", "");
@@ -368,6 +384,7 @@ Deno.serve(async (req) => {
                 sent_at: sendStatus === "sent" ? new Date().toISOString() : null,
                 status: sendStatus,
                 failure_reason: failureReason,
+                is_interactive: isInteractive,
               });
 
               // Save message in wapi_messages
@@ -380,7 +397,7 @@ Deno.serve(async (req) => {
                   message_id: sentMsgId,
                   status: "sent",
                   timestamp: new Date().toISOString(),
-                  metadata: { source: "reactivation_engine", stage: stage.stage },
+                  metadata: { source: "reactivation_engine", stage: stage.stage, interactive: isInteractive },
                   company_id: settings.company_id,
                 });
 
