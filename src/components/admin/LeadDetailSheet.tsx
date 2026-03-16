@@ -542,6 +542,7 @@ export function LeadDetailSheet({
           lead_id: data.lead_id || lead?.id || null,
           data_fechamento_venda: data.data_fechamento_venda || null,
           vendedor_responsavel_id: data.vendedor_responsavel_id || null,
+          payment_method: data.payment_method || null,
         };
 
         if (data.id) {
