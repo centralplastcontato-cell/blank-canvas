@@ -99,6 +99,13 @@ interface ReactivationSettings {
   exclude_existing_event: boolean;
   min_days_without_reply: number;
   max_messages_per_lead: number;
+  // Fase 4B
+  interactive_options_enabled: boolean;
+  capture_window_hours: number;
+  pause_days_on_analyzing: number;
+  option_1_label: string;
+  option_2_label: string;
+  option_3_label: string;
 }
 
 Deno.serve(async (req) => {
