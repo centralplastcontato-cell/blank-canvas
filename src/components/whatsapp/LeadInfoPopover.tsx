@@ -156,6 +156,7 @@ export function LeadInfoPopover({
   onToggleFavorite,
   onLeadNameChange,
   onLeadObsChange,
+  onShowVisitDialog,
   mobile = false,
 }: LeadInfoPopoverProps) {
   const [isEditingName, setIsEditingName] = useState(false);
