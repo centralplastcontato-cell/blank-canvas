@@ -5048,6 +5048,16 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                 setLinkedLead(updatedLead);
                                 setMobileStatusExpanded(false);
 
+                                // Sync has_scheduled_visit with em_contato status
+                                if (newStatus === 'em_contato' || oldStatus === 'em_contato') {
+                                  const shouldHaveVisit = newStatus === 'em_contato';
+                                  if (selectedConversation) {
+                                    await supabase.from('wapi_conversations').update({ has_scheduled_visit: shouldHaveVisit }).eq('id', selectedConversation.id);
+                                    setConversations(prev => prev.map(c => c.id === selectedConversation.id ? { ...c, has_scheduled_visit: shouldHaveVisit } : c));
+                                    setSelectedConversation({ ...selectedConversation, has_scheduled_visit: shouldHaveVisit });
+                                  }
+                                }
+
                                 if (newStatus === 'fechado') {
                                   console.log('[Lead:Fechado->NovaFesta:mobile]', {
                                     leadId: updatedLead.id,
