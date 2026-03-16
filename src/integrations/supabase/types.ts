@@ -114,6 +114,7 @@ export type Database = {
       }
       automation_reactivation_settings: {
         Row: {
+          capture_window_hours: number
           company_id: string
           created_at: string
           eligible_statuses: string[] | null
@@ -121,12 +122,17 @@ export type Database = {
           exclude_existing_event: boolean
           exclude_lost: boolean
           id: string
+          interactive_options_enabled: boolean
           is_enabled: boolean
           max_messages_per_lead: number
           message_one_month: string | null
           message_three_months: string | null
           message_two_months: string | null
           min_days_without_reply: number
+          option_1_label: string
+          option_2_label: string
+          option_3_label: string
+          pause_days_on_analyzing: number
           require_human_interaction: boolean
           require_party_date: boolean
           safety_interval_max_seconds: number
@@ -139,6 +145,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          capture_window_hours?: number
           company_id: string
           created_at?: string
           eligible_statuses?: string[] | null
@@ -146,12 +153,17 @@ export type Database = {
           exclude_existing_event?: boolean
           exclude_lost?: boolean
           id?: string
+          interactive_options_enabled?: boolean
           is_enabled?: boolean
           max_messages_per_lead?: number
           message_one_month?: string | null
           message_three_months?: string | null
           message_two_months?: string | null
           min_days_without_reply?: number
+          option_1_label?: string
+          option_2_label?: string
+          option_3_label?: string
+          pause_days_on_analyzing?: number
           require_human_interaction?: boolean
           require_party_date?: boolean
           safety_interval_max_seconds?: number
@@ -164,6 +176,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          capture_window_hours?: number
           company_id?: string
           created_at?: string
           eligible_statuses?: string[] | null
@@ -171,12 +184,17 @@ export type Database = {
           exclude_existing_event?: boolean
           exclude_lost?: boolean
           id?: string
+          interactive_options_enabled?: boolean
           is_enabled?: boolean
           max_messages_per_lead?: number
           message_one_month?: string | null
           message_three_months?: string | null
           message_two_months?: string | null
           min_days_without_reply?: number
+          option_1_label?: string
+          option_2_label?: string
+          option_3_label?: string
+          pause_days_on_analyzing?: number
           require_human_interaction?: boolean
           require_party_date?: boolean
           safety_interval_max_seconds?: number
@@ -2314,43 +2332,58 @@ export type Database = {
       }
       lead_reactivation_history: {
         Row: {
+          action_executed: string | null
           company_id: string
           conversation_id: string | null
           created_at: string
           failure_reason: string | null
           id: string
+          is_interactive: boolean
           lead_id: string
           message_sent: string | null
+          option_label: string | null
+          option_selected: number | null
           reactivation_stage: string
           reactivation_type: string
+          selected_at: string | null
           sent_at: string | null
           status: string
           updated_at: string
         }
         Insert: {
+          action_executed?: string | null
           company_id: string
           conversation_id?: string | null
           created_at?: string
           failure_reason?: string | null
           id?: string
+          is_interactive?: boolean
           lead_id: string
           message_sent?: string | null
+          option_label?: string | null
+          option_selected?: number | null
           reactivation_stage: string
           reactivation_type?: string
+          selected_at?: string | null
           sent_at?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
+          action_executed?: string | null
           company_id?: string
           conversation_id?: string | null
           created_at?: string
           failure_reason?: string | null
           id?: string
+          is_interactive?: boolean
           lead_id?: string
           message_sent?: string | null
+          option_label?: string | null
+          option_selected?: number | null
           reactivation_stage?: string
           reactivation_type?: string
+          selected_at?: string | null
           sent_at?: string | null
           status?: string
           updated_at?: string
