@@ -200,7 +200,9 @@ function ChatWindow({
       {/* Header */}
       <div className="bg-gradient-to-r from-primary to-primary/80 p-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <img src={logoCelebrei} alt="Celebrei" className="h-9 w-9 object-contain rounded-lg bg-white/10 p-1" />
+          <div className="h-9 w-9 rounded-lg bg-white/10 flex items-center justify-center">
+            <Bot className="h-5 w-5 text-primary-foreground" />
+          </div>
           <div>
             <h3 className="font-bold text-primary-foreground text-sm">Suporte Celebrei</h3>
             <p className="text-xs text-primary-foreground/70">Online agora</p>
