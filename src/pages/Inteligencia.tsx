@@ -233,9 +233,9 @@ export default function Inteligencia() {
                     <Brain className="h-6 w-6 text-primary" />
                   </div>
                   <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Inteligência</h1>
+                    <h1 className="text-2xl font-bold tracking-tight">Inteligência Comercial</h1>
                   <p className="text-sm text-muted-foreground">
-                    Score de leads, priorização e análise de funil
+                    Análise de desempenho do funil e resultados de vendas
                   </p>
                 </div>
               </div>
