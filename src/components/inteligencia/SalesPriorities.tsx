@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageCircle, TrendingUp, Clock, Eye, Phone, FileText, Handshake, Zap } from "lucide-react";
+import { MessageCircle, TrendingUp, Clock, Eye, FileText, Handshake, Zap } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { LEAD_STATUS_LABELS, type LeadStatus } from "@/types/crm";
