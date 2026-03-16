@@ -1393,11 +1393,20 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
         if (!skipLeadRefresh || idsToFetch.length > 0) {
           const fetchIds = skipLeadRefresh ? idsToFetch : leadIds;
-          const { data: freshLeads } = await supabase
-            .from("campaign_leads")
-            .select("id, name, whatsapp, unit, status, month, day_of_month, day_preference, guests, observacoes, created_at, responsavel_id, campaign_name")
-            .in("id", fetchIds);
-          if (freshLeads) allLeads = freshLeads as Lead[];
+          const leadChunks = Array.from({ length: Math.ceil(fetchIds.length / 1000) }, (_, index) =>
+            fetchIds.slice(index * 1000, (index + 1) * 1000)
+          );
+
+          for (const chunk of leadChunks) {
+            const { data: freshLeads } = await supabase
+              .from("campaign_leads")
+              .select("id, name, whatsapp, unit, status, month, day_of_month, day_preference, guests, observacoes, created_at, responsavel_id, campaign_name")
+              .in("id", chunk);
+
+            if (freshLeads) {
+              allLeads.push(...(freshLeads as Lead[]));
+            }
+          }
         }
 
         // Merge with existing cached leads when doing partial refresh
