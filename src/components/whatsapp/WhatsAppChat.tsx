@@ -4242,9 +4242,19 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                                 : "text-primary hover:bg-primary/5"
                                             )}
                                             onClick={() => {
-                                              const cleanPhone = contactPhoneNum.replace(/[^0-9+]/g, '');
-                                              setSearchQuery(cleanPhone);
-                                              setSelectedConversation(null);
+                                              const cleanPhone = contactPhoneNum.replace(/\D/g, '');
+                                              // Try to find existing conversation by phone digits
+                                              const match = conversations.find(c => {
+                                                const cDigits = c.contact_phone.replace(/\D/g, '');
+                                                return cDigits.includes(cleanPhone) || cleanPhone.includes(cDigits);
+                                              });
+                                              if (match) {
+                                                setSelectedConversation(match);
+                                                setSearchQuery('');
+                                              } else {
+                                                setSearchQuery(cleanPhone);
+                                                setSelectedConversation(null);
+                                              }
                                             }}
                                           >
                                             <MessageSquare className="w-3 h-3" />
