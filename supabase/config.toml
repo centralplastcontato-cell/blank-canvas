@@ -69,4 +69,7 @@ verify_jwt = false
 [functions.smart-alerts]
 verify_jwt = false
 
+[functions.link-orphan-conversations]
+verify_jwt = false
+
 
