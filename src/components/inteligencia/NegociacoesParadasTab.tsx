@@ -44,12 +44,36 @@ const PAGE_SIZE = 10;
 
 export function NegociacoesParadasTab({ selectedUnit }: NegociacoesParadasTabProps) {
   const navigate = useNavigate();
+  const { currentCompanyId } = useCompany();
   const [stalledDays, setStalledDays] = useState("10");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [scoreFilter, setScoreFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [reactivationMap, setReactivationMap] = useState<Record<string, { stage: string; sent_at: string }>>({});
   const { data, isLoading } = useNegociacoesParadas(Number(stalledDays), selectedUnit);
+
+  // Fetch reactivation history for visible leads
+  useEffect(() => {
+    if (!currentCompanyId || !data?.length) return;
+    const leadIds = data.map(d => d.leadId);
+    supabase
+      .from('lead_reactivation_history')
+      .select('lead_id, reactivation_stage, sent_at')
+      .eq('company_id', currentCompanyId)
+      .eq('status', 'sent')
+      .in('lead_id', leadIds)
+      .order('sent_at', { ascending: false })
+      .then(({ data: history }) => {
+        const map: Record<string, { stage: string; sent_at: string }> = {};
+        for (const h of (history || [])) {
+          if (!map[h.lead_id]) {
+            map[h.lead_id] = { stage: h.reactivation_stage, sent_at: h.sent_at };
+          }
+        }
+        setReactivationMap(map);
+      });
+  }, [currentCompanyId, data]);
 
   const handleFilterChange = (setter: (v: string) => void) => (value: string) => {
     setter(value);
