@@ -3736,6 +3736,19 @@ async function processWebhookEvent(body: Record<string, unknown>) {
         }).catch(err => console.error('[Media download error]', err));
       }
 
+      // Fase 4B: Check for reactivation response BEFORE bot processing
+      if (!fromMe && !isGrp && type === 'text' && content) {
+        try {
+          const handled = await handleReactivationResponse(supabase, instance, conv, content);
+          if (handled) {
+            console.log(`[Reactivation 4B] Response handled for conv ${conv.id}, skipping bot`);
+            break;
+          }
+        } catch (err) {
+          console.error('[Reactivation 4B error]', err);
+        }
+      }
+
       // Process bot qualification - MUST await to ensure bot messages are saved before function terminates
       if (!fromMe && !isGrp && type === 'text' && content) {
         try {
