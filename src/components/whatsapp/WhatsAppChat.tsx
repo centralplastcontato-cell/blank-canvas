@@ -351,6 +351,24 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [closedLeadConversationIds, setClosedLeadConversationIds] = useState<Set<string>>(new Set());
   const [orcamentoEnviadoConversationIds, setOrcamentoEnviadoConversationIds] = useState<Set<string>>(new Set());
   const [conversationLeadsMap, setConversationLeadsMap] = useState<Record<string, Lead | null>>({});
+  const leadStatusConversationIds = useMemo(() => {
+    const statusMap = {
+      fechado: new Set<string>(),
+      orcamento_enviado: new Set<string>(),
+      em_contato: new Set<string>(),
+    };
+
+    conversations.forEach((conv) => {
+      const lead = conversationLeadsMap[conv.id];
+      if (!lead) return;
+
+      if (lead.status === 'fechado') statusMap.fechado.add(conv.id);
+      if (lead.status === 'orcamento_enviado') statusMap.orcamento_enviado.add(conv.id);
+      if (lead.status === 'em_contato') statusMap.em_contato.add(conv.id);
+    });
+
+    return statusMap;
+  }, [conversations, conversationLeadsMap]);
   const scrollAreaDesktopRef = useRef<HTMLDivElement>(null);
   const scrollAreaMobileRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
