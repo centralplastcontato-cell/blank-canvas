@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
-import { AlertTriangle, ArrowRight, Bell, RefreshCw, TrendingDown, Users, Calendar, FileText } from "lucide-react";
+import { AlertTriangle, ArrowRight, Bell, RefreshCw, TrendingDown, Users, Calendar, FileText, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 interface Alert {
   id: string;
@@ -28,12 +29,75 @@ const SEVERITY_STYLES: Record<string, string> = {
   warning: "border-amber-500/20 bg-amber-500/5",
 };
 
-const ACTION_LABELS: Record<string, string> = {
-  negociacoes_paradas: "Ver negociações",
-  conversao_caiu: "Ver relatório",
-  orcamentos_sem_resposta: "Ver no CRM",
-  poucos_leads: "Ver relatório",
-  baixa_ocupacao: "Ver agenda",
+interface AlertAction {
+  label: string;
+  primary?: boolean;
+  handler: (alert: Alert, navigate: ReturnType<typeof useNavigate>, onTabChange?: (tab: string) => void) => void;
+}
+
+const ALERT_ACTIONS: Record<string, AlertAction[]> = {
+  negociacoes_paradas: [
+    {
+      label: "Ver negociações",
+      primary: true,
+      handler: (_alert, _nav, onTabChange) => onTabChange?.("negociacoes"),
+    },
+    {
+      label: "Abrir CRM",
+      handler: (_alert, navigate) => navigate("/admin"),
+    },
+  ],
+  orcamentos_sem_resposta: [
+    {
+      label: "Ver leads",
+      primary: true,
+      handler: (_alert, _nav, onTabChange) => onTabChange?.("negociacoes"),
+    },
+    {
+      label: "Abrir CRM filtrado",
+      handler: (_alert, navigate) => navigate("/admin"),
+    },
+  ],
+  conversao_caiu: [
+    {
+      label: "Ver relatório",
+      primary: true,
+      handler: (_alert, _nav, onTabChange) => onTabChange?.("relatorios"),
+    },
+    {
+      label: "Ver funil",
+      handler: (_alert, _nav, onTabChange) => onTabChange?.("funil"),
+    },
+  ],
+  poucos_leads: [
+    {
+      label: "Ver relatório",
+      primary: true,
+      handler: (_alert, _nav, onTabChange) => onTabChange?.("relatorios"),
+    },
+  ],
+  baixa_ocupacao: [
+    {
+      label: "Abrir agenda",
+      primary: true,
+      handler: (alert, navigate) => {
+        const month = alert.related_filter?.month;
+        if (month) {
+          navigate(`/agenda?month=${month}`);
+        } else {
+          navigate("/agenda");
+        }
+      },
+    },
+  ],
+};
+
+const SUGGESTIONS: Record<string, string> = {
+  negociacoes_paradas: "💡 Sugerimos entrar em contato com esses leads para retomar a negociação.",
+  orcamentos_sem_resposta: "💡 Sugerimos fazer um follow-up com os leads que receberam orçamento.",
+  conversao_caiu: "💡 Revise o funil para identificar em qual etapa os leads estão sendo perdidos.",
+  poucos_leads: "💡 Sugerimos intensificar a divulgação e campanhas para atrair novos leads.",
+  baixa_ocupacao: "💡 Sugerimos intensificar a divulgação para esse mês e oferecer condições especiais.",
 };
 
 interface AlertsPanelProps {
@@ -78,20 +142,6 @@ export function AlertsPanel({ onTabChange }: AlertsPanelProps) {
     setRefreshing(false);
   };
 
-  const handleAction = (alert: Alert) => {
-    const filter = alert.related_filter;
-    if (!filter) return;
-
-    if (filter.tab && onTabChange) {
-      onTabChange(filter.tab);
-      return;
-    }
-
-    if (filter.path) {
-      navigate(filter.path);
-    }
-  };
-
   if (loading) {
     return (
       <div className="space-y-2">
@@ -122,30 +172,62 @@ export function AlertsPanel({ onTabChange }: AlertsPanelProps) {
       </div>
 
       <div className="grid gap-2">
-        {alerts.map((alert) => (
-          <div
-            key={alert.id}
-            className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${
-              SEVERITY_STYLES[alert.severity] || SEVERITY_STYLES.warning
-            }`}
-          >
-            <div className="shrink-0">
-              {ICON_MAP[alert.alert_type] || <AlertTriangle className="h-5 w-5 text-muted-foreground" />}
-            </div>
-            <p className="flex-1 text-sm font-medium text-foreground leading-snug">
-              {alert.alert_message}
-            </p>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleAction(alert)}
-              className="shrink-0 h-8 text-xs font-semibold text-primary hover:text-primary"
+        {alerts.map((alert) => {
+          const actions = ALERT_ACTIONS[alert.alert_type] || [];
+          const suggestion = SUGGESTIONS[alert.alert_type];
+
+          return (
+            <div
+              key={alert.id}
+              className={cn(
+                "p-3 rounded-xl border transition-colors",
+                SEVERITY_STYLES[alert.severity] || SEVERITY_STYLES.warning
+              )}
             >
-              {ACTION_LABELS[alert.alert_type] || "Ver"}
-              <ArrowRight className="h-3.5 w-3.5 ml-1" />
-            </Button>
-          </div>
-        ))}
+              <div className="flex items-start gap-3">
+                <div className="shrink-0 mt-0.5">
+                  {ICON_MAP[alert.alert_type] || <AlertTriangle className="h-5 w-5 text-muted-foreground" />}
+                </div>
+                <div className="flex-1 min-w-0 space-y-2">
+                  <p className="text-sm font-medium text-foreground leading-snug">
+                    {alert.alert_message}
+                  </p>
+
+                  {/* Suggestion */}
+                  {suggestion && (
+                    <p className="text-xs text-muted-foreground flex items-start gap-1.5">
+                      <Lightbulb className="h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-500" />
+                      <span>{suggestion.replace("💡 ", "")}</span>
+                    </p>
+                  )}
+
+                  {/* Action buttons */}
+                  {actions.length > 0 && (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {actions.map((action, i) => (
+                        <Button
+                          key={i}
+                          variant={action.primary ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => action.handler(alert, navigate, onTabChange)}
+                          className={cn(
+                            "h-7 text-xs font-medium",
+                            action.primary
+                              ? "bg-primary/90 hover:bg-primary shadow-sm"
+                              : "text-muted-foreground"
+                          )}
+                        >
+                          {action.label}
+                          {action.primary && <ArrowRight className="h-3 w-3 ml-1" />}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
