@@ -182,7 +182,7 @@ function addCoverPage(doc: jsPDF, companyName?: string, logoBase64?: string) {
   doc.setFont("helvetica", "normal");
   const now = new Date();
   const months = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-  doc.text(`Versão 1.0 — ${months[now.getMonth()]} ${now.getFullYear()}`, PAGE_W / 2, 200, { align: "center" });
+  doc.text(`Versão 2.0 — ${months[now.getMonth()]} ${now.getFullYear()}`, PAGE_W / 2, 200, { align: "center" });
 
   // Bottom strip
   doc.setFillColor(...rgb(C.coverDark));
@@ -456,6 +456,18 @@ function ch03(doc: jsPDF) {
     "Envio de imagens e vídeos com preview.",
     "Preview automático de links (link preview card).",
     "Envio de documentos PDF e outros arquivos.",
+    "Envio de vCards (contatos) com extração automática de nome e telefone.",
+    "Download em lote de imagens (ZIP ou individual) via multi-seleção.",
+  ]);
+
+  addSectionTitle(doc, "Alterar status do lead pelo chat");
+  addParagraph(doc, "Você pode mudar o status de um lead diretamente na tela de conversa, sem precisar ir ao CRM. Use o menu de ações rápidas na conversa para classificar o lead (Novo, Visita, Orçamento Enviado, Negociando, Fechado, Perdido, etc.). O toast de confirmação exibe uma borda colorida conforme o status escolhido.");
+
+  addSectionTitle(doc, "Favoritos e encerramento");
+  addBulletList(doc, [
+    "Marque conversas como favoritas (⭐) para acesso rápido — elas aparecem no topo da lista.",
+    "Encerre conversas finalizadas para mantê-las organizadas. Conversas encerradas ficam em um filtro separado.",
+    "Reabra conversas encerradas a qualquer momento se o cliente voltar a interagir.",
   ]);
 
   addSectionTitle(doc, "Materiais de venda");
@@ -469,7 +481,10 @@ function ch03(doc: jsPDF) {
   ]);
 
   addSectionTitle(doc, "Filtros de conversa");
-  addParagraph(doc, "Filtre conversas por status, por responsável e por texto de busca. Você pode arrastar os botões de filtro para reordená-los conforme sua preferência.");
+  addParagraph(doc, "Filtre conversas por status, por responsável e por texto de busca. Você pode arrastar os botões de filtro para reordená-los conforme sua preferência. Filtros por status do lead (Novo, Visita, O.E., Negociando, Fechado, Perdido) permitem encontrar rapidamente conversas específicas.");
+
+  addSectionTitle(doc, "Busca por conteúdo");
+  addParagraph(doc, "Use a busca por conteúdo dentro das mensagens para encontrar informações específicas em conversas longas. O sistema navega suavemente até a mensagem encontrada.");
 
   addTipBox(doc, "Use o botão de compartilhar para enviar mensagens diretamente para grupos do WhatsApp, útil para repassar informações para equipes.");
 }
@@ -478,7 +493,7 @@ function ch04(doc: jsPDF) {
   addChapterTitle(doc, 4, "Automações e Bot");
 
   addSectionTitle(doc, "Flow Builder (editor visual)");
-  addParagraph(doc, "O Flow Builder permite criar fluxos de conversa automatizados de forma visual. Cada \"nó\" do fluxo representa uma etapa da conversa: enviar mensagem, aguardar resposta, fazer uma pergunta com opções, ou executar uma ação (como mover lead de etapa).");
+  addParagraph(doc, "O Flow Builder permite criar fluxos de conversa automatizados de forma visual. Cada 'nó' do fluxo representa uma etapa da conversa: enviar mensagem, aguardar resposta, fazer uma pergunta com opções, ou executar uma ação (como mover lead de etapa).");
   addBulletList(doc, [
     "Arraste e conecte nós para criar o fluxo.",
     "Configure mensagens com variáveis dinâmicas ({nome}, {unidade}, etc.).",
@@ -496,32 +511,98 @@ function ch04(doc: jsPDF) {
   addSectionTitle(doc, "Follow-ups automáticos");
   addParagraph(doc, "O sistema detecta leads sem interação e pode disparar mensagens automáticas de follow-up após um período configurável. Isso garante que nenhum lead seja esquecido.");
 
+  addSectionTitle(doc, "Reativação Inteligente (Fase 4)");
+  addParagraph(doc, "O motor de reativação monitora automaticamente leads inativos e envia mensagens personalizadas para tentar reengajá-los. A reativação funciona em 3 fases temporais:");
+  addBulletList(doc, [
+    "1 mês sem interação: mensagem sutil de retomada de contato.",
+    "2 meses sem interação: mensagem com abordagem diferenciada.",
+    "3 meses sem interação: última tentativa de reativação.",
+  ]);
+  addParagraph(doc, "O sistema é configurável em Configurações > Automações > Reativação. Você pode:");
+  addBulletList(doc, [
+    "Ativar ou desativar cada gatilho de tempo individualmente.",
+    "Definir quais status de lead são elegíveis para reativação.",
+    "Excluir leads já fechados, perdidos ou que já possuem evento marcado.",
+    "Configurar janela de envio (ex: só enviar entre 8h e 18h).",
+    "Ativar opções interativas (botões de resposta rápida) para o lead.",
+    "Definir limite máximo de mensagens de reativação por lead.",
+  ]);
+  addParagraph(doc, "Na aba Negociações Paradas do módulo Inteligência, leads que já receberam reativação automática são identificados com o ícone 🤖.");
+
+  addAlertBox(doc, "A reativação respeita a janela de horário configurada e os intervalos de segurança entre envios. Leads que já responderam ou estão em contato ativo NÃO recebem mensagem de reativação.");
+
   addTipBox(doc, "Crie fluxos diferentes para cada campanha ou perfil de lead. Um fluxo personalizado converte até 3x mais que mensagens genéricas.");
 }
 
 function ch05(doc: jsPDF) {
-  addChapterTitle(doc, 5, "Inteligência");
+  addChapterTitle(doc, 5, "Inteligência Comercial");
 
-  addSectionTitle(doc, "Resumo Diário (IA)");
-  addParagraph(doc, "A Inteligência Artificial da Celebrei analisa todos os leads e conversas do dia e gera um resumo executivo com os principais acontecimentos: leads quentes, oportunidades em risco, follow-ups necessários e métricas do dia.");
+  addParagraph(doc, "O módulo de Inteligência Comercial é o centro de análise estratégica do seu buffet. Ele organiza dados de leads, conversas e eventos em dashboards práticos que ajudam a tomar decisões de venda melhores e mais rápidas — sem depender de IA para os dados principais.");
 
-  addSectionTitle(doc, "Prioridades e Score");
-  addParagraph(doc, "Cada lead recebe automaticamente um score baseado em engajamento, tempo de resposta, mês de interesse e outros fatores. A aba de Prioridades ordena os leads pelo score para que você foque nos mais promissores.");
-
-  addSectionTitle(doc, "Badge de Temperatura");
+  addSectionTitle(doc, "Aba Relatórios (Dashboard Principal)");
+  addParagraph(doc, "A aba Relatórios é o ponto de partida do módulo. Ela exibe os KPIs mais importantes do seu buffet em cards visuais:");
   addBulletList(doc, [
-    "🔥 Quente: lead altamente engajado, respondendo rápido, mês próximo.",
-    "🟡 Morno: lead com interesse mas sem urgência clara.",
-    "🔵 Frio: lead sem interação recente ou mês distante.",
+    "Leads recebidos: total de leads captados no período selecionado.",
+    "Leads fechados: quantos leads converteram em festa.",
+    "Taxa de conversão: percentual de leads que se tornaram clientes.",
+    "Visitas realizadas: quantas visitas ao buffet aconteceram.",
+    "Comparecimento: taxa de clientes que compareceram à visita agendada.",
+    "Faturamento vendido: soma do valor dos contratos fechados.",
+    "Ticket médio: valor médio por contrato fechado.",
   ]);
+  addParagraph(doc, "Filtre os dados por período (Hoje, 7 dias, 30 dias, Mês atual ou Personalizado) e por unidade. Abaixo dos cards, o Funil de Conversão por Etapa mostra a distribuição dos leads em cada estágio do CRM.");
+  addParagraph(doc, "A seção Comparecimento em Visitas detalha visitas previstas, realizadas, não comparecidas, remarcadas e canceladas. A seção Vendas por Período mostra o faturamento consolidado.");
 
-  addSectionTitle(doc, "Funil de Conversão");
-  addParagraph(doc, "Visualize graficamente quantos leads estão em cada etapa do funil e as taxas de conversão entre etapas. Identifique gargalos e otimize seu processo de vendas.");
+  addSectionTitle(doc, "Prioridades de Venda");
+  addParagraph(doc, "Localizada abaixo dos relatórios, esta seção lista automaticamente os 15 leads com maior probabilidade de fechamento. A priorização é calculada sem IA, usando dados do sistema:");
+  addBulletList(doc, [
+    "Leads que responderam recentemente (últimas horas) ganham prioridade máxima.",
+    "Leads no estágio 'Negociando' ou 'Orçamento Enviado' são priorizados.",
+    "Leads com visita agendada ou temperatura 'Quente/Pronto' sobem no ranking.",
+    "O score de engajamento (0-100) é considerado na ordenação.",
+  ]);
+  addParagraph(doc, "Cada card mostra nome do lead, motivo da prioridade (ex: 'respondeu agora', 'visita agendada'), status atual e botão para abrir a conversa diretamente no WhatsApp.");
 
-  addSectionTitle(doc, "Leads do Dia");
-  addParagraph(doc, "Lista rápida dos leads que entraram hoje, com indicadores visuais de prioridade e status, para que a equipe saiba exatamente o que tratar primeiro.");
+  addSectionTitle(doc, "Alertas Inteligentes");
+  addParagraph(doc, "O sistema monitora automaticamente o desempenho comercial e exibe alertas no topo do módulo quando detecta situações que precisam de atenção:");
+  addBulletList(doc, [
+    "Negociações paradas: muitos leads sem interação há mais de 10 dias.",
+    "Orçamentos sem resposta: leads que receberam orçamento mas não responderam.",
+    "Queda de conversão: taxa de conversão caiu mais de 30% comparado ao período anterior.",
+    "Queda de leads: volume de novos leads caiu mais de 40%.",
+    "Baixa ocupação: meses futuros com menos de 30% de ocupação na agenda.",
+  ]);
+  addParagraph(doc, "Cada alerta possui botões de ação direta: 'Ver negociações', 'Abrir CRM filtrado', 'Abrir agenda no mês', etc. Isso permite resolver o problema com um clique, sem precisar navegar pelo sistema.");
 
-  addTipBox(doc, "Consulte o resumo de IA logo pela manhã. Ele destaca os leads que precisam de atenção urgente e ajuda a planejar seu dia.");
+  addSectionTitle(doc, "Aba Resumo do Dia");
+  addParagraph(doc, "Painel diário com métricas de leads (novos, atendidos, fechados, perdidos), timeline de eventos importantes e insights gerados pela IA. Selecione períodos de até 31 dias para análise comparativa. Administradores podem personalizar o Contexto da IA com dados do buffet para insights mais precisos.");
+
+  addSectionTitle(doc, "Aba Prioridades (Score e Temperatura)");
+  addParagraph(doc, "Cada lead recebe automaticamente um score de 0 a 100 e uma temperatura baseada no engajamento:");
+  addBulletList(doc, [
+    "❄ Frio: baixo engajamento, sem interação recente.",
+    "🌤 Morno: respondeu mas não avançou para visita ou orçamento.",
+    "🔥 Quente: pediu visita, orçamento ou demonstrou forte interesse.",
+    "🎯 Pronto: score máximo, orçamento enviado ou visita agendada. Prioridade de fechamento.",
+  ]);
+  addParagraph(doc, "Os leads são classificados em três grupos: Atender Agora (score bom, temperatura acima de frio), Em Risco (pararam de responder) e Frios (score baixo).");
+
+  addSectionTitle(doc, "Aba Negociações Paradas");
+  addParagraph(doc, "Radar que identifica leads em estágios críticos (Visita, Orçamento, Negociação) onde a interação humana parou. Inclui score de prioridade, mês da festa (🎂), indicador de reativação automática (🤖) e navegação direta para a conversa. Filtre por estágio ou mês.");
+
+  addSectionTitle(doc, "Aba Follow-ups");
+  addParagraph(doc, "Painel Kanban com 4 colunas (1º ao 4º Follow-up) que organiza os leads automaticamente com base na última ação de follow-up. Os intervalos respeitam os delays configurados nas automações do WhatsApp de cada unidade. Cada card permite enviar mensagem com um clique.");
+
+  addSectionTitle(doc, "Aba Funil de Conversão");
+  addParagraph(doc, "Distribuição dos leads por etapa do CRM com percentuais e tempo médio em cada etapa. Identifique gargalos no processo de vendas.");
+
+  addSectionTitle(doc, "Aba Leads do Dia");
+  addParagraph(doc, "Lista todos os leads criados no dia atual com score, temperatura e status. Busca rápida por nome ou telefone e exportação para análise externa.");
+
+  addSectionTitle(doc, "Resumo IA por Lead");
+  addParagraph(doc, "Em cada card de lead, o botão 'Resumo IA' gera um resumo inteligente da conversa, sugere a próxima ação recomendada e cria uma mensagem pronta para enviar com um clique.");
+
+  addTipBox(doc, "Comece o dia pela aba Relatórios para ter uma visão geral. Depois, verifique os Alertas e as Prioridades de Venda para saber exatamente quais leads atender primeiro.");
 }
 
 function ch06(doc: jsPDF) {
