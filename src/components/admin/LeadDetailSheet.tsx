@@ -295,7 +295,7 @@ export function LeadDetailSheet({
           )}
 
           {/* Festa shortcut for closed leads */}
-          {lead.status === "fechado" && (
+          {lead.status === "fechado" && hasLinkedEvent !== null && (
             <div className={`flex items-center justify-between gap-2 p-3 rounded-xl border text-sm ${
               hasLinkedEvent === false
                 ? 'bg-amber-500/10 border-amber-300/30'
@@ -307,48 +307,48 @@ export function LeadDetailSheet({
                     <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
                     <span className="text-amber-700 dark:text-amber-400 font-medium">⚠ Festa ainda não criada</span>
                   </>
-                ) : hasLinkedEvent === true ? (
+                ) : (
                   <>
                     <PartyPopper className="h-4 w-4 text-emerald-600 shrink-0" />
                     <span className="text-emerald-700 dark:text-emerald-400 font-medium">🎉 Festa vinculada</span>
                   </>
-                ) : null}
+                )}
               </div>
-              {hasLinkedEvent !== null && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs shrink-0"
-                  disabled={isLoadingEvent}
-                  onClick={() => {
-                    if (hasLinkedEvent && linkedEventData) {
-                      setEventFormOpen(true);
-                    } else {
-                      // Pre-fill with lead data for new event
-                      setLinkedEventData({
-                        title: lead.name,
-                        event_date: "",
-                        start_time: "",
-                        end_time: "",
-                        event_type: "infantil",
-                        guest_count: lead.guests ? parseInt(lead.guests) || null : null,
-                        unit: lead.unit || "",
-                        status: "pendente",
-                        package_name: "",
-                        total_value: null,
-                        notes: "",
-                        lead_id: lead.id,
-                        lead_name: lead.name,
-                      });
-                      setEventFormOpen(true);
-                    }
-                  }}
-                >
-                  {isLoadingEvent ? <Loader2 className="w-3 h-3 animate-spin" /> : (
-                    <>{hasLinkedEvent ? 'Ver Festa' : 'Criar Festa'}</>
-                  )}
-                </Button>
-              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs shrink-0 gap-1.5"
+                disabled={isLoadingEvent}
+                onClick={() => {
+                  if (hasLinkedEvent && linkedEventData) {
+                    setEventFormOpen(true);
+                  } else {
+                    setLinkedEventData({
+                      title: lead.name,
+                      event_date: "",
+                      start_time: "",
+                      end_time: "",
+                      event_type: "infantil",
+                      guest_count: lead.guests ? parseInt(lead.guests) || null : null,
+                      unit: lead.unit || "",
+                      status: "pendente",
+                      package_name: "",
+                      total_value: null,
+                      notes: "",
+                      lead_id: lead.id,
+                      lead_name: lead.name,
+                    });
+                    setEventFormOpen(true);
+                  }
+                }}
+              >
+                {isLoadingEvent ? <Loader2 className="w-3 h-3 animate-spin" /> : (
+                  <>
+                    <PartyPopper className="w-3 h-3" />
+                    {hasLinkedEvent ? 'Ver Festa' : 'Criar Festa'}
+                  </>
+                )}
+              </Button>
             </div>
           )}
 
