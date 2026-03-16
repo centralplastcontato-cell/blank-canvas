@@ -7,7 +7,7 @@ import { useLeadStageDurations } from "@/hooks/useLeadStageDurations";
 import { useUnitPermissions } from "@/hooks/useUnitPermissions";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { useCompany } from "@/contexts/CompanyContext";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -268,132 +268,174 @@ export default function Inteligencia() {
                         Guia de Inteligência
                       </DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-5 text-sm">
-                      {/* Score */}
-                      <div className="space-y-1.5">
-                        <h3 className="font-semibold flex items-center gap-2">
-                          <TrendingUp className="h-4 w-4 text-primary" />
-                          Score (0–100)
-                        </h3>
-                        <p className="text-muted-foreground">
-                          Pontuação automática que mede o nível de engajamento do lead. Considera interações no WhatsApp, avanço de status no CRM e tempo sem resposta. Quanto maior, mais engajado o lead está.
-                        </p>
-                      </div>
-
-                      {/* Temperatura */}
-                      <div className="space-y-2">
-                        <h3 className="font-semibold flex items-center gap-2">
-                          <Thermometer className="h-4 w-4 text-primary" />
-                          Temperatura
-                        </h3>
-                        <div className="space-y-2 pl-1">
-                          <div className="flex items-start gap-2">
-                            <span className="text-blue-400 shrink-0">❄️</span>
-                            <div><strong>Frio</strong> — Baixo engajamento. O lead não interagiu recentemente ou tem poucas interações.</div>
-                          </div>
-                          <div className="flex items-start gap-2">
-                            <span className="text-yellow-400 shrink-0">🌤️</span>
-                            <div><strong>Morno</strong> — Engajamento moderado. Respondeu mas ainda não avançou para visita ou orçamento.</div>
-                          </div>
-                          <div className="flex items-start gap-2">
-                            <span className="text-orange-400 shrink-0">🔥</span>
-                            <div><strong>Quente</strong> — Alto engajamento. Pediu visita, orçamento ou demonstrou forte interesse.</div>
-                          </div>
-                          <div className="flex items-start gap-2">
-                            <span className="text-green-400 shrink-0">🎯</span>
-                            <div><strong>Pronto</strong> — Pronto para fechar! Score máximo, orçamento enviado ou visita agendada.</div>
-                          </div>
+                    <Tabs defaultValue="relatorios-guide" className="w-full">
+                      <div className="overflow-x-auto -mx-2 px-2 pb-2 scrollbar-none">
+                        <div className="flex gap-1 p-1 rounded-xl bg-muted/50 border border-border/40 w-max">
+                          {[
+                            { value: "relatorios-guide", label: "Relatórios" },
+                            { value: "resumo-guide", label: "Resumo" },
+                            { value: "prioridades-guide", label: "Prioridades" },
+                            { value: "negociacoes-guide", label: "Neg. Paradas" },
+                            { value: "followups-guide", label: "Follow-ups" },
+                            { value: "funil-guide", label: "Funil" },
+                            { value: "leads-guide", label: "Leads do Dia" },
+                            { value: "geral-guide", label: "Geral" },
+                          ].map(t => (
+                            <TabsTrigger key={t.value} value={t.value} className="text-xs px-3 py-1.5 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                              {t.label}
+                            </TabsTrigger>
+                          ))}
                         </div>
                       </div>
 
-                      {/* Resumo do Dia */}
-                      <div className="space-y-1.5">
-                        <h3 className="font-semibold flex items-center gap-2">
-                          <Brain className="h-4 w-4 text-primary" />
-                          Resumo do Dia
-                        </h3>
-                        <p className="text-muted-foreground">
-                          Painel diário com métricas de leads (novos, atendidos, fechados, perdidos), timeline de eventos importantes e insights gerados pela IA. Você pode selecionar períodos de até 31 dias para análise comparativa. Administradores podem personalizar o <strong>Contexto da IA</strong> com dados do buffet (ticket médio, número de unidades, diferenciais) para que os insights sejam mais precisos e relevantes.
-                        </p>
-                      </div>
+                      <div className="text-sm mt-3">
+                        <TabsContent value="relatorios-guide" className="space-y-3 mt-0">
+                          <h3 className="font-semibold flex items-center gap-2">
+                            <BarChart3 className="h-4 w-4 text-primary" />
+                            Relatórios Comerciais
+                          </h3>
+                          <p className="text-muted-foreground">
+                            Dashboard principal com KPIs do seu buffet: leads recebidos, fechados, taxa de conversão, visitas realizadas, comparecimento, faturamento vendido e ticket médio. Filtre por período (hoje, 7 dias, 30 dias, mês atual ou personalizado) e por unidade.
+                          </p>
+                          <p className="text-muted-foreground">
+                            Inclui o <strong>Funil de Conversão por Etapa</strong> (Novo → Visita → Orçamento → Negociando → Fechado/Perdido), gráfico de comparecimento em visitas e vendas por período.
+                          </p>
+                          <p className="text-muted-foreground">
+                            Abaixo dos relatórios, a seção <strong>Prioridades de Venda</strong> lista automaticamente os leads com maior chance de fechamento, ordenados por recência de interação, estágio no funil e score.
+                          </p>
+                        </TabsContent>
 
-                      {/* Prioridades */}
-                      <div className="space-y-2">
-                        <h3 className="font-semibold flex items-center gap-2">
-                          <Target className="h-4 w-4 text-primary" />
-                          Prioridades
-                        </h3>
-                        <div className="space-y-2 pl-1">
-                          <div className="flex items-start gap-2">
-                            <Flame className="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
-                            <div><strong>Atender Agora</strong> — Leads prioritários com bom score e temperatura acima de frio. São os que mais precisam de atenção imediata.</div>
+                        <TabsContent value="resumo-guide" className="space-y-3 mt-0">
+                          <h3 className="font-semibold flex items-center gap-2">
+                            <Brain className="h-4 w-4 text-primary" />
+                            Resumo do Dia
+                          </h3>
+                          <p className="text-muted-foreground">
+                            Painel diário com métricas de leads (novos, atendidos, fechados, perdidos), timeline de eventos importantes e insights gerados pela IA. Selecione períodos de até 31 dias para análise comparativa.
+                          </p>
+                          <p className="text-muted-foreground">
+                            Administradores podem personalizar o <strong>Contexto da IA</strong> com dados do buffet (ticket médio, número de unidades, diferenciais) para insights mais precisos.
+                          </p>
+                        </TabsContent>
+
+                        <TabsContent value="prioridades-guide" className="space-y-3 mt-0">
+                          <h3 className="font-semibold flex items-center gap-2">
+                            <Target className="h-4 w-4 text-primary" />
+                            Prioridades
+                          </h3>
+                          <p className="text-muted-foreground">
+                            Classifica seus leads em três níveis de urgência baseado no score e temperatura:
+                          </p>
+                          <div className="space-y-2 pl-1">
+                            <div className="flex items-start gap-2">
+                              <Flame className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
+                              <div><strong>Atender Agora</strong> — Score bom e temperatura acima de frio. Precisam de atenção imediata.</div>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <AlertTriangle className="h-4 w-4 text-orange-500 shrink-0 mt-0.5" />
+                              <div><strong>Em Risco</strong> — Pararam de responder (abandono detectado). Follow-up urgente.</div>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <Snowflake className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
+                              <div><strong>Frios</strong> — Score abaixo de 20. Podem ser reaquecidos com reativação.</div>
+                            </div>
                           </div>
-                          <div className="flex items-start gap-2">
-                            <AlertTriangle className="h-4 w-4 text-orange-400 shrink-0 mt-0.5" />
-                            <div><strong>Em Risco</strong> — Leads que pararam de responder (abandono detectado). Precisam de follow-up urgente para não serem perdidos.</div>
+                        </TabsContent>
+
+                        <TabsContent value="negociacoes-guide" className="space-y-3 mt-0">
+                          <h3 className="font-semibold flex items-center gap-2">
+                            <ShieldAlert className="h-4 w-4 text-primary" />
+                            Negociações Paradas
+                          </h3>
+                          <p className="text-muted-foreground">
+                            Radar que identifica leads em estágios críticos (Visita, Orçamento, Negociação) onde a interação humana parou ou o robô está inativo. Inclui score de prioridade (0-100), mês da festa e navegação direta para a conversa.
+                          </p>
+                          <p className="text-muted-foreground">
+                            Filtre por estágio ou mês da festa. Leads com indicador de reativação (🤖) já receberam mensagem automática da Fase 4.
+                          </p>
+                        </TabsContent>
+
+                        <TabsContent value="followups-guide" className="space-y-3 mt-0">
+                          <h3 className="font-semibold flex items-center gap-2">
+                            <Search className="h-4 w-4 text-primary" />
+                            Follow-ups
+                          </h3>
+                          <p className="text-muted-foreground">
+                            Painel Kanban com 4 colunas (1º ao 4º Follow-up) que organiza os leads automaticamente com base na última ação de follow-up registrada. Os intervalos respeitam os delays configurados nas automações do WhatsApp de cada unidade.
+                          </p>
+                          <p className="text-muted-foreground">
+                            Cada card permite enviar mensagem diretamente pelo WhatsApp com um clique.
+                          </p>
+                        </TabsContent>
+
+                        <TabsContent value="funil-guide" className="space-y-3 mt-0">
+                          <h3 className="font-semibold flex items-center gap-2">
+                            <BarChart3 className="h-4 w-4 text-primary" />
+                            Funil de Conversão
+                          </h3>
+                          <p className="text-muted-foreground">
+                            Distribuição dos leads por etapa do CRM (Novo → Visita → Orçamento → Negociando → Fechado/Perdido). O percentual indica a representação de cada etapa no total. O ícone de relógio mostra o tempo médio em cada etapa.
+                          </p>
+                        </TabsContent>
+
+                        <TabsContent value="leads-guide" className="space-y-3 mt-0">
+                          <h3 className="font-semibold flex items-center gap-2">
+                            <TrendingUp className="h-4 w-4 text-primary" />
+                            Leads do Dia
+                          </h3>
+                          <p className="text-muted-foreground">
+                            Lista todos os leads criados no dia atual com score, temperatura e status. Permite busca rápida por nome ou telefone e exportação para análise externa (com permissão).
+                          </p>
+                        </TabsContent>
+
+                        <TabsContent value="geral-guide" className="space-y-3 mt-0">
+                          <div className="space-y-4">
+                            <div className="space-y-1.5">
+                              <h3 className="font-semibold flex items-center gap-2">
+                                <TrendingUp className="h-4 w-4 text-primary" />
+                                Score (0–100)
+                              </h3>
+                              <p className="text-muted-foreground">
+                                Pontuação automática que mede engajamento do lead: interações no WhatsApp, avanço de status e tempo sem resposta.
+                              </p>
+                            </div>
+
+                            <div className="space-y-2">
+                              <h3 className="font-semibold flex items-center gap-2">
+                                <Thermometer className="h-4 w-4 text-primary" />
+                                Temperatura
+                              </h3>
+                              <div className="space-y-1.5 pl-1 text-muted-foreground">
+                                <div>❄️ <strong>Frio</strong> — Baixo engajamento ou sem interação recente.</div>
+                                <div>🌤️ <strong>Morno</strong> — Respondeu mas não avançou para visita/orçamento.</div>
+                                <div>🔥 <strong>Quente</strong> — Pediu visita, orçamento ou demonstrou forte interesse.</div>
+                                <div>🎯 <strong>Pronto</strong> — Score máximo, orçamento enviado ou visita agendada.</div>
+                              </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <h3 className="font-semibold flex items-center gap-2">
+                                <Brain className="h-4 w-4 text-primary" />
+                                Resumo IA por Lead
+                              </h3>
+                              <p className="text-muted-foreground">
+                                Em cada card de lead, o botão "Resumo IA" gera um resumo da conversa, sugere próxima ação e cria mensagem pronta para enviar.
+                              </p>
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <h3 className="font-semibold flex items-center gap-2">
+                                <AlertTriangle className="h-4 w-4 text-primary" />
+                                Alertas Inteligentes
+                              </h3>
+                              <p className="text-muted-foreground">
+                                Alertas automáticos sobre negociações paradas, orçamentos sem resposta, queda de conversão, queda de leads e meses com baixa ocupação. Cada alerta possui ações diretas para resolver o problema com um clique.
+                              </p>
+                            </div>
                           </div>
-                          <div className="flex items-start gap-2">
-                            <Snowflake className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
-                            <div><strong>Frios</strong> — Leads com score abaixo de 20 e sem padrão de abandono. Baixo engajamento, podem ser reaquecidos.</div>
-                          </div>
-                        </div>
+                        </TabsContent>
                       </div>
-
-                      {/* Follow-ups */}
-                      <div className="space-y-1.5">
-                        <h3 className="font-semibold flex items-center gap-2">
-                          <Search className="h-4 w-4 text-primary" />
-                          Follow-ups
-                        </h3>
-                        <p className="text-muted-foreground">
-                          Painel Kanban com 4 colunas (1º ao 4º Follow-up) que organiza os leads automaticamente com base na última ação de follow-up registrada. Os intervalos entre cada coluna respeitam os delays configurados nas automações do WhatsApp de cada unidade, exibindo o tempo correto (ex: 24h, 48h, 72h). Cada card permite enviar mensagem diretamente pelo WhatsApp.
-                        </p>
-                      </div>
-
-                      {/* Funil */}
-                      <div className="space-y-1.5">
-                        <h3 className="font-semibold flex items-center gap-2">
-                          <BarChart3 className="h-4 w-4 text-primary" />
-                          Funil de Conversão
-                        </h3>
-                        <p className="text-muted-foreground">
-                          Mostra a distribuição dos leads por etapa do CRM (Novo → Visita → Orçamento → Negociando → Fechado/Perdido). O percentual indica quanto cada etapa representa do total de leads. O ícone de relógio mostra o tempo médio que os leads ficam em cada etapa.
-                        </p>
-                      </div>
-
-                      {/* Leads do Dia */}
-                      <div className="space-y-1.5">
-                        <h3 className="font-semibold flex items-center gap-2">
-                          <TrendingUp className="h-4 w-4 text-primary" />
-                          Leads do Dia
-                        </h3>
-                        <p className="text-muted-foreground">
-                          Lista todos os leads criados no dia atual com score, temperatura e status. Permite busca rápida por nome ou telefone e exportação dos dados para análise externa (disponível para usuários com permissão de exportação).
-                        </p>
-                      </div>
-
-                      {/* Resumo IA */}
-                      <div className="space-y-1.5">
-                        <h3 className="font-semibold flex items-center gap-2">
-                          <Brain className="h-4 w-4 text-primary" />
-                          Resumo IA por Lead
-                        </h3>
-                        <p className="text-muted-foreground">
-                          Disponível em cada card de lead, o botão "Resumo IA" gera um resumo inteligente da conversa, sugere a próxima ação recomendada e cria uma mensagem pronta para enviar. O texto pode ser copiado com um clique para agilizar o atendimento.
-                        </p>
-                      </div>
-
-                      {/* Alertas */}
-                      <div className="space-y-1.5">
-                        <h3 className="font-semibold flex items-center gap-2">
-                          <AlertTriangle className="h-4 w-4 text-primary" />
-                          Alertas em Tempo Real
-                        </h3>
-                        <p className="text-muted-foreground">
-                          Você recebe notificações automáticas quando um lead muda de temperatura (esquentou ou esfriou), entra em risco de abandono ou se torna prioritário.
-                        </p>
-                      </div>
-                    </div>
+                    </Tabs>
                   </DialogContent>
                 </Dialog>
               </div>
