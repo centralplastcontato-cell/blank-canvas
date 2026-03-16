@@ -21,6 +21,7 @@ import { RelatoriosComerciais } from "@/components/inteligencia/RelatoriosComerc
 import { LeadsDoDiaTab } from "@/components/inteligencia/LeadsDoDiaTab";
 import { ResumoDiarioTab } from "@/components/inteligencia/ResumoDiarioTab";
 import { NegociacoesParadasTab } from "@/components/inteligencia/NegociacoesParadasTab";
+import { AlertsPanel } from "@/components/inteligencia/AlertsPanel";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
@@ -407,6 +408,9 @@ export default function Inteligencia() {
                 className="pl-9 max-w-sm"
               />
             </div>
+
+            {/* Alertas Inteligentes */}
+            <AlertsPanel onTabChange={setActiveTab} />
 
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <div className="overflow-x-auto -mx-2 px-2 pb-2 scrollbar-none flex justify-center">
