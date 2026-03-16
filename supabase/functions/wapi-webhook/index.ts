@@ -3320,11 +3320,13 @@ function extractMsgContent(mc: Record<string, unknown>, msg: Record<string, unkn
     type = 'contact';
     if (mc.contactsArrayMessage) {
       const arr = (mc.contactsArrayMessage as Record<string, unknown>).contacts as Array<Record<string, unknown>> | undefined;
+      console.log(`[Contact] contactsArrayMessage received, contacts count: ${arr?.length || 0}`);
       if (arr && arr.length > 0) {
         const parts = arr.map((c) => {
           const name = c.displayName || 'Contato';
           const vcard = c.vcard as string | undefined;
-          const phone = vcard?.match(/TEL[^:]*:([\d+\- ]+)/)?.[1]?.replace(/[\s-]/g, '') || '';
+          console.log(`[Contact] Array vCard for "${name}":`, vcard?.substring(0, 200));
+          const phone = vcard?.match(/TEL[^:]*:([\d+\- ()]+)/)?.[1]?.replace(/[\s\-()]/g, '') || '';
           return phone ? `${name} - ${phone}` : String(name);
         });
         content = `👤 ${parts.join(' | ')}`;
@@ -3335,7 +3337,9 @@ function extractMsgContent(mc: Record<string, unknown>, msg: Record<string, unkn
       const cm = mc.contactMessage as Record<string, unknown>;
       const displayName = cm?.displayName || 'Contato';
       const vcard = cm?.vcard as string | undefined;
-      const phone = vcard?.match(/TEL[^:]*:([\d+\- ]+)/)?.[1]?.replace(/[\s-]/g, '') || '';
+      console.log(`[Contact] contactMessage received for "${displayName}", vCard:`, vcard?.substring(0, 300));
+      const phone = vcard?.match(/TEL[^:]*:([\d+\- ()]+)/)?.[1]?.replace(/[\s\-()]/g, '') || '';
+      console.log(`[Contact] Extracted phone: "${phone}"`);
       content = phone ? `👤 ${displayName} - ${phone}` : `👤 ${displayName}`;
     }
   }
