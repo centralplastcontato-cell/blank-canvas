@@ -237,14 +237,14 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
               Dados Comerciais
             </div>
             <div className="space-y-2 text-sm">
-              {(!event.data_fechamento_venda || !event.vendedor_responsavel_id) && (
+              {(!localFechamento || !localVendedor) && (
                 <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 mb-2">
                   <AlertTriangle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
                   <div>
                     <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">Dados comerciais incompletos</p>
                     <ul className="text-[11px] text-amber-600 dark:text-amber-500 mt-0.5 space-y-0.5">
-                      {!event.data_fechamento_venda && <li>• Data de fechamento não definida</li>}
-                      {!event.vendedor_responsavel_id && <li>• Vendedor não definido</li>}
+                      {!localFechamento && <li>• Data de fechamento não definida</li>}
+                      {!localVendedor && <li>• Vendedor não definido</li>}
                     </ul>
                   </div>
                 </div>
@@ -258,7 +258,7 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
                       size="sm"
                       className={cn(
                         "h-7 text-xs gap-1.5 rounded-lg px-2",
-                        event.data_fechamento_venda ? "font-medium" : "text-muted-foreground/60"
+                        localFechamento ? "font-medium" : "text-muted-foreground/60"
                       )}
                       disabled={savingField === 'data_fechamento_venda'}
                     >
@@ -267,15 +267,15 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
                       ) : (
                         <CalendarIcon className="h-3 w-3" />
                       )}
-                      {event.data_fechamento_venda
-                        ? format(new Date(event.data_fechamento_venda + "T12:00:00"), "dd/MM/yyyy")
+                      {localFechamento
+                        ? format(new Date(localFechamento + "T12:00:00"), "dd/MM/yyyy")
                         : "Selecionar"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0 rounded-xl shadow-lg" align="end">
                     <Calendar
                       mode="single"
-                      selected={event.data_fechamento_venda ? new Date(event.data_fechamento_venda + "T12:00:00") : undefined}
+                      selected={localFechamento ? new Date(localFechamento + "T12:00:00") : undefined}
                       onSelect={(date) => {
                         if (date) {
                           const formatted = format(date, "yyyy-MM-dd");
@@ -291,13 +291,13 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Vendedor</span>
                 <Select
-                  value={event.vendedor_responsavel_id || "none"}
+                  value={localVendedor || "none"}
                   onValueChange={(v) => saveCommercialField('vendedor_responsavel_id', v === "none" ? null : v)}
                   disabled={savingField === 'vendedor_responsavel_id'}
                 >
                   <SelectTrigger className={cn(
                     "h-7 w-auto min-w-[120px] max-w-[180px] text-xs rounded-lg border-0 bg-transparent hover:bg-muted/50 gap-1.5 px-2",
-                    event.vendedor_responsavel_id ? "font-medium" : "text-muted-foreground/60"
+                    localVendedor ? "font-medium" : "text-muted-foreground/60"
                   )}>
                     {savingField === 'vendedor_responsavel_id' ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
