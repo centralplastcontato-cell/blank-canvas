@@ -686,6 +686,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           const { data: leadByPhone } = await supabase
             .from('campaign_leads')
             .select('id')
+            .eq('company_id', getCurrentCompanyId())
             .or(`whatsapp.eq.${phone},whatsapp.eq.+${phone}`)
             .maybeSingle();
           if (leadByPhone) {
@@ -1436,6 +1437,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         const { data: phoneMatchedLeads } = await supabase
           .from("campaign_leads")
           .select("id, name, whatsapp, unit, status, month, day_of_month, day_preference, guests, observacoes, created_at, responsavel_id, campaign_name")
+          .eq("company_id", getCurrentCompanyId())
           .in("whatsapp", chunk);
 
         appendLeads(phoneMatchedLeads as Lead[] | undefined);
@@ -1550,6 +1552,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     const { data: leadData } = await supabase
       .from("campaign_leads")
       .select("id, name, whatsapp")
+      .eq("company_id", getCurrentCompanyId())
       .or(phoneVariants.map(p => `whatsapp.ilike.%${p}%`).join(','))
       .limit(1)
       .single();
@@ -1747,6 +1750,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       const { data: matchingLeads } = await supabase
         .from("campaign_leads")
         .select("id, name, whatsapp, unit, status, month, day_of_month, day_preference, guests, observacoes, created_at, responsavel_id, campaign_name")
+        .eq("company_id", getCurrentCompanyId())
         .in("whatsapp", phoneVariants)
         .order("created_at", { ascending: false });
 
@@ -1797,6 +1801,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       const { data: existingLead } = await supabase
         .from('campaign_leads')
         .select('id, name, whatsapp, unit, status')
+        .eq('company_id', getCurrentCompanyId())
         .eq('whatsapp', cleanPhone)
         .order('created_at', { ascending: false })
         .limit(1)
