@@ -241,7 +241,7 @@ export function SalesPriorities({ selectedUnit }: SalesPrioritiesProps) {
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4 mt-8 pt-6 border-t border-border/50">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
           <TrendingUp className="h-4 w-4" />
