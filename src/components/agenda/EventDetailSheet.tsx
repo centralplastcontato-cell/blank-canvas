@@ -14,6 +14,11 @@ import { EventChecklist } from "./EventChecklist";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
+interface TeamMember {
+  user_id: string;
+  full_name: string;
+}
+
 interface EventData {
   id: string;
   title: string;
