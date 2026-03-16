@@ -384,6 +384,7 @@ export default function Agenda() {
       lead_id: ev.lead_id || null,
       data_fechamento_venda: (ev as any).data_fechamento_venda || null,
       vendedor_responsavel_id: (ev as any).vendedor_responsavel_id || null,
+      payment_method: (ev as any).payment_method || null,
     });
     setDetailOpen(false);
     setFormOpen(true);
