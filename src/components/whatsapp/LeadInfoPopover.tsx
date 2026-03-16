@@ -12,8 +12,11 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { 
   Info, MessageSquare, Clock, MapPin, Calendar, Users, 
-  ArrowRightLeft, Bot, Loader2, Pencil, Check, X, Trash2, UsersRound, Star, RotateCcw
+  ArrowRightLeft, Bot, Loader2, Pencil, Check, X, Trash2, UsersRound, Star, RotateCcw, PartyPopper, AlertCircle
 } from "lucide-react";
+import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
+import { useCompany } from "@/contexts/CompanyContext";
+import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
