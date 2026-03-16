@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useNegociacoesParadas, type NegociacaoParada } from "@/hooks/useNegociacoesParadas";
-import { useCompany } from "@/contexts/CompanyContext";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
