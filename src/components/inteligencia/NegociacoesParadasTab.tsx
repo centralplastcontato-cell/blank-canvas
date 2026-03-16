@@ -238,6 +238,12 @@ export function NegociacoesParadasTab({ selectedUnit }: NegociacoesParadasTabPro
                         <span className="text-orange-600 dark:text-orange-400 font-medium">{lead.motivo}</span>
                       </div>
                       <ScoreBadge score={lead.scoreFechamento} classificacao={lead.classificacao} />
+                      {reactivationMap[lead.leadId] && (
+                        <Badge variant="outline" className="text-xs gap-1 border-primary/30 text-primary">
+                          <Sparkles className="h-3 w-3" />
+                          Reativação enviada
+                        </Badge>
+                      )}
                     </div>
                   </div>
 
