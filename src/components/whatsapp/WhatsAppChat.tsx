@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { formatMessageContent } from "@/lib/format-message";
 import { LEAD_STATUS_COLORS, type LeadStatus } from "@/types/crm";
@@ -348,9 +348,25 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   
   // Undo send state
   
-  const [closedLeadConversationIds, setClosedLeadConversationIds] = useState<Set<string>>(new Set());
-  const [orcamentoEnviadoConversationIds, setOrcamentoEnviadoConversationIds] = useState<Set<string>>(new Set());
   const [conversationLeadsMap, setConversationLeadsMap] = useState<Record<string, Lead | null>>({});
+  const leadStatusConversationIds = useMemo(() => {
+    const statusMap = {
+      fechado: new Set<string>(),
+      orcamento_enviado: new Set<string>(),
+      em_contato: new Set<string>(),
+    };
+
+    conversations.forEach((conv) => {
+      const lead = conversationLeadsMap[conv.id];
+      if (!lead) return;
+
+      if (lead.status === 'fechado') statusMap.fechado.add(conv.id);
+      if (lead.status === 'orcamento_enviado') statusMap.orcamento_enviado.add(conv.id);
+      if (lead.status === 'em_contato') statusMap.em_contato.add(conv.id);
+    });
+
+    return statusMap;
+  }, [conversations, conversationLeadsMap]);
   const scrollAreaDesktopRef = useRef<HTMLDivElement>(null);
   const scrollAreaMobileRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -1388,20 +1404,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           });
           
           setConversationLeadsMap(leadsMap);
-          
-          const closedConvIds = new Set(
-            data
-              .filter((conv: Conversation) => conv.lead_id && closedLeadIds.has(conv.lead_id))
-              .map((conv: Conversation) => conv.id)
-          );
-          setClosedLeadConversationIds(closedConvIds);
-          
-          const oeConvIds = new Set(
-            data
-              .filter((conv: Conversation) => conv.lead_id && oeLeadIds.has(conv.lead_id))
-              .map((conv: Conversation) => conv.id)
-          );
-          setOrcamentoEnviadoConversationIds(oeConvIds);
         }
       }
       
@@ -2830,9 +2832,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       // Apply filter
       if (filter === 'unread') return matchesSearch && conv.unread_count > 0;
       if (filter === 'closed') return matchesSearch && conv.is_closed;
-      if (filter === 'fechados') return matchesSearch && closedLeadConversationIds.has(conv.id);
-      if (filter === 'oe') return matchesSearch && orcamentoEnviadoConversationIds.has(conv.id);
-      if (filter === 'visitas') return matchesSearch && conv.has_scheduled_visit;
+      if (filter === 'fechados') return matchesSearch && leadStatusConversationIds.fechado.has(conv.id);
+      if (filter === 'oe') return matchesSearch && leadStatusConversationIds.orcamento_enviado.has(conv.id);
+      if (filter === 'visitas') return matchesSearch && leadStatusConversationIds.em_contato.has(conv.id);
       if (filter === 'freelancer') return matchesSearch && conv.is_freelancer;
       if (filter === 'equipe') return matchesSearch && conv.is_equipe;
       if (filter === 'favorites') return matchesSearch && conv.is_favorite;
@@ -2963,33 +2965,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       return updated;
     });
 
-    // Update the closedLeadConversationIds and orcamentoEnviadoConversationIds
-    setClosedLeadConversationIds(prev => {
-      const updated = new Set(prev);
-      // Find the conversation with this lead
-      const conv = conversations.find(c => c.lead_id === leadId);
-      if (conv) {
-        if (newStatus === 'fechado') {
-          updated.add(conv.id);
-        } else {
-          updated.delete(conv.id);
-        }
-      }
-      return updated;
-    });
-
-    setOrcamentoEnviadoConversationIds(prev => {
-      const updated = new Set(prev);
-      const conv = conversations.find(c => c.lead_id === leadId);
-      if (conv) {
-        if (newStatus === 'orcamento_enviado') {
-          updated.add(conv.id);
-        } else {
-          updated.delete(conv.id);
-        }
-      }
-      return updated;
-    });
 
     // Update linkedLead if it's the same lead - use functional update to avoid stale closure
     setLinkedLead(prevLead => {
@@ -3359,9 +3334,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                     filter={filter}
                     onFilterChange={setFilter}
                     conversations={conversations}
-                    closedLeadCount={closedLeadConversationIds.size}
-                    orcamentoEnviadoCount={orcamentoEnviadoConversationIds.size}
-                    collapsible={true}
+                    closedLeadCount={leadStatusConversationIds.fechado.size}
+                    orcamentoEnviadoCount={leadStatusConversationIds.orcamento_enviado.size}
+                    visitasCount={leadStatusConversationIds.em_contato.size}
                     defaultOpen={false}
                     filterOrder={filterOrder}
                     onFilterOrderChange={saveFilterOrder}
@@ -3508,9 +3483,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                     filter={filter}
                     onFilterChange={setFilter}
                     conversations={conversations}
-                    closedLeadCount={closedLeadConversationIds.size}
-                    orcamentoEnviadoCount={orcamentoEnviadoConversationIds.size}
-                    collapsible={true}
+                    closedLeadCount={leadStatusConversationIds.fechado.size}
+                    orcamentoEnviadoCount={leadStatusConversationIds.orcamento_enviado.size}
+                    visitasCount={leadStatusConversationIds.em_contato.size}
                     defaultOpen={false}
                     filterOrder={filterOrder}
                     onFilterOrderChange={saveFilterOrder}
