@@ -3146,6 +3146,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       description: newValue 
         ? "A conversa foi movida para Encerradas." 
         : "A conversa foi movida de volta para a lista principal.",
+      className: "border-l-4",
+      style: { borderLeftColor: newValue ? '#ef4444' : '#22c55e' },
     });
   };
 
