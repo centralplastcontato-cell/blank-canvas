@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PrioridadesTab } from "@/components/inteligencia/PrioridadesTab";
 import { FollowUpsTab } from "@/components/inteligencia/FollowUpsTab";
 import { FunilTab } from "@/components/inteligencia/FunilTab";
+import { RelatoriosComerciais } from "@/components/inteligencia/RelatoriosComerciais";
 import { LeadsDoDiaTab } from "@/components/inteligencia/LeadsDoDiaTab";
 import { ResumoDiarioTab } from "@/components/inteligencia/ResumoDiarioTab";
 import { SidebarProvider } from "@/components/ui/sidebar";
