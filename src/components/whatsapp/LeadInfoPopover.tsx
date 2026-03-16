@@ -853,5 +853,63 @@ export function LeadInfoPopover({
         )}
       </PopoverContent>
     </Popover>
+
+    {/* Event Form Dialog */}
+    {linkedLead && (
+      <EventFormDialog
+        open={eventFormOpen}
+        onOpenChange={setEventFormOpen}
+        initialData={linkedEventData}
+        units={units.filter(u => u.slug !== "trabalhe-conosco")}
+        onSubmit={async (data) => {
+          const user = (await supabase.auth.getUser()).data.user;
+          if (!user || !currentCompany) return;
+          if (linkedEventData?.id) {
+            const { error } = await supabase
+              .from("company_events")
+              .update({
+                title: data.title,
+                event_date: data.event_date,
+                start_time: data.start_time || null,
+                end_time: data.end_time || null,
+                event_type: data.event_type,
+                guest_count: data.guest_count,
+                unit: data.unit || null,
+                status: data.status,
+                package_name: data.package_name || null,
+                total_value: data.total_value,
+                notes: data.notes || null,
+              })
+              .eq("id", linkedEventData.id);
+            if (error) { toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" }); return; }
+            toast({ title: "Festa atualizada!" });
+          } else {
+            const { error } = await supabase
+              .from("company_events")
+              .insert({
+                company_id: currentCompany.id,
+                created_by: user.id,
+                title: data.title,
+                event_date: data.event_date,
+                start_time: data.start_time || null,
+                end_time: data.end_time || null,
+                event_type: data.event_type,
+                guest_count: data.guest_count,
+                unit: data.unit || null,
+                status: data.status,
+                package_name: data.package_name || null,
+                total_value: data.total_value,
+                notes: data.notes || null,
+                lead_id: linkedLead.id,
+              });
+            if (error) { toast({ title: "Erro ao criar", description: error.message, variant: "destructive" }); return; }
+            toast({ title: "Festa criada!" });
+            setHasLinkedEvent(true);
+          }
+          setEventFormOpen(false);
+        }}
+      />
+    )}
+    </>
   );
 }
