@@ -692,6 +692,7 @@ export type Database = {
           lead_id: string | null
           notes: string | null
           package_name: string | null
+          payment_method: string | null
           start_time: string | null
           status: string
           title: string
@@ -713,6 +714,7 @@ export type Database = {
           lead_id?: string | null
           notes?: string | null
           package_name?: string | null
+          payment_method?: string | null
           start_time?: string | null
           status?: string
           title: string
@@ -734,6 +736,7 @@ export type Database = {
           lead_id?: string | null
           notes?: string | null
           package_name?: string | null
+          payment_method?: string | null
           start_time?: string | null
           status?: string
           title?: string

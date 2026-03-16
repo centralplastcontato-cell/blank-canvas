@@ -1,0 +1,1 @@
+ALTER TABLE public.company_events ADD COLUMN IF NOT EXISTS payment_method text DEFAULT null;
