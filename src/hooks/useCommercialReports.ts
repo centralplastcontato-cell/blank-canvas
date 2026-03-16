@@ -178,9 +178,13 @@ export function useCommercialReports(filters: CommercialFilters) {
       const visitsRescheduled = visits.filter((v: any) => v.status_visita === 'remarcada').length;
       const attendanceRate = visitsTotal > 0 ? (visitsRealized / visitsTotal) * 100 : 0;
 
-      // --- Sales ---
-      const salesCount = events.length;
-      const salesTotal = events.reduce((sum: number, e: any) => sum + (e.total_value || 0), 0);
+      // --- Sales (filter by data_fechamento_venda or created_at as fallback) ---
+      const filteredEvents = events.filter((e: any) => {
+        const refDate = e.data_fechamento_venda || (e.created_at ? e.created_at.split('T')[0] : null);
+        return refDate && refDate >= fromDate && refDate <= toDate;
+      });
+      const salesCount = filteredEvents.length;
+      const salesTotal = filteredEvents.reduce((sum: number, e: any) => sum + (e.total_value || 0), 0);
       const ticketMedio = salesCount > 0 ? salesTotal / salesCount : 0;
 
       const result: CommercialReportData = {
