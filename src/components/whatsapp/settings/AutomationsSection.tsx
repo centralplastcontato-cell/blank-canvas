@@ -801,6 +801,10 @@ export function AutomationsSection() {
             <Globe2 className="w-3.5 h-3.5" />
             <span>Bot LP</span>
           </TabsTrigger>
+          <TabsTrigger value="reativacao" className="flex items-center gap-1.5 text-xs sm:text-sm">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Reativação</span>
+          </TabsTrigger>
         </TabsList>
 
         {/* ============ TAB: GERAL ============ */}
