@@ -150,6 +150,19 @@ const getConversationDisplayName = (
   return conv.contact_phone;
 };
 
+// Helper: normalize phone for reliable lead matching
+const normalizePhoneDigits = (value: string | null | undefined): string => (value || '').replace(/\D/g, '');
+
+const getPhoneVariants = (value: string | null | undefined): string[] => {
+  const digits = normalizePhoneDigits(value);
+  if (!digits) return [];
+
+  const withoutCountryCode = digits.startsWith('55') ? digits.slice(2) : digits;
+  const withCountryCode = digits.startsWith('55') ? digits : `55${digits}`;
+
+  return Array.from(new Set([digits, withoutCountryCode, withCountryCode].filter(Boolean)));
+};
+
 // Helper: resolve the correct phone/JID for sending messages
 // Groups use remote_jid (ends with @g.us), individuals use contact_phone
 const getConversationPhone = (conv: Conversation): string => {
