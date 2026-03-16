@@ -15,10 +15,10 @@ export interface NegociacaoParada {
   motivo: string;
   conversationId: string | null;
   hasVisitRealized: boolean;
-  // Phase 3B - Closing probability score
   scoreFechamento: number;
   classificacao: 'alta' | 'media' | 'baixa';
   messageCount: number;
+  month: string | null;
 }
 
 const STATUS_MONITORED: Array<'em_contato' | 'orcamento_enviado' | 'aguardando_resposta'> = ['em_contato', 'orcamento_enviado', 'aguardando_resposta'];
