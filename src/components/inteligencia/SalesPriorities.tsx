@@ -233,13 +233,6 @@ export function SalesPriorities({ selectedUnit }: SalesPrioritiesProps) {
 
   if (!priorities || priorities.length === 0) return null;
 
-  const tempColors: Record<string, string> = {
-    pronto: "text-green-500",
-    quente: "text-orange-500",
-    morno: "text-yellow-500",
-    frio: "text-blue-400",
-  };
-
   const tempEmoji: Record<string, string> = {
     pronto: "🎯",
     quente: "🔥",
