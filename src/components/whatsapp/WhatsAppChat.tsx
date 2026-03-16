@@ -123,6 +123,7 @@ interface Conversation {
   is_equipe: boolean;
   last_message_content: string | null;
   last_message_from_me: boolean;
+  created_at: string;
   bot_enabled: boolean | null;
   bot_step: string | null;
   pinned_message_id: string | null;
