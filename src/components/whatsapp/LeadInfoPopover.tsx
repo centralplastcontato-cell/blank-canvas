@@ -335,6 +335,7 @@ export function LeadInfoPopover({
   };
 
   return (
+    <>
     <Popover>
       <PopoverTrigger asChild>
         <Button
