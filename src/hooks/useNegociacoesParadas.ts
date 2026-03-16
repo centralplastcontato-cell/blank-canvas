@@ -155,16 +155,11 @@ export function useNegociacoesParadas(stalledDays: number = 10, selectedUnit?: s
       }
       const avgEventValue = eventCount > 0 ? totalEventValue / eventCount : null;
 
-      // 5. Fetch message counts if not available in conversation
-      // Try to get message counts from wapi_messages for conversations without message_count
+      // 5. Fetch message counts from wapi_messages
       const convIds = inactiveConvs.map((c: any) => c.id);
-      let msgCountMap = new Map<string, number>();
+      const msgCountMap = new Map<string, number>();
 
-      // Check if message_count exists in conversations
-      const hasMessageCount = inactiveConvs.some((c: any) => c.message_count != null);
-      
-      if (!hasMessageCount && convIds.length > 0) {
-        // Fallback: count messages per conversation (batch in chunks)
+      if (convIds.length > 0) {
         const chunks = [];
         for (let i = 0; i < convIds.length; i += 100) {
           chunks.push(convIds.slice(i, i + 100));
@@ -189,7 +184,7 @@ export function useNegociacoesParadas(stalledDays: number = 10, selectedUnit?: s
       for (const c of inactiveConvs) {
         const existing = convMap.get(c.lead_id);
         if (!existing || (c.last_message_at && c.last_message_at > (existing.last_message_at || ''))) {
-          const count = c.message_count ?? msgCountMap.get(c.id) ?? 0;
+          const count = msgCountMap.get(c.id) ?? 0;
           convMap.set(c.lead_id, { id: c.id, last_message_at: c.last_message_at, messageCount: count });
         }
       }
