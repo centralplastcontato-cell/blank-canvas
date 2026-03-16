@@ -31,7 +31,7 @@ import { NotificationBell } from "@/components/admin/NotificationBell";
 export default function Inteligencia() {
   const navigate = useNavigate();
   const modules = useCompanyModules();
-  const [activeTab, setActiveTab] = useState("resumo");
+  const [activeTab, setActiveTab] = useState("relatorios");
   const { data, isLoading, refetch } = useLeadIntelligence(true);
   const { data: stageDurations, isLoading: isDurationsLoading } = useLeadStageDurations(activeTab === "funil");
   const { currentCompany } = useCompany();
@@ -211,7 +211,7 @@ export default function Inteligencia() {
                   />
                   <div className="flex items-center gap-2 min-w-0">
                     <img src={currentCompany?.logo_url || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-8 w-auto shrink-0" />
-                    <h1 className="font-display font-bold text-foreground text-sm truncate">Inteligência</h1>
+                    <h1 className="font-display font-bold text-foreground text-sm truncate">Inteligência Comercial</h1>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
@@ -233,9 +233,9 @@ export default function Inteligencia() {
                     <Brain className="h-6 w-6 text-primary" />
                   </div>
                   <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Inteligência</h1>
+                    <h1 className="text-2xl font-bold tracking-tight">Inteligência Comercial</h1>
                   <p className="text-sm text-muted-foreground">
-                    Score de leads, priorização e análise de funil
+                    Análise de desempenho do funil e resultados de vendas
                   </p>
                 </div>
               </div>
@@ -412,12 +412,12 @@ export default function Inteligencia() {
               <div className="overflow-x-auto -mx-2 px-2 pb-2 scrollbar-none flex justify-center">
                 <div className="flex md:inline-flex gap-1 md:gap-2 p-1 md:p-1.5 rounded-2xl bg-muted/50 border border-border/40 shadow-sm md:w-max">
                   {[
+                    { value: "relatorios", label: "Relatórios", mobileLabel: "Relat." },
                     { value: "resumo", label: "Resumo do Dia", mobileLabel: "Resumo" },
                     { value: "prioridades", label: "Prioridades", mobileLabel: "Prior." },
+                    { value: "negociacoes", label: "Neg. Paradas", mobileLabel: "Radar" },
                     { value: "follow-ups", label: "Follow-ups", mobileLabel: "Follow" },
                     { value: "funil", label: "Funil", mobileLabel: "Funil" },
-                    { value: "negociacoes", label: "Neg. Paradas", mobileLabel: "Radar" },
-                    { value: "relatorios", label: "Relatórios", mobileLabel: "Relat." },
                     { value: "leads-dia", label: "Leads do Dia", mobileLabel: "Leads" },
                   ].map(t => (
                     <button
