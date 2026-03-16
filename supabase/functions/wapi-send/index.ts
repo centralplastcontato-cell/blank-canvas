@@ -173,6 +173,48 @@ function extractWapiMessageId(payload: unknown): string | null {
   return typeof id === 'string' && id.length > 0 ? id : null;
 }
 
+/**
+ * For group JIDs (@g.us), W-API needs chatId instead of phone.
+ * This helper tries multiple payload variants for media sends to groups.
+ */
+async function sendMediaWithGroupFallback(
+  endpoint: string,
+  token: string,
+  rawPhone: string,
+  basePayload: Record<string, unknown>,
+  actionName: string
+): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  const isGroup = rawPhone && rawPhone.endsWith('@g.us');
+  
+  if (!isGroup) {
+    // Normal individual send
+    const res = await wapiRequest(endpoint, token, 'POST', { ...basePayload, phone: String(rawPhone || '').replace(/\D/g, '') });
+    if (res.ok) {
+      console.log(`[${actionName}] Success (individual)`);
+      return { ok: true, data: res.data };
+    }
+    return { ok: false, error: res.error || `Falha ao enviar ${actionName}` };
+  }
+
+  // Group: try multiple payload formats
+  const groupAttempts = [
+    { name: 'phone', body: { ...basePayload, phone: rawPhone } },
+    { name: 'chatId', body: { ...basePayload, chatId: rawPhone } },
+    { name: 'number', body: { ...basePayload, number: rawPhone } },
+    { name: 'groupId', body: { ...basePayload, groupId: rawPhone } },
+  ];
+  
+  for (const attempt of groupAttempts) {
+    const res = await wapiRequest(endpoint, token, 'POST', attempt.body);
+    if (res.ok) {
+      console.log(`[${actionName}] Group success [${attempt.name}]`);
+      return { ok: true, data: res.data };
+    }
+    console.warn(`[${actionName}] Group failed [${attempt.name}]: ${res.error}`);
+  }
+  return { ok: false, error: `Falha ao enviar ${actionName} para grupo (W-API)` };
+}
+
 async function sendTextWithFallback(instanceId: string, token: string, rawPhone: string, message: string) {
   const endpoint = `${WAPI_BASE_URL}/message/send-text?instanceId=${instanceId}`;
 
@@ -550,7 +592,7 @@ Deno.serve(async (req) => {
       case 'send-image': {
         const { base64, caption, mediaUrl } = body;
         
-        let imagePayload: Record<string, string> = { phone, caption: caption || '' };
+        let imagePayload: Record<string, unknown> = { caption: caption || '' };
         
         // Prefer sending by URL directly (avoids base64 memory/size limits)
         if (mediaUrl && !base64) {
@@ -569,11 +611,12 @@ Deno.serve(async (req) => {
           });
         }
 
-        const res = await wapiRequest(
+        const res = await sendMediaWithGroupFallback(
           `${WAPI_BASE_URL}/message/send-image?instanceId=${instance_id}`,
           instance_token,
-          'POST',
-          imagePayload
+          phone,
+          imagePayload,
+          'send-image'
         );
         
         console.log('send-image response:', JSON.stringify(res));
@@ -615,27 +658,21 @@ Deno.serve(async (req) => {
       case 'send-audio': {
         const { base64: audioBase64, mediaUrl: audioMediaUrl, mimeType: clientMimeType } = body;
         
-        let audioPayload: Record<string, unknown> = { phone };
+        let audioPayload: Record<string, unknown> = {};
 
         if (audioBase64) {
-          // Determine correct MIME prefix for W-API
-          // W-API expects audio/ogg for voice messages, but we must use the right container
-          // If client sends webm, we still label as ogg (W-API requirement for voice notes)
           let finalAudio = audioBase64;
           if (!finalAudio.startsWith('data:')) {
-            // Always use audio/ogg;codecs=opus prefix — W-API requires it for voice messages
             finalAudio = `data:audio/ogg;codecs=opus;base64,${finalAudio}`;
           }
           console.log('send-audio: using direct base64, mimeType from client:', clientMimeType || 'not provided');
           audioPayload.audio = finalAudio;
         } else if (audioMediaUrl) {
-          // Fallback: W-API rejeita URLs sem extensão .mp3/.ogg — converter para base64
           console.log('send-audio: fetching and converting to base64:', audioMediaUrl.substring(0, 80));
           const audioRes = await fetch(audioMediaUrl);
           if (!audioRes.ok) throw new Error('Falha ao baixar audio: ' + audioRes.status);
           const buf = await audioRes.arrayBuffer();
           const bytes = new Uint8Array(buf);
-          // Safe chunked base64 conversion (avoids stack overflow)
           let bin = '';
           const chunkSize = 8192;
           for (let i = 0; i < bytes.length; i += chunkSize) {
@@ -651,11 +688,12 @@ Deno.serve(async (req) => {
           });
         }
 
-        const res = await wapiRequest(
+        const res = await sendMediaWithGroupFallback(
           `${WAPI_BASE_URL}/message/send-audio?instanceId=${instance_id}`,
           instance_token,
-          'POST',
-          audioPayload
+          phone,
+          audioPayload,
+          'send-audio'
         );
         
         if (!res.ok) {
@@ -704,11 +742,12 @@ Deno.serve(async (req) => {
         const ext = fileName?.split('.').pop()?.toLowerCase() || 
                     docUrl.split('.').pop()?.split('?')[0]?.toLowerCase() || 'pdf';
 
-        const res = await wapiRequest(
+        const res = await sendMediaWithGroupFallback(
           `${WAPI_BASE_URL}/message/send-document?instanceId=${instance_id}`,
           instance_token,
-          'POST',
-          { phone, document: docUrl, fileName: fileName || 'document', extension: ext }
+          phone,
+          { document: docUrl, fileName: fileName || 'document', extension: ext },
+          'send-document'
         );
         
         if (!res.ok) {
@@ -753,11 +792,12 @@ Deno.serve(async (req) => {
           });
         }
 
-        const res = await wapiRequest(
+        const res = await sendMediaWithGroupFallback(
           `${WAPI_BASE_URL}/message/send-video?instanceId=${instance_id}`,
           instance_token,
-          'POST',
-          { phone, video: videoUrl, caption: caption || '' }
+          phone,
+          { video: videoUrl, caption: caption || '' },
+          'send-video'
         );
         
         if (!res.ok) {
@@ -806,25 +846,27 @@ Deno.serve(async (req) => {
         
         const vcard = `BEGIN:VCARD\nVERSION:3.0\nFN:${contactName}\nTEL;type=CELL;waid=${cleanContactPhone}:+${cleanContactPhone}\nEND:VCARD`;
 
-        const res = await wapiRequest(
+        const contactPayload = {
+          contact: {
+            fullName: contactName,
+            organization: '',
+            phoneNumber: `+${cleanContactPhone}`,
+            wuid: cleanContactPhone,
+            displayName: contactName,
+          },
+          name: {
+            formatted_name: contactName,
+            first_name: contactName,
+          },
+          vcard,
+        };
+
+        const res = await sendMediaWithGroupFallback(
           `${WAPI_BASE_URL}/message/send-contact?instanceId=${instance_id}`,
           instance_token,
-          'POST',
-          {
-            phone,
-            contact: {
-              fullName: contactName,
-              organization: '',
-              phoneNumber: `+${cleanContactPhone}`,
-              wuid: cleanContactPhone,
-              displayName: contactName,
-            },
-            name: {
-              formatted_name: contactName,
-              first_name: contactName,
-            },
-            vcard,
-          }
+          phone,
+          contactPayload,
+          'send-contact'
         );
         
         if (!res.ok) {
