@@ -269,7 +269,7 @@ export default function Inteligencia() {
                       </DialogTitle>
                     </DialogHeader>
                     <Tabs defaultValue="relatorios-guide" className="w-full">
-                      <TabsList className="overflow-x-auto -mx-2 px-2 pb-2 scrollbar-none h-auto flex gap-1 p-1 rounded-xl bg-muted/50 border border-border/40 w-max">
+                      <TabsList className="overflow-x-auto -mx-2 px-2 pb-2 scrollbar-none h-auto flex flex-wrap gap-1 p-1 rounded-xl bg-muted/50 border border-border/40 w-full">
                           {[
                             { value: "relatorios-guide", label: "Relatórios" },
                             { value: "resumo-guide", label: "Resumo" },
