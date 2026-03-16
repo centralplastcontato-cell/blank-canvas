@@ -58,6 +58,53 @@ export type Database = {
           },
         ]
       }
+      alerts_system: {
+        Row: {
+          alert_hash: string
+          alert_message: string
+          alert_type: string
+          company_id: string
+          created_at: string
+          id: string
+          related_filter: Json | null
+          resolved: boolean
+          resolved_at: string | null
+          severity: string
+        }
+        Insert: {
+          alert_hash: string
+          alert_message: string
+          alert_type: string
+          company_id: string
+          created_at?: string
+          id?: string
+          related_filter?: Json | null
+          resolved?: boolean
+          resolved_at?: string | null
+          severity?: string
+        }
+        Update: {
+          alert_hash?: string
+          alert_message?: string
+          alert_type?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          related_filter?: Json | null
+          resolved?: boolean
+          resolved_at?: string | null
+          severity?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alerts_system_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_entries: {
         Row: {
           company_id: string
