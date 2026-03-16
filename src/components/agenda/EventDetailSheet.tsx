@@ -36,6 +36,7 @@ interface EventData {
   company_id?: string;
   data_fechamento_venda?: string | null;
   vendedor_responsavel_id?: string | null;
+  payment_method?: string | null;
 }
 
 interface EventDetailSheetProps {
