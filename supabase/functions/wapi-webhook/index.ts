@@ -3316,7 +3316,29 @@ function extractMsgContent(mc: Record<string, unknown>, msg: Record<string, unkn
   
   if (mc.locationMessage) { type = 'location'; const l = mc.locationMessage as Record<string, unknown>; content = `📍 Localização: ${(l.degreesLatitude as number)?.toFixed(6) || '?'}, ${(l.degreesLongitude as number)?.toFixed(6) || '?'}`; }
   else if (mc.liveLocationMessage) { type = 'location'; content = '📍 Localização ao vivo'; }
-  else if (mc.contactMessage || mc.contactsArrayMessage) { type = 'contact'; content = `👤 ${(mc.contactMessage as Record<string, unknown>)?.displayName || 'Contato'}`; }
+  else if (mc.contactMessage || mc.contactsArrayMessage) {
+    type = 'contact';
+    if (mc.contactsArrayMessage) {
+      const arr = (mc.contactsArrayMessage as Record<string, unknown>).contacts as Array<Record<string, unknown>> | undefined;
+      if (arr && arr.length > 0) {
+        const parts = arr.map((c) => {
+          const name = c.displayName || 'Contato';
+          const vcard = c.vcard as string | undefined;
+          const phone = vcard?.match(/TEL[^:]*:([\d+\- ]+)/)?.[1]?.replace(/[\s-]/g, '') || '';
+          return phone ? `${name} - ${phone}` : String(name);
+        });
+        content = `👤 ${parts.join(' | ')}`;
+      } else {
+        content = '👤 Contato';
+      }
+    } else {
+      const cm = mc.contactMessage as Record<string, unknown>;
+      const displayName = cm?.displayName || 'Contato';
+      const vcard = cm?.vcard as string | undefined;
+      const phone = vcard?.match(/TEL[^:]*:([\d+\- ]+)/)?.[1]?.replace(/[\s-]/g, '') || '';
+      content = phone ? `👤 ${displayName} - ${phone}` : `👤 ${displayName}`;
+    }
+  }
   else if (mc.stickerMessage) { type = 'sticker'; content = '🎭 Figurinha'; }
   else if (mc.reactionMessage) return null;
   else if (mc.pollCreationMessage || mc.pollUpdateMessage) { type = 'poll'; content = '📊 Enquete'; }

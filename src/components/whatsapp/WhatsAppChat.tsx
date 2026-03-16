@@ -4176,29 +4176,51 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                     />
                                   </div>
                                 )}
-                                {msg.message_type === 'contact' && (
-                                  <div className={cn(
-                                    "flex items-center gap-3 p-2 rounded-lg border min-w-[180px]",
-                                    msg.from_me
-                                      ? "border-primary-foreground/20 bg-primary-foreground/10"
-                                      : "border-border bg-muted/30"
-                                  )}>
+                                {msg.message_type === 'contact' && (() => {
+                                  const raw = msg.content?.replace(/^\[Contato\]\s*/, '').replace(/^👤\s*/, '') || 'Contato';
+                                  const parts = raw.split(' - ');
+                                  const contactDisplayName = parts[0]?.trim() || 'Contato';
+                                  const contactPhoneNum = parts[1]?.trim() || '';
+                                  return (
                                     <div className={cn(
-                                      "p-2 rounded-full",
-                                      msg.from_me ? "bg-primary-foreground/20" : "bg-primary/10"
+                                      "flex items-center gap-3 p-2.5 rounded-lg border min-w-[200px]",
+                                      msg.from_me
+                                        ? "border-primary-foreground/20 bg-primary-foreground/10"
+                                        : "border-border bg-muted/30"
                                     )}>
-                                      <Users className={cn("w-4 h-4", msg.from_me ? "text-primary-foreground" : "text-primary")} />
+                                      <div className={cn(
+                                        "p-2 rounded-full",
+                                        msg.from_me ? "bg-primary-foreground/20" : "bg-primary/10"
+                                      )}>
+                                        <Users className={cn("w-4 h-4", msg.from_me ? "text-primary-foreground" : "text-primary")} />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className={cn("text-sm font-medium truncate", msg.from_me ? "text-primary-foreground" : "text-foreground")}>
+                                          {contactDisplayName}
+                                        </p>
+                                        {contactPhoneNum && (
+                                          <p
+                                            className={cn("text-xs truncate cursor-pointer hover:underline", msg.from_me ? "text-primary-foreground/70" : "text-muted-foreground")}
+                                            onClick={() => { navigator.clipboard.writeText(contactPhoneNum); toast({ title: "Telefone copiado!", description: contactPhoneNum }); }}
+                                            title="Clique para copiar"
+                                          >
+                                            📞 {contactPhoneNum}
+                                          </p>
+                                        )}
+                                      </div>
+                                      {contactPhoneNum && (
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className={cn("h-7 w-7 shrink-0", msg.from_me ? "text-primary-foreground/70 hover:text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
+                                          onClick={() => { navigator.clipboard.writeText(contactPhoneNum); toast({ title: "Telefone copiado!", description: contactPhoneNum }); }}
+                                        >
+                                          <Copy className="h-3.5 w-3.5" />
+                                        </Button>
+                                      )}
                                     </div>
-                                    <div className="flex-1 min-w-0">
-                                      <p className={cn("text-sm font-medium truncate", msg.from_me ? "text-primary-foreground" : "text-foreground")}>
-                                        {msg.content?.replace('[Contato] ', '').split(' - ')[0] || 'Contato'}
-                                      </p>
-                                      <p className={cn("text-xs truncate", msg.from_me ? "text-primary-foreground/70" : "text-muted-foreground")}>
-                                        {msg.content?.split(' - ')[1] || ''}
-                                      </p>
-                                    </div>
-                                  </div>
-                                )}
+                                  );
+                                })()}
                                 {/* Quoted message reference */}
                                 {msg.quoted_message_id && (() => {
                                   const quoted = messages.find(m => m.id === msg.quoted_message_id);
@@ -5107,29 +5129,50 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                 />
                               </div>
                             )}
-                            {msg.message_type === 'contact' && (
-                              <div className={cn(
-                                "flex items-center gap-3 p-2 rounded-lg border min-w-[180px]",
-                                msg.from_me
-                                  ? "border-primary-foreground/20 bg-primary-foreground/10"
-                                  : "border-border bg-muted/30"
-                              )}>
+                            {msg.message_type === 'contact' && (() => {
+                              const raw = msg.content?.replace(/^\[Contato\]\s*/, '').replace(/^👤\s*/, '') || 'Contato';
+                              const parts = raw.split(' - ');
+                              const contactDisplayName = parts[0]?.trim() || 'Contato';
+                              const contactPhoneNum = parts[1]?.trim() || '';
+                              return (
                                 <div className={cn(
-                                  "p-2 rounded-full",
-                                  msg.from_me ? "bg-primary-foreground/20" : "bg-primary/10"
+                                  "flex items-center gap-3 p-2.5 rounded-lg border min-w-[200px]",
+                                  msg.from_me
+                                    ? "border-primary-foreground/20 bg-primary-foreground/10"
+                                    : "border-border bg-muted/30"
                                 )}>
-                                  <Users className={cn("w-4 h-4", msg.from_me ? "text-primary-foreground" : "text-primary")} />
+                                  <div className={cn(
+                                    "p-2 rounded-full",
+                                    msg.from_me ? "bg-primary-foreground/20" : "bg-primary/10"
+                                  )}>
+                                    <Users className={cn("w-4 h-4", msg.from_me ? "text-primary-foreground" : "text-primary")} />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className={cn("text-sm font-medium truncate", msg.from_me ? "text-primary-foreground" : "text-foreground")}>
+                                      {contactDisplayName}
+                                    </p>
+                                    {contactPhoneNum && (
+                                      <p
+                                        className={cn("text-xs truncate cursor-pointer hover:underline", msg.from_me ? "text-primary-foreground/70" : "text-muted-foreground")}
+                                        onClick={() => { navigator.clipboard.writeText(contactPhoneNum); toast({ title: "Telefone copiado!", description: contactPhoneNum }); }}
+                                      >
+                                        📞 {contactPhoneNum}
+                                      </p>
+                                    )}
+                                  </div>
+                                  {contactPhoneNum && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className={cn("h-7 w-7 shrink-0", msg.from_me ? "text-primary-foreground/70 hover:text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
+                                      onClick={() => { navigator.clipboard.writeText(contactPhoneNum); toast({ title: "Telefone copiado!", description: contactPhoneNum }); }}
+                                    >
+                                      <Copy className="h-3.5 w-3.5" />
+                                    </Button>
+                                  )}
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className={cn("text-sm font-medium truncate", msg.from_me ? "text-primary-foreground" : "text-foreground")}>
-                                    {msg.content?.replace('[Contato] ', '').split(' - ')[0] || 'Contato'}
-                                  </p>
-                                  <p className={cn("text-xs truncate", msg.from_me ? "text-primary-foreground/70" : "text-muted-foreground")}>
-                                    {msg.content?.split(' - ')[1] || ''}
-                                  </p>
-                                </div>
-                              </div>
-                            )}
+                              );
+                            })()}
                             {/* Quoted message reference - mobile */}
                             {msg.quoted_message_id && (() => {
                               const quoted = messages.find(m => m.id === msg.quoted_message_id);
