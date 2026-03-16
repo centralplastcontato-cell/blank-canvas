@@ -86,7 +86,12 @@ export function LeadDetailSheet({
   const [history, setHistory] = useState<LeadHistory[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [hasLinkedEvent, setHasLinkedEvent] = useState<boolean | null>(null);
+  const [linkedEventData, setLinkedEventData] = useState<EventFormData | null>(null);
+  const [eventFormOpen, setEventFormOpen] = useState(false);
+  const [isLoadingEvent, setIsLoadingEvent] = useState(false);
   const { data: aiSummary, isLoading: isLoadingSummary, isFetchingSaved, error: summaryError, fetchSummary } = useLeadSummary(lead?.id || null);
+  const { currentCompany } = useCompany();
+  const { units } = useCompanyUnits(currentCompany?.id);
 
   // Navigate to WhatsApp chat with this lead's phone
   const openWhatsAppChat = () => {
