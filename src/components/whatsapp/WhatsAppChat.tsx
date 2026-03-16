@@ -214,6 +214,7 @@ import { ConversationFilters, FilterType } from "@/components/whatsapp/Conversat
 import { LeadInfoPopover } from "@/components/whatsapp/LeadInfoPopover";
 import { SalesMaterialsMenu } from "@/components/whatsapp/SalesMaterialsMenu";
 import { ShareToGroupDialog } from "@/components/whatsapp/ShareToGroupDialog";
+import { QuickVisitDialog } from "@/components/whatsapp/QuickVisitDialog";
 import { useFilterOrder } from "@/hooks/useFilterOrder";
 
 export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft, onPhoneHandled, externalSelectedUnit, onInstancesLoaded, onLeadClosedMobile }: WhatsAppChatProps) {
