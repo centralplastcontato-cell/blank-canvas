@@ -478,7 +478,7 @@ function ch04(doc: jsPDF) {
   addChapterTitle(doc, 4, "Automações e Bot");
 
   addSectionTitle(doc, "Flow Builder (editor visual)");
-  addParagraph(doc, "O Flow Builder permite criar fluxos de conversa automatizados de forma visual. Cada \"nó\" do fluxo representa uma etapa da conversa: enviar mensagem, aguardar resposta, fazer uma pergunta com opções, ou executar uma ação (como mover lead de etapa).");
+  addParagraph(doc, "O Flow Builder permite criar fluxos de conversa automatizados de forma visual. Cada 'nó' do fluxo representa uma etapa da conversa: enviar mensagem, aguardar resposta, fazer uma pergunta com opções, ou executar uma ação (como mover lead de etapa).");
   addBulletList(doc, [
     "Arraste e conecte nós para criar o fluxo.",
     "Configure mensagens com variáveis dinâmicas ({nome}, {unidade}, etc.).",
@@ -495,6 +495,26 @@ function ch04(doc: jsPDF) {
 
   addSectionTitle(doc, "Follow-ups automáticos");
   addParagraph(doc, "O sistema detecta leads sem interação e pode disparar mensagens automáticas de follow-up após um período configurável. Isso garante que nenhum lead seja esquecido.");
+
+  addSectionTitle(doc, "Reativação Inteligente (Fase 4)");
+  addParagraph(doc, "O motor de reativação monitora automaticamente leads inativos e envia mensagens personalizadas para tentar reengajá-los. A reativação funciona em 3 fases temporais:");
+  addBulletList(doc, [
+    "1 mês sem interação: mensagem sutil de retomada de contato.",
+    "2 meses sem interação: mensagem com abordagem diferenciada.",
+    "3 meses sem interação: última tentativa de reativação.",
+  ]);
+  addParagraph(doc, "O sistema é configurável em Configurações > Automações > Reativação. Você pode:");
+  addBulletList(doc, [
+    "Ativar ou desativar cada gatilho de tempo individualmente.",
+    "Definir quais status de lead são elegíveis para reativação.",
+    "Excluir leads já fechados, perdidos ou que já possuem evento marcado.",
+    "Configurar janela de envio (ex: só enviar entre 8h e 18h).",
+    "Ativar opções interativas (botões de resposta rápida) para o lead.",
+    "Definir limite máximo de mensagens de reativação por lead.",
+  ]);
+  addParagraph(doc, "Na aba Negociações Paradas do módulo Inteligência, leads que já receberam reativação automática são identificados com o ícone 🤖.");
+
+  addAlertBox(doc, "A reativação respeita a janela de horário configurada e os intervalos de segurança entre envios. Leads que já responderam ou estão em contato ativo NÃO recebem mensagem de reativação.");
 
   addTipBox(doc, "Crie fluxos diferentes para cada campanha ou perfil de lead. Um fluxo personalizado converte até 3x mais que mensagens genéricas.");
 }
