@@ -4294,10 +4294,17 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                     setShowQuickVisitDialog(true);
                                   }
 
+                                  const statusBorderColors: Record<string, string> = {
+                                    'bg-blue-500': '#3b82f6', 'bg-teal-500': '#14b8a6', 'bg-yellow-500': '#eab308',
+                                    'bg-purple-500': '#a855f7', 'bg-orange-500': '#f97316', 'bg-green-500': '#22c55e',
+                                    'bg-red-500': '#ef4444', 'bg-cyan-500': '#06b6d4', 'bg-indigo-500': '#6366f1',
+                                    'bg-pink-500': '#ec4899', 'bg-gray-500': '#6b7280',
+                                  };
                                   toast({
                                     title: "Status atualizado",
                                     description: `Lead classificado como "${statusOption.label}"`,
-                                    className: `border-l-4 ${statusOption.color.replace('bg-', 'border-l-')}`,
+                                    className: "border-l-4",
+                                    style: { borderLeftColor: statusBorderColors[statusOption.color] || '#6b7280' },
                                   });
                                 }}
                               >
