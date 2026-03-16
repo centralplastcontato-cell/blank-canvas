@@ -5065,6 +5065,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                     <Button
                       variant="ghost"
                       size="icon"
+                      className={cn("h-7 w-7 shrink-0", isSelectMode && "bg-primary/10 text-primary")}
+                      onClick={() => { setIsSelectMode(prev => !prev); setSelectedMediaIds(new Set()); }}
+                      title="Selecionar imagens"
+                    >
+                      <CheckSquare className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       className="h-7 w-7 shrink-0"
                       onClick={openMessageSearch}
                       title="Buscar nas mensagens"
