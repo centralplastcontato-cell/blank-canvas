@@ -384,6 +384,7 @@ Deno.serve(async (req) => {
                 sent_at: sendStatus === "sent" ? new Date().toISOString() : null,
                 status: sendStatus,
                 failure_reason: failureReason,
+                is_interactive: isInteractive,
               });
 
               // Save message in wapi_messages
