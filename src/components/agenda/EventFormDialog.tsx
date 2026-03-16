@@ -35,7 +35,16 @@ export interface EventFormData {
   data_fechamento_venda?: string | null;
   vendedor_responsavel_id?: string | null;
   vendedor_responsavel_name?: string | null;
+  payment_method?: string | null;
 }
+
+const PAYMENT_METHODS = [
+  { value: "cartao", label: "Cartão" },
+  { value: "boleto", label: "Boleto" },
+  { value: "pix", label: "PIX" },
+  { value: "dinheiro", label: "Dinheiro" },
+  { value: "misto", label: "Misto" },
+];
 
 const EVENT_TYPES = [
   { value: "infantil", label: "Infantil" },
