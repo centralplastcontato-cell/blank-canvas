@@ -106,7 +106,7 @@ export function useNegociacoesParadas(stalledDays: number = 10, selectedUnit?: s
       // 2. Fetch conversations where bot is inactive AND last message is old
       const { data: conversations, error: convErr } = await (supabase as any)
         .from('wapi_conversations')
-        .select('id, lead_id, bot_step, last_message_at, last_message_from_me, message_count')
+        .select('id, lead_id, bot_step, last_message_at, last_message_from_me')
         .eq('company_id', companyId)
         .in('lead_id', leadIds)
         .lte('last_message_at', cutoffISO)
