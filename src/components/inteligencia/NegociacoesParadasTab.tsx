@@ -54,6 +54,7 @@ export function NegociacoesParadasTab({ selectedUnit }: NegociacoesParadasTabPro
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [scoreFilter, setScoreFilter] = useState("all");
+  const [monthFilter, setMonthFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [reactivationMap, setReactivationMap] = useState<Record<string, { stage: string; sent_at: string }>>({});
   const { data, isLoading } = useNegociacoesParadas(Number(stalledDays), selectedUnit);
