@@ -156,7 +156,7 @@ function DraggableSupportButton({
       className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg flex items-center justify-center cursor-grab active:cursor-grabbing touch-none"
       aria-label="Abrir suporte"
     >
-      <Headset className="w-6 h-6 pointer-events-none" />
+      <Bot className="w-6 h-6 pointer-events-none" />
     </motion.button>
   );
 }
