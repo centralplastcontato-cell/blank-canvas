@@ -90,8 +90,17 @@ export function MediaMessage({
     mediaUrl.includes('whatsapp.com')
   );
   
-  // Don't auto-download - only manual download to avoid flooding errors for old messages
+  // Don't auto-download images to avoid flooding errors for old messages
+  // BUT auto-download audio since it's critical for playback and users can't see a preview
   const canAttemptDownload = !isPersisted && messageId && instanceId && hasWhatsAppMediaUrl;
+
+  // Auto-download audio messages when they have WhatsApp URLs (they expire quickly)
+  useEffect(() => {
+    if (mediaType === 'audio' && canAttemptDownload && !isDownloading && !downloadError) {
+      handleDownload();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mediaType, canAttemptDownload]);
 
   const handleDownload = useCallback(async () => {
     if (!messageId || !instanceId) return;
