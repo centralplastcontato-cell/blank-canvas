@@ -64,6 +64,7 @@ interface LeadInfoPopoverProps {
   onToggleFavorite: (conv: Conversation) => void;
   onLeadNameChange: (newName: string) => void;
   onLeadObsChange?: (newObs: string) => void;
+  onShowVisitDialog?: () => void;
   mobile?: boolean;
 }
 
