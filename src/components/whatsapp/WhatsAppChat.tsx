@@ -1437,6 +1437,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         const { data: phoneMatchedLeads } = await supabase
           .from("campaign_leads")
           .select("id, name, whatsapp, unit, status, month, day_of_month, day_preference, guests, observacoes, created_at, responsavel_id, campaign_name")
+          .eq("company_id", getCurrentCompanyId())
           .in("whatsapp", chunk);
 
         appendLeads(phoneMatchedLeads as Lead[] | undefined);
