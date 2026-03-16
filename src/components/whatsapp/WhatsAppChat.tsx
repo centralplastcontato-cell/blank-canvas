@@ -214,6 +214,7 @@ import { ConversationFilters, FilterType } from "@/components/whatsapp/Conversat
 import { LeadInfoPopover } from "@/components/whatsapp/LeadInfoPopover";
 import { SalesMaterialsMenu } from "@/components/whatsapp/SalesMaterialsMenu";
 import { ShareToGroupDialog } from "@/components/whatsapp/ShareToGroupDialog";
+import { QuickVisitDialog } from "@/components/whatsapp/QuickVisitDialog";
 import { useFilterOrder } from "@/hooks/useFilterOrder";
 
 export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft, onPhoneHandled, externalSelectedUnit, onInstancesLoaded, onLeadClosedMobile }: WhatsAppChatProps) {
@@ -272,6 +273,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [currentUserName, setCurrentUserName] = useState<string>("");
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
   const [showShareToGroupDialog, setShowShareToGroupDialog] = useState(false);
+  const [showQuickVisitDialog, setShowQuickVisitDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   
   // Contact sharing state
@@ -3754,6 +3756,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         onLeadObsChange={(newObs) => {
                           setLinkedLead(prev => prev ? { ...prev, observacoes: newObs || null } : null);
                         }}
+                        onShowVisitDialog={() => linkedLead && setShowQuickVisitDialog(true)}
                       />
                       {/* O.E. (Orçamento Enviado) button - always visible, disabled without lead */}
                       <Button
@@ -3919,8 +3922,17 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         <X className="w-4 h-4" />
                       </Button>
                     </div>
-                  )}
+      )}
 
+      {/* Quick Visit Dialog */}
+      {linkedLead && (
+        <QuickVisitDialog
+          open={showQuickVisitDialog}
+          onOpenChange={setShowQuickVisitDialog}
+          leadId={linkedLead.id}
+          currentUserId={userId}
+        />
+      )}
 
                   {/* Lead Classification Panel - Always visible */}
                   <div className="border-b border-border/40 bg-muted/30 px-3 py-2 shrink-0 overflow-hidden">
@@ -4677,6 +4689,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         onLeadObsChange={(newObs) => {
                           setLinkedLead(prev => prev ? { ...prev, observacoes: newObs || null } : null);
                         }}
+                        onShowVisitDialog={() => linkedLead && setShowQuickVisitDialog(true)}
                         mobile
                       />
                       <Button
