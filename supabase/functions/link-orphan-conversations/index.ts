@@ -95,13 +95,13 @@ Deno.serve(async (req) => {
     console.log(`[link-orphans] ${company.name}: total conversations = ${totalCount}`);
 
     // Try getting ALL conversations and filter in JS
-    let allConvs: Array<{id: string; contact_phone: string; contact_name: string; remote_jid: string; instance_key: string; lead_id: string | null}> = [];
+    let allConvs: Array<{id: string; contact_phone: string; contact_name: string; remote_jid: string; instance_id: string; lead_id: string | null}> = [];
     let offset = 0;
     const batchSize = 1000;
     while (true) {
       const { data: batch, error: batchErr } = await supabase
         .from("wapi_conversations")
-        .select("id, contact_phone, contact_name, remote_jid, instance_key, lead_id")
+        .select("id, contact_phone, contact_name, remote_jid, instance_id, lead_id")
         .eq("company_id", company.id)
         .range(offset, offset + batchSize - 1);
 
