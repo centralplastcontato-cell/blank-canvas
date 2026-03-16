@@ -413,8 +413,7 @@ export default function Inteligencia() {
             {/* Alertas Inteligentes */}
             <AlertsPanel onTabChange={setActiveTab} />
 
-            {/* Prioridades de Venda */}
-            <SalesPriorities selectedUnit={selectedUnit} />
+            {/* SalesPriorities moved inside Relatórios tab */}
 
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <div className="overflow-x-auto -mx-2 px-2 pb-2 scrollbar-none flex justify-center">
@@ -478,6 +477,7 @@ export default function Inteligencia() {
 
               <TabsContent value="relatorios" className="animate-fade-up">
                 <RelatoriosComerciais selectedUnit={selectedUnit !== "all" ? selectedUnit : undefined} />
+                <SalesPriorities selectedUnit={selectedUnit} />
               </TabsContent>
 
               <TabsContent value="leads-dia" className="animate-fade-up">
