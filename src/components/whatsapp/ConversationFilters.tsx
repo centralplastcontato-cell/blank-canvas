@@ -44,6 +44,7 @@ interface ConversationFiltersProps {
   conversations: Conversation[];
   closedLeadCount: number;
   orcamentoEnviadoCount: number;
+  visitasCount: number;
   collapsible?: boolean;
   defaultOpen?: boolean;
   filterOrder: string[];
