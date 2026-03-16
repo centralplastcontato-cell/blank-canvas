@@ -20,6 +20,7 @@ import { FunilTab } from "@/components/inteligencia/FunilTab";
 import { RelatoriosComerciais } from "@/components/inteligencia/RelatoriosComerciais";
 import { LeadsDoDiaTab } from "@/components/inteligencia/LeadsDoDiaTab";
 import { ResumoDiarioTab } from "@/components/inteligencia/ResumoDiarioTab";
+import { NegociacoesParadasTab } from "@/components/inteligencia/NegociacoesParadasTab";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
@@ -415,6 +416,7 @@ export default function Inteligencia() {
                     { value: "prioridades", label: "Prioridades", mobileLabel: "Prior." },
                     { value: "follow-ups", label: "Follow-ups", mobileLabel: "Follow" },
                     { value: "funil", label: "Funil", mobileLabel: "Funil" },
+                    { value: "negociacoes", label: "Neg. Paradas", mobileLabel: "Radar" },
                     { value: "relatorios", label: "Relatórios", mobileLabel: "Relat." },
                     { value: "leads-dia", label: "Leads do Dia", mobileLabel: "Leads" },
                   ].map(t => (
@@ -460,6 +462,10 @@ export default function Inteligencia() {
                 ) : (
                   <FunilTab data={filteredData} stageDurations={stageDurations} selectedUnit={selectedUnit} />
                 )}
+              </TabsContent>
+
+              <TabsContent value="negociacoes" className="animate-fade-up">
+                <NegociacoesParadasTab selectedUnit={selectedUnit !== "all" ? selectedUnit : undefined} />
               </TabsContent>
 
               <TabsContent value="relatorios" className="animate-fade-up">
