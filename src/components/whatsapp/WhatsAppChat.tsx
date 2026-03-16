@@ -1392,57 +1392,90 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       
       setConversations(sortedConversations as Conversation[]);
       
-      // Fetch lead IDs that are linked to conversations
-      const leadIds = sortedConversations
-        .map((conv: Conversation) => conv.lead_id)
-        .filter((id): id is string => id !== null);
-      
-      if (leadIds.length > 0) {
-        // On realtime refresh (skipLeadRefresh), only fetch leads not already cached
-        const idsToFetch = skipLeadRefresh
-          ? leadIds.filter(id => !Object.values(conversationLeadsMap).some(l => l?.id === id))
-          : leadIds;
+      const leadIds = Array.from(new Set(
+        sortedConversations
+          .map((conv: Conversation) => conv.lead_id)
+          .filter((id): id is string => id !== null)
+      ));
 
-        let allLeads: Lead[] = [];
+      const unresolvedPhones = Array.from(new Set(
+        sortedConversations
+          .filter((conv) => !conv.remote_jid?.endsWith('@g.us'))
+          .flatMap((conv) => getPhoneVariants(conv.contact_phone))
+      ));
 
-        if (!skipLeadRefresh || idsToFetch.length > 0) {
-          const fetchIds = skipLeadRefresh ? idsToFetch : leadIds;
-          const leadChunks = Array.from({ length: Math.ceil(fetchIds.length / 1000) }, (_, index) =>
-            fetchIds.slice(index * 1000, (index + 1) * 1000)
-          );
-
-          for (const chunk of leadChunks) {
-            const { data: freshLeads } = await supabase
-              .from("campaign_leads")
-              .select("id, name, whatsapp, unit, status, month, day_of_month, day_preference, guests, observacoes, created_at, responsavel_id, campaign_name")
-              .in("id", chunk);
-
-            if (freshLeads) {
-              allLeads.push(...(freshLeads as Lead[]));
-            }
+      const allLeads: Lead[] = [];
+      const seenLeadIds = new Set<string>();
+      const appendLeads = (leads?: Lead[]) => {
+        leads?.forEach((lead) => {
+          if (!seenLeadIds.has(lead.id)) {
+            seenLeadIds.add(lead.id);
+            allLeads.push(lead);
           }
-        }
+        });
+      };
 
-        // Merge with existing cached leads when doing partial refresh
-        if (skipLeadRefresh) {
-          const cachedLeads = Object.values(conversationLeadsMap).filter((l): l is Lead => l !== null);
-          const freshIds = new Set(allLeads.map(l => l.id));
-          cachedLeads.forEach(l => { if (!freshIds.has(l.id) && leadIds.includes(l.id)) allLeads.push(l); });
-        }
+      const leadIdChunks = Array.from({ length: Math.ceil(leadIds.length / 1000) }, (_, index) =>
+        leadIds.slice(index * 1000, (index + 1) * 1000)
+      ).filter((chunk) => chunk.length > 0);
 
-        if (allLeads.length > 0) {
-          const leadsMap: Record<string, Lead | null> = {};
-          
-          data.forEach((conv: Conversation) => {
-            if (conv.lead_id) {
-              const lead = allLeads.find(l => l.id === conv.lead_id);
-              leadsMap[conv.id] = lead as Lead || null;
-            }
-          });
-          
-          setConversationLeadsMap(leadsMap);
-        }
+      for (const chunk of leadIdChunks) {
+        const { data: freshLeads } = await supabase
+          .from("campaign_leads")
+          .select("id, name, whatsapp, unit, status, month, day_of_month, day_preference, guests, observacoes, created_at, responsavel_id, campaign_name")
+          .in("id", chunk);
+
+        appendLeads(freshLeads as Lead[] | undefined);
       }
+
+      const phoneChunks = Array.from({ length: Math.ceil(unresolvedPhones.length / 1000) }, (_, index) =>
+        unresolvedPhones.slice(index * 1000, (index + 1) * 1000)
+      ).filter((chunk) => chunk.length > 0);
+
+      for (const chunk of phoneChunks) {
+        const { data: phoneMatchedLeads } = await supabase
+          .from("campaign_leads")
+          .select("id, name, whatsapp, unit, status, month, day_of_month, day_preference, guests, observacoes, created_at, responsavel_id, campaign_name")
+          .in("whatsapp", chunk);
+
+        appendLeads(phoneMatchedLeads as Lead[] | undefined);
+      }
+
+      if (skipLeadRefresh) {
+        appendLeads(Object.values(conversationLeadsMap).filter((lead): lead is Lead => lead !== null));
+      }
+
+      const leadsById = new Map(allLeads.map((lead) => [lead.id, lead]));
+      const leadsByPhone = new Map<string, Lead[]>();
+
+      allLeads.forEach((lead) => {
+        getPhoneVariants(lead.whatsapp).forEach((phone) => {
+          const existing = leadsByPhone.get(phone) || [];
+          existing.push(lead);
+          leadsByPhone.set(phone, existing);
+        });
+      });
+
+      const pickBestLeadForConversation = (conv: Conversation): Lead | null => {
+        if (conv.lead_id && leadsById.has(conv.lead_id)) {
+          return leadsById.get(conv.lead_id) || null;
+        }
+
+        const candidates = getPhoneVariants(conv.contact_phone)
+          .flatMap((phone) => leadsByPhone.get(phone) || [])
+          .filter((lead, index, array) => array.findIndex((item) => item.id === lead.id) === index);
+
+        if (candidates.length === 0) return null;
+
+        return candidates.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0] || null;
+      };
+
+      const leadsMap: Record<string, Lead | null> = {};
+      sortedConversations.forEach((conv: Conversation) => {
+        leadsMap[conv.id] = pickBestLeadForConversation(conv);
+      });
+
+      setConversationLeadsMap(leadsMap);
       
       // If initialPhone is provided, try to select that conversation
       if (selectPhone) {
