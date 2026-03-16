@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useNegociacoesParadas, type NegociacaoParada } from "@/hooks/useNegociacoesParadas";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageSquare, Clock, AlertTriangle, User, Calendar, Radar, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { MessageSquare, Clock, AlertTriangle, User, Calendar, Radar, Search, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ScoreBadge } from "./ScoreBadge";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
 
 interface NegociacoesParadasTabProps {
   selectedUnit?: string;
