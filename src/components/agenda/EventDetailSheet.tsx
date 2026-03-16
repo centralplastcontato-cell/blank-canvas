@@ -135,110 +135,121 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-md overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle className="text-left text-lg">{event.title}</SheetTitle>
-        </SheetHeader>
+      <SheetContent className="w-full sm:max-w-md overflow-y-auto p-0">
+        {/* Premium Header */}
+        <div className="sticky top-0 z-10 bg-gradient-to-b from-primary/8 to-background px-6 pt-6 pb-4 border-b border-border/40">
+          <SheetHeader>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 ring-1 ring-primary/20 flex items-center justify-center shrink-0">
+                <CalendarDays className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <SheetTitle className="text-left text-lg truncate">{event.title}</SheetTitle>
+                <p className="text-xs text-muted-foreground capitalize mt-0.5">{dateFormatted}</p>
+              </div>
+              <Badge variant={statusInfo.variant} className="shrink-0">{statusInfo.label}</Badge>
+            </div>
+          </SheetHeader>
+        </div>
 
-        <div className="mt-5 space-y-5">
-          <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
-
+        <div className="px-6 py-5 space-y-5">
+          {/* Conflict Alert */}
           {conflicts.length > 0 && (
-            <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm">
               <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
               <div>
-                <p className="font-medium">Conflito de horário!</p>
-                <p>{conflicts.map(c => c.title).join(", ")} no mesmo horário/unidade.</p>
+                <p className="font-semibold text-xs">Conflito de horário!</p>
+                <p className="text-xs mt-0.5 opacity-80">{conflicts.map(c => c.title).join(", ")} no mesmo horário/unidade.</p>
               </div>
             </div>
           )}
 
-          <div className="space-y-3 text-sm bg-muted/30 rounded-xl p-4">
-            <div className="flex items-center gap-3 text-foreground">
-              <div className="p-1.5 rounded-lg bg-primary/10"><CalendarDays className="h-4 w-4 text-primary" /></div>
-              <span className="capitalize">{dateFormatted}</span>
+          {/* Detalhes do Evento */}
+          <div className="rounded-xl border border-border/40 bg-card shadow-sm overflow-hidden">
+            <div className="px-4 py-2.5 bg-muted/30 border-b border-border/30">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Detalhes do Evento</p>
             </div>
+            <div className="p-4 space-y-3 text-sm">
+              {(event.start_time || event.end_time) && (
+                <div className="flex items-center gap-3 text-foreground">
+                  <div className="p-1.5 rounded-lg bg-primary/10"><Clock className="h-4 w-4 text-primary" /></div>
+                  <span>{event.start_time?.slice(0, 5) || "–"} até {event.end_time?.slice(0, 5) || "–"}</span>
+                </div>
+              )}
 
-            {(event.start_time || event.end_time) && (
-              <div className="flex items-center gap-3 text-foreground">
-                <div className="p-1.5 rounded-lg bg-primary/10"><Clock className="h-4 w-4 text-primary" /></div>
-                <span>
-                  {event.start_time?.slice(0, 5) || "–"} até {event.end_time?.slice(0, 5) || "–"}
-                </span>
-              </div>
-            )}
+              {event.event_type && (
+                <div className="flex items-center gap-3 text-foreground">
+                  <div className="p-1.5 rounded-lg bg-secondary/20"><Package className="h-4 w-4 text-secondary-foreground" /></div>
+                  <span className="capitalize">{event.event_type}</span>
+                </div>
+              )}
 
-            {event.event_type && (
-              <div className="flex items-center gap-3 text-foreground">
-                <div className="p-1.5 rounded-lg bg-secondary/20"><Package className="h-4 w-4 text-secondary-foreground" /></div>
-                <span className="capitalize">{event.event_type}</span>
-              </div>
-            )}
+              {event.guest_count && (
+                <div className="flex items-center gap-3 text-foreground">
+                  <div className="p-1.5 rounded-lg bg-primary/10"><Users className="h-4 w-4 text-primary" /></div>
+                  <span>{event.guest_count} convidados</span>
+                </div>
+              )}
 
-            {event.guest_count && (
-              <div className="flex items-center gap-3 text-foreground">
-                <div className="p-1.5 rounded-lg bg-accent/10"><Users className="h-4 w-4 text-accent" /></div>
-                <span>{event.guest_count} convidados</span>
-              </div>
-            )}
+              {event.unit && (
+                <div className="flex items-center gap-3 text-foreground">
+                  <div className="p-1.5 rounded-lg bg-primary/10"><MapPin className="h-4 w-4 text-primary" /></div>
+                  <span>{event.unit}</span>
+                </div>
+              )}
 
-            {event.unit && (
-              <div className="flex items-center gap-3 text-foreground">
-                <div className="p-1.5 rounded-lg bg-accent/10"><MapPin className="h-4 w-4 text-accent" /></div>
-                <span>{event.unit}</span>
-              </div>
-            )}
+              {event.total_value != null && (
+                <div className="flex items-center gap-3 text-foreground">
+                  <div className="p-1.5 rounded-lg bg-primary/10"><DollarSign className="h-4 w-4 text-primary" /></div>
+                  <span className="font-medium">{event.total_value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                </div>
+              )}
 
-            {event.total_value != null && (
-              <div className="flex items-center gap-3 text-foreground">
-                <div className="p-1.5 rounded-lg bg-accent/10"><DollarSign className="h-4 w-4 text-accent" /></div>
-                <span>{event.total_value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
-              </div>
-            )}
-
-            {event.package_name && (
-              <div className="flex items-center gap-3 text-foreground">
-                <div className="p-1.5 rounded-lg bg-secondary/20"><Package className="h-4 w-4 text-secondary-foreground" /></div>
-                <span>{event.package_name}</span>
-              </div>
-            )}
+              {event.package_name && (
+                <div className="flex items-center gap-3 text-foreground">
+                  <div className="p-1.5 rounded-lg bg-secondary/20"><Package className="h-4 w-4 text-secondary-foreground" /></div>
+                  <span>{event.package_name}</span>
+                </div>
+              )}
+            </div>
           </div>
 
-          {event.lead_id && leadName && (
-            <>
-              <Separator />
-              <div className="flex items-center gap-2 text-sm">
-                <UserCheck className="h-4 w-4 text-primary shrink-0" />
-                <div>
-                  <p className="text-xs text-muted-foreground">Lead vinculado</p>
-                  <p className="font-medium">{leadName}</p>
-                </div>
+          {/* Lead vinculado + Observações */}
+          {(event.lead_id && leadName || event.notes) && (
+            <div className="rounded-xl border border-border/40 bg-card shadow-sm overflow-hidden">
+              <div className="px-4 py-2.5 bg-muted/30 border-b border-border/30">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Informações Adicionais</p>
               </div>
-            </>
-          )}
-
-          {event.notes && (
-            <>
-              <Separator />
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Observações</p>
-                <p className="text-sm whitespace-pre-wrap">{event.notes}</p>
+              <div className="p-4 space-y-4">
+                {event.lead_id && leadName && (
+                  <div className="flex items-center gap-3 text-sm">
+                    <div className="p-1.5 rounded-lg bg-primary/10"><UserCheck className="h-4 w-4 text-primary" /></div>
+                    <div>
+                      <p className="text-[11px] text-muted-foreground font-medium">Lead vinculado</p>
+                      <p className="font-medium text-foreground">{leadName}</p>
+                    </div>
+                  </div>
+                )}
+                {event.lead_id && leadName && event.notes && <Separator className="opacity-40" />}
+                {event.notes && (
+                  <div>
+                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Observações</p>
+                    <p className="text-sm whitespace-pre-wrap text-foreground/80 leading-relaxed">{event.notes}</p>
+                  </div>
+                )}
               </div>
-            </>
+            </div>
           )}
 
           {/* Dados Comerciais */}
-          <Separator />
-          <div className="space-y-3">
-            <div className="flex items-center gap-2.5 text-[11px] uppercase tracking-[0.18em] font-semibold text-muted-foreground pb-2 border-b border-border/40">
-              <div className="p-1.5 rounded-md bg-primary/10 ring-1 ring-primary/15">
-                <Briefcase className="h-3.5 w-3.5 text-primary" />
-              </div>
-              Dados Comerciais
+          <div className="rounded-xl border border-border/40 bg-card shadow-sm overflow-hidden">
+            <div className="px-4 py-2.5 bg-muted/30 border-b border-border/30 flex items-center gap-2">
+              <Briefcase className="h-3.5 w-3.5 text-primary" />
+              <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Dados Comerciais</p>
             </div>
-            <div className="space-y-2 text-sm">
+            <div className="p-4 space-y-3">
               {(!localFechamento || !localVendedor) && (
-                <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 mb-2">
+                <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40">
                   <AlertTriangle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
                   <div>
                     <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">Dados comerciais incompletos</p>
@@ -249,7 +260,7 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
                   </div>
                 </div>
               )}
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Data de fechamento</span>
                 <Popover>
                   <PopoverTrigger asChild>
@@ -288,7 +299,7 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
                   </PopoverContent>
                 </Popover>
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Vendedor</span>
                 <Select
                   value={localVendedor || "none"}
@@ -316,18 +327,16 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
             </div>
           </div>
 
-          <Separator />
-
           {/* Checklist */}
           {event.company_id && (
-            <EventChecklist eventId={event.id} companyId={event.company_id} />
+            <div className="rounded-xl border border-border/40 bg-card shadow-sm overflow-hidden">
+              <EventChecklist eventId={event.id} companyId={event.company_id} />
+            </div>
           )}
-
-          <Separator />
 
           {/* Controle da Festa link */}
           <div
-            className="rounded-xl p-3 flex items-center gap-3"
+            className="rounded-xl p-3.5 flex items-center gap-3"
             style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)", border: "1px solid rgba(96,165,250,0.2)" }}
           >
             <div
@@ -341,7 +350,6 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
               <p className="text-xs" style={{ color: "#64748b" }}>Copiar ou compartilhar link do painel</p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              {/* Open link */}
               <button
                 onClick={() => window.open(getControlUrl(), "_blank")}
                 className="h-8 w-8 rounded-lg flex items-center justify-center transition-colors"
@@ -350,7 +358,6 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
               >
                 <ExternalLink className="h-4 w-4" style={{ color: "#c084fc" }} />
               </button>
-              {/* WhatsApp share */}
               <button
                 onClick={handleShareWhatsApp}
                 className="h-8 w-8 rounded-lg flex items-center justify-center transition-colors"
@@ -361,7 +368,6 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
                   <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
                 </svg>
               </button>
-              {/* Copy link */}
               <button
                 onClick={handleCopyControlLink}
                 className="h-8 w-8 rounded-lg flex items-center justify-center transition-colors"
@@ -376,11 +382,12 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
             </div>
           </div>
 
-          <div className="flex gap-2 pt-2">
-            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => onEdit(event)}>
+          {/* Action Buttons */}
+          <div className="flex gap-2 pt-1 pb-2">
+            <Button variant="outline" className="flex-1 rounded-xl h-10" onClick={() => onEdit(event)}>
               <Pencil className="h-4 w-4 mr-2" /> Editar
             </Button>
-            <Button variant="destructive" size="icon" className="rounded-xl" onClick={() => onDelete(event.id)}>
+            <Button variant="destructive" size="icon" className="rounded-xl h-10 w-10" onClick={() => onDelete(event.id)}>
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
