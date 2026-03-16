@@ -71,9 +71,9 @@ export function NegociacoesParadasTab({ selectedUnit }: NegociacoesParadasTabPro
 
   const handleOpenConversation = (lead: NegociacaoParada) => {
     if (lead.conversationId) {
-      navigate(`/central-atendimento?conversation=${lead.conversationId}`);
+      navigate(`/atendimento?conversation=${lead.conversationId}`);
     } else {
-      navigate(`/central-atendimento?search=${encodeURIComponent(lead.whatsapp)}`);
+      navigate(`/atendimento?search=${encodeURIComponent(lead.whatsapp)}`);
     }
   };
 
