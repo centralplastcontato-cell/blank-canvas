@@ -384,8 +384,8 @@ export function LeadInfoPopover({
       <PopoverContent 
         align="end" 
         className={cn(
-          "p-0 rounded-2xl shadow-lg border-border/50 overflow-hidden",
-          mobile ? "w-[300px]" : "w-[340px]"
+          "p-0 rounded-2xl shadow-2xl shadow-black/10 border-border/30 overflow-hidden backdrop-blur-sm",
+          mobile ? "w-[310px]" : "w-[360px]"
         )}
       >
         {isGroup ? (
