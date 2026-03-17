@@ -763,7 +763,7 @@ export default function Admin() {
           </header>
 
           <main className="flex-1 overflow-auto p-6 space-y-4">
-            <MonthlyReviewBanner isAdmin={isAdmin} unitSlug={filters.unit && filters.unit !== "all" ? (units.find(u => u.name === filters.unit)?.slug || filters.unit) : undefined} />
+            <MonthlyReviewBanner isAdmin={isAdmin} unitSlug={filters.unit && filters.unit !== "all" ? (units.find(u => u.name === filters.unit)?.slug || filters.unit) : undefined} canViewRevenue={isAdmin || hasPermission('agenda.faturamento')} />
             <MetricsCards metrics={leadMetrics} isLoading={isLoadingLeads} />
             <LeadsFilters filters={filters} onFiltersChange={setFilters} responsaveis={responsaveis} onExport={canExportLeads ? handleExport : undefined} />
 
