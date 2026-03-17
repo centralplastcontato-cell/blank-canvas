@@ -138,7 +138,8 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-md overflow-y-auto p-0">
         {/* Premium Header */}
-        <div className="sticky top-0 z-10 bg-gradient-to-b from-primary/8 to-background px-6 pt-6 pb-4 border-b border-border/40">
+        <div className="sticky top-0 z-10 bg-card border-b border-border/40 px-6 pt-6 pb-4 shadow-sm">
+          <div className="absolute inset-0 bg-primary/[0.04] pointer-events-none" />
           <SheetHeader>
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl bg-primary/10 ring-1 ring-primary/20 flex items-center justify-center shrink-0">
