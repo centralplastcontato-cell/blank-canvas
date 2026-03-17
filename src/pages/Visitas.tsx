@@ -89,8 +89,7 @@ export default function Visitas() {
   const [saving, setSaving] = useState(false);
   const [leadResults, setLeadResults] = useState<{ id: string; name: string; whatsapp: string }[]>([]);
 
-  const { isAdmin } = useUserRole(user?.id);
-  const { canManageUsers } = usePermissions(user?.id);
+  const { isAdmin, canManageUsers } = useUserRole(user?.id);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
