@@ -21,7 +21,7 @@ serve(async (req) => {
     // Determine reviewed month (previous month)
     const now = new Date();
     const reviewMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const reviewMonthStr = reviewMonth.toISOString().split("T")[0]; // e.g. 2026-02-01
+    const reviewMonthStr = reviewMonth.toISOString().split("T")[0];
     const monthStart = reviewMonth.toISOString();
     const monthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59).toISOString();
 
@@ -42,54 +42,26 @@ serve(async (req) => {
 
     for (const company of companies || []) {
       try {
-        // Check if already generated
-        const { data: existing } = await supabase
-          .from("monthly_reviews")
-          .select("id")
+        // Get units for this company
+        const { data: units } = await supabase
+          .from("company_units")
+          .select("name, slug")
           .eq("company_id", company.id)
-          .eq("review_month", reviewMonthStr)
-          .maybeSingle();
+          .eq("is_active", true)
+          .order("sort_order");
 
-        if (existing && !targetCompanyId) {
-          // Skip if already exists (unless forced for single company)
-          continue;
+        const unitList = units || [];
+        const hasMultipleUnits = unitList.length > 1;
+
+        if (hasMultipleUnits) {
+          // Generate per-unit reviews
+          for (const unit of unitList) {
+            await processUnitReview(supabase, company, unit.name, unit.slug, reviewMonthStr, monthStart, monthEnd, prevStart, prevEnd, reviewMonth, targetCompanyId, results);
+          }
+        } else {
+          // Single unit or no units — generate one consolidated review
+          await processUnitReview(supabase, company, null, null, reviewMonthStr, monthStart, monthEnd, prevStart, prevEnd, reviewMonth, targetCompanyId, results);
         }
-
-        // Gather metrics for the reviewed month
-        const metrics = await gatherMetrics(supabase, company.id, monthStart, monthEnd);
-        const previousMetrics = await gatherMetrics(supabase, company.id, prevStart, prevEnd);
-
-        // Generate AI summary
-        const aiSummary = await generateAISummary(company.name, metrics, previousMetrics, reviewMonth);
-
-        // Generate AI context
-        const aiContext = generateAIContext(company.name, metrics);
-
-        // Upsert review
-        const { error: upsertError } = await supabase
-          .from("monthly_reviews")
-          .upsert({
-            company_id: company.id,
-            review_month: reviewMonthStr,
-            metrics,
-            previous_metrics: previousMetrics,
-            ai_summary: aiSummary,
-            ai_context_generated: aiContext,
-            dismissed_by: [],
-          }, { onConflict: "company_id,review_month" });
-
-        if (upsertError) {
-          console.error(`Error upserting review for ${company.name}:`, upsertError);
-          continue;
-        }
-
-        // Update ai_context in all company bot settings
-        await supabase
-          .from("wapi_bot_settings")
-          .update({ ai_context: aiContext } as any)
-          .eq("company_id", company.id);
-
-        results.push({ company: company.name, status: "ok" });
       } catch (err) {
         console.error(`Error processing ${company.name}:`, err);
         results.push({ company: company.name, status: "error", error: String(err) });
@@ -108,60 +80,170 @@ serve(async (req) => {
   }
 });
 
-async function gatherMetrics(supabase: any, companyId: string, start: string, end: string) {
+async function processUnitReview(
+  supabase: any,
+  company: { id: string; name: string },
+  unitName: string | null,
+  unitSlug: string | null,
+  reviewMonthStr: string,
+  monthStart: string,
+  monthEnd: string,
+  prevStart: string,
+  prevEnd: string,
+  reviewMonth: Date,
+  targetCompanyId: string | null,
+  results: any[]
+) {
+  const label = unitName ? `${company.name} — ${unitName}` : company.name;
+
+  try {
+    // Check if already generated
+    let existingQuery = supabase
+      .from("monthly_reviews")
+      .select("id")
+      .eq("company_id", company.id)
+      .eq("review_month", reviewMonthStr);
+
+    if (unitSlug) {
+      existingQuery = existingQuery.eq("unit_slug", unitSlug);
+    } else {
+      existingQuery = existingQuery.is("unit_slug", null);
+    }
+
+    const { data: existing } = await existingQuery.maybeSingle();
+
+    if (existing && !targetCompanyId) {
+      return; // Skip if already exists (unless forced)
+    }
+
+    const metrics = await gatherMetrics(supabase, company.id, monthStart, monthEnd, unitName);
+    const previousMetrics = await gatherMetrics(supabase, company.id, prevStart, prevEnd, unitName);
+
+    const displayName = unitName ? `${company.name} — ${unitName}` : company.name;
+    const aiSummary = await generateAISummary(displayName, metrics, previousMetrics, reviewMonth);
+    const aiContext = generateAIContext(displayName, metrics);
+
+    const upsertData: any = {
+      company_id: company.id,
+      review_month: reviewMonthStr,
+      unit_slug: unitSlug,
+      metrics,
+      previous_metrics: previousMetrics,
+      ai_summary: aiSummary,
+      ai_context_generated: aiContext,
+      dismissed_by: [],
+    };
+
+    const { error: upsertError } = await supabase
+      .from("monthly_reviews")
+      .upsert(upsertData, { onConflict: "company_id,review_month,unit_slug" });
+
+    if (upsertError) {
+      console.error(`Error upserting review for ${label}:`, upsertError);
+      return;
+    }
+
+    // Update ai_context in bot settings (only for consolidated or single-unit)
+    if (!unitSlug) {
+      await supabase
+        .from("wapi_bot_settings")
+        .update({ ai_context: aiContext } as any)
+        .eq("company_id", company.id);
+    }
+
+    results.push({ company: label, unit: unitSlug, status: "ok" });
+  } catch (err) {
+    console.error(`Error processing ${label}:`, err);
+    results.push({ company: label, unit: unitSlug, status: "error", error: String(err) });
+  }
+}
+
+async function gatherMetrics(supabase: any, companyId: string, start: string, end: string, unitName: string | null = null) {
+  // Build unit filter helper
+  const applyUnitFilter = (query: any, column = "unit") => {
+    if (unitName) {
+      query = query.or(`${column}.eq.${unitName},${column}.eq.As duas`);
+    }
+    return query;
+  };
+
   // Leads
-  const { count: totalLeads } = await supabase
-    .from("campaign_leads")
-    .select("*", { count: "exact", head: true })
-    .eq("company_id", companyId)
-    .gte("created_at", start)
-    .lte("created_at", end);
+  let leadsBaseQuery = () => {
+    let q = supabase
+      .from("campaign_leads")
+      .select("*", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .gte("created_at", start)
+      .lte("created_at", end);
+    if (unitName) q = q.or(`unit.eq.${unitName},unit.eq.As duas`);
+    return q;
+  };
 
-  const { count: closedLeads } = await supabase
-    .from("campaign_leads")
-    .select("*", { count: "exact", head: true })
-    .eq("company_id", companyId)
-    .eq("status", "fechado")
-    .gte("created_at", start)
-    .lte("created_at", end);
+  const { count: totalLeads } = await leadsBaseQuery();
 
-  const { count: lostLeads } = await supabase
-    .from("campaign_leads")
-    .select("*", { count: "exact", head: true })
-    .eq("company_id", companyId)
-    .eq("status", "perdido")
-    .gte("created_at", start)
-    .lte("created_at", end);
+  const { count: closedLeads } = await (() => {
+    let q = supabase
+      .from("campaign_leads")
+      .select("*", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .eq("status", "fechado")
+      .gte("created_at", start)
+      .lte("created_at", end);
+    if (unitName) q = q.or(`unit.eq.${unitName},unit.eq.As duas`);
+    return q;
+  })();
 
-  const { count: visitLeads } = await supabase
-    .from("campaign_leads")
-    .select("*", { count: "exact", head: true })
-    .eq("company_id", companyId)
-    .eq("status", "em_contato")
-    .gte("created_at", start)
-    .lte("created_at", end);
+  const { count: lostLeads } = await (() => {
+    let q = supabase
+      .from("campaign_leads")
+      .select("*", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .eq("status", "perdido")
+      .gte("created_at", start)
+      .lte("created_at", end);
+    if (unitName) q = q.or(`unit.eq.${unitName},unit.eq.As duas`);
+    return q;
+  })();
 
-  // Events (parties)
-  const { count: totalEvents } = await supabase
+  const { count: visitLeads } = await (() => {
+    let q = supabase
+      .from("campaign_leads")
+      .select("*", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .eq("status", "em_contato")
+      .gte("created_at", start)
+      .lte("created_at", end);
+    if (unitName) q = q.or(`unit.eq.${unitName},unit.eq.As duas`);
+    return q;
+  })();
+
+  // Events
+  let eventsQuery = supabase
     .from("company_events")
     .select("*", { count: "exact", head: true })
     .eq("company_id", companyId)
     .gte("event_date", start.split("T")[0])
     .lte("event_date", end.split("T")[0]);
+  if (unitName) eventsQuery = eventsQuery.or(`unit.eq.${unitName},unit.eq.As duas`);
+
+  const { count: totalEvents } = await eventsQuery;
 
   // Revenue
-  const { data: revenueData } = await supabase
+  let revenueQuery = supabase
     .from("company_events")
     .select("total_value")
     .eq("company_id", companyId)
     .gte("event_date", start.split("T")[0])
     .lte("event_date", end.split("T")[0])
     .not("total_value", "is", null);
+  if (unitName) revenueQuery = revenueQuery.or(`unit.eq.${unitName},unit.eq.As duas`);
+
+  const { data: revenueData } = await revenueQuery;
 
   const totalRevenue = (revenueData || []).reduce((sum: number, e: any) => sum + (e.total_value || 0), 0);
   const avgTicket = revenueData && revenueData.length > 0 ? totalRevenue / revenueData.length : 0;
 
-  // Conversations
+  // Conversations — no unit filter (conversations don't have unit field typically)
   const { count: totalConversations } = await supabase
     .from("wapi_conversations")
     .select("*", { count: "exact", head: true })
@@ -169,26 +251,22 @@ async function gatherMetrics(supabase: any, companyId: string, start: string, en
     .gte("created_at", start)
     .lte("created_at", end);
 
-  // Lead sources (units from leads)
-  const { data: unitData } = await supabase
+  // Lead sources
+  let unitDataQuery = supabase
     .from("campaign_leads")
     .select("unit")
     .eq("company_id", companyId)
     .gte("created_at", start)
     .lte("created_at", end);
+  if (unitName) unitDataQuery = unitDataQuery.or(`unit.eq.${unitName},unit.eq.As duas`);
+
+  const { data: unitData } = await unitDataQuery;
 
   const unitCounts: Record<string, number> = {};
   (unitData || []).forEach((l: any) => {
     const u = l.unit || "Sem unidade";
     unitCounts[u] = (unitCounts[u] || 0) + 1;
   });
-
-  // Real company units count (active only, excluding internal units)
-  const { count: realUnitsCount } = await supabase
-    .from("company_units")
-    .select("*", { count: "exact", head: true })
-    .eq("company_id", companyId)
-    .eq("is_active", true);
 
   const conversionRate = totalLeads && totalLeads > 0
     ? ((closedLeads || 0) / totalLeads * 100).toFixed(1)
@@ -205,7 +283,6 @@ async function gatherMetrics(supabase: any, companyId: string, start: string, en
     avg_ticket: Math.round(avgTicket),
     total_conversations: totalConversations || 0,
     leads_by_unit: unitCounts,
-    real_units_count: realUnitsCount || 0,
   };
 }
 
@@ -225,7 +302,7 @@ async function generateAISummary(
   const monthName = monthNames[reviewMonth.getMonth()];
   const year = reviewMonth.getFullYear();
 
-  const prompt = `Você é um consultor de negócios especializado em buffets infantis. Gere um resumo mensal executivo para o buffet "${companyName}" referente a ${monthName}/${year}.
+  const prompt = `Você é um consultor de negócios especializado em buffets infantis. Gere um resumo mensal executivo para "${companyName}" referente a ${monthName}/${year}.
 
 MÉTRICAS DO MÊS:
 - Leads recebidos: ${metrics.total_leads}
@@ -326,7 +403,6 @@ function generateAIContext(companyName: string, metrics: any): string {
   if (metrics.total_revenue > 0) {
     parts.push(`Faturamento mensal: R$${metrics.total_revenue.toLocaleString("pt-BR")}.`);
   }
-
 
   return parts.join(" ");
 }

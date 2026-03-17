@@ -19,6 +19,7 @@ export interface MonthlyReview {
   id: string;
   company_id: string;
   review_month: string;
+  unit_slug: string | null;
   metrics: MonthlyMetrics;
   previous_metrics: MonthlyMetrics | null;
   ai_summary: string | null;
@@ -27,7 +28,7 @@ export interface MonthlyReview {
   created_at: string;
 }
 
-export function useMonthlyReview() {
+export function useMonthlyReview(unitSlug?: string) {
   const companyId = useCurrentCompanyId();
   const [review, setReview] = useState<MonthlyReview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -49,14 +50,23 @@ export function useMonthlyReview() {
     const fetchReview = async () => {
       setIsLoading(true);
 
-      // Get the most recent review for this company
-      const { data, error } = await supabase
+      // Build query filtered by unit
+      let query = supabase
         .from("monthly_reviews")
         .select("*")
         .eq("company_id", companyId)
         .order("review_month", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(1);
+
+      if (unitSlug && unitSlug !== "all") {
+        query = query.eq("unit_slug", unitSlug);
+      } else {
+        // Try to get unit-specific first, fallback to consolidated (null)
+        // For "all" or no unit, get consolidated review
+        query = query.is("unit_slug", null);
+      }
+
+      const { data, error } = await query.maybeSingle();
 
       if (error) {
         console.error("[useMonthlyReview] Error:", error);
@@ -67,16 +77,18 @@ export function useMonthlyReview() {
       if (data) {
         const reviewData = data as unknown as MonthlyReview;
         setReview(reviewData);
-        // Check if current user already dismissed
         const dismissedList = reviewData.dismissed_by || [];
         setIsDismissed(dismissedList.includes(userId));
+      } else {
+        setReview(null);
+        setIsDismissed(false);
       }
 
       setIsLoading(false);
     };
 
     fetchReview();
-  }, [companyId, userId]);
+  }, [companyId, userId, unitSlug]);
 
   const dismiss = useCallback(async () => {
     if (!review || !userId) return;
@@ -102,13 +114,20 @@ export function useMonthlyReview() {
       if (error) throw error;
 
       // Refetch
-      const { data } = await supabase
+      let query = supabase
         .from("monthly_reviews")
         .select("*")
         .eq("company_id", companyId)
         .order("review_month", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(1);
+
+      if (unitSlug && unitSlug !== "all") {
+        query = query.eq("unit_slug", unitSlug);
+      } else {
+        query = query.is("unit_slug", null);
+      }
+
+      const { data } = await query.maybeSingle();
 
       if (data) {
         const reviewData = data as unknown as MonthlyReview;
@@ -119,7 +138,7 @@ export function useMonthlyReview() {
       console.error("[useMonthlyReview] Generate error:", err);
       throw err;
     }
-  }, [companyId]);
+  }, [companyId, unitSlug]);
 
   return {
     review,
