@@ -481,6 +481,78 @@ export default function Visitas() {
         </Button>
       </div>
 
+      {/* Visit Summary Cards */}
+      {(() => {
+        const total = filteredVisits.length;
+        const agendadas = filteredVisits.filter(v => v.status_visita === "agendada").length;
+        const confirmadas = filteredVisits.filter(v => v.status_visita === "confirmada").length;
+        const realizadas = filteredVisits.filter(v => v.status_visita === "realizada").length;
+        const naoComp = filteredVisits.filter(v => v.status_visita === "nao_compareceu").length;
+        const canceladas = filteredVisits.filter(v => v.status_visita === "cancelada").length;
+
+        const summaryCards = [
+          { label: "Total de Visitas", value: total, icon: CalendarIcon, color: "text-primary", bg: "bg-primary/10", border: "border-l-primary", tint: "bg-primary/[0.02]" },
+          { label: "Agendadas", value: agendadas, icon: Clock, color: "text-blue-600", bg: "bg-blue-500/10", border: "border-l-blue-500", tint: "bg-blue-500/[0.02]" },
+          { label: "Confirmadas", value: confirmadas, icon: Check, color: "text-emerald-600", bg: "bg-emerald-500/10", border: "border-l-emerald-500", tint: "bg-emerald-500/[0.02]" },
+          { label: "Realizadas", value: realizadas, icon: MapPin, color: "text-green-700", bg: "bg-green-600/10", border: "border-l-green-700", tint: "bg-green-700/[0.02]" },
+        ];
+
+        const getDaysInMonthCount = (d: Date) => new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+        const totalDays = getDaysInMonthCount(calendarMonth);
+        const uniqueDaysWithVisit = new Set(filteredVisits.filter(v => v.status_visita !== "cancelada").map(v => v.data_visita)).size;
+        const freeDays = totalDays - uniqueDaysWithVisit;
+        const occupancyRate = totalDays > 0 ? Math.round((uniqueDaysWithVisit / totalDays) * 100) : 0;
+
+        return (
+          <div className="space-y-4 mb-6 animate-fade-up">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+              {summaryCards.map((c) => (
+                <div
+                  key={c.label}
+                  className={`group relative rounded-2xl border border-border/40 border-l-[3px] ${c.border} ${c.tint} backdrop-blur-sm shadow-[0_4px_24px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-200 ease-out cursor-default overflow-hidden`}
+                >
+                  <div className="p-4 md:p-5 flex items-start gap-3">
+                    <div className={`p-2.5 rounded-xl ${c.bg} shrink-0 transition-transform duration-200 group-hover:scale-105`}>
+                      <c.icon className={`h-5 w-5 ${c.color}`} />
+                    </div>
+                    <div className="min-w-0 flex flex-col">
+                      <p className="text-2xl md:text-3xl font-extrabold tracking-tight leading-none">{c.value}</p>
+                      <p className="text-[10px] md:text-[11px] text-muted-foreground/80 font-medium uppercase tracking-widest mt-1">{c.label}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Occupancy Bar */}
+            <div className="rounded-2xl border border-border/30 bg-card shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-4 md:p-5">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-primary/10">
+                    <RefreshCw className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground/80 uppercase tracking-wider">Ocupação do Mês</p>
+                    <div className="flex items-baseline gap-2 mt-0.5">
+                      <span className="text-2xl font-extrabold tracking-tight">{occupancyRate}%</span>
+                      <span className="text-xs text-muted-foreground/60">{uniqueDaysWithVisit} dias com visita · {freeDays} dias livres</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 text-xs text-muted-foreground/70">
+                  <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500" /><span>{realizadas} realiz.</span></div>
+                  <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-blue-500" /><span>{agendadas} agend.</span></div>
+                  <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-red-400" /><span>{naoComp + canceladas} canc./falta</span></div>
+                </div>
+              </div>
+              <div className="mt-3 h-2 rounded-full bg-muted/50 overflow-hidden">
+                <div className="h-full rounded-full bg-gradient-to-r from-primary to-primary/70 transition-all duration-500 ease-out" style={{ width: `${occupancyRate}%` }} />
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Calendar + Day panel layout */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
         {/* Calendar */}
