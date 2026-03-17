@@ -728,7 +728,7 @@ export default function Visitas() {
               isOpen={isMobileMenuOpen}
               onOpenChange={setIsMobileMenuOpen}
               trigger={<Button variant="ghost" size="icon" className="h-9 w-9"><Menu className="w-5 h-5" /></Button>}
-              currentPage="visitas" as any
+              currentPage={"atendimento"}
               userName={user.email || ""}
               userEmail={user.email || ""}
               canManageUsers={canManageUsers}
