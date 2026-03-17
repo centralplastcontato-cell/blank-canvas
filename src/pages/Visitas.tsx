@@ -67,6 +67,7 @@ interface Visit {
   responsavel_user_id: string | null;
   created_by: string | null;
   created_at: string;
+  unit: string | null;
   lead_name?: string;
   lead_phone?: string;
   lead_guests?: string | null;
