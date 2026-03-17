@@ -8,11 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  CalendarIcon, Loader2, ThumbsUp, Meh, ThumbsDown, Flame, Package,
-  CreditCard, MessageSquare, PenLine, AlertTriangle, Send, FileText, Sparkles,
+  CalendarIcon, Loader2, ThumbsUp, Meh, ThumbsDown, Package, Check,
+  MessageSquare, PenLine, AlertTriangle, Send, Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
