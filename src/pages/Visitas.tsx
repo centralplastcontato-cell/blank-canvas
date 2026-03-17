@@ -24,7 +24,6 @@ import { Loader2, Menu, CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, 
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
-import { usePermissions } from "@/hooks/usePermissions";
 
 // Status config
 const VISIT_STATUSES = [
