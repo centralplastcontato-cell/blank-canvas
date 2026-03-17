@@ -77,6 +77,7 @@ export function QuickVisitDialog({ open, onOpenChange, leadId, currentUserId, le
       status_visita: visitStatus,
       observacoes: visitNotes || null,
       created_by: currentUserId,
+      unit: leadUnit || null,
     };
 
     console.log("[QuickVisit]", payload);
