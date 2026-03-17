@@ -260,32 +260,40 @@ export default function Visitas() {
   // Shared visit card
   const VisitCard = ({ visit, compact }: { visit: Visit; compact?: boolean }) => {
     const status = getStatusInfo(visit.status_visita);
+    const responsavel = profiles.find(p => p.user_id === visit.responsavel_user_id);
     return (
       <div
         onClick={() => setDetailVisit(visit)}
         className={cn(
-          "rounded-xl border border-border/50 bg-card p-3 cursor-pointer transition-all hover:shadow-md hover:border-primary/30",
-          compact && "p-2"
+          "group rounded-2xl border bg-card p-4 cursor-pointer transition-all duration-200",
+          "hover:shadow-lg hover:shadow-primary/5 hover:border-primary/30 hover:-translate-y-0.5",
+          "border-border/40",
+          compact && "p-3"
         )}
       >
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="font-semibold text-sm truncate">{visit.lead_name}</p>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+            <p className={cn("font-bold truncate", compact ? "text-sm" : "text-[15px]")}>{visit.lead_name}</p>
+            <div className="flex items-center gap-3 mt-1.5">
               {visit.horario_visita && (
-                <span className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" /> {visit.horario_visita}
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+                  <Clock className="h-3.5 w-3.5 text-primary/60" /> {visit.horario_visita}
                 </span>
               )}
               {!compact && (
-                <span className="flex items-center gap-1">
-                  <CalendarIcon className="h-3 w-3" />
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <CalendarIcon className="h-3.5 w-3.5 text-primary/60" />
                   {format(parseISO(visit.data_visita + "T12:00:00"), "dd/MM", { locale: ptBR })}
+                </span>
+              )}
+              {!compact && responsavel && (
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <UserIcon className="h-3 w-3" /> {responsavel.full_name?.split(" ")[0]}
                 </span>
               )}
             </div>
           </div>
-          <Badge variant="outline" className={cn("text-[10px] shrink-0 border", status.color)}>
+          <Badge variant="outline" className={cn("text-[10px] shrink-0 border font-semibold", status.color)}>
             {status.label}
           </Badge>
         </div>
@@ -293,43 +301,54 @@ export default function Visitas() {
     );
   };
 
-  // Day view
+  // Day view — timeline style
   const DayView = () => {
     const dayVisits = filteredVisits.filter(v => v.data_visita === format(selectedDate, "yyyy-MM-dd"));
     const withTime = dayVisits.filter(v => v.horario_visita).sort((a, b) => (a.horario_visita || "").localeCompare(b.horario_visita || ""));
     const withoutTime = dayVisits.filter(v => !v.horario_visita);
 
     return (
-      <div className="space-y-2">
+      <div className="max-w-2xl mx-auto">
         {dayVisits.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">
-            <MapPin className="h-8 w-8 mx-auto mb-2 opacity-40" />
-            <p className="text-sm">Nenhuma visita neste dia</p>
+          <div className="text-center py-20">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-muted/60 flex items-center justify-center">
+              <MapPin className="h-7 w-7 text-muted-foreground/50" />
+            </div>
+            <p className="text-sm font-medium text-muted-foreground">Nenhuma visita neste dia</p>
+            <p className="text-xs text-muted-foreground/60 mt-1">Clique em "Nova Visita" para agendar</p>
           </div>
         )}
-        {withTime.map(v => (
-          <div key={v.id} className="flex items-start gap-3">
-            <div className="text-xs font-mono font-medium text-muted-foreground w-12 pt-3 text-right shrink-0">
-              {v.horario_visita}
-            </div>
-            <div className="flex-1"><VisitCard visit={v} /></div>
+        {withTime.length > 0 && (
+          <div className="relative pl-20 space-y-3">
+            <div className="absolute left-[38px] top-4 bottom-4 w-px bg-gradient-to-b from-primary/30 via-primary/15 to-transparent" />
+            {withTime.map(v => (
+              <div key={v.id} className="relative flex items-start gap-4">
+                <div className="absolute left-[-52px] flex flex-col items-center">
+                  <span className="text-xs font-mono font-bold text-primary bg-primary/10 rounded-lg px-2 py-1">{v.horario_visita}</span>
+                  <div className="w-3 h-3 rounded-full bg-primary ring-4 ring-background mt-1.5" />
+                </div>
+                <div className="flex-1"><VisitCard visit={v} /></div>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
         {withoutTime.length > 0 && (
-          <>
-            {withTime.length > 0 && <div className="border-t border-dashed border-border/40 my-3" />}
-            <p className="text-[11px] text-muted-foreground uppercase tracking-wider px-1 mb-1">Sem horário</p>
-            {withoutTime.map(v => <VisitCard key={v.id} visit={v} />)}
-          </>
+          <div className="mt-6">
+            {withTime.length > 0 && <div className="border-t border-dashed border-border/40 mb-4" />}
+            <p className="text-[11px] text-muted-foreground uppercase tracking-widest font-bold mb-3 px-1">Sem horário definido</p>
+            <div className="space-y-2">
+              {withoutTime.map(v => <VisitCard key={v.id} visit={v} />)}
+            </div>
+          </div>
         )}
       </div>
     );
   };
 
-  // Week view
+  // Week view — card grid
   const WeekView = () => {
     const ws = startOfWeek(selectedDate, { weekStartsOn: 1 });
-    const days = Array.from({ length: 6 }, (_, i) => addDays(ws, i)); // Mon-Sat
+    const days = Array.from({ length: 6 }, (_, i) => addDays(ws, i));
 
     return (
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -340,19 +359,27 @@ export default function Visitas() {
 
           return (
             <div key={dayStr} className={cn(
-              "rounded-xl border border-border/50 bg-card/50 p-2.5 min-h-[120px]",
-              isToday && "ring-2 ring-primary/30"
+              "rounded-2xl border bg-card/60 p-3 min-h-[140px] transition-all",
+              isToday ? "ring-2 ring-primary/40 border-primary/20 bg-primary/[0.02]" : "border-border/40 hover:border-border/60"
             )}>
-              <p className={cn(
-                "text-xs font-semibold mb-2 text-center",
-                isToday ? "text-primary" : "text-muted-foreground"
-              )}>
-                {format(day, "EEE dd", { locale: ptBR })}
-              </p>
-              <div className="space-y-1.5">
+              <div className="text-center mb-3 pb-2 border-b border-border/30">
+                <p className={cn(
+                  "text-[10px] uppercase tracking-wider font-semibold",
+                  isToday ? "text-primary" : "text-muted-foreground/70"
+                )}>
+                  {format(day, "EEE", { locale: ptBR })}
+                </p>
+                <p className={cn(
+                  "text-lg font-bold mt-0.5",
+                  isToday ? "text-primary" : "text-foreground"
+                )}>
+                  {format(day, "dd")}
+                </p>
+              </div>
+              <div className="space-y-2">
                 {dayVisits.map(v => <VisitCard key={v.id} visit={v} compact />)}
                 {dayVisits.length === 0 && (
-                  <p className="text-[10px] text-muted-foreground/50 text-center py-3">—</p>
+                  <p className="text-xs text-muted-foreground/40 text-center py-4">—</p>
                 )}
               </div>
             </div>
@@ -362,31 +389,40 @@ export default function Visitas() {
     );
   };
 
-  // List view
+  // List view — clean table
   const ListView = () => (
-    <div className="rounded-xl border border-border/50 bg-card overflow-hidden">
-      <div className="hidden md:grid grid-cols-[130px_1fr_100px_100px_120px] gap-2 px-4 py-2.5 bg-muted/30 border-b border-border/40 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
-        <span>Data</span><span>Lead</span><span>Hora</span><span>Status</span><span>Responsável</span>
+    <div className="rounded-2xl border border-border/40 bg-card overflow-hidden shadow-sm">
+      <div className="hidden md:grid grid-cols-[130px_1fr_100px_110px_140px] gap-3 px-5 py-3 bg-muted/40 border-b border-border/30">
+        <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Data</span>
+        <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Lead</span>
+        <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Hora</span>
+        <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Status</span>
+        <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Responsável</span>
       </div>
       {filteredVisits.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground">
-          <MapPin className="h-8 w-8 mx-auto mb-2 opacity-40" />
-          <p className="text-sm">Nenhuma visita neste período</p>
+        <div className="text-center py-16">
+          <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-muted/50 flex items-center justify-center">
+            <MapPin className="h-6 w-6 text-muted-foreground/40" />
+          </div>
+          <p className="text-sm font-medium text-muted-foreground">Nenhuma visita neste período</p>
         </div>
       )}
-      {filteredVisits.map(v => {
+      {filteredVisits.map((v, i) => {
         const status = getStatusInfo(v.status_visita);
         const responsavel = profiles.find(p => p.user_id === v.responsavel_user_id);
         return (
           <div
             key={v.id}
             onClick={() => setDetailVisit(v)}
-            className="grid grid-cols-1 md:grid-cols-[130px_1fr_100px_100px_120px] gap-1 md:gap-2 px-4 py-3 border-b border-border/30 hover:bg-muted/20 cursor-pointer transition-colors"
+            className={cn(
+              "grid grid-cols-1 md:grid-cols-[130px_1fr_100px_110px_140px] gap-2 md:gap-3 px-5 py-3.5 hover:bg-primary/[0.03] cursor-pointer transition-colors",
+              i < filteredVisits.length - 1 && "border-b border-border/20"
+            )}
           >
-            <span className="text-sm font-medium">{format(parseISO(v.data_visita + "T12:00:00"), "dd/MM/yyyy")}</span>
-            <span className="text-sm font-semibold truncate">{v.lead_name}</span>
-            <span className="text-sm text-muted-foreground">{v.horario_visita || "—"}</span>
-            <Badge variant="outline" className={cn("text-[10px] w-fit border", status.color)}>{status.label}</Badge>
+            <span className="text-sm font-semibold tabular-nums">{format(parseISO(v.data_visita + "T12:00:00"), "dd/MM/yyyy")}</span>
+            <span className="text-sm font-bold truncate">{v.lead_name}</span>
+            <span className="text-sm text-muted-foreground font-mono">{v.horario_visita || "—"}</span>
+            <Badge variant="outline" className={cn("text-[10px] w-fit border font-semibold", status.color)}>{status.label}</Badge>
             <span className="text-xs text-muted-foreground truncate">{responsavel?.full_name || "—"}</span>
           </div>
         );
@@ -402,44 +438,18 @@ export default function Visitas() {
 
   const headerContent = (
     <>
-      <MapPin className="h-5 w-5 text-primary" />
+      <div className="p-2 rounded-xl bg-primary/10">
+        <MapPin className="h-5 w-5 text-primary" />
+      </div>
       <h1 className="font-display font-bold text-foreground text-lg tracking-tight">Agenda de Visitas</h1>
     </>
   );
 
   const toolbar = (
-    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 mb-4">
-      {/* Date nav */}
-      <div className="flex items-center gap-2">
-        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigateDate(-1)}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="text-sm font-medium min-w-[180px]">
-              <CalendarIcon className="h-4 w-4 mr-2" />
-              {dateLabel}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={(d) => d && setSelectedDate(d)}
-              locale={ptBR}
-              className="p-3 pointer-events-auto"
-            />
-          </PopoverContent>
-        </Popover>
-        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigateDate(1)}>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="sm" className="text-xs" onClick={() => setSelectedDate(new Date())}>Hoje</Button>
-      </div>
-
-      {/* View + Filters */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="flex items-center border border-border rounded-lg overflow-hidden">
+    <div className="space-y-4 mb-6">
+      {/* View mode tabs — centered pill */}
+      <div className="flex justify-center">
+        <div className="inline-flex items-center bg-muted/50 rounded-xl p-1 border border-border/30">
           {([
             { mode: "day" as ViewMode, icon: CalendarDays, label: "Dia" },
             { mode: "week" as ViewMode, icon: LayoutGrid, label: "Semana" },
@@ -447,38 +457,76 @@ export default function Visitas() {
           ]).map(({ mode, icon: Icon, label }) => (
             <Button
               key={mode}
-              variant={viewMode === mode ? "secondary" : "ghost"}
+              variant={viewMode === mode ? "default" : "ghost"}
               size="sm"
-              className="h-8 px-3 rounded-none text-xs gap-1"
+              className={cn(
+                "h-9 px-4 rounded-lg text-xs font-semibold gap-1.5 transition-all",
+                viewMode === mode && "shadow-sm"
+              )}
               onClick={() => setViewMode(mode)}
             >
               <Icon className="h-3.5 w-3.5" />{label}
             </Button>
           ))}
         </div>
+      </div>
 
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="h-8 w-[130px] text-xs">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos status</SelectItem>
-            {VISIT_STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-          </SelectContent>
-        </Select>
+      {/* Date nav + filters row */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl" onClick={() => navigateDate(-1)}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="text-sm font-semibold min-w-[200px] rounded-xl h-9">
+                <CalendarIcon className="h-4 w-4 mr-2 text-primary/70" />
+                {dateLabel}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(d) => d && setSelectedDate(d)}
+                locale={ptBR}
+                className="p-3 pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
+          <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl" onClick={() => navigateDate(1)}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="sm" className="text-xs font-semibold rounded-lg" onClick={() => setSelectedDate(new Date())}>Hoje</Button>
+        </div>
 
-        <Select value={filterResponsavel} onValueChange={setFilterResponsavel}>
-          <SelectTrigger className="h-8 w-[140px] text-xs">
-            <SelectValue placeholder="Responsável" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            {profiles.map(p => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="h-9 w-[140px] text-xs rounded-xl">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos status</SelectItem>
+              {VISIT_STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
 
-        <Button size="sm" className="h-8 gap-1 text-xs" onClick={() => { resetCreateForm(); setCreateOpen(true); }}>
-          <Plus className="h-3.5 w-3.5" /> Nova Visita
+          <Select value={filterResponsavel} onValueChange={setFilterResponsavel}>
+            <SelectTrigger className="h-9 w-[140px] text-xs rounded-xl">
+              <SelectValue placeholder="Responsável" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {profiles.map(p => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* CTA button — centered */}
+      <div className="flex justify-center">
+        <Button size="sm" className="h-10 px-6 rounded-xl gap-2 font-semibold shadow-sm" onClick={() => { resetCreateForm(); setCreateOpen(true); }}>
+          <Plus className="h-4 w-4" /> Nova Visita
         </Button>
       </div>
     </div>
@@ -494,14 +542,16 @@ export default function Visitas() {
   );
 
   const mainContent = (
-    <div className="p-4 md:p-6">
+    <div className="p-4 md:p-6 max-w-6xl mx-auto">
       {/* Unconfirmed alerts */}
       {unconfirmedSoon.length > 0 && (
-        <div className="mb-4 rounded-xl border border-amber-300/60 bg-amber-50/50 dark:bg-amber-950/20 p-3 flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+        <div className="mb-5 rounded-2xl border border-amber-300/50 bg-gradient-to-r from-amber-50/80 to-amber-50/30 dark:from-amber-950/30 dark:to-transparent p-4 flex items-start gap-3">
+          <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-900/40 shrink-0">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+          </div>
           <div>
-            <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
-              ⚠ {unconfirmedSoon.length} visita{unconfirmedSoon.length > 1 ? "s" : ""} sem confirmação
+            <p className="text-sm font-bold text-amber-800 dark:text-amber-300">
+              {unconfirmedSoon.length} visita{unconfirmedSoon.length > 1 ? "s" : ""} sem confirmação
             </p>
             <p className="text-xs text-amber-700/80 dark:text-amber-400/80 mt-0.5">
               {unconfirmedSoon.map(v => v.lead_name).join(", ")} — {unconfirmedSoon.some(v => v.data_visita === todayStr) ? "hoje" : "amanhã"}
@@ -515,6 +565,7 @@ export default function Visitas() {
       {viewMode === "list" && <ListView />}
     </div>
   );
+
 
   // Detail Sheet
   const DetailSheet = () => {
