@@ -177,7 +177,7 @@ async function gatherMetrics(supabase: any, companyId: string, start: string, en
     .gte("created_at", start)
     .lte("created_at", end);
 
-  // Lead sources (units)
+  // Lead sources (units from leads)
   const { data: unitData } = await supabase
     .from("campaign_leads")
     .select("unit")
@@ -190,6 +190,13 @@ async function gatherMetrics(supabase: any, companyId: string, start: string, en
     const u = l.unit || "Sem unidade";
     unitCounts[u] = (unitCounts[u] || 0) + 1;
   });
+
+  // Real company units count (active only, excluding internal units)
+  const { count: realUnitsCount } = await supabase
+    .from("company_units")
+    .select("*", { count: "exact", head: true })
+    .eq("company_id", companyId)
+    .eq("is_active", true);
 
   const conversionRate = totalLeads && totalLeads > 0
     ? ((closedLeads || 0) / totalLeads * 100).toFixed(1)
@@ -206,6 +213,7 @@ async function gatherMetrics(supabase: any, companyId: string, start: string, en
     avg_ticket: Math.round(avgTicket),
     total_conversations: totalConversations || 0,
     leads_by_unit: unitCounts,
+    real_units_count: realUnitsCount || 0,
   };
 }
 
@@ -327,9 +335,8 @@ function generateAIContext(companyName: string, metrics: any): string {
     parts.push(`Faturamento mensal: R$${metrics.total_revenue.toLocaleString("pt-BR")}.`);
   }
 
-  const unitEntries = Object.entries(metrics.leads_by_unit || {});
-  if (unitEntries.length > 1) {
-    parts.push(`Temos ${unitEntries.length} unidades.`);
+  if (metrics.real_units_count > 1) {
+    parts.push(`Temos ${metrics.real_units_count} unidades.`);
   }
 
   return parts.join(" ");
