@@ -2499,6 +2499,7 @@ export type Database = {
           id: string
           lead_id: string
           observacoes: string | null
+          responsavel_user_id: string | null
           status_visita: string
         }
         Insert: {
@@ -2510,6 +2511,7 @@ export type Database = {
           id?: string
           lead_id: string
           observacoes?: string | null
+          responsavel_user_id?: string | null
           status_visita?: string
         }
         Update: {
@@ -2521,6 +2523,7 @@ export type Database = {
           id?: string
           lead_id?: string
           observacoes?: string | null
+          responsavel_user_id?: string | null
           status_visita?: string
         }
         Relationships: [

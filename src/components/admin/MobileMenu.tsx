@@ -11,6 +11,7 @@ import {
   FolderOpen,
   GraduationCap,
   Megaphone,
+  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -99,6 +100,13 @@ export function MobileMenu({
       icon: Megaphone,
       path: "/campanhas",
       show: !!modules.campanhas,
+    },
+    {
+      id: "visitas",
+      label: "Visitas",
+      icon: MapPin,
+      path: "/visitas",
+      show: true,
     },
     {
       id: "configuracoes",
