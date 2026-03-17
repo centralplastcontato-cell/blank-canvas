@@ -83,19 +83,11 @@ serve(async (req) => {
           continue;
         }
 
-        // Update ai_context in wapi_bot_settings
-        const { data: botSettings } = await supabase
+        // Update ai_context in all company bot settings
+        await supabase
           .from("wapi_bot_settings")
-          .select("id, ai_context")
-          .eq("company_id", company.id)
-          .limit(1);
-
-        if (botSettings && botSettings.length > 0) {
-          await supabase
-            .from("wapi_bot_settings")
-            .update({ ai_context: aiContext } as any)
-            .eq("id", botSettings[0].id);
-        }
+          .update({ ai_context: aiContext } as any)
+          .eq("company_id", company.id);
 
         results.push({ company: company.name, status: "ok" });
       } catch (err) {
