@@ -349,6 +349,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
   const [showShareToGroupDialog, setShowShareToGroupDialog] = useState(false);
   const [showQuickVisitDialog, setShowQuickVisitDialog] = useState(false);
+  const [visitRefreshKey, setVisitRefreshKey] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
   
   // Contact sharing state
