@@ -69,6 +69,15 @@ interface Visit {
   lead_phone?: string;
   lead_guests?: string | null;
   lead_month?: string | null;
+  // Qualification fields
+  package_interest?: string | null;
+  guest_count?: number | null;
+  party_date_interest?: string | null;
+  payment_preference?: string | null;
+  interest_level?: string | null;
+  restrictions?: any;
+  client_questions?: string | null;
+  seller_notes?: string | null;
 }
 
 export default function Visitas() {
