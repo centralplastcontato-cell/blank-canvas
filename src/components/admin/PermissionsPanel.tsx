@@ -15,7 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 import { 
   ClipboardList, Users, Shield, Loader2, Crown, Building2, MapPin, 
-  MessageCircle, Settings, BarChart3, Briefcase, Plus, Pencil, Trash2, Save
+  MessageCircle, Settings, BarChart3, Briefcase, Plus, Pencil, Trash2, Save,
+  Calendar, Megaphone, GraduationCap, Eye
 } from "lucide-react";
 import { useCompanyModules, CompanyModules } from "@/hooks/useCompanyModules";
 
@@ -43,9 +44,16 @@ const categoryIcons: Record<string, React.ElementType> = {
   Sistema: Shield,
   WhatsApp: MessageCircle,
   Configurações: Settings,
+  'Configurações WhatsApp': MessageCircle,
   Dashboard: BarChart3,
   B2B: Briefcase,
   'Operações': ClipboardList,
+  Inteligência: Eye,
+  Agenda: Calendar,
+  'Automações': Settings,
+  Visitas: MapPin,
+  Campanhas: Megaphone,
+  Treinamento: GraduationCap,
 };
 
 const iconOptions: Record<string, React.ElementType> = {
@@ -59,6 +67,10 @@ const iconOptions: Record<string, React.ElementType> = {
   Settings,
   BarChart3,
   Briefcase,
+  Calendar,
+  Megaphone,
+  GraduationCap,
+  Eye,
 };
 
 // Map permission categories to company module keys
@@ -67,10 +79,14 @@ const categoryToModule: Record<string, keyof CompanyModules> = {
   Dashboard: 'dashboard',
   WhatsApp: 'whatsapp',
   Configurações: 'config',
+  'Configurações WhatsApp': 'config',
   Inteligência: 'inteligencia',
   'Operações': 'operacoes',
   Agenda: 'agenda',
   'Automações': 'flow_builder',
+  Visitas: 'agenda',
+  Campanhas: 'campanhas',
+  Treinamento: 'treinamento',
 };
 
 export function PermissionsPanel({
@@ -635,6 +651,9 @@ export function PermissionsPanel({
                   agenda: 'agenda',
                   flow_builder: 'flow_builder',
                   automacoes: 'flow_builder',
+                  visitas: 'agenda',
+                  campanhas: 'campanhas',
+                  treinamento: 'treinamento',
                 };
                 const mod = prefixToModule[prefix];
                 if (mod && !modules[mod]) return false;
