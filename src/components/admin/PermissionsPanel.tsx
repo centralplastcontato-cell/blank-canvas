@@ -651,6 +651,9 @@ export function PermissionsPanel({
                   agenda: 'agenda',
                   flow_builder: 'flow_builder',
                   automacoes: 'flow_builder',
+                  visitas: 'agenda',
+                  campanhas: 'campanhas',
+                  treinamento: 'treinamento',
                 };
                 const mod = prefixToModule[prefix];
                 if (mod && !modules[mod]) return false;
