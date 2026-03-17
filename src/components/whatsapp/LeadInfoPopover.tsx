@@ -119,11 +119,18 @@ const getStatusLabel = (status: string) => {
 };
 
 /* ── Section wrapper for visual grouping ── */
-function PopoverSection({ title, children, className }: { title?: string; children: React.ReactNode; className?: string }) {
+function PopoverSection({ title, children, className, icon: Icon }: { title?: string; children: React.ReactNode; className?: string; icon?: React.ComponentType<{ className?: string }> }) {
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn("space-y-2.5", className)}>
       {title && (
-        <h5 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">{title}</h5>
+        <div className="flex items-center gap-2">
+          {Icon && (
+            <div className="p-1 rounded-md bg-primary/8">
+              <Icon className="w-3 h-3 text-primary/70" />
+            </div>
+          )}
+          <h5 className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground/60">{title}</h5>
+        </div>
       )}
       {children}
     </div>
@@ -131,11 +138,14 @@ function PopoverSection({ title, children, className }: { title?: string; childr
 }
 
 /* ── Info row helper ── */
-function InfoRow({ icon: Icon, children }: { icon: React.ComponentType<{ className?: string }>; children: React.ReactNode }) {
+function InfoRow({ icon: Icon, children, accent }: { icon: React.ComponentType<{ className?: string }>; children: React.ReactNode; accent?: boolean }) {
   return (
-    <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
-      <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-muted/50 shrink-0">
-        <Icon className="w-3.5 h-3.5" />
+    <div className="flex items-center gap-2.5 text-xs text-muted-foreground group/row">
+      <div className={cn(
+        "flex items-center justify-center w-6 h-6 rounded-lg shrink-0 transition-colors",
+        accent ? "bg-primary/10" : "bg-muted/40 group-hover/row:bg-muted/70"
+      )}>
+        <Icon className={cn("w-3.5 h-3.5", accent && "text-primary")} />
       </div>
       <span className="truncate">{children}</span>
     </div>
@@ -374,8 +384,8 @@ export function LeadInfoPopover({
       <PopoverContent 
         align="end" 
         className={cn(
-          "p-0 rounded-2xl shadow-lg border-border/50 overflow-hidden",
-          mobile ? "w-[300px]" : "w-[340px]"
+          "p-0 rounded-2xl shadow-2xl shadow-black/10 border-border/30 overflow-hidden backdrop-blur-sm",
+          mobile ? "w-[310px]" : "w-[360px]"
         )}
       >
         {isGroup ? (
@@ -448,11 +458,12 @@ export function LeadInfoPopover({
             )}
           </div>
         ) : linkedLead ? (
-          /* ── QUALIFIED LEAD VIEW ── */
-          <div className="divide-y divide-border/50">
-            {/* Header */}
-            <div className="p-4 pb-3">
-              <div className="flex items-center justify-between gap-2">
+          /* ── QUALIFIED LEAD VIEW — PREMIUM ── */
+          <div className="flex flex-col">
+            {/* Premium gradient header */}
+            <div className="relative px-5 pt-5 pb-4 bg-gradient-to-br from-primary/[0.08] via-primary/[0.04] to-transparent">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,hsl(var(--primary)/0.06),transparent_70%)]" />
+              <div className="relative flex items-center justify-between gap-3">
                 {isEditingName ? (
                   <div className="flex items-center gap-1 flex-1">
                     <Input
@@ -471,197 +482,211 @@ export function LeadInfoPopover({
                     </Button>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                    <h4 className="font-semibold text-sm truncate">{linkedLead.name}</h4>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 rounded-md" onClick={startEditingName} title="Editar nome">
-                      <Pencil className="w-3 h-3 text-muted-foreground hover:text-foreground" />
-                    </Button>
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div className="p-2 rounded-xl bg-primary/10 ring-1 ring-primary/15 shrink-0">
+                      <Users className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <h4 className="font-bold text-[15px] truncate tracking-tight">{linkedLead.name}</h4>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 rounded-md opacity-60 hover:opacity-100" onClick={startEditingName} title="Editar nome">
+                          <Pencil className="w-3 h-3" />
+                        </Button>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground/70 font-medium">{linkedLead.whatsapp}</p>
+                    </div>
                   </div>
                 )}
-                <Badge className={cn("text-[10px] h-5 shrink-0 rounded-md", getStatusBadgeClass(linkedLead.status))}>
-                  {getStatusLabel(linkedLead.status)}
-                </Badge>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-xl"
+                    onClick={() => onToggleFavorite(selectedConversation)}
+                    title={selectedConversation.is_favorite ? "Remover dos favoritos" : "Favoritar"}
+                  >
+                    <Star className={cn(
+                      "w-4 h-4 transition-all",
+                      selectedConversation.is_favorite 
+                        ? "fill-yellow-400 text-yellow-400 drop-shadow-sm" 
+                        : "text-muted-foreground/50"
+                    )} />
+                  </Button>
+                  <Badge className={cn(
+                    "text-[10px] h-5.5 px-2.5 shrink-0 rounded-full font-bold shadow-sm ring-1 ring-white/20",
+                    getStatusBadgeClass(linkedLead.status)
+                  )}>
+                    {getStatusLabel(linkedLead.status)}
+                  </Badge>
+                </div>
               </div>
             </div>
             
-            {/* Dados do Cliente */}
-            <div className="p-4 py-3">
-              <PopoverSection title="Dados do Cliente">
-                <div className="space-y-1.5">
-                  <InfoRow icon={MessageSquare}>{linkedLead.whatsapp}</InfoRow>
-                  {linkedLead.created_at && !isNaN(new Date(linkedLead.created_at).getTime()) && (
-                    <InfoRow icon={Clock}>
-                      Chegou em {format(new Date(linkedLead.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                    </InfoRow>
-                  )}
-                  {linkedLead.unit && (
-                    <InfoRow icon={MapPin}>{linkedLead.unit}</InfoRow>
-                  )}
-                </div>
-              </PopoverSection>
-            </div>
-
-            {/* Dados da Festa */}
-            {(linkedLead.month || linkedLead.day_preference || linkedLead.guests) && (
-              <div className="p-4 py-3">
-                <PopoverSection title="Dados da Festa">
-                  <div className="space-y-1.5">
-                    {(linkedLead.month || linkedLead.day_preference) && (
-                      <InfoRow icon={Calendar}>
-                        {[
-                          linkedLead.month,
-                          linkedLead.day_of_month && `dia ${linkedLead.day_of_month}`,
-                          linkedLead.day_preference
-                        ].filter(Boolean).join(' • ')}
+            {/* Content sections */}
+            <div className="px-5 py-3.5 space-y-0.5">
+              {/* Client data */}
+              <div className="rounded-xl bg-muted/20 border border-border/30 p-3.5 space-y-2">
+                <PopoverSection title="Dados do Cliente" icon={MessageSquare}>
+                  <div className="space-y-1.5 pl-0.5">
+                    {linkedLead.created_at && !isNaN(new Date(linkedLead.created_at).getTime()) && (
+                      <InfoRow icon={Clock}>
+                        Chegou em {format(new Date(linkedLead.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                       </InfoRow>
                     )}
-                    {linkedLead.guests && (
-                      <InfoRow icon={Users}>{linkedLead.guests} convidados</InfoRow>
+                    {linkedLead.unit && (
+                      <InfoRow icon={MapPin} accent>{linkedLead.unit}</InfoRow>
                     )}
                   </div>
                 </PopoverSection>
+              </div>
+            </div>
+
+            {/* Party data */}
+            {(linkedLead.month || linkedLead.day_preference || linkedLead.guests) && (
+              <div className="px-5 pb-3.5 -mt-1">
+                <div className="rounded-xl bg-muted/20 border border-border/30 p-3.5">
+                  <PopoverSection title="Dados da Festa" icon={Calendar}>
+                    <div className="space-y-1.5 pl-0.5">
+                      {(linkedLead.month || linkedLead.day_preference) && (
+                        <InfoRow icon={Calendar}>
+                          {[
+                            linkedLead.month,
+                            linkedLead.day_of_month && `dia ${linkedLead.day_of_month}`,
+                            linkedLead.day_preference
+                          ].filter(Boolean).join(' · ')}
+                        </InfoRow>
+                      )}
+                      {linkedLead.guests && (
+                        <InfoRow icon={Users}>{linkedLead.guests} convidados</InfoRow>
+                      )}
+                    </div>
+                  </PopoverSection>
+                </div>
               </div>
             )}
 
             {/* Observações */}
-            <div className="p-4 py-3">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h5 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">Observações</h5>
-                  {!isEditingObs && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 rounded-md"
-                      onClick={() => {
-                        setEditedObs(linkedLead.observacoes || "");
-                        setIsEditingObs(true);
-                      }}
-                      title="Editar observações"
+            <div className="px-5 pb-3.5 -mt-1">
+              <div className="rounded-xl bg-muted/20 border border-border/30 p-3.5">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1 rounded-md bg-primary/8">
+                        <Pencil className="w-3 h-3 text-primary/70" />
+                      </div>
+                      <h5 className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground/60">Observações</h5>
+                    </div>
+                    {!isEditingObs && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 rounded-md opacity-50 hover:opacity-100"
+                        onClick={() => {
+                          setEditedObs(linkedLead.observacoes || "");
+                          setIsEditingObs(true);
+                        }}
+                        title="Editar observações"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </Button>
+                    )}
+                  </div>
+                  {isEditingObs ? (
+                    <div className="space-y-2">
+                      <Textarea
+                        value={editedObs}
+                        onChange={(e) => setEditedObs(e.target.value)}
+                        placeholder="Adicione observações sobre este lead..."
+                        className="min-h-[80px] text-xs rounded-lg resize-none bg-background/60"
+                        autoFocus
+                        disabled={isSavingObs}
+                      />
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => setIsEditingObs(false)} disabled={isSavingObs}>
+                          <X className="w-3.5 h-3.5 text-destructive" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 rounded-lg"
+                          disabled={isSavingObs}
+                          onClick={async () => {
+                            const trimmed = editedObs.trim();
+                            if (trimmed === (linkedLead.observacoes || "")) { setIsEditingObs(false); return; }
+                            setIsSavingObs(true);
+                            try {
+                              const { error } = await supabase.from("campaign_leads").update({ observacoes: trimmed || null }).eq("id", linkedLead.id);
+                              if (error) throw error;
+                              await supabase.from("lead_history").insert({ lead_id: linkedLead.id, user_id: userId, user_name: currentUserName, action: "Alteração de observações", old_value: linkedLead.observacoes || null, new_value: trimmed || null });
+                              onLeadObsChange?.(trimmed);
+                              setIsEditingObs(false);
+                              toast({ title: "Observações salvas" });
+                            } catch (err: unknown) {
+                              toast({ title: "Erro ao salvar", description: err instanceof Error ? err.message : "Tente novamente.", variant: "destructive" });
+                            } finally { setIsSavingObs(false); }
+                          }}
+                        >
+                          {isSavingObs ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5 text-green-600" />}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p
+                      className={cn(
+                        "text-xs leading-relaxed line-clamp-3 cursor-pointer rounded-lg px-2.5 py-2 hover:bg-background/60 transition-colors",
+                        linkedLead.observacoes ? "text-muted-foreground" : "text-muted-foreground/40 italic"
+                      )}
+                      onClick={() => { setEditedObs(linkedLead.observacoes || ""); setIsEditingObs(true); }}
                     >
-                      <Pencil className="w-3 h-3 text-muted-foreground hover:text-foreground" />
-                    </Button>
+                      {linkedLead.observacoes || "Adicione observações sobre este lead..."}
+                    </p>
                   )}
                 </div>
-                {isEditingObs ? (
-                  <div className="space-y-2">
-                    <Textarea
-                      value={editedObs}
-                      onChange={(e) => setEditedObs(e.target.value)}
-                      placeholder="Adicione observações sobre este lead..."
-                      className="min-h-[80px] text-xs rounded-lg resize-none"
-                      autoFocus
-                      disabled={isSavingObs}
-                    />
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 rounded-lg"
-                        onClick={() => setIsEditingObs(false)}
-                        disabled={isSavingObs}
-                      >
-                        <X className="w-3.5 h-3.5 text-destructive" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 rounded-lg"
-                        disabled={isSavingObs}
-                        onClick={async () => {
-                          const trimmed = editedObs.trim();
-                          if (trimmed === (linkedLead.observacoes || "")) {
-                            setIsEditingObs(false);
-                            return;
-                          }
-                          setIsSavingObs(true);
-                          try {
-                            const { error } = await supabase
-                              .from("campaign_leads")
-                              .update({ observacoes: trimmed || null })
-                              .eq("id", linkedLead.id);
-                            if (error) throw error;
-
-                            await supabase.from("lead_history").insert({
-                              lead_id: linkedLead.id,
-                              user_id: userId,
-                              user_name: currentUserName,
-                              action: "Alteração de observações",
-                              old_value: linkedLead.observacoes || null,
-                              new_value: trimmed || null,
-                            });
-
-                            onLeadObsChange?.(trimmed);
-                            setIsEditingObs(false);
-                            toast({ title: "Observações salvas" });
-                          } catch (err: unknown) {
-                            console.error("Error saving obs:", err);
-                            toast({
-                              title: "Erro ao salvar",
-                              description: err instanceof Error ? err.message : "Tente novamente.",
-                              variant: "destructive",
-                            });
-                          } finally {
-                            setIsSavingObs(false);
-                          }
-                        }}
-                      >
-                        {isSavingObs ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5 text-green-600" />}
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <p
-                    className={cn(
-                      "text-xs leading-relaxed line-clamp-4 cursor-pointer rounded-lg px-2 py-1.5 -mx-2 hover:bg-muted/50 transition-colors",
-                      linkedLead.observacoes ? "text-muted-foreground italic" : "text-muted-foreground/50"
-                    )}
-                    onClick={() => {
-                      setEditedObs(linkedLead.observacoes || "");
-                      setIsEditingObs(true);
-                    }}
-                  >
-                    {linkedLead.observacoes || "Adicione observações sobre este lead..."}
-                  </p>
-                )}
               </div>
             </div>
 
-            {/* Última Visita */}
+            {/* Latest Visit */}
             {latestVisit && (
-              <div className="p-4 py-3">
-                <PopoverSection title="Última Visita">
-                  <div className="space-y-1.5">
-                    <InfoRow icon={Calendar}>
-                      {latestVisit.data_visita.split("-").reverse().join("/")}
-                      {latestVisit.horario_visita && ` às ${latestVisit.horario_visita}`}
-                    </InfoRow>
-                    <InfoRow icon={MapPin}>
-                      {latestVisit.status_visita === "agendada" ? "Agendada" :
-                       latestVisit.status_visita === "confirmada" ? "Confirmada" :
-                       latestVisit.status_visita === "realizada" ? "Realizada" :
-                       latestVisit.status_visita === "nao_compareceu" ? "Não compareceu" :
-                       latestVisit.status_visita === "remarcada" ? "Remarcada" :
-                       latestVisit.status_visita === "cancelada" ? "Cancelada" :
-                       latestVisit.status_visita}
-                    </InfoRow>
-                  </div>
-                </PopoverSection>
+              <div className="px-5 pb-3.5 -mt-1">
+                <div className="rounded-xl bg-muted/20 border border-border/30 p-3.5">
+                  <PopoverSection title="Última Visita" icon={MapPin}>
+                    <div className="space-y-1.5 pl-0.5">
+                      <InfoRow icon={Calendar} accent>
+                        {latestVisit.data_visita.split("-").reverse().join("/")}
+                        {latestVisit.horario_visita && ` às ${latestVisit.horario_visita}`}
+                      </InfoRow>
+                      <InfoRow icon={MapPin}>
+                        {latestVisit.status_visita === "agendada" ? "Agendada" :
+                         latestVisit.status_visita === "confirmada" ? "Confirmada" :
+                         latestVisit.status_visita === "realizada" ? "Realizada" :
+                         latestVisit.status_visita === "nao_compareceu" ? "Não compareceu" :
+                         latestVisit.status_visita === "remarcada" ? "Remarcada" :
+                         latestVisit.status_visita === "cancelada" ? "Cancelada" :
+                         latestVisit.status_visita}
+                      </InfoRow>
+                    </div>
+                  </PopoverSection>
+                </div>
               </div>
             )}
 
-            {/* Ações */}
-            <div className="p-4 pt-3 space-y-2">
+            {/* Bot + Actions */}
+            <div className="px-5 pb-4 space-y-2.5">
               {/* Bot Toggle */}
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">Bot</span>
+              <div className="flex items-center justify-between gap-2 px-1">
+                <div className="flex items-center gap-2">
+                  <div className="p-1 rounded-md bg-primary/8">
+                    <Bot className="w-3 h-3 text-primary/70" />
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground/60">Bot</span>
+                </div>
                 <div className="flex items-center gap-1">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 text-xs gap-1 rounded-lg text-amber-600 hover:text-amber-700 hover:bg-amber-50 border-amber-200"
+                    className="h-7 text-[11px] gap-1 rounded-lg text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 border-amber-200/60 font-medium"
                     onClick={() => onReactivateBot(selectedConversation)}
-                    title="Reativar bot e enviar mensagem de retomada"
+                    title="Reativar bot"
                   >
                     <RotateCcw className="w-3 h-3" />
                     Reativar
@@ -669,7 +694,7 @@ export function LeadInfoPopover({
                   <Button
                     variant={selectedConversation.bot_enabled !== false ? "secondary" : "ghost"}
                     size="sm"
-                    className="h-7 text-xs gap-1 rounded-lg"
+                    className="h-7 text-[11px] gap-1 rounded-lg font-medium"
                     onClick={() => onToggleConversationBot(selectedConversation)}
                   >
                     <Bot className="w-3 h-3" />
@@ -678,29 +703,29 @@ export function LeadInfoPopover({
                 </div>
               </div>
 
-              <div className="space-y-1.5 pt-1">
+              {/* Action buttons */}
+              <div className="space-y-1.5">
                 {onShowVisitDialog && (
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="w-full text-xs h-8 gap-2 rounded-xl"
+                    className="w-full text-xs h-9 gap-2 rounded-xl font-medium border-border/40 hover:bg-primary/5 hover:border-primary/30 transition-all"
                     onClick={onShowVisitDialog}
                   >
-                    <MapPin className="w-3.5 h-3.5" />
+                    <MapPin className="w-3.5 h-3.5 text-primary/70" />
                     {latestVisit ? "Nova Visita" : "Registrar Visita"}
                   </Button>
                 )}
 
-                {/* Festa shortcut for closed leads */}
                 {linkedLead.status === "fechado" && hasLinkedEvent !== null && (
                   <Button 
                     variant="outline" 
                     size="sm" 
                     className={cn(
-                      "w-full text-xs h-8 gap-2 rounded-xl",
+                      "w-full text-xs h-9 gap-2 rounded-xl font-medium transition-all",
                       hasLinkedEvent 
-                        ? "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-200" 
-                        : "text-amber-600 hover:text-amber-700 hover:bg-amber-50 border-amber-200"
+                        ? "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 border-emerald-200/60" 
+                        : "text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/20 border-amber-200/60"
                     )}
                     onClick={() => {
                       if (hasLinkedEvent && linkedEventData) {
@@ -733,10 +758,10 @@ export function LeadInfoPopover({
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className="w-full text-xs h-8 gap-2 rounded-xl"
+                  className="w-full text-xs h-9 gap-2 rounded-xl font-medium border-border/40 hover:bg-muted/50 transition-all"
                   onClick={onShowShareToGroupDialog}
                 >
-                  <UsersRound className="w-3.5 h-3.5" />
+                  <UsersRound className="w-3.5 h-3.5 text-muted-foreground" />
                   Compartilhar em Grupo
                 </Button>
 
@@ -744,19 +769,19 @@ export function LeadInfoPopover({
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="w-full text-xs h-8 gap-2 rounded-xl"
+                    className="w-full text-xs h-9 gap-2 rounded-xl font-medium border-border/40 hover:bg-muted/50 transition-all"
                     onClick={onShowTransferDialog}
                   >
-                    <ArrowRightLeft className="w-3.5 h-3.5" />
+                    <ArrowRightLeft className="w-3.5 h-3.5 text-muted-foreground" />
                     Transferir Lead
                   </Button>
                 )}
               
                 {canDeleteFromChat && (
                   <Button 
-                    variant="outline" 
+                    variant="ghost" 
                     size="sm" 
-                    className="w-full text-xs h-8 gap-2 rounded-xl text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                    className="w-full text-xs h-9 gap-2 rounded-xl font-medium text-destructive/70 hover:text-destructive hover:bg-destructive/8 transition-all"
                     onClick={onShowDeleteDialog}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
