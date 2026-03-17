@@ -828,6 +828,18 @@ export default function Visitas() {
                   </SelectContent>
                 </Select>
               </div>
+              {units.length > 1 && (
+                <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
+                  <Label className="text-sm font-medium text-foreground/70">Unidade *</Label>
+                  <Select value={newUnit || "none"} onValueChange={(v) => setNewUnit(v === "none" ? "" : v)}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Selecionar unidade</SelectItem>
+                      {units.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
           </div>
           <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
