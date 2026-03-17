@@ -2839,39 +2839,63 @@ export type Database = {
       }
       lead_visits: {
         Row: {
+          client_questions: string | null
           company_id: string
           created_at: string
           created_by: string | null
           data_visita: string
+          guest_count: number | null
           horario_visita: string | null
           id: string
+          interest_level: string | null
           lead_id: string
           observacoes: string | null
+          package_interest: string | null
+          party_date_interest: string | null
+          payment_preference: string | null
           responsavel_user_id: string | null
+          restrictions: Json | null
+          seller_notes: string | null
           status_visita: string
         }
         Insert: {
+          client_questions?: string | null
           company_id: string
           created_at?: string
           created_by?: string | null
           data_visita: string
+          guest_count?: number | null
           horario_visita?: string | null
           id?: string
+          interest_level?: string | null
           lead_id: string
           observacoes?: string | null
+          package_interest?: string | null
+          party_date_interest?: string | null
+          payment_preference?: string | null
           responsavel_user_id?: string | null
+          restrictions?: Json | null
+          seller_notes?: string | null
           status_visita?: string
         }
         Update: {
+          client_questions?: string | null
           company_id?: string
           created_at?: string
           created_by?: string | null
           data_visita?: string
+          guest_count?: number | null
           horario_visita?: string | null
           id?: string
+          interest_level?: string | null
           lead_id?: string
           observacoes?: string | null
+          package_interest?: string | null
+          party_date_interest?: string | null
+          payment_preference?: string | null
           responsavel_user_id?: string | null
+          restrictions?: Json | null
+          seller_notes?: string | null
           status_visita?: string
         }
         Relationships: [
