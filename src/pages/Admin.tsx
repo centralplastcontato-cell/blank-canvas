@@ -631,6 +631,7 @@ export default function Admin() {
         </header>
 
         <main className="px-3 py-4">
+          <MonthlyReviewBanner isAdmin={isAdmin} />
           <MetricsCards metrics={leadMetrics} isLoading={isLoadingLeads} />
           <LeadsFilters filters={filters} onFiltersChange={setFilters} responsaveis={responsaveis} onExport={canExportLeads ? handleExport : undefined} />
 
