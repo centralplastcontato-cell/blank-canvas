@@ -23,6 +23,8 @@ interface VisitConfirmationSettings {
   second_message_text: string;
   send_window_start: number;
   send_window_end: number;
+  reply_confirmed_message: string;
+  reply_reschedule_message: string;
 }
 
 const DEFAULT_SETTINGS: Omit<VisitConfirmationSettings, "company_id"> = {
