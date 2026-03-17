@@ -1194,6 +1194,113 @@ export type Database = {
           },
         ]
       }
+      contract_model_versions: {
+        Row: {
+          changed_by: string | null
+          company_id: string
+          conteudo_template: string
+          created_at: string
+          id: string
+          model_id: string
+          nome_modelo: string | null
+          tipo_evento: string | null
+          versao: number
+        }
+        Insert: {
+          changed_by?: string | null
+          company_id: string
+          conteudo_template: string
+          created_at?: string
+          id?: string
+          model_id: string
+          nome_modelo?: string | null
+          tipo_evento?: string | null
+          versao: number
+        }
+        Update: {
+          changed_by?: string | null
+          company_id?: string
+          conteudo_template?: string
+          created_at?: string
+          id?: string
+          model_id?: string
+          nome_modelo?: string | null
+          tipo_evento?: string | null
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_model_versions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_model_versions_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "contract_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_models: {
+        Row: {
+          company_id: string
+          conteudo_template: string
+          created_at: string
+          created_by: string | null
+          descricao: string | null
+          id: string
+          is_active: boolean
+          nome_modelo: string
+          slug: string | null
+          tipo_evento: string
+          updated_at: string
+          updated_by: string | null
+          versao: number
+        }
+        Insert: {
+          company_id: string
+          conteudo_template?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          is_active?: boolean
+          nome_modelo: string
+          slug?: string | null
+          tipo_evento?: string
+          updated_at?: string
+          updated_by?: string | null
+          versao?: number
+        }
+        Update: {
+          company_id?: string
+          conteudo_template?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          is_active?: boolean
+          nome_modelo?: string
+          slug?: string | null
+          tipo_evento?: string
+          updated_at?: string
+          updated_by?: string | null
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_models_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contrato_responses: {
         Row: {
           answers: Json
@@ -2224,6 +2331,96 @@ export type Database = {
           },
         ]
       }
+      generated_contracts: {
+        Row: {
+          company_id: string
+          conteudo_renderizado: string
+          created_at: string
+          created_by: string | null
+          dados_utilizados: Json
+          event_id: string | null
+          id: string
+          lead_id: string | null
+          nome_documento: string
+          pdf_url: string | null
+          status: string
+          template_id: string | null
+          template_version_id: string | null
+          tipo_evento: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          conteudo_renderizado: string
+          created_at?: string
+          created_by?: string | null
+          dados_utilizados?: Json
+          event_id?: string | null
+          id?: string
+          lead_id?: string | null
+          nome_documento: string
+          pdf_url?: string | null
+          status?: string
+          template_id?: string | null
+          template_version_id?: string | null
+          tipo_evento?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          conteudo_renderizado?: string
+          created_at?: string
+          created_by?: string | null
+          dados_utilizados?: Json
+          event_id?: string | null
+          id?: string
+          lead_id?: string | null
+          nome_documento?: string
+          pdf_url?: string | null
+          status?: string
+          template_id?: string | null
+          template_version_id?: string | null
+          tipo_evento?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generated_contracts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generated_contracts_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "company_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generated_contracts_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generated_contracts_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "contract_models"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generated_contracts_template_version_id_fkey"
+            columns: ["template_version_id"]
+            isOneToOne: false
+            referencedRelation: "contract_model_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hub_recruitment_responses: {
         Row: {
           age: number | null
@@ -2250,6 +2447,102 @@ export type Database = {
           respondent_name?: string
         }
         Relationships: []
+      }
+      lead_contract_data: {
+        Row: {
+          bairro: string | null
+          brindes: string | null
+          cep: string | null
+          cidade: string | null
+          company_id: string
+          complemento: string | null
+          cpf: string | null
+          created_at: string
+          data_nascimento: string | null
+          email: string | null
+          endereco: string | null
+          forma_pagamento: string | null
+          id: string
+          idade_aniversariante: string | null
+          lead_id: string
+          nome_aniversariante: string | null
+          nomes_pais: string | null
+          numero: string | null
+          observacoes_comerciais: string | null
+          parcelas: string | null
+          rg: string | null
+          updated_at: string
+          valor_restante: number | null
+          valor_sinal: number | null
+        }
+        Insert: {
+          bairro?: string | null
+          brindes?: string | null
+          cep?: string | null
+          cidade?: string | null
+          company_id: string
+          complemento?: string | null
+          cpf?: string | null
+          created_at?: string
+          data_nascimento?: string | null
+          email?: string | null
+          endereco?: string | null
+          forma_pagamento?: string | null
+          id?: string
+          idade_aniversariante?: string | null
+          lead_id: string
+          nome_aniversariante?: string | null
+          nomes_pais?: string | null
+          numero?: string | null
+          observacoes_comerciais?: string | null
+          parcelas?: string | null
+          rg?: string | null
+          updated_at?: string
+          valor_restante?: number | null
+          valor_sinal?: number | null
+        }
+        Update: {
+          bairro?: string | null
+          brindes?: string | null
+          cep?: string | null
+          cidade?: string | null
+          company_id?: string
+          complemento?: string | null
+          cpf?: string | null
+          created_at?: string
+          data_nascimento?: string | null
+          email?: string | null
+          endereco?: string | null
+          forma_pagamento?: string | null
+          id?: string
+          idade_aniversariante?: string | null
+          lead_id?: string
+          nome_aniversariante?: string | null
+          nomes_pais?: string | null
+          numero?: string | null
+          observacoes_comerciais?: string | null
+          parcelas?: string | null
+          rg?: string | null
+          updated_at?: string
+          valor_restante?: number | null
+          valor_sinal?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_contract_data_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_contract_data_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "campaign_leads"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       lead_history: {
         Row: {
