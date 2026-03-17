@@ -16,6 +16,7 @@ import { NotificationBell } from "@/components/admin/NotificationBell";
 import { TransferLeadDialog } from "@/components/admin/TransferLeadDialog";
 import { exportLeadsToCSV } from "@/components/admin/exportLeads";
 import { MetricsCards, LeadMetrics } from "@/components/admin/MetricsCards";
+import { MonthlyReviewBanner } from "@/components/admin/MonthlyReviewBanner";
 import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { Button } from "@/components/ui/button";
@@ -630,6 +631,7 @@ export default function Admin() {
         </header>
 
         <main className="px-3 py-4">
+          <MonthlyReviewBanner isAdmin={isAdmin} />
           <MetricsCards metrics={leadMetrics} isLoading={isLoadingLeads} />
           <LeadsFilters filters={filters} onFiltersChange={setFilters} responsaveis={responsaveis} onExport={canExportLeads ? handleExport : undefined} />
 
@@ -761,6 +763,7 @@ export default function Admin() {
           </header>
 
           <main className="flex-1 overflow-auto p-6 space-y-4">
+            <MonthlyReviewBanner isAdmin={isAdmin} />
             <MetricsCards metrics={leadMetrics} isLoading={isLoadingLeads} />
             <LeadsFilters filters={filters} onFiltersChange={setFilters} responsaveis={responsaveis} onExport={canExportLeads ? handleExport : undefined} />
 

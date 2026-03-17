@@ -2703,6 +2703,50 @@ export type Database = {
           },
         ]
       }
+      monthly_reviews: {
+        Row: {
+          ai_context_generated: string | null
+          ai_summary: string | null
+          company_id: string
+          created_at: string
+          dismissed_by: string[] | null
+          id: string
+          metrics: Json
+          previous_metrics: Json | null
+          review_month: string
+        }
+        Insert: {
+          ai_context_generated?: string | null
+          ai_summary?: string | null
+          company_id: string
+          created_at?: string
+          dismissed_by?: string[] | null
+          id?: string
+          metrics?: Json
+          previous_metrics?: Json | null
+          review_month: string
+        }
+        Update: {
+          ai_context_generated?: string | null
+          ai_summary?: string | null
+          company_id?: string
+          created_at?: string
+          dismissed_by?: string[] | null
+          id?: string
+          metrics?: Json
+          previous_metrics?: Json | null
+          review_month?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monthly_reviews_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           company_id: string | null
