@@ -627,6 +627,29 @@ export function LeadInfoPopover({
               </div>
             </div>
 
+            {/* Última Visita */}
+            {latestVisit && (
+              <div className="p-4 py-3">
+                <PopoverSection title="Última Visita">
+                  <div className="space-y-1.5">
+                    <InfoRow icon={Calendar}>
+                      {latestVisit.data_visita.split("-").reverse().join("/")}
+                      {latestVisit.horario_visita && ` às ${latestVisit.horario_visita}`}
+                    </InfoRow>
+                    <InfoRow icon={MapPin}>
+                      {latestVisit.status_visita === "agendada" ? "Agendada" :
+                       latestVisit.status_visita === "confirmada" ? "Confirmada" :
+                       latestVisit.status_visita === "realizada" ? "Realizada" :
+                       latestVisit.status_visita === "nao_compareceu" ? "Não compareceu" :
+                       latestVisit.status_visita === "remarcada" ? "Remarcada" :
+                       latestVisit.status_visita === "cancelada" ? "Cancelada" :
+                       latestVisit.status_visita}
+                    </InfoRow>
+                  </div>
+                </PopoverSection>
+              </div>
+            )}
+
             {/* Ações */}
             <div className="p-4 pt-3 space-y-2">
               {/* Bot Toggle */}
@@ -664,7 +687,7 @@ export function LeadInfoPopover({
                     onClick={onShowVisitDialog}
                   >
                     <MapPin className="w-3.5 h-3.5" />
-                    Registrar Visita
+                    {latestVisit ? "Nova Visita" : "Registrar Visita"}
                   </Button>
                 )}
 
