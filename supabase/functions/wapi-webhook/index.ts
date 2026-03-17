@@ -1635,9 +1635,13 @@ async function advanceFlowFromNode(
           console.log(`[FlowBuilder] 👤 Marking as existing customer`);
           await sendActionMessage();
           
-          // Update lead status
+          // Update lead status to cliente_retorno (consistent with legacy bot)
           if (conv.lead_id) {
-            await supabase.from('campaign_leads').update({ status: 'em_contato' }).eq('id', conv.lead_id);
+            await supabase.from('campaign_leads').update({ 
+              status: 'cliente_retorno',
+              campaign_name: 'WhatsApp (Bot) - Cliente',
+              observacoes: 'Cliente existente - retornou pelo WhatsApp',
+            }).eq('id', conv.lead_id);
           }
           
           // Notify team (scoped to company)
