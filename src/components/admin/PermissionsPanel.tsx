@@ -79,10 +79,14 @@ const categoryToModule: Record<string, keyof CompanyModules> = {
   Dashboard: 'dashboard',
   WhatsApp: 'whatsapp',
   Configurações: 'config',
+  'Configurações WhatsApp': 'config',
   Inteligência: 'inteligencia',
   'Operações': 'operacoes',
   Agenda: 'agenda',
   'Automações': 'flow_builder',
+  Visitas: 'agenda',
+  Campanhas: 'campanhas' as keyof CompanyModules,
+  Treinamento: 'treinamento' as keyof CompanyModules,
 };
 
 export function PermissionsPanel({
