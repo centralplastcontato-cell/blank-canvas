@@ -1,0 +1,326 @@
+import { useState, useEffect, useMemo } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, AlertTriangle, Check, ChevronRight } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import { resolveSystemVariables, type VariableContext } from "@/lib/template-resolver";
+import { ContractPreviewPrint } from "./ContractPreviewPrint";
+import { format } from "date-fns";
+
+interface Props { userId: string; onClose: () => void; }
+
+interface ContractModel {
+  id: string; nome_modelo: string; tipo_evento: string; conteudo_template: string; versao: number; company_id: string;
+}
+
+export function ContractGenerator({ userId, onClose }: Props) {
+  const { currentCompany } = useCompany();
+  const [step, setStep] = useState(1);
+  const [models, setModels] = useState<ContractModel[]>([]);
+  const [selectedModelId, setSelectedModelId] = useState("");
+  const [events, setEvents] = useState<any[]>([]);
+  const [selectedEventId, setSelectedEventId] = useState("");
+  const [leadData, setLeadData] = useState<any>(null);
+  const [eventData, setEventData] = useState<any>(null);
+  const [contractData, setContractData] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Load models + events
+  useEffect(() => {
+    if (!currentCompany?.id) return;
+    (async () => {
+      const [modelsRes, eventsRes] = await Promise.all([
+        (supabase as any).from("contract_models").select("id, nome_modelo, tipo_evento, conteudo_template, versao, company_id").eq("company_id", currentCompany.id).eq("is_active", true).order("nome_modelo"),
+        (supabase as any).from("company_events").select("id, title, event_date, start_time, end_time, event_type, package_name, guest_count, total_value, unit, lead_id, status").eq("company_id", currentCompany.id).neq("status", "cancelado").order("event_date", { ascending: false }).limit(200),
+      ]);
+      setModels(modelsRes.data || []);
+      setEvents(eventsRes.data || []);
+    })();
+  }, [currentCompany?.id]);
+
+  // Load lead data when event selected
+  useEffect(() => {
+    if (!selectedEventId) return;
+    const ev = events.find(e => e.id === selectedEventId);
+    setEventData(ev);
+    if (!ev?.lead_id) return;
+
+    (async () => {
+      setLoading(true);
+      const [leadRes, contractDataRes] = await Promise.all([
+        supabase.from("campaign_leads").select("id, name, whatsapp, month, guests, unit").eq("id", ev.lead_id).single(),
+        (supabase as any).from("lead_contract_data").select("*").eq("lead_id", ev.lead_id).maybeSingle(),
+      ]);
+      setLeadData(leadRes.data);
+      if (contractDataRes.data) {
+        const cd = contractDataRes.data;
+        setContractData({
+          cpf: cd.cpf || "", rg: cd.rg || "", email: cd.email || "",
+          endereco: cd.endereco || "", numero: cd.numero || "", complemento: cd.complemento || "",
+          bairro: cd.bairro || "", cidade: cd.cidade || "", cep: cd.cep || "",
+          nome_aniversariante: cd.nome_aniversariante || "", idade_aniversariante: cd.idade_aniversariante || "",
+          data_nascimento: cd.data_nascimento || "", nomes_pais: cd.nomes_pais || "",
+          valor_sinal: cd.valor_sinal?.toString() || "", valor_restante: cd.valor_restante?.toString() || "",
+          forma_pagamento: cd.forma_pagamento || "", brindes: cd.brindes || "",
+        });
+      }
+      setLoading(false);
+    })();
+  }, [selectedEventId]);
+
+  const selectedModel = models.find(m => m.id === selectedModelId);
+
+  // Build context
+  const variableContext: VariableContext = useMemo(() => ({
+    lead: leadData ? {
+      name: leadData.name, whatsapp: leadData.whatsapp, guests: leadData.guests, unit: leadData.unit, month: leadData.month,
+    } : undefined,
+    company: { name: currentCompany?.name },
+    event: eventData ? {
+      date: eventData.event_date ? format(new Date(eventData.event_date + "T12:00:00"), "dd/MM/yyyy") : "",
+      time: eventData.start_time || "", end_time: eventData.end_time || "",
+      package_name: eventData.package_name || "", value: eventData.total_value,
+      guest_count: eventData.guest_count, unit: eventData.unit || "", event_type: eventData.event_type || "",
+    } : undefined,
+    contract: {
+      responsible_name: leadData?.name || "",
+      cpf: contractData.cpf, rg: contractData.rg, email: contractData.email,
+      address: contractData.endereco, numero: contractData.numero, complemento: contractData.complemento,
+      bairro: contractData.bairro, cidade: contractData.cidade, cep: contractData.cep,
+      nome_aniversariante: contractData.nome_aniversariante, idade_aniversariante: contractData.idade_aniversariante,
+      data_nascimento: contractData.data_nascimento, nomes_pais: contractData.nomes_pais,
+      value: eventData?.total_value ? `R$ ${Number(eventData.total_value).toLocaleString("pt-BR")}` : "",
+      valor_sinal: contractData.valor_sinal ? `R$ ${Number(contractData.valor_sinal).toLocaleString("pt-BR")}` : "",
+      valor_restante: contractData.valor_restante ? `R$ ${Number(contractData.valor_restante).toLocaleString("pt-BR")}` : "",
+      forma_pagamento: contractData.forma_pagamento, brindes: contractData.brindes,
+      date: new Date().toLocaleDateString("pt-BR"),
+    },
+  }), [leadData, eventData, contractData, currentCompany?.name]);
+
+  const renderedContent = useMemo(() => {
+    if (!selectedModel) return "";
+    return resolveSystemVariables(selectedModel.conteudo_template, variableContext);
+  }, [selectedModel, variableContext]);
+
+  // Find missing required fields
+  const missingFields = useMemo(() => {
+    const missing: string[] = [];
+    if (!leadData?.name) missing.push("Nome do contratante");
+    if (!contractData.cpf) missing.push("CPF");
+    if (!eventData?.event_date) missing.push("Data do evento");
+    return missing;
+  }, [leadData, contractData, eventData]);
+
+  const handleGenerate = async () => {
+    if (!currentCompany?.id || !selectedModel) return;
+    setSaving(true);
+
+    // Save/update lead_contract_data
+    if (leadData?.id) {
+      const payload = {
+        lead_id: leadData.id, company_id: currentCompany.id,
+        cpf: contractData.cpf || null, rg: contractData.rg || null, email: contractData.email || null,
+        endereco: contractData.endereco || null, numero: contractData.numero || null,
+        complemento: contractData.complemento || null, bairro: contractData.bairro || null,
+        cidade: contractData.cidade || null, cep: contractData.cep || null,
+        nome_aniversariante: contractData.nome_aniversariante || null,
+        idade_aniversariante: contractData.idade_aniversariante || null,
+        data_nascimento: contractData.data_nascimento || null,
+        nomes_pais: contractData.nomes_pais || null,
+        valor_sinal: contractData.valor_sinal ? Number(contractData.valor_sinal) : null,
+        valor_restante: contractData.valor_restante ? Number(contractData.valor_restante) : null,
+        forma_pagamento: contractData.forma_pagamento || null,
+        brindes: contractData.brindes || null,
+      };
+      await (supabase as any).from("lead_contract_data").upsert(payload, { onConflict: "lead_id" });
+    }
+
+    // Save version snapshot
+    const { data: versionData } = await (supabase as any).from("contract_model_versions").insert({
+      model_id: selectedModel.id, company_id: currentCompany.id,
+      versao: selectedModel.versao, conteudo_template: selectedModel.conteudo_template,
+      tipo_evento: selectedModel.tipo_evento, nome_modelo: selectedModel.nome_modelo,
+      changed_by: userId,
+    }).select("id").single();
+
+    // Create frozen contract
+    const { error } = await (supabase as any).from("generated_contracts").insert({
+      company_id: currentCompany.id,
+      lead_id: leadData?.id || null,
+      event_id: selectedEventId || null,
+      template_id: selectedModel.id,
+      template_version_id: versionData?.id || null,
+      nome_documento: `Contrato — ${leadData?.name || "Lead"} — ${eventData?.event_date ? format(new Date(eventData.event_date + "T12:00:00"), "dd/MM/yyyy") : ""}`,
+      tipo_evento: selectedModel.tipo_evento,
+      conteudo_renderizado: renderedContent,
+      dados_utilizados: { lead: leadData, event: eventData, contract: contractData, company: { name: currentCompany.name } },
+      status: "gerado",
+      created_by: userId,
+    });
+
+    if (error) { toast({ title: "Erro ao gerar contrato", description: error.message, variant: "destructive" }); }
+    else { toast({ title: "Contrato gerado com sucesso! ✅" }); }
+    setSaving(false);
+    onClose();
+  };
+
+  const updateField = (key: string, val: string) => setContractData(prev => ({ ...prev, [key]: val }));
+
+  return (
+    <div className="flex flex-col">
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-border/40 bg-gradient-to-r from-primary/5 to-transparent">
+        <h2 className="text-lg font-bold">Gerar Contrato</h2>
+        <div className="flex items-center gap-2 mt-2">
+          {[1, 2, 3].map(s => (
+            <div key={s} className="flex items-center gap-1">
+              <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold ${step >= s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                {step > s ? <Check className="h-3.5 w-3.5" /> : s}
+              </div>
+              {s < 3 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+            </div>
+          ))}
+          <span className="text-xs text-muted-foreground ml-2">
+            {step === 1 ? "Selecionar modelo e evento" : step === 2 ? "Preencher dados" : "Revisar e gerar"}
+          </span>
+        </div>
+      </div>
+
+      <div className="p-6">
+        {/* Step 1: Select model + event */}
+        {step === 1 && (
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs font-semibold">Modelo de Contrato</Label>
+              <Select value={selectedModelId} onValueChange={setSelectedModelId}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione um modelo..." /></SelectTrigger>
+                <SelectContent>
+                  {models.map(m => <SelectItem key={m.id} value={m.id}>{m.nome_modelo} ({m.tipo_evento})</SelectItem>)}
+                </SelectContent>
+              </Select>
+              {models.length === 0 && <p className="text-xs text-destructive mt-1">Nenhum modelo ativo. Crie um modelo na aba "Modelos".</p>}
+            </div>
+            <div>
+              <Label className="text-xs font-semibold">Evento / Festa</Label>
+              <Select value={selectedEventId} onValueChange={setSelectedEventId}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione um evento..." /></SelectTrigger>
+                <SelectContent>
+                  {events.map(e => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.title} — {e.event_date ? format(new Date(e.event_date + "T12:00:00"), "dd/MM/yyyy") : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end pt-4">
+              <Button disabled={!selectedModelId || !selectedEventId} onClick={() => setStep(2)}>
+                Próximo <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 2: Fill contract data */}
+        {step === 2 && (
+          <div className="space-y-5">
+            {loading ? (
+              <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+            ) : (
+              <>
+                <SectionHeader label="Dados do Contratante" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <FieldInput label="Nome" value={leadData?.name || ""} disabled />
+                  <FieldInput label="Telefone" value={leadData?.whatsapp || ""} disabled />
+                  <FieldInput label="CPF" value={contractData.cpf} onChange={v => updateField("cpf", v)} />
+                  <FieldInput label="RG" value={contractData.rg} onChange={v => updateField("rg", v)} />
+                  <FieldInput label="E-mail" value={contractData.email} onChange={v => updateField("email", v)} />
+                  <FieldInput label="CEP" value={contractData.cep} onChange={v => updateField("cep", v)} />
+                  <FieldInput label="Endereço" value={contractData.endereco} onChange={v => updateField("endereco", v)} />
+                  <FieldInput label="Número" value={contractData.numero} onChange={v => updateField("numero", v)} />
+                  <FieldInput label="Complemento" value={contractData.complemento} onChange={v => updateField("complemento", v)} />
+                  <FieldInput label="Bairro" value={contractData.bairro} onChange={v => updateField("bairro", v)} />
+                  <FieldInput label="Cidade" value={contractData.cidade} onChange={v => updateField("cidade", v)} />
+                </div>
+
+                <SectionHeader label="Aniversariante / Homenageado" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <FieldInput label="Nome do aniversariante" value={contractData.nome_aniversariante} onChange={v => updateField("nome_aniversariante", v)} />
+                  <FieldInput label="Idade" value={contractData.idade_aniversariante} onChange={v => updateField("idade_aniversariante", v)} />
+                  <FieldInput label="Data de nascimento" value={contractData.data_nascimento} onChange={v => updateField("data_nascimento", v)} />
+                  <FieldInput label="Nomes dos pais" value={contractData.nomes_pais} onChange={v => updateField("nomes_pais", v)} />
+                </div>
+
+                <SectionHeader label="Financeiro" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <FieldInput label="Valor total" value={eventData?.total_value?.toString() || ""} disabled />
+                  <FieldInput label="Valor do sinal" value={contractData.valor_sinal} onChange={v => updateField("valor_sinal", v)} />
+                  <FieldInput label="Valor restante" value={contractData.valor_restante} onChange={v => updateField("valor_restante", v)} />
+                  <FieldInput label="Forma de pagamento" value={contractData.forma_pagamento} onChange={v => updateField("forma_pagamento", v)} />
+                  <FieldInput label="Brindes / Opcionais" value={contractData.brindes} onChange={v => updateField("brindes", v)} />
+                </div>
+
+                <div className="flex justify-between pt-4 border-t border-border/40">
+                  <Button variant="outline" onClick={() => setStep(1)}>Voltar</Button>
+                  <Button onClick={() => setStep(3)}>Revisar <ChevronRight className="h-4 w-4 ml-1" /></Button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Step 3: Preview + Generate */}
+        {step === 3 && (
+          <div className="space-y-4">
+            {missingFields.length > 0 && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-300/30">
+                <div className="flex items-center gap-2 text-amber-700 mb-1">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span className="text-sm font-semibold">Campos pendentes</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {missingFields.map(f => <Badge key={f} variant="outline" className="text-xs border-amber-400 text-amber-700">{f}</Badge>)}
+                </div>
+              </div>
+            )}
+
+            <ContractPreviewPrint
+              content={renderedContent}
+              companyName={currentCompany?.name || ""}
+              companyLogo={currentCompany?.logo_url || undefined}
+            />
+
+            <div className="flex justify-between pt-4 border-t border-border/40">
+              <Button variant="outline" onClick={() => setStep(2)}>Voltar</Button>
+              <Button onClick={handleGenerate} disabled={saving} className="gap-2">
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                Gerar Contrato
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SectionHeader({ label }: { label: string }) {
+  return (
+    <p className="text-[11px] uppercase tracking-[0.18em] font-semibold text-muted-foreground pb-2 border-b border-border/40">{label}</p>
+  );
+}
+
+function FieldInput({ label, value, onChange, disabled }: { label: string; value: string; onChange?: (v: string) => void; disabled?: boolean }) {
+  return (
+    <div>
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Input value={value || ""} onChange={e => onChange?.(e.target.value)} disabled={disabled} className="mt-0.5 h-9 text-sm" />
+    </div>
+  );
+}

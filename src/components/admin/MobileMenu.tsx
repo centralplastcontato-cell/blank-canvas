@@ -12,6 +12,7 @@ import {
   GraduationCap,
   Megaphone,
   MapPin,
+  FileSignature,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -107,6 +108,13 @@ export function MobileMenu({
       icon: MapPin,
       path: "/visitas",
       show: !!modules.visitas,
+    },
+    {
+      id: "contratos",
+      label: "Contratos",
+      icon: FileSignature,
+      path: "/contratos",
+      show: !!modules.contrato,
     },
     {
       id: "configuracoes",
