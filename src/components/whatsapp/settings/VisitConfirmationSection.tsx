@@ -347,6 +347,48 @@ export function VisitConfirmationSection() {
               )}
             </div>
 
+            {/* Reply Messages */}
+            <div className="rounded-xl border border-border/40 bg-card p-4 space-y-4">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                <p className="text-sm font-semibold">Respostas automáticas</p>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-xs">
+                      Mensagens enviadas ao lead após ele confirmar ou solicitar remarcação.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">
+                  Quando o lead <strong>confirma</strong> a visita
+                </Label>
+                <Textarea
+                  value={settings.reply_confirmed_message}
+                  onChange={(e) => update("reply_confirmed_message", e.target.value)}
+                  rows={4}
+                  className="text-sm resize-none rounded-xl"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">
+                  Quando o lead pede para <strong>remarcar</strong>
+                </Label>
+                <Textarea
+                  value={settings.reply_reschedule_message}
+                  onChange={(e) => update("reply_reschedule_message", e.target.value)}
+                  rows={4}
+                  className="text-sm resize-none rounded-xl"
+                />
+              </div>
+            </div>
+
             {/* Info */}
             <div className="rounded-xl bg-muted/30 border border-border/30 p-3">
               <p className="text-xs text-muted-foreground leading-relaxed">
