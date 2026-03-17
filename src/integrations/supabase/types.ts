@@ -3444,6 +3444,106 @@ export type Database = {
         }
         Relationships: []
       }
+      visit_confirmation_history: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          message_type: string
+          response_at: string | null
+          response_received: boolean
+          response_type: string | null
+          sent_at: string | null
+          status: string
+          visit_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          message_type?: string
+          response_at?: string | null
+          response_received?: boolean
+          response_type?: string | null
+          sent_at?: string | null
+          status?: string
+          visit_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          message_type?: string
+          response_at?: string | null
+          response_received?: boolean
+          response_type?: string | null
+          sent_at?: string | null
+          status?: string
+          visit_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visit_confirmation_history_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      visit_confirmation_settings: {
+        Row: {
+          company_id: string
+          confirmation_message: string
+          created_at: string
+          hours_before_visit: number
+          id: string
+          is_enabled: boolean
+          second_message_enabled: boolean
+          second_message_hours_after: number
+          second_message_text: string
+          send_window_end: number
+          send_window_start: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          confirmation_message?: string
+          created_at?: string
+          hours_before_visit?: number
+          id?: string
+          is_enabled?: boolean
+          second_message_enabled?: boolean
+          second_message_hours_after?: number
+          second_message_text?: string
+          send_window_end?: number
+          send_window_start?: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          confirmation_message?: string
+          created_at?: string
+          hours_before_visit?: number
+          id?: string
+          is_enabled?: boolean
+          second_message_enabled?: boolean
+          second_message_hours_after?: number
+          second_message_text?: string
+          send_window_end?: number
+          send_window_start?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visit_confirmation_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wapi_bot_questions: {
         Row: {
           company_id: string | null
