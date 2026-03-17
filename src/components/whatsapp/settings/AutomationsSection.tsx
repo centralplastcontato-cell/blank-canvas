@@ -806,6 +806,10 @@ export function AutomationsSection() {
             <Sparkles className="w-3.5 h-3.5" />
             <span>Reativação</span>
           </TabsTrigger>
+          <TabsTrigger value="visitas" className="flex items-center gap-1.5 text-xs sm:text-sm">
+            <Map className="w-3.5 h-3.5" />
+            <span>Visitas</span>
+          </TabsTrigger>
         </TabsList>
 
         {/* ============ TAB: GERAL ============ */}
