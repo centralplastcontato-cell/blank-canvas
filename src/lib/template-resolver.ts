@@ -386,6 +386,51 @@ export function resolveSystemVariables(
  * Returns a list of variable keys available in the catalog,
  * grouped by domain. Useful for building UI autocomplete or docs.
  */
+/**
+ * Find variables in a template that remain unresolved after applying context.
+ * Returns an array of variable key names that could not be resolved.
+ */
+export function findUnresolvedVariables(
+  template: string,
+  context: VariableContext = {},
+): string[] {
+  if (!template) return [];
+
+  const varPattern = /\{\{?\s*([a-zA-Z_][a-zA-Z0-9_-]*)\s*\}?\}/g;
+  const unresolved: string[] = [];
+  let match: RegExpExecArray | null;
+
+  while ((match = varPattern.exec(template)) !== null) {
+    const rawKey = match[1];
+    const lookupKey = rawKey.toLowerCase();
+
+    // Check custom context
+    if (context.custom) {
+      const found = Object.keys(context.custom).some(k => k.toLowerCase() === lookupKey);
+      if (found) continue;
+    }
+
+    // Resolve alias
+    const canonicalKey = ALIAS_MAP[lookupKey] || lookupKey;
+
+    // Check catalog
+    const entry = VARIABLE_CATALOG[canonicalKey];
+    if (entry) {
+      const resolved = entry.resolver(context);
+      if (resolved === '' || resolved === undefined || resolved === null) {
+        // Variable exists in catalog but resolved to empty — treat as unresolved
+        if (!unresolved.includes(rawKey)) unresolved.push(rawKey);
+      }
+      continue;
+    }
+
+    // Unknown variable
+    if (!unresolved.includes(rawKey)) unresolved.push(rawKey);
+  }
+
+  return unresolved;
+}
+
 export function getAvailableVariables(): {
   key: string;
   aliases: string[];

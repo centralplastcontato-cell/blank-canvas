@@ -6,11 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, AlertTriangle, Check, ChevronRight } from "lucide-react";
+import { Loader2, AlertTriangle, Check, ChevronRight, ShieldAlert, AlertCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { resolveSystemVariables, type VariableContext } from "@/lib/template-resolver";
+import { resolveSystemVariables, findUnresolvedVariables, type VariableContext } from "@/lib/template-resolver";
 import { ContractPreviewPrint } from "./ContractPreviewPrint";
 import { format } from "date-fns";
+import { logContractAction } from "./contractAuditHelpers";
 
 interface Props { userId: string; onClose: () => void; }
 
@@ -30,6 +31,7 @@ export function ContractGenerator({ userId, onClose }: Props) {
   const [contractData, setContractData] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [existingContracts, setExistingContracts] = useState<any[]>([]);
 
   // Load models + events
   useEffect(() => {
@@ -44,15 +46,24 @@ export function ContractGenerator({ userId, onClose }: Props) {
     })();
   }, [currentCompany?.id]);
 
-  // Load lead data when event selected
+  // Load lead data + check existing contracts when event selected
   useEffect(() => {
     if (!selectedEventId) return;
     const ev = events.find(e => e.id === selectedEventId);
     setEventData(ev);
-    if (!ev?.lead_id) return;
 
     (async () => {
       setLoading(true);
+      // Check for existing contracts for this event
+      const { data: existing } = await (supabase as any)
+        .from("generated_contracts")
+        .select("id, nome_documento, status, created_at")
+        .eq("event_id", selectedEventId)
+        .neq("status", "cancelado");
+      setExistingContracts(existing || []);
+
+      if (!ev?.lead_id) { setLoading(false); return; }
+
       const [leadRes, contractDataRes] = await Promise.all([
         supabase.from("campaign_leads").select("id, name, whatsapp, month, guests, unit").eq("id", ev.lead_id).single(),
         (supabase as any).from("lead_contract_data").select("*").eq("lead_id", ev.lead_id).maybeSingle(),
@@ -108,17 +119,30 @@ export function ContractGenerator({ userId, onClose }: Props) {
     return resolveSystemVariables(selectedModel.conteudo_template, variableContext);
   }, [selectedModel, variableContext]);
 
-  // Find missing required fields
-  const missingFields = useMemo(() => {
+  // Detect unresolved variables in rendered content
+  const unresolvedVars = useMemo(() => {
+    if (!selectedModel) return [];
+    return findUnresolvedVariables(selectedModel.conteudo_template, variableContext);
+  }, [selectedModel, variableContext]);
+
+  // Required fields validation
+  const missingRequired = useMemo(() => {
     const missing: string[] = [];
     if (!leadData?.name) missing.push("Nome do contratante");
     if (!contractData.cpf) missing.push("CPF");
+    if (!leadData?.whatsapp) missing.push("Telefone");
     if (!eventData?.event_date) missing.push("Data do evento");
+    if (!eventData?.start_time) missing.push("Horário do evento");
+    if (!eventData?.guest_count) missing.push("Quantidade de convidados");
+    if (!eventData?.package_name) missing.push("Pacote");
+    if (!eventData?.total_value) missing.push("Valor total");
     return missing;
   }, [leadData, contractData, eventData]);
 
+  const canGenerate = missingRequired.length === 0 && unresolvedVars.length === 0;
+
   const handleGenerate = async () => {
-    if (!currentCompany?.id || !selectedModel) return;
+    if (!currentCompany?.id || !selectedModel || !canGenerate) return;
     setSaving(true);
 
     // Save/update lead_contract_data
@@ -150,7 +174,7 @@ export function ContractGenerator({ userId, onClose }: Props) {
     }).select("id").single();
 
     // Create frozen contract
-    const { error } = await (supabase as any).from("generated_contracts").insert({
+    const { data: contractResult, error } = await (supabase as any).from("generated_contracts").insert({
       company_id: currentCompany.id,
       lead_id: leadData?.id || null,
       event_id: selectedEventId || null,
@@ -162,10 +186,21 @@ export function ContractGenerator({ userId, onClose }: Props) {
       dados_utilizados: { lead: leadData, event: eventData, contract: contractData, company: { name: currentCompany.name } },
       status: "gerado",
       created_by: userId,
-    });
+    }).select("id").single();
 
-    if (error) { toast({ title: "Erro ao gerar contrato", description: error.message, variant: "destructive" }); }
-    else { toast({ title: "Contrato gerado com sucesso! ✅" }); }
+    if (error) {
+      toast({ title: "Erro ao gerar contrato", description: error.message, variant: "destructive" });
+      // Log failure
+      await logContractAction(currentCompany.id, null, selectedModel.id, "generation_failed", userId, { error: error.message });
+    } else {
+      toast({ title: "Contrato gerado com sucesso! ✅" });
+      // Log success
+      await logContractAction(currentCompany.id, contractResult?.id, selectedModel.id, "contract_generated", userId, {
+        event_id: selectedEventId,
+        lead_name: leadData?.name,
+        template_version: selectedModel.versao,
+      });
+    }
     setSaving(false);
     onClose();
   };
@@ -219,9 +254,23 @@ export function ContractGenerator({ userId, onClose }: Props) {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Existing contract warning */}
+            {existingContracts.length > 0 && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-300/30">
+                <div className="flex items-center gap-2 text-amber-700 mb-1">
+                  <AlertCircle className="h-4 w-4" />
+                  <span className="text-sm font-semibold">Este evento já possui {existingContracts.length} contrato(s)</span>
+                </div>
+                <p className="text-xs text-amber-600">
+                  Ao gerar um novo contrato, os anteriores serão mantidos no histórico. O novo contrato será tratado como uma nova versão.
+                </p>
+              </div>
+            )}
+
             <div className="flex justify-end pt-4">
               <Button disabled={!selectedModelId || !selectedEventId} onClick={() => setStep(2)}>
-                Próximo <ChevronRight className="h-4 w-4 ml-1" />
+                {existingContracts.length > 0 ? "Gerar Nova Versão" : "Próximo"} <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             </div>
           </div>
@@ -238,7 +287,7 @@ export function ContractGenerator({ userId, onClose }: Props) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <FieldInput label="Nome" value={leadData?.name || ""} disabled />
                   <FieldInput label="Telefone" value={leadData?.whatsapp || ""} disabled />
-                  <FieldInput label="CPF" value={contractData.cpf} onChange={v => updateField("cpf", v)} />
+                  <FieldInput label="CPF *" value={contractData.cpf} onChange={v => updateField("cpf", v)} />
                   <FieldInput label="RG" value={contractData.rg} onChange={v => updateField("rg", v)} />
                   <FieldInput label="E-mail" value={contractData.email} onChange={v => updateField("email", v)} />
                   <FieldInput label="CEP" value={contractData.cep} onChange={v => updateField("cep", v)} />
@@ -259,7 +308,7 @@ export function ContractGenerator({ userId, onClose }: Props) {
 
                 <SectionHeader label="Financeiro" />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <FieldInput label="Valor total" value={eventData?.total_value?.toString() || ""} disabled />
+                  <FieldInput label="Valor total *" value={eventData?.total_value?.toString() || ""} disabled />
                   <FieldInput label="Valor do sinal" value={contractData.valor_sinal} onChange={v => updateField("valor_sinal", v)} />
                   <FieldInput label="Valor restante" value={contractData.valor_restante} onChange={v => updateField("valor_restante", v)} />
                   <FieldInput label="Forma de pagamento" value={contractData.forma_pagamento} onChange={v => updateField("forma_pagamento", v)} />
@@ -278,15 +327,33 @@ export function ContractGenerator({ userId, onClose }: Props) {
         {/* Step 3: Preview + Generate */}
         {step === 3 && (
           <div className="space-y-4">
-            {missingFields.length > 0 && (
+            {/* Required fields alert */}
+            {missingRequired.length > 0 && (
+              <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30">
+                <div className="flex items-center gap-2 text-destructive mb-1">
+                  <ShieldAlert className="h-4 w-4" />
+                  <span className="text-sm font-semibold">Dados obrigatórios faltando</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {missingRequired.map(f => <Badge key={f} variant="outline" className="text-xs border-destructive/40 text-destructive">{f}</Badge>)}
+                </div>
+                <p className="text-xs text-destructive/70 mt-2">Volte ao passo anterior e preencha os campos obrigatórios para gerar o contrato.</p>
+              </div>
+            )}
+
+            {/* Unresolved variables alert */}
+            {unresolvedVars.length > 0 && (
               <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-300/30">
                 <div className="flex items-center gap-2 text-amber-700 mb-1">
                   <AlertTriangle className="h-4 w-4" />
-                  <span className="text-sm font-semibold">Campos pendentes</span>
+                  <span className="text-sm font-semibold">Variáveis não resolvidas no contrato</span>
                 </div>
                 <div className="flex flex-wrap gap-1">
-                  {missingFields.map(f => <Badge key={f} variant="outline" className="text-xs border-amber-400 text-amber-700">{f}</Badge>)}
+                  {unresolvedVars.map(v => (
+                    <Badge key={v} variant="outline" className="text-xs border-amber-400 text-amber-700 font-mono">{`{{${v}}}`}</Badge>
+                  ))}
                 </div>
+                <p className="text-xs text-amber-600 mt-2">O contrato será gerado com placeholders visíveis. Preencha os dados ou corrija o modelo.</p>
               </div>
             )}
 
@@ -298,9 +365,9 @@ export function ContractGenerator({ userId, onClose }: Props) {
 
             <div className="flex justify-between pt-4 border-t border-border/40">
               <Button variant="outline" onClick={() => setStep(2)}>Voltar</Button>
-              <Button onClick={handleGenerate} disabled={saving} className="gap-2">
+              <Button onClick={handleGenerate} disabled={saving || missingRequired.length > 0} className="gap-2">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                Gerar Contrato
+                {existingContracts.length > 0 ? "Gerar Nova Versão" : "Gerar Contrato"}
               </Button>
             </div>
           </div>
