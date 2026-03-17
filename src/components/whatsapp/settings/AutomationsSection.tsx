@@ -1968,7 +1968,7 @@ export function AutomationsSection() {
                   <Switch
                     checked={botSettings?.follow_up_3_enabled || false}
                     onCheckedChange={(checked) => updateBotSettings({ follow_up_3_enabled: checked })}
-                    disabled={isSaving || !botSettings?.follow_up_2_enabled}
+                    disabled={isSaving || !botSettings?.follow_up_enabled}
                     className="shrink-0 self-end sm:self-auto"
                   />
                 </div>
