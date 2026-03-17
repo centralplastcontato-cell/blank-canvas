@@ -4210,6 +4210,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           onOpenChange={setShowQuickVisitDialog}
           leadId={linkedLead.id}
           currentUserId={userId}
+          onVisitRegistered={() => setVisitRefreshKey(k => k + 1)}
         />
       )}
 
