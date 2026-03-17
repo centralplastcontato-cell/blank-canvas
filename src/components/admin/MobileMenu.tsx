@@ -71,7 +71,7 @@ export function MobileMenu({
       label: "Central de Atendimento",
       icon: Headset,
       path: "/atendimento",
-      show: true,
+      show: !!modules.central_atendimento,
     },
     {
       id: "inteligencia",
