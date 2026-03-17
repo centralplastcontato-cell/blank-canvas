@@ -494,6 +494,17 @@ export default function Visitas() {
               {VISIT_STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
             </SelectContent>
           </Select>
+          {units.length > 1 && (
+            <Select value={filterUnit} onValueChange={setFilterUnit}>
+              <SelectTrigger className="h-9 w-[140px] text-xs rounded-xl">
+                <SelectValue placeholder="Unidade" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas unidades</SelectItem>
+                {units.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
           <Select value={filterResponsavel} onValueChange={setFilterResponsavel}>
             <SelectTrigger className="h-9 w-[140px] text-xs rounded-xl">
               <SelectValue placeholder="Responsável" />
