@@ -1,0 +1,3 @@
+UPDATE public.wapi_bot_settings SET ai_context = 'Buffet: Castelo da Diversão. No último mês recebemos 803 leads e fechamos 64 vendas. Nossa taxa de conversão atual é de 8%. Nosso ticket médio é R$8.362. Atendemos 6 festas no último mês. Faturamento mensal: R$50.170. Temos 2 unidades.' WHERE company_id = 'a0000000-0000-0000-0000-000000000001';
+
+UPDATE public.monthly_reviews SET ai_context_generated = 'Buffet: Castelo da Diversão. No último mês recebemos 803 leads e fechamos 64 vendas. Nossa taxa de conversão atual é de 8%. Nosso ticket médio é R$8.362. Atendemos 6 festas no último mês. Faturamento mensal: R$50.170. Temos 2 unidades.' WHERE company_id = 'a0000000-0000-0000-0000-000000000001' AND review_month = '2026-02-01';
