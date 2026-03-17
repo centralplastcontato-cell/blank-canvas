@@ -197,6 +197,27 @@ Deno.serve(async (req) => {
               continue;
             }
 
+            // DEDUP GUARD: Check if a confirmation message was already sent to this conversation recently
+            // This prevents duplicates when the cron fires multiple times within the 2-hour window
+            const dedup_cutoff = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
+            const { data: recentMsgs } = await supabase
+              .from("wapi_messages")
+              .select("metadata")
+              .eq("conversation_id", conv.id)
+              .eq("from_me", true)
+              .gte("timestamp", dedup_cutoff)
+              .limit(20);
+
+            const alreadySentConfirmation = (recentMsgs || []).some((m: any) => {
+              const meta = m.metadata as Record<string, unknown> | null;
+              return meta?.source === "visit_confirmation";
+            });
+
+            if (alreadySentConfirmation) {
+              console.log(`[visit-confirmation] ⚠️ Dedup: confirmation already sent to lead ${visit.lead_id} recently, skipping`);
+              continue;
+            }
+
             const instance = instances.find((i: any) => i.id === conv.instance_id);
             if (!instance) continue;
 

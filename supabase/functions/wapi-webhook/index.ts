@@ -3470,6 +3470,35 @@ async function handleVisitConfirmationResponse(
     user_name: 'Sistema (Confirmação de Visita)',
   });
 
+  // Send auto-reply to the lead confirming their response
+  let replyMsg = '';
+  if (optionNum === 1) {
+    replyMsg = `Ótimo, sua visita está *confirmada*! ✅\n\nEstamos te esperando! Qualquer dúvida, é só chamar aqui. 😊`;
+  } else {
+    replyMsg = `Entendido! 📝\n\nNossa equipe vai entrar em contato para remarcar sua visita. Aguarde! 😊`;
+  }
+
+  const replyMsgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, replyMsg);
+  if (replyMsgId) {
+    await supabase.from('wapi_messages').insert({
+      conversation_id: conv.id,
+      message_id: replyMsgId,
+      from_me: true,
+      message_type: 'text',
+      content: replyMsg,
+      status: 'sent',
+      timestamp: new Date().toISOString(),
+      company_id: instance.company_id,
+      metadata: { source: 'visit_confirmation', type: 'response' },
+    });
+
+    await supabase.from('wapi_conversations').update({
+      last_message_at: new Date().toISOString(),
+      last_message_content: replyMsg.substring(0, 100),
+      last_message_from_me: true,
+    }).eq('id', conv.id);
+  }
+
   // If reschedule, notify team
   if (optionNum === 2) {
     const { data: lead } = await supabase.from('campaign_leads')
