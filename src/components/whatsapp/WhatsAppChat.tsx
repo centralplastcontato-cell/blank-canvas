@@ -5115,6 +5115,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                           setLinkedLead(prev => prev ? { ...prev, observacoes: newObs || null } : null);
                         }}
                         onShowVisitDialog={() => linkedLead && setShowQuickVisitDialog(true)}
+                        visitRefreshKey={visitRefreshKey}
                         mobile
                       />
                       <Button
