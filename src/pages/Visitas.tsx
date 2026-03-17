@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
 import { VisitQualification } from "@/components/visitas/VisitQualification";
+import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 
 // Status config
 const VISIT_STATUSES = [
