@@ -43,6 +43,7 @@ const Formularios = lazy(() => import("./pages/Formularios"));
 const Avaliacoes = lazy(() => import("./pages/Avaliacoes"));
 const PreFesta = lazy(() => import("./pages/PreFesta"));
 const Campanhas = lazy(() => import("./pages/Campanhas"));
+const Visitas = lazy(() => import("./pages/Visitas"));
 const PublicRecruitmentForm = lazy(() => import("./pages/PublicRecruitmentForm"));
 const DynamicLandingPage = lazy(() => import("./pages/DynamicLandingPage"));
 const PublicEvaluation = lazy(() => import("./pages/PublicEvaluation"));
