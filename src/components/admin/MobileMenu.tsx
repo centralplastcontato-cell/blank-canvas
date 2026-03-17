@@ -110,6 +110,13 @@ export function MobileMenu({
       show: !!modules.visitas,
     },
     {
+      id: "contratos",
+      label: "Contratos",
+      icon: FileSignature,
+      path: "/contratos",
+      show: !!modules.contrato,
+    },
+    {
       id: "configuracoes",
       label: "Configurações",
       icon: Settings,
