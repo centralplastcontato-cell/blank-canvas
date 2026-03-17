@@ -197,19 +197,76 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
 
   // --- Contract ---
   nome_responsavel: {
-    resolver: (ctx) => ctx.contract?.responsible_name || '',
+    resolver: (ctx) => ctx.contract?.responsible_name || ctx.lead?.name?.trim() || '',
   },
   cpf: {
     resolver: (ctx) => ctx.contract?.cpf || '',
   },
+  rg: {
+    resolver: (ctx) => ctx.contract?.rg || '',
+  },
+  email: {
+    resolver: (ctx) => ctx.contract?.email || '',
+  },
   endereco: {
     resolver: (ctx) => ctx.contract?.address || '',
+  },
+  numero: {
+    resolver: (ctx) => ctx.contract?.numero || '',
+  },
+  complemento: {
+    resolver: (ctx) => ctx.contract?.complemento || '',
+  },
+  bairro: {
+    resolver: (ctx) => ctx.contract?.bairro || '',
+  },
+  cidade: {
+    resolver: (ctx) => ctx.contract?.cidade || '',
+  },
+  cep: {
+    resolver: (ctx) => ctx.contract?.cep || '',
   },
   data_contrato: {
     resolver: (ctx) => ctx.contract?.date || '',
   },
   valor_contrato: {
     resolver: (ctx) => ctx.contract?.value || '',
+  },
+  valor_total: {
+    resolver: (ctx) => ctx.contract?.value || (ctx.event?.value != null ? `R$ ${ctx.event.value.toLocaleString('pt-BR')}` : ''),
+  },
+  valor_sinal: {
+    resolver: (ctx) => ctx.contract?.valor_sinal || '',
+  },
+  valor_restante: {
+    resolver: (ctx) => ctx.contract?.valor_restante || '',
+  },
+  forma_pagamento: {
+    resolver: (ctx) => ctx.contract?.forma_pagamento || '',
+  },
+  nome_aniversariante: {
+    resolver: (ctx) => ctx.contract?.nome_aniversariante || ctx.lead?.child_name || '',
+  },
+  idade_aniversariante: {
+    resolver: (ctx) => ctx.contract?.idade_aniversariante || ctx.lead?.child_age || '',
+  },
+  data_nascimento: {
+    resolver: (ctx) => ctx.contract?.data_nascimento || '',
+  },
+  nomes_pais: {
+    resolver: (ctx) => ctx.contract?.nomes_pais || '',
+  },
+  brindes: {
+    resolver: (ctx) => ctx.contract?.brindes || '',
+  },
+  hora_inicio: {
+    resolver: (ctx) => ctx.event?.time || '',
+  },
+  hora_fim: {
+    resolver: (ctx) => ctx.event?.end_time || '',
+  },
+  tipo_festa: {
+    resolver: (ctx) => ctx.event?.event_type || '',
   },
 
   // --- Freelancer / Schedule ---
