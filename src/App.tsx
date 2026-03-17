@@ -1,63 +1,74 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { CompanyProvider } from "@/contexts/CompanyContext";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import CentralAtendimento from "./pages/CentralAtendimento";
-import Configuracoes from "./pages/Configuracoes";
-import UserSettings from "./pages/UserSettings";
-import Users from "./pages/Users";
+import { Loader2 } from "lucide-react";
 
+// Eager: root-level routing (tiny, always needed)
 import RootPage from "./pages/RootPage";
-import PromoPage from "./pages/PromoPage";
-import ComercialB2B from "./pages/ComercialB2B";
-import ParaBuffets from "./pages/ParaBuffets";
-import HubLogin from "./pages/HubLogin";
-import HubLandingPage from "./pages/HubLandingPage";
-import HubDashboard from "./pages/HubDashboard";
-import HubEmpresas from "./pages/HubEmpresas";
-import HubUsers from "./pages/HubUsers";
-import HubWhatsApp from "./pages/HubWhatsApp";
-import HubOnboarding from "./pages/HubOnboarding";
-import HubProspeccao from "./pages/HubProspeccao";
-import HubAIUsage from "./pages/HubAIUsage";
-import HubTreinamento from "./pages/HubTreinamento";
-import HubLeads from "./pages/HubLeads";
-import HubSuporte from "./pages/HubSuporte";
-import HubMateriais from "./pages/HubMateriais";
-import HubRecruitment from "./pages/HubRecruitment";
-import Treinamento from "./pages/Treinamento";
-import Onboarding from "./pages/Onboarding";
-import Inteligencia from "./pages/Inteligencia";
-import Agenda from "./pages/Agenda";
-import Formularios from "./pages/Formularios";
-import Avaliacoes from "./pages/Avaliacoes";
-import PreFesta from "./pages/PreFesta";
-import Campanhas from "./pages/Campanhas";
-import PublicRecruitmentForm from "./pages/PublicRecruitmentForm";
-
-
-import DynamicLandingPage from "./pages/DynamicLandingPage";
-import PublicEvaluation from "./pages/PublicEvaluation";
-import PublicPreFesta from "./pages/PublicPreFesta";
-import PublicContrato from "./pages/PublicContrato";
-import PublicCardapio from "./pages/PublicCardapio";
-import PublicStaff from "./pages/PublicStaff";
-import PublicMaintenance from "./pages/PublicMaintenance";
-import PublicPartyMonitoring from "./pages/PublicPartyMonitoring";
-import PublicAttendance from "./pages/PublicAttendance";
-import PublicAttendanceReview from "./pages/PublicAttendanceReview";
-import PublicEventInfo from "./pages/PublicEventInfo";
-import PublicFreelancer from "./pages/PublicFreelancer";
-import PublicFreelancerSchedule from "./pages/PublicFreelancerSchedule";
-import Contrato from "./pages/Contrato";
-import Cardapio from "./pages/Cardapio";
 import NotFound from "./pages/NotFound";
-import PublicPartyControl from "./pages/PublicPartyControl";
-import { SupportChatbot } from "./components/support/SupportChatbot";
+
+// Lazy-loaded pages
+const Index = lazy(() => import("./pages/Index"));
+const Auth = lazy(() => import("./pages/Auth"));
+const CentralAtendimento = lazy(() => import("./pages/CentralAtendimento"));
+const Configuracoes = lazy(() => import("./pages/Configuracoes"));
+const UserSettings = lazy(() => import("./pages/UserSettings"));
+const Users = lazy(() => import("./pages/Users"));
+const PromoPage = lazy(() => import("./pages/PromoPage"));
+const ComercialB2B = lazy(() => import("./pages/ComercialB2B"));
+const ParaBuffets = lazy(() => import("./pages/ParaBuffets"));
+const HubLogin = lazy(() => import("./pages/HubLogin"));
+const HubLandingPage = lazy(() => import("./pages/HubLandingPage"));
+const HubDashboard = lazy(() => import("./pages/HubDashboard"));
+const HubEmpresas = lazy(() => import("./pages/HubEmpresas"));
+const HubUsers = lazy(() => import("./pages/HubUsers"));
+const HubWhatsApp = lazy(() => import("./pages/HubWhatsApp"));
+const HubOnboarding = lazy(() => import("./pages/HubOnboarding"));
+const HubProspeccao = lazy(() => import("./pages/HubProspeccao"));
+const HubAIUsage = lazy(() => import("./pages/HubAIUsage"));
+const HubTreinamento = lazy(() => import("./pages/HubTreinamento"));
+const HubLeads = lazy(() => import("./pages/HubLeads"));
+const HubSuporte = lazy(() => import("./pages/HubSuporte"));
+const HubMateriais = lazy(() => import("./pages/HubMateriais"));
+const HubRecruitment = lazy(() => import("./pages/HubRecruitment"));
+const Treinamento = lazy(() => import("./pages/Treinamento"));
+const Onboarding = lazy(() => import("./pages/Onboarding"));
+const Inteligencia = lazy(() => import("./pages/Inteligencia"));
+const Agenda = lazy(() => import("./pages/Agenda"));
+const Formularios = lazy(() => import("./pages/Formularios"));
+const Avaliacoes = lazy(() => import("./pages/Avaliacoes"));
+const PreFesta = lazy(() => import("./pages/PreFesta"));
+const Campanhas = lazy(() => import("./pages/Campanhas"));
+const PublicRecruitmentForm = lazy(() => import("./pages/PublicRecruitmentForm"));
+const DynamicLandingPage = lazy(() => import("./pages/DynamicLandingPage"));
+const PublicEvaluation = lazy(() => import("./pages/PublicEvaluation"));
+const PublicPreFesta = lazy(() => import("./pages/PublicPreFesta"));
+const PublicContrato = lazy(() => import("./pages/PublicContrato"));
+const PublicCardapio = lazy(() => import("./pages/PublicCardapio"));
+const PublicStaff = lazy(() => import("./pages/PublicStaff"));
+const PublicMaintenance = lazy(() => import("./pages/PublicMaintenance"));
+const PublicPartyMonitoring = lazy(() => import("./pages/PublicPartyMonitoring"));
+const PublicAttendance = lazy(() => import("./pages/PublicAttendance"));
+const PublicAttendanceReview = lazy(() => import("./pages/PublicAttendanceReview"));
+const PublicEventInfo = lazy(() => import("./pages/PublicEventInfo"));
+const PublicFreelancer = lazy(() => import("./pages/PublicFreelancer"));
+const PublicFreelancerSchedule = lazy(() => import("./pages/PublicFreelancerSchedule"));
+const Contrato = lazy(() => import("./pages/Contrato"));
+const Cardapio = lazy(() => import("./pages/Cardapio"));
+const PublicPartyControl = lazy(() => import("./pages/PublicPartyControl"));
+
+const SupportChatbot = lazy(() => import("./components/support/SupportChatbot").then(m => ({ default: m.SupportChatbot })));
+
+const PageLoader = () => (
+  <div className="min-h-screen bg-background flex items-center justify-center">
+    <Loader2 className="h-10 w-10 animate-spin text-primary" />
+  </div>
+);
+
 const queryClient = new QueryClient();
 
 const App = () => (
