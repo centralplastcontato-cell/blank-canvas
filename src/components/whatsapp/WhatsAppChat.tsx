@@ -975,7 +975,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         description: leadToDelete 
           ? "O lead, suas mensagens e a conversa foram removidos permanentemente."
           : "A conversa e suas mensagens foram removidas permanentemente.",
-        className: "bg-background text-foreground border-border shadow-lg",
+        className: "border-l-4",
+        style: { borderLeftColor: '#ef4444' },
       });
     } catch (error: unknown) {
       console.error("[Delete] Full error:", error);
