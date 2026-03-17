@@ -257,7 +257,7 @@ export default function Visitas() {
 
   const resetCreateForm = () => {
     setNewLeadSearch(""); setNewLeadId(""); setNewLeadName("");
-    setNewDate(undefined); setNewTime(""); setNewNotes(""); setNewResponsavel("");
+    setNewDate(undefined); setNewTime(""); setNewNotes(""); setNewResponsavel(""); setNewUnit("");
     setLeadResults([]);
   };
 
