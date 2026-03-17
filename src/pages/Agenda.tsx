@@ -280,16 +280,22 @@ export default function Agenda() {
   }, [filteredEvents, selectedDate]);
 
   // Detect conflicts (same unit + overlapping time)
+  // When end_time is missing, assume event lasts ~3 hours from start to avoid false conflicts
+  const inferEndTime = (startTime: string, endTime: string | null | undefined): string => {
+    if (endTime) return endTime;
+    const [h, m] = startTime.split(":").map(Number);
+    const endH = Math.min(h + 3, 23);
+    return `${String(endH).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  };
+
   const getConflicts = (event: CompanyEvent) => {
     if (!event.start_time || !event.unit) return [];
-    return events.filter(e =>
-      e.id !== event.id &&
-      e.event_date === event.event_date &&
-      e.unit === event.unit &&
-      e.status !== "cancelado" &&
-      e.start_time &&
-      ((e.start_time < (event.end_time || "23:59")) && ((e.end_time || "23:59") > event.start_time))
-    );
+    const eventEnd = inferEndTime(event.start_time, event.end_time);
+    return events.filter(e => {
+      if (e.id === event.id || e.event_date !== event.event_date || e.unit !== event.unit || e.status === "cancelado" || !e.start_time) return false;
+      const eEnd = inferEndTime(e.start_time!, e.end_time);
+      return e.start_time! < eventEnd && eEnd > event.start_time;
+    });
   };
 
   const physicalUnits = units.filter(u => u.slug !== "trabalhe-conosco");
