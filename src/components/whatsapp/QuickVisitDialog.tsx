@@ -86,6 +86,7 @@ export function QuickVisitDialog({ open, onOpenChange, leadId, currentUserId, on
       toast({ title: "Erro ao registrar visita", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Visita registrada!" });
+      onVisitRegistered?.();
       onOpenChange(false);
       resetForm();
     }
