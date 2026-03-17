@@ -25,6 +25,7 @@ import { Loader2, Menu, CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, 
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
+import { VisitQualification } from "@/components/visitas/VisitQualification";
 
 // Status config
 const VISIT_STATUSES = [
@@ -68,6 +69,15 @@ interface Visit {
   lead_phone?: string;
   lead_guests?: string | null;
   lead_month?: string | null;
+  // Qualification fields
+  package_interest?: string | null;
+  guest_count?: number | null;
+  party_date_interest?: string | null;
+  payment_preference?: string | null;
+  interest_level?: string | null;
+  restrictions?: any;
+  client_questions?: string | null;
+  seller_notes?: string | null;
 }
 
 export default function Visitas() {
@@ -129,7 +139,7 @@ export default function Visitas() {
 
     const { data, error } = await (supabase as any)
       .from("lead_visits")
-      .select("id, lead_id, company_id, data_visita, horario_visita, status_visita, observacoes, responsavel_user_id, created_by, created_at")
+      .select("id, lead_id, company_id, data_visita, horario_visita, status_visita, observacoes, responsavel_user_id, created_by, created_at, package_interest, guest_count, party_date_interest, payment_preference, interest_level, restrictions, client_questions, seller_notes")
       .eq("company_id", companyId)
       .gte("data_visita", startDate)
       .lte("data_visita", endDate)
@@ -583,7 +593,7 @@ export default function Visitas() {
 
   const detailSheet = (
     <Sheet open={!!detailVisit} onOpenChange={() => setDetailVisit(null)}>
-      <SheetContent className="w-full sm:max-w-md p-0 overflow-y-auto">
+      <SheetContent className="w-full sm:max-w-lg p-0 overflow-y-auto">
         {detailVisit && detailStatus && (
           <>
             <div className="px-6 pt-6 pb-4 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-b border-border/40">
@@ -599,6 +609,15 @@ export default function Visitas() {
                       {detailVisit.horario_visita && ` às ${detailVisit.horario_visita}`}
                     </p>
                   </div>
+                  {detailVisit.interest_level && (
+                    <Badge variant="outline" className={cn("text-[10px] shrink-0 border font-semibold",
+                      detailVisit.interest_level === "alto" && "bg-orange-500/15 text-orange-700 border-orange-300",
+                      detailVisit.interest_level === "medio" && "bg-amber-500/15 text-amber-700 border-amber-300",
+                      detailVisit.interest_level === "baixo" && "bg-muted text-muted-foreground border-border",
+                    )}>
+                      {detailVisit.interest_level === "alto" ? "🔥 Alto" : detailVisit.interest_level === "medio" ? "🤔 Médio" : "❄️ Baixo"}
+                    </Badge>
+                  )}
                 </div>
               </SheetHeader>
             </div>
@@ -643,6 +662,27 @@ export default function Visitas() {
                   </Select>
                 </div>
               </div>
+
+              {/* Qualification Section */}
+              <VisitQualification
+                visitId={detailVisit.id}
+                initialData={{
+                  package_interest: detailVisit.package_interest || null,
+                  guest_count: detailVisit.guest_count || null,
+                  party_date_interest: detailVisit.party_date_interest || null,
+                  payment_preference: detailVisit.payment_preference || null,
+                  interest_level: detailVisit.interest_level || null,
+                  restrictions: Array.isArray(detailVisit.restrictions)
+                    ? (detailVisit.restrictions as any[]).map((r: any) => typeof r === 'string' ? r : r.type)
+                    : [],
+                  restriction_notes: Array.isArray(detailVisit.restrictions)
+                    ? ((detailVisit.restrictions as any[]).find((r: any) => r.type === 'outro')?.notes || '')
+                    : '',
+                  client_questions: detailVisit.client_questions || null,
+                  seller_notes: detailVisit.seller_notes || null,
+                }}
+                onSaved={fetchVisits}
+              />
             </div>
           </>
         )}
