@@ -33,6 +33,7 @@ interface QuickVisitDialogProps {
   onOpenChange: (open: boolean) => void;
   leadId: string;
   currentUserId: string;
+  onVisitRegistered?: () => void;
 }
 
 function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
