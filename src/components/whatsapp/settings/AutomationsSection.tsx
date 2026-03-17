@@ -2380,6 +2380,11 @@ export function AutomationsSection() {
         <TabsContent value="reativacao" className="mt-4">
           <ReactivationSection />
         </TabsContent>
+
+        {/* ============ TAB: CONFIRMAÇÃO DE VISITAS ============ */}
+        <TabsContent value="visitas" className="mt-4">
+          <VisitConfirmationSection />
+        </TabsContent>
       </Tabs>
     </div>
   );

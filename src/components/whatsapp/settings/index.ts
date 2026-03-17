@@ -8,3 +8,4 @@ export { VisualGuideSection } from './VisualGuideSection';
 export { SalesMaterialsSection } from './SalesMaterialsSection';
 export { CaptionsCard } from './CaptionsCard';
 export { ReactivationSection } from './ReactivationSection';
+export { VisitConfirmationSection } from './VisitConfirmationSection';
