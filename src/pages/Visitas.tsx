@@ -264,6 +264,17 @@ export default function Visitas() {
     }
   };
 
+  const deleteVisit = async (visitId: string) => {
+    const { error } = await (supabase as any).from("lead_visits").delete().eq("id", visitId);
+    if (error) {
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Visita excluída!" });
+      setDetailVisit(null);
+      fetchVisits();
+    }
+  };
+
   const handleLogout = async () => { await supabase.auth.signOut(); navigate("/auth"); };
 
   if (isLoading || !user) {
