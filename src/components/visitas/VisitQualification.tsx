@@ -120,6 +120,7 @@ export function VisitQualification({ visitId, initialData, onSaved }: VisitQuali
       restrictions: restrictionsJson,
       client_questions: data.client_questions || null,
       seller_notes: data.seller_notes || null,
+      lead_channel: data.lead_channel || null,
     };
 
     const { error } = await (supabase as any)
