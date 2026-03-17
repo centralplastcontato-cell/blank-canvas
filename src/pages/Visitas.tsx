@@ -483,8 +483,31 @@ export default function Visitas() {
     </div>
   );
 
+  // Unconfirmed visits alert
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = format(tomorrow, "yyyy-MM-dd");
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const unconfirmedSoon = visits.filter(
+    v => (v.data_visita === tomorrowStr || v.data_visita === todayStr) && v.status_visita === "agendada"
+  );
+
   const mainContent = (
     <div className="p-4 md:p-6">
+      {/* Unconfirmed alerts */}
+      {unconfirmedSoon.length > 0 && (
+        <div className="mb-4 rounded-xl border border-amber-300/60 bg-amber-50/50 dark:bg-amber-950/20 p-3 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+              ⚠ {unconfirmedSoon.length} visita{unconfirmedSoon.length > 1 ? "s" : ""} sem confirmação
+            </p>
+            <p className="text-xs text-amber-700/80 dark:text-amber-400/80 mt-0.5">
+              {unconfirmedSoon.map(v => v.lead_name).join(", ")} — {unconfirmedSoon.some(v => v.data_visita === todayStr) ? "hoje" : "amanhã"}
+            </p>
+          </div>
+        </div>
+      )}
       {toolbar}
       {viewMode === "day" && <DayView />}
       {viewMode === "week" && <WeekView />}
