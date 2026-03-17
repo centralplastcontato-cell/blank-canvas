@@ -5,6 +5,7 @@ import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { useLeadIntelligence } from "@/hooks/useLeadIntelligence";
 import { useLeadStageDurations } from "@/hooks/useLeadStageDurations";
 import { useUnitPermissions } from "@/hooks/useUnitPermissions";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
