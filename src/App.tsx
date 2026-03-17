@@ -133,6 +133,7 @@ const App = () => (
               <Route path="/contrato/:companySlug/:templateSlug" element={<PublicContrato />} />
               <Route path="/contrato/:templateId" element={<PublicContrato />} />
               <Route path="/contrato" element={<Contrato />} />
+              <Route path="/contratos" element={<ContratosModule />} />
               {/* Public cardapio form */}
               <Route path="/cardapio/:companySlug/:templateSlug" element={<PublicCardapio />} />
               <Route path="/cardapio/:templateId" element={<PublicCardapio />} />
