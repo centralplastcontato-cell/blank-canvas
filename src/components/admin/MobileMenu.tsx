@@ -102,6 +102,13 @@ export function MobileMenu({
       show: !!modules.campanhas,
     },
     {
+      id: "visitas",
+      label: "Visitas",
+      icon: MapPin,
+      path: "/visitas",
+      show: true,
+    },
+    {
       id: "configuracoes",
       label: "Configurações",
       icon: Settings,

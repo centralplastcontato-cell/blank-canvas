@@ -115,6 +115,7 @@ const App = () => (
               <Route path="/avaliacoes" element={<Avaliacoes />} />
               <Route path="/pre-festa" element={<PreFesta />} />
               <Route path="/campanhas" element={<Campanhas />} />
+              <Route path="/visitas" element={<Visitas />} />
               {/* Party control hub */}
               <Route path="/festa/:eventId" element={<PublicPartyControl />} />
               {/* Public dynamic landing page by slug */}

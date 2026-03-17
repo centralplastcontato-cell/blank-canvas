@@ -55,6 +55,7 @@ export function AdminSidebar({
     ...(modules.agenda ? [{ title: "Agenda", url: "/agenda", icon: CalendarDays }] : []),
     ...(modules.operacoes ? [{ title: "Operações", url: "/formularios", icon: FolderOpen }] : []),
     ...(modules.campanhas ? [{ title: "Campanhas", url: "/campanhas", icon: Megaphone }] : []),
+    { title: "Visitas", url: "/visitas", icon: MapPin },
     
     ...(canManageUsers ? [{ title: "Gerenciar Usuários", url: "/users", icon: Users }] : []),
     ...(isAdmin ? [{ title: "Empresas", url: "/hub/empresas", icon: Building2 }] : []),
