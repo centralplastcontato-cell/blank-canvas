@@ -4014,6 +4014,19 @@ async function processWebhookEvent(body: Record<string, unknown>) {
         }).catch(err => console.error('[Media download error]', err));
       }
 
+      // Fase 7.1: Check for visit confirmation response BEFORE reactivation/bot
+      if (!fromMe && !isGrp && type === 'text' && content) {
+        try {
+          const visitHandled = await handleVisitConfirmationResponse(supabase, instance, conv, content);
+          if (visitHandled) {
+            console.log(`[Visit Confirmation] Response handled for conv ${conv.id}, skipping bot`);
+            break;
+          }
+        } catch (err) {
+          console.error('[Visit Confirmation error]', err);
+        }
+      }
+
       // Fase 4B: Check for reactivation response BEFORE bot processing
       if (!fromMe && !isGrp && type === 'text' && content) {
         try {
