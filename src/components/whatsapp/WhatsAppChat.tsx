@@ -349,6 +349,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
   const [showShareToGroupDialog, setShowShareToGroupDialog] = useState(false);
   const [showQuickVisitDialog, setShowQuickVisitDialog] = useState(false);
+  const [visitRefreshKey, setVisitRefreshKey] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
   
   // Contact sharing state
@@ -4025,6 +4026,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                           setLinkedLead(prev => prev ? { ...prev, observacoes: newObs || null } : null);
                         }}
                         onShowVisitDialog={() => linkedLead && setShowQuickVisitDialog(true)}
+                        visitRefreshKey={visitRefreshKey}
                       />
                       {/* O.E. (Orçamento Enviado) button - always visible, disabled without lead */}
                       <Button
@@ -4208,6 +4210,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           onOpenChange={setShowQuickVisitDialog}
           leadId={linkedLead.id}
           currentUserId={userId}
+          onVisitRegistered={() => setVisitRefreshKey(k => k + 1)}
         />
       )}
 
@@ -5113,6 +5116,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                           setLinkedLead(prev => prev ? { ...prev, observacoes: newObs || null } : null);
                         }}
                         onShowVisitDialog={() => linkedLead && setShowQuickVisitDialog(true)}
+                        visitRefreshKey={visitRefreshKey}
                         mobile
                       />
                       <Button

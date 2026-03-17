@@ -33,6 +33,7 @@ interface QuickVisitDialogProps {
   onOpenChange: (open: boolean) => void;
   leadId: string;
   currentUserId: string;
+  onVisitRegistered?: () => void;
 }
 
 function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
@@ -46,7 +47,7 @@ function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: 
   );
 }
 
-export function QuickVisitDialog({ open, onOpenChange, leadId, currentUserId }: QuickVisitDialogProps) {
+export function QuickVisitDialog({ open, onOpenChange, leadId, currentUserId, onVisitRegistered }: QuickVisitDialogProps) {
   const [visitDate, setVisitDate] = useState<Date | undefined>(undefined);
   const [visitTime, setVisitTime] = useState("");
   const [visitStatus, setVisitStatus] = useState("agendada");
@@ -85,6 +86,7 @@ export function QuickVisitDialog({ open, onOpenChange, leadId, currentUserId }: 
       toast({ title: "Erro ao registrar visita", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Visita registrada!" });
+      onVisitRegistered?.();
       onOpenChange(false);
       resetForm();
     }

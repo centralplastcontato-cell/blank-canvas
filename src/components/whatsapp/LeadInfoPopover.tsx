@@ -69,6 +69,7 @@ interface LeadInfoPopoverProps {
   onLeadObsChange?: (newObs: string) => void;
   onShowVisitDialog?: () => void;
   mobile?: boolean;
+  visitRefreshKey?: number;
 }
 
 const statusOptions = [
@@ -161,6 +162,7 @@ export function LeadInfoPopover({
   onLeadObsChange,
   onShowVisitDialog,
   mobile = false,
+  visitRefreshKey = 0,
 }: LeadInfoPopoverProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState("");
@@ -171,6 +173,7 @@ export function LeadInfoPopover({
   const [hasLinkedEvent, setHasLinkedEvent] = useState<boolean | null>(null);
   const [linkedEventData, setLinkedEventData] = useState<EventFormData | null>(null);
   const [eventFormOpen, setEventFormOpen] = useState(false);
+  const [latestVisit, setLatestVisit] = useState<{ data_visita: string; horario_visita: string | null; status_visita: string } | null>(null);
   const { currentCompany } = useCompany();
   const { units } = useCompanyUnits(currentCompany?.id);
 
@@ -212,6 +215,24 @@ export function LeadInfoPopover({
       setLinkedEventData(null);
     }
   }, [linkedLead?.id, linkedLead?.status]);
+
+  // Fetch latest visit for this lead
+  useEffect(() => {
+    if (!linkedLead) {
+      setLatestVisit(null);
+      return;
+    }
+    (supabase as any)
+      .from("lead_visits")
+      .select("data_visita, horario_visita, status_visita")
+      .eq("lead_id", linkedLead.id)
+      .order("data_visita", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }: any) => {
+        setLatestVisit(data || null);
+      });
+  }, [linkedLead?.id, visitRefreshKey]);
 
   const isGroup = selectedConversation.remote_jid.includes('@g.us');
 
@@ -606,6 +627,29 @@ export function LeadInfoPopover({
               </div>
             </div>
 
+            {/* Última Visita */}
+            {latestVisit && (
+              <div className="p-4 py-3">
+                <PopoverSection title="Última Visita">
+                  <div className="space-y-1.5">
+                    <InfoRow icon={Calendar}>
+                      {latestVisit.data_visita.split("-").reverse().join("/")}
+                      {latestVisit.horario_visita && ` às ${latestVisit.horario_visita}`}
+                    </InfoRow>
+                    <InfoRow icon={MapPin}>
+                      {latestVisit.status_visita === "agendada" ? "Agendada" :
+                       latestVisit.status_visita === "confirmada" ? "Confirmada" :
+                       latestVisit.status_visita === "realizada" ? "Realizada" :
+                       latestVisit.status_visita === "nao_compareceu" ? "Não compareceu" :
+                       latestVisit.status_visita === "remarcada" ? "Remarcada" :
+                       latestVisit.status_visita === "cancelada" ? "Cancelada" :
+                       latestVisit.status_visita}
+                    </InfoRow>
+                  </div>
+                </PopoverSection>
+              </div>
+            )}
+
             {/* Ações */}
             <div className="p-4 pt-3 space-y-2">
               {/* Bot Toggle */}
@@ -643,7 +687,7 @@ export function LeadInfoPopover({
                     onClick={onShowVisitDialog}
                   >
                     <MapPin className="w-3.5 h-3.5" />
-                    Registrar Visita
+                    {latestVisit ? "Nova Visita" : "Registrar Visita"}
                   </Button>
                 )}
 
