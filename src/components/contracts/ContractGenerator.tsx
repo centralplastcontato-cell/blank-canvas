@@ -11,7 +11,6 @@ import { toast } from "@/hooks/use-toast";
 import { resolveSystemVariables, type VariableContext } from "@/lib/template-resolver";
 import { ContractPreviewPrint } from "./ContractPreviewPrint";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 
 interface Props { userId: string; onClose: () => void; }
 
