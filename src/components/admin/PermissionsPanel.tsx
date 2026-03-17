@@ -67,6 +67,10 @@ const iconOptions: Record<string, React.ElementType> = {
   Settings,
   BarChart3,
   Briefcase,
+  Calendar,
+  Megaphone,
+  GraduationCap,
+  Eye,
 };
 
 // Map permission categories to company module keys
