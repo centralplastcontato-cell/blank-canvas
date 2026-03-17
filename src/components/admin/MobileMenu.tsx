@@ -11,6 +11,7 @@ import {
   FolderOpen,
   GraduationCap,
   Megaphone,
+  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
