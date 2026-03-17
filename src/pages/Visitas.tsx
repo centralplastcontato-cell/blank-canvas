@@ -441,6 +441,11 @@ export default function Visitas() {
                           <UserIcon className="h-3 w-3" /> {responsavel.full_name?.split(" ")[0]}
                         </span>
                       )}
+                      {visit.unit && (
+                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <MapPin className="h-3 w-3" /> {visit.unit}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <Badge variant="outline" className={cn("text-[10px] shrink-0 border font-semibold", status.color)}>
