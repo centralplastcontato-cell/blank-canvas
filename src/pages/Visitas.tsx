@@ -629,109 +629,124 @@ export default function Visitas() {
   };
 
   // Create Dialog
+  const CreateSectionHeader = ({ icon: Icon, label }: { icon: React.ElementType; label: string }) => (
+    <div className="flex items-center gap-2.5 text-[11px] uppercase tracking-[0.18em] font-semibold text-muted-foreground mb-4 pb-2.5 border-b border-border/40">
+      <div className="p-1.5 rounded-md bg-primary/8 ring-1 ring-primary/15">
+        <Icon className="h-3.5 w-3.5 text-primary" />
+      </div>
+      {label}
+    </div>
+  );
+
   const CreateDialog = () => (
     <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-      <DialogContent className="max-w-[480px] max-h-[90vh] p-0 gap-0 overflow-hidden rounded-2xl">
-        <div className="px-6 pt-6 pb-4 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-b border-border/40">
-          <DialogHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-primary/15 ring-1 ring-primary/20">
-                <Plus className="h-5 w-5 text-primary" />
-              </div>
-              <DialogTitle className="text-lg font-bold">Nova Visita</DialogTitle>
+      <DialogContent className="max-w-[520px] max-h-[90vh] p-0 gap-0 overflow-hidden rounded-2xl [&>button]:top-5 [&>button]:right-5">
+        {/* Header */}
+        <DialogHeader className="px-7 pt-7 pb-4 border-b border-border/40 bg-muted/30">
+          <DialogTitle className="text-lg font-bold tracking-tight">Nova Visita</DialogTitle>
+          <p className="text-[13px] text-muted-foreground mt-1">Agende uma nova visita para um lead</p>
+        </DialogHeader>
+
+        {/* Body */}
+        <div className="overflow-y-auto px-7 py-6 space-y-5" style={{ maxHeight: "calc(90vh - 180px)" }}>
+          {/* Section 1 – Lead */}
+          <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
+            <CreateSectionHeader icon={UserIcon} label="Lead" />
+            <div className="space-y-2.5">
+              <Label className="text-sm font-medium text-foreground/70">Selecionar lead *</Label>
+              {newLeadId ? (
+                <div className="flex items-center gap-2 p-2.5 rounded-lg border border-primary/30 bg-primary/5">
+                  <UserIcon className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium flex-1">{newLeadName}</span>
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setNewLeadId(""); setNewLeadName(""); }}>
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={newLeadSearch}
+                    onChange={(e) => setNewLeadSearch(e.target.value)}
+                    placeholder="Buscar lead por nome ou telefone..."
+                    className="w-full h-10 px-3 rounded-lg border border-border/60 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                  {leadResults.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 rounded-lg border border-border bg-card shadow-lg max-h-48 overflow-y-auto">
+                      {leadResults.map(l => (
+                        <button
+                          key={l.id}
+                          className="w-full text-left px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors first:rounded-t-lg last:rounded-b-lg"
+                          onClick={() => { setNewLeadId(l.id); setNewLeadName(l.name); setLeadResults([]); setNewLeadSearch(""); }}
+                        >
+                          <span className="font-medium">{l.name}</span>
+                          <span className="text-muted-foreground ml-2 text-xs">{l.whatsapp}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          </DialogHeader>
-        </div>
+          </div>
 
-        <div className="overflow-y-auto px-6 py-5 space-y-4" style={{ maxHeight: "calc(90vh - 160px)" }}>
-          {/* Lead search */}
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Lead *</Label>
-            {newLeadId ? (
-              <div className="flex items-center gap-2 p-2.5 rounded-xl border border-primary/30 bg-primary/5">
-                <UserIcon className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium flex-1">{newLeadName}</span>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setNewLeadId(""); setNewLeadName(""); }}>
-                  <X className="h-3 w-3" />
-                </Button>
+          {/* Section 2 – Data e Horário */}
+          <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
+            <CreateSectionHeader icon={CalendarIcon} label="Data e Horário" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5">
+              <div className="space-y-2.5 md:pr-6">
+                <Label className="text-sm font-medium text-foreground/70">Data da visita *</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !newDate && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {newDate ? format(newDate, "dd/MM/yyyy") : "Selecionar data"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={newDate} onSelect={setNewDate} locale={ptBR} className="p-3 pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
               </div>
-            ) : (
-              <div className="relative">
-                <input
-                  type="text"
-                  value={newLeadSearch}
-                  onChange={(e) => setNewLeadSearch(e.target.value)}
-                  placeholder="Buscar lead por nome ou telefone..."
-                  className="w-full h-10 px-3 rounded-xl border border-border/60 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-                {leadResults.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 rounded-xl border border-border bg-card shadow-lg max-h-48 overflow-y-auto">
-                    {leadResults.map(l => (
-                      <button
-                        key={l.id}
-                        className="w-full text-left px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors first:rounded-t-xl last:rounded-b-xl"
-                        onClick={() => { setNewLeadId(l.id); setNewLeadName(l.name); setLeadResults([]); setNewLeadSearch(""); }}
-                      >
-                        <span className="font-medium">{l.name}</span>
-                        <span className="text-muted-foreground ml-2 text-xs">{l.whatsapp}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+
+              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
+                <Label className="text-sm font-medium text-foreground/70">Horário</Label>
+                <Select value={newTime || "none"} onValueChange={(v) => setNewTime(v === "none" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sem horário</SelectItem>
+                    {TIME_OPTIONS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
-            )}
+
+              <div className="space-y-2.5 md:pr-6">
+                <Label className="text-sm font-medium text-foreground/70">Responsável</Label>
+                <Select value={newResponsavel || "none"} onValueChange={(v) => setNewResponsavel(v === "none" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sem responsável</SelectItem>
+                    {profiles.map(p => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
 
-          {/* Date */}
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Data *</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("w-full justify-start h-10 rounded-xl", !newDate && "text-muted-foreground")}>
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {newDate ? format(newDate, "dd/MM/yyyy") : "Selecionar data"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={newDate} onSelect={setNewDate} locale={ptBR} className="p-3 pointer-events-auto" />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          {/* Time */}
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Horário</Label>
-            <Select value={newTime || "none"} onValueChange={(v) => setNewTime(v === "none" ? "" : v)}>
-              <SelectTrigger className="h-10 rounded-xl"><SelectValue placeholder="Selecionar" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Sem horário</SelectItem>
-                {TIME_OPTIONS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Responsável */}
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Responsável</Label>
-            <Select value={newResponsavel || "none"} onValueChange={(v) => setNewResponsavel(v === "none" ? "" : v)}>
-              <SelectTrigger className="h-10 rounded-xl"><SelectValue placeholder="Selecionar" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Sem responsável</SelectItem>
-                {profiles.map(p => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Notes */}
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Observações</Label>
-            <Textarea value={newNotes} onChange={(e) => setNewNotes(e.target.value)} rows={2} placeholder="Notas..." className="rounded-xl resize-none" />
+          {/* Section 3 – Observações */}
+          <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
+            <CreateSectionHeader icon={MapPin} label="Observações" />
+            <div className="space-y-2.5">
+              <Label className="text-sm font-medium text-foreground/70">Notas sobre a visita</Label>
+              <Textarea value={newNotes} onChange={(e) => setNewNotes(e.target.value)} rows={3} placeholder="Informações sobre a visita..." />
+            </div>
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-border/40 bg-muted/20">
+        {/* Fixed footer */}
+        <div className="flex justify-end gap-3 px-7 py-4 border-t border-border/40 bg-muted/20">
           <Button variant="ghost" onClick={() => setCreateOpen(false)}>Cancelar</Button>
-          <Button onClick={handleCreate} disabled={saving || !newLeadId || !newDate} className="px-6 rounded-xl">
+          <Button onClick={handleCreate} disabled={saving || !newLeadId || !newDate} className="px-8 rounded-lg shadow-sm">
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
             Criar Visita
           </Button>
