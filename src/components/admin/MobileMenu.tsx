@@ -12,6 +12,7 @@ import {
   GraduationCap,
   Megaphone,
   MapPin,
+  FileSignature,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
