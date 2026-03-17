@@ -5,6 +5,7 @@ import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { useLeadIntelligence } from "@/hooks/useLeadIntelligence";
 import { useLeadStageDurations } from "@/hooks/useLeadStageDurations";
 import { useUnitPermissions } from "@/hooks/useUnitPermissions";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -51,6 +52,8 @@ export default function Inteligencia() {
 
   const { units } = useCompanyUnits(currentCompany?.id);
   const { canViewAll, allowedUnits, isLoading: isLoadingUnitPerms } = useUnitPermissions(currentUser?.id, currentCompany?.id);
+  const { hasPermission: userHasPermission } = usePermissions(currentUser?.id);
+  const canViewRevenue = isAdmin || userHasPermission("agenda.faturamento");
 
   useEffect(() => {
     async function check() {
@@ -452,7 +455,7 @@ export default function Inteligencia() {
             </div>
 
             {/* Alertas Inteligentes */}
-            <MonthlyReviewBanner isAdmin={isAdmin} unitSlug={selectedUnit !== "all" ? (units.find(u => u.name === selectedUnit)?.slug || selectedUnit) : undefined} />
+            <MonthlyReviewBanner isAdmin={isAdmin} unitSlug={selectedUnit !== "all" ? (units.find(u => u.name === selectedUnit)?.slug || selectedUnit) : undefined} canViewRevenue={canViewRevenue} />
             <AlertsPanel onTabChange={setActiveTab} />
 
             {/* SalesPriorities moved inside Relatórios tab */}

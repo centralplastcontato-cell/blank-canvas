@@ -14,6 +14,7 @@ import { toast } from "@/hooks/use-toast";
 interface MonthlyReviewBannerProps {
   isAdmin?: boolean;
   unitSlug?: string;
+  canViewRevenue?: boolean;
 }
 
 function MetricCard({
@@ -58,7 +59,7 @@ function MetricCard({
   );
 }
 
-export function MonthlyReviewBanner({ isAdmin = false, unitSlug }: MonthlyReviewBannerProps) {
+export function MonthlyReviewBanner({ isAdmin = false, unitSlug, canViewRevenue = true }: MonthlyReviewBannerProps) {
   const { review, isLoading, isDismissed, dismiss, generateNow, showBanner } = useMonthlyReview(unitSlug);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
@@ -162,20 +163,24 @@ export function MonthlyReviewBanner({ isAdmin = false, unitSlug }: MonthlyReview
               value={metrics.total_events}
               previousValue={prev?.total_events}
             />
-            <MetricCard
-              icon={DollarSign}
-              label="Faturamento"
-              value={metrics.total_revenue}
-              previousValue={prev?.total_revenue}
-              prefix="R$"
-            />
-            <MetricCard
-              icon={DollarSign}
-              label="Ticket Médio"
-              value={metrics.avg_ticket}
-              previousValue={prev?.avg_ticket}
-              prefix="R$"
-            />
+            {canViewRevenue && (
+              <MetricCard
+                icon={DollarSign}
+                label="Faturamento"
+                value={metrics.total_revenue}
+                previousValue={prev?.total_revenue}
+                prefix="R$"
+              />
+            )}
+            {canViewRevenue && (
+              <MetricCard
+                icon={DollarSign}
+                label="Ticket Médio"
+                value={metrics.avg_ticket}
+                previousValue={prev?.avg_ticket}
+                prefix="R$"
+              />
+            )}
             <MetricCard
               icon={MessageSquare}
               label="Conversas"
