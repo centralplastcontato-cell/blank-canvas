@@ -335,9 +335,8 @@ function generateAIContext(companyName: string, metrics: any): string {
     parts.push(`Faturamento mensal: R$${metrics.total_revenue.toLocaleString("pt-BR")}.`);
   }
 
-  const unitEntries = Object.entries(metrics.leads_by_unit || {});
-  if (unitEntries.length > 1) {
-    parts.push(`Temos ${unitEntries.length} unidades.`);
+  if (metrics.real_units_count > 1) {
+    parts.push(`Temos ${metrics.real_units_count} unidades.`);
   }
 
   return parts.join(" ");
