@@ -71,7 +71,7 @@ export function MobileMenu({
       label: "Central de Atendimento",
       icon: Headset,
       path: "/atendimento",
-      show: true,
+      show: !!modules.central_atendimento,
     },
     {
       id: "inteligencia",
@@ -106,7 +106,7 @@ export function MobileMenu({
       label: "Visitas",
       icon: MapPin,
       path: "/visitas",
-      show: true,
+      show: !!modules.visitas,
     },
     {
       id: "configuracoes",

@@ -2,24 +2,36 @@ import { useCompany } from '@/contexts/CompanyContext';
 import { Json } from '@/integrations/supabase/types';
 
 export interface CompanyModules {
+  // --- Atendimento & CRM ---
   whatsapp: boolean;
   crm: boolean;
-  dashboard: boolean;
+  central_atendimento: boolean;
+  contatos: boolean;
+  // --- Comercial ---
+  visitas: boolean;
+  campanhas: boolean;
   sales_materials: boolean;
-  config: boolean;
-  automations: boolean;
-  data_import: boolean;
-  advanced: boolean;
-  messages: boolean;
+  landing_page: boolean;
   comercial_b2b: boolean;
-  flow_builder: boolean;
+  // --- Gestão ---
+  dashboard: boolean;
   inteligencia: boolean;
   agenda: boolean;
   operacoes: boolean;
+  // --- Automações & Bot ---
+  automations: boolean;
+  flow_builder: boolean;
   bot_festa: boolean;
+  visit_confirmation: boolean;
+  messages: boolean;
+  // --- Configuração & Dados ---
+  config: boolean;
+  data_import: boolean;
+  advanced: boolean;
+  contrato: boolean;
+  // --- Outros ---
   treinamento: boolean;
   onboarding_checklist: boolean;
-  campanhas: boolean;
 }
 
 export interface PartyControlModules {
@@ -82,24 +94,36 @@ export const PARTY_CONTROL_MODULE_LABELS: Record<keyof PartyControlModules, { la
 };
 
 const DEFAULT_MODULES: CompanyModules = {
+  // --- Atendimento & CRM ---
   whatsapp: true,
   crm: true,
-  dashboard: true,
+  central_atendimento: true,
+  contatos: true,
+  // --- Comercial ---
+  visitas: true,
+  campanhas: false,
   sales_materials: true,
-  config: true,
-  automations: true,
-  data_import: true,
-  advanced: true,
-  messages: true,
+  landing_page: false,
   comercial_b2b: true,
-  flow_builder: false,
+  // --- Gestão ---
+  dashboard: true,
   inteligencia: false,
   agenda: false,
   operacoes: true,
+  // --- Automações & Bot ---
+  automations: true,
+  flow_builder: false,
   bot_festa: false,
+  visit_confirmation: false,
+  messages: true,
+  // --- Configuração & Dados ---
+  config: true,
+  data_import: true,
+  advanced: true,
+  contrato: false,
+  // --- Outros ---
   treinamento: true,
   onboarding_checklist: false,
-  campanhas: false,
 };
 
 export function parseModules(settings: Json | null | undefined): CompanyModules {
@@ -113,24 +137,36 @@ export function parseModules(settings: Json | null | undefined): CompanyModules 
   }
   const modules = em as Record<string, Json | undefined>;
   return {
+    // --- Atendimento & CRM ---
     whatsapp: modules.whatsapp !== false,
     crm: modules.crm !== false,
-    dashboard: modules.dashboard !== false,
+    central_atendimento: modules.central_atendimento !== false,
+    contatos: modules.contatos !== false,
+    // --- Comercial ---
+    visitas: modules.visitas !== false,
+    campanhas: modules.campanhas === true,
     sales_materials: modules.sales_materials !== false,
-    config: modules.config !== false,
-    automations: modules.automations !== false,
-    data_import: modules.data_import !== false,
-    advanced: modules.advanced !== false,
-    messages: modules.messages !== false,
+    landing_page: modules.landing_page === true,
     comercial_b2b: modules.comercial_b2b !== false,
-    flow_builder: modules.flow_builder === true,
+    // --- Gestão ---
+    dashboard: modules.dashboard !== false,
     inteligencia: modules.inteligencia === true,
     agenda: modules.agenda === true,
     operacoes: modules.operacoes !== false,
+    // --- Automações & Bot ---
+    automations: modules.automations !== false,
+    flow_builder: modules.flow_builder === true,
     bot_festa: modules.bot_festa === true,
+    visit_confirmation: modules.visit_confirmation === true,
+    messages: modules.messages !== false,
+    // --- Configuração & Dados ---
+    config: modules.config !== false,
+    data_import: modules.data_import !== false,
+    advanced: modules.advanced !== false,
+    contrato: modules.contrato === true,
+    // --- Outros ---
     treinamento: modules.treinamento !== false,
     onboarding_checklist: modules.onboarding_checklist === true,
-    campanhas: modules.campanhas === true,
   };
 }
 
@@ -140,22 +176,34 @@ export function useCompanyModules(): CompanyModules {
 }
 
 export const MODULE_LABELS: Record<keyof CompanyModules, { label: string; description: string }> = {
+  // --- Atendimento & CRM ---
   whatsapp: { label: 'WhatsApp', description: 'Chat e automações de WhatsApp' },
   crm: { label: 'CRM / Leads', description: 'Kanban, lista e gestão de leads' },
-  dashboard: { label: 'Dashboard', description: 'Métricas e gráficos de desempenho' },
+  central_atendimento: { label: 'Central de Atendimento', description: 'Painel principal de atendimento ao cliente' },
+  contatos: { label: 'Contatos', description: 'Agenda de contatos da empresa' },
+  // --- Comercial ---
+  visitas: { label: 'Visitas', description: 'Agenda de visitas comerciais ao buffet' },
+  campanhas: { label: 'Campanhas', description: 'Disparos de marketing em massa via WhatsApp' },
   sales_materials: { label: 'Materiais de Venda', description: 'PDFs, fotos e vídeos de vendas' },
-  config: { label: 'Configurações', description: 'Configurações gerais e templates' },
-  automations: { label: 'Automações', description: 'Automações do bot e follow-ups' },
-  data_import: { label: 'Importar Dados', description: 'Importação de leads, conversas e mensagens' },
-  advanced: { label: 'Avançado', description: 'Configurações avançadas do WhatsApp' },
-  messages: { label: 'Mensagens', description: 'Templates e configurações de mensagens' },
+  landing_page: { label: 'Landing Page', description: 'Página de captura personalizada do buffet' },
   comercial_b2b: { label: 'Comercial B2B', description: 'Gestão comercial e prospecção B2B' },
-  flow_builder: { label: 'Flow Builder', description: 'Editor visual de fluxos de conversa' },
+  // --- Gestão ---
+  dashboard: { label: 'Dashboard', description: 'Métricas e gráficos de desempenho' },
   inteligencia: { label: 'Inteligência', description: 'Score de leads, priorização e análise de funil' },
   agenda: { label: 'Agenda', description: 'Calendário de festas e eventos' },
   operacoes: { label: 'Operações', description: 'Formulários, checklists, pacotes e freelancers' },
+  // --- Automações & Bot ---
+  automations: { label: 'Automações', description: 'Automações do bot e follow-ups' },
+  flow_builder: { label: 'Flow Builder', description: 'Editor visual de fluxos de conversa' },
   bot_festa: { label: 'Bot Festa', description: 'Mensagens automáticas para convidados em festas' },
+  visit_confirmation: { label: 'Confirmação de Visita', description: 'Mensagens automáticas para confirmar visitas agendadas' },
+  messages: { label: 'Mensagens', description: 'Templates e configurações de mensagens' },
+  // --- Configuração & Dados ---
+  config: { label: 'Configurações', description: 'Configurações gerais e templates' },
+  data_import: { label: 'Importar Dados', description: 'Importação de leads, conversas e mensagens' },
+  advanced: { label: 'Avançado', description: 'Configurações avançadas do WhatsApp' },
+  contrato: { label: 'Contrato', description: 'Templates de contrato digital para clientes' },
+  // --- Outros ---
   treinamento: { label: 'Treinamento', description: 'Videoaulas de treinamento da plataforma' },
   onboarding_checklist: { label: 'Onboarding Guiado', description: 'Checklist interativo de primeiros passos no painel' },
-  campanhas: { label: 'Campanhas', description: 'Disparos de marketing em massa via WhatsApp' },
 };
