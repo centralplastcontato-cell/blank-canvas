@@ -163,20 +163,24 @@ export function MonthlyReviewBanner({ isAdmin = false, unitSlug, canViewRevenue 
               value={metrics.total_events}
               previousValue={prev?.total_events}
             />
-            <MetricCard
-              icon={DollarSign}
-              label="Faturamento"
-              value={metrics.total_revenue}
-              previousValue={prev?.total_revenue}
-              prefix="R$"
-            />
-            <MetricCard
-              icon={DollarSign}
-              label="Ticket Médio"
-              value={metrics.avg_ticket}
-              previousValue={prev?.avg_ticket}
-              prefix="R$"
-            />
+            {canViewRevenue && (
+              <MetricCard
+                icon={DollarSign}
+                label="Faturamento"
+                value={metrics.total_revenue}
+                previousValue={prev?.total_revenue}
+                prefix="R$"
+              />
+            )}
+            {canViewRevenue && (
+              <MetricCard
+                icon={DollarSign}
+                label="Ticket Médio"
+                value={metrics.avg_ticket}
+                previousValue={prev?.avg_ticket}
+                prefix="R$"
+              />
+            )}
             <MetricCard
               icon={MessageSquare}
               label="Conversas"
