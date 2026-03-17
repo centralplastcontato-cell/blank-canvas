@@ -52,6 +52,8 @@ export default function Inteligencia() {
 
   const { units } = useCompanyUnits(currentCompany?.id);
   const { canViewAll, allowedUnits, isLoading: isLoadingUnitPerms } = useUnitPermissions(currentUser?.id, currentCompany?.id);
+  const { hasPermission: userHasPermission } = usePermissions(currentUser?.id);
+  const canViewRevenue = isAdmin || userHasPermission("agenda.faturamento");
 
   useEffect(() => {
     async function check() {
