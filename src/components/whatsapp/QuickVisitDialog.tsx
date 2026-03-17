@@ -33,6 +33,7 @@ interface QuickVisitDialogProps {
   onOpenChange: (open: boolean) => void;
   leadId: string;
   currentUserId: string;
+  leadUnit?: string | null;
   onVisitRegistered?: () => void;
 }
 
