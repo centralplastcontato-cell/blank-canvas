@@ -50,7 +50,7 @@ export function AdvancedSection({ userId, isAdmin }: AdvancedSectionProps) {
   const [aiContextSaving, setAiContextSaving] = useState(false);
   const companyId = useCurrentCompanyId();
 
-  // Load ai_context from wapi_bot_settings
+  // Load ai_context from all company bot settings
   useEffect(() => {
     if (!companyId) return;
     setAiContextLoading(true);
@@ -58,10 +58,13 @@ export function AdvancedSection({ userId, isAdmin }: AdvancedSectionProps) {
       .from("wapi_bot_settings")
       .select("ai_context")
       .eq("company_id", companyId)
-      .limit(1)
+      .order("created_at", { ascending: true })
       .then(({ data }) => {
-        if (data && data.length > 0 && data[0].ai_context) {
-          setAiContext(data[0].ai_context);
+        const firstFilledContext = data?.find((item) => item.ai_context?.trim())?.ai_context;
+        if (firstFilledContext) {
+          setAiContext(firstFilledContext);
+        } else {
+          setAiContext("");
         }
         setAiContextLoading(false);
       });
@@ -71,18 +74,12 @@ export function AdvancedSection({ userId, isAdmin }: AdvancedSectionProps) {
     if (!companyId) return;
     setAiContextSaving(true);
     try {
-      const { data: existing } = await supabase
+      const { error } = await supabase
         .from("wapi_bot_settings")
-        .select("id")
-        .eq("company_id", companyId)
-        .limit(1);
+        .update({ ai_context: aiContext || null } as any)
+        .eq("company_id", companyId);
 
-      if (existing && existing.length > 0) {
-        await supabase
-          .from("wapi_bot_settings")
-          .update({ ai_context: aiContext || null } as any)
-          .eq("id", existing[0].id);
-      }
+      if (error) throw error;
       toast({ title: "Contexto salvo", description: "O contexto da IA foi atualizado com sucesso." });
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
