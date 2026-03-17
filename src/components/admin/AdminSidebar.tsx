@@ -61,15 +61,18 @@ export function AdminSidebar({
     ...(modules.treinamento ? [{ title: "Treinamento", url: "/treinamento", icon: GraduationCap }] : []),
   ];
 
-  // Handle hover expand/collapse only when not pinned
+  // Detect touch device to prevent hover-expand flicker
+  const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
+  // Handle hover expand/collapse only when not pinned and not touch device
   const handleMouseEnter = () => {
-    if (!isPinned) {
+    if (!isPinned && !isTouchDevice) {
       setOpen(true);
     }
   };
 
   const handleMouseLeave = () => {
-    if (!isPinned && !isDropdownOpen) {
+    if (!isPinned && !isDropdownOpen && !isTouchDevice) {
       setOpen(false);
     }
   };
