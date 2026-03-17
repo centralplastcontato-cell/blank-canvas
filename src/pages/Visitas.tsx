@@ -25,7 +25,7 @@ import { Loader2, Menu, CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, 
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
-import { VisitQualification, type VisitQualificationData } from "@/components/visitas/VisitQualification";
+import { VisitQualification } from "@/components/visitas/VisitQualification";
 
 // Status config
 const VISIT_STATUSES = [
