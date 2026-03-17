@@ -119,11 +119,18 @@ const getStatusLabel = (status: string) => {
 };
 
 /* ── Section wrapper for visual grouping ── */
-function PopoverSection({ title, children, className }: { title?: string; children: React.ReactNode; className?: string }) {
+function PopoverSection({ title, children, className, icon: Icon }: { title?: string; children: React.ReactNode; className?: string; icon?: React.ComponentType<{ className?: string }> }) {
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn("space-y-2.5", className)}>
       {title && (
-        <h5 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">{title}</h5>
+        <div className="flex items-center gap-2">
+          {Icon && (
+            <div className="p-1 rounded-md bg-primary/8">
+              <Icon className="w-3 h-3 text-primary/70" />
+            </div>
+          )}
+          <h5 className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground/60">{title}</h5>
+        </div>
       )}
       {children}
     </div>
@@ -131,11 +138,14 @@ function PopoverSection({ title, children, className }: { title?: string; childr
 }
 
 /* ── Info row helper ── */
-function InfoRow({ icon: Icon, children }: { icon: React.ComponentType<{ className?: string }>; children: React.ReactNode }) {
+function InfoRow({ icon: Icon, children, accent }: { icon: React.ComponentType<{ className?: string }>; children: React.ReactNode; accent?: boolean }) {
   return (
-    <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
-      <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-muted/50 shrink-0">
-        <Icon className="w-3.5 h-3.5" />
+    <div className="flex items-center gap-2.5 text-xs text-muted-foreground group/row">
+      <div className={cn(
+        "flex items-center justify-center w-6 h-6 rounded-lg shrink-0 transition-colors",
+        accent ? "bg-primary/10" : "bg-muted/40 group-hover/row:bg-muted/70"
+      )}>
+        <Icon className={cn("w-3.5 h-3.5", accent && "text-primary")} />
       </div>
       <span className="truncate">{children}</span>
     </div>
