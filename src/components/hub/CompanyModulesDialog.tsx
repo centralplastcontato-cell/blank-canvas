@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Loader2, Settings2, Gamepad2, Brain } from "lucide-react";
+import { Loader2, Settings2, Gamepad2, Brain, Headset, ShoppingCart, BarChart3, Bot, Wrench, GraduationCap } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Json } from "@/integrations/supabase/types";
 import { Separator } from "@/components/ui/separator";
@@ -17,6 +17,40 @@ interface CompanyModulesDialogProps {
   company: Company | null;
   onSuccess?: () => void;
 }
+
+// Group modules by category for organized display
+const MODULE_GROUPS: { label: string; icon: React.ReactNode; keys: (keyof CompanyModules)[] }[] = [
+  {
+    label: 'Atendimento & CRM',
+    icon: <Headset className="h-3.5 w-3.5 text-primary" />,
+    keys: ['whatsapp', 'crm', 'central_atendimento', 'contatos'],
+  },
+  {
+    label: 'Comercial',
+    icon: <ShoppingCart className="h-3.5 w-3.5 text-green-500" />,
+    keys: ['visitas', 'campanhas', 'sales_materials', 'landing_page', 'comercial_b2b'],
+  },
+  {
+    label: 'Gestão',
+    icon: <BarChart3 className="h-3.5 w-3.5 text-blue-500" />,
+    keys: ['dashboard', 'inteligencia', 'agenda', 'operacoes'],
+  },
+  {
+    label: 'Automações & Bot',
+    icon: <Bot className="h-3.5 w-3.5 text-purple-500" />,
+    keys: ['automations', 'flow_builder', 'bot_festa', 'visit_confirmation', 'messages'],
+  },
+  {
+    label: 'Configuração & Dados',
+    icon: <Wrench className="h-3.5 w-3.5 text-orange-500" />,
+    keys: ['config', 'data_import', 'advanced', 'contrato'],
+  },
+  {
+    label: 'Outros',
+    icon: <GraduationCap className="h-3.5 w-3.5 text-teal-500" />,
+    keys: ['treinamento', 'onboarding_checklist'],
+  },
+];
 
 export function CompanyModulesDialog({ open, onOpenChange, company, onSuccess }: CompanyModulesDialogProps) {
   const [modules, setModules] = useState<CompanyModules>(parseModules(null));
@@ -73,7 +107,6 @@ export function CompanyModulesDialog({ open, onOpenChange, company, onSuccess }:
     }
   };
 
-  const moduleKeys = Object.keys(MODULE_LABELS) as (keyof CompanyModules)[];
   const partyModuleKeys = Object.keys(PARTY_CONTROL_MODULE_LABELS) as (keyof PartyControlModules)[];
 
   return (
@@ -90,24 +123,32 @@ export function CompanyModulesDialog({ open, onOpenChange, company, onSuccess }:
         </DialogHeader>
 
         <div className="space-y-3 py-4 max-h-[60vh] overflow-y-auto pr-1">
-          {/* System modules */}
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1">Módulos do Sistema</p>
-          {moduleKeys.map((key) => (
-            <div
-              key={key}
-              className="flex items-center justify-between p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
-            >
-              <div className="space-y-0.5">
-                <Label htmlFor={`module-${key}`} className="text-sm font-medium cursor-pointer">
-                  {MODULE_LABELS[key].label}
-                </Label>
-                <p className="text-xs text-muted-foreground">{MODULE_LABELS[key].description}</p>
+          {/* Grouped system modules */}
+          {MODULE_GROUPS.map((group, gi) => (
+            <div key={group.label}>
+              {gi > 0 && <Separator className="my-2" />}
+              <div className="flex items-center gap-2 px-1 mb-2">
+                {group.icon}
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{group.label}</p>
               </div>
-              <Switch
-                id={`module-${key}`}
-                checked={modules[key]}
-                onCheckedChange={() => handleToggle(key)}
-              />
+              {group.keys.map((key) => (
+                <div
+                  key={key}
+                  className="flex items-center justify-between p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors mb-1.5"
+                >
+                  <div className="space-y-0.5">
+                    <Label htmlFor={`module-${key}`} className="text-sm font-medium cursor-pointer">
+                      {MODULE_LABELS[key].label}
+                    </Label>
+                    <p className="text-xs text-muted-foreground">{MODULE_LABELS[key].description}</p>
+                  </div>
+                  <Switch
+                    id={`module-${key}`}
+                    checked={modules[key]}
+                    onCheckedChange={() => handleToggle(key)}
+                  />
+                </div>
+              ))}
             </div>
           ))}
 
@@ -142,7 +183,7 @@ export function CompanyModulesDialog({ open, onOpenChange, company, onSuccess }:
           {partyModuleKeys.map((key) => (
             <div
               key={key}
-              className="flex items-center justify-between p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
+              className="flex items-center justify-between p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors mb-1.5"
             >
               <div className="space-y-0.5">
                 <Label htmlFor={`party-module-${key}`} className="text-sm font-medium cursor-pointer">

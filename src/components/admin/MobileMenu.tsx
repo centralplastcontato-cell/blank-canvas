@@ -106,7 +106,7 @@ export function MobileMenu({
       label: "Visitas",
       icon: MapPin,
       path: "/visitas",
-      show: true,
+      show: !!modules.visitas,
     },
     {
       id: "configuracoes",

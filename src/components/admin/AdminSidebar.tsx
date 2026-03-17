@@ -49,13 +49,13 @@ export function AdminSidebar({
 
   // Build menu items dynamically based on permissions AND enabled modules
   const allItems = [
-    { title: "Central de Atendimento", url: "/atendimento", icon: Headset },
+    ...(modules.central_atendimento ? [{ title: "Central de Atendimento", url: "/atendimento", icon: Headset }] : []),
     ...(modules.config ? [{ title: "Configurações", url: "/configuracoes", icon: Settings }] : []),
     ...(modules.inteligencia ? [{ title: "Inteligência", url: "/inteligencia", icon: Brain }] : []),
     ...(modules.agenda ? [{ title: "Agenda", url: "/agenda", icon: CalendarDays }] : []),
     ...(modules.operacoes ? [{ title: "Operações", url: "/formularios", icon: FolderOpen }] : []),
     ...(modules.campanhas ? [{ title: "Campanhas", url: "/campanhas", icon: Megaphone }] : []),
-    { title: "Visitas", url: "/visitas", icon: MapPin },
+    ...(modules.visitas ? [{ title: "Visitas", url: "/visitas", icon: MapPin }] : []),
     
     ...(canManageUsers ? [{ title: "Gerenciar Usuários", url: "/users", icon: Users }] : []),
     ...(isAdmin ? [{ title: "Empresas", url: "/hub/empresas", icon: Building2 }] : []),
