@@ -165,7 +165,8 @@ export default function Visitas() {
   };
 
   useEffect(() => {
-    if (currentCompany?.id && user) fetchVisits();
+    const companyId = currentCompany?.id || getCurrentCompanyId();
+    if (companyId && user) fetchVisits();
   }, [currentCompany?.id, user, selectedDate, viewMode]);
 
   // Filtered visits
