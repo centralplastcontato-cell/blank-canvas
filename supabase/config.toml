@@ -75,3 +75,6 @@ verify_jwt = false
 [functions.visit-confirmation]
 verify_jwt = false
 
+[functions.monthly-review]
+verify_jwt = false
+
