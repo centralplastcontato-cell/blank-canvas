@@ -173,6 +173,7 @@ export function LeadInfoPopover({
   const [hasLinkedEvent, setHasLinkedEvent] = useState<boolean | null>(null);
   const [linkedEventData, setLinkedEventData] = useState<EventFormData | null>(null);
   const [eventFormOpen, setEventFormOpen] = useState(false);
+  const [latestVisit, setLatestVisit] = useState<{ data_visita: string; horario_visita: string | null; status_visita: string } | null>(null);
   const { currentCompany } = useCompany();
   const { units } = useCompanyUnits(currentCompany?.id);
 
