@@ -304,6 +304,9 @@ const ALIAS_MAP: Record<string, string> = {
   guest_count: 'convidados',
   data: 'data_evento',
   hora: 'hora_evento',
+  // Contract aliases
+  parcelas: 'forma_pagamento',
+  observacoes_contrato: 'observacoes',
 };
 
 // ---------------------------------------------------------------------------
