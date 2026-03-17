@@ -93,10 +93,13 @@ export default function Visitas() {
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterResponsavel, setFilterResponsavel] = useState("all");
+  const [filterUnit, setFilterUnit] = useState("all");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [detailVisit, setDetailVisit] = useState<Visit | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string }[]>([]);
+
+  const { units } = useCompanyUnits(currentCompany?.id);
 
   // Create form state
   const [newLeadSearch, setNewLeadSearch] = useState("");
