@@ -4287,6 +4287,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                   
                                   const updatedLead = { ...linkedLead, status: statusOption.value };
                                   setLinkedLead(updatedLead);
+                                  // Sync conversationLeadsMap so sidebar badge updates simultaneously
+                                  if (selectedConversation) {
+                                    setConversationLeadsMap(prev => ({ ...prev, [selectedConversation.id]: updatedLead }));
+                                  }
 
                                   // Sync has_scheduled_visit with em_contato status
                                   if (newStatus === 'em_contato' || oldStatus === 'em_contato') {
