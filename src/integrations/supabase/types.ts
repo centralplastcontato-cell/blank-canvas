@@ -1194,6 +1194,61 @@ export type Database = {
           },
         ]
       }
+      contract_audit_logs: {
+        Row: {
+          action: string
+          company_id: string
+          contract_id: string | null
+          created_at: string
+          details: Json | null
+          id: string
+          performed_by: string | null
+          template_id: string | null
+        }
+        Insert: {
+          action: string
+          company_id: string
+          contract_id?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          performed_by?: string | null
+          template_id?: string | null
+        }
+        Update: {
+          action?: string
+          company_id?: string
+          contract_id?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          performed_by?: string | null
+          template_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_audit_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_audit_logs_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "generated_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_audit_logs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "contract_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contract_model_versions: {
         Row: {
           changed_by: string | null

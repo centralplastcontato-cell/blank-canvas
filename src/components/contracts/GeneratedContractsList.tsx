@@ -6,11 +6,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Plus, Loader2, FileText, Eye } from "lucide-react";
+import { Plus, Loader2, FileText, Eye, Ban, History } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ContractGenerator } from "./ContractGenerator";
 import { ContractPreviewPrint } from "./ContractPreviewPrint";
+import { toast } from "@/hooks/use-toast";
+import { logContractAction } from "./contractAuditHelpers";
 
 interface GeneratedContract {
   id: string;
@@ -23,6 +25,7 @@ interface GeneratedContract {
   lead_id: string | null;
   event_id: string | null;
   template_id: string | null;
+  created_by: string | null;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -45,6 +48,8 @@ export function GeneratedContractsList({ userId }: Props) {
   const [loading, setLoading] = useState(true);
   const [generatorOpen, setGeneratorOpen] = useState(false);
   const [viewContract, setViewContract] = useState<GeneratedContract | null>(null);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [showAudit, setShowAudit] = useState<string | null>(null);
 
   const fetchContracts = async () => {
     if (!currentCompany?.id) return;
@@ -59,6 +64,39 @@ export function GeneratedContractsList({ userId }: Props) {
   };
 
   useEffect(() => { fetchContracts(); }, [currentCompany?.id]);
+
+  const handleCancel = async (contract: GeneratedContract) => {
+    if (!currentCompany?.id) return;
+    const { error } = await (supabase as any)
+      .from("generated_contracts")
+      .update({ status: "cancelado" })
+      .eq("id", contract.id);
+    if (error) {
+      toast({ title: "Erro ao cancelar", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Contrato cancelado" });
+      await logContractAction(currentCompany.id, contract.id, contract.template_id, "contract_cancelled", userId);
+      fetchContracts();
+    }
+  };
+
+  const handleShowAudit = async (contractId: string) => {
+    if (!currentCompany?.id) return;
+    setShowAudit(contractId);
+    const { data } = await (supabase as any)
+      .from("contract_audit_logs")
+      .select("*")
+      .eq("contract_id", contractId)
+      .order("created_at", { ascending: false });
+    setAuditLogs(data || []);
+  };
+
+  const ACTION_LABELS: Record<string, string> = {
+    contract_generated: "Contrato gerado",
+    contract_cancelled: "Contrato cancelado",
+    contract_downloaded: "Contrato baixado",
+    generation_failed: "Falha na geração",
+  };
 
   return (
     <>
@@ -80,8 +118,9 @@ export function GeneratedContractsList({ userId }: Props) {
           <div className="grid gap-3">
             {contracts.map(c => {
               const leadName = c.dados_utilizados?.lead?.name || "—";
+              const isCancelled = c.status === "cancelado";
               return (
-                <Card key={c.id} className="border-border/40">
+                <Card key={c.id} className={`border-border/40 ${isCancelled ? "opacity-60" : ""}`}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0 flex-1">
@@ -95,10 +134,18 @@ export function GeneratedContractsList({ userId }: Props) {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 border-t border-border/40 pt-3 mt-3">
+                    <div className="flex items-center gap-2 border-t border-border/40 pt-3 mt-3 flex-wrap">
                       <Button variant="outline" size="sm" className="h-8 text-xs rounded-full px-3.5 gap-1.5" onClick={() => setViewContract(c)}>
                         <Eye className="h-3.5 w-3.5" /> Visualizar
                       </Button>
+                      <Button variant="outline" size="sm" className="h-8 text-xs rounded-full px-3.5 gap-1.5" onClick={() => handleShowAudit(c.id)}>
+                        <History className="h-3.5 w-3.5" /> Histórico
+                      </Button>
+                      {!isCancelled && (
+                        <Button variant="outline" size="sm" className="h-8 text-xs rounded-full px-3.5 gap-1.5 text-destructive hover:text-destructive" onClick={() => handleCancel(c)}>
+                          <Ban className="h-3.5 w-3.5" /> Cancelar
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -118,12 +165,15 @@ export function GeneratedContractsList({ userId }: Props) {
         </DialogContent>
       </Dialog>
 
-      {/* View Contract Sheet */}
+      {/* View Contract Sheet (READ ONLY) */}
       {viewContract && (
         <Sheet open={!!viewContract} onOpenChange={() => setViewContract(null)}>
           <SheetContent className="w-full sm:max-w-2xl p-0 overflow-y-auto">
             <SheetHeader className="px-6 pt-6 pb-4 border-b border-border/40">
-              <SheetTitle>{viewContract.nome_documento}</SheetTitle>
+              <SheetTitle className="flex items-center gap-2">
+                {viewContract.nome_documento}
+                <Badge className="text-[10px] bg-blue-500/15 text-blue-700 border-blue-300">Somente leitura</Badge>
+              </SheetTitle>
             </SheetHeader>
             <div className="p-6">
               <ContractPreviewPrint
@@ -131,6 +181,34 @@ export function GeneratedContractsList({ userId }: Props) {
                 companyName={currentCompany?.name || ""}
                 companyLogo={currentCompany?.logo_url || undefined}
               />
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
+
+      {/* Audit Log Sheet */}
+      {showAudit && (
+        <Sheet open={!!showAudit} onOpenChange={() => setShowAudit(null)}>
+          <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+            <SheetHeader className="pb-4 border-b border-border/40">
+              <SheetTitle className="flex items-center gap-2"><History className="h-5 w-5 text-primary" /> Histórico do Contrato</SheetTitle>
+            </SheetHeader>
+            <div className="py-4 space-y-3">
+              {auditLogs.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Nenhum registro de atividade encontrado.</p>
+              ) : (
+                auditLogs.map(log => (
+                  <div key={log.id} className="p-3 rounded-lg border border-border/40 bg-card">
+                    <p className="text-sm font-medium">{ACTION_LABELS[log.action] || log.action}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {format(new Date(log.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                    </p>
+                    {log.details?.error && (
+                      <p className="text-xs text-destructive mt-1">{log.details.error}</p>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           </SheetContent>
         </Sheet>
