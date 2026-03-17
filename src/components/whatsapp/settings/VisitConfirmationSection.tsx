@@ -116,6 +116,8 @@ export function VisitConfirmationSection() {
       second_message_text: settings.second_message_text,
       send_window_start: settings.send_window_start,
       send_window_end: settings.send_window_end,
+      reply_confirmed_message: settings.reply_confirmed_message,
+      reply_reschedule_message: settings.reply_reschedule_message,
     };
 
     let error;
