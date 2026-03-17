@@ -72,4 +72,6 @@ verify_jwt = false
 [functions.link-orphan-conversations]
 verify_jwt = false
 
+[functions.visit-confirmation]
+verify_jwt = false
 
