@@ -134,9 +134,22 @@ async function processUnitReview(
       dismissed_by: [],
     };
 
+    // Delete existing then insert (functional index doesn't support onConflict)
+    let deleteQuery = supabase
+      .from("monthly_reviews")
+      .delete()
+      .eq("company_id", company.id)
+      .eq("review_month", reviewMonthStr);
+    if (unitSlug) {
+      deleteQuery = deleteQuery.eq("unit_slug", unitSlug);
+    } else {
+      deleteQuery = deleteQuery.is("unit_slug", null);
+    }
+    await deleteQuery;
+
     const { error: upsertError } = await supabase
       .from("monthly_reviews")
-      .upsert(upsertData, { onConflict: "company_id,review_month,unit_slug" });
+      .insert(upsertData);
 
     if (upsertError) {
       console.error(`Error upserting review for ${label}:`, upsertError);
