@@ -1454,8 +1454,8 @@ Deno.serve(async (req) => {
           .single();
         
         if (msgErr || !msg) {
-          return new Response(JSON.stringify({ error: 'Mensagem não encontrada' }), {
-            status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          return new Response(JSON.stringify({ success: false, error: 'Mensagem não encontrada', canRetry: false }), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
         
