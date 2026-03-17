@@ -831,8 +831,8 @@ export default function Visitas() {
         <div className="flex-1 overflow-y-auto">
           {mainContent}
         </div>
-        <DetailSheet />
-        <CreateDialog />
+        {detailSheet}
+        {createDialog}
       </div>
     );
   }
@@ -861,8 +861,8 @@ export default function Visitas() {
           </div>
         </SidebarInset>
       </div>
-      <DetailSheet />
-      <CreateDialog />
+      {detailSheet}
+      {createDialog}
     </SidebarProvider>
   );
 }
