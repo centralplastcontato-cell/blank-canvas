@@ -3471,11 +3471,21 @@ async function handleVisitConfirmationResponse(
   });
 
   // Send auto-reply to the lead confirming their response
+  // Load custom reply messages from settings
+  const { data: vcSettings } = await supabase
+    .from('visit_confirmation_settings')
+    .select('reply_confirmed_message, reply_reschedule_message')
+    .eq('company_id', instance.company_id)
+    .maybeSingle();
+
+  const defaultConfirmed = `Ótimo, sua visita está *confirmada*! ✅\n\nEstamos te esperando! Qualquer dúvida, é só chamar aqui. 😊`;
+  const defaultReschedule = `Entendido! 📝\n\nNossa equipe vai entrar em contato para remarcar sua visita. Aguarde! 😊`;
+
   let replyMsg = '';
   if (optionNum === 1) {
-    replyMsg = `Ótimo, sua visita está *confirmada*! ✅\n\nEstamos te esperando! Qualquer dúvida, é só chamar aqui. 😊`;
+    replyMsg = vcSettings?.reply_confirmed_message || defaultConfirmed;
   } else {
-    replyMsg = `Entendido! 📝\n\nNossa equipe vai entrar em contato para remarcar sua visita. Aguarde! 😊`;
+    replyMsg = vcSettings?.reply_reschedule_message || defaultReschedule;
   }
 
   const replyMsgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, replyMsg);

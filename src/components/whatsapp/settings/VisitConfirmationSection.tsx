@@ -23,6 +23,8 @@ interface VisitConfirmationSettings {
   second_message_text: string;
   send_window_start: number;
   send_window_end: number;
+  reply_confirmed_message: string;
+  reply_reschedule_message: string;
 }
 
 const DEFAULT_SETTINGS: Omit<VisitConfirmationSettings, "company_id"> = {
@@ -45,6 +47,12 @@ Só passando para lembrar da sua visita hoje às {{hora_visita}} no {{nome_buffe
 Estamos te aguardando! 🎉`,
   send_window_start: 8,
   send_window_end: 22,
+  reply_confirmed_message: `Ótimo, sua visita está *confirmada*! ✅
+
+Estamos te esperando! Qualquer dúvida, é só chamar aqui. 😊`,
+  reply_reschedule_message: `Entendido! 📝
+
+Nossa equipe vai entrar em contato para remarcar sua visita. Aguarde! 😊`,
 };
 
 const HOURS_OPTIONS = [
@@ -108,6 +116,8 @@ export function VisitConfirmationSection() {
       second_message_text: settings.second_message_text,
       send_window_start: settings.send_window_start,
       send_window_end: settings.send_window_end,
+      reply_confirmed_message: settings.reply_confirmed_message,
+      reply_reschedule_message: settings.reply_reschedule_message,
     };
 
     let error;
@@ -335,6 +345,48 @@ export function VisitConfirmationSection() {
                   />
                 </>
               )}
+            </div>
+
+            {/* Reply Messages */}
+            <div className="rounded-xl border border-border/40 bg-card p-4 space-y-4">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                <p className="text-sm font-semibold">Respostas automáticas</p>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-xs">
+                      Mensagens enviadas ao lead após ele confirmar ou solicitar remarcação.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">
+                  Quando o lead <strong>confirma</strong> a visita
+                </Label>
+                <Textarea
+                  value={settings.reply_confirmed_message}
+                  onChange={(e) => update("reply_confirmed_message", e.target.value)}
+                  rows={4}
+                  className="text-sm resize-none rounded-xl"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">
+                  Quando o lead pede para <strong>remarcar</strong>
+                </Label>
+                <Textarea
+                  value={settings.reply_reschedule_message}
+                  onChange={(e) => update("reply_reschedule_message", e.target.value)}
+                  rows={4}
+                  className="text-sm resize-none rounded-xl"
+                />
+              </div>
             </div>
 
             {/* Info */}

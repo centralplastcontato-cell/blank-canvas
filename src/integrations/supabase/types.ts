@@ -3924,6 +3924,8 @@ export type Database = {
           hours_before_visit: number
           id: string
           is_enabled: boolean
+          reply_confirmed_message: string
+          reply_reschedule_message: string
           second_message_enabled: boolean
           second_message_hours_after: number
           second_message_text: string
@@ -3938,6 +3940,8 @@ export type Database = {
           hours_before_visit?: number
           id?: string
           is_enabled?: boolean
+          reply_confirmed_message?: string
+          reply_reschedule_message?: string
           second_message_enabled?: boolean
           second_message_hours_after?: number
           second_message_text?: string
@@ -3952,6 +3956,8 @@ export type Database = {
           hours_before_visit?: number
           id?: string
           is_enabled?: boolean
+          reply_confirmed_message?: string
+          reply_reschedule_message?: string
           second_message_enabled?: boolean
           second_message_hours_after?: number
           second_message_text?: string
