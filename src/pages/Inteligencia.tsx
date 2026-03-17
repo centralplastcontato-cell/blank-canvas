@@ -452,7 +452,7 @@ export default function Inteligencia() {
             </div>
 
             {/* Alertas Inteligentes */}
-            <MonthlyReviewBanner isAdmin={isAdmin} unitSlug={selectedUnit} />
+            <MonthlyReviewBanner isAdmin={isAdmin} unitSlug={selectedUnit !== "all" ? (units.find(u => u.name === selectedUnit)?.slug || selectedUnit) : undefined} />
             <AlertsPanel onTabChange={setActiveTab} />
 
             {/* SalesPriorities moved inside Relatórios tab */}
