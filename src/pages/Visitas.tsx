@@ -145,7 +145,7 @@ export default function Visitas() {
 
     const { data, error } = await (supabase as any)
       .from("lead_visits")
-      .select("id, lead_id, company_id, data_visita, horario_visita, status_visita, observacoes, responsavel_user_id, created_by, created_at, package_interest, guest_count, party_date_interest, payment_preference, interest_level, restrictions, client_questions, seller_notes")
+      .select("id, lead_id, company_id, data_visita, horario_visita, status_visita, observacoes, responsavel_user_id, created_by, created_at, unit, package_interest, guest_count, party_date_interest, payment_preference, interest_level, restrictions, client_questions, seller_notes")
       .eq("company_id", companyId)
       .gte("data_visita", startDate)
       .lte("data_visita", endDate)
