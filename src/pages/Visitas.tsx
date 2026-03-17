@@ -665,6 +665,9 @@ export default function Visitas() {
                   <div><p className="text-xs text-muted-foreground">Convidados</p><p className="font-medium">{detailVisit.lead_guests || "—"}</p></div>
                   <div><p className="text-xs text-muted-foreground">Mês pretendido</p><p className="font-medium">{detailVisit.lead_month || "—"}</p></div>
                   <div><p className="text-xs text-muted-foreground">Responsável</p><p className="font-medium">{detailResponsavel?.full_name || "—"}</p></div>
+                  {detailVisit.unit && (
+                    <div><p className="text-xs text-muted-foreground">Unidade</p><p className="font-medium">{detailVisit.unit}</p></div>
+                  )}
                 </div>
               </div>
               <div className="rounded-xl border border-border/40 bg-card p-4">
