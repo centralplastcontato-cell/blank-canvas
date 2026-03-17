@@ -69,6 +69,7 @@ interface LeadInfoPopoverProps {
   onLeadObsChange?: (newObs: string) => void;
   onShowVisitDialog?: () => void;
   mobile?: boolean;
+  visitRefreshKey?: number;
 }
 
 const statusOptions = [
