@@ -216,6 +216,24 @@ export function LeadInfoPopover({
     }
   }, [linkedLead?.id, linkedLead?.status]);
 
+  // Fetch latest visit for this lead
+  useEffect(() => {
+    if (!linkedLead) {
+      setLatestVisit(null);
+      return;
+    }
+    (supabase as any)
+      .from("lead_visits")
+      .select("data_visita, horario_visita, status_visita")
+      .eq("lead_id", linkedLead.id)
+      .order("data_visita", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }: any) => {
+        setLatestVisit(data || null);
+      });
+  }, [linkedLead?.id, visitRefreshKey]);
+
   const isGroup = selectedConversation.remote_jid.includes('@g.us');
 
   const startEditingName = () => {
