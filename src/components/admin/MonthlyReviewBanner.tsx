@@ -14,6 +14,7 @@ import { toast } from "@/hooks/use-toast";
 interface MonthlyReviewBannerProps {
   isAdmin?: boolean;
   unitSlug?: string;
+  canViewRevenue?: boolean;
 }
 
 function MetricCard({
