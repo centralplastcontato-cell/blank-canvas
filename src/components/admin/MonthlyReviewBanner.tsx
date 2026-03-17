@@ -13,6 +13,7 @@ import { toast } from "@/hooks/use-toast";
 
 interface MonthlyReviewBannerProps {
   isAdmin?: boolean;
+  unitSlug?: string;
 }
 
 function MetricCard({
