@@ -673,6 +673,29 @@ export default function Visitas() {
                     <SelectContent>{VISIT_STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
+                <div className="pt-3 border-t border-border/30 mt-3">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-full text-xs gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30">
+                        <Trash2 className="h-3.5 w-3.5" /> Excluir Visita
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir visita?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Essa ação não pode ser desfeita. A visita de <strong>{detailVisit.lead_name}</strong> será removida permanentemente.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => deleteVisit(detailVisit.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                          Excluir
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               </div>
 
               {/* Qualification Section */}
