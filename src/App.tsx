@@ -59,6 +59,7 @@ const PublicEventInfo = lazy(() => import("./pages/PublicEventInfo"));
 const PublicFreelancer = lazy(() => import("./pages/PublicFreelancer"));
 const PublicFreelancerSchedule = lazy(() => import("./pages/PublicFreelancerSchedule"));
 const Contrato = lazy(() => import("./pages/Contrato"));
+const ContratosModule = lazy(() => import("./pages/ContratosModule"));
 const Cardapio = lazy(() => import("./pages/Cardapio"));
 const PublicPartyControl = lazy(() => import("./pages/PublicPartyControl"));
 
