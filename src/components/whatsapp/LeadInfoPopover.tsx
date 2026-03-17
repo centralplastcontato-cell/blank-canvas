@@ -162,6 +162,7 @@ export function LeadInfoPopover({
   onLeadObsChange,
   onShowVisitDialog,
   mobile = false,
+  visitRefreshKey = 0,
 }: LeadInfoPopoverProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState("");
