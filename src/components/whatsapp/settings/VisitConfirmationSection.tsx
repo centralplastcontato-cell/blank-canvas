@@ -47,6 +47,12 @@ Só passando para lembrar da sua visita hoje às {{hora_visita}} no {{nome_buffe
 Estamos te aguardando! 🎉`,
   send_window_start: 8,
   send_window_end: 22,
+  reply_confirmed_message: `Ótimo, sua visita está *confirmada*! ✅
+
+Estamos te esperando! Qualquer dúvida, é só chamar aqui. 😊`,
+  reply_reschedule_message: `Entendido! 📝
+
+Nossa equipe vai entrar em contato para remarcar sua visita. Aguarde! 😊`,
 };
 
 const HOURS_OPTIONS = [
