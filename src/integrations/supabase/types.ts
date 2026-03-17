@@ -2714,6 +2714,7 @@ export type Database = {
           metrics: Json
           previous_metrics: Json | null
           review_month: string
+          unit_slug: string | null
         }
         Insert: {
           ai_context_generated?: string | null
@@ -2725,6 +2726,7 @@ export type Database = {
           metrics?: Json
           previous_metrics?: Json | null
           review_month: string
+          unit_slug?: string | null
         }
         Update: {
           ai_context_generated?: string | null
@@ -2736,6 +2738,7 @@ export type Database = {
           metrics?: Json
           previous_metrics?: Json | null
           review_month?: string
+          unit_slug?: string | null
         }
         Relationships: [
           {
