@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { BotJourneyDiagram } from "./BotJourneyDiagram";
 import { ReactivationSection } from "./ReactivationSection";
+import { VisitConfirmationSection } from "./VisitConfirmationSection";
 import { PartyBotMessagesCard } from "./PartyBotMessagesCard";
 import {
   DndContext,
@@ -804,6 +805,10 @@ export function AutomationsSection() {
           <TabsTrigger value="reativacao" className="flex items-center gap-1.5 text-xs sm:text-sm">
             <Sparkles className="w-3.5 h-3.5" />
             <span>Reativação</span>
+          </TabsTrigger>
+          <TabsTrigger value="visitas" className="flex items-center gap-1.5 text-xs sm:text-sm">
+            <Map className="w-3.5 h-3.5" />
+            <span>Visitas</span>
           </TabsTrigger>
         </TabsList>
 
@@ -2374,6 +2379,11 @@ export function AutomationsSection() {
         {/* ============ TAB: REATIVAÇÃO INTELIGENTE ============ */}
         <TabsContent value="reativacao" className="mt-4">
           <ReactivationSection />
+        </TabsContent>
+
+        {/* ============ TAB: CONFIRMAÇÃO DE VISITAS ============ */}
+        <TabsContent value="visitas" className="mt-4">
+          <VisitConfirmationSection />
         </TabsContent>
       </Tabs>
     </div>

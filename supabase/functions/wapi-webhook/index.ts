@@ -3372,6 +3372,130 @@ function getPreview(mc: Record<string, unknown>, msg: Record<string, unknown>): 
   return (msg as Record<string, string>).body || (msg as Record<string, string>).text || '';
 }
 
+// ============= FASE 7.1: VISIT CONFIRMATION RESPONSE HANDLER =============
+
+async function handleVisitConfirmationResponse(
+  supabase: SupabaseClient,
+  instance: { id: string; instance_id: string; instance_token: string; unit: string | null; company_id: string },
+  conv: { id: string; remote_jid: string; bot_enabled: boolean | null; bot_step: string | null; bot_data: Record<string, unknown> | null; lead_id: string | null },
+  content: string
+): Promise<boolean> {
+  if (!conv.lead_id) return false;
+
+  // Parse response: 1/confirmo or 2/remarcar
+  const normalized = content.trim().toLowerCase();
+  let optionNum: number | null = null;
+
+  // Try plain number
+  const numMatch = normalized.replace(/[^\d]/g, '');
+  if (/^[12]$/.test(numMatch)) optionNum = parseInt(numMatch);
+
+  // Try emoji keycap
+  if (!optionNum) {
+    const emojiNum = emojiDigitsToNumber(content.trim());
+    if (emojiNum && emojiNum >= 1 && emojiNum <= 2) optionNum = emojiNum;
+  }
+
+  // Try text matching
+  if (!optionNum) {
+    const clean = normalized.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (clean.includes('confirmo') || clean.includes('confirmado') || clean.includes('sim')) optionNum = 1;
+    else if (clean.includes('remarcar') || clean.includes('remarca') || clean.includes('reagendar')) optionNum = 2;
+  }
+
+  if (!optionNum) return false;
+
+  // Check for pending visit confirmation on this conversation (max 72h)
+  const cutoff = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
+  const { data: pendingConfirmation } = await supabase
+    .from('visit_confirmation_history')
+    .select('id, visit_id, company_id, sent_at')
+    .eq('company_id', instance.company_id)
+    .eq('status', 'sent')
+    .eq('response_received', false)
+    .gte('sent_at', cutoff)
+    .order('sent_at', { ascending: false })
+    .limit(10);
+
+  if (!pendingConfirmation || pendingConfirmation.length === 0) return false;
+
+  // Find the confirmation for this lead's visit
+  const visitIds = pendingConfirmation.map(p => p.visit_id);
+  const { data: matchingVisits } = await supabase
+    .from('lead_visits')
+    .select('id, lead_id')
+    .in('id', visitIds)
+    .eq('lead_id', conv.lead_id)
+    .limit(1);
+
+  if (!matchingVisits || matchingVisits.length === 0) return false;
+
+  const visit = matchingVisits[0];
+  const confirmation = pendingConfirmation.find(p => p.visit_id === visit.id);
+  if (!confirmation) return false;
+
+  console.log(`[Visit Confirmation] Lead ${conv.lead_id} chose option ${optionNum} for visit ${visit.id}`);
+
+  const responseType = optionNum === 1 ? 'confirmed' : 'reschedule';
+  const newVisitStatus = optionNum === 1 ? 'confirmada' : 'remarcada';
+
+  // Update confirmation history
+  await supabase.from('visit_confirmation_history')
+    .update({
+      response_received: true,
+      response_type: responseType,
+      response_at: new Date().toISOString(),
+      status: 'responded',
+    })
+    .eq('id', confirmation.id);
+
+  // Update visit status
+  await supabase.from('lead_visits')
+    .update({ status_visita: newVisitStatus })
+    .eq('id', visit.id);
+
+  // Record in lead_history
+  const actionText = optionNum === 1
+    ? 'Visita confirmada pelo cliente (automação)'
+    : 'Cliente solicitou remarcação de visita (automação)';
+
+  await supabase.from('lead_history').insert({
+    lead_id: conv.lead_id,
+    action: actionText,
+    new_value: newVisitStatus,
+    user_name: 'Sistema (Confirmação de Visita)',
+  });
+
+  // If reschedule, notify team
+  if (optionNum === 2) {
+    const { data: lead } = await supabase.from('campaign_leads')
+      .select('name')
+      .eq('id', conv.lead_id)
+      .single();
+
+    const leadName = lead?.name || 'Lead';
+
+    // Get company users to notify
+    const { data: companyUsers } = await supabase
+      .from('user_companies')
+      .select('user_id')
+      .eq('company_id', instance.company_id);
+
+    for (const cu of companyUsers || []) {
+      await supabase.from('notifications').insert({
+        user_id: cu.user_id,
+        company_id: instance.company_id,
+        type: 'visit_reschedule',
+        title: '📅 Visita precisa ser remarcada',
+        message: `${leadName} solicitou remarcação da visita`,
+        data: { lead_id: conv.lead_id, visit_id: visit.id },
+      });
+    }
+  }
+
+  return true;
+}
+
 // ============= FASE 4B: REACTIVATION RESPONSE HANDLER =============
 
 async function handleReactivationResponse(
@@ -4012,6 +4136,19 @@ async function processWebhookEvent(body: Record<string, unknown>) {
             console.log(`[Latency] media_updated: ${Date.now() - processingStartAt}ms`);
           }
         }).catch(err => console.error('[Media download error]', err));
+      }
+
+      // Fase 7.1: Check for visit confirmation response BEFORE reactivation/bot
+      if (!fromMe && !isGrp && type === 'text' && content) {
+        try {
+          const visitHandled = await handleVisitConfirmationResponse(supabase, instance, conv, content);
+          if (visitHandled) {
+            console.log(`[Visit Confirmation] Response handled for conv ${conv.id}, skipping bot`);
+            break;
+          }
+        } catch (err) {
+          console.error('[Visit Confirmation error]', err);
+        }
       }
 
       // Fase 4B: Check for reactivation response BEFORE bot processing
