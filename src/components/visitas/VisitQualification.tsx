@@ -39,6 +39,15 @@ const RESTRICTION_OPTIONS = [
   { value: "outro", label: "Outro" },
 ];
 
+const CHANNEL_OPTIONS = [
+  { value: "instagram_ads", label: "Anúncio Instagram" },
+  { value: "site", label: "Site" },
+  { value: "facebook", label: "Facebook" },
+  { value: "indicacao", label: "Indicação" },
+  { value: "ja_esteve_festa", label: "Já esteve em uma festa" },
+  { value: "outro", label: "Outro" },
+];
+
 export interface VisitQualificationData {
   package_interest: string | null;
   guest_count: number | null;
@@ -49,6 +58,7 @@ export interface VisitQualificationData {
   restriction_notes: string;
   client_questions: string | null;
   seller_notes: string | null;
+  lead_channel: string | null;
 }
 
 interface VisitQualificationProps {
