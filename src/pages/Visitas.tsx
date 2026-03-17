@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
 import { useNavigate } from "react-router-dom";
-import { format, startOfWeek, endOfWeek, addDays, isSameDay, parseISO } from "date-fns";
+import { format, isSameDay, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { DayPicker } from "react-day-picker";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentCompanyId } from "@/lib/supabase-helpers";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -11,7 +12,7 @@ import { User } from "@supabase/supabase-js";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
@@ -20,7 +21,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Menu, CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, List, CalendarDays, LayoutGrid, Phone, MessageSquare, Check, RefreshCw, X, Plus, User as UserIcon, AlertTriangle } from "lucide-react";
+import { Loader2, Menu, CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, Phone, MessageSquare, Check, RefreshCw, X, Plus, User as UserIcon, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -34,6 +35,15 @@ const VISIT_STATUSES = [
   { value: "remarcada", label: "Remarcada", color: "bg-amber-500/15 text-amber-700 border-amber-300", dot: "bg-amber-500" },
   { value: "cancelada", label: "Cancelada", color: "bg-muted text-muted-foreground border-border", dot: "bg-muted-foreground" },
 ];
+
+const VISIT_STATUS_DOT: Record<string, string> = {
+  agendada: "bg-blue-500",
+  confirmada: "bg-green-500",
+  realizada: "bg-emerald-700",
+  nao_compareceu: "bg-red-500",
+  remarcada: "bg-amber-500",
+  cancelada: "bg-muted-foreground/40",
+};
 
 const TIME_OPTIONS = Array.from({ length: 28 }, (_, i) => {
   const h = String(Math.floor((i + 16) / 2)).padStart(2, "0");
@@ -60,16 +70,14 @@ interface Visit {
   lead_month?: string | null;
 }
 
-type ViewMode = "day" | "week" | "list";
-
 export default function Visitas() {
   const navigate = useNavigate();
   const { currentCompany } = useCompany();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [visits, setVisits] = useState<Visit[]>([]);
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<ViewMode>("day");
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterResponsavel, setFilterResponsavel] = useState("all");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -105,32 +113,19 @@ export default function Visitas() {
     if (!isLoading && !user) navigate("/auth");
   }, [isLoading, user]);
 
-  // Load profiles for responsavel filter
   useEffect(() => {
     if (!currentCompany?.id) return;
     supabase.from("profiles").select("user_id, full_name")
       .then(({ data }) => { if (data) setProfiles(data); });
   }, [currentCompany?.id]);
 
-  // Load visits
+  // Load visits for entire month
   const fetchVisits = async () => {
     const companyId = getCurrentCompanyId();
     if (!companyId) return;
 
-    let startDate: string, endDate: string;
-    if (viewMode === "week") {
-      const ws = startOfWeek(selectedDate, { weekStartsOn: 1 });
-      const we = endOfWeek(selectedDate, { weekStartsOn: 1 });
-      startDate = format(ws, "yyyy-MM-dd");
-      endDate = format(we, "yyyy-MM-dd");
-    } else if (viewMode === "day") {
-      startDate = format(selectedDate, "yyyy-MM-dd");
-      endDate = startDate;
-    } else {
-      // list: current month
-      startDate = format(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1), "yyyy-MM-dd");
-      endDate = format(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0), "yyyy-MM-dd");
-    }
+    const startDate = format(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1), "yyyy-MM-dd");
+    const endDate = format(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 0), "yyyy-MM-dd");
 
     const { data, error } = await (supabase as any)
       .from("lead_visits")
@@ -143,7 +138,6 @@ export default function Visitas() {
 
     if (error) { console.error(error); return; }
 
-    // Fetch lead names
     if (data && data.length > 0) {
       const leadIds = [...new Set(data.map((v: any) => v.lead_id))];
       const { data: leads } = await supabase
@@ -167,7 +161,7 @@ export default function Visitas() {
   useEffect(() => {
     const companyId = currentCompany?.id || getCurrentCompanyId();
     if (companyId && user) fetchVisits();
-  }, [currentCompany?.id, user, selectedDate, viewMode]);
+  }, [currentCompany?.id, user, calendarMonth]);
 
   // Filtered visits
   const filteredVisits = useMemo(() => {
@@ -177,6 +171,24 @@ export default function Visitas() {
       return true;
     });
   }, [visits, filterStatus, filterResponsavel]);
+
+  // Visits for selected day
+  const selectedDayVisits = useMemo(() => {
+    const dateStr = format(selectedDate, "yyyy-MM-dd");
+    return filteredVisits
+      .filter(v => v.data_visita === dateStr)
+      .sort((a, b) => (a.horario_visita || "99:99").localeCompare(b.horario_visita || "99:99"));
+  }, [filteredVisits, selectedDate]);
+
+  // Visits grouped by date for calendar dots
+  const visitsByDate = useMemo(() => {
+    const map = new Map<string, Visit[]>();
+    filteredVisits.forEach(v => {
+      if (!map.has(v.data_visita)) map.set(v.data_visita, []);
+      map.get(v.data_visita)!.push(v);
+    });
+    return map;
+  }, [filteredVisits]);
 
   // Search leads for create dialog
   const searchLeads = async (query: string) => {
@@ -195,7 +207,6 @@ export default function Visitas() {
     return () => clearTimeout(t);
   }, [newLeadSearch]);
 
-  // Create visit
   const handleCreate = async () => {
     if (!newLeadId || !newDate) {
       toast({ title: "Selecione um lead e uma data", variant: "destructive" });
@@ -231,7 +242,6 @@ export default function Visitas() {
     setLeadResults([]);
   };
 
-  // Update visit status
   const updateVisitStatus = async (visitId: string, newStatus: string) => {
     const { error } = await (supabase as any).from("lead_visits").update({ status_visita: newStatus }).eq("id", visitId);
     if (error) {
@@ -243,12 +253,6 @@ export default function Visitas() {
     }
   };
 
-  const navigateDate = (dir: number) => {
-    if (viewMode === "day") setSelectedDate(d => addDays(d, dir));
-    else if (viewMode === "week") setSelectedDate(d => addDays(d, dir * 7));
-    else setSelectedDate(d => new Date(d.getFullYear(), d.getMonth() + dir, 1));
-  };
-
   const handleLogout = async () => { await supabase.auth.signOut(); navigate("/auth"); };
 
   if (isLoading || !user) {
@@ -257,282 +261,171 @@ export default function Visitas() {
 
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
 
-  // Shared visit card
-  const VisitCard = ({ visit, compact }: { visit: Visit; compact?: boolean }) => {
-    const status = getStatusInfo(visit.status_visita);
-    const responsavel = profiles.find(p => p.user_id === visit.responsavel_user_id);
-    return (
-      <div
-        onClick={() => setDetailVisit(visit)}
-        className={cn(
-          "group rounded-2xl border bg-card p-4 cursor-pointer transition-all duration-200",
-          "hover:shadow-lg hover:shadow-primary/5 hover:border-primary/30 hover:-translate-y-0.5",
-          "border-border/40",
-          compact && "p-3"
-        )}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <p className={cn("font-bold truncate", compact ? "text-sm" : "text-[15px]")}>{visit.lead_name}</p>
-            <div className="flex items-center gap-3 mt-1.5">
-              {visit.horario_visita && (
-                <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-                  <Clock className="h-3.5 w-3.5 text-primary/60" /> {visit.horario_visita}
-                </span>
-              )}
-              {!compact && (
-                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <CalendarIcon className="h-3.5 w-3.5 text-primary/60" />
-                  {format(parseISO(visit.data_visita + "T12:00:00"), "dd/MM", { locale: ptBR })}
-                </span>
-              )}
-              {!compact && responsavel && (
-                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <UserIcon className="h-3 w-3" /> {responsavel.full_name?.split(" ")[0]}
-                </span>
-              )}
-            </div>
-          </div>
-          <Badge variant="outline" className={cn("text-[10px] shrink-0 border font-semibold", status.color)}>
-            {status.label}
-          </Badge>
-        </div>
-      </div>
-    );
-  };
-
-  // Day view — timeline style
-  const DayView = () => {
-    const dayVisits = filteredVisits.filter(v => v.data_visita === format(selectedDate, "yyyy-MM-dd"));
-    const withTime = dayVisits.filter(v => v.horario_visita).sort((a, b) => (a.horario_visita || "").localeCompare(b.horario_visita || ""));
-    const withoutTime = dayVisits.filter(v => !v.horario_visita);
-
-    return (
-      <div className="max-w-2xl mx-auto">
-        {dayVisits.length === 0 && (
-          <div className="text-center py-20">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-muted/60 flex items-center justify-center">
-              <MapPin className="h-7 w-7 text-muted-foreground/50" />
-            </div>
-            <p className="text-sm font-medium text-muted-foreground">Nenhuma visita neste dia</p>
-            <p className="text-xs text-muted-foreground/60 mt-1">Clique em "Nova Visita" para agendar</p>
-          </div>
-        )}
-        {withTime.length > 0 && (
-          <div className="relative pl-20 space-y-3">
-            <div className="absolute left-[38px] top-4 bottom-4 w-px bg-gradient-to-b from-primary/30 via-primary/15 to-transparent" />
-            {withTime.map(v => (
-              <div key={v.id} className="relative flex items-start gap-4">
-                <div className="absolute left-[-52px] flex flex-col items-center">
-                  <span className="text-xs font-mono font-bold text-primary bg-primary/10 rounded-lg px-2 py-1">{v.horario_visita}</span>
-                  <div className="w-3 h-3 rounded-full bg-primary ring-4 ring-background mt-1.5" />
-                </div>
-                <div className="flex-1"><VisitCard visit={v} /></div>
-              </div>
-            ))}
-          </div>
-        )}
-        {withoutTime.length > 0 && (
-          <div className="mt-6">
-            {withTime.length > 0 && <div className="border-t border-dashed border-border/40 mb-4" />}
-            <p className="text-[11px] text-muted-foreground uppercase tracking-widest font-bold mb-3 px-1">Sem horário definido</p>
-            <div className="space-y-2">
-              {withoutTime.map(v => <VisitCard key={v.id} visit={v} />)}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // Week view — card grid
-  const WeekView = () => {
-    const ws = startOfWeek(selectedDate, { weekStartsOn: 1 });
-    const days = Array.from({ length: 6 }, (_, i) => addDays(ws, i));
-
-    return (
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        {days.map(day => {
-          const dayStr = format(day, "yyyy-MM-dd");
-          const dayVisits = filteredVisits.filter(v => v.data_visita === dayStr);
-          const isToday = isSameDay(day, new Date());
+  // ─── Calendar component (like AgendaCalendar) ───
+  const visitsCalendar = (
+    <DayPicker
+      mode="single"
+      selected={selectedDate}
+      onSelect={(date) => date && setSelectedDate(date)}
+      month={calendarMonth}
+      onMonthChange={setCalendarMonth}
+      locale={ptBR}
+      showOutsideDays
+      className="p-2 lg:p-5"
+      classNames={{
+        months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+        month: "space-y-4 w-full",
+        caption: "flex justify-center pt-2 lg:pt-3 relative items-center mb-2",
+        caption_label: "text-base lg:text-lg font-semibold capitalize tracking-tight text-foreground",
+        nav: "space-x-1 flex items-center",
+        nav_button: cn(
+          buttonVariants({ variant: "ghost" }),
+          "h-8 w-8 lg:h-9 lg:w-9 p-0 text-muted-foreground/60 hover:text-foreground hover:bg-accent rounded-xl transition-all duration-150"
+        ),
+        nav_button_previous: "absolute left-1",
+        nav_button_next: "absolute right-1",
+        table: "w-full border-collapse",
+        head_row: "flex",
+        head_cell: "text-muted-foreground/50 flex-1 font-medium text-[0.65rem] lg:text-[0.7rem] text-center uppercase tracking-[0.15em] pb-2",
+        row: "flex w-full",
+        cell: "flex-1 text-center text-sm p-0.5 lg:p-[3px] relative focus-within:relative focus-within:z-20",
+        day: cn(
+          buttonVariants({ variant: "ghost" }),
+          "h-12 lg:h-[4.5rem] w-full p-0 font-normal aria-selected:opacity-100 relative rounded-xl",
+          "hover:bg-primary/[0.06] transition-all duration-150 cursor-pointer"
+        ),
+        day_range_end: "day-range-end",
+        day_selected: cn(
+          "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground",
+          "hover:from-primary hover:to-primary/90 hover:text-primary-foreground",
+          "focus:from-primary focus:to-primary/90 focus:text-primary-foreground",
+          "shadow-[0_2px_12px_rgba(0,0,0,0.12)] ring-1 ring-primary/20"
+        ),
+        day_today: cn("bg-accent text-foreground font-semibold", "ring-1 ring-border"),
+        day_outside: "day-outside text-muted-foreground/30",
+        day_disabled: "text-muted-foreground/30",
+        day_hidden: "invisible",
+      }}
+      components={{
+        IconLeft: () => <ChevronLeft className="h-4 w-4" />,
+        IconRight: () => <ChevronRight className="h-4 w-4" />,
+        DayContent: ({ date }) => {
+          const dateKey = format(date, "yyyy-MM-dd");
+          const dayVisits = visitsByDate.get(dateKey) || [];
+          const count = dayVisits.length;
 
           return (
-            <div key={dayStr} className={cn(
-              "rounded-2xl border bg-card/60 p-3 min-h-[140px] transition-all",
-              isToday ? "ring-2 ring-primary/40 border-primary/20 bg-primary/[0.02]" : "border-border/40 hover:border-border/60"
-            )}>
-              <div className="text-center mb-3 pb-2 border-b border-border/30">
-                <p className={cn(
-                  "text-[10px] uppercase tracking-wider font-semibold",
-                  isToday ? "text-primary" : "text-muted-foreground/70"
-                )}>
-                  {format(day, "EEE", { locale: ptBR })}
-                </p>
-                <p className={cn(
-                  "text-lg font-bold mt-0.5",
-                  isToday ? "text-primary" : "text-foreground"
-                )}>
-                  {format(day, "dd")}
-                </p>
-              </div>
-              <div className="space-y-2">
-                {dayVisits.map(v => <VisitCard key={v.id} visit={v} compact />)}
-                {dayVisits.length === 0 && (
-                  <p className="text-xs text-muted-foreground/40 text-center py-4">—</p>
-                )}
-              </div>
+            <div className="flex flex-col items-center gap-0.5 lg:gap-1 w-full h-full justify-center relative">
+              <span className={cn(
+                "text-sm lg:text-base transition-colors duration-150",
+                count > 0 ? "font-semibold text-foreground" : "text-foreground/65"
+              )}>
+                {date.getDate()}
+              </span>
+              {count > 0 && (
+                <div className="flex items-center gap-[2px] lg:gap-[3px] justify-center">
+                  {dayVisits.slice(0, 3).map((v) => (
+                    <span
+                      key={v.id}
+                      className={cn(
+                        "h-[5px] w-[5px] lg:h-[6px] lg:w-[6px] rounded-full",
+                        VISIT_STATUS_DOT[v.status_visita] || "bg-muted-foreground/40"
+                      )}
+                    />
+                  ))}
+                  {count > 3 && (
+                    <span className="text-[7px] lg:text-[8px] font-bold text-muted-foreground/70 leading-none ml-0.5">
+                      +{count - 3}
+                    </span>
+                  )}
+                </div>
+              )}
+              {count >= 2 && (
+                <span className="absolute top-0 right-0 lg:top-0.5 lg:right-0.5 h-3.5 w-3.5 lg:h-4 lg:w-4 rounded-full bg-primary/90 text-primary-foreground text-[7px] lg:text-[8px] font-bold flex items-center justify-center leading-none">
+                  {count}
+                </span>
+              )}
             </div>
           );
-        })}
-      </div>
-    );
-  };
+        },
+      }}
+    />
+  );
 
-  // List view — clean table
-  const ListView = () => (
-    <div className="rounded-2xl border border-border/40 bg-card overflow-hidden shadow-sm">
-      <div className="hidden md:grid grid-cols-[130px_1fr_100px_110px_140px] gap-3 px-5 py-3 bg-muted/40 border-b border-border/30">
-        <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Data</span>
-        <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Lead</span>
-        <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Hora</span>
-        <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Status</span>
-        <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Responsável</span>
+  // ─── Selected day visits panel ───
+  const selectedDayLabel = format(selectedDate, "dd 'de' MMMM", { locale: ptBR });
+  const isToday = isSameDay(selectedDate, new Date());
+
+  const dayPanel = (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-base font-bold text-foreground">
+            {isToday ? "Hoje" : selectedDayLabel}
+          </h2>
+          {!isToday && (
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {format(selectedDate, "EEEE", { locale: ptBR })}
+            </p>
+          )}
+        </div>
+        <Badge variant="outline" className="text-xs font-semibold">
+          {selectedDayVisits.length} visita{selectedDayVisits.length !== 1 ? "s" : ""}
+        </Badge>
       </div>
-      {filteredVisits.length === 0 && (
-        <div className="text-center py-16">
-          <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-muted/50 flex items-center justify-center">
+
+      {selectedDayVisits.length === 0 ? (
+        <div className="text-center py-12">
+          <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-muted/60 flex items-center justify-center">
             <MapPin className="h-6 w-6 text-muted-foreground/40" />
           </div>
-          <p className="text-sm font-medium text-muted-foreground">Nenhuma visita neste período</p>
+          <p className="text-sm font-medium text-muted-foreground">Nenhuma visita neste dia</p>
+          <p className="text-xs text-muted-foreground/60 mt-1">Clique em "Nova Visita" para agendar</p>
+        </div>
+      ) : (
+        <div className="space-y-2.5">
+          {selectedDayVisits.map(visit => {
+            const status = getStatusInfo(visit.status_visita);
+            const responsavel = profiles.find(p => p.user_id === visit.responsavel_user_id);
+            return (
+              <div
+                key={visit.id}
+                onClick={() => setDetailVisit(visit)}
+                className={cn(
+                  "group rounded-2xl border bg-card p-4 cursor-pointer transition-all duration-200",
+                  "hover:shadow-lg hover:shadow-primary/5 hover:border-primary/30 hover:-translate-y-0.5",
+                  "border-border/40"
+                )}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-[15px] truncate">{visit.lead_name}</p>
+                    <div className="flex items-center gap-3 mt-1.5">
+                      {visit.horario_visita && (
+                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+                          <Clock className="h-3.5 w-3.5 text-primary/60" /> {visit.horario_visita}
+                        </span>
+                      )}
+                      {responsavel && (
+                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <UserIcon className="h-3 w-3" /> {responsavel.full_name?.split(" ")[0]}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <Badge variant="outline" className={cn("text-[10px] shrink-0 border font-semibold", status.color)}>
+                    {status.label}
+                  </Badge>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
-      {filteredVisits.map((v, i) => {
-        const status = getStatusInfo(v.status_visita);
-        const responsavel = profiles.find(p => p.user_id === v.responsavel_user_id);
-        return (
-          <div
-            key={v.id}
-            onClick={() => setDetailVisit(v)}
-            className={cn(
-              "grid grid-cols-1 md:grid-cols-[130px_1fr_100px_110px_140px] gap-2 md:gap-3 px-5 py-3.5 hover:bg-primary/[0.03] cursor-pointer transition-colors",
-              i < filteredVisits.length - 1 && "border-b border-border/20"
-            )}
-          >
-            <span className="text-sm font-semibold tabular-nums">{format(parseISO(v.data_visita + "T12:00:00"), "dd/MM/yyyy")}</span>
-            <span className="text-sm font-bold truncate">{v.lead_name}</span>
-            <span className="text-sm text-muted-foreground font-mono">{v.horario_visita || "—"}</span>
-            <Badge variant="outline" className={cn("text-[10px] w-fit border font-semibold", status.color)}>{status.label}</Badge>
-            <span className="text-xs text-muted-foreground truncate">{responsavel?.full_name || "—"}</span>
-          </div>
-        );
-      })}
     </div>
   );
 
-  const dateLabel = viewMode === "day"
-    ? format(selectedDate, "dd 'de' MMMM, yyyy", { locale: ptBR })
-    : viewMode === "week"
-    ? `${format(startOfWeek(selectedDate, { weekStartsOn: 1 }), "dd/MM")} — ${format(endOfWeek(selectedDate, { weekStartsOn: 1 }), "dd/MM/yyyy")}`
-    : format(selectedDate, "MMMM yyyy", { locale: ptBR });
-
-  const headerContent = (
-    <>
-      <div className="p-2 rounded-xl bg-primary/10">
-        <MapPin className="h-5 w-5 text-primary" />
-      </div>
-      <h1 className="font-display font-bold text-foreground text-lg tracking-tight">Agenda de Visitas</h1>
-    </>
-  );
-
-  const toolbar = (
-    <div className="space-y-4 mb-6">
-      {/* View mode tabs — centered pill */}
-      <div className="flex justify-center">
-        <div className="inline-flex items-center bg-muted/50 rounded-xl p-1 border border-border/30">
-          {([
-            { mode: "day" as ViewMode, icon: CalendarDays, label: "Dia" },
-            { mode: "week" as ViewMode, icon: LayoutGrid, label: "Semana" },
-            { mode: "list" as ViewMode, icon: List, label: "Lista" },
-          ]).map(({ mode, icon: Icon, label }) => (
-            <Button
-              key={mode}
-              variant={viewMode === mode ? "default" : "ghost"}
-              size="sm"
-              className={cn(
-                "h-9 px-4 rounded-lg text-xs font-semibold gap-1.5 transition-all",
-                viewMode === mode && "shadow-sm"
-              )}
-              onClick={() => setViewMode(mode)}
-            >
-              <Icon className="h-3.5 w-3.5" />{label}
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      {/* Date nav + filters row */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl" onClick={() => navigateDate(-1)}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="text-sm font-semibold min-w-[200px] rounded-xl h-9">
-                <CalendarIcon className="h-4 w-4 mr-2 text-primary/70" />
-                {dateLabel}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={(d) => d && setSelectedDate(d)}
-                locale={ptBR}
-                className="p-3 pointer-events-auto"
-              />
-            </PopoverContent>
-          </Popover>
-          <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl" onClick={() => navigateDate(1)}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="sm" className="text-xs font-semibold rounded-lg" onClick={() => setSelectedDate(new Date())}>Hoje</Button>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="h-9 w-[140px] text-xs rounded-xl">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos status</SelectItem>
-              {VISIT_STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
-
-          <Select value={filterResponsavel} onValueChange={setFilterResponsavel}>
-            <SelectTrigger className="h-9 w-[140px] text-xs rounded-xl">
-              <SelectValue placeholder="Responsável" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              {profiles.map(p => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* CTA button — centered */}
-      <div className="flex justify-center">
-        <Button size="sm" className="h-10 px-6 rounded-xl gap-2 font-semibold shadow-sm" onClick={() => { resetCreateForm(); setCreateOpen(true); }}>
-          <Plus className="h-4 w-4" /> Nova Visita
-        </Button>
-      </div>
-    </div>
-  );
-
-  // Unconfirmed visits alert
+  // ─── Unconfirmed alerts ───
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowStr = format(tomorrow, "yyyy-MM-dd");
@@ -541,9 +434,10 @@ export default function Visitas() {
     v => (v.data_visita === tomorrowStr || v.data_visita === todayStr) && v.status_visita === "agendada"
   );
 
+  // ─── Main content ───
   const mainContent = (
     <div className="p-4 md:p-6 max-w-6xl mx-auto">
-      {/* Unconfirmed alerts */}
+      {/* Alert */}
       {unconfirmedSoon.length > 0 && (
         <div className="mb-5 rounded-2xl border border-amber-300/50 bg-gradient-to-r from-amber-50/80 to-amber-50/30 dark:from-amber-950/30 dark:to-transparent p-4 flex items-start gap-3">
           <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-900/40 shrink-0">
@@ -559,14 +453,50 @@ export default function Visitas() {
           </div>
         </div>
       )}
-      {toolbar}
-      {viewMode === "day" && <DayView />}
-      {viewMode === "week" && <WeekView />}
-      {viewMode === "list" && <ListView />}
+
+      {/* Filters + CTA row */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="h-9 w-[140px] text-xs rounded-xl">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos status</SelectItem>
+              {VISIT_STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={filterResponsavel} onValueChange={setFilterResponsavel}>
+            <SelectTrigger className="h-9 w-[140px] text-xs rounded-xl">
+              <SelectValue placeholder="Responsável" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {profiles.map(p => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <Button size="sm" className="h-10 px-6 rounded-xl gap-2 font-semibold shadow-sm" onClick={() => { resetCreateForm(); setCreateOpen(true); }}>
+          <Plus className="h-4 w-4" /> Nova Visita
+        </Button>
+      </div>
+
+      {/* Calendar + Day panel layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
+        {/* Calendar */}
+        <div className="rounded-2xl border border-border/40 bg-card shadow-sm overflow-hidden">
+          {visitsCalendar}
+        </div>
+
+        {/* Day detail panel */}
+        <div className="rounded-2xl border border-border/40 bg-card shadow-sm p-5">
+          {dayPanel}
+        </div>
+      </div>
     </div>
   );
 
-
+  // ─── Detail sheet & create dialog (inline JSX) ───
   const detailStatus = detailVisit ? getStatusInfo(detailVisit.status_visita) : null;
   const detailResponsavel = detailVisit ? profiles.find(p => p.user_id === detailVisit.responsavel_user_id) : null;
 
@@ -751,6 +681,15 @@ export default function Visitas() {
         </div>
       </DialogContent>
     </Dialog>
+  );
+
+  const headerContent = (
+    <>
+      <div className="p-2 rounded-xl bg-primary/10">
+        <MapPin className="h-5 w-5 text-primary" />
+      </div>
+      <h1 className="font-display font-bold text-foreground text-lg tracking-tight">Agenda de Visitas</h1>
+    </>
   );
 
   // Mobile
