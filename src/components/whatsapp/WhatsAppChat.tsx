@@ -971,10 +971,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       setLinkedLead(null);
       
       toast({
-        title: leadToDelete ? "Lead excluído" : "Conversa excluída",
+        title: leadToDelete ? "✅ Lead excluído" : "✅ Conversa excluída",
         description: leadToDelete 
           ? "O lead, suas mensagens e a conversa foram removidos permanentemente."
           : "A conversa e suas mensagens foram removidas permanentemente.",
+        className: "bg-background text-foreground border-border shadow-lg",
       });
     } catch (error: unknown) {
       console.error("[Delete] Full error:", error);
