@@ -240,6 +240,7 @@ export default function Visitas() {
       observacoes: newNotes || null,
       responsavel_user_id: newResponsavel || null,
       created_by: user!.id,
+      unit: newUnit || null,
     };
 
     const { error } = await (supabase as any).from("lead_visits").insert(payload);
