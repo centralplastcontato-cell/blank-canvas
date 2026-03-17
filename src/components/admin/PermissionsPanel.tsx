@@ -44,9 +44,16 @@ const categoryIcons: Record<string, React.ElementType> = {
   Sistema: Shield,
   WhatsApp: MessageCircle,
   Configurações: Settings,
+  'Configurações WhatsApp': MessageCircle,
   Dashboard: BarChart3,
   B2B: Briefcase,
   'Operações': ClipboardList,
+  Inteligência: Eye,
+  Agenda: Calendar,
+  'Automações': Settings,
+  Visitas: MapPin,
+  Campanhas: Megaphone,
+  Treinamento: GraduationCap,
 };
 
 const iconOptions: Record<string, React.ElementType> = {
