@@ -31,7 +31,7 @@ serve(async (req) => {
     const prevEnd = new Date(reviewMonth.getFullYear(), reviewMonth.getMonth(), 0, 23, 59, 59).toISOString();
 
     // Get companies to process
-    let companiesQuery = supabase.from("companies").select("id, name").eq("is_active", true);
+    let companiesQuery = supabase.from("companies").select("id, name").eq("is_active", true).not("parent_id", "is", null);
     if (targetCompanyId) {
       companiesQuery = companiesQuery.eq("id", targetCompanyId);
     }
