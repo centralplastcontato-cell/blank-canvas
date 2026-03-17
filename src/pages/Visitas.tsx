@@ -109,6 +109,7 @@ export default function Visitas() {
   const [newTime, setNewTime] = useState("");
   const [newNotes, setNewNotes] = useState("");
   const [newResponsavel, setNewResponsavel] = useState("");
+  const [newUnit, setNewUnit] = useState("");
   const [saving, setSaving] = useState(false);
   const [leadResults, setLeadResults] = useState<{ id: string; name: string; whatsapp: string }[]>([]);
 
