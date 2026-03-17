@@ -2616,14 +2616,14 @@ async function processBotQualification(
           notificationPriority = false;
           console.log(`[Bot] User ${contactPhone} wants to ask questions - updating status to aguardando_resposta`);
         } else if (choice === 'Analisar com calma' || content.trim() === '3') {
-          // User wants time to think
-          newLeadStatus = 'aguardando_resposta';
+          // User wants time to think - keep at orcamento_enviado (budget sent, analyzing)
+          newLeadStatus = 'orcamento_enviado' as any;
           responseMsg = settings.next_step_analyze_response || defaultAnalyzeResponse;
           notificationType = 'lead_analyzing';
           notificationTitle = '📋 Lead analisando materiais';
           notificationMessage = `${leadName} está analisando os materiais. Aguarde ou faça follow-up em breve.`;
           notificationPriority = false;
-          console.log(`[Bot] User ${contactPhone} wants time to analyze - updating status to aguardando_resposta`);
+          console.log(`[Bot] User ${contactPhone} wants time to analyze - updating status to orcamento_enviado`);
         } else {
           // Invalid choice, re-ask
           nextStep = 'proximo_passo';
