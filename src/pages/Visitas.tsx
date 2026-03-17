@@ -567,120 +567,9 @@ export default function Visitas() {
   );
 
 
-  // Detail Sheet
-  const DetailSheet = () => {
-    if (!detailVisit) return null;
-    const status = getStatusInfo(detailVisit.status_visita);
-    const responsavel = profiles.find(p => p.user_id === detailVisit.responsavel_user_id);
+  const detailStatus = detailVisit ? getStatusInfo(detailVisit.status_visita) : null;
+  const detailResponsavel = detailVisit ? profiles.find(p => p.user_id === detailVisit.responsavel_user_id) : null;
 
-    return (
-      <Sheet open={!!detailVisit} onOpenChange={() => setDetailVisit(null)}>
-        <SheetContent className="w-full sm:max-w-md p-0 overflow-y-auto">
-          {/* Header */}
-          <div className="px-6 pt-6 pb-4 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-b border-border/40">
-            <SheetHeader>
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-primary/15 ring-1 ring-primary/20">
-                  <MapPin className="h-5 w-5 text-primary" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <SheetTitle className="text-lg font-bold truncate">{detailVisit.lead_name}</SheetTitle>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {format(parseISO(detailVisit.data_visita + "T12:00:00"), "dd 'de' MMMM, yyyy", { locale: ptBR })}
-                    {detailVisit.horario_visita && ` às ${detailVisit.horario_visita}`}
-                  </p>
-                </div>
-              </div>
-            </SheetHeader>
-          </div>
-
-          <div className="p-6 space-y-5">
-            {/* Info card */}
-            <div className="rounded-xl border border-border/40 bg-card p-4 space-y-3">
-              <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">Informações do Lead</p>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <p className="text-xs text-muted-foreground">Telefone</p>
-                  <p className="font-medium">{detailVisit.lead_phone || "—"}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Convidados</p>
-                  <p className="font-medium">{detailVisit.lead_guests || "—"}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Mês pretendido</p>
-                  <p className="font-medium">{detailVisit.lead_month || "—"}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Responsável</p>
-                  <p className="font-medium">{responsavel?.full_name || "—"}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Status */}
-            <div className="rounded-xl border border-border/40 bg-card p-4">
-              <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-3">Status</p>
-              <Badge variant="outline" className={cn("text-sm border px-3 py-1", status.color)}>{status.label}</Badge>
-              {detailVisit.observacoes && (
-                <p className="text-sm text-muted-foreground mt-3 leading-relaxed">{detailVisit.observacoes}</p>
-              )}
-            </div>
-
-            {/* Actions */}
-            <div className="rounded-xl border border-border/40 bg-card p-4 space-y-2">
-              <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-3">Ações</p>
-              <div className="grid grid-cols-2 gap-2">
-                {detailVisit.lead_phone && (
-                  <Button variant="outline" size="sm" className="text-xs gap-1.5" asChild>
-                    <a href={`https://wa.me/${detailVisit.lead_phone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer">
-                      <MessageSquare className="h-3.5 w-3.5" /> WhatsApp
-                    </a>
-                  </Button>
-                )}
-                {detailVisit.lead_phone && (
-                  <Button variant="outline" size="sm" className="text-xs gap-1.5" asChild>
-                    <a href={`tel:${detailVisit.lead_phone}`}>
-                      <Phone className="h-3.5 w-3.5" /> Ligar
-                    </a>
-                  </Button>
-                )}
-                <Button variant="outline" size="sm" className="text-xs gap-1.5"
-                  onClick={() => updateVisitStatus(detailVisit.id, "realizada")}>
-                  <Check className="h-3.5 w-3.5" /> Realizada
-                </Button>
-                <Button variant="outline" size="sm" className="text-xs gap-1.5"
-                  onClick={() => updateVisitStatus(detailVisit.id, "confirmada")}>
-                  <Check className="h-3.5 w-3.5 text-green-600" /> Confirmar
-                </Button>
-                <Button variant="outline" size="sm" className="text-xs gap-1.5"
-                  onClick={() => updateVisitStatus(detailVisit.id, "remarcada")}>
-                  <RefreshCw className="h-3.5 w-3.5" /> Remarcar
-                </Button>
-                <Button variant="outline" size="sm" className="text-xs gap-1.5 text-destructive hover:text-destructive"
-                  onClick={() => updateVisitStatus(detailVisit.id, "cancelada")}>
-                  <X className="h-3.5 w-3.5" /> Cancelar
-                </Button>
-              </div>
-
-              {/* Update status select */}
-              <div className="pt-2 border-t border-border/30 mt-3">
-                <Label className="text-xs text-muted-foreground">Alterar status manualmente</Label>
-                <Select value={detailVisit.status_visita} onValueChange={(v) => updateVisitStatus(detailVisit.id, v)}>
-                  <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {VISIT_STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-        </SheetContent>
-      </Sheet>
-    );
-  };
-
-  // Create Dialog
   const CreateSectionHeader = ({ icon: Icon, label }: { icon: React.ElementType; label: string }) => (
     <div className="flex items-center gap-2.5 text-[11px] uppercase tracking-[0.18em] font-semibold text-muted-foreground mb-4 pb-2.5 border-b border-border/40">
       <div className="p-1.5 rounded-md bg-primary/8 ring-1 ring-primary/15">
@@ -690,18 +579,83 @@ export default function Visitas() {
     </div>
   );
 
-  const CreateDialog = () => (
+  const detailSheet = (
+    <Sheet open={!!detailVisit} onOpenChange={() => setDetailVisit(null)}>
+      <SheetContent className="w-full sm:max-w-md p-0 overflow-y-auto">
+        {detailVisit && detailStatus && (
+          <>
+            <div className="px-6 pt-6 pb-4 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-b border-border/40">
+              <SheetHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-primary/15 ring-1 ring-primary/20">
+                    <MapPin className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <SheetTitle className="text-lg font-bold truncate">{detailVisit.lead_name}</SheetTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {format(parseISO(detailVisit.data_visita + "T12:00:00"), "dd 'de' MMMM, yyyy", { locale: ptBR })}
+                      {detailVisit.horario_visita && ` às ${detailVisit.horario_visita}`}
+                    </p>
+                  </div>
+                </div>
+              </SheetHeader>
+            </div>
+            <div className="p-6 space-y-5">
+              <div className="rounded-xl border border-border/40 bg-card p-4 space-y-3">
+                <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">Informações do Lead</p>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div><p className="text-xs text-muted-foreground">Telefone</p><p className="font-medium">{detailVisit.lead_phone || "—"}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Convidados</p><p className="font-medium">{detailVisit.lead_guests || "—"}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Mês pretendido</p><p className="font-medium">{detailVisit.lead_month || "—"}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Responsável</p><p className="font-medium">{detailResponsavel?.full_name || "—"}</p></div>
+                </div>
+              </div>
+              <div className="rounded-xl border border-border/40 bg-card p-4">
+                <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-3">Status</p>
+                <Badge variant="outline" className={cn("text-sm border px-3 py-1", detailStatus.color)}>{detailStatus.label}</Badge>
+                {detailVisit.observacoes && <p className="text-sm text-muted-foreground mt-3 leading-relaxed">{detailVisit.observacoes}</p>}
+              </div>
+              <div className="rounded-xl border border-border/40 bg-card p-4 space-y-2">
+                <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-3">Ações</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {detailVisit.lead_phone && (
+                    <Button variant="outline" size="sm" className="text-xs gap-1.5" asChild>
+                      <a href={`https://wa.me/${detailVisit.lead_phone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer"><MessageSquare className="h-3.5 w-3.5" /> WhatsApp</a>
+                    </Button>
+                  )}
+                  {detailVisit.lead_phone && (
+                    <Button variant="outline" size="sm" className="text-xs gap-1.5" asChild>
+                      <a href={`tel:${detailVisit.lead_phone}`}><Phone className="h-3.5 w-3.5" /> Ligar</a>
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={() => updateVisitStatus(detailVisit.id, "realizada")}><Check className="h-3.5 w-3.5" /> Realizada</Button>
+                  <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={() => updateVisitStatus(detailVisit.id, "confirmada")}><Check className="h-3.5 w-3.5 text-green-600" /> Confirmar</Button>
+                  <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={() => updateVisitStatus(detailVisit.id, "remarcada")}><RefreshCw className="h-3.5 w-3.5" /> Remarcar</Button>
+                  <Button variant="outline" size="sm" className="text-xs gap-1.5 text-destructive hover:text-destructive" onClick={() => updateVisitStatus(detailVisit.id, "cancelada")}><X className="h-3.5 w-3.5" /> Cancelar</Button>
+                </div>
+                <div className="pt-2 border-t border-border/30 mt-3">
+                  <Label className="text-xs text-muted-foreground">Alterar status manualmente</Label>
+                  <Select value={detailVisit.status_visita} onValueChange={(v) => updateVisitStatus(detailVisit.id, v)}>
+                    <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>{VISIT_STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+
+  const createDialog = (
     <Dialog open={createOpen} onOpenChange={setCreateOpen}>
       <DialogContent className="max-w-[520px] max-h-[90vh] p-0 gap-0 overflow-hidden rounded-2xl [&>button]:top-5 [&>button]:right-5">
-        {/* Header */}
         <DialogHeader className="px-7 pt-7 pb-4 border-b border-border/40 bg-muted/30">
           <DialogTitle className="text-lg font-bold tracking-tight">Nova Visita</DialogTitle>
           <p className="text-[13px] text-muted-foreground mt-1">Agende uma nova visita para um lead</p>
         </DialogHeader>
-
-        {/* Body */}
         <div className="overflow-y-auto px-7 py-6 space-y-5" style={{ maxHeight: "calc(90vh - 180px)" }}>
-          {/* Section 1 – Lead */}
           <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
             <CreateSectionHeader icon={UserIcon} label="Lead" />
             <div className="space-y-2.5">
@@ -741,8 +695,6 @@ export default function Visitas() {
               )}
             </div>
           </div>
-
-          {/* Section 2 – Data e Horário */}
           <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
             <CreateSectionHeader icon={CalendarIcon} label="Data e Horário" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5">
@@ -760,7 +712,6 @@ export default function Visitas() {
                   </PopoverContent>
                 </Popover>
               </div>
-
               <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
                 <Label className="text-sm font-medium text-foreground/70">Horário</Label>
                 <Select value={newTime || "none"} onValueChange={(v) => setNewTime(v === "none" ? "" : v)}>
@@ -771,7 +722,6 @@ export default function Visitas() {
                   </SelectContent>
                 </Select>
               </div>
-
               <div className="space-y-2.5 md:pr-6">
                 <Label className="text-sm font-medium text-foreground/70">Responsável</Label>
                 <Select value={newResponsavel || "none"} onValueChange={(v) => setNewResponsavel(v === "none" ? "" : v)}>
@@ -784,8 +734,6 @@ export default function Visitas() {
               </div>
             </div>
           </div>
-
-          {/* Section 3 – Observações */}
           <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
             <CreateSectionHeader icon={MapPin} label="Observações" />
             <div className="space-y-2.5">
@@ -794,8 +742,6 @@ export default function Visitas() {
             </div>
           </div>
         </div>
-
-        {/* Fixed footer */}
         <div className="flex justify-end gap-3 px-7 py-4 border-t border-border/40 bg-muted/20">
           <Button variant="ghost" onClick={() => setCreateOpen(false)}>Cancelar</Button>
           <Button onClick={handleCreate} disabled={saving || !newLeadId || !newDate} className="px-8 rounded-lg shadow-sm">
@@ -831,8 +777,8 @@ export default function Visitas() {
         <div className="flex-1 overflow-y-auto">
           {mainContent}
         </div>
-        <DetailSheet />
-        <CreateDialog />
+        {detailSheet}
+        {createDialog}
       </div>
     );
   }
@@ -861,8 +807,8 @@ export default function Visitas() {
           </div>
         </SidebarInset>
       </div>
-      <DetailSheet />
-      <CreateDialog />
+      {detailSheet}
+      {createDialog}
     </SidebarProvider>
   );
 }
