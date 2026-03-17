@@ -58,8 +58,8 @@ function MetricCard({
   );
 }
 
-export function MonthlyReviewBanner({ isAdmin = false }: MonthlyReviewBannerProps) {
-  const { review, isLoading, isDismissed, dismiss, generateNow, showBanner } = useMonthlyReview();
+export function MonthlyReviewBanner({ isAdmin = false, unitSlug }: MonthlyReviewBannerProps) {
+  const { review, isLoading, isDismissed, dismiss, generateNow, showBanner } = useMonthlyReview(unitSlug);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
