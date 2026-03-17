@@ -39,6 +39,15 @@ const RESTRICTION_OPTIONS = [
   { value: "outro", label: "Outro" },
 ];
 
+const CHANNEL_OPTIONS = [
+  { value: "instagram_ads", label: "Anúncio Instagram" },
+  { value: "site", label: "Site" },
+  { value: "facebook", label: "Facebook" },
+  { value: "indicacao", label: "Indicação" },
+  { value: "ja_esteve_festa", label: "Já esteve em uma festa" },
+  { value: "outro", label: "Outro" },
+];
+
 export interface VisitQualificationData {
   package_interest: string | null;
   guest_count: number | null;
@@ -49,6 +58,7 @@ export interface VisitQualificationData {
   restriction_notes: string;
   client_questions: string | null;
   seller_notes: string | null;
+  lead_channel: string | null;
 }
 
 interface VisitQualificationProps {
@@ -110,6 +120,7 @@ export function VisitQualification({ visitId, initialData, onSaved }: VisitQuali
       restrictions: restrictionsJson,
       client_questions: data.client_questions || null,
       seller_notes: data.seller_notes || null,
+      lead_channel: data.lead_channel || null,
     };
 
     const { error } = await (supabase as any)
@@ -207,6 +218,31 @@ export function VisitQualification({ visitId, initialData, onSaved }: VisitQuali
             )}
           </div>
         )}
+      </div>
+
+      {/* Lead Channel */}
+      <div className="rounded-xl border border-border/40 bg-card p-4">
+        <SectionHeader icon={MessageSquare} label="Canal de Origem" />
+        <div className="flex flex-wrap gap-2">
+          {CHANNEL_OPTIONS.map(ch => {
+            const selected = data.lead_channel === ch.value;
+            return (
+              <button
+                key={ch.value}
+                type="button"
+                onClick={() => update("lead_channel", selected ? null : ch.value)}
+                className={cn(
+                  "px-3 py-2 rounded-lg border text-sm font-medium transition-all",
+                  selected
+                    ? "bg-primary/10 border-primary/40 text-primary ring-1 ring-primary/30"
+                    : "bg-card border-border/60 text-muted-foreground hover:bg-muted/50"
+                )}
+              >
+                {ch.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Party Data */}

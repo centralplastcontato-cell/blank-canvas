@@ -2848,6 +2848,7 @@ export type Database = {
           horario_visita: string | null
           id: string
           interest_level: string | null
+          lead_channel: string | null
           lead_id: string
           observacoes: string | null
           package_interest: string | null
@@ -2869,6 +2870,7 @@ export type Database = {
           horario_visita?: string | null
           id?: string
           interest_level?: string | null
+          lead_channel?: string | null
           lead_id: string
           observacoes?: string | null
           package_interest?: string | null
@@ -2890,6 +2892,7 @@ export type Database = {
           horario_visita?: string | null
           id?: string
           interest_level?: string | null
+          lead_channel?: string | null
           lead_id?: string
           observacoes?: string | null
           package_interest?: string | null
