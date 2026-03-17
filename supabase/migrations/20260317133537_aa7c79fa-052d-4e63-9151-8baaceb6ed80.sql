@@ -1,0 +1,1 @@
+UPDATE public.lead_visits lv SET unit = cl.unit FROM public.campaign_leads cl WHERE lv.lead_id = cl.id AND lv.unit IS NULL AND cl.unit IS NOT NULL;

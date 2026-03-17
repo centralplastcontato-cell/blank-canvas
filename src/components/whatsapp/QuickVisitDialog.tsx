@@ -33,6 +33,7 @@ interface QuickVisitDialogProps {
   onOpenChange: (open: boolean) => void;
   leadId: string;
   currentUserId: string;
+  leadUnit?: string | null;
   onVisitRegistered?: () => void;
 }
 
@@ -47,7 +48,7 @@ function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: 
   );
 }
 
-export function QuickVisitDialog({ open, onOpenChange, leadId, currentUserId, onVisitRegistered }: QuickVisitDialogProps) {
+export function QuickVisitDialog({ open, onOpenChange, leadId, currentUserId, leadUnit, onVisitRegistered }: QuickVisitDialogProps) {
   const [visitDate, setVisitDate] = useState<Date | undefined>(undefined);
   const [visitTime, setVisitTime] = useState("");
   const [visitStatus, setVisitStatus] = useState("agendada");
@@ -76,6 +77,7 @@ export function QuickVisitDialog({ open, onOpenChange, leadId, currentUserId, on
       status_visita: visitStatus,
       observacoes: visitNotes || null,
       created_by: currentUserId,
+      unit: leadUnit || null,
     };
 
     console.log("[QuickVisit]", payload);

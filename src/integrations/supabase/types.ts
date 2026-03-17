@@ -2857,6 +2857,7 @@ export type Database = {
           restrictions: Json | null
           seller_notes: string | null
           status_visita: string
+          unit: string | null
         }
         Insert: {
           client_questions?: string | null
@@ -2877,6 +2878,7 @@ export type Database = {
           restrictions?: Json | null
           seller_notes?: string | null
           status_visita?: string
+          unit?: string | null
         }
         Update: {
           client_questions?: string | null
@@ -2897,6 +2899,7 @@ export type Database = {
           restrictions?: Json | null
           seller_notes?: string | null
           status_visita?: string
+          unit?: string | null
         }
         Relationships: [
           {

@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
 import { VisitQualification } from "@/components/visitas/VisitQualification";
+import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 
 // Status config
 const VISIT_STATUSES = [
@@ -66,6 +67,7 @@ interface Visit {
   responsavel_user_id: string | null;
   created_by: string | null;
   created_at: string;
+  unit: string | null;
   lead_name?: string;
   lead_phone?: string;
   lead_guests?: string | null;
@@ -91,10 +93,13 @@ export default function Visitas() {
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterResponsavel, setFilterResponsavel] = useState("all");
+  const [filterUnit, setFilterUnit] = useState("all");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [detailVisit, setDetailVisit] = useState<Visit | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string }[]>([]);
+
+  const { units } = useCompanyUnits(currentCompany?.id);
 
   // Create form state
   const [newLeadSearch, setNewLeadSearch] = useState("");
@@ -104,6 +109,7 @@ export default function Visitas() {
   const [newTime, setNewTime] = useState("");
   const [newNotes, setNewNotes] = useState("");
   const [newResponsavel, setNewResponsavel] = useState("");
+  const [newUnit, setNewUnit] = useState("");
   const [saving, setSaving] = useState(false);
   const [leadResults, setLeadResults] = useState<{ id: string; name: string; whatsapp: string }[]>([]);
 
@@ -140,7 +146,7 @@ export default function Visitas() {
 
     const { data, error } = await (supabase as any)
       .from("lead_visits")
-      .select("id, lead_id, company_id, data_visita, horario_visita, status_visita, observacoes, responsavel_user_id, created_by, created_at, package_interest, guest_count, party_date_interest, payment_preference, interest_level, restrictions, client_questions, seller_notes")
+      .select("id, lead_id, company_id, data_visita, horario_visita, status_visita, observacoes, responsavel_user_id, created_by, created_at, unit, package_interest, guest_count, party_date_interest, payment_preference, interest_level, restrictions, client_questions, seller_notes")
       .eq("company_id", companyId)
       .gte("data_visita", startDate)
       .lte("data_visita", endDate)
@@ -179,9 +185,10 @@ export default function Visitas() {
     return visits.filter(v => {
       if (filterStatus !== "all" && v.status_visita !== filterStatus) return false;
       if (filterResponsavel !== "all" && v.responsavel_user_id !== filterResponsavel) return false;
+      if (filterUnit !== "all" && v.unit !== filterUnit) return false;
       return true;
     });
-  }, [visits, filterStatus, filterResponsavel]);
+  }, [visits, filterStatus, filterResponsavel, filterUnit]);
 
   // Visits for selected day
   const selectedDayVisits = useMemo(() => {
@@ -233,6 +240,7 @@ export default function Visitas() {
       observacoes: newNotes || null,
       responsavel_user_id: newResponsavel || null,
       created_by: user!.id,
+      unit: newUnit || null,
     };
 
     const { error } = await (supabase as any).from("lead_visits").insert(payload);
@@ -249,7 +257,7 @@ export default function Visitas() {
 
   const resetCreateForm = () => {
     setNewLeadSearch(""); setNewLeadId(""); setNewLeadName("");
-    setNewDate(undefined); setNewTime(""); setNewNotes(""); setNewResponsavel("");
+    setNewDate(undefined); setNewTime(""); setNewNotes(""); setNewResponsavel(""); setNewUnit("");
     setLeadResults([]);
   };
 
@@ -433,6 +441,11 @@ export default function Visitas() {
                           <UserIcon className="h-3 w-3" /> {responsavel.full_name?.split(" ")[0]}
                         </span>
                       )}
+                      {visit.unit && (
+                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <MapPin className="h-3 w-3" /> {visit.unit}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <Badge variant="outline" className={cn("text-[10px] shrink-0 border font-semibold", status.color)}>
@@ -488,6 +501,17 @@ export default function Visitas() {
               {VISIT_STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
             </SelectContent>
           </Select>
+          {units.length > 1 && (
+            <Select value={filterUnit} onValueChange={setFilterUnit}>
+              <SelectTrigger className="h-9 w-[140px] text-xs rounded-xl">
+                <SelectValue placeholder="Unidade" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas unidades</SelectItem>
+                {units.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
           <Select value={filterResponsavel} onValueChange={setFilterResponsavel}>
             <SelectTrigger className="h-9 w-[140px] text-xs rounded-xl">
               <SelectValue placeholder="Responsável" />
@@ -641,6 +665,9 @@ export default function Visitas() {
                   <div><p className="text-xs text-muted-foreground">Convidados</p><p className="font-medium">{detailVisit.lead_guests || "—"}</p></div>
                   <div><p className="text-xs text-muted-foreground">Mês pretendido</p><p className="font-medium">{detailVisit.lead_month || "—"}</p></div>
                   <div><p className="text-xs text-muted-foreground">Responsável</p><p className="font-medium">{detailResponsavel?.full_name || "—"}</p></div>
+                  {detailVisit.unit && (
+                    <div><p className="text-xs text-muted-foreground">Unidade</p><p className="font-medium">{detailVisit.unit}</p></div>
+                  )}
                 </div>
               </div>
               <div className="rounded-xl border border-border/40 bg-card p-4">
@@ -809,6 +836,18 @@ export default function Visitas() {
                   </SelectContent>
                 </Select>
               </div>
+              {units.length > 1 && (
+                <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
+                  <Label className="text-sm font-medium text-foreground/70">Unidade *</Label>
+                  <Select value={newUnit || "none"} onValueChange={(v) => setNewUnit(v === "none" ? "" : v)}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Selecionar unidade</SelectItem>
+                      {units.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
           </div>
           <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">

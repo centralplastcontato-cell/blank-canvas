@@ -1,0 +1,1 @@
+ALTER TABLE public.lead_visits ADD COLUMN unit text;
