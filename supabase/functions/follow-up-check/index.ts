@@ -285,64 +285,60 @@ Deno.serve(async (req) => {
         allErrors.push(...result.errors);
       }
 
-      // Process first follow-up
-      if (settings.follow_up_enabled) {
-        const result = await processFollowUp({
-          supabase,
-          settings,
+      // Build follow-up chain dynamically based on enabled follow-ups
+      const followUpConfigs: Array<{
+        enabled: boolean;
+        followUpNumber: number;
+        delayHours: number;
+        message: string;
+        historyAction: string;
+      }> = [
+        {
+          enabled: !!settings.follow_up_enabled,
           followUpNumber: 1,
           delayHours: settings.follow_up_delay_hours || 24,
           message: settings.follow_up_message || getDefaultFollowUpMessage(1),
           historyAction: "Follow-up automático enviado",
-          checkPreviousAction: null,
-        });
-        totalSuccessCount += result.successCount;
-        allErrors.push(...result.errors);
-      }
-
-      // Process second follow-up
-      if (settings.follow_up_2_enabled) {
-        const result = await processFollowUp({
-          supabase,
-          settings,
+        },
+        {
+          enabled: !!settings.follow_up_2_enabled,
           followUpNumber: 2,
           delayHours: settings.follow_up_2_delay_hours || 48,
           message: settings.follow_up_2_message || getDefaultFollowUpMessage(2),
           historyAction: "Follow-up #2 automático enviado",
-          checkPreviousAction: "Follow-up automático enviado",
-        });
-        totalSuccessCount += result.successCount;
-        allErrors.push(...result.errors);
-      }
-
-      // Process third follow-up
-      if (settings.follow_up_3_enabled) {
-        const result = await processFollowUp({
-          supabase,
-          settings,
+        },
+        {
+          enabled: !!settings.follow_up_3_enabled,
           followUpNumber: 3,
           delayHours: settings.follow_up_3_delay_hours || 72,
           message: settings.follow_up_3_message || getDefaultFollowUpMessage(3),
           historyAction: "Follow-up #3 automático enviado",
-          checkPreviousAction: "Follow-up #2 automático enviado",
-        });
-        totalSuccessCount += result.successCount;
-        allErrors.push(...result.errors);
-      }
-
-      // Process fourth follow-up
-      if (settings.follow_up_4_enabled) {
-        const result = await processFollowUp({
-          supabase,
-          settings,
+        },
+        {
+          enabled: !!settings.follow_up_4_enabled,
           followUpNumber: 4,
           delayHours: settings.follow_up_4_delay_hours || 96,
           message: settings.follow_up_4_message || getDefaultFollowUpMessage(4),
           historyAction: "Follow-up #4 automático enviado",
-          checkPreviousAction: "Follow-up #3 automático enviado",
+        },
+      ];
+
+      const enabledFollowUps = followUpConfigs.filter(f => f.enabled);
+
+      let previousAction: string | null = null;
+      for (const fu of enabledFollowUps) {
+        const result = await processFollowUp({
+          supabase,
+          settings,
+          followUpNumber: fu.followUpNumber,
+          delayHours: fu.delayHours,
+          message: fu.message,
+          historyAction: fu.historyAction,
+          checkPreviousAction: previousAction,
         });
         totalSuccessCount += result.successCount;
         allErrors.push(...result.errors);
+        previousAction = fu.historyAction;
       }
 
       // Process auto-lost after 4th follow-up
