@@ -1,0 +1,1 @@
+DELETE FROM monthly_reviews WHERE company_id = 'b0000000-0000-0000-0000-000000000001';
