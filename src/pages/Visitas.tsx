@@ -742,6 +742,7 @@ export default function Visitas() {
                     : '',
                   client_questions: detailVisit.client_questions || null,
                   seller_notes: detailVisit.seller_notes || null,
+                  lead_channel: (detailVisit as any).lead_channel || null,
                 }}
                 onSaved={fetchVisits}
               />

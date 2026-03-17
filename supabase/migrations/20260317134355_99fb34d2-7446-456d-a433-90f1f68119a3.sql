@@ -1,0 +1,1 @@
+ALTER TABLE public.lead_visits ADD COLUMN IF NOT EXISTS lead_channel text;
