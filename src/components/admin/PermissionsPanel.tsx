@@ -85,8 +85,8 @@ const categoryToModule: Record<string, keyof CompanyModules> = {
   Agenda: 'agenda',
   'Automações': 'flow_builder',
   Visitas: 'agenda',
-  Campanhas: 'campanhas' as keyof CompanyModules,
-  Treinamento: 'treinamento' as keyof CompanyModules,
+  Campanhas: 'campanhas',
+  Treinamento: 'treinamento',
 };
 
 export function PermissionsPanel({
