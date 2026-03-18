@@ -9,3 +9,4 @@ export { SalesMaterialsSection } from './SalesMaterialsSection';
 export { CaptionsCard } from './CaptionsCard';
 export { ReactivationSection } from './ReactivationSection';
 export { VisitConfirmationSection } from './VisitConfirmationSection';
+export { ContractMessageSection } from './ContractMessageSection';

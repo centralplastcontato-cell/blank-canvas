@@ -2391,6 +2391,11 @@ export function AutomationsSection() {
         <TabsContent value="visitas" className="mt-4">
           <VisitConfirmationSection />
         </TabsContent>
+
+        {/* ============ TAB: CONTRATO ============ */}
+        <TabsContent value="contrato" className="mt-4">
+          <ContractMessageSection />
+        </TabsContent>
       </Tabs>
     </div>
   );
