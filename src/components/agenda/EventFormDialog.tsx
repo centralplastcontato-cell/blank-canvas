@@ -220,6 +220,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [clientRequest, setClientRequest] = useState<ClientDataRequest | null>(null);
   const [loadingClientRequest, setLoadingClientRequest] = useState(false);
   const [generatingLink, setGeneratingLink] = useState(false);
+  const [resolvedMessage, setResolvedMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
