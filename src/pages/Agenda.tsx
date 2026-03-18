@@ -171,14 +171,25 @@ export default function Agenda() {
   }, [navigate]);
 
   // Fetch events for current month
-  const fetchClosedInPeriod = async (start: string, end: string) => {
+  const fetchClosedInPeriod = async (start: string, end: string, unit?: string) => {
     if (!currentCompany?.id) return;
-    const query = supabase
+    let query = supabase
       .from("company_events")
       .select("id, unit", { count: "exact", head: true })
       .eq("company_id", currentCompany.id)
       .gte("data_fechamento_venda", start)
       .lte("data_fechamento_venda", end);
+    
+    // Apply unit filter
+    if (unit && unit !== "all") {
+      query = query.eq("unit", unit);
+    } else if (!canViewAll) {
+      const permitted = allowedUnits.filter(u => u !== "As duas");
+      if (permitted.length > 0) {
+        query = query.in("unit", permitted);
+      }
+    }
+    
     const { count } = await query;
     return count || 0;
   };
