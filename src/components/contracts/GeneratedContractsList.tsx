@@ -10,7 +10,7 @@ import { Plus, Loader2, FileText, Eye, Ban, History } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ContractGenerator } from "./ContractGenerator";
-import { ContractPreviewPrint } from "./ContractPreviewPrint";
+import { ContractDocumentViewer } from "./ContractDocumentViewer";
 import { toast } from "@/hooks/use-toast";
 import { logContractAction } from "./contractAuditHelpers";
 
