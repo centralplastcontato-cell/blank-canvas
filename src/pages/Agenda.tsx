@@ -227,14 +227,18 @@ export default function Agenda() {
     setPeriodLoading(true);
     const start = format(range.from, "yyyy-MM-dd");
     const end = format(range.to, "yyyy-MM-dd");
-    const { data, error } = await supabase
-      .from("company_events")
-      .select("*")
-      .eq("company_id", currentCompany.id)
-      .gte("event_date", start)
-      .lte("event_date", end)
-      .order("event_date");
-    if (!error && data) setPeriodEvents(data as CompanyEvent[]);
+    const [eventsRes, closedCount] = await Promise.all([
+      supabase
+        .from("company_events")
+        .select("*")
+        .eq("company_id", currentCompany.id)
+        .gte("event_date", start)
+        .lte("event_date", end)
+        .order("event_date"),
+      fetchClosedInPeriod(start, end),
+    ]);
+    if (!eventsRes.error && eventsRes.data) setPeriodEvents(eventsRes.data as CompanyEvent[]);
+    setClosedInPeriod(closedCount || 0);
     setPeriodLoading(false);
   };
 
