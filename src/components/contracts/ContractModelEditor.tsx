@@ -193,6 +193,12 @@ export function ContractModelEditor({ model, userId, onClose }: Props) {
           </TabsList>
 
           <TabsContent value="editor" className="mt-3">
+            <div className="flex items-center gap-2 mb-2 p-2.5 rounded-lg bg-muted/50 border border-border/30">
+              {currentCompany?.logo_url && <img src={currentCompany.logo_url} alt="" className="h-6 rounded" />}
+              <p className="text-xs text-muted-foreground">
+                🏷️ O logotipo e nome de <strong>{currentCompany?.name || "sua empresa"}</strong> serão adicionados automaticamente no topo de todo contrato gerado.
+              </p>
+            </div>
             <Textarea
               value={conteudo}
               onChange={e => setConteudo(e.target.value)}
