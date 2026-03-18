@@ -5,9 +5,10 @@ import heroMockup from "@/assets/hub-hero-mockup.jpg";
 
 interface HubHeroProps {
   onOpenWizard: () => void;
+  videoUrl?: string;
 }
 
-export default function HubHero({ onOpenWizard }: HubHeroProps) {
+export default function HubHero({ onOpenWizard, videoUrl }: HubHeroProps) {
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden bg-[hsl(225_35%_10%)]">
       {/* Ambient glow effects */}
@@ -32,7 +33,7 @@ export default function HubHero({ onOpenWizard }: HubHeroProps) {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-20 pb-12 sm:pt-32 sm:pb-24 relative z-10 w-full">
-        <div className="grid lg:grid-cols-2 gap-10 lg:gap-20 items-center">
+        <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
           {/* Left - Copy */}
           <motion.div
             initial={{ opacity: 0, y: 40 }}
@@ -46,7 +47,7 @@ export default function HubHero({ onOpenWizard }: HubHeroProps) {
               className="inline-flex items-center gap-2 bg-white/5 backdrop-blur-sm text-white/80 text-xs sm:text-sm font-medium px-3 sm:px-4 py-1.5 sm:py-2 rounded-full mb-6 sm:mb-8 border border-white/10"
             >
               <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-              A melhor plataforma para buffets infantis
+              Plataforma #1 para buffets infantis
             </motion.div>
 
             <h1 className="font-display text-3xl sm:text-5xl lg:text-6xl font-bold text-white leading-[1.08] tracking-tight">
@@ -65,17 +66,16 @@ export default function HubHero({ onOpenWizard }: HubHeroProps) {
             </h1>
 
             <p className="mt-5 sm:mt-6 text-base sm:text-xl text-white/60 leading-relaxed max-w-lg">
-              Transforme leads em festas fechadas com CRM + WhatsApp automatizado que atende, qualifica e converte.{" "}
-              <span className="text-white/80 font-medium">Sem aumentar sua equipe.</span>
+              Veja em 2 minutos como a Celebrei transforma leads em festas fechadas com CRM + WhatsApp automatizado.
             </p>
 
-            <div className="mt-8 sm:mt-10">
+            <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row gap-3">
               <Button
                 size="lg"
                 className="text-sm sm:text-base px-6 sm:px-8 py-5 sm:py-6 rounded-full font-bold shadow-lg bg-white text-[hsl(225_35%_10%)] hover:bg-white/90 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_20px_40px_-10px_rgba(255,255,255,0.2)]"
                 onClick={onOpenWizard}
               >
-                Quero fechar mais festas
+                Agendar demonstração
                 <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
             </div>
@@ -101,21 +101,40 @@ export default function HubHero({ onOpenWizard }: HubHeroProps) {
             </div>
           </motion.div>
 
-          {/* Right - Hero image */}
+          {/* Right - Video or Mockup */}
           <motion.div
             initial={{ opacity: 0, y: 60 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, delay: 0.3, ease: "easeOut" }}
-            className="relative hidden sm:block"
+            className="relative"
           >
             <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.5)]">
-              <img
-                src={heroMockup}
-                alt="Dashboard da plataforma Celebrei"
-                className="w-full h-auto"
-                loading="eager"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[hsl(225_35%_10%/0.4)] to-transparent" />
+              {videoUrl ? (
+                <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
+                  <iframe
+                    src={videoUrl}
+                    className="absolute inset-0 w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    title="Demonstração Celebrei"
+                  />
+                </div>
+              ) : (
+                <>
+                  <img
+                    src={heroMockup}
+                    alt="Dashboard da plataforma Celebrei"
+                    className="w-full h-auto"
+                    loading="eager"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[hsl(225_35%_10%/0.4)] to-transparent" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-all duration-300 hover:scale-110">
+                      <Play className="h-7 w-7 sm:h-8 sm:w-8 text-white ml-1" />
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             <motion.div
