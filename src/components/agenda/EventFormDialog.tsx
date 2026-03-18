@@ -347,6 +347,28 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     }
   };
 
+  const resolveContractMessage = (template: string, link: string) => {
+    const leadName = form.title || form.lead_name || "Cliente";
+    const firstName = leadName.split(" ")[0];
+    const companyName = currentCompany?.name || "Buffet";
+    const eventDate = form.event_date
+      ? (() => { const [y, m, d] = form.event_date.split("-"); return `${d}/${m}/${y}`; })()
+      : "";
+    const eventType = EVENT_TYPES.find(t => t.value === form.event_type)?.label || form.event_type || "";
+    const packageName = form.package_name || "";
+
+    return template
+      .replace(/\{\{nome\}\}/gi, leadName)
+      .replace(/\{\{primeiro_nome\}\}/gi, firstName)
+      .replace(/\{\{empresa\}\}/gi, companyName)
+      .replace(/\{\{buffet\}\}/gi, companyName)
+      .replace(/\{\{nome_buffet\}\}/gi, companyName)
+      .replace(/\{\{data_festa\}\}/gi, eventDate)
+      .replace(/\{\{tipo_festa\}\}/gi, eventType)
+      .replace(/\{\{pacote\}\}/gi, packageName)
+      .replace(/\{\{link_formulario_contrato\}\}/gi, link);
+  };
+
   const generateClientLink = async () => {
     if (!initialData?.id || !currentCompany?.id) {
       toast({ title: "Salve a festa primeiro antes de solicitar dados do contratante", variant: "destructive" });
@@ -369,7 +391,24 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         .single();
       if (error) throw error;
       setClientRequest(data as ClientDataRequest);
-      toast({ title: "Link gerado com sucesso!" });
+
+      // Load contract message settings and resolve
+      const link = `${window.location.origin}/dados-contratante/${token}`;
+      const { data: msgSettings } = await (supabase as any)
+        .from("contract_message_settings")
+        .select("is_enabled, message_template")
+        .eq("company_id", currentCompany.id)
+        .maybeSingle();
+
+      if (msgSettings?.is_enabled && msgSettings?.message_template) {
+        const resolved = resolveContractMessage(msgSettings.message_template, link);
+        setResolvedMessage(resolved);
+        navigator.clipboard.writeText(resolved);
+        toast({ title: "Link gerado e mensagem copiada!", description: "A mensagem personalizada foi copiada para a área de transferência." });
+      } else {
+        navigator.clipboard.writeText(link);
+        toast({ title: "Link gerado e copiado!" });
+      }
     } catch (err: any) {
       toast({ title: "Erro ao gerar link", description: err.message, variant: "destructive" });
     } finally {
@@ -385,6 +424,13 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const copyLink = () => {
     navigator.clipboard.writeText(getClientLink());
     toast({ title: "Link copiado!" });
+  };
+
+  const copyMessage = () => {
+    if (resolvedMessage) {
+      navigator.clipboard.writeText(resolvedMessage);
+      toast({ title: "Mensagem copiada!" });
+    }
   };
 
   const isEdit = !!initialData?.id;
