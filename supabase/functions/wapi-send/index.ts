@@ -1013,13 +1013,6 @@ Deno.serve(async (req) => {
 
               if (instRecord?.phone_number) {
                 const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-                const { count } = await supabase
-                  .from('wapi_messages')
-                  .select('id', { count: 'exact', head: true })
-                  .eq('conversation_id', instRecord.id)  // This won't work, need instance-level query
-                  .gte('timestamp', thirtyMinAgo);
-
-                // Query via conversations linked to this instance
                 const { data: recentActivity } = await supabase
                   .from('wapi_conversations')
                   .select('id')
