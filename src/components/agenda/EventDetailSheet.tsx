@@ -432,6 +432,20 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
             </Button>
           </div>
         </div>
+
+        {/* Contract Generation Dialog */}
+        {userId && selectedModelId && (
+          <EventContractDialog
+            open={contractDialogOpen}
+            onOpenChange={(open) => {
+              setContractDialogOpen(open);
+              if (!open) setSelectedModelId("");
+            }}
+            eventId={event.id}
+            modelId={selectedModelId}
+            userId={userId}
+          />
+        )}
       </SheetContent>
     </Sheet>
   );
