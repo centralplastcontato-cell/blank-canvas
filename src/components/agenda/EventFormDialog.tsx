@@ -376,7 +376,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   };
 
   const generateClientLink = async () => {
-    if (!initialData?.id || !currentCompany?.id) {
+    const eventId = form.id || initialData?.id;
+    if (!eventId || !currentCompany?.id) {
       toast({ title: "Salve a festa primeiro antes de solicitar dados do contratante", variant: "destructive" });
       return;
     }
