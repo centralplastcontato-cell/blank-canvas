@@ -70,6 +70,7 @@ export default function Agenda() {
   const [periodEvents, setPeriodEvents] = useState<CompanyEvent[]>([]);
   const [periodLoading, setPeriodLoading] = useState(false);
   const [closedInPeriod, setClosedInPeriod] = useState(0);
+  const [closedRevenue, setClosedRevenue] = useState(0);
 
   const { canViewAll, allowedUnits, unitAccess, isLoading: permUnitLoading } = useUnitPermissions(currentUser?.id, currentCompany?.id);
   const { hasPermission: userHasPermission } = usePermissions(currentUser?.id);
@@ -171,11 +172,11 @@ export default function Agenda() {
   }, [navigate]);
 
   // Fetch events for current month
-  const fetchClosedInPeriod = async (start: string, end: string, unit?: string) => {
-    if (!currentCompany?.id) return;
+  const fetchClosedInPeriod = async (start: string, end: string, unit?: string): Promise<{ count: number; revenue: number }> => {
+    if (!currentCompany?.id) return { count: 0, revenue: 0 };
     let query = supabase
       .from("company_events")
-      .select("id, unit", { count: "exact", head: true })
+      .select("id, unit, total_value")
       .eq("company_id", currentCompany.id)
       .gte("data_fechamento_venda", start)
       .lte("data_fechamento_venda", end);
@@ -190,8 +191,10 @@ export default function Agenda() {
       }
     }
     
-    const { count } = await query;
-    return count || 0;
+    const { data } = await query;
+    const count = data?.length || 0;
+    const revenue = (data || []).reduce((sum, e) => sum + (e.total_value || 0), 0);
+    return { count, revenue };
   };
 
   const fetchEvents = async () => {
@@ -199,7 +202,7 @@ export default function Agenda() {
     setLoading(true);
     const start = format(startOfMonth(month), "yyyy-MM-dd");
     const end = format(endOfMonth(month), "yyyy-MM-dd");
-    const [eventsRes, checklistRes, closedCount] = await Promise.all([
+    const [eventsRes, checklistRes, closedResult] = await Promise.all([
       supabase
         .from("company_events")
         .select("*")
@@ -216,7 +219,8 @@ export default function Agenda() {
     ]);
 
     if (!eventsRes.error && eventsRes.data) setEvents(eventsRes.data as CompanyEvent[]);
-    setClosedInPeriod(closedCount || 0);
+    setClosedInPeriod(closedResult?.count || 0);
+    setClosedRevenue(closedResult?.revenue || 0);
 
     // Build checklist progress map
     const progressMap: Record<string, { total: number; completed: number }> = {};
@@ -237,7 +241,10 @@ export default function Agenda() {
     if (!periodRange || !currentCompany?.id) return;
     const start = format(periodRange.from, "yyyy-MM-dd");
     const end = format(periodRange.to, "yyyy-MM-dd");
-    fetchClosedInPeriod(start, end, selectedUnit).then(count => setClosedInPeriod(count || 0));
+    fetchClosedInPeriod(start, end, selectedUnit).then(result => {
+      setClosedInPeriod(result?.count || 0);
+      setClosedRevenue(result?.revenue || 0);
+    });
   }, [selectedUnit]);
 
   // Fetch events for custom period
@@ -246,7 +253,7 @@ export default function Agenda() {
     setPeriodLoading(true);
     const start = format(range.from, "yyyy-MM-dd");
     const end = format(range.to, "yyyy-MM-dd");
-    const [eventsRes, closedCount] = await Promise.all([
+    const [eventsRes, closedResult] = await Promise.all([
       supabase
         .from("company_events")
         .select("*")
@@ -257,7 +264,8 @@ export default function Agenda() {
       fetchClosedInPeriod(start, end, selectedUnit),
     ]);
     if (!eventsRes.error && eventsRes.data) setPeriodEvents(eventsRes.data as CompanyEvent[]);
-    setClosedInPeriod(closedCount || 0);
+    setClosedInPeriod(closedResult?.count || 0);
+    setClosedRevenue(closedResult?.revenue || 0);
     setPeriodLoading(false);
   };
 
@@ -716,6 +724,7 @@ export default function Agenda() {
                   totalDaysOverride={periodRange ? differenceInDays(periodRange.to, periodRange.from) + 1 : undefined}
                   showRevenue={showRevenue}
                   closedInPeriod={closedInPeriod}
+                  closedRevenue={closedRevenue}
                 />
               </div>
 
