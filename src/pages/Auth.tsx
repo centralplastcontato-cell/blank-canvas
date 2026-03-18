@@ -9,7 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { Loader2, Lock, Mail, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { isHubDomain, getCanonicalHost, isPreviewDomain } from "@/hooks/useDomainDetection";
 import { z } from "zod";
-import loginBg from "@/assets/login-bg.jpg";
+import loginBg from "@/assets/login-bg-3.jpg";
 
 
 const emailSchema = z.string().email("Email inválido");
