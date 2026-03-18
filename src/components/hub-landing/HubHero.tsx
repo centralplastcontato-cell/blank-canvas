@@ -11,11 +11,6 @@ interface HubHeroProps {
 export default function HubHero({ onOpenWizard, videoUrl }: HubHeroProps) {
   return (
     <section className="relative overflow-hidden bg-[hsl(225_35%_10%)]">
-      {/* Ambient glow */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1200px] h-[600px] bg-[radial-gradient(ellipse_at_center,hsl(215_85%_50%/0.12),transparent_70%)]" />
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-[radial-gradient(ellipse_at_center,hsl(42_95%_55%/0.06),transparent_70%)]" />
-      </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-28 sm:pt-36 pb-16 sm:pb-24 relative z-10">
         {/* Centered copy */}
