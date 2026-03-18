@@ -1,35 +1,38 @@
-import { CalendarDays, CheckCircle2, Clock, XCircle, TrendingUp, DollarSign } from "lucide-react";
-import { getDaysInMonth } from "date-fns";
+import { CalendarDays, CheckCircle2, Clock, XCircle, TrendingUp, DollarSign, Handshake } from "lucide-react";
+import { getDaysInMonth, startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
 
 interface MonthSummaryCardsProps {
-  events: Array<{ status: string; total_value: number | null; event_date: string }>;
+  events: Array<{ status: string; total_value: number | null; event_date: string; data_fechamento_venda?: string | null }>;
   month?: Date;
   periodLabel?: string;
   totalDaysOverride?: number;
   onClearPeriod?: () => void;
   showRevenue?: boolean;
+  periodRange?: { from: Date; to: Date } | null;
 }
 
-export function MonthSummaryCards({ events, month, periodLabel, totalDaysOverride, showRevenue = true }: MonthSummaryCardsProps) {
+export function MonthSummaryCards({ events, month, periodLabel, totalDaysOverride, showRevenue = true, periodRange }: MonthSummaryCardsProps) {
   const total = events.length;
   const confirmados = events.filter(e => e.status === "confirmado").length;
   const pendentes = events.filter(e => e.status === "pendente").length;
   const cancelados = events.filter(e => e.status === "cancelado").length;
 
-  // Revenue
-  const faturamento = events
-    .filter(e => e.status === "confirmado")
-    .reduce((sum, e) => sum + (e.total_value || 0), 0);
-
-  // Occupancy calculation
+  // Count events closed/sold in the period (by data_fechamento_venda)
   const currentMonth = month || new Date();
-  const totalDays = totalDaysOverride || getDaysInMonth(currentMonth);
-  const uniqueDaysWithEvents = new Set(events.filter(e => e.status !== "cancelado").map(e => e.event_date)).size;
-  const freeDays = totalDays - uniqueDaysWithEvents;
-  const occupancyRate = totalDays > 0 ? Math.round((uniqueDaysWithEvents / totalDays) * 100) : 0;
+  const rangeStart = periodRange?.from || startOfMonth(currentMonth);
+  const rangeEnd = periodRange?.to || endOfMonth(currentMonth);
+
+  const fechadasNoPeriodo = events.filter(e => {
+    if (!e.data_fechamento_venda) return false;
+    try {
+      const fechamento = parseISO(e.data_fechamento_venda);
+      return isWithinInterval(fechamento, { start: rangeStart, end: rangeEnd });
+    } catch { return false; }
+  }).length;
 
   const cards = [
     { label: "Total de Festas", value: total, icon: CalendarDays, color: "text-primary", bg: "bg-primary/10", border: "border-l-primary", tint: "bg-primary/[0.02]" },
+    { label: "Fechadas no Período", value: fechadasNoPeriodo, icon: Handshake, color: "text-violet-600", bg: "bg-violet-500/10", border: "border-l-violet-500", tint: "bg-violet-500/[0.02]" },
     { label: "Confirmadas", value: confirmados, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-500/10", border: "border-l-emerald-500", tint: "bg-emerald-500/[0.02]" },
     { label: "Pendentes", value: pendentes, icon: Clock, color: "text-amber-600", bg: "bg-amber-500/10", border: "border-l-amber-500", tint: "bg-amber-500/[0.02]" },
     { label: "Canceladas", value: cancelados, icon: XCircle, color: "text-red-600", bg: "bg-red-500/10", border: "border-l-red-500", tint: "bg-red-500/[0.02]" },
