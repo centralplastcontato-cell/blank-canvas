@@ -388,7 +388,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         .from("client_data_requests")
         .insert({
           company_id: currentCompany.id,
-          event_id: initialData.id,
+          event_id: eventId,
           lead_id: form.lead_id || null,
           token,
           status: "sent",
