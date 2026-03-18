@@ -1,5 +1,5 @@
-import { CalendarDays, CheckCircle2, Clock, XCircle, TrendingUp, DollarSign, Handshake } from "lucide-react";
-import { getDaysInMonth } from "date-fns";
+import { CalendarDays, CheckCircle2, CalendarClock, XCircle, TrendingUp, DollarSign, Handshake } from "lucide-react";
+import { getDaysInMonth, isBefore, startOfDay } from "date-fns";
 
 interface MonthSummaryCardsProps {
   events: Array<{ status: string; total_value: number | null; event_date: string }>;
@@ -14,9 +14,12 @@ interface MonthSummaryCardsProps {
 
 export function MonthSummaryCards({ events, month, periodLabel, totalDaysOverride, showRevenue = true, closedInPeriod = 0, closedRevenue = 0 }: MonthSummaryCardsProps) {
   const total = events.length;
-  const confirmados = events.filter(e => e.status === "confirmado").length;
-  const pendentes = events.filter(e => e.status === "pendente").length;
   const cancelados = events.filter(e => e.status === "cancelado").length;
+  const activeEvents = events.filter(e => e.status !== "cancelado");
+  
+  const today = startOfDay(new Date());
+  const realizadas = activeEvents.filter(e => isBefore(new Date(e.event_date + "T23:59:59"), today)).length;
+  const aRealizar = activeEvents.filter(e => !isBefore(new Date(e.event_date + "T23:59:59"), today)).length;
 
   // Revenue from events happening in the period (confirmed only)
   const faturamentoAgendado = events
@@ -26,14 +29,14 @@ export function MonthSummaryCards({ events, month, periodLabel, totalDaysOverrid
   // Occupancy calculation
   const currentMonth = month || new Date();
   const totalDays = totalDaysOverride || getDaysInMonth(currentMonth);
-  const uniqueDaysWithEvents = new Set(events.filter(e => e.status !== "cancelado").map(e => e.event_date)).size;
+  const uniqueDaysWithEvents = new Set(activeEvents.map(e => e.event_date)).size;
   const freeDays = totalDays - uniqueDaysWithEvents;
   const occupancyRate = totalDays > 0 ? Math.round((uniqueDaysWithEvents / totalDays) * 100) : 0;
 
   const cards = [
     { label: "Total de Festas", value: total, icon: CalendarDays, color: "text-primary", bg: "bg-primary/10", border: "border-l-primary", tint: "bg-primary/[0.02]" },
-    { label: "Confirmadas", value: confirmados, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-500/10", border: "border-l-emerald-500", tint: "bg-emerald-500/[0.02]" },
-    { label: "Pendentes", value: pendentes, icon: Clock, color: "text-amber-600", bg: "bg-amber-500/10", border: "border-l-amber-500", tint: "bg-amber-500/[0.02]" },
+    { label: "Realizadas", value: realizadas, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-500/10", border: "border-l-emerald-500", tint: "bg-emerald-500/[0.02]" },
+    { label: "A Realizar", value: aRealizar, icon: CalendarClock, color: "text-sky-600", bg: "bg-sky-500/10", border: "border-l-sky-500", tint: "bg-sky-500/[0.02]" },
     { label: "Canceladas", value: cancelados, icon: XCircle, color: "text-red-600", bg: "bg-red-500/10", border: "border-l-red-500", tint: "bg-red-500/[0.02]" },
   ];
 
