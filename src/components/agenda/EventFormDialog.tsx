@@ -841,9 +841,21 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         {/* Fixed footer */}
         <div className="flex justify-end gap-3 px-7 py-4 border-t border-border/40 bg-muted/20">
           <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          {!isEdit && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={saving}
+              className="px-6 rounded-lg"
+              onClick={(e) => handleSubmit(e as any, true)}
+            >
+              {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Salvar
+            </Button>
+          )}
           <Button type="submit" form="event-form" disabled={saving} className="px-8 rounded-lg shadow-sm">
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {isEdit ? "Salvar" : "Criar Festa"}
+            {isEdit ? "Salvar" : "Criar e Fechar"}
           </Button>
         </div>
       </DialogContent>
