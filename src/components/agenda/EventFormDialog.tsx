@@ -813,6 +813,18 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                     <ExternalLink className="h-4 w-4" />
                   </Button>
                 </div>
+                {resolvedMessage && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">Mensagem para o cliente:</p>
+                    <div className="rounded-lg bg-muted/50 border border-border/30 p-3">
+                      <p className="text-xs whitespace-pre-line leading-relaxed">{resolvedMessage}</p>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" onClick={copyMessage} className="gap-1.5 text-xs">
+                      <Copy className="h-3 w-3" />
+                      Copiar mensagem
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>
