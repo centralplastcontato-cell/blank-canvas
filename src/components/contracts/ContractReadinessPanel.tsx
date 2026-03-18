@@ -4,7 +4,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  FileSignature, CheckCircle2, AlertTriangle, Clock, Loader2, ChevronRight,
+  FileSignature, CheckCircle2, AlertTriangle, Loader2, ChevronRight,
   User, CalendarDays, CreditCard, Package, FileText, XCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
