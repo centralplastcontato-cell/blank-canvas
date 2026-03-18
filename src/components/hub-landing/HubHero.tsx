@@ -20,15 +20,6 @@ export default function HubHero({ onOpenWizard, videoUrl }: HubHeroProps) {
           transition={{ duration: 0.7, ease: "easeOut" }}
           className="text-center max-w-3xl mx-auto"
         >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.15, duration: 0.4 }}
-            className="inline-flex items-center gap-2 bg-white/[0.06] backdrop-blur-sm text-white/70 text-xs font-medium px-3 py-1.5 rounded-full mb-5 sm:mb-6 border border-white/[0.08]"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-            Usado por 10+ buffets no Brasil
-          </motion.div>
 
           <h1 className="font-display text-[2rem] leading-[1.1] sm:text-5xl lg:text-[3.5rem] font-bold text-white tracking-tight">
             Seu buffet perdendo festas
@@ -77,13 +68,6 @@ export default function HubHero({ onOpenWizard, videoUrl }: HubHeroProps) {
           <div className="absolute -inset-4 sm:-inset-8 rounded-3xl bg-gradient-to-b from-primary/10 via-transparent to-secondary/5 blur-2xl pointer-events-none" />
 
           <div className="relative rounded-xl sm:rounded-2xl overflow-hidden border border-white/[0.08] shadow-[0_30px_80px_-15px_rgba(0,0,0,0.6)] bg-black/20">
-            {/* Browser chrome bar */}
-            <div className="flex items-center gap-1.5 px-4 py-2.5 bg-white/[0.04] border-b border-white/[0.06]">
-              <div className="w-2.5 h-2.5 rounded-full bg-white/10" />
-              <div className="w-2.5 h-2.5 rounded-full bg-white/10" />
-              <div className="w-2.5 h-2.5 rounded-full bg-white/10" />
-              <div className="ml-3 flex-1 h-5 rounded-md bg-white/[0.04] max-w-[200px]" />
-            </div>
 
             {videoUrl ? (
               <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
