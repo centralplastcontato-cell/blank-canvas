@@ -271,6 +271,15 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
   tipo_festa: {
     resolver: (ctx) => ctx.event?.event_type || '',
   },
+  tema: {
+    resolver: (ctx) => ctx.contract?.tema || '',
+  },
+  valor_convidado_adicional: {
+    resolver: (ctx) => ctx.contract?.valor_convidado_adicional || '',
+  },
+  quantidade_pessoas: {
+    resolver: (ctx) => ctx.contract?.quantidade_pessoas || ctx.lead?.guests || ctx.event?.guest_count?.toString() || '',
+  },
 
   // --- Freelancer / Schedule ---
   titulo: {
