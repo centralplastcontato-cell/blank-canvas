@@ -58,6 +58,25 @@ export function MonthSummaryCards({ events, month, periodLabel, totalDaysOverrid
         ))}
       </div>
 
+      {/* Closed sales card */}
+      {closedInPeriod > 0 && (
+        <div className="rounded-2xl border border-border/30 border-l-[3px] border-l-violet-500 bg-violet-500/[0.02] shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-4 md:p-5">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-violet-500/10 shrink-0">
+              <Handshake className="h-5 w-5 text-violet-600" />
+            </div>
+            <div className="min-w-0 flex flex-col">
+              <p className="text-2xl md:text-3xl font-extrabold tracking-tight leading-none">
+                {closedInPeriod}
+              </p>
+              <p className="text-[10px] md:text-[11px] text-muted-foreground/80 font-medium uppercase tracking-widest mt-1">
+                {periodLabel ? "Fechadas no Período" : "Fechadas no Mês"}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Revenue card (shown when period is active or when there's revenue, and permission allows) */}
       {showRevenue && (periodLabel || faturamento > 0) && (
         <div className="rounded-2xl border border-border/30 border-l-[3px] border-l-emerald-500 bg-emerald-500/[0.02] shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-4 md:p-5">
