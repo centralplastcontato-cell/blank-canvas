@@ -722,6 +722,67 @@ export type Database = {
           },
         ]
       }
+      client_data_requests: {
+        Row: {
+          client_data: Json | null
+          company_id: string
+          completed_at: string | null
+          created_at: string
+          event_id: string
+          id: string
+          lead_id: string | null
+          sent_at: string | null
+          status: string
+          token: string
+        }
+        Insert: {
+          client_data?: Json | null
+          company_id: string
+          completed_at?: string | null
+          created_at?: string
+          event_id: string
+          id?: string
+          lead_id?: string | null
+          sent_at?: string | null
+          status?: string
+          token: string
+        }
+        Update: {
+          client_data?: Json | null
+          company_id?: string
+          completed_at?: string | null
+          created_at?: string
+          event_id?: string
+          id?: string
+          lead_id?: string | null
+          sent_at?: string | null
+          status?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_data_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_data_requests_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "company_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_data_requests_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           created_at: string
@@ -843,6 +904,7 @@ export type Database = {
           lead_id: string | null
           notes: string | null
           package_name: string | null
+          payment_details: Json | null
           payment_method: string | null
           start_time: string | null
           status: string
@@ -865,6 +927,7 @@ export type Database = {
           lead_id?: string | null
           notes?: string | null
           package_name?: string | null
+          payment_details?: Json | null
           payment_method?: string | null
           start_time?: string | null
           status?: string
@@ -887,6 +950,7 @@ export type Database = {
           lead_id?: string | null
           notes?: string | null
           package_name?: string | null
+          payment_details?: Json | null
           payment_method?: string | null
           start_time?: string | null
           status?: string
@@ -4560,6 +4624,19 @@ export type Database = {
           thank_you_message: string
         }[]
       }
+      get_client_data_request_by_token: {
+        Args: { _token: string }
+        Returns: {
+          company_id: string
+          company_logo: string
+          company_name: string
+          event_date: string
+          event_id: string
+          event_title: string
+          id: string
+          status: string
+        }[]
+      }
       get_company_branding_by_domain: {
         Args: { _domain: string }
         Returns: {
@@ -4877,6 +4954,10 @@ export type Database = {
           _delete_leads?: boolean
         }
         Returns: Json
+      }
+      submit_client_data_public: {
+        Args: { _client_data: Json; _token: string }
+        Returns: undefined
       }
       update_attendance_entry_public: {
         Args: {
