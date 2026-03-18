@@ -113,7 +113,7 @@ interface ClientDataRequest {
 interface EventFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: EventFormData) => Promise<void>;
+  onSubmit: (data: EventFormData) => Promise<string | void>;
   initialData?: EventFormData | null;
   units: Array<{ name: string }>;
 }
@@ -246,20 +246,21 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   }, [open, initialData]);
 
   // Fetch client data request for existing events
+  const eventId = form.id || initialData?.id;
   useEffect(() => {
-    if (!open || !initialData?.id || !currentCompany?.id) return;
+    if (!open || !eventId || !currentCompany?.id) return;
     setLoadingClientRequest(true);
     supabase
       .from("client_data_requests")
       .select("id, token, status, client_data, completed_at")
-      .eq("event_id", initialData.id)
+      .eq("event_id", eventId)
       .order("created_at", { ascending: false })
       .limit(1)
       .then(({ data }) => {
         setClientRequest((data && data.length > 0) ? data[0] as ClientDataRequest : null);
         setLoadingClientRequest(false);
       });
-  }, [open, initialData?.id, currentCompany?.id]);
+  }, [open, eventId, currentCompany?.id]);
 
   useEffect(() => {
     if (dateDay && dateMonth && dateYear) {
@@ -323,7 +324,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     return filtered.filter((l) => l.name.toLowerCase().includes(q));
   }, [closedLeads, linkedLeadIds, leadSearch, initialData?.lead_id]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, keepOpen = false) => {
     e.preventDefault();
     if (!form.title) {
       toast({ title: "Preencha o nome do cliente", variant: "destructive" });
@@ -340,8 +341,14 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     setSaving(true);
     try {
       const submitData = { ...form, payment_details: payment };
-      await onSubmit(submitData);
-      onOpenChange(false);
+      const resultId = await onSubmit(submitData);
+      if (!isEdit && resultId) {
+        // Transition to edit mode: set the ID so contractor data section appears
+        setForm(prev => ({ ...prev, id: resultId }));
+      }
+      if (!keepOpen) {
+        onOpenChange(false);
+      }
     } finally {
       setSaving(false);
     }
@@ -370,7 +377,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   };
 
   const generateClientLink = async () => {
-    if (!initialData?.id || !currentCompany?.id) {
+    const eventId = form.id || initialData?.id;
+    if (!eventId || !currentCompany?.id) {
       toast({ title: "Salve a festa primeiro antes de solicitar dados do contratante", variant: "destructive" });
       return;
     }
@@ -381,7 +389,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         .from("client_data_requests")
         .insert({
           company_id: currentCompany.id,
-          event_id: initialData.id,
+          event_id: eventId,
           lead_id: form.lead_id || null,
           token,
           status: "sent",
@@ -433,7 +441,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     }
   };
 
-  const isEdit = !!initialData?.id;
+  const isEdit = !!initialData?.id || !!form.id;
   const clientData = clientRequest?.client_data as Record<string, string> | null;
 
   return (
@@ -833,9 +841,21 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         {/* Fixed footer */}
         <div className="flex justify-end gap-3 px-7 py-4 border-t border-border/40 bg-muted/20">
           <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          {!isEdit && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={saving}
+              className="px-6 rounded-lg"
+              onClick={(e) => handleSubmit(e as any, true)}
+            >
+              {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Salvar
+            </Button>
+          )}
           <Button type="submit" form="event-form" disabled={saving} className="px-8 rounded-lg shadow-sm">
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {isEdit ? "Salvar" : "Criar Festa"}
+            {isEdit ? "Salvar" : "Criar e Fechar"}
           </Button>
         </div>
       </DialogContent>

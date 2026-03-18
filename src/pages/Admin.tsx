@@ -504,7 +504,7 @@ export default function Admin() {
     }, 300);
   };
 
-  const handleFestaSubmit = async (data: EventFormData) => {
+  const handleFestaSubmit = async (data: EventFormData): Promise<string | void> => {
     if (!currentCompany?.id || !user?.id) return;
     const payload: any = {
       company_id: currentCompany.id,
@@ -527,12 +527,16 @@ export default function Admin() {
       payment_details: data.payment_details || null,
     };
     console.log('[Lead:Fechado->NovaFesta] creating event', payload);
-    const { error } = await supabase.from("company_events").insert(payload);
-    if (error) {
-      toast({ title: "Erro ao criar festa", description: error.message, variant: "destructive" });
-      throw error;
+    if (data.id) {
+      const { error } = await supabase.from("company_events").update(payload).eq("id", data.id);
+      if (error) { toast({ title: "Erro ao salvar festa", description: error.message, variant: "destructive" }); throw error; }
+      toast({ title: "Festa atualizada!" });
+    } else {
+      const { data: newEvent, error } = await supabase.from("company_events").insert(payload).select("id").single();
+      if (error) { toast({ title: "Erro ao criar festa", description: error.message, variant: "destructive" }); throw error; }
+      toast({ title: "Festa criada com sucesso!" });
+      return newEvent.id;
     }
-    toast({ title: "Festa criada com sucesso!" });
   };
 
   const handleExport = () => {
