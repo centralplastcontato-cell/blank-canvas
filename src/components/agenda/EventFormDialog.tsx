@@ -605,7 +605,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               </div>
 
               <div className="space-y-2.5 md:pr-6">
-                <Label className="text-sm font-medium text-foreground/70">Valor total</Label>
+                <Label className="text-sm font-medium text-foreground/70">Valor do pacote</Label>
                 <MoneyInput value={form.total_value} onChange={(v) => setForm({ ...form, total_value: v })} />
               </div>
 
@@ -637,6 +637,16 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             <SectionHeader icon={CreditCard} label="Pagamento" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5">
               <div className="space-y-2.5 md:pr-6">
+                <Label className="text-sm font-medium text-foreground/70">Valor total</Label>
+                <MoneyInput value={form.total_value} onChange={(v) => {
+                  setForm({ ...form, total_value: v });
+                  // Auto-calculate saldo
+                  const entrada = payment.entrada_valor ?? 0;
+                  setPayment(prev => ({ ...prev, saldo_valor: v != null ? Math.max(0, v - entrada) : null }));
+                }} />
+              </div>
+
+              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
                 <Label className="text-sm font-medium text-foreground/70">Forma de pagamento</Label>
                 <Select value={form.payment_method || "none"} onValueChange={(v) => setForm({ ...form, payment_method: v === "none" ? null : v })}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -647,14 +657,21 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 </Select>
               </div>
 
-              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
+              <div className="space-y-2.5 md:pr-6">
                 <Label className="text-sm font-medium text-foreground/70">Parcelas</Label>
                 <Input type="number" min={1} placeholder="1" value={payment.parcelas ?? ""} onChange={(e) => setPayment({ ...payment, parcelas: e.target.value ? Number(e.target.value) : null })} />
               </div>
 
+              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50" />
+
               <div className="space-y-2.5 md:pr-6">
                 <Label className="text-sm font-medium text-foreground/70">Valor da entrada</Label>
-                <MoneyInput value={payment.entrada_valor} onChange={(v) => setPayment({ ...payment, entrada_valor: v })} />
+                <MoneyInput value={payment.entrada_valor} onChange={(v) => {
+                  setPayment(prev => ({ ...prev, entrada_valor: v }));
+                  // Auto-calculate saldo
+                  const total = form.total_value ?? 0;
+                  setPayment(prev => ({ ...prev, entrada_valor: v, saldo_valor: total > 0 ? Math.max(0, total - (v ?? 0)) : prev.saldo_valor }));
+                }} />
               </div>
 
               <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
