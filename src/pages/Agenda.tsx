@@ -171,14 +171,25 @@ export default function Agenda() {
   }, [navigate]);
 
   // Fetch events for current month
-  const fetchClosedInPeriod = async (start: string, end: string) => {
+  const fetchClosedInPeriod = async (start: string, end: string, unit?: string) => {
     if (!currentCompany?.id) return;
-    const query = supabase
+    let query = supabase
       .from("company_events")
       .select("id, unit", { count: "exact", head: true })
       .eq("company_id", currentCompany.id)
       .gte("data_fechamento_venda", start)
       .lte("data_fechamento_venda", end);
+    
+    // Apply unit filter
+    if (unit && unit !== "all") {
+      query = query.eq("unit", unit);
+    } else if (!canViewAll) {
+      const permitted = allowedUnits.filter(u => u !== "As duas");
+      if (permitted.length > 0) {
+        query = query.in("unit", permitted);
+      }
+    }
+    
     const { count } = await query;
     return count || 0;
   };
@@ -201,7 +212,7 @@ export default function Agenda() {
         .from("event_checklist_items")
         .select("event_id, is_completed")
         .eq("company_id", currentCompany.id),
-      fetchClosedInPeriod(start, end),
+      fetchClosedInPeriod(start, end, selectedUnit),
     ]);
 
     if (!eventsRes.error && eventsRes.data) setEvents(eventsRes.data as CompanyEvent[]);
@@ -219,7 +230,15 @@ export default function Agenda() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchEvents(); }, [currentCompany?.id, month]);
+  useEffect(() => { fetchEvents(); }, [currentCompany?.id, month, selectedUnit]);
+
+  // Re-fetch closed count when unit changes (for period mode)
+  useEffect(() => {
+    if (!periodRange || !currentCompany?.id) return;
+    const start = format(periodRange.from, "yyyy-MM-dd");
+    const end = format(periodRange.to, "yyyy-MM-dd");
+    fetchClosedInPeriod(start, end, selectedUnit).then(count => setClosedInPeriod(count || 0));
+  }, [selectedUnit]);
 
   // Fetch events for custom period
   const fetchPeriodEvents = async (range: { from: Date; to: Date }) => {
@@ -235,7 +254,7 @@ export default function Agenda() {
         .gte("event_date", start)
         .lte("event_date", end)
         .order("event_date"),
-      fetchClosedInPeriod(start, end),
+      fetchClosedInPeriod(start, end, selectedUnit),
     ]);
     if (!eventsRes.error && eventsRes.data) setPeriodEvents(eventsRes.data as CompanyEvent[]);
     setClosedInPeriod(closedCount || 0);
