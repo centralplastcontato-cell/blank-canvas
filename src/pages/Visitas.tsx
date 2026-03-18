@@ -679,8 +679,12 @@ export default function Visitas() {
                 <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-3">Ações</p>
                 <div className="grid grid-cols-2 gap-2">
                   {detailVisit.lead_phone && (
-                    <Button variant="outline" size="sm" className="text-xs gap-1.5" asChild>
-                      <a href={`https://wa.me/${detailVisit.lead_phone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer"><MessageSquare className="h-3.5 w-3.5" /> WhatsApp</a>
+                    <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={() => {
+                      const cleanPhone = detailVisit.lead_phone.replace(/\D/g, '');
+                      const phoneWithCountry = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+                      navigate(`/atendimento?phone=${phoneWithCountry}`);
+                    }}>
+                      <MessageSquare className="h-3.5 w-3.5" /> WhatsApp
                     </Button>
                   )}
                   {detailVisit.lead_phone && (
