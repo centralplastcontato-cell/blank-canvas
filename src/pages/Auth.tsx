@@ -211,7 +211,7 @@ export default function Auth() {
         <Button
           variant="ghost"
           onClick={() => navigate("/promo")}
-          className="mb-6"
+          className="mb-4 text-white/80 hover:text-white hover:bg-white/10 backdrop-blur-sm rounded-full px-5 py-2 text-sm font-medium transition-all"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Voltar ao site
