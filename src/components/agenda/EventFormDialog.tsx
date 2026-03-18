@@ -246,20 +246,21 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   }, [open, initialData]);
 
   // Fetch client data request for existing events
+  const eventId = form.id || initialData?.id;
   useEffect(() => {
-    if (!open || !initialData?.id || !currentCompany?.id) return;
+    if (!open || !eventId || !currentCompany?.id) return;
     setLoadingClientRequest(true);
     supabase
       .from("client_data_requests")
       .select("id, token, status, client_data, completed_at")
-      .eq("event_id", initialData.id)
+      .eq("event_id", eventId)
       .order("created_at", { ascending: false })
       .limit(1)
       .then(({ data }) => {
         setClientRequest((data && data.length > 0) ? data[0] as ClientDataRequest : null);
         setLoadingClientRequest(false);
       });
-  }, [open, initialData?.id, currentCompany?.id]);
+  }, [open, eventId, currentCompany?.id]);
 
   useEffect(() => {
     if (dateDay && dateMonth && dateYear) {
