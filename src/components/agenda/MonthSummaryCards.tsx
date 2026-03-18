@@ -146,11 +146,11 @@ export function MonthSummaryCards({ events, month, periodLabel, totalDaysOverrid
           <div className="flex items-center gap-4 text-xs text-muted-foreground/70">
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              <span>{confirmados} conf.</span>
+              <span>{realizadas} realiz.</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-amber-400" />
-              <span>{pendentes} pend.</span>
+              <span className="h-2 w-2 rounded-full bg-sky-400" />
+              <span>{aRealizar} a realiz.</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-red-400" />
