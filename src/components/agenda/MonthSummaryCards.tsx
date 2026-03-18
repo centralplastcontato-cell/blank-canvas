@@ -9,16 +9,17 @@ interface MonthSummaryCardsProps {
   onClearPeriod?: () => void;
   showRevenue?: boolean;
   closedInPeriod?: number;
+  closedRevenue?: number;
 }
 
-export function MonthSummaryCards({ events, month, periodLabel, totalDaysOverride, showRevenue = true, closedInPeriod = 0 }: MonthSummaryCardsProps) {
+export function MonthSummaryCards({ events, month, periodLabel, totalDaysOverride, showRevenue = true, closedInPeriod = 0, closedRevenue = 0 }: MonthSummaryCardsProps) {
   const total = events.length;
   const confirmados = events.filter(e => e.status === "confirmado").length;
   const pendentes = events.filter(e => e.status === "pendente").length;
   const cancelados = events.filter(e => e.status === "cancelado").length;
 
-  // Revenue
-  const faturamento = events
+  // Revenue from events happening in the period (confirmed only)
+  const faturamentoAgendado = events
     .filter(e => e.status === "confirmado")
     .reduce((sum, e) => sum + (e.total_value || 0), 0);
 
@@ -77,22 +78,46 @@ export function MonthSummaryCards({ events, month, periodLabel, totalDaysOverrid
         </div>
       )}
 
-      {/* Revenue card (shown when period is active or when there's revenue, and permission allows) */}
-      {showRevenue && (periodLabel || faturamento > 0) && (
-        <div className="rounded-2xl border border-border/30 border-l-[3px] border-l-emerald-500 bg-emerald-500/[0.02] shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-4 md:p-5">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-emerald-500/10 shrink-0">
-              <DollarSign className="h-5 w-5 text-emerald-600" />
+      {/* Revenue cards - shown when permission allows */}
+      {showRevenue && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+          {/* Revenue from closed deals (by data_fechamento_venda) */}
+          {closedRevenue > 0 && (
+            <div className="rounded-2xl border border-border/30 border-l-[3px] border-l-emerald-500 bg-emerald-500/[0.02] shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-4 md:p-5">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-emerald-500/10 shrink-0">
+                  <DollarSign className="h-5 w-5 text-emerald-600" />
+                </div>
+                <div className="min-w-0 flex flex-col">
+                  <p className="text-2xl md:text-3xl font-extrabold tracking-tight leading-none">
+                    {closedRevenue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  </p>
+                  <p className="text-[10px] md:text-[11px] text-muted-foreground/80 font-medium uppercase tracking-widest mt-1">
+                    {periodLabel ? "Faturamento Fechado no Período" : "Faturamento Fechado no Mês"}
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="min-w-0 flex flex-col">
-              <p className="text-2xl md:text-3xl font-extrabold tracking-tight leading-none">
-                {faturamento.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-              </p>
-              <p className="text-[10px] md:text-[11px] text-muted-foreground/80 font-medium uppercase tracking-widest mt-1">
-                Faturamento Confirmado
-              </p>
+          )}
+
+          {/* Revenue from events happening in the period (confirmed) */}
+          {faturamentoAgendado > 0 && (
+            <div className="rounded-2xl border border-border/30 border-l-[3px] border-l-sky-500 bg-sky-500/[0.02] shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-4 md:p-5">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-sky-500/10 shrink-0">
+                  <CalendarDays className="h-5 w-5 text-sky-600" />
+                </div>
+                <div className="min-w-0 flex flex-col">
+                  <p className="text-2xl md:text-3xl font-extrabold tracking-tight leading-none">
+                    {faturamentoAgendado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  </p>
+                  <p className="text-[10px] md:text-[11px] text-muted-foreground/80 font-medium uppercase tracking-widest mt-1">
+                    {periodLabel ? "Faturamento Agendado no Período" : "Faturamento Agendado no Mês"}
+                  </p>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 

@@ -724,6 +724,7 @@ export default function Agenda() {
                   totalDaysOverride={periodRange ? differenceInDays(periodRange.to, periodRange.from) + 1 : undefined}
                   showRevenue={showRevenue}
                   closedInPeriod={closedInPeriod}
+                  closedRevenue={closedRevenue}
                 />
               </div>
 
