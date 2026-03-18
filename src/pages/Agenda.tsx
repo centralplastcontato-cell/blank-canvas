@@ -241,7 +241,10 @@ export default function Agenda() {
     if (!periodRange || !currentCompany?.id) return;
     const start = format(periodRange.from, "yyyy-MM-dd");
     const end = format(periodRange.to, "yyyy-MM-dd");
-    fetchClosedInPeriod(start, end, selectedUnit).then(count => setClosedInPeriod(count || 0));
+    fetchClosedInPeriod(start, end, selectedUnit).then(result => {
+      setClosedInPeriod(result?.count || 0);
+      setClosedRevenue(result?.revenue || 0);
+    });
   }, [selectedUnit]);
 
   // Fetch events for custom period
