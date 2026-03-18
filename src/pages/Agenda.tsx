@@ -667,12 +667,26 @@ export default function Agenda() {
                             >
                               <div className="flex items-center justify-between gap-2 mb-1">
                                 <span className="font-semibold text-sm truncate">{ev.title}</span>
-                                <Badge
-                                  variant={ev.status === "confirmado" ? "default" : ev.status === "cancelado" ? "destructive" : "secondary"}
-                                  className="text-[10px] shrink-0 uppercase tracking-wider px-2 py-0.5"
-                                >
-                                  {ev.status}
-                                </Badge>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 rounded-lg hover:bg-primary/10"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEdit(ev as CompanyEvent);
+                                      clearSearch();
+                                    }}
+                                  >
+                                    <Pencil className="h-3.5 w-3.5 text-primary" />
+                                  </Button>
+                                  <Badge
+                                    variant={ev.status === "confirmado" ? "default" : ev.status === "cancelado" ? "destructive" : "secondary"}
+                                    className="text-[10px] uppercase tracking-wider px-2 py-0.5"
+                                  >
+                                    {ev.status}
+                                  </Badge>
+                                </div>
                               </div>
                               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1">
                                 <span className="flex items-center gap-1">
