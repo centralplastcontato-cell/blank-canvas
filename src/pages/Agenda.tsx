@@ -230,7 +230,15 @@ export default function Agenda() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchEvents(); }, [currentCompany?.id, month]);
+  useEffect(() => { fetchEvents(); }, [currentCompany?.id, month, selectedUnit]);
+
+  // Re-fetch closed count when unit changes (for period mode)
+  useEffect(() => {
+    if (!periodRange || !currentCompany?.id) return;
+    const start = format(periodRange.from, "yyyy-MM-dd");
+    const end = format(periodRange.to, "yyyy-MM-dd");
+    fetchClosedInPeriod(start, end, selectedUnit).then(count => setClosedInPeriod(count || 0));
+  }, [selectedUnit]);
 
   // Fetch events for custom period
   const fetchPeriodEvents = async (range: { from: Date; to: Date }) => {
