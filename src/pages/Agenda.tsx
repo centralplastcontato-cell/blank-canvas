@@ -212,7 +212,7 @@ export default function Agenda() {
         .from("event_checklist_items")
         .select("event_id, is_completed")
         .eq("company_id", currentCompany.id),
-      fetchClosedInPeriod(start, end),
+      fetchClosedInPeriod(start, end, selectedUnit),
     ]);
 
     if (!eventsRes.error && eventsRes.data) setEvents(eventsRes.data as CompanyEvent[]);
