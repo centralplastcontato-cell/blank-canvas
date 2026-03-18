@@ -22,6 +22,7 @@ import { toast } from "@/hooks/use-toast";
 import { BotJourneyDiagram } from "./BotJourneyDiagram";
 import { ReactivationSection } from "./ReactivationSection";
 import { VisitConfirmationSection } from "./VisitConfirmationSection";
+import { ContractMessageSection } from "./ContractMessageSection";
 import { PartyBotMessagesCard } from "./PartyBotMessagesCard";
 import {
   DndContext,
