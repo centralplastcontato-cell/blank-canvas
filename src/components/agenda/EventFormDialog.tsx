@@ -113,7 +113,7 @@ interface ClientDataRequest {
 interface EventFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: EventFormData) => Promise<void>;
+  onSubmit: (data: EventFormData) => Promise<string | void>;
   initialData?: EventFormData | null;
   units: Array<{ name: string }>;
 }
