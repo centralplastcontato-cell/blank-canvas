@@ -12,22 +12,34 @@ interface MonthSummaryCardsProps {
 }
 
 export function MonthSummaryCards({ events, month, periodLabel, totalDaysOverride, showRevenue = true, periodRange }: MonthSummaryCardsProps) {
-  const total = events.length;
-  const confirmados = events.filter(e => e.status === "confirmado").length;
-  const pendentes = events.filter(e => e.status === "pendente").length;
-  const cancelados = events.filter(e => e.status === "cancelado").length;
-
-  // Count events closed/sold in the period (by data_fechamento_venda)
   const currentMonth = month || new Date();
   const rangeStart = periodRange?.from || startOfMonth(currentMonth);
   const rangeEnd = periodRange?.to || endOfMonth(currentMonth);
+  const totalDays = totalDaysOverride || getDaysInMonth(currentMonth);
 
-  const fechadasNoPeriodo = events.filter(e => {
+  const total = events.length;
+  const confirmados = events.filter((e) => e.status === "confirmado").length;
+  const pendentes = events.filter((e) => e.status === "pendente").length;
+  const cancelados = events.filter((e) => e.status === "cancelado").length;
+  const faturamento = events
+    .filter((e) => e.status === "confirmado")
+    .reduce((sum, event) => sum + (event.total_value || 0), 0);
+
+  const uniqueDaysWithEvents = new Set(
+    events.filter((e) => e.status !== "cancelado").map((e) => e.event_date),
+  ).size;
+  const freeDays = Math.max(totalDays - uniqueDaysWithEvents, 0);
+  const occupancyRate = totalDays > 0 ? Math.round((uniqueDaysWithEvents / totalDays) * 100) : 0;
+
+  const fechadasNoPeriodo = events.filter((e) => {
     if (!e.data_fechamento_venda) return false;
+
     try {
       const fechamento = parseISO(e.data_fechamento_venda);
       return isWithinInterval(fechamento, { start: rangeStart, end: rangeEnd });
-    } catch { return false; }
+    } catch {
+      return false;
+    }
   }).length;
 
   const cards = [
