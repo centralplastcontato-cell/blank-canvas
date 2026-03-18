@@ -171,12 +171,24 @@ export default function Agenda() {
   }, [navigate]);
 
   // Fetch events for current month
+  const fetchClosedInPeriod = async (start: string, end: string) => {
+    if (!currentCompany?.id) return;
+    const query = supabase
+      .from("company_events")
+      .select("id, unit", { count: "exact", head: true })
+      .eq("company_id", currentCompany.id)
+      .gte("data_fechamento_venda", start)
+      .lte("data_fechamento_venda", end);
+    const { count } = await query;
+    return count || 0;
+  };
+
   const fetchEvents = async () => {
     if (!currentCompany?.id) return;
     setLoading(true);
     const start = format(startOfMonth(month), "yyyy-MM-dd");
     const end = format(endOfMonth(month), "yyyy-MM-dd");
-    const [eventsRes, checklistRes] = await Promise.all([
+    const [eventsRes, checklistRes, closedCount] = await Promise.all([
       supabase
         .from("company_events")
         .select("*")
@@ -189,9 +201,11 @@ export default function Agenda() {
         .from("event_checklist_items")
         .select("event_id, is_completed")
         .eq("company_id", currentCompany.id),
+      fetchClosedInPeriod(start, end),
     ]);
 
     if (!eventsRes.error && eventsRes.data) setEvents(eventsRes.data as CompanyEvent[]);
+    setClosedInPeriod(closedCount || 0);
 
     // Build checklist progress map
     const progressMap: Record<string, { total: number; completed: number }> = {};
