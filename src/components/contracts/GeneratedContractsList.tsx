@@ -165,25 +165,24 @@ export function GeneratedContractsList({ userId }: Props) {
         </DialogContent>
       </Dialog>
 
-      {/* View Contract Sheet (READ ONLY) */}
+      {/* View Contract - Full Document Viewer */}
       {viewContract && (
-        <Sheet open={!!viewContract} onOpenChange={() => setViewContract(null)}>
-          <SheetContent className="w-full sm:max-w-2xl p-0 overflow-y-auto">
-            <SheetHeader className="px-6 pt-6 pb-4 border-b border-border/40">
-              <SheetTitle className="flex items-center gap-2">
-                {viewContract.nome_documento}
-                <Badge className="text-[10px] bg-blue-500/15 text-blue-700 border-blue-300">Somente leitura</Badge>
-              </SheetTitle>
-            </SheetHeader>
-            <div className="p-6">
-              <ContractPreviewPrint
-                content={viewContract.conteudo_renderizado}
-                companyName={currentCompany?.name || ""}
-                companyLogo={currentCompany?.logo_url || undefined}
-              />
-            </div>
-          </SheetContent>
-        </Sheet>
+        <ContractDocumentViewer
+          open={!!viewContract}
+          onOpenChange={() => setViewContract(null)}
+          content={viewContract.conteudo_renderizado}
+          companyName={currentCompany?.name || ""}
+          companyLogo={currentCompany?.logo_url || undefined}
+          mode="generated"
+          meta={{
+            modelName: viewContract.nome_documento,
+            status: viewContract.status,
+            generatedAt: viewContract.created_at,
+            leadName: viewContract.dados_utilizados?.lead?.name,
+            eventDate: viewContract.dados_utilizados?.event?.date,
+            eventType: viewContract.tipo_evento || undefined,
+          }}
+        />
       )}
 
       {/* Audit Log Sheet */}

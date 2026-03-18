@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, AlertTriangle, Check, ChevronRight, ShieldAlert, AlertCircle } from "lucide-react";
+import { Loader2, AlertTriangle, Check, ChevronRight, ShieldAlert, AlertCircle, Eye } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { resolveSystemVariables, findUnresolvedVariables, type VariableContext } from "@/lib/template-resolver";
 import { ContractPreviewPrint } from "./ContractPreviewPrint";
