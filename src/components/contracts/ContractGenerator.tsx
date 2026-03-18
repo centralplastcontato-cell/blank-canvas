@@ -10,6 +10,7 @@ import { Loader2, AlertTriangle, Check, ChevronRight, ShieldAlert, AlertCircle }
 import { toast } from "@/hooks/use-toast";
 import { resolveSystemVariables, findUnresolvedVariables, type VariableContext } from "@/lib/template-resolver";
 import { ContractPreviewPrint } from "./ContractPreviewPrint";
+import { ContractDocumentViewer } from "./ContractDocumentViewer";
 import { format } from "date-fns";
 import { logContractAction } from "./contractAuditHelpers";
 
