@@ -254,7 +254,7 @@ export default function Agenda() {
         .gte("event_date", start)
         .lte("event_date", end)
         .order("event_date"),
-      fetchClosedInPeriod(start, end),
+      fetchClosedInPeriod(start, end, selectedUnit),
     ]);
     if (!eventsRes.error && eventsRes.data) setPeriodEvents(eventsRes.data as CompanyEvent[]);
     setClosedInPeriod(closedCount || 0);
