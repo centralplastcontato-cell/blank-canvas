@@ -588,7 +588,9 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
             description: `A instância ${instance.unit} está conectada com um número diferente.`,
           });
         } else {
-          const statusLabel = wapiStatus === 'connected' ? 'Conectado ✅' :
+          const evidenceBased = response.data?.evidenceBased === true;
+          const statusLabel = wapiStatus === 'connected' 
+                              ? (evidenceBased ? 'Conectado ✅ (verificado por atividade)' : 'Conectado ✅') :
                               wapiStatus === 'unauthorized' ? 'Token inválido ⚠️' :
                               wapiStatus === 'instance_not_found' ? 'Instância não encontrada ❌' :
                               wapiStatus;
