@@ -69,6 +69,7 @@ export default function Agenda() {
   const [periodRange, setPeriodRange] = useState<{ from: Date; to: Date } | null>(null);
   const [periodEvents, setPeriodEvents] = useState<CompanyEvent[]>([]);
   const [periodLoading, setPeriodLoading] = useState(false);
+  const [closedInPeriod, setClosedInPeriod] = useState(0);
 
   const { canViewAll, allowedUnits, unitAccess, isLoading: permUnitLoading } = useUnitPermissions(currentUser?.id, currentCompany?.id);
   const { hasPermission: userHasPermission } = usePermissions(currentUser?.id);
@@ -170,12 +171,24 @@ export default function Agenda() {
   }, [navigate]);
 
   // Fetch events for current month
+  const fetchClosedInPeriod = async (start: string, end: string) => {
+    if (!currentCompany?.id) return;
+    const query = supabase
+      .from("company_events")
+      .select("id, unit", { count: "exact", head: true })
+      .eq("company_id", currentCompany.id)
+      .gte("data_fechamento_venda", start)
+      .lte("data_fechamento_venda", end);
+    const { count } = await query;
+    return count || 0;
+  };
+
   const fetchEvents = async () => {
     if (!currentCompany?.id) return;
     setLoading(true);
     const start = format(startOfMonth(month), "yyyy-MM-dd");
     const end = format(endOfMonth(month), "yyyy-MM-dd");
-    const [eventsRes, checklistRes] = await Promise.all([
+    const [eventsRes, checklistRes, closedCount] = await Promise.all([
       supabase
         .from("company_events")
         .select("*")
@@ -188,9 +201,11 @@ export default function Agenda() {
         .from("event_checklist_items")
         .select("event_id, is_completed")
         .eq("company_id", currentCompany.id),
+      fetchClosedInPeriod(start, end),
     ]);
 
     if (!eventsRes.error && eventsRes.data) setEvents(eventsRes.data as CompanyEvent[]);
+    setClosedInPeriod(closedCount || 0);
 
     // Build checklist progress map
     const progressMap: Record<string, { total: number; completed: number }> = {};
@@ -212,14 +227,18 @@ export default function Agenda() {
     setPeriodLoading(true);
     const start = format(range.from, "yyyy-MM-dd");
     const end = format(range.to, "yyyy-MM-dd");
-    const { data, error } = await supabase
-      .from("company_events")
-      .select("*")
-      .eq("company_id", currentCompany.id)
-      .gte("event_date", start)
-      .lte("event_date", end)
-      .order("event_date");
-    if (!error && data) setPeriodEvents(data as CompanyEvent[]);
+    const [eventsRes, closedCount] = await Promise.all([
+      supabase
+        .from("company_events")
+        .select("*")
+        .eq("company_id", currentCompany.id)
+        .gte("event_date", start)
+        .lte("event_date", end)
+        .order("event_date"),
+      fetchClosedInPeriod(start, end),
+    ]);
+    if (!eventsRes.error && eventsRes.data) setPeriodEvents(eventsRes.data as CompanyEvent[]);
+    setClosedInPeriod(closedCount || 0);
     setPeriodLoading(false);
   };
 
@@ -677,6 +696,7 @@ export default function Agenda() {
                   periodLabel={periodRange ? `${format(periodRange.from, "dd/MM/yyyy")} – ${format(periodRange.to, "dd/MM/yyyy")}` : undefined}
                   totalDaysOverride={periodRange ? differenceInDays(periodRange.to, periodRange.from) + 1 : undefined}
                   showRevenue={showRevenue}
+                  closedInPeriod={closedInPeriod}
                 />
               </div>
 
