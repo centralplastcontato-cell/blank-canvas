@@ -696,6 +696,7 @@ export default function Agenda() {
                   periodLabel={periodRange ? `${format(periodRange.from, "dd/MM/yyyy")} – ${format(periodRange.to, "dd/MM/yyyy")}` : undefined}
                   totalDaysOverride={periodRange ? differenceInDays(periodRange.to, periodRange.from) + 1 : undefined}
                   showRevenue={showRevenue}
+                  closedInPeriod={closedInPeriod}
                 />
               </div>
 

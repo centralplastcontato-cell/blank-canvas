@@ -8,9 +8,10 @@ interface MonthSummaryCardsProps {
   totalDaysOverride?: number;
   onClearPeriod?: () => void;
   showRevenue?: boolean;
+  closedInPeriod?: number;
 }
 
-export function MonthSummaryCards({ events, month, periodLabel, totalDaysOverride, showRevenue = true }: MonthSummaryCardsProps) {
+export function MonthSummaryCards({ events, month, periodLabel, totalDaysOverride, showRevenue = true, closedInPeriod = 0 }: MonthSummaryCardsProps) {
   const total = events.length;
   const confirmados = events.filter(e => e.status === "confirmado").length;
   const pendentes = events.filter(e => e.status === "pendente").length;
