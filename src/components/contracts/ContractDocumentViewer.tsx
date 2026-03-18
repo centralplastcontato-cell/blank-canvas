@@ -1,8 +1,7 @@
-import { useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Printer, X, AlertTriangle, FileSignature, Calendar, Package, Eye } from "lucide-react";
+import { Printer, AlertTriangle, FileSignature, Calendar, Package, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
