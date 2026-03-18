@@ -48,6 +48,7 @@ interface EventDetailSheetProps {
   onEdit: (event: EventData) => void;
   onDelete: (id: string) => void;
   conflicts?: EventData[];
+  userId?: string;
 }
 
 const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
