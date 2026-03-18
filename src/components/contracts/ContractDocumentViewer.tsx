@@ -1,7 +1,7 @@
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Printer, AlertTriangle, FileSignature, Calendar, Package, Eye } from "lucide-react";
+import { Printer, AlertTriangle, FileSignature, Calendar, Package, Eye, ArrowLeft, Lock, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -117,17 +117,30 @@ export function ContractDocumentViewer({
   };
 
   const hasWarnings = unresolvedVars.length > 0 || missingRequired.length > 0;
+  const isLoading = !content && mode === "preview";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl h-[95vh] flex flex-col p-0 gap-0 overflow-hidden print-hide-chrome">
         {/* Toolbar */}
-        <div className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-border/40 bg-card shrink-0">
+        <div className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-border/40 bg-card shrink-0 print-hide">
           <div className="flex items-center gap-3 min-w-0">
-            <FileSignature className="h-5 w-5 text-primary shrink-0" />
+            <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="gap-1.5 text-xs rounded-full shrink-0">
+              <ArrowLeft className="h-3.5 w-3.5" /> Voltar
+            </Button>
             <div className="min-w-0">
-              <h2 className="text-sm font-bold truncate">
-                {mode === "preview" ? "Preview do Contrato" : (meta?.modelName || "Contrato")}
+              <h2 className="text-sm font-bold truncate flex items-center gap-2">
+                {mode === "preview" ? (
+                  <>
+                    <Eye className="h-4 w-4 text-primary shrink-0" />
+                    Preview do Contrato
+                  </>
+                ) : (
+                  <>
+                    <Lock className="h-4 w-4 text-emerald-600 shrink-0" />
+                    {meta?.modelName || "Contrato"}
+                  </>
+                )}
               </h2>
               {mode === "generated" && meta && (
                 <div className="flex items-center gap-2 flex-wrap mt-0.5">
@@ -146,25 +159,31 @@ export function ContractDocumentViewer({
                   )}
                 </div>
               )}
+              {mode === "preview" && meta?.modelName && (
+                <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                  <span className="text-[10px] text-muted-foreground">Modelo: {meta.modelName}</span>
+                  {meta.templateVersion && <span className="text-[10px] text-muted-foreground">v{meta.templateVersion}</span>}
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Button variant="outline" size="sm" onClick={handlePrint} className="gap-1.5 text-xs rounded-full">
+            <Button variant="outline" size="sm" onClick={handlePrint} disabled={isLoading} className="gap-1.5 text-xs rounded-full">
               <Printer className="h-3.5 w-3.5" /> Imprimir
             </Button>
             {mode === "preview" && onGenerate && (
               <Button
                 size="sm"
                 onClick={onGenerate}
-                disabled={generating || !canGenerate}
+                disabled={generating || !canGenerate || isLoading}
                 className="gap-1.5 text-xs rounded-full"
               >
                 {generating ? (
-                  <span className="h-3.5 w-3.5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
                   <FileSignature className="h-3.5 w-3.5" />
                 )}
-                Gerar Contrato
+                Confirmar e Gerar
               </Button>
             )}
           </div>
@@ -172,12 +191,12 @@ export function ContractDocumentViewer({
 
         {/* Warnings */}
         {hasWarnings && (
-          <div className="px-4 md:px-6 py-2 bg-amber-500/5 border-b border-amber-300/30 shrink-0 space-y-1.5">
+          <div className="px-4 md:px-6 py-2 bg-amber-500/5 border-b border-amber-300/30 shrink-0 space-y-1.5 print-hide">
             {missingRequired.length > 0 && (
               <div className="flex items-start gap-2">
                 <AlertTriangle className="h-3.5 w-3.5 text-destructive mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-xs font-semibold text-destructive">Dados obrigatórios faltando:</p>
+                  <p className="text-xs font-semibold text-destructive">Dados obrigatórios faltando — geração bloqueada:</p>
                   <div className="flex flex-wrap gap-1 mt-0.5">
                     {missingRequired.map(f => (
                       <Badge key={f} variant="outline" className="text-[10px] border-destructive/40 text-destructive">{f}</Badge>
@@ -202,17 +221,20 @@ export function ContractDocumentViewer({
           </div>
         )}
 
-        {/* Generated contract metadata bar */}
-        {mode === "generated" && meta && (meta.leadName || meta.eventDate || meta.eventType) && (
-          <div className="px-4 md:px-6 py-2 bg-muted/30 border-b border-border/30 shrink-0">
+        {/* Generated contract frozen badge */}
+        {mode === "generated" && (
+          <div className="px-4 md:px-6 py-2 bg-emerald-500/5 border-b border-emerald-300/20 shrink-0 print-hide">
             <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
-              {meta.leadName && (
+              <span className="flex items-center gap-1.5 text-emerald-700 font-medium">
+                <Lock className="h-3 w-3" /> Contrato congelado — somente leitura
+              </span>
+              {meta?.leadName && (
                 <span className="flex items-center gap-1"><Eye className="h-3 w-3" /> {meta.leadName}</span>
               )}
-              {meta.eventDate && (
+              {meta?.eventDate && (
                 <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {meta.eventDate}</span>
               )}
-              {meta.eventType && (
+              {meta?.eventType && (
                 <span className="flex items-center gap-1"><Package className="h-3 w-3" /> {meta.eventType}</span>
               )}
             </div>
@@ -221,29 +243,35 @@ export function ContractDocumentViewer({
 
         {/* Document area */}
         <div className="flex-1 overflow-y-auto bg-muted/20 p-4 md:p-8">
-          <div className="max-w-[720px] mx-auto bg-white dark:bg-card rounded-xl shadow-sm border border-border/30 p-8 md:p-12">
-            {/* Document header */}
-            <div className="text-center mb-8 pb-4 border-b-2 border-foreground/15">
-              {companyLogo && (
-                <img src={companyLogo} alt="" className="h-12 md:h-14 mx-auto mb-3" />
-              )}
-              <h2 className="text-base md:text-lg font-bold text-foreground tracking-wide uppercase">
-                {companyName}
-              </h2>
+          {isLoading ? (
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
+          ) : (
+            <div className="max-w-[720px] mx-auto bg-white dark:bg-card rounded-xl shadow-sm border border-border/30 p-8 md:p-12 print-contract-body">
+              {/* Document header */}
+              <div className="text-center mb-8 pb-4 border-b-2 border-foreground/15">
+                {companyLogo && (
+                  <img src={companyLogo} alt="" className="h-12 md:h-14 mx-auto mb-3" />
+                )}
+                <h2 className="text-base md:text-lg font-bold text-foreground tracking-wide uppercase">
+                  {companyName}
+                </h2>
+              </div>
 
-            {/* Document content */}
-            <div className="whitespace-pre-wrap text-sm leading-[1.85] text-foreground/90 font-serif text-justify">
-              {content}
-            </div>
+              {/* Document content */}
+              <div className="whitespace-pre-wrap text-sm leading-[1.85] text-foreground/90 font-serif text-justify">
+                {content}
+              </div>
 
-            {/* Document footer */}
-            <div className="mt-16 pt-4 border-t border-border/30 text-center">
-              <p className="text-[10px] text-muted-foreground">
-                Documento gerado pela plataforma CELEBREI — {new Date().toLocaleDateString("pt-BR")}
-              </p>
+              {/* Document footer */}
+              <div className="mt-16 pt-4 border-t border-border/30 text-center">
+                <p className="text-[10px] text-muted-foreground">
+                  Documento gerado pela plataforma CELEBREI — {new Date().toLocaleDateString("pt-BR")}
+                </p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
