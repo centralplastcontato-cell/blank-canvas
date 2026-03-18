@@ -72,6 +72,9 @@ export interface VariableContext {
     parcelas?: string | null;
     brindes?: string | null;
     observacoes_comerciais?: string | null;
+    tema?: string | null;
+    valor_convidado_adicional?: string | null;
+    quantidade_pessoas?: string | null;
   };
   freelancer?: {
     name?: string | null;
@@ -268,6 +271,15 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
   tipo_festa: {
     resolver: (ctx) => ctx.event?.event_type || '',
   },
+  tema: {
+    resolver: (ctx) => ctx.contract?.tema || '',
+  },
+  valor_convidado_adicional: {
+    resolver: (ctx) => ctx.contract?.valor_convidado_adicional || '',
+  },
+  quantidade_pessoas: {
+    resolver: (ctx) => ctx.contract?.quantidade_pessoas || ctx.lead?.guests || ctx.event?.guest_count?.toString() || '',
+  },
 
   // --- Freelancer / Schedule ---
   titulo: {
@@ -452,6 +464,7 @@ export function getAvailableVariables(): {
     valor_sinal: 'contract', valor_restante: 'contract', forma_pagamento: 'contract',
     nome_aniversariante: 'contract', idade_aniversariante: 'contract',
     data_nascimento: 'contract', nomes_pais: 'contract', brindes: 'contract',
+    tema: 'contract', valor_convidado_adicional: 'contract', quantidade_pessoas: 'contract',
     titulo: 'schedule', periodo: 'schedule', qtd_festas: 'schedule',
     link: 'schedule', observacoes: 'schedule', lista_escalados: 'schedule',
   };
