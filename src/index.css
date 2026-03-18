@@ -295,3 +295,39 @@
 .animate-confetti {
   animation: confetti-fall linear infinite;
 }
+
+/* ── Contract Print Styles ── */
+@media print {
+  body > *:not(.print-contract-root) {
+    display: none !important;
+  }
+
+  .print-hide-chrome [data-radix-dialog-overlay],
+  .print-hide-chrome > button,
+  .print-hide-chrome [role="dialog"] > div:first-child,
+  .print-hide-chrome [role="dialog"] > div:last-child,
+  nav, aside, header, footer,
+  [data-sonner-toaster],
+  .print-hide {
+    display: none !important;
+  }
+
+  .print-contract-body {
+    display: block !important;
+    position: static !important;
+    overflow: visible !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: white !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+
+  @page {
+    size: A4;
+    margin: 2cm;
+  }
+}

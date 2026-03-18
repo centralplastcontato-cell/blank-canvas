@@ -1,21 +1,13 @@
 /**
- * EventContractDialog — Generates a contract for a specific event
- * using the pre-matched contract model. Pulls data from:
- * - company_events (festa + payment)
- * - client_data_requests (contratante)
- * - campaign_leads (lead info)
- * - contract_models (template)
+ * EventContractDialog — Full-screen preview + generation flow.
+ * Opens directly as a ContractDocumentViewer in "preview" mode.
+ * On confirm, freezes contract as immutable snapshot.
  */
 import { useState, useEffect, useMemo } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, Check, AlertTriangle, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { toast } from "@/hooks/use-toast";
 import { resolveSystemVariables, findUnresolvedVariables, type VariableContext } from "@/lib/template-resolver";
-import { ContractPreviewPrint } from "./ContractPreviewPrint";
 import { ContractDocumentViewer } from "./ContractDocumentViewer";
 import { logContractAction } from "./contractAuditHelpers";
 import { format } from "date-fns";
@@ -32,7 +24,6 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
   const { currentCompany } = useCompany();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [fullPreviewOpen, setFullPreviewOpen] = useState(false);
 
   const [model, setModel] = useState<any>(null);
   const [eventData, setEventData] = useState<any>(null);
@@ -45,7 +36,6 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
     setLoading(true);
 
     const fetchAll = async () => {
-      // Fetch model, event, client data in parallel
       const [modelRes, eventRes] = await Promise.all([
         (supabase as any).from("contract_models").select("*").eq("id", modelId).single(),
         supabase.from("company_events").select("*").eq("id", eventId).single(),
@@ -57,7 +47,6 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
       setEventData(evData);
       setPaymentDetails(evData?.payment_details);
 
-      // Fetch lead + client data
       const [leadRes, clientReqRes] = await Promise.all([
         evData?.lead_id
           ? supabase.from("campaign_leads").select("id, name, whatsapp, month, guests, unit").eq("id", evData.lead_id).single()
@@ -80,7 +69,6 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
     fetchAll();
   }, [open, eventId, modelId, currentCompany?.id]);
 
-  // Build variable context merging all sources
   const variableContext: VariableContext = useMemo(() => {
     const pd = paymentDetails as any;
     const paymentDesc = pd
@@ -134,6 +122,19 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
     return findUnresolvedVariables(model.conteudo_template, variableContext);
   }, [model, variableContext]);
 
+  // Determine required fields that are missing for blocking generation
+  const missingRequired = useMemo(() => {
+    const missing: string[] = [];
+    if (!clientData.nome && !leadData?.name) missing.push("Nome do contratante");
+    if (!clientData.cpf) missing.push("CPF");
+    if (!eventData?.event_date) missing.push("Data da festa");
+    if (!eventData?.total_value) missing.push("Valor total");
+    if (!eventData?.package_name) missing.push("Pacote");
+    return missing;
+  }, [clientData, leadData, eventData]);
+
+  const canGenerate = missingRequired.length === 0;
+
   const handleGenerate = async () => {
     if (!currentCompany?.id || !model) return;
     setSaving(true);
@@ -179,7 +180,7 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
         source: "event_detail",
       });
 
-      toast({ title: "Contrato gerado com sucesso! ✅" });
+      toast({ title: "Contrato gerado com sucesso! ✅", description: "O contrato foi congelado e está disponível para visualização e impressão." });
       onOpenChange(false);
     } catch (err: any) {
       toast({ title: "Erro ao gerar contrato", description: err.message, variant: "destructive" });
@@ -189,83 +190,42 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
     }
   };
 
+  if (!open) return null;
+  if (loading) {
+    return (
+      <ContractDocumentViewer
+        open={open}
+        onOpenChange={onOpenChange}
+        content=""
+        companyName={currentCompany?.name || ""}
+        mode="preview"
+        meta={{ modelName: "Carregando..." }}
+        generating={false}
+        canGenerate={false}
+      />
+    );
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[800px] max-h-[90vh] p-0 gap-0 overflow-hidden rounded-2xl">
-        <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/40 bg-muted/30">
-          <DialogTitle className="text-lg font-bold">Gerar Contrato</DialogTitle>
-          {model && (
-            <p className="text-[13px] text-muted-foreground mt-1">
-              Modelo: <span className="font-medium text-foreground/70">{model.nome_modelo}</span> — v{model.versao}
-            </p>
-          )}
-        </DialogHeader>
-
-        <div className="overflow-y-auto px-6 py-5 space-y-4" style={{ maxHeight: "calc(90vh - 200px)" }}>
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <>
-              {/* Unresolved variables warning */}
-              {unresolvedVars.length > 0 && (
-                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-300/30">
-                  <div className="flex items-center gap-2 text-amber-700 mb-1">
-                    <AlertTriangle className="h-4 w-4" />
-                    <span className="text-sm font-semibold">Variáveis não resolvidas</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {unresolvedVars.map((v) => (
-                      <Badge key={v} variant="outline" className="text-xs border-amber-400 text-amber-700 font-mono">{`{{${v}}}`}</Badge>
-                    ))}
-                  </div>
-                  <p className="text-xs text-amber-600 mt-2">
-                    O contrato será gerado com placeholders visíveis.
-                  </p>
-                </div>
-              )}
-
-              {/* Preview */}
-              <ContractPreviewPrint
-                content={renderedContent}
-                companyName={currentCompany?.name || ""}
-                companyLogo={currentCompany?.logo_url || undefined}
-              />
-            </>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-between items-center px-6 py-4 border-t border-border/40 bg-muted/20">
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => setFullPreviewOpen(true)} disabled={loading} className="gap-2">
-              <Eye className="h-4 w-4" /> Visualizar
-            </Button>
-            <Button onClick={handleGenerate} disabled={saving || loading} className="gap-2">
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-              Gerar Contrato
-            </Button>
-          </div>
-        </div>
-
-        {!loading && (
-          <ContractDocumentViewer
-            open={fullPreviewOpen}
-            onOpenChange={setFullPreviewOpen}
-            content={renderedContent}
-            companyName={currentCompany?.name || ""}
-            companyLogo={currentCompany?.logo_url || undefined}
-            mode="preview"
-            unresolvedVars={unresolvedVars}
-            missingRequired={[]}
-            onGenerate={handleGenerate}
-            generating={saving}
-            canGenerate={true}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
+    <ContractDocumentViewer
+      open={open}
+      onOpenChange={onOpenChange}
+      content={renderedContent}
+      companyName={currentCompany?.name || ""}
+      companyLogo={currentCompany?.logo_url || undefined}
+      mode="preview"
+      meta={{
+        modelName: model?.nome_modelo,
+        templateVersion: model?.versao,
+        leadName: clientData.nome || leadData?.name,
+        eventDate: eventData?.event_date ? format(new Date(eventData.event_date + "T12:00:00"), "dd/MM/yyyy") : undefined,
+        eventType: eventData?.event_type,
+      }}
+      unresolvedVars={unresolvedVars}
+      missingRequired={missingRequired}
+      onGenerate={handleGenerate}
+      generating={saving}
+      canGenerate={canGenerate}
+    />
   );
 }
