@@ -868,6 +868,7 @@ export default function Agenda() {
         onEdit={(ev) => handleEdit(ev as CompanyEvent)}
         onDelete={(id) => setDeleteConfirmId(id)}
         conflicts={detailEvent ? getConflicts(detailEvent) : []}
+        userId={currentUser?.id}
       />
 
       <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}>

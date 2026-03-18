@@ -6,6 +6,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarDays, Clock, Users, MapPin, Package, DollarSign, Pencil, Trash2, AlertTriangle, UserCheck, Gamepad2, Copy, Check, ExternalLink, Briefcase, CalendarIcon, Loader2, CreditCard } from "lucide-react";
+import { ContractReadinessPanel } from "@/components/contracts/ContractReadinessPanel";
+import { EventContractDialog } from "@/components/contracts/EventContractDialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useEffect, useState } from "react";
@@ -46,6 +48,7 @@ interface EventDetailSheetProps {
   onEdit: (event: EventData) => void;
   onDelete: (id: string) => void;
   conflicts?: EventData[];
+  userId?: string;
 }
 
 const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
@@ -54,13 +57,15 @@ const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondar
   cancelado: { label: "Cancelado", variant: "destructive" },
 };
 
-export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, conflicts = [] }: EventDetailSheetProps) {
+export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, conflicts = [], userId }: EventDetailSheetProps) {
   const [leadName, setLeadName] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [savingField, setSavingField] = useState<string | null>(null);
   const [localFechamento, setLocalFechamento] = useState<string | null>(null);
   const [localVendedor, setLocalVendedor] = useState<string | null>(null);
+  const [contractDialogOpen, setContractDialogOpen] = useState(false);
+  const [selectedModelId, setSelectedModelId] = useState("");
 
   // Sync local state with event prop
   useEffect(() => {
@@ -345,6 +350,30 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
             </div>
           )}
 
+          {/* Contract Readiness Panel */}
+          {event.company_id && userId && (
+            <ContractReadinessPanel
+              eventId={event.id}
+              eventData={{
+                title: event.title,
+                event_date: event.event_date,
+                start_time: event.start_time,
+                end_time: event.end_time,
+                event_type: event.event_type,
+                guest_count: event.guest_count,
+                unit: event.unit,
+                package_name: event.package_name,
+                total_value: event.total_value,
+                lead_id: event.lead_id,
+                payment_method: event.payment_method,
+              }}
+              onGenerateContract={(modelId) => {
+                setSelectedModelId(modelId);
+                setContractDialogOpen(true);
+              }}
+            />
+          )}
+
           {/* Controle da Festa link */}
           <div
             className="rounded-xl p-3.5 flex items-center gap-3"
@@ -403,6 +432,20 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
             </Button>
           </div>
         </div>
+
+        {/* Contract Generation Dialog */}
+        {userId && selectedModelId && (
+          <EventContractDialog
+            open={contractDialogOpen}
+            onOpenChange={(open) => {
+              setContractDialogOpen(open);
+              if (!open) setSelectedModelId("");
+            }}
+            eventId={event.id}
+            modelId={selectedModelId}
+            userId={userId}
+          />
+        )}
       </SheetContent>
     </Sheet>
   );
