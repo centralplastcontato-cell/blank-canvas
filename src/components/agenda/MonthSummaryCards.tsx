@@ -1,4 +1,4 @@
-import { CalendarDays, CheckCircle2, Clock, XCircle, TrendingUp, DollarSign } from "lucide-react";
+import { CalendarDays, CheckCircle2, Clock, XCircle, TrendingUp, DollarSign, Handshake } from "lucide-react";
 import { getDaysInMonth } from "date-fns";
 
 interface MonthSummaryCardsProps {

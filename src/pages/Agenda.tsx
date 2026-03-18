@@ -69,6 +69,7 @@ export default function Agenda() {
   const [periodRange, setPeriodRange] = useState<{ from: Date; to: Date } | null>(null);
   const [periodEvents, setPeriodEvents] = useState<CompanyEvent[]>([]);
   const [periodLoading, setPeriodLoading] = useState(false);
+  const [closedInPeriod, setClosedInPeriod] = useState(0);
 
   const { canViewAll, allowedUnits, unitAccess, isLoading: permUnitLoading } = useUnitPermissions(currentUser?.id, currentCompany?.id);
   const { hasPermission: userHasPermission } = usePermissions(currentUser?.id);
