@@ -323,7 +323,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     return filtered.filter((l) => l.name.toLowerCase().includes(q));
   }, [closedLeads, linkedLeadIds, leadSearch, initialData?.lead_id]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, keepOpen = false) => {
     e.preventDefault();
     if (!form.title) {
       toast({ title: "Preencha o nome do cliente", variant: "destructive" });
@@ -340,8 +340,14 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     setSaving(true);
     try {
       const submitData = { ...form, payment_details: payment };
-      await onSubmit(submitData);
-      onOpenChange(false);
+      const resultId = await onSubmit(submitData);
+      if (!isEdit && resultId) {
+        // Transition to edit mode: set the ID so contractor data section appears
+        setForm(prev => ({ ...prev, id: resultId }));
+      }
+      if (!keepOpen) {
+        onOpenChange(false);
+      }
     } finally {
       setSaving(false);
     }
