@@ -230,8 +230,8 @@ export default function Auth() {
             <h1 className="font-display text-2xl font-bold text-foreground">
               Área Administrativa
             </h1>
-            <p className="text-muted-foreground mt-2">
-              Entre para gerenciar leads
+            <p className="text-muted-foreground/70 mt-2 text-sm tracking-wide">
+              Acesse sua plataforma de gestão
             </p>
           </div>
 
