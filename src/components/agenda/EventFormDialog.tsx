@@ -441,7 +441,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     }
   };
 
-  const isEdit = !!initialData?.id;
+  const isEdit = !!initialData?.id || !!form.id;
   const clientData = clientRequest?.client_data as Record<string, string> | null;
 
   return (
