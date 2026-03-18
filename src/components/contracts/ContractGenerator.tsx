@@ -6,10 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, AlertTriangle, Check, ChevronRight, ShieldAlert, AlertCircle } from "lucide-react";
+import { Loader2, AlertTriangle, Check, ChevronRight, ShieldAlert, AlertCircle, Eye } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { resolveSystemVariables, findUnresolvedVariables, type VariableContext } from "@/lib/template-resolver";
 import { ContractPreviewPrint } from "./ContractPreviewPrint";
+import { ContractDocumentViewer } from "./ContractDocumentViewer";
 import { format } from "date-fns";
 import { logContractAction } from "./contractAuditHelpers";
 
@@ -32,6 +33,7 @@ export function ContractGenerator({ userId, onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [existingContracts, setExistingContracts] = useState<any[]>([]);
+  const [fullPreviewOpen, setFullPreviewOpen] = useState(false);
 
   // Load models + events
   useEffect(() => {
@@ -365,11 +367,30 @@ export function ContractGenerator({ userId, onClose }: Props) {
 
             <div className="flex justify-between pt-4 border-t border-border/40">
               <Button variant="outline" onClick={() => setStep(2)}>Voltar</Button>
-              <Button onClick={handleGenerate} disabled={saving || missingRequired.length > 0} className="gap-2">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                {existingContracts.length > 0 ? "Gerar Nova Versão" : "Gerar Contrato"}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={() => setFullPreviewOpen(true)} className="gap-2">
+                  <Eye className="h-4 w-4" /> Visualizar
+                </Button>
+                <Button onClick={handleGenerate} disabled={saving || missingRequired.length > 0} className="gap-2">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  {existingContracts.length > 0 ? "Gerar Nova Versão" : "Gerar Contrato"}
+                </Button>
+              </div>
             </div>
+
+            <ContractDocumentViewer
+              open={fullPreviewOpen}
+              onOpenChange={setFullPreviewOpen}
+              content={renderedContent}
+              companyName={currentCompany?.name || ""}
+              companyLogo={currentCompany?.logo_url || undefined}
+              mode="preview"
+              unresolvedVars={unresolvedVars}
+              missingRequired={missingRequired}
+              onGenerate={handleGenerate}
+              generating={saving}
+              canGenerate={canGenerate}
+            />
           </div>
         )}
       </div>
