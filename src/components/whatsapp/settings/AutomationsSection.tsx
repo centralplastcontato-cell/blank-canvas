@@ -811,6 +811,10 @@ export function AutomationsSection() {
             <Map className="w-3.5 h-3.5" />
             <span>Visitas</span>
           </TabsTrigger>
+          <TabsTrigger value="contrato" className="flex items-center gap-1.5 text-xs sm:text-sm">
+            <FileText className="w-3.5 h-3.5" />
+            <span>Contrato</span>
+          </TabsTrigger>
         </TabsList>
 
         {/* ============ TAB: GERAL ============ */}
