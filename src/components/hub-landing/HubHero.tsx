@@ -68,13 +68,6 @@ export default function HubHero({ onOpenWizard, videoUrl }: HubHeroProps) {
           <div className="absolute -inset-4 sm:-inset-8 rounded-3xl bg-gradient-to-b from-primary/10 via-transparent to-secondary/5 blur-2xl pointer-events-none" />
 
           <div className="relative rounded-xl sm:rounded-2xl overflow-hidden border border-white/[0.08] shadow-[0_30px_80px_-15px_rgba(0,0,0,0.6)] bg-black/20">
-            {/* Browser chrome bar */}
-            <div className="flex items-center gap-1.5 px-4 py-2.5 bg-white/[0.04] border-b border-white/[0.06]">
-              <div className="w-2.5 h-2.5 rounded-full bg-white/10" />
-              <div className="w-2.5 h-2.5 rounded-full bg-white/10" />
-              <div className="w-2.5 h-2.5 rounded-full bg-white/10" />
-              <div className="ml-3 flex-1 h-5 rounded-md bg-white/[0.04] max-w-[200px]" />
-            </div>
 
             {videoUrl ? (
               <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
