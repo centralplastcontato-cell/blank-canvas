@@ -62,6 +62,7 @@ const Contrato = lazy(() => import("./pages/Contrato"));
 const ContratosModule = lazy(() => import("./pages/ContratosModule"));
 const Cardapio = lazy(() => import("./pages/Cardapio"));
 const PublicPartyControl = lazy(() => import("./pages/PublicPartyControl"));
+const PublicClientData = lazy(() => import("./pages/PublicClientData"));
 
 const SupportChatbot = lazy(() => import("./components/support/SupportChatbot").then(m => ({ default: m.SupportChatbot })));
 
@@ -119,6 +120,8 @@ const App = () => (
               <Route path="/visitas" element={<Visitas />} />
               {/* Party control hub */}
               <Route path="/festa/:eventId" element={<PublicPartyControl />} />
+              {/* Public client data form */}
+              <Route path="/dados-contratante/:token" element={<PublicClientData />} />
               {/* Public dynamic landing page by slug */}
               <Route path="/lp/:slug" element={<DynamicLandingPage />} />
               {/* Public onboarding form */}

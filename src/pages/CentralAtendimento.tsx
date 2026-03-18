@@ -644,6 +644,7 @@ export default function CentralAtendimento() {
       data_fechamento_venda: data.data_fechamento_venda || null,
       vendedor_responsavel_id: data.vendedor_responsavel_id || null,
       payment_method: data.payment_method || null,
+      payment_details: data.payment_details || null,
     };
     console.log('[Lead:Fechado->NovaFesta] creating event', payload);
     const { error } = await supabase.from("company_events").insert(payload);

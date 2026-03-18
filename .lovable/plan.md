@@ -1,121 +1,47 @@
 
 
-# Plano: Processo de Contratacao Estruturado (Fases 1 e 2)
+## ✅ Implementado: Fallback de atividade para status de instâncias W-API
 
-## Resumo da Analise
+### Problema resolvido
+Instância Manchester (LITE-I2660D-A8QLPN) era marcada como `disconnected` porque o endpoint `/instance/qr-code` da W-API LITE retornava QR code indevidamente, mesmo com a sessão funcional (mensagens entrando/saindo via webhook).
 
-### Estado atual:
-- **EventFormDialog.tsx**: Modal com 4 secoes (Cliente, Data/Horario, Festa, Comerciais). Campos de pagamento sao um simples Select (cartao/boleto/pix/dinheiro/misto). Nao tem dados pessoais do contratante.
-- **company_events**: Tabela nao tem campos para dados do contratante (CPF, RG, endereco, etc.) nem para condicao de pagamento detalhada.
-- **contrato_responses**: Ja existe tabela com `answers` (JSON), `event_id`, `company_id` — pode ser reaproveitada ou servir de referencia.
-- **PublicContrato.tsx**: Formulario publico existente que usa `contrato_templates` — mas e voltado para templates genericos, nao para coleta de dados pessoais vinculada a uma festa.
+### Alterações realizadas
 
-### Decisao de arquitetura:
-Criar uma nova tabela `client_data_requests` para gerenciar o fluxo de solicitacao/resposta de dados pessoais, vinculada a `company_events`. Adicionar coluna `payment_details` (JSONB) em `company_events` para condicao de pagamento estruturada. Criar nova pagina publica para formulario de dados pessoais.
+**1. `supabase/functions/wapi-send/index.ts` — action `get-status`**
+- Quando QR code é detectado, antes de concluir `disconnected`, verifica `wapi_conversations.last_message_at` nos últimos 30 min
+- Se houver atividade recente + `phone_number` preenchido → retorna `connected` com flag `evidenceBased: true`
+- Sem atividade → comportamento original mantido (`disconnected`)
 
----
+**2. `supabase/functions/follow-up-check/index.ts` — `checkInstanceHealth()`**
+- Se `get-status` retorna `disconnected` ou `degraded`, verifica atividade recente em `wapi_conversations` antes de bloquear automações
+- Se houver atividade nos últimos 30 min → trata como saudável (não bloqueia automações)
+- Mesmo fallback aplicado quando o health check falha completamente
 
-## Fase 1 — Melhorar Modal de Nova Festa
+**3. `src/components/whatsapp/settings/ConnectionSection.tsx` — UI**
+- Toast mostra "Conectado ✅ (verificado por atividade)" quando o status é evidence-based
 
-### 1A. Migracao de banco
+### Garantias de segurança
+- Instâncias realmente desconectadas (sem atividade recente) continuam sendo bloqueadas
+- Quarentena pós-reconexão de 60 min não foi alterada
+- Nenhuma mudança em lógica de conexão, webhooks, envio ou credenciais
+- Outros buffets não são afetados — a mudança é uma camada adicional de validação
 
-Adicionar a `company_events`:
-- `payment_details` (jsonb, nullable) — estrutura: `{ entrada_valor, entrada_forma, saldo_valor, saldo_forma, parcelas, vencimentos, observacoes_pagamento }`
+## ✅ Implementado: Blindagem anti-rajada no follow-up-check
 
-Criar tabela `client_data_requests`:
-```
-id uuid PK
-company_id uuid FK companies
-event_id uuid FK company_events
-lead_id uuid FK campaign_leads (nullable)
-token text UNIQUE NOT NULL
-status text DEFAULT 'pending' (pending/sent/completed/reviewed)
-client_data jsonb (nome, cpf, rg, nascimento, email, cep, endereco, numero, complemento, bairro, cidade, estado)
-sent_at timestamptz
-completed_at timestamptz
-created_at timestamptz DEFAULT now()
-```
+### Alterações realizadas
 
-RLS: empresa ve seus registros; acesso publico via RPC SECURITY DEFINER usando token.
+**1. `supabase/functions/follow-up-check/index.ts`**
+- Adicionada função `checkInstanceHealth()` com cache por ciclo de execução
+- **Quarentena pós-reconexão**: 60 minutos após `connected_at` antes de permitir qualquer automação
+- **Pre-flight live check**: verifica status real via `wapi-send get-status` antes de processar cada instância
+- **Circuit breaker**: se instância não está saudável, TODAS as automações são bloqueadas (follow-ups, next-step reminder, bot-inactive, auto-lost)
+- **Cobertura global**: health gate aplicado também em `processFlowTimerTimeouts` e `processStuckBotRecovery` (funções que rodam cross-instance)
 
-### 1B. Reestruturar EventFormDialog.tsx
+**2. `src/components/whatsapp/settings/AutomationsSection.tsx`**
+- **Guardrail no switch principal**: desligar "Primeiro Follow-up" agora desativa em lote: FU2, FU3, FU4, next_step_reminder, bot_inactive_followup e auto_lost
+- Toast explícito: "Todas as automações pausadas"
 
-Reorganizar em 5 secoes visuais:
-
-1. **Dados do Cliente** (existente — manter)
-2. **Data e Horario** (existente — manter)
-3. **Informacoes da Festa** (existente — manter)
-4. **Pagamento** (reformular):
-   - Forma de pagamento (Select existente + opcao "Transferencia")
-   - Valor de entrada (Input monetario)
-   - Forma da entrada (Select: pix/cartao/dinheiro/boleto/transferencia)
-   - Valor do saldo (Input monetario)
-   - Forma do saldo (Select)
-   - Parcelas (Input numerico)
-   - Observacoes de pagamento (Textarea)
-5. **Dados do Contratante** (novo):
-   - Status badge: "Nao enviado" / "Aguardando" / "Recebido"
-   - Botao "Solicitar dados do contratante" (gera link)
-   - Botao "Copiar link" quando ja gerado
-   - Quando recebido: mostra dados preenchidos em modo read-only
-
-### 1C. Atualizar handleFestaSubmit
-
-Em `CentralAtendimento.tsx` e `Admin.tsx`: incluir `payment_details` no payload de insert/update.
-
----
-
-## Fase 2 — Formulario Externo do Cliente
-
-### 2A. RPC publica
-
-Criar funcao `get_client_data_request_by_token(token)` SECURITY DEFINER que retorna dados da solicitacao + branding da empresa (logo, nome).
-
-Criar funcao `submit_client_data_public(token, data)` SECURITY DEFINER que valida token, salva `client_data`, atualiza status para `completed`.
-
-### 2B. Pagina publica
-
-Criar `src/pages/PublicClientData.tsx`:
-- Rota: `/dados-contratante/:token`
-- Carrega dados via RPC
-- Formulario com: nome, CPF (mascara), RG, data nascimento, email, CEP (auto-fill via ViaCEP), endereco, numero, complemento, bairro, cidade, estado
-- Branding da empresa no topo
-- Submit via RPC
-- Tela de agradecimento
-
-### 2C. Fluxo de envio no modal
-
-No botao "Solicitar dados do contratante" do EventFormDialog (ou do EventDetailSheet na Agenda):
-1. Cria registro em `client_data_requests` com token unico
-2. Mostra link para copiar
-3. Opcionalmente abre share (WhatsApp link se disponivel)
-
-### 2D. Notificacao ao buffet
-
-Quando cliente submete:
-- Trigger no banco atualiza status
-- No frontend: ao abrir modal/detalhe da festa, query `client_data_requests` pelo `event_id` para mostrar status atualizado e dados preenchidos
-
-### 2E. Rota no App.tsx
-
-Adicionar rota publica: `<Route path="/dados-contratante/:token" element={<PublicClientData />} />`
-
----
-
-## Arquivos a criar/editar
-
-| Arquivo | Acao |
-|---|---|
-| Migracao SQL | Criar tabela + coluna + RPCs + RLS |
-| `src/components/agenda/EventFormDialog.tsx` | Reformular secao pagamento + adicionar secao contratante |
-| `src/pages/CentralAtendimento.tsx` | Atualizar payload com payment_details |
-| `src/pages/Admin.tsx` | Atualizar payload com payment_details |
-| `src/pages/PublicClientData.tsx` | Criar pagina publica |
-| `src/App.tsx` | Adicionar rota publica |
-
-## Fora do escopo (conforme solicitado)
-- Geracao de contrato final
-- PDF / assinatura digital
-- Automacao WhatsApp completa
-- Impressao
-
+### Resultado
+- Reconectar uma instância NÃO dispara automações por 60 minutos
+- Instâncias com sessão ruim (unauthorized, disconnected) são bloqueadas automaticamente
+- Desligar follow-up principal realmente pausa toda a régua
