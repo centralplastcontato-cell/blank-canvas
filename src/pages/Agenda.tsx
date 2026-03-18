@@ -202,7 +202,7 @@ export default function Agenda() {
     setLoading(true);
     const start = format(startOfMonth(month), "yyyy-MM-dd");
     const end = format(endOfMonth(month), "yyyy-MM-dd");
-    const [eventsRes, checklistRes, closedCount] = await Promise.all([
+    const [eventsRes, checklistRes, closedResult] = await Promise.all([
       supabase
         .from("company_events")
         .select("*")
