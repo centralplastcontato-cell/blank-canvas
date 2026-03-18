@@ -350,6 +350,30 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
             </div>
           )}
 
+          {/* Contract Readiness Panel */}
+          {event.company_id && userId && (
+            <ContractReadinessPanel
+              eventId={event.id}
+              eventData={{
+                title: event.title,
+                event_date: event.event_date,
+                start_time: event.start_time,
+                end_time: event.end_time,
+                event_type: event.event_type,
+                guest_count: event.guest_count,
+                unit: event.unit,
+                package_name: event.package_name,
+                total_value: event.total_value,
+                lead_id: event.lead_id,
+                payment_method: event.payment_method,
+              }}
+              onGenerateContract={(modelId) => {
+                setSelectedModelId(modelId);
+                setContractDialogOpen(true);
+              }}
+            />
+          )}
+
           {/* Controle da Festa link */}
           <div
             className="rounded-xl p-3.5 flex items-center gap-3"
