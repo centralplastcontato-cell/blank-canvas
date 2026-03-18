@@ -1313,6 +1313,41 @@ export type Database = {
           },
         ]
       }
+      contract_message_settings: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          is_enabled: boolean
+          message_template: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          message_template?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          message_template?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_message_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contract_model_versions: {
         Row: {
           changed_by: string | null

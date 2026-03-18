@@ -22,6 +22,7 @@ import { toast } from "@/hooks/use-toast";
 import { BotJourneyDiagram } from "./BotJourneyDiagram";
 import { ReactivationSection } from "./ReactivationSection";
 import { VisitConfirmationSection } from "./VisitConfirmationSection";
+import { ContractMessageSection } from "./ContractMessageSection";
 import { PartyBotMessagesCard } from "./PartyBotMessagesCard";
 import {
   DndContext,
@@ -809,6 +810,10 @@ export function AutomationsSection() {
           <TabsTrigger value="visitas" className="flex items-center gap-1.5 text-xs sm:text-sm">
             <Map className="w-3.5 h-3.5" />
             <span>Visitas</span>
+          </TabsTrigger>
+          <TabsTrigger value="contrato" className="flex items-center gap-1.5 text-xs sm:text-sm">
+            <FileText className="w-3.5 h-3.5" />
+            <span>Contrato</span>
           </TabsTrigger>
         </TabsList>
 
@@ -2385,6 +2390,11 @@ export function AutomationsSection() {
         {/* ============ TAB: CONFIRMAÇÃO DE VISITAS ============ */}
         <TabsContent value="visitas" className="mt-4">
           <VisitConfirmationSection />
+        </TabsContent>
+
+        {/* ============ TAB: CONTRATO ============ */}
+        <TabsContent value="contrato" className="mt-4">
+          <ContractMessageSection />
         </TabsContent>
       </Tabs>
     </div>
