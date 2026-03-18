@@ -57,13 +57,15 @@ const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondar
   cancelado: { label: "Cancelado", variant: "destructive" },
 };
 
-export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, conflicts = [] }: EventDetailSheetProps) {
+export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, conflicts = [], userId }: EventDetailSheetProps) {
   const [leadName, setLeadName] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [savingField, setSavingField] = useState<string | null>(null);
   const [localFechamento, setLocalFechamento] = useState<string | null>(null);
   const [localVendedor, setLocalVendedor] = useState<string | null>(null);
+  const [contractDialogOpen, setContractDialogOpen] = useState(false);
+  const [selectedModelId, setSelectedModelId] = useState("");
 
   // Sync local state with event prop
   useEffect(() => {
