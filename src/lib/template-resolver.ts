@@ -72,6 +72,9 @@ export interface VariableContext {
     parcelas?: string | null;
     brindes?: string | null;
     observacoes_comerciais?: string | null;
+    tema?: string | null;
+    valor_convidado_adicional?: string | null;
+    quantidade_pessoas?: string | null;
   };
   freelancer?: {
     name?: string | null;
