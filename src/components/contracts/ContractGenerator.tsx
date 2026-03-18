@@ -367,11 +367,30 @@ export function ContractGenerator({ userId, onClose }: Props) {
 
             <div className="flex justify-between pt-4 border-t border-border/40">
               <Button variant="outline" onClick={() => setStep(2)}>Voltar</Button>
-              <Button onClick={handleGenerate} disabled={saving || missingRequired.length > 0} className="gap-2">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                {existingContracts.length > 0 ? "Gerar Nova Versão" : "Gerar Contrato"}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={() => setFullPreviewOpen(true)} className="gap-2">
+                  <Eye className="h-4 w-4" /> Visualizar
+                </Button>
+                <Button onClick={handleGenerate} disabled={saving || missingRequired.length > 0} className="gap-2">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  {existingContracts.length > 0 ? "Gerar Nova Versão" : "Gerar Contrato"}
+                </Button>
+              </div>
             </div>
+
+            <ContractDocumentViewer
+              open={fullPreviewOpen}
+              onOpenChange={setFullPreviewOpen}
+              content={renderedContent}
+              companyName={currentCompany?.name || ""}
+              companyLogo={currentCompany?.logo_url || undefined}
+              mode="preview"
+              unresolvedVars={unresolvedVars}
+              missingRequired={missingRequired}
+              onGenerate={handleGenerate}
+              generating={saving}
+              canGenerate={canGenerate}
+            />
           </div>
         )}
       </div>
