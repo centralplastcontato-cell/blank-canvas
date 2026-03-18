@@ -182,6 +182,31 @@ async function checkInstanceHealth(
         instanceHealthCache.set(instanceDbId, result);
         return result;
       }
+
+      // ACTIVITY-BASED FALLBACK: if wapi-send says disconnected/degraded,
+      // check for recent conversation activity before blocking automations.
+      // Prevents false blocking when W-API LITE QR endpoint is inconsistent.
+      if (status === "disconnected" || status === "degraded") {
+        try {
+          const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+          const { data: recentActivity } = await supabase
+            .from("wapi_conversations")
+            .select("id")
+            .eq("instance_id", instanceDbId)
+            .gte("last_message_at", thirtyMinAgo)
+            .limit(1);
+
+          if (recentActivity && recentActivity.length > 0) {
+            console.log(`[follow-up-check] 🛡️ Instance ${instanceDbId} reported ${status} but has recent activity — treating as healthy (evidence-based)`);
+            const result = { healthy: true };
+            instanceHealthCache.set(instanceDbId, result);
+            return result;
+          }
+        } catch (activityErr) {
+          console.warn(`[follow-up-check] Activity fallback check failed for ${instanceDbId}:`, activityErr);
+        }
+      }
+
       const result = { healthy: false, reason: `live_status=${status}` };
       instanceHealthCache.set(instanceDbId, result);
       console.log(`[follow-up-check] 🛡️ Instance ${instanceDbId} not healthy: ${status}`);
@@ -190,6 +215,24 @@ async function checkInstanceHealth(
   } catch (e) {
     console.warn(`[follow-up-check] 🛡️ Health check fetch error for ${instanceDbId}:`, e);
   }
+
+  // ACTIVITY FALLBACK for health check failures too
+  try {
+    const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const { data: recentActivity } = await supabase
+      .from("wapi_conversations")
+      .select("id")
+      .eq("instance_id", instanceDbId)
+      .gte("last_message_at", thirtyMinAgo)
+      .limit(1);
+
+    if (recentActivity && recentActivity.length > 0) {
+      console.log(`[follow-up-check] 🛡️ Instance ${instanceDbId} health check failed but has recent activity — treating as healthy`);
+      const result = { healthy: true };
+      instanceHealthCache.set(instanceDbId, result);
+      return result;
+    }
+  } catch (_) { /* ignore */ }
 
   const result = { healthy: false, reason: "health_check_failed" };
   instanceHealthCache.set(instanceDbId, result);
