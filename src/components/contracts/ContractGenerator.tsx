@@ -33,6 +33,7 @@ export function ContractGenerator({ userId, onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [existingContracts, setExistingContracts] = useState<any[]>([]);
+  const [fullPreviewOpen, setFullPreviewOpen] = useState(false);
 
   // Load models + events
   useEffect(() => {
