@@ -62,6 +62,7 @@ const Contrato = lazy(() => import("./pages/Contrato"));
 const ContratosModule = lazy(() => import("./pages/ContratosModule"));
 const Cardapio = lazy(() => import("./pages/Cardapio"));
 const PublicPartyControl = lazy(() => import("./pages/PublicPartyControl"));
+const PublicClientData = lazy(() => import("./pages/PublicClientData"));
 
 const SupportChatbot = lazy(() => import("./components/support/SupportChatbot").then(m => ({ default: m.SupportChatbot })));
 

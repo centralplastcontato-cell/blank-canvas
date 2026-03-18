@@ -8,13 +8,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Loader2, Search, X, UserCheck, ListChecks, User, CalendarDays, PartyPopper, Briefcase, CalendarIcon, AlertTriangle } from "lucide-react";
+import { Loader2, Search, X, UserCheck, ListChecks, User, CalendarDays, PartyPopper, Briefcase, CalendarIcon, AlertTriangle, CreditCard, Handshake, Copy, ExternalLink, Clock, CheckCircle2, Send } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
+
+export interface PaymentDetails {
+  entrada_valor: number | null;
+  entrada_forma: string;
+  saldo_valor: number | null;
+  saldo_forma: string;
+  parcelas: number | null;
+  observacoes_pagamento: string;
+}
 
 export interface EventFormData {
   id?: string;
@@ -36,6 +45,7 @@ export interface EventFormData {
   vendedor_responsavel_id?: string | null;
   vendedor_responsavel_name?: string | null;
   payment_method?: string | null;
+  payment_details?: PaymentDetails | null;
 }
 
 const PAYMENT_METHODS = [
@@ -43,7 +53,16 @@ const PAYMENT_METHODS = [
   { value: "boleto", label: "Boleto" },
   { value: "pix", label: "PIX" },
   { value: "dinheiro", label: "Dinheiro" },
+  { value: "transferencia", label: "Transferência" },
   { value: "misto", label: "Misto" },
+];
+
+const PAYMENT_FORMS = [
+  { value: "pix", label: "PIX" },
+  { value: "cartao", label: "Cartão" },
+  { value: "dinheiro", label: "Dinheiro" },
+  { value: "boleto", label: "Boleto" },
+  { value: "transferencia", label: "Transferência" },
 ];
 
 const EVENT_TYPES = [
@@ -83,6 +102,14 @@ const STATUS_OPTIONS = [
   { value: "cancelado", label: "Cancelado" },
 ];
 
+interface ClientDataRequest {
+  id: string;
+  token: string;
+  status: string;
+  client_data: any;
+  completed_at: string | null;
+}
+
 interface EventFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -90,6 +117,15 @@ interface EventFormDialogProps {
   initialData?: EventFormData | null;
   units: Array<{ name: string }>;
 }
+
+const EMPTY_PAYMENT: PaymentDetails = {
+  entrada_valor: null,
+  entrada_forma: "",
+  saldo_valor: null,
+  saldo_forma: "",
+  parcelas: null,
+  observacoes_pagamento: "",
+};
 
 const EMPTY: EventFormData = {
   title: "",
@@ -109,6 +145,7 @@ const EMPTY: EventFormData = {
   vendedor_responsavel_id: null,
   vendedor_responsavel_name: null,
   payment_method: null,
+  payment_details: null,
 };
 
 function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
@@ -122,8 +159,44 @@ function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: 
   );
 }
 
+function MoneyInput({ value, onChange, placeholder = "0,00" }: { value: number | null; onChange: (v: number | null) => void; placeholder?: string }) {
+  return (
+    <div className="relative">
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">R$</span>
+      <Input
+        className="pl-10"
+        placeholder={placeholder}
+        value={value != null ? value.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : ""}
+        onChange={(e) => {
+          const raw = e.target.value.replace(/[^\d]/g, "");
+          const num = raw ? Number(raw) / 100 : null;
+          onChange(num);
+        }}
+      />
+    </div>
+  );
+}
+
+function ClientDataStatusBadge({ status }: { status: string }) {
+  const config: Record<string, { label: string; className: string; icon: React.ElementType }> = {
+    pending: { label: "Não enviado", className: "bg-muted text-muted-foreground", icon: Clock },
+    sent: { label: "Aguardando cliente", className: "bg-amber-500/15 text-amber-700 border-amber-200", icon: Send },
+    completed: { label: "Recebido", className: "bg-green-500/15 text-green-700 border-green-200", icon: CheckCircle2 },
+    reviewed: { label: "Revisado", className: "bg-primary/15 text-primary border-primary/20", icon: CheckCircle2 },
+  };
+  const c = config[status] || config.pending;
+  const StatusIcon = c.icon;
+  return (
+    <Badge variant="outline" className={cn("text-xs gap-1", c.className)}>
+      <StatusIcon className="h-3 w-3" />
+      {c.label}
+    </Badge>
+  );
+}
+
 export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, units }: EventFormDialogProps) {
   const [form, setForm] = useState<EventFormData>(EMPTY);
+  const [payment, setPayment] = useState<PaymentDetails>(EMPTY_PAYMENT);
   const [saving, setSaving] = useState(false);
   const { currentCompany } = useCompany();
 
@@ -143,10 +216,16 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [companyUsers, setCompanyUsers] = useState<Array<{ id: string; name: string }>>([]);
   const [fechamentoDate, setFechamentoDate] = useState<Date | undefined>(undefined);
 
+  // Client data request state
+  const [clientRequest, setClientRequest] = useState<ClientDataRequest | null>(null);
+  const [loadingClientRequest, setLoadingClientRequest] = useState(false);
+  const [generatingLink, setGeneratingLink] = useState(false);
+
   useEffect(() => {
     if (open) {
       const data = initialData || EMPTY;
       setForm(data);
+      setPayment((data.payment_details as PaymentDetails) || EMPTY_PAYMENT);
       if (data.event_date) {
         const [y, m, d] = data.event_date.split("-");
         setDateYear(y || "");
@@ -161,8 +240,25 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       setShowLeadDropdown(false);
       setSelectedTemplate("");
       setFechamentoDate(data.data_fechamento_venda ? new Date(data.data_fechamento_venda + "T12:00:00") : undefined);
+      setClientRequest(null);
     }
   }, [open, initialData]);
+
+  // Fetch client data request for existing events
+  useEffect(() => {
+    if (!open || !initialData?.id || !currentCompany?.id) return;
+    setLoadingClientRequest(true);
+    supabase
+      .from("client_data_requests")
+      .select("id, token, status, client_data, completed_at")
+      .eq("event_id", initialData.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .then(({ data }) => {
+        setClientRequest((data && data.length > 0) ? data[0] as ClientDataRequest : null);
+        setLoadingClientRequest(false);
+      });
+  }, [open, initialData?.id, currentCompany?.id]);
 
   useEffect(() => {
     if (dateDay && dateMonth && dateYear) {
@@ -191,7 +287,6 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       .then(({ data }) => {
         setPackages((data || []).map((p: any) => ({ id: p.id, name: p.name })));
       });
-    // Fetch company users for vendedor select
     supabase
       .from("user_companies")
       .select("user_id, profiles:user_id(full_name)")
@@ -243,25 +338,65 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     }
     setSaving(true);
     try {
-      await onSubmit(form);
+      const submitData = { ...form, payment_details: payment };
+      await onSubmit(submitData);
       onOpenChange(false);
     } finally {
       setSaving(false);
     }
   };
 
+  const generateClientLink = async () => {
+    if (!initialData?.id || !currentCompany?.id) {
+      toast({ title: "Salve a festa primeiro antes de solicitar dados do contratante", variant: "destructive" });
+      return;
+    }
+    setGeneratingLink(true);
+    try {
+      const token = crypto.randomUUID().replace(/-/g, "").slice(0, 24);
+      const { data, error } = await supabase
+        .from("client_data_requests")
+        .insert({
+          company_id: currentCompany.id,
+          event_id: initialData.id,
+          lead_id: form.lead_id || null,
+          token,
+          status: "sent",
+          sent_at: new Date().toISOString(),
+        })
+        .select("id, token, status, client_data, completed_at")
+        .single();
+      if (error) throw error;
+      setClientRequest(data as ClientDataRequest);
+      toast({ title: "Link gerado com sucesso!" });
+    } catch (err: any) {
+      toast({ title: "Erro ao gerar link", description: err.message, variant: "destructive" });
+    } finally {
+      setGeneratingLink(false);
+    }
+  };
+
+  const getClientLink = () => {
+    if (!clientRequest?.token) return "";
+    return `${window.location.origin}/dados-contratante/${clientRequest.token}`;
+  };
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(getClientLink());
+    toast({ title: "Link copiado!" });
+  };
+
   const isEdit = !!initialData?.id;
+  const clientData = clientRequest?.client_data as Record<string, string> | null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[720px] max-h-[90vh] p-0 gap-0 overflow-hidden rounded-2xl [&>button]:top-5 [&>button]:right-5">
-        {/* Header */}
         <DialogHeader className="px-7 pt-7 pb-4 border-b border-border/40 bg-muted/30">
           <DialogTitle className="text-lg font-bold tracking-tight">{isEdit ? "Editar Festa" : "Nova Festa"}</DialogTitle>
-          <p className="text-[13px] text-muted-foreground mt-1">Preencha os dados do evento</p>
+          <p className="text-[13px] text-muted-foreground mt-1">Preencha os dados do evento e contratação</p>
         </DialogHeader>
 
-        {/* Scrollable body */}
         <form id="event-form" onSubmit={handleSubmit} className="overflow-y-auto px-7 py-6 space-y-5" style={{ maxHeight: "calc(90vh - 180px)" }}>
           {/* Section 1 – Dados do Cliente */}
           <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
@@ -271,8 +406,6 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 <Label className="text-sm font-medium text-foreground/70">Nome do cliente *</Label>
                 <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
               </div>
-
-              {/* Lead CRM link */}
               <div className="relative space-y-2.5">
                 <Label className="text-sm font-medium text-foreground/70">Vincular Lead do CRM</Label>
                 {form.lead_id ? (
@@ -317,7 +450,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             <SectionHeader icon={CalendarDays} label="Data e Horário" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5">
               <div className="space-y-2.5 md:pr-6">
-                <Label className="text-sm font-medium text-foreground/70">Data *</Label>
+                <Label className="text-sm font-medium text-foreground/70">Data da festa *</Label>
                 <div className="flex gap-2">
                   <div className="flex-1">
                     <Select value={dateDay} onValueChange={setDateDay}>
@@ -418,35 +551,12 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
               <div className="space-y-2.5 md:pr-6">
                 <Label className="text-sm font-medium text-foreground/70">Valor total</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">R$</span>
-                  <Input
-                    className="pl-10"
-                    placeholder="0,00"
-                    value={form.total_value != null ? form.total_value.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : ""}
-                    onChange={(e) => {
-                      const raw = e.target.value.replace(/[^\d]/g, "");
-                      const num = raw ? Number(raw) / 100 : null;
-                      setForm({ ...form, total_value: num });
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
-                <Label className="text-sm font-medium text-foreground/70">Forma de pagamento</Label>
-                <Select value={form.payment_method || "none"} onValueChange={(v) => setForm({ ...form, payment_method: v === "none" ? null : v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Não informado</SelectItem>
-                    {PAYMENT_METHODS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <MoneyInput value={form.total_value} onChange={(v) => setForm({ ...form, total_value: v })} />
               </div>
 
               {/* Checklist template - only for new events */}
               {!isEdit && templates.length > 0 && (
-                <div className="space-y-2.5 md:pl-6 md:border-l-2 md:border-foreground/20">
+                <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
                   <Label className="text-sm font-medium text-foreground/70 flex items-center gap-1.5">
                     <ListChecks className="h-4 w-4" /> Template de Checklist
                   </Label>
@@ -467,7 +577,71 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             </div>
           </div>
 
-          {/* Section 4 – Dados Comerciais */}
+          {/* Section 4 – Pagamento */}
+          <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
+            <SectionHeader icon={CreditCard} label="Pagamento" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5">
+              <div className="space-y-2.5 md:pr-6">
+                <Label className="text-sm font-medium text-foreground/70">Forma de pagamento</Label>
+                <Select value={form.payment_method || "none"} onValueChange={(v) => setForm({ ...form, payment_method: v === "none" ? null : v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Não informado</SelectItem>
+                    {PAYMENT_METHODS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
+                <Label className="text-sm font-medium text-foreground/70">Parcelas</Label>
+                <Input type="number" min={1} placeholder="1" value={payment.parcelas ?? ""} onChange={(e) => setPayment({ ...payment, parcelas: e.target.value ? Number(e.target.value) : null })} />
+              </div>
+
+              <div className="space-y-2.5 md:pr-6">
+                <Label className="text-sm font-medium text-foreground/70">Valor da entrada</Label>
+                <MoneyInput value={payment.entrada_valor} onChange={(v) => setPayment({ ...payment, entrada_valor: v })} />
+              </div>
+
+              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
+                <Label className="text-sm font-medium text-foreground/70">Forma da entrada</Label>
+                <Select value={payment.entrada_forma || "none"} onValueChange={(v) => setPayment({ ...payment, entrada_forma: v === "none" ? "" : v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Não informado</SelectItem>
+                    {PAYMENT_FORMS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2.5 md:pr-6">
+                <Label className="text-sm font-medium text-foreground/70">Valor do saldo</Label>
+                <MoneyInput value={payment.saldo_valor} onChange={(v) => setPayment({ ...payment, saldo_valor: v })} />
+              </div>
+
+              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
+                <Label className="text-sm font-medium text-foreground/70">Forma do saldo</Label>
+                <Select value={payment.saldo_forma || "none"} onValueChange={(v) => setPayment({ ...payment, saldo_forma: v === "none" ? "" : v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Não informado</SelectItem>
+                    {PAYMENT_FORMS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2.5 md:col-span-2">
+                <Label className="text-sm font-medium text-foreground/70">Observações de pagamento</Label>
+                <Textarea
+                  value={payment.observacoes_pagamento}
+                  onChange={(e) => setPayment({ ...payment, observacoes_pagamento: e.target.value })}
+                  rows={2}
+                  placeholder="Ex: Entrada via PIX até 15/03, saldo parcelado em 3x no cartão..."
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 5 – Dados Comerciais */}
           <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
             <SectionHeader icon={Briefcase} label="Dados Comerciais" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5">
@@ -529,6 +703,71 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 </Select>
               </div>
             </div>
+          </div>
+
+          {/* Section 6 – Dados do Contratante */}
+          <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
+            <SectionHeader icon={Handshake} label="Dados do Contratante" />
+
+            {!isEdit ? (
+              <p className="text-sm text-muted-foreground">
+                Salve a festa primeiro para solicitar os dados do contratante.
+              </p>
+            ) : loadingClientRequest ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Carregando...
+              </div>
+            ) : !clientRequest ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <ClientDataStatusBadge status="pending" />
+                  <span className="text-sm text-muted-foreground">Dados do contratante não solicitados</span>
+                </div>
+                <Button type="button" variant="outline" onClick={generateClientLink} disabled={generatingLink} className="gap-2">
+                  {generatingLink ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  Solicitar dados do contratante
+                </Button>
+              </div>
+            ) : clientRequest.status === "completed" || clientRequest.status === "reviewed" ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <ClientDataStatusBadge status={clientRequest.status} />
+                  <span className="text-sm text-muted-foreground">
+                    {clientRequest.completed_at ? `Recebido em ${format(new Date(clientRequest.completed_at), "dd/MM/yyyy 'às' HH:mm")}` : "Dados recebidos"}
+                  </span>
+                </div>
+                {clientData && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 rounded-lg bg-muted/50 border border-border/40">
+                    {clientData.nome && <div><span className="text-xs text-muted-foreground">Nome</span><p className="text-sm font-medium">{clientData.nome}</p></div>}
+                    {clientData.cpf && <div><span className="text-xs text-muted-foreground">CPF</span><p className="text-sm font-medium">{clientData.cpf}</p></div>}
+                    {clientData.rg && <div><span className="text-xs text-muted-foreground">RG</span><p className="text-sm font-medium">{clientData.rg}</p></div>}
+                    {clientData.nascimento && <div><span className="text-xs text-muted-foreground">Nascimento</span><p className="text-sm font-medium">{clientData.nascimento}</p></div>}
+                    {clientData.email && <div><span className="text-xs text-muted-foreground">E-mail</span><p className="text-sm font-medium">{clientData.email}</p></div>}
+                    {clientData.endereco && <div className="md:col-span-2"><span className="text-xs text-muted-foreground">Endereço</span><p className="text-sm font-medium">{clientData.endereco}{clientData.numero ? `, ${clientData.numero}` : ""}{clientData.complemento ? ` - ${clientData.complemento}` : ""}</p></div>}
+                    {clientData.bairro && <div><span className="text-xs text-muted-foreground">Bairro</span><p className="text-sm font-medium">{clientData.bairro}</p></div>}
+                    {(clientData.cidade || clientData.estado) && <div><span className="text-xs text-muted-foreground">Cidade/Estado</span><p className="text-sm font-medium">{[clientData.cidade, clientData.estado].filter(Boolean).join(" - ")}</p></div>}
+                    {clientData.cep && <div><span className="text-xs text-muted-foreground">CEP</span><p className="text-sm font-medium">{clientData.cep}</p></div>}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <ClientDataStatusBadge status={clientRequest.status} />
+                  <span className="text-sm text-muted-foreground">Link enviado, aguardando preenchimento</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input readOnly value={getClientLink()} className="text-xs font-mono bg-muted/50" />
+                  <Button type="button" variant="outline" size="icon" onClick={copyLink} title="Copiar link">
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Button type="button" variant="outline" size="icon" onClick={() => window.open(getClientLink(), "_blank")} title="Abrir link">
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </form>
 
