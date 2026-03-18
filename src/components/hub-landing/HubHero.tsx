@@ -20,15 +20,6 @@ export default function HubHero({ onOpenWizard, videoUrl }: HubHeroProps) {
           transition={{ duration: 0.7, ease: "easeOut" }}
           className="text-center max-w-3xl mx-auto"
         >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.15, duration: 0.4 }}
-            className="inline-flex items-center gap-2 bg-white/[0.06] backdrop-blur-sm text-white/70 text-xs font-medium px-3 py-1.5 rounded-full mb-5 sm:mb-6 border border-white/[0.08]"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-            Usado por 10+ buffets no Brasil
-          </motion.div>
 
           <h1 className="font-display text-[2rem] leading-[1.1] sm:text-5xl lg:text-[3.5rem] font-bold text-white tracking-tight">
             Seu buffet perdendo festas
