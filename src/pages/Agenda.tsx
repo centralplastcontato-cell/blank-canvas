@@ -346,7 +346,7 @@ export default function Agenda() {
 
   const physicalUnits = units.filter(u => u.slug !== "trabalhe-conosco");
 
-  const handleSubmit = async (data: EventFormData) => {
+  const handleSubmit = async (data: EventFormData): Promise<string | void> => {
     if (!currentCompany?.id || !currentUser?.id) return;
     const payload: any = {
       company_id: currentCompany.id,
@@ -396,6 +396,8 @@ export default function Agenda() {
       }
 
       toast({ title: "Festa criada!" });
+      fetchEvents();
+      return newEvent.id;
     }
     fetchEvents();
   };
