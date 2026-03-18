@@ -9,7 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { Loader2, Lock, Mail, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { isHubDomain, getCanonicalHost, isPreviewDomain } from "@/hooks/useDomainDetection";
 import { z } from "zod";
-import loginBg from "@/assets/login-bg-3.jpg";
+import loginBg from "@/assets/login-bg-4.jpg";
 
 
 const emailSchema = z.string().email("Email inválido");
@@ -203,8 +203,8 @@ export default function Auth() {
       </Helmet>
       {/* Background image */}
       <div className="absolute inset-0">
-        <img src={loginBg} alt="" className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-background/40 backdrop-blur-[2px]" />
+        <img src={loginBg} alt="" className="w-full h-full object-cover hue-rotate-[165deg] saturate-150 brightness-[0.72] contrast-110" />
+        <div className="absolute inset-0 bg-background/30 backdrop-blur-[2px]" />
       </div>
 
       <div className="w-full max-w-md relative z-10">
