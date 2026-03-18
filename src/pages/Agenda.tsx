@@ -219,7 +219,8 @@ export default function Agenda() {
     ]);
 
     if (!eventsRes.error && eventsRes.data) setEvents(eventsRes.data as CompanyEvent[]);
-    setClosedInPeriod(closedCount || 0);
+    setClosedInPeriod(closedResult?.count || 0);
+    setClosedRevenue(closedResult?.revenue || 0);
 
     // Build checklist progress map
     const progressMap: Record<string, { total: number; completed: number }> = {};
