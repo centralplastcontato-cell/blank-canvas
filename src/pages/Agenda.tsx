@@ -544,39 +544,44 @@ export default function Agenda() {
           <PullToRefresh onRefresh={async () => { await fetchEvents(); }} className="flex-1 p-3 md:p-6 lg:p-8 overflow-x-hidden overflow-y-auto">
             <div className="max-w-7xl mx-auto space-y-6">
               {/* Desktop header */}
-              <div className="hidden md:flex items-center justify-between gap-3">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 shadow-sm">
-                    <CalendarDays className="h-7 w-7 text-primary" />
+              <div className="hidden md:block">
+                <div className="relative rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden">
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_80%_-20%,hsl(var(--primary)/0.06),transparent)]" />
+                  <div className="relative flex items-center justify-between gap-4 p-5 md:p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/20">
+                        <CalendarDays className="h-7 w-7 text-primary-foreground" />
+                      </div>
+                      <div>
+                        <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground">Agenda de Festas</h1>
+                        <p className="text-sm text-muted-foreground/70 mt-0.5">Calendário mensal de eventos</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                      <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "calendar" | "list")}>
+                        <TabsList className="h-10 bg-muted/60 backdrop-blur-sm">
+                          <TabsTrigger value="calendar" className="px-3 data-[state=active]:shadow-sm"><CalendarDays className="h-4 w-4" /></TabsTrigger>
+                          <TabsTrigger value="list" className="px-3 data-[state=active]:shadow-sm"><List className="h-4 w-4" /></TabsTrigger>
+                        </TabsList>
+                      </Tabs>
+                      {(() => {
+                        const visibleUnits = canViewAll ? physicalUnits : physicalUnits.filter(u => unitAccess[u.name]);
+                        if (visibleUnits.length <= 1) return null;
+                        return (
+                          <Select value={selectedUnit} onValueChange={setSelectedUnit}>
+                            <SelectTrigger className="w-[180px] h-10 bg-background/80 backdrop-blur-sm border-border/50 shadow-sm"><SelectValue placeholder="Todas" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">Todas as unidades</SelectItem>
+                              {visibleUnits.map(u => <SelectItem key={u.name} value={u.name}>{u.name}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        );
+                      })()}
+                      <Button onClick={() => { setEditingEvent(null); setFormOpen(true); }} className="h-10 px-5 shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all duration-200">
+                        <Plus className="h-4 w-4 mr-2" /> Nova Festa
+                      </Button>
+                    </div>
                   </div>
-                  <div>
-                    <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Agenda de Festas</h1>
-                    <p className="text-sm text-muted-foreground/80 mt-0.5">Calendário mensal de eventos</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "calendar" | "list")}>
-                    <TabsList className="h-9">
-                      <TabsTrigger value="calendar" className="px-3"><CalendarDays className="h-4 w-4" /></TabsTrigger>
-                      <TabsTrigger value="list" className="px-3"><List className="h-4 w-4" /></TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-                  {(() => {
-                    const visibleUnits = canViewAll ? physicalUnits : physicalUnits.filter(u => unitAccess[u.name]);
-                    if (visibleUnits.length <= 1) return null;
-                    return (
-                      <Select value={selectedUnit} onValueChange={setSelectedUnit}>
-                        <SelectTrigger className="w-[180px]"><SelectValue placeholder="Todas" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todas as unidades</SelectItem>
-                          {visibleUnits.map(u => <SelectItem key={u.name} value={u.name}>{u.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    );
-                  })()}
-                  <Button onClick={() => { setEditingEvent(null); setFormOpen(true); }}>
-                    <Plus className="h-4 w-4 mr-2" /> Nova Festa
-                  </Button>
                 </div>
               </div>
 
