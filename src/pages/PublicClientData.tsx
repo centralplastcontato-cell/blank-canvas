@@ -275,12 +275,28 @@ export default function PublicClientData() {
                   <Label className="text-xs font-semibold text-foreground">CPF <span className="text-destructive">*</span></Label>
                   <Input
                     value={form.cpf}
-                    onChange={(e) => setForm({ ...form, cpf: formatCPF(e.target.value) })}
+                    onChange={(e) => {
+                      setForm({ ...form, cpf: formatCPF(e.target.value) });
+                      setCpfError(null);
+                    }}
+                    onBlur={() => {
+                      const d = form.cpf.replace(/\D/g, "");
+                      if (d.length === 11 && !isValidCPF(form.cpf)) {
+                        setCpfError("CPF inválido");
+                      } else if (d.length > 0 && d.length < 11) {
+                        setCpfError("CPF incompleto");
+                      } else {
+                        setCpfError(null);
+                      }
+                    }}
                     placeholder="000.000.000-00"
                     maxLength={14}
-                    className="bg-muted/30 border-border/50 focus:bg-background"
+                    className={`bg-muted/30 border-border/50 focus:bg-background ${cpfError ? "border-destructive ring-1 ring-destructive/30" : ""}`}
                     required
                   />
+                  {cpfError && (
+                    <p className="text-[11px] text-destructive font-medium mt-1">{cpfError}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold text-foreground">RG</Label>
