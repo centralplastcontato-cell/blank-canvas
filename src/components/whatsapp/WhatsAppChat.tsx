@@ -287,6 +287,7 @@ import { MediaMessage } from "@/components/whatsapp/MediaMessage";
 import { ConversationStatusActions } from "@/components/whatsapp/ConversationStatusActions";
 import { ConversationFilters, FilterType } from "@/components/whatsapp/ConversationFilters";
 import { LeadInfoPopover } from "@/components/whatsapp/LeadInfoPopover";
+import { LeadDetailSheet } from "@/components/admin/LeadDetailSheet";
 import { SalesMaterialsMenu } from "@/components/whatsapp/SalesMaterialsMenu";
 import { ShareToGroupDialog } from "@/components/whatsapp/ShareToGroupDialog";
 import { QuickVisitDialog } from "@/components/whatsapp/QuickVisitDialog";
