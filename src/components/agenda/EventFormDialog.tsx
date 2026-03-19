@@ -1042,6 +1042,21 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                       <ExternalLink className="h-3.5 w-3.5" />
                     </Button>
                   </div>
+                  {form.lead_id && (
+                    <div className="px-4 py-3 border-t border-border/40 bg-muted/20">
+                      <Button
+                        type="button"
+                        variant="default"
+                        size="sm"
+                        className="w-full gap-2 rounded-xl shadow-sm"
+                        disabled={sendingClientLink}
+                        onClick={sendClientLinkToLead}
+                      >
+                        {sendingClientLink ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                        Enviar link via WhatsApp
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 {resolvedMessage && (
                   <div className="space-y-2">
