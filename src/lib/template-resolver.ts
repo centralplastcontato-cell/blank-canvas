@@ -66,11 +66,14 @@ export interface VariableContext {
     idade_aniversariante?: string | null;
     data_nascimento?: string | null;
     nomes_pais?: string | null;
+    telefone_pais?: string | null;
+    celular?: string | null;
     valor_sinal?: string | null;
     valor_restante?: string | null;
     forma_pagamento?: string | null;
     parcelas?: string | null;
     brindes?: string | null;
+    descricao?: string | null;
     observacoes_comerciais?: string | null;
     tema?: string | null;
     valor_convidado_adicional?: string | null;
@@ -262,6 +265,9 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
   brindes: {
     resolver: (ctx) => ctx.contract?.brindes || '',
   },
+  descricao: {
+    resolver: (ctx) => ctx.contract?.descricao || '',
+  },
   hora_inicio: {
     resolver: (ctx) => ctx.event?.time || '',
   },
@@ -279,6 +285,12 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
   },
   quantidade_pessoas: {
     resolver: (ctx) => ctx.contract?.quantidade_pessoas || ctx.lead?.guests || ctx.event?.guest_count?.toString() || '',
+  },
+  telefone_pais: {
+    resolver: (ctx) => ctx.contract?.telefone_pais || '',
+  },
+  cliente_celular: {
+    resolver: (ctx) => ctx.contract?.celular || ctx.lead?.whatsapp || '',
   },
 
   // --- Freelancer / Schedule ---
@@ -319,6 +331,25 @@ const ALIAS_MAP: Record<string, string> = {
   // Contract aliases
   parcelas: 'forma_pagamento',
   observacoes_contrato: 'observacoes',
+  // cliente_* aliases (used in Castelo da Diversão contracts)
+  cliente_nome: 'nome_responsavel',
+  cliente_cpf: 'cpf',
+  cliente_rg: 'rg',
+  cliente_email: 'email',
+  cliente_endereco: 'endereco',
+  cliente_numero: 'numero',
+  cliente_complemento: 'complemento',
+  cliente_bairro: 'bairro',
+  cliente_cep: 'cep',
+  cliente_cidade: 'cidade',
+  cliente_data_nascimento: 'data_nascimento',
+  aniversariante: 'nome_aniversariante',
+  idade: 'idade_aniversariante',
+  nome_pais: 'nomes_pais',
+  horario: 'hora_inicio',
+  horario_fim: 'hora_fim',
+  data_festa: 'data_evento',
+  pacote_valor: 'valor_convidado_adicional',
 };
 
 // ---------------------------------------------------------------------------
@@ -464,6 +495,7 @@ export function getAvailableVariables(): {
     valor_sinal: 'contract', valor_restante: 'contract', forma_pagamento: 'contract',
     nome_aniversariante: 'contract', idade_aniversariante: 'contract',
     data_nascimento: 'contract', nomes_pais: 'contract', brindes: 'contract',
+    descricao: 'contract', telefone_pais: 'contract', cliente_celular: 'contract',
     tema: 'contract', valor_convidado_adicional: 'contract', quantidade_pessoas: 'contract',
     titulo: 'schedule', periodo: 'schedule', qtd_festas: 'schedule',
     link: 'schedule', observacoes: 'schedule', lista_escalados: 'schedule',

@@ -36,17 +36,42 @@ export interface VariableContext {
   event?: {
     date?: string | null;
     time?: string | null;
+    end_time?: string | null;
     package_name?: string | null;
     value?: number | null;
     guest_count?: number | null;
     unit?: string | null;
+    event_type?: string | null;
   };
   contract?: {
     value?: string | null;
     date?: string | null;
     responsible_name?: string | null;
     cpf?: string | null;
+    rg?: string | null;
+    email?: string | null;
     address?: string | null;
+    numero?: string | null;
+    complemento?: string | null;
+    bairro?: string | null;
+    cidade?: string | null;
+    cep?: string | null;
+    nome_aniversariante?: string | null;
+    idade_aniversariante?: string | null;
+    data_nascimento?: string | null;
+    nomes_pais?: string | null;
+    telefone_pais?: string | null;
+    celular?: string | null;
+    valor_sinal?: string | null;
+    valor_restante?: string | null;
+    forma_pagamento?: string | null;
+    parcelas?: string | null;
+    brindes?: string | null;
+    descricao?: string | null;
+    observacoes_comerciais?: string | null;
+    tema?: string | null;
+    valor_convidado_adicional?: string | null;
+    quantidade_pessoas?: string | null;
   };
   freelancer?: {
     name?: string | null;
@@ -107,11 +132,36 @@ const VARIABLE_CATALOG: Record<string, { resolver: VariableResolver }> = {
     resolver: (ctx) =>
       ctx.contract?.value || (ctx.event?.value != null ? `R$ ${ctx.event.value.toLocaleString('pt-BR')}` : ''),
   },
-  nome_responsavel: { resolver: (ctx) => ctx.contract?.responsible_name || '' },
+  nome_responsavel: { resolver: (ctx) => ctx.contract?.responsible_name || ctx.lead?.name?.trim() || '' },
   cpf: { resolver: (ctx) => ctx.contract?.cpf || '' },
+  rg: { resolver: (ctx) => ctx.contract?.rg || '' },
+  email: { resolver: (ctx) => ctx.contract?.email || '' },
   endereco: { resolver: (ctx) => ctx.contract?.address || '' },
+  numero: { resolver: (ctx) => ctx.contract?.numero || '' },
+  complemento: { resolver: (ctx) => ctx.contract?.complemento || '' },
+  bairro: { resolver: (ctx) => ctx.contract?.bairro || '' },
+  cidade: { resolver: (ctx) => ctx.contract?.cidade || '' },
+  cep: { resolver: (ctx) => ctx.contract?.cep || '' },
   data_contrato: { resolver: (ctx) => ctx.contract?.date || '' },
   valor_contrato: { resolver: (ctx) => ctx.contract?.value || '' },
+  valor_total: { resolver: (ctx) => ctx.contract?.value || (ctx.event?.value != null ? `R$ ${ctx.event.value.toLocaleString('pt-BR')}` : '') },
+  valor_sinal: { resolver: (ctx) => ctx.contract?.valor_sinal || '' },
+  valor_restante: { resolver: (ctx) => ctx.contract?.valor_restante || '' },
+  forma_pagamento: { resolver: (ctx) => ctx.contract?.forma_pagamento || '' },
+  nome_aniversariante: { resolver: (ctx) => ctx.contract?.nome_aniversariante || ctx.lead?.child_name || '' },
+  idade_aniversariante: { resolver: (ctx) => ctx.contract?.idade_aniversariante || ctx.lead?.child_age || '' },
+  data_nascimento: { resolver: (ctx) => ctx.contract?.data_nascimento || '' },
+  nomes_pais: { resolver: (ctx) => ctx.contract?.nomes_pais || '' },
+  telefone_pais: { resolver: (ctx) => ctx.contract?.telefone_pais || '' },
+  cliente_celular: { resolver: (ctx) => ctx.contract?.celular || ctx.lead?.whatsapp || '' },
+  brindes: { resolver: (ctx) => ctx.contract?.brindes || '' },
+  descricao: { resolver: (ctx) => ctx.contract?.descricao || '' },
+  hora_inicio: { resolver: (ctx) => ctx.event?.time || '' },
+  hora_fim: { resolver: (ctx) => ctx.event?.end_time || '' },
+  tipo_festa: { resolver: (ctx) => ctx.event?.event_type || '' },
+  tema: { resolver: (ctx) => ctx.contract?.tema || '' },
+  valor_convidado_adicional: { resolver: (ctx) => ctx.contract?.valor_convidado_adicional || '' },
+  quantidade_pessoas: { resolver: (ctx) => ctx.contract?.quantidade_pessoas || ctx.lead?.guests || ctx.event?.guest_count?.toString() || '' },
   titulo: { resolver: (ctx) => ctx.schedule?.title || '' },
   periodo: { resolver: (ctx) => ctx.schedule?.period || '' },
   qtd_festas: { resolver: (ctx) => ctx.schedule?.event_count?.toString() || '' },
@@ -130,6 +180,27 @@ const ALIAS_MAP: Record<string, string> = {
   guest_count: 'convidados',
   data: 'data_evento',
   hora: 'hora_evento',
+  parcelas: 'forma_pagamento',
+  observacoes_contrato: 'observacoes',
+  // cliente_* aliases
+  cliente_nome: 'nome_responsavel',
+  cliente_cpf: 'cpf',
+  cliente_rg: 'rg',
+  cliente_email: 'email',
+  cliente_endereco: 'endereco',
+  cliente_numero: 'numero',
+  cliente_complemento: 'complemento',
+  cliente_bairro: 'bairro',
+  cliente_cep: 'cep',
+  cliente_cidade: 'cidade',
+  cliente_data_nascimento: 'data_nascimento',
+  aniversariante: 'nome_aniversariante',
+  idade: 'idade_aniversariante',
+  nome_pais: 'nomes_pais',
+  horario: 'hora_inicio',
+  horario_fim: 'hora_fim',
+  data_festa: 'data_evento',
+  pacote_valor: 'valor_convidado_adicional',
 };
 
 // ---------------------------------------------------------------------------
@@ -188,9 +259,17 @@ export function getAvailableVariables(): { key: string; aliases: string[]; domai
     customer_name: 'lead',
     empresa: 'company',
     data_visita: 'visit', hora_visita: 'visit',
-    data_evento: 'event', hora_evento: 'event', pacote: 'event', valor: 'event',
-    nome_responsavel: 'contract', cpf: 'contract', endereco: 'contract',
-    data_contrato: 'contract', valor_contrato: 'contract',
+    data_evento: 'event', hora_evento: 'event', hora_inicio: 'event', hora_fim: 'event',
+    pacote: 'event', valor: 'event', tipo_festa: 'event',
+    nome_responsavel: 'contract', cpf: 'contract', rg: 'contract', email: 'contract',
+    endereco: 'contract', numero: 'contract', complemento: 'contract',
+    bairro: 'contract', cidade: 'contract', cep: 'contract',
+    data_contrato: 'contract', valor_contrato: 'contract', valor_total: 'contract',
+    valor_sinal: 'contract', valor_restante: 'contract', forma_pagamento: 'contract',
+    nome_aniversariante: 'contract', idade_aniversariante: 'contract',
+    data_nascimento: 'contract', nomes_pais: 'contract', brindes: 'contract',
+    descricao: 'contract', telefone_pais: 'contract', cliente_celular: 'contract',
+    tema: 'contract', valor_convidado_adicional: 'contract', quantidade_pessoas: 'contract',
     titulo: 'schedule', periodo: 'schedule', qtd_festas: 'schedule',
     link: 'schedule', observacoes: 'schedule', lista_escalados: 'schedule',
   };
