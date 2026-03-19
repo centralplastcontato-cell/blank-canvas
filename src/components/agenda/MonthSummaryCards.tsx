@@ -10,6 +10,7 @@ interface MonthSummaryCardsProps {
   showRevenue?: boolean;
   closedInPeriod?: number;
   closedRevenue?: number;
+  onClosedClick?: () => void;
 }
 
 export function MonthSummaryCards({ events, month, periodLabel, totalDaysOverride, showRevenue = true, closedInPeriod = 0, closedRevenue = 0 }: MonthSummaryCardsProps) {
