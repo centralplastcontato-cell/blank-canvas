@@ -321,21 +321,22 @@ export function ContactInfoSheet({
             </div>
           )}
 
-          {/* Media, Links & Docs Section */}
+          {/* Media, Links & Docs Button */}
           {conversationId && (
             <>
               <Separator />
-              <div
-                className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-muted/30 transition-colors"
-                onClick={() => setShowMediaSection(!showMediaSection)}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                    <ImageIcon className="w-4 h-4" />
+              <div className="px-5 py-3">
+                <Button
+                  variant="outline"
+                  className="w-full gap-2 justify-between rounded-xl h-10"
+                  onClick={() => setShowMediaSection(!showMediaSection)}
+                >
+                  <div className="flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium">Mídia, links e docs</span>
                   </div>
-                  <span className="text-sm font-medium text-foreground">Mídia, links e docs</span>
-                </div>
-                <span className="text-sm font-semibold text-primary">{totalMedia}</span>
+                  <Badge variant="secondary" className="text-xs px-2 py-0">{totalMedia}</Badge>
+                </Button>
               </div>
 
               {showMediaSection && (
