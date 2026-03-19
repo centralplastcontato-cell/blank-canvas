@@ -157,11 +157,11 @@ function VideoWithPoster({ item, theme }: { item: VideoItem; theme: LPTheme }) {
   const isLogo = item.poster_url?.toLowerCase().endsWith('.png') || item.poster_url?.toLowerCase().endsWith('.svg');
 
   return (
-    <div className="aspect-[9/16] md:aspect-video relative overflow-hidden">
+    <div className="aspect-[9/16] md:aspect-video relative overflow-hidden bg-black">
       <video
         src={item.video_url}
         controls
-        className="w-full h-full object-contain bg-black"
+        className="w-full h-full object-contain"
         preload="none"
         playsInline
         aria-label={`Vídeo da ${item.name}`}
@@ -173,8 +173,7 @@ function VideoWithPoster({ item, theme }: { item: VideoItem; theme: LPTheme }) {
       </video>
       {item.poster_url && !playing && (
         <div
-          className="absolute inset-0 flex items-center justify-center cursor-pointer"
-          style={{ backgroundColor: isLogo ? (theme.background_color || '#0f0d15') : 'transparent' }}
+          className="absolute inset-0 cursor-pointer"
           onClick={(e) => {
             const video = (e.currentTarget.previousElementSibling as HTMLVideoElement);
             video?.play();
@@ -183,10 +182,10 @@ function VideoWithPoster({ item, theme }: { item: VideoItem; theme: LPTheme }) {
           <img
             src={item.poster_url}
             alt={item.name}
-            className={`w-full h-full ${isLogo ? 'object-contain p-8 md:p-16' : 'object-cover'}`}
+            className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30">
+            <div className="w-16 h-16 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center border border-white/30">
               <div className="w-0 h-0 border-l-[20px] border-l-white border-y-[12px] border-y-transparent ml-1.5" />
             </div>
           </div>
