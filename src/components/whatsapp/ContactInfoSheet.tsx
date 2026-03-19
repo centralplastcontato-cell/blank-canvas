@@ -200,22 +200,21 @@ export function ContactInfoSheet({
             <span className="font-semibold text-base">Dados do contato</span>
           </div>
 
-          {/* Avatar + Name */}
-          <div className="flex flex-col items-center pt-8 pb-6 px-6 bg-gradient-to-b from-muted/30 to-transparent">
-            <Avatar className="h-28 w-28 ring-4 ring-background shadow-xl">
+          <div className="flex flex-col items-center pt-5 pb-4 px-6 bg-gradient-to-b from-muted/30 to-transparent">
+            <Avatar className="h-20 w-20 ring-4 ring-background shadow-xl">
               <AvatarImage
                 src={contactPicture || undefined}
                 alt={displayName}
                 referrerPolicy="no-referrer"
               />
-              <AvatarFallback className="bg-primary/10 text-primary text-3xl font-bold">
+              <AvatarFallback className="bg-primary/10 text-primary text-2xl font-bold">
                 {displayName.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <h2 className="mt-4 text-xl font-bold text-foreground text-center">{displayName}</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">{contactPhone}</p>
+            <h2 className="mt-3 text-lg font-bold text-foreground text-center">{displayName}</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">{contactPhone}</p>
             {statusLabel && (
-              <Badge className={`mt-3 ${statusColor} text-white border-0 px-3 py-1`}>
+              <Badge className={`mt-2 ${statusColor} text-white border-0 px-3 py-0.5 text-xs`}>
                 {statusLabel}
               </Badge>
             )}
@@ -322,21 +321,22 @@ export function ContactInfoSheet({
             </div>
           )}
 
-          {/* Media, Links & Docs Section */}
+          {/* Media, Links & Docs Button */}
           {conversationId && (
             <>
               <Separator />
-              <div
-                className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-muted/30 transition-colors"
-                onClick={() => setShowMediaSection(!showMediaSection)}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                    <ImageIcon className="w-4 h-4" />
+              <div className="px-5 py-3">
+                <Button
+                  variant="outline"
+                  className="w-full gap-2 justify-between rounded-xl h-10"
+                  onClick={() => setShowMediaSection(!showMediaSection)}
+                >
+                  <div className="flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium">Mídia, links e docs</span>
                   </div>
-                  <span className="text-sm font-medium text-foreground">Mídia, links e docs</span>
-                </div>
-                <span className="text-sm font-semibold text-primary">{totalMedia}</span>
+                  <Badge variant="secondary" className="text-xs px-2 py-0">{totalMedia}</Badge>
+                </Button>
               </div>
 
               {showMediaSection && (
