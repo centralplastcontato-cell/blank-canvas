@@ -524,7 +524,7 @@ export default function Inteligencia() {
               </TabsContent>
 
               <TabsContent value="relatorios" className="animate-fade-up">
-                <RelatoriosComerciais selectedUnit={selectedUnit !== "all" ? selectedUnit : undefined} />
+                <RelatoriosComerciais selectedUnit={selectedUnit !== "all" ? selectedUnit : undefined} canViewRevenue={canViewRevenue} />
                 <SalesPriorities selectedUnit={selectedUnit} />
               </TabsContent>
 
