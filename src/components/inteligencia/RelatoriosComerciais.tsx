@@ -335,6 +335,7 @@ export function RelatoriosComerciais({ selectedUnit: externalUnit, canViewRevenu
         </Card>
 
         {/* Sales */}
+        {canViewRevenue && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Vendas por Período</CardTitle>
@@ -362,6 +363,7 @@ export function RelatoriosComerciais({ selectedUnit: externalUnit, canViewRevenu
             )}
           </CardContent>
         </Card>
+        )}
       </div>
     </div>
   );
