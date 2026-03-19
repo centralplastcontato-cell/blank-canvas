@@ -13,7 +13,7 @@ import { MobileMenu } from "@/components/admin/MobileMenu";
 import { NotificationBell } from "@/components/admin/NotificationBell";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
@@ -553,19 +553,22 @@ export default function Agenda() {
 
           {/* Search bar - mobile */}
           <div className="md:hidden px-3 pt-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={searchTerm}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                placeholder="Buscar por nome ou telefone do lead..."
-                className="pl-9 pr-9 h-10"
-              />
-              {searchTerm && (
-                <button onClick={clearSearch} className="absolute right-3 top-1/2 -translate-y-1/2" aria-label="Limpar busca">
-                  <X className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
-                </button>
-              )}
+            <div className="relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 blur-sm" />
+              <div className="relative flex items-center bg-card border border-border/40 rounded-2xl shadow-sm group-focus-within:shadow-md group-focus-within:border-primary/30 transition-all duration-300">
+                <Search className="ml-3 h-4 w-4 text-muted-foreground/60 group-focus-within:text-primary transition-colors duration-300 shrink-0" />
+                <input
+                  value={searchTerm}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  placeholder="Buscar por nome ou telefone do lead..."
+                  className="flex-1 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground/50 px-3 py-2.5 tracking-wide min-w-0"
+                />
+                {searchTerm && (
+                  <button onClick={clearSearch} className="mr-3 p-1 rounded-full hover:bg-muted/60 transition-colors" aria-label="Limpar busca">
+                    <X className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
