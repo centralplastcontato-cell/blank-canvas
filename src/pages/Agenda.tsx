@@ -74,6 +74,7 @@ export default function Agenda() {
   const [closedRevenue, setClosedRevenue] = useState(0);
   const [closedEvents, setClosedEvents] = useState<CompanyEvent[]>([]);
   const [contentMode, setContentMode] = useState<"agendadas" | "fechadas">("agendadas");
+  const [closedSortBy, setClosedSortBy] = useState<"event_date" | "fechamento">("fechamento");
 
   const { canViewAll, allowedUnits, unitAccess, isLoading: permUnitLoading } = useUnitPermissions(currentUser?.id, currentCompany?.id);
   const { hasPermission: userHasPermission } = usePermissions(currentUser?.id);
