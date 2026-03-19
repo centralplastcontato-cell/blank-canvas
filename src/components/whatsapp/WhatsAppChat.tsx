@@ -4172,6 +4172,17 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                             : "text-muted-foreground"
                         )} />
                       </Button>
+                      {linkedLead && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setShowLeadDetailSheet(true)}
+                          title="Abrir detalhes do lead"
+                        >
+                          <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                        </Button>
+                      )}
                     </div>
                   </div>
 
