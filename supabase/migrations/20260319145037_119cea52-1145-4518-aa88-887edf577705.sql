@@ -1,0 +1,1 @@
+ALTER TABLE public.company_packages ADD COLUMN IF NOT EXISTS valor_pessoa_adicional numeric DEFAULT NULL;

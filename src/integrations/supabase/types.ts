@@ -1183,6 +1183,7 @@ export type Database = {
           name: string
           sort_order: number
           updated_at: string
+          valor_pessoa_adicional: number | null
         }
         Insert: {
           company_id: string
@@ -1193,6 +1194,7 @@ export type Database = {
           name: string
           sort_order?: number
           updated_at?: string
+          valor_pessoa_adicional?: number | null
         }
         Update: {
           company_id?: string
@@ -1203,6 +1205,7 @@ export type Database = {
           name?: string
           sort_order?: number
           updated_at?: string
+          valor_pessoa_adicional?: number | null
         }
         Relationships: [
           {
