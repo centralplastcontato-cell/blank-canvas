@@ -179,11 +179,24 @@ function VideoWithPoster({ item, theme }: { item: VideoItem; theme: LPTheme }) {
             video?.play();
           }}
         >
-          <img
-            src={item.poster_url}
-            alt={item.name}
-            className="w-full h-full object-cover"
-          />
+          {isLogo ? (
+            <div
+              className="w-full h-full flex items-center justify-center"
+              style={{ background: `linear-gradient(135deg, ${theme.primary_color}, ${theme.secondary_color})` }}
+            >
+              <img
+                src={item.poster_url}
+                alt={item.name}
+                className="max-w-[60%] max-h-[60%] object-contain drop-shadow-2xl"
+              />
+            </div>
+          ) : (
+            <img
+              src={item.poster_url}
+              alt={item.name}
+              className="w-full h-full object-cover"
+            />
+          )}
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-16 h-16 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center border border-white/30">
               <div className="w-0 h-0 border-l-[20px] border-l-white border-y-[12px] border-y-transparent ml-1.5" />
