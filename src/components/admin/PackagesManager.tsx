@@ -159,35 +159,54 @@ export function PackagesManager() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{editing ? "Editar Pacote" : "Novo Pacote"}</DialogTitle>
+        <DialogContent className="max-w-md p-0 gap-0 overflow-hidden">
+          <DialogHeader className="p-6 pb-4">
+            <DialogTitle className="text-lg font-bold">{editing ? "Editar Pacote" : "Novo Pacote"}</DialogTitle>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {editing ? "Atualize as informações do pacote" : "Cadastre um novo pacote para seus eventos"}
+            </p>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Nome do pacote</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Pacote Premium" />
+
+          <div className="px-6 pb-6 space-y-4">
+            {/* Seção: Informações */}
+            <div className="rounded-xl border border-border/60 bg-muted/30 p-4 space-y-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Package className="h-4 w-4 text-primary" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Informações</span>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Nome do pacote *</Label>
+                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Pacote Premium" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Descrição</Label>
+                <Textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Descrição do pacote (opcional)"
+                  rows={3}
+                />
+              </div>
             </div>
-            <div>
-              <Label>Descrição</Label>
-              <Textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Descrição do pacote (opcional)"
-                rows={3}
-              />
+
+            {/* Seção: Valores */}
+            <div className="rounded-xl border border-border/60 bg-muted/30 p-4 space-y-3">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">💰 Valores</span>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Valor por pessoa adicional (R$)</Label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={valorPessoaAdicional}
+                  onChange={(e) => setValorPessoaAdicional(e.target.value)}
+                  placeholder="Ex: 85,00"
+                />
+              </div>
             </div>
-            <div>
-              <Label>Valor por pessoa adicional (R$)</Label>
-              <Input
-                type="text"
-                inputMode="decimal"
-                value={valorPessoaAdicional}
-                onChange={(e) => setValorPessoaAdicional(e.target.value)}
-                placeholder="Ex: 85,00"
-              />
-            </div>
-            <div className="flex justify-end gap-2">
+
+            <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
               <Button onClick={handleSave} disabled={saving || !name.trim()}>
                 {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
