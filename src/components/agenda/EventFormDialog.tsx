@@ -133,6 +133,9 @@ const EMPTY_PAYMENT: PaymentDetails = {
   saldo_forma: "",
   parcelas: null,
   observacoes_pagamento: "",
+  parcelas_details: [],
+  parcelas_same_day: true,
+  parcelas_day: null,
 };
 
 const EMPTY: EventFormData = {
