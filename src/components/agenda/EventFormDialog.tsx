@@ -282,12 +282,12 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       });
     supabase
       .from("company_packages")
-      .select("id, name")
+      .select("id, name, valor_pessoa_adicional")
       .eq("company_id", currentCompany.id)
       .eq("is_active", true)
       .order("sort_order")
       .then(({ data }) => {
-        setPackages((data || []).map((p: any) => ({ id: p.id, name: p.name })));
+        setPackages((data || []).map((p: any) => ({ id: p.id, name: p.name, valor_pessoa_adicional: p.valor_pessoa_adicional })));
       });
     supabase
       .from("user_companies")
