@@ -25,7 +25,7 @@ import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDia
 import { EventDetailSheet } from "@/components/agenda/EventDetailSheet";
 import { MonthSummaryCards } from "@/components/agenda/MonthSummaryCards";
 import { PeriodFilterPopover } from "@/components/agenda/PeriodFilterPopover";
-import { CalendarDays, Plus, Loader2, ShieldAlert, Menu, Clock, AlertTriangle, List, ListChecks, MapPin, Users, DollarSign, Search, X, Phone, Pencil, Handshake } from "lucide-react";
+import { CalendarDays, Plus, Loader2, ShieldAlert, Menu, Clock, AlertTriangle, List, ListChecks, MapPin, Users, DollarSign, Search, X, Phone, Pencil, Handshake, ArrowUpDown } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, startOfMonth, endOfMonth, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -74,6 +74,7 @@ export default function Agenda() {
   const [closedRevenue, setClosedRevenue] = useState(0);
   const [closedEvents, setClosedEvents] = useState<CompanyEvent[]>([]);
   const [contentMode, setContentMode] = useState<"agendadas" | "fechadas">("agendadas");
+  const [closedSortBy, setClosedSortBy] = useState<"event_date" | "fechamento">("fechamento");
 
   const { canViewAll, allowedUnits, unitAccess, isLoading: permUnitLoading } = useUnitPermissions(currentUser?.id, currentCompany?.id);
   const { hasPermission: userHasPermission } = usePermissions(currentUser?.id);
@@ -795,16 +796,34 @@ export default function Agenda() {
                 /* Closed parties list */
                 <Card className="bg-card border-border/30 shadow-[0_4px_24px_rgba(0,0,0,0.04)] rounded-2xl">
                   <CardContent className="p-4 md:p-6">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Handshake className="h-5 w-5 text-violet-600" />
-                      <h2 className="font-bold text-lg tracking-tight">Festas Fechadas ({closedEvents.length})</h2>
+                    <div className="flex items-center justify-between gap-2 mb-4">
+                      <div className="flex items-center gap-2">
+                        <Handshake className="h-5 w-5 text-violet-600" />
+                        <h2 className="font-bold text-lg tracking-tight">Festas Fechadas ({closedEvents.length})</h2>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs rounded-full px-3 gap-1.5"
+                        onClick={() => setClosedSortBy(prev => prev === "event_date" ? "fechamento" : "event_date")}
+                      >
+                        <ArrowUpDown className="h-3 w-3" />
+                        {closedSortBy === "event_date" ? "Data festa" : "Data fechamento"}
+                      </Button>
                     </div>
                     {closedEvents.length === 0 ? (
                       <p className="text-sm text-muted-foreground text-center py-12">Nenhuma festa fechada neste período.</p>
                     ) : (
                       <div className="space-y-3">
                         {closedEvents
-                          .sort((a, b) => a.event_date.localeCompare(b.event_date))
+                          .sort((a, b) => {
+                            if (closedSortBy === "fechamento") {
+                              const dateA = (a as any).data_fechamento_venda || "";
+                              const dateB = (b as any).data_fechamento_venda || "";
+                              return dateA.localeCompare(dateB);
+                            }
+                            return a.event_date.localeCompare(b.event_date);
+                          })
                           .map((ev) => (
                             <button
                               key={ev.id}
