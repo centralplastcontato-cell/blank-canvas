@@ -117,15 +117,15 @@ function HubDashboardContent({ userId }: { userId: string }) {
           supabase.from("wapi_instances").select("status, phone_number, company_id, connected_at").in("company_id", companyIds).order("connected_at", { ascending: false }),
         ]);
 
-        const leadsByCompany = new Map<string, typeof allLeads>();
-        (allLeads || []).forEach(l => {
+        const leadsByCompany = new Map<string, any[]>();
+        allLeads.forEach(l => {
           const arr = leadsByCompany.get(l.company_id) || [];
           arr.push(l);
           leadsByCompany.set(l.company_id, arr);
         });
 
-        const convosByCompany = new Map<string, typeof allConvos>();
-        (allConvos || []).forEach(c => {
+        const convosByCompany = new Map<string, any[]>();
+        allConvos.forEach(c => {
           const arr = convosByCompany.get(c.company_id) || [];
           arr.push(c);
           convosByCompany.set(c.company_id, arr);
