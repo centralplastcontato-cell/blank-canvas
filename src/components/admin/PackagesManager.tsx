@@ -159,7 +159,7 @@ export function PackagesManager() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md p-0 gap-0 overflow-hidden">
+        <DialogContent className="max-w-md p-0 gap-0 overflow-hidden bg-muted/40">
           <DialogHeader className="p-6 pb-4">
             <DialogTitle className="text-lg font-bold">{editing ? "Editar Pacote" : "Novo Pacote"}</DialogTitle>
             <p className="text-sm text-muted-foreground mt-0.5">
@@ -169,7 +169,7 @@ export function PackagesManager() {
 
           <div className="px-6 pb-6 space-y-4">
             {/* Seção: Informações */}
-            <div className="rounded-xl border border-border/60 bg-muted/30 p-4 space-y-4">
+            <div className="rounded-xl border border-border/60 bg-card p-4 space-y-4">
               <div className="flex items-center gap-2 mb-1">
                 <Package className="h-4 w-4 text-primary" />
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Informações</span>
@@ -190,7 +190,7 @@ export function PackagesManager() {
             </div>
 
             {/* Seção: Valores */}
-            <div className="rounded-xl border border-border/60 bg-muted/30 p-4 space-y-3">
+            <div className="rounded-xl border border-border/60 bg-card p-4 space-y-3">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">💰 Valores</span>
               </div>
