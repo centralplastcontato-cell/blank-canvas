@@ -350,6 +350,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [currentUserName, setCurrentUserName] = useState<string>("");
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
   const [showLeadDetailSheet, setShowLeadDetailSheet] = useState(false);
+  const [showContactInfoSheet, setShowContactInfoSheet] = useState(false);
   const [showShareToGroupDialog, setShowShareToGroupDialog] = useState(false);
   const [showQuickVisitDialog, setShowQuickVisitDialog] = useState(false);
   const [visitRefreshKey, setVisitRefreshKey] = useState(0);
