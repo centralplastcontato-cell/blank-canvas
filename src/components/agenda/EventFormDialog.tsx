@@ -823,7 +823,18 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
               <div className="space-y-2.5 md:pr-6">
                 <Label className="text-sm font-medium text-foreground/70">Valor do saldo</Label>
-                <MoneyInput value={payment.saldo_valor} onChange={(v) => setPayment({ ...payment, saldo_valor: v })} />
+                <MoneyInput value={payment.saldo_valor} onChange={(v) => {
+                  const num = payment.parcelas ?? 0;
+                  let updatedDetails = payment.parcelas_details || [];
+                  if (num > 1 && v && v > 0) {
+                    const perParcela = Math.round((v / num) * 100) / 100;
+                    updatedDetails = Array.from({ length: num }, (_, i) => ({
+                      vencimento: updatedDetails[i]?.vencimento || "",
+                      valor: perParcela,
+                    }));
+                  }
+                  setPayment({ ...payment, saldo_valor: v, parcelas_details: updatedDetails });
+                }} />
               </div>
 
               <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
