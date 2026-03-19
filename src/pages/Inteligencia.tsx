@@ -233,18 +233,19 @@ export default function Inteligencia() {
           <PullToRefresh onRefresh={async () => { await refetch(); }} className="flex-1 p-3 md:p-5 overflow-x-hidden overflow-y-auto">
             <div className={`mx-auto space-y-4 ${activeTab === "follow-ups" ? "" : "max-w-7xl"}`}>
               {/* Desktop header */}
-              <div className="hidden md:flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-primary/10">
-                    <Brain className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Inteligência Comercial</h1>
-                  <p className="text-sm text-muted-foreground">
-                    Análise de desempenho do funil e resultados de vendas
-                  </p>
-                </div>
-              </div>
+              <div className="hidden md:block">
+                <div className="relative rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden">
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_80%_-20%,hsl(var(--primary)/0.06),transparent)]" />
+                  <div className="relative flex items-center justify-between gap-4 p-5 md:p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/20">
+                        <Brain className="h-7 w-7 text-primary-foreground" />
+                      </div>
+                      <div>
+                        <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground">Inteligência Comercial</h1>
+                        <p className="text-sm text-muted-foreground/70 mt-0.5">Análise de desempenho do funil e resultados de vendas</p>
+                      </div>
+                    </div>
               <div className="flex items-center gap-2">
                 {unitOptions.length > 1 && (
                   <Select value={selectedUnit} onValueChange={setSelectedUnit}>
