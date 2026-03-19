@@ -604,7 +604,23 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 )}
                 {(() => {
                   const selectedPkg = packages.find(p => p.name === form.package_name);
-                  if (selectedPkg?.valor_pessoa_adicional != null) {
+                  if (!selectedPkg) return null;
+                  if (selectedPkg.preco_separado) {
+                    const hasAdulto = selectedPkg.valor_pessoa_adicional_adulto != null;
+                    const hasCrianca = selectedPkg.valor_pessoa_adicional_crianca != null;
+                    if (!hasAdulto && !hasCrianca) return null;
+                    return (
+                      <div className="text-xs text-primary font-medium mt-1 space-y-0.5">
+                        {hasCrianca && (
+                          <p>Criança adicional: R$ {selectedPkg.valor_pessoa_adicional_crianca!.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        )}
+                        {hasAdulto && (
+                          <p>Adulto adicional: R$ {selectedPkg.valor_pessoa_adicional_adulto!.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        )}
+                      </div>
+                    );
+                  }
+                  if (selectedPkg.valor_pessoa_adicional != null) {
                     return (
                       <p className="text-xs text-primary font-medium mt-1">
                         Pessoa adicional: R$ {selectedPkg.valor_pessoa_adicional.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
