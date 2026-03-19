@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Plus, Trash2, Pencil, Package, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
@@ -15,8 +16,46 @@ interface CompanyPackage {
   name: string;
   description: string | null;
   valor_pessoa_adicional: number | null;
+  preco_separado: boolean;
+  valor_pessoa_adicional_crianca: number | null;
+  valor_pessoa_adicional_adulto: number | null;
   is_active: boolean;
   sort_order: number;
+}
+
+function formatCurrency(value: string): string {
+  // Remove tudo que não é número
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return "";
+  const num = parseInt(digits, 10);
+  const formatted = (num / 100).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return formatted;
+}
+
+function parseCurrency(formatted: string): number | null {
+  if (!formatted.trim()) return null;
+  const cleaned = formatted.replace(/\./g, "").replace(",", ".");
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? null : num;
+}
+
+function CurrencyInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace("R$ ", "");
+    onChange(formatCurrency(raw));
+  };
+  return (
+    <Input
+      type="text"
+      inputMode="decimal"
+      value={value ? `R$ ${value}` : ""}
+      onChange={handleChange}
+      placeholder={placeholder || "R$ 0,00"}
+    />
+  );
 }
 
 export function PackagesManager() {
@@ -27,7 +66,10 @@ export function PackagesManager() {
   const [editing, setEditing] = useState<CompanyPackage | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [valorPessoaAdicional, setValorPessoaAdicional] = useState("");
+  const [precoSeparado, setPrecoSeparado] = useState(false);
+  const [valorUnico, setValorUnico] = useState("");
+  const [valorCrianca, setValorCrianca] = useState("");
+  const [valorAdulto, setValorAdulto] = useState("");
   const [saving, setSaving] = useState(false);
 
   const fetchPackages = async () => {
@@ -38,7 +80,7 @@ export function PackagesManager() {
       .eq("company_id", currentCompany.id)
       .order("sort_order")
       .order("created_at");
-    setPackages(data || []);
+    setPackages((data as unknown as CompanyPackage[]) || []);
     setLoading(false);
   };
 
@@ -46,11 +88,17 @@ export function PackagesManager() {
     fetchPackages();
   }, [currentCompany?.id]);
 
+  const numToDisplay = (v: number | null) =>
+    v != null ? v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
+
   const openNew = () => {
     setEditing(null);
     setName("");
     setDescription("");
-    setValorPessoaAdicional("");
+    setPrecoSeparado(false);
+    setValorUnico("");
+    setValorCrianca("");
+    setValorAdulto("");
     setDialogOpen(true);
   };
 
@@ -58,7 +106,10 @@ export function PackagesManager() {
     setEditing(pkg);
     setName(pkg.name);
     setDescription(pkg.description || "");
-    setValorPessoaAdicional(pkg.valor_pessoa_adicional != null ? pkg.valor_pessoa_adicional.toString() : "");
+    setPrecoSeparado(pkg.preco_separado);
+    setValorUnico(numToDisplay(pkg.valor_pessoa_adicional));
+    setValorCrianca(numToDisplay(pkg.valor_pessoa_adicional_crianca));
+    setValorAdulto(numToDisplay(pkg.valor_pessoa_adicional_adulto));
     setDialogOpen(true);
   };
 
@@ -66,23 +117,27 @@ export function PackagesManager() {
     if (!name.trim() || !currentCompany?.id) return;
     setSaving(true);
 
-    const parsedValor = valorPessoaAdicional.trim() ? parseFloat(valorPessoaAdicional.replace(",", ".")) : null;
+    const payload: Record<string, unknown> = {
+      name: name.trim(),
+      description: description.trim() || null,
+      preco_separado: precoSeparado,
+    };
+
+    if (precoSeparado) {
+      payload.valor_pessoa_adicional = null;
+      payload.valor_pessoa_adicional_crianca = parseCurrency(valorCrianca);
+      payload.valor_pessoa_adicional_adulto = parseCurrency(valorAdulto);
+    } else {
+      payload.valor_pessoa_adicional = parseCurrency(valorUnico);
+      payload.valor_pessoa_adicional_crianca = null;
+      payload.valor_pessoa_adicional_adulto = null;
+    }
 
     if (editing) {
-      await supabase
-        .from("company_packages")
-        .update({ name: name.trim(), description: description.trim() || null, valor_pessoa_adicional: parsedValor })
-        .eq("id", editing.id);
+      await supabase.from("company_packages").update(payload).eq("id", editing.id);
       toast({ title: "Pacote atualizado!" });
     } else {
-      await supabase
-        .from("company_packages")
-        .insert({
-          company_id: currentCompany.id,
-          name: name.trim(),
-          description: description.trim() || null,
-          valor_pessoa_adicional: parsedValor,
-        });
+      await supabase.from("company_packages").insert({ ...payload, company_id: currentCompany.id } as any);
       toast({ title: "Pacote criado!" });
     }
 
@@ -146,13 +201,35 @@ export function PackagesManager() {
               {pkg.description && (
                 <p className="text-xs text-muted-foreground line-clamp-2 pl-[46px]">{pkg.description}</p>
               )}
-              {pkg.valor_pessoa_adicional != null && (
-                <div className="ml-[46px] inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/5 border border-primary/10">
-                  <span className="text-[11px] font-semibold text-primary tracking-wide uppercase">
-                    Pessoa adicional: R$ {pkg.valor_pessoa_adicional.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </span>
-                </div>
-              )}
+              {/* Pricing display */}
+              <div className="ml-[46px] flex flex-wrap gap-2">
+                {pkg.preco_separado ? (
+                  <>
+                    {pkg.valor_pessoa_adicional_crianca != null && (
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-500/5 border border-blue-500/10">
+                        <span className="text-[11px] font-semibold text-blue-600 tracking-wide">
+                          🧒 Criança: R$ {pkg.valor_pessoa_adicional_crianca.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    )}
+                    {pkg.valor_pessoa_adicional_adulto != null && (
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-orange-500/5 border border-orange-500/10">
+                        <span className="text-[11px] font-semibold text-orange-600 tracking-wide">
+                          🧑 Adulto: R$ {pkg.valor_pessoa_adicional_adulto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  pkg.valor_pessoa_adicional != null && (
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/5 border border-primary/10">
+                      <span className="text-[11px] font-semibold text-primary tracking-wide uppercase">
+                        Pessoa adicional: R$ {pkg.valor_pessoa_adicional.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  )
+                )}
+              </div>
             </CardContent>
           </Card>
         ))}
@@ -190,20 +267,33 @@ export function PackagesManager() {
             </div>
 
             {/* Seção: Valores */}
-            <div className="rounded-xl border border-border/60 bg-card p-4 space-y-3">
+            <div className="rounded-xl border border-border/60 bg-card p-4 space-y-4">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">💰 Valores</span>
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Valor por pessoa adicional (R$)</Label>
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  value={valorPessoaAdicional}
-                  onChange={(e) => setValorPessoaAdicional(e.target.value)}
-                  placeholder="Ex: 85,00"
-                />
+
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-muted-foreground">Preços separados (criança / adulto)</Label>
+                <Switch checked={precoSeparado} onCheckedChange={setPrecoSeparado} />
               </div>
+
+              {precoSeparado ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">🧒 Criança (R$)</Label>
+                    <CurrencyInput value={valorCrianca} onChange={setValorCrianca} placeholder="R$ 0,00" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">🧑 Adulto (R$)</Label>
+                    <CurrencyInput value={valorAdulto} onChange={setValorAdulto} placeholder="R$ 0,00" />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Valor por pessoa adicional (R$)</Label>
+                  <CurrencyInput value={valorUnico} onChange={setValorUnico} placeholder="R$ 0,00" />
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
