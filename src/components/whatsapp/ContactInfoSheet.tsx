@@ -200,22 +200,21 @@ export function ContactInfoSheet({
             <span className="font-semibold text-base">Dados do contato</span>
           </div>
 
-          {/* Avatar + Name */}
-          <div className="flex flex-col items-center pt-8 pb-6 px-6 bg-gradient-to-b from-muted/30 to-transparent">
-            <Avatar className="h-28 w-28 ring-4 ring-background shadow-xl">
+          <div className="flex flex-col items-center pt-5 pb-4 px-6 bg-gradient-to-b from-muted/30 to-transparent">
+            <Avatar className="h-20 w-20 ring-4 ring-background shadow-xl">
               <AvatarImage
                 src={contactPicture || undefined}
                 alt={displayName}
                 referrerPolicy="no-referrer"
               />
-              <AvatarFallback className="bg-primary/10 text-primary text-3xl font-bold">
+              <AvatarFallback className="bg-primary/10 text-primary text-2xl font-bold">
                 {displayName.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <h2 className="mt-4 text-xl font-bold text-foreground text-center">{displayName}</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">{contactPhone}</p>
+            <h2 className="mt-3 text-lg font-bold text-foreground text-center">{displayName}</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">{contactPhone}</p>
             {statusLabel && (
-              <Badge className={`mt-3 ${statusColor} text-white border-0 px-3 py-1`}>
+              <Badge className={`mt-2 ${statusColor} text-white border-0 px-3 py-0.5 text-xs`}>
                 {statusLabel}
               </Badge>
             )}
