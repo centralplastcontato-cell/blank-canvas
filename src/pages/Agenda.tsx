@@ -847,11 +847,19 @@ export default function Agenda() {
                                   </span>
                                 )}
                               </div>
-                              {ev.total_value != null && ev.total_value > 0 && (
-                                <p className="text-sm font-bold text-foreground mt-2">
-                                  {ev.total_value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                                </p>
-                              )}
+                              <div className="flex items-center justify-between mt-2">
+                                {ev.total_value != null && ev.total_value > 0 && (
+                                  <p className="text-sm font-bold text-foreground">
+                                    {ev.total_value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                                  </p>
+                                )}
+                                {(ev as any).data_fechamento_venda && (
+                                  <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                    <Handshake className="h-3 w-3" />
+                                    Fechado em {format(new Date((ev as any).data_fechamento_venda + "T12:00:00"), "dd/MM/yyyy")}
+                                  </span>
+                                )}
+                              </div>
                             </button>
                           ))}
                         <div className="pt-3 border-t border-border/30">
