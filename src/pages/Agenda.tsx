@@ -567,6 +567,22 @@ export default function Agenda() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2.5">
+                      {/* Content mode toggle: Agendadas vs Fechadas */}
+                      <Tabs value={contentMode} onValueChange={(v) => setContentMode(v as "agendadas" | "fechadas")}>
+                        <TabsList className="h-10 bg-muted/60 backdrop-blur-sm">
+                          <TabsTrigger value="agendadas" className="px-3 gap-1.5 data-[state=active]:shadow-sm text-xs font-medium">
+                            <CalendarDays className="h-4 w-4" />
+                            <span className="hidden sm:inline">Agendadas</span>
+                          </TabsTrigger>
+                          <TabsTrigger value="fechadas" className="px-3 gap-1.5 data-[state=active]:shadow-sm text-xs font-medium">
+                            <Handshake className="h-4 w-4" />
+                            <span className="hidden sm:inline">Fechadas</span>
+                            {closedInPeriod > 0 && (
+                              <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{closedInPeriod}</Badge>
+                            )}
+                          </TabsTrigger>
+                        </TabsList>
+                      </Tabs>
                       <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "calendar" | "list")}>
                         <TabsList className="h-10 bg-muted/60 backdrop-blur-sm">
                           <TabsTrigger value="calendar" className="px-3 data-[state=active]:shadow-sm"><CalendarDays className="h-4 w-4" /></TabsTrigger>
