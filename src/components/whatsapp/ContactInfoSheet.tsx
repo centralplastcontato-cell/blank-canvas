@@ -265,7 +265,11 @@ export function ContactInfoSheet({
                             <div
                               key={item.id}
                               className="aspect-square rounded-lg overflow-hidden bg-muted/50 cursor-pointer hover:opacity-80 transition-opacity relative"
-                              onClick={() => item.media_url && setLightboxUrl(item.media_url)}
+                              onClick={() => {
+                                const imageUrls = mediaItems.filter(m => m.message_type !== "video" && m.media_url).map(m => m.media_url!);
+                                const idx = imageUrls.indexOf(item.media_url!);
+                                if (idx >= 0) setLightboxIndex(idx);
+                              }}
                             >
                               {item.message_type === "video" ? (
                                 <div className="w-full h-full flex items-center justify-center bg-muted">
