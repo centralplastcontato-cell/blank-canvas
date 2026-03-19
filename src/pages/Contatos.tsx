@@ -116,24 +116,22 @@ export default function Contatos() {
   const content = (
     <div className="flex-1 min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border px-4 py-3">
+      <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border px-4 py-3 md:hidden">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            {isMobile && (
-              <MobileMenu
-                isOpen={mobileMenuOpen}
-                onOpenChange={setMobileMenuOpen}
-                trigger={<Button variant="ghost" size="icon"><Menu className="h-5 w-5" /></Button>}
-                currentPage="atendimento"
-                userName={userName}
-                userEmail={userEmail}
-                userAvatar={userAvatar}
-                canManageUsers={canManageUsers}
-                isAdmin={isAdmin}
-                onRefresh={fetchContacts}
-                onLogout={handleLogout}
-              />
-            )}
+            <MobileMenu
+              isOpen={mobileMenuOpen}
+              onOpenChange={setMobileMenuOpen}
+              trigger={<Button variant="ghost" size="icon"><Menu className="h-5 w-5" /></Button>}
+              currentPage="atendimento"
+              userName={userName}
+              userEmail={userEmail}
+              userAvatar={userAvatar}
+              canManageUsers={canManageUsers}
+              isAdmin={isAdmin}
+              onRefresh={fetchContacts}
+              onLogout={handleLogout}
+            />
             <div className="flex items-center gap-2">
               <BookUser className="h-5 w-5 text-primary" />
               <h1 className="text-lg font-bold">Contatos</h1>
@@ -144,6 +142,27 @@ export default function Contatos() {
           </Button>
         </div>
       </header>
+
+      {/* Desktop premium header */}
+      <div className="hidden md:block px-4 pt-6 pb-2">
+        <div className="relative rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_80%_-20%,hsl(var(--primary)/0.06),transparent)]" />
+          <div className="relative flex items-center justify-between gap-4 p-5 md:p-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/20">
+                <BookUser className="h-7 w-7 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground">Contatos</h1>
+                <p className="text-sm text-muted-foreground/70 mt-0.5">Gerencie sua base de contatos</p>
+              </div>
+            </div>
+            <Button size="sm" onClick={() => { setEditingContact(null); setDialogOpen(true); }}>
+              <Plus className="h-4 w-4 mr-1" /> Novo
+            </Button>
+          </div>
+        </div>
+      </div>
 
       <main className="p-4 max-w-5xl mx-auto space-y-4">
         {/* Stats */}

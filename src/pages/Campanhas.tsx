@@ -155,9 +155,19 @@ export default function Campanhas() {
               </div>
             </div>
           </header>
-          <div className="hidden md:flex items-center gap-2 px-4 sm:px-6 pt-6 pb-2">
-            <Megaphone className="w-6 h-6 text-primary" />
-            <h1 className="text-xl sm:text-2xl font-bold">Campanhas</h1>
+          <div className="hidden md:block px-4 sm:px-6 pt-6 pb-2">
+            <div className="relative rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_80%_-20%,hsl(var(--primary)/0.06),transparent)]" />
+              <div className="relative flex items-center gap-4 p-5 md:p-6">
+                <div className="p-3 rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/20">
+                  <Megaphone className="h-7 w-7 text-primary-foreground" />
+                </div>
+                <div>
+                  <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground">Campanhas</h1>
+                  <p className="text-sm text-muted-foreground/70 mt-0.5">Envie mensagens em massa para seus leads</p>
+                </div>
+              </div>
+            </div>
           </div>
           <div className="flex-1 p-4 sm:p-6 max-w-5xl mx-auto w-full">
 
