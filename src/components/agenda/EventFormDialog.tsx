@@ -75,10 +75,10 @@ const PAYMENT_FORMS = [
 
 const EVENT_TYPES = [
   { value: "infantil", label: "Infantil" },
-  { value: "debutante", label: "Debutante" },
-  { value: "corporativo", label: "Corporativo" },
-  { value: "casamento", label: "Casamento" },
-  { value: "outro", label: "Outro" },
+  { value: "formatura", label: "Formatura" },
+  { value: "escolar", label: "Escolar" },
+  { value: "kids", label: "Kids" },
+  { value: "confraternizacao", label: "Confraternização" },
 ];
 
 const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
