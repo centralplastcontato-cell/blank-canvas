@@ -1181,9 +1181,12 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          preco_separado: boolean
           sort_order: number
           updated_at: string
           valor_pessoa_adicional: number | null
+          valor_pessoa_adicional_adulto: number | null
+          valor_pessoa_adicional_crianca: number | null
         }
         Insert: {
           company_id: string
@@ -1192,9 +1195,12 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          preco_separado?: boolean
           sort_order?: number
           updated_at?: string
           valor_pessoa_adicional?: number | null
+          valor_pessoa_adicional_adulto?: number | null
+          valor_pessoa_adicional_crianca?: number | null
         }
         Update: {
           company_id?: string
@@ -1203,9 +1209,12 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          preco_separado?: boolean
           sort_order?: number
           updated_at?: string
           valor_pessoa_adicional?: number | null
+          valor_pessoa_adicional_adulto?: number | null
+          valor_pessoa_adicional_crianca?: number | null
         }
         Relationships: [
           {
