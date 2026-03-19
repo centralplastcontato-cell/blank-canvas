@@ -354,11 +354,12 @@ export function ContactInfoSheet({
         </ScrollArea>
       </SheetContent>
     </Sheet>
-    {lightboxUrl && (
+    {lightboxIndex !== null && (
       <ImageLightbox
-        src={lightboxUrl}
-        alt="Mídia"
-        onClose={() => setLightboxUrl(null)}
+        images={mediaItems.filter(m => m.message_type !== "video" && m.media_url).map(m => m.media_url!)}
+        currentIndex={lightboxIndex}
+        onClose={() => setLightboxIndex(null)}
+        onNavigate={setLightboxIndex}
       />
     )}
     </>
