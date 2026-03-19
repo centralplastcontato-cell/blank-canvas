@@ -174,11 +174,11 @@ export default function Agenda() {
   }, [navigate]);
 
   // Fetch events for current month
-  const fetchClosedInPeriod = async (start: string, end: string, unit?: string): Promise<{ count: number; revenue: number }> => {
-    if (!currentCompany?.id) return { count: 0, revenue: 0 };
+  const fetchClosedInPeriod = async (start: string, end: string, unit?: string): Promise<{ count: number; revenue: number; events: CompanyEvent[] }> => {
+    if (!currentCompany?.id) return { count: 0, revenue: 0, events: [] };
     let query = supabase
       .from("company_events")
-      .select("id, unit, total_value")
+      .select("*")
       .eq("company_id", currentCompany.id)
       .gte("data_fechamento_venda", start)
       .lte("data_fechamento_venda", end);
@@ -194,9 +194,10 @@ export default function Agenda() {
     }
     
     const { data } = await query;
-    const count = data?.length || 0;
-    const revenue = (data || []).reduce((sum, e) => sum + (e.total_value || 0), 0);
-    return { count, revenue };
+    const evts = (data || []) as CompanyEvent[];
+    const count = evts.length;
+    const revenue = evts.reduce((sum, e) => sum + (e.total_value || 0), 0);
+    return { count, revenue, events: evts };
   };
 
   const fetchEvents = async () => {
