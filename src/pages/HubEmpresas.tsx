@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { HubLPVideosManager } from "@/components/hub/HubLPVideosManager";
 import { supabase } from "@/integrations/supabase/client";
 import { Company } from "@/types/company";
 import { HubLayout } from "@/components/hub/HubLayout";
@@ -16,7 +17,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Building2, Plus, Pencil, Users, Loader2, UserPlus, Link2, Copy, ClipboardList, MessageSquare, BarChart3, Clock, CheckCircle2, AlertCircle, Globe, AlertTriangle, ExternalLink, Settings2, Trash2, RotateCcw } from "lucide-react";
+import { Building2, Plus, Pencil, Users, Loader2, UserPlus, Link2, Copy, ClipboardList, MessageSquare, BarChart3, Clock, CheckCircle2, AlertCircle, Globe, AlertTriangle, ExternalLink, Settings2, Trash2, RotateCcw, Film } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
@@ -50,6 +51,10 @@ export default function HubEmpresas() {
               <Users className="h-4 w-4" />
               Usuários
             </TabsTrigger>
+            <TabsTrigger value="videos-lp" className="text-sm gap-2 px-5">
+              <Film className="h-4 w-4" />
+              Vídeos LP
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="empresas">
             <HubEmpresasContent />
@@ -59,6 +64,9 @@ export default function HubEmpresas() {
           </TabsContent>
           <TabsContent value="usuarios">
             <HubUsersContent currentUserId={user.id} />
+          </TabsContent>
+          <TabsContent value="videos-lp">
+            <HubLPVideosManager />
           </TabsContent>
         </Tabs>
       )}
