@@ -98,13 +98,21 @@ export function ContactInfoSheet({
   const [mediaCounts, setMediaCounts] = useState({ media: 0, links: 0, docs: 0 });
   const [showMediaSection, setShowMediaSection] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [clientDataLink, setClientDataLink] = useState<string | null>(null);
+  const [clientDataStatus, setClientDataStatus] = useState<string | null>(null);
+  const [isSendingLink, setIsSendingLink] = useState(false);
 
   useEffect(() => {
     if (isOpen && conversationId) {
       fetchMediaCounts(conversationId);
     }
+    if (isOpen && linkedLead?.id) {
+      fetchClientDataLink(linkedLead.id);
+    }
     if (!isOpen) {
       setShowMediaSection(false);
+      setClientDataLink(null);
+      setClientDataStatus(null);
     }
   }, [isOpen, conversationId]);
 
