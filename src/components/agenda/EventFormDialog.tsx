@@ -16,6 +16,11 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 
+export interface ParcelaDetail {
+  valor: number | null;
+  vencimento: string; // yyyy-MM-dd
+}
+
 export interface PaymentDetails {
   entrada_valor: number | null;
   entrada_forma: string;
@@ -23,6 +28,9 @@ export interface PaymentDetails {
   saldo_forma: string;
   parcelas: number | null;
   observacoes_pagamento: string;
+  parcelas_details?: ParcelaDetail[];
+  parcelas_same_day?: boolean;
+  parcelas_day?: number | null;
 }
 
 export interface EventFormData {
@@ -125,6 +133,9 @@ const EMPTY_PAYMENT: PaymentDetails = {
   saldo_forma: "",
   parcelas: null,
   observacoes_pagamento: "",
+  parcelas_details: [],
+  parcelas_same_day: true,
+  parcelas_day: null,
 };
 
 const EMPTY: EventFormData = {
@@ -686,10 +697,100 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
               <div className="space-y-2.5 md:pr-6">
                 <Label className="text-sm font-medium text-foreground/70">Parcelas</Label>
-                <Input type="number" min={1} placeholder="1" value={payment.parcelas ?? ""} onChange={(e) => setPayment({ ...payment, parcelas: e.target.value ? Number(e.target.value) : null })} />
+                <Input type="number" min={1} max={24} placeholder="1" value={payment.parcelas ?? ""} onChange={(e) => {
+                  const num = e.target.value ? Math.max(1, Math.min(24, Number(e.target.value))) : null;
+                  const details = num && num > 1
+                    ? Array.from({ length: num }, (_, i) => (payment.parcelas_details?.[i] || { valor: null, vencimento: "" }))
+                    : [];
+                  setPayment({ ...payment, parcelas: num, parcelas_details: details });
+                }} />
               </div>
 
-              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50" />
+              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
+                {(payment.parcelas ?? 0) > 1 && (
+                  <div className="space-y-2.5">
+                    <Label className="text-sm font-medium text-foreground/70">Vencimentos</Label>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={payment.parcelas_same_day !== false ? "default" : "outline"}
+                        className="text-xs flex-1"
+                        onClick={() => setPayment(prev => ({ ...prev, parcelas_same_day: true }))}
+                      >
+                        Mesmo dia
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={payment.parcelas_same_day === false ? "default" : "outline"}
+                        className="text-xs flex-1"
+                        onClick={() => setPayment(prev => ({ ...prev, parcelas_same_day: false, parcelas_day: null }))}
+                      >
+                        Dias diferentes
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Installment details */}
+              {(payment.parcelas ?? 0) > 1 && (
+                <div className="md:col-span-2 space-y-3">
+                  {payment.parcelas_same_day !== false && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-foreground/70">Dia do vencimento (todo mês)</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={31}
+                        placeholder="Ex: 10"
+                        value={payment.parcelas_day ?? ""}
+                        onChange={(e) => {
+                          const day = e.target.value ? Number(e.target.value) : null;
+                          setPayment(prev => ({ ...prev, parcelas_day: day }));
+                        }}
+                        className="w-32"
+                      />
+                    </div>
+                  )}
+                  <div className="rounded-lg border border-border/40 bg-muted/20 p-3 space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Detalhes das parcelas</p>
+                    {(payment.parcelas_details || []).map((parcela, idx) => (
+                      <div key={idx} className="flex items-center gap-3">
+                        <span className="text-xs font-medium text-muted-foreground w-16 shrink-0">
+                          {idx + 1}ª parcela
+                        </span>
+                        <div className="flex-1">
+                          <MoneyInput
+                            value={parcela.valor}
+                            onChange={(v) => {
+                              const updated = [...(payment.parcelas_details || [])];
+                              updated[idx] = { ...updated[idx], valor: v };
+                              setPayment(prev => ({ ...prev, parcelas_details: updated }));
+                            }}
+                            placeholder="Valor"
+                          />
+                        </div>
+                        {payment.parcelas_same_day === false && (
+                          <div className="w-36">
+                            <Input
+                              type="date"
+                              value={parcela.vencimento}
+                              onChange={(e) => {
+                                const updated = [...(payment.parcelas_details || [])];
+                                updated[idx] = { ...updated[idx], vencimento: e.target.value };
+                                setPayment(prev => ({ ...prev, parcelas_details: updated }));
+                              }}
+                              className="text-xs"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-2.5 md:pr-6">
                 <Label className="text-sm font-medium text-foreground/70">Valor da entrada</Label>
