@@ -5153,17 +5153,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                             : "text-muted-foreground"
                         )} />
                       </Button>
-                      {linkedLead && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => setShowLeadDetailSheet(true)}
-                          title="Abrir detalhes do lead"
-                        >
-                          <MoreVertical className="w-4 h-4 text-muted-foreground" />
-                        </Button>
-                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setShowContactInfoSheet(true)}
+                        title="Dados do contato"
+                      >
+                        <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                      </Button>
                     </div>
                   </div>
                   <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
