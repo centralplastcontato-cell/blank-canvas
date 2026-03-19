@@ -51,6 +51,10 @@ export default function HubEmpresas() {
               <Users className="h-4 w-4" />
               Usuários
             </TabsTrigger>
+            <TabsTrigger value="videos-lp" className="text-sm gap-2 px-5">
+              <Film className="h-4 w-4" />
+              Vídeos LP
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="empresas">
             <HubEmpresasContent />
@@ -60,6 +64,9 @@ export default function HubEmpresas() {
           </TabsContent>
           <TabsContent value="usuarios">
             <HubUsersContent currentUserId={user.id} />
+          </TabsContent>
+          <TabsContent value="videos-lp">
+            <HubLPVideosManager />
           </TabsContent>
         </Tabs>
       )}
