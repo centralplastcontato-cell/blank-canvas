@@ -6484,7 +6484,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       </Dialog>
       {/* Lead Detail Sheet */}
       <LeadDetailSheet
-        lead={linkedLead}
+        lead={linkedLead as any}
         isOpen={showLeadDetailSheet}
         onClose={() => setShowLeadDetailSheet(false)}
         onUpdate={() => {
