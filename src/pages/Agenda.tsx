@@ -510,6 +510,7 @@ export default function Agenda() {
                     <Plus className="h-4 w-4 mr-1" /> Nova
                   </Button>
                   <NotificationBell />
+                </div>
               </div>
               {/* Mobile content mode toggle - inside header */}
               <div className="pt-2">
