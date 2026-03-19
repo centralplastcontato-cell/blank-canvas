@@ -289,7 +289,6 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       .then(({ data }) => {
         setPackages((data || []).map((p: any) => ({ id: p.id, name: p.name, valor_pessoa_adicional: p.valor_pessoa_adicional, preco_separado: !!p.preco_separado, valor_pessoa_adicional_adulto: p.valor_pessoa_adicional_adulto, valor_pessoa_adicional_crianca: p.valor_pessoa_adicional_crianca })));
       });
-      });
     supabase
       .from("user_companies")
       .select("user_id, profiles:user_id(full_name)")
