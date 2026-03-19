@@ -6491,6 +6491,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           conversationId={selectedConversation.id}
           linkedLead={linkedLead}
           onOpenLeadDetail={linkedLead ? () => setShowLeadDetailSheet(true) : undefined}
+          instanceId={selectedInstance?.instance_id}
         />
       )}
       {/* Lead Detail Sheet */}
