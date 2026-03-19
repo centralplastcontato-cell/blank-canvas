@@ -81,7 +81,8 @@ export default function ContratosModule() {
             <NotificationBell />
           </div>
 
-          <div className="p-4 md:p-6 max-w-6xl mx-auto">
+          <div className="flex-1 p-3 md:p-5 overflow-auto">
+          <div className="max-w-7xl mx-auto space-y-4">
             {/* Desktop header */}
             <div className="hidden md:block mb-6">
               <div className="relative rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden">
@@ -119,6 +120,7 @@ export default function ContratosModule() {
                 <GeneratedContractsList userId={user.id} />
               </TabsContent>
             </Tabs>
+          </div>
           </div>
         </main>
       </div>

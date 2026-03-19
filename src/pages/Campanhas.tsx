@@ -155,7 +155,9 @@ export default function Campanhas() {
               </div>
             </div>
           </header>
-          <div className="hidden md:block px-4 sm:px-6 pt-6 pb-2">
+          <div className="flex-1 p-3 md:p-5 overflow-auto">
+          <div className="max-w-7xl mx-auto space-y-4">
+          <div className="hidden md:block">
             <div className="relative rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden">
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_80%_-20%,hsl(var(--primary)/0.06),transparent)]" />
               <div className="relative flex items-center gap-4 p-5 md:p-6">
@@ -169,7 +171,6 @@ export default function Campanhas() {
               </div>
             </div>
           </div>
-          <div className="flex-1 p-4 sm:p-6 max-w-5xl mx-auto w-full">
 
           <Tabs defaultValue="campanhas" className="space-y-4">
             <div className="flex justify-center">
@@ -329,6 +330,7 @@ export default function Campanhas() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+          </div>
           </div>
         </main>
       </div>

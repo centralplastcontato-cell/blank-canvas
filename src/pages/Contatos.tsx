@@ -143,8 +143,10 @@ export default function Contatos() {
         </div>
       </header>
 
+      <main className="flex-1 p-3 md:p-5 overflow-auto">
+      <div className="max-w-7xl mx-auto space-y-4">
       {/* Desktop premium header */}
-      <div className="hidden md:block px-4 pt-6 pb-2">
+      <div className="hidden md:block">
         <div className="relative rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_80%_-20%,hsl(var(--primary)/0.06),transparent)]" />
           <div className="relative flex items-center justify-between gap-4 p-5 md:p-6">
@@ -163,8 +165,6 @@ export default function Contatos() {
           </div>
         </div>
       </div>
-
-      <main className="p-4 max-w-5xl mx-auto space-y-4">
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Card>
@@ -268,6 +268,7 @@ export default function Contatos() {
             </Table>
           </Card>
         )}
+      </div>
       </main>
 
       <ContactFormDialog
