@@ -57,6 +57,22 @@ function formatCPF(value: string): string {
   return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
 }
 
+function isValidCPF(cpf: string): boolean {
+  const digits = cpf.replace(/\D/g, "");
+  if (digits.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(digits)) return false; // all same digits
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += parseInt(digits[i]) * (10 - i);
+  let check = 11 - (sum % 11);
+  if (check >= 10) check = 0;
+  if (parseInt(digits[9]) !== check) return false;
+  sum = 0;
+  for (let i = 0; i < 10; i++) sum += parseInt(digits[i]) * (11 - i);
+  check = 11 - (sum % 11);
+  if (check >= 10) check = 0;
+  return parseInt(digits[10]) === check;
+}
+
 function formatCEP(value: string): string {
   const digits = value.replace(/\D/g, "").slice(0, 8);
   if (digits.length <= 5) return digits;
@@ -83,6 +99,7 @@ export default function PublicClientData() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fetchingCep, setFetchingCep] = useState(false);
+  const [cpfError, setCpfError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -134,8 +151,15 @@ export default function PublicClientData() {
     }
     if (form.cpf.replace(/\D/g, "").length < 11) {
       toast({ title: "Preencha o CPF completo", variant: "destructive" });
+      setCpfError("CPF incompleto");
       return;
     }
+    if (!isValidCPF(form.cpf)) {
+      toast({ title: "CPF inválido", description: "Verifique os números digitados.", variant: "destructive" });
+      setCpfError("CPF inválido");
+      return;
+    }
+    setCpfError(null);
     setSubmitting(true);
     try {
       const { error } = await supabase.rpc("submit_client_data_public", {
@@ -251,12 +275,28 @@ export default function PublicClientData() {
                   <Label className="text-xs font-semibold text-foreground">CPF <span className="text-destructive">*</span></Label>
                   <Input
                     value={form.cpf}
-                    onChange={(e) => setForm({ ...form, cpf: formatCPF(e.target.value) })}
+                    onChange={(e) => {
+                      setForm({ ...form, cpf: formatCPF(e.target.value) });
+                      setCpfError(null);
+                    }}
+                    onBlur={() => {
+                      const d = form.cpf.replace(/\D/g, "");
+                      if (d.length === 11 && !isValidCPF(form.cpf)) {
+                        setCpfError("CPF inválido");
+                      } else if (d.length > 0 && d.length < 11) {
+                        setCpfError("CPF incompleto");
+                      } else {
+                        setCpfError(null);
+                      }
+                    }}
                     placeholder="000.000.000-00"
                     maxLength={14}
-                    className="bg-muted/30 border-border/50 focus:bg-background"
+                    className={`bg-muted/30 border-border/50 focus:bg-background ${cpfError ? "border-destructive ring-1 ring-destructive/30" : ""}`}
                     required
                   />
+                  {cpfError && (
+                    <p className="text-[11px] text-destructive font-medium mt-1">{cpfError}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold text-foreground">RG</Label>
