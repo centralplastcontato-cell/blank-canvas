@@ -181,14 +181,17 @@ export default function Formularios() {
 
           <div className="flex-1 flex flex-col overflow-hidden">
             {/* Desktop header */}
-            <div className="hidden md:flex items-center justify-between gap-3 p-5 pb-0">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-primary/10">
-                  <FolderOpen className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold tracking-tight">Operações</h1>
-                  <p className="text-sm text-muted-foreground">Gerencie formulários, checklists e pacotes da sua empresa</p>
+            <div className="hidden md:block p-5 pb-0">
+              <div className="relative rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden">
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_80%_-20%,hsl(var(--primary)/0.06),transparent)]" />
+                <div className="relative flex items-center gap-4 p-5 md:p-6">
+                  <div className="p-3 rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/20">
+                    <FolderOpen className="h-7 w-7 text-primary-foreground" />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground">Operações</h1>
+                    <p className="text-sm text-muted-foreground/70 mt-0.5">Gerencie formulários, checklists e pacotes da sua empresa</p>
+                  </div>
                 </div>
               </div>
             </div>
