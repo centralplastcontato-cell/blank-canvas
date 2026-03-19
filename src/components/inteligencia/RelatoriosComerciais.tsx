@@ -47,6 +47,7 @@ function formatBRL(value: number): string {
 
 interface RelatoriosProps {
   selectedUnit?: string;
+  canViewRevenue?: boolean;
 }
 
 export function RelatoriosComerciais({ selectedUnit: externalUnit }: RelatoriosProps) {
