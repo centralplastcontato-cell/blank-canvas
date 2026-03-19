@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { Loader2, CheckCircle2, User, CreditCard, MapPin, Mail, Calendar, FileText, Hash, Home, Building2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface RequestInfo {
