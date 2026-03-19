@@ -254,6 +254,37 @@ export function ContactInfoSheet({
                 </>
               )}
 
+              {/* Client Data Link - Send via WhatsApp */}
+              {clientDataLink && (
+                <>
+                  <Separator />
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Dados do Contratante</p>
+                    <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/30">
+                      <div className="p-1.5 rounded-md bg-primary/10 text-primary shrink-0">
+                        <ClipboardList className="w-3.5 h-3.5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs text-foreground truncate">{clientDataLink}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {clientDataStatus === "completed" ? "✅ Preenchido" : "⏳ Aguardando preenchimento"}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="w-full gap-2"
+                      disabled={isSendingLink || !instanceId}
+                      onClick={handleSendClientDataLink}
+                    >
+                      {isSendingLink ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                      Enviar link para o lead
+                    </Button>
+                  </div>
+                </>
+              )}
+
               {onOpenLeadDetail && (
                 <>
                   <Separator />
