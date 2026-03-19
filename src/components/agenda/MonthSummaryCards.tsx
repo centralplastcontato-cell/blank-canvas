@@ -10,10 +10,9 @@ interface MonthSummaryCardsProps {
   showRevenue?: boolean;
   closedInPeriod?: number;
   closedRevenue?: number;
-  onClosedClick?: () => void;
 }
 
-export function MonthSummaryCards({ events, month, periodLabel, totalDaysOverride, showRevenue = true, closedInPeriod = 0, closedRevenue = 0, onClosedClick }: MonthSummaryCardsProps) {
+export function MonthSummaryCards({ events, month, periodLabel, totalDaysOverride, showRevenue = true, closedInPeriod = 0, closedRevenue = 0 }: MonthSummaryCardsProps) {
   const total = events.length;
   const cancelados = events.filter(e => e.status === "cancelado").length;
   const activeEvents = events.filter(e => e.status !== "cancelado");
@@ -65,13 +64,9 @@ export function MonthSummaryCards({ events, month, periodLabel, totalDaysOverrid
 
       {/* Closed sales card */}
       {closedInPeriod > 0 && (
-        <button
-          type="button"
-          onClick={onClosedClick}
-          className="w-full text-left rounded-2xl border border-border/30 border-l-[3px] border-l-violet-500 bg-violet-500/[0.02] shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-4 md:p-5 hover:shadow-[0_8px_32px_rgba(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-200 ease-out cursor-pointer group"
-        >
+        <div className="rounded-2xl border border-border/30 border-l-[3px] border-l-violet-500 bg-violet-500/[0.02] shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-4 md:p-5">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-violet-500/10 shrink-0 transition-transform duration-200 group-hover:scale-105">
+            <div className="p-2.5 rounded-xl bg-violet-500/10 shrink-0">
               <Handshake className="h-5 w-5 text-violet-600" />
             </div>
             <div className="min-w-0 flex flex-col flex-1">
@@ -82,9 +77,8 @@ export function MonthSummaryCards({ events, month, periodLabel, totalDaysOverrid
                 {periodLabel ? "Fechadas no Período" : "Fechadas no Mês"}
               </p>
             </div>
-            <span className="text-xs text-muted-foreground/50 group-hover:text-primary transition-colors">Ver lista →</span>
           </div>
-        </button>
+        </div>
       )}
 
       {/* Revenue cards - shown when permission allows */}

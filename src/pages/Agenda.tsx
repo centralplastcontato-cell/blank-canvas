@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AgendaCalendar } from "@/components/agenda/AgendaCalendar";
@@ -73,7 +73,7 @@ export default function Agenda() {
   const [closedInPeriod, setClosedInPeriod] = useState(0);
   const [closedRevenue, setClosedRevenue] = useState(0);
   const [closedEvents, setClosedEvents] = useState<CompanyEvent[]>([]);
-  const [closedListOpen, setClosedListOpen] = useState(false);
+  const [contentMode, setContentMode] = useState<"agendadas" | "fechadas">("agendadas");
 
   const { canViewAll, allowedUnits, unitAccess, isLoading: permUnitLoading } = useUnitPermissions(currentUser?.id, currentCompany?.id);
   const { hasPermission: userHasPermission } = usePermissions(currentUser?.id);
@@ -515,6 +515,25 @@ export default function Agenda() {
             </div>
           </header>
 
+          {/* Mobile content mode toggle */}
+          <div className="md:hidden px-3 pt-3">
+            <Tabs value={contentMode} onValueChange={(v) => setContentMode(v as "agendadas" | "fechadas")}>
+              <TabsList className="w-full h-10">
+                <TabsTrigger value="agendadas" className="flex-1 gap-1.5 text-xs font-medium">
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  Agendadas
+                </TabsTrigger>
+                <TabsTrigger value="fechadas" className="flex-1 gap-1.5 text-xs font-medium">
+                  <Handshake className="h-3.5 w-3.5" />
+                  Fechadas
+                  {closedInPeriod > 0 && (
+                    <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{closedInPeriod}</Badge>
+                  )}
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+
           {/* Mobile unit filter */}
           {(() => {
             const visibleUnits = canViewAll ? physicalUnits : physicalUnits.filter(u => unitAccess[u.name]);
@@ -567,6 +586,22 @@ export default function Agenda() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2.5">
+                      {/* Content mode toggle: Agendadas vs Fechadas */}
+                      <Tabs value={contentMode} onValueChange={(v) => setContentMode(v as "agendadas" | "fechadas")}>
+                        <TabsList className="h-10 bg-muted/60 backdrop-blur-sm">
+                          <TabsTrigger value="agendadas" className="px-3 gap-1.5 data-[state=active]:shadow-sm text-xs font-medium">
+                            <CalendarDays className="h-4 w-4" />
+                            <span className="hidden sm:inline">Agendadas</span>
+                          </TabsTrigger>
+                          <TabsTrigger value="fechadas" className="px-3 gap-1.5 data-[state=active]:shadow-sm text-xs font-medium">
+                            <Handshake className="h-4 w-4" />
+                            <span className="hidden sm:inline">Fechadas</span>
+                            {closedInPeriod > 0 && (
+                              <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{closedInPeriod}</Badge>
+                            )}
+                          </TabsTrigger>
+                        </TabsList>
+                      </Tabs>
                       <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "calendar" | "list")}>
                         <TabsList className="h-10 bg-muted/60 backdrop-blur-sm">
                           <TabsTrigger value="calendar" className="px-3 data-[state=active]:shadow-sm"><CalendarDays className="h-4 w-4" /></TabsTrigger>
@@ -753,12 +788,88 @@ export default function Agenda() {
                   showRevenue={showRevenue}
                   closedInPeriod={closedInPeriod}
                   closedRevenue={closedRevenue}
-                  onClosedClick={() => setClosedListOpen(true)}
                 />
               </div>
 
-              {/* Calendar + Day detail */}
-              {viewMode === "calendar" ? (
+              {/* Main content: either Agendadas or Fechadas */}
+              {contentMode === "fechadas" ? (
+                /* Closed parties list */
+                <Card className="bg-card border-border/30 shadow-[0_4px_24px_rgba(0,0,0,0.04)] rounded-2xl">
+                  <CardContent className="p-4 md:p-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Handshake className="h-5 w-5 text-violet-600" />
+                      <h2 className="font-bold text-lg tracking-tight">Festas Fechadas ({closedEvents.length})</h2>
+                    </div>
+                    {closedEvents.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-12">Nenhuma festa fechada neste período.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {closedEvents
+                          .sort((a, b) => a.event_date.localeCompare(b.event_date))
+                          .map((ev) => (
+                            <button
+                              key={ev.id}
+                              onClick={() => {
+                                setDetailEvent(ev);
+                                setDetailOpen(true);
+                              }}
+                              className="w-full text-left p-4 rounded-xl border border-border/30 border-l-[3px] border-l-violet-500 bg-violet-500/[0.02] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+                            >
+                              <div className="flex items-center justify-between gap-2 mb-1.5">
+                                <span className="font-semibold text-sm truncate">{ev.title}</span>
+                                <Badge
+                                  variant={ev.status === "confirmado" ? "default" : ev.status === "cancelado" ? "destructive" : "secondary"}
+                                  className="text-[10px] uppercase tracking-wider px-2 py-0.5 shrink-0"
+                                >
+                                  {ev.status}
+                                </Badge>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                  <CalendarDays className="h-3 w-3" />
+                                  {format(new Date(ev.event_date + "T12:00:00"), "dd/MM/yyyy")}
+                                </span>
+                                {ev.start_time && (
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    {ev.start_time.slice(0, 5)}
+                                  </span>
+                                )}
+                                {ev.unit && (
+                                  <span className="flex items-center gap-1">
+                                    <MapPin className="h-3 w-3" />
+                                    {ev.unit}
+                                  </span>
+                                )}
+                                {ev.guest_count && (
+                                  <span className="flex items-center gap-1">
+                                    <Users className="h-3 w-3" />
+                                    {ev.guest_count}
+                                  </span>
+                                )}
+                              </div>
+                              {ev.total_value != null && ev.total_value > 0 && (
+                                <p className="text-sm font-bold text-foreground mt-2">
+                                  {ev.total_value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                                </p>
+                              )}
+                            </button>
+                          ))}
+                        <div className="pt-3 border-t border-border/30">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground font-medium">Total faturado:</span>
+                            <span className="font-bold text-foreground">
+                              {closedEvents.reduce((sum, e) => sum + (e.total_value || 0), 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ) : (
+              /* Calendar + Day detail or List view */
+              viewMode === "calendar" ? (
               <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-5 min-h-[520px]">
                 <Card className="bg-card border-border/30 shadow-[0_4px_24px_rgba(0,0,0,0.04)] rounded-2xl">
                   <CardContent className="p-2 md:p-4 lg:p-5">
@@ -904,6 +1015,7 @@ export default function Agenda() {
                     )}
                   </CardContent>
                 </Card>
+              )
               )}
             </div>
           </PullToRefresh>
@@ -950,85 +1062,6 @@ export default function Agenda() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Closed parties list Sheet */}
-      <Sheet open={closedListOpen} onOpenChange={setClosedListOpen}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              <Handshake className="h-5 w-5 text-violet-600" />
-              Festas Fechadas ({closedEvents.length})
-            </SheetTitle>
-          </SheetHeader>
-          <div className="space-y-3 mt-4">
-            {closedEvents.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">Nenhuma festa fechada neste período.</p>
-            ) : (
-              closedEvents
-                .sort((a, b) => a.event_date.localeCompare(b.event_date))
-                .map((ev) => (
-                  <button
-                    key={ev.id}
-                    onClick={() => {
-                      setClosedListOpen(false);
-                      setDetailEvent(ev);
-                      setDetailOpen(true);
-                    }}
-                    className="w-full text-left p-4 rounded-xl border border-border/30 border-l-[3px] border-l-violet-500 bg-violet-500/[0.02] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
-                  >
-                    <div className="flex items-center justify-between gap-2 mb-1.5">
-                      <span className="font-semibold text-sm truncate">{ev.title}</span>
-                      <Badge
-                        variant={ev.status === "confirmado" ? "default" : ev.status === "cancelado" ? "destructive" : "secondary"}
-                        className="text-[10px] uppercase tracking-wider px-2 py-0.5 shrink-0"
-                      >
-                        {ev.status}
-                      </Badge>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <CalendarDays className="h-3 w-3" />
-                        {format(new Date(ev.event_date + "T12:00:00"), "dd/MM/yyyy")}
-                      </span>
-                      {ev.start_time && (
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {ev.start_time.slice(0, 5)}
-                        </span>
-                      )}
-                      {ev.unit && (
-                        <span className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {ev.unit}
-                        </span>
-                      )}
-                      {ev.guest_count && (
-                        <span className="flex items-center gap-1">
-                          <Users className="h-3 w-3" />
-                          {ev.guest_count}
-                        </span>
-                      )}
-                    </div>
-                    {ev.total_value != null && ev.total_value > 0 && (
-                      <p className="text-sm font-bold text-foreground mt-2">
-                        {ev.total_value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                      </p>
-                    )}
-                  </button>
-                ))
-            )}
-            {closedEvents.length > 0 && (
-              <div className="pt-2 border-t border-border/30">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground font-medium">Total faturado:</span>
-                  <span className="font-bold text-foreground">
-                    {closedEvents.reduce((sum, e) => sum + (e.total_value || 0), 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
     </SidebarProvider>
   );
 }
