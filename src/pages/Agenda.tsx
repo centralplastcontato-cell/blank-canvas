@@ -753,6 +753,7 @@ export default function Agenda() {
                   showRevenue={showRevenue}
                   closedInPeriod={closedInPeriod}
                   closedRevenue={closedRevenue}
+                  onClosedClick={() => setClosedListOpen(true)}
                 />
               </div>
 
