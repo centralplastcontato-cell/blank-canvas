@@ -50,7 +50,7 @@ interface RelatoriosProps {
   canViewRevenue?: boolean;
 }
 
-export function RelatoriosComerciais({ selectedUnit: externalUnit }: RelatoriosProps) {
+export function RelatoriosComerciais({ selectedUnit: externalUnit, canViewRevenue = true }: RelatoriosProps) {
   const { currentCompany } = useCompany();
   const { units } = useCompanyUnits(currentCompany?.id);
   const physicalUnits = units.filter(u => u.slug !== "trabalhe-conosco");
