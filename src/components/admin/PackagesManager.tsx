@@ -50,6 +50,7 @@ export function PackagesManager() {
     setEditing(null);
     setName("");
     setDescription("");
+    setValorPessoaAdicional("");
     setDialogOpen(true);
   };
 
