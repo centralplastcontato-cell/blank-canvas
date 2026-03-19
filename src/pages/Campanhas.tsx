@@ -335,6 +335,5 @@ export default function Campanhas() {
         </main>
       </div>
     </SidebarProvider>
-    </SidebarProvider>
   );
 }
