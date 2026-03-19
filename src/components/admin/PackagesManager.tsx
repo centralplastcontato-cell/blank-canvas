@@ -169,7 +169,7 @@ export function PackagesManager() {
 
           <div className="px-6 pb-6 space-y-4">
             {/* Seção: Informações */}
-            <div className="rounded-xl border border-border/60 bg-muted/30 p-4 space-y-4">
+            <div className="rounded-xl border border-border/60 bg-card p-4 space-y-4">
               <div className="flex items-center gap-2 mb-1">
                 <Package className="h-4 w-4 text-primary" />
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Informações</span>
