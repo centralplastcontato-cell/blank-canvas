@@ -6480,6 +6480,18 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           </div>
         </DialogContent>
       </Dialog>
+      {/* Contact Info Sheet */}
+      {selectedConversation && (
+        <ContactInfoSheet
+          isOpen={showContactInfoSheet}
+          onClose={() => setShowContactInfoSheet(false)}
+          contactName={selectedConversation.contact_name}
+          contactPhone={selectedConversation.contact_phone}
+          contactPicture={selectedConversation.contact_picture}
+          linkedLead={linkedLead}
+          onOpenLeadDetail={linkedLead ? () => setShowLeadDetailSheet(true) : undefined}
+        />
+      )}
       {/* Lead Detail Sheet */}
       <LeadDetailSheet
         lead={linkedLead as any}
