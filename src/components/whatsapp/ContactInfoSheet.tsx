@@ -87,6 +87,7 @@ export function ContactInfoSheet({
   instanceId,
 }: ContactInfoSheetProps) {
   const { toast } = useToast();
+  const { currentCompany } = useCompany();
   const displayName = linkedLead?.name || contactName || contactPhone;
   const statusLabel = linkedLead
     ? (LEAD_STATUS_LABELS as Record<string, string>)[linkedLead.status] || linkedLead.status
