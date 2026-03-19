@@ -168,12 +168,12 @@ export default function Treinamento() {
                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
                 <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
-                    <div className="hidden md:flex h-12 w-12 rounded-2xl bg-primary/15 items-center justify-center shadow-sm">
-                      <GraduationCap className="h-6 w-6 text-primary" />
+                    <div className="hidden md:flex p-3 rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/20">
+                      <GraduationCap className="h-7 w-7 text-primary-foreground" />
                     </div>
                     <div>
-                      <h1 className="text-xl md:text-2xl font-bold text-foreground">Treinamento</h1>
-                      <p className="text-sm text-muted-foreground mt-0.5">Videoaulas para aprender a usar a plataforma</p>
+                      <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground">Treinamento</h1>
+                      <p className="text-sm text-muted-foreground/70 mt-0.5">Videoaulas para aprender a usar a plataforma</p>
                     </div>
                   </div>
                   <Button variant="outline" onClick={handleDownloadManual} disabled={generatingPDF} className="shrink-0 gap-2 rounded-xl">
