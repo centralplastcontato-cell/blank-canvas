@@ -265,6 +265,9 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
   brindes: {
     resolver: (ctx) => ctx.contract?.brindes || '',
   },
+  descricao: {
+    resolver: (ctx) => ctx.contract?.descricao || '',
+  },
   hora_inicio: {
     resolver: (ctx) => ctx.event?.time || '',
   },
@@ -282,6 +285,12 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
   },
   quantidade_pessoas: {
     resolver: (ctx) => ctx.contract?.quantidade_pessoas || ctx.lead?.guests || ctx.event?.guest_count?.toString() || '',
+  },
+  telefone_pais: {
+    resolver: (ctx) => ctx.contract?.telefone_pais || '',
+  },
+  cliente_celular: {
+    resolver: (ctx) => ctx.contract?.celular || ctx.lead?.whatsapp || '',
   },
 
   // --- Freelancer / Schedule ---
