@@ -141,6 +141,11 @@ export function PackagesManager() {
               {pkg.description && (
                 <p className="text-xs text-muted-foreground line-clamp-2">{pkg.description}</p>
               )}
+              {pkg.valor_pessoa_adicional != null && (
+                <p className="text-xs text-primary font-medium">
+                  Pessoa adicional: R$ {pkg.valor_pessoa_adicional.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+              )}
             </CardContent>
           </Card>
         ))}
