@@ -442,7 +442,9 @@ export default function Inteligencia() {
                   </DialogContent>
                 </Dialog>
               </div>
-            </div>
+                  </div>
+                </div>
+              </div>
 
             {/* Search */}
             <div className="relative">
