@@ -92,38 +92,48 @@ function HubDashboardContent({ userId }: { userId: string }) {
         const allLeadsRecords: LeadRecord[] = [];
         const timings: ConversationTiming[] = [];
 
-        // Fetch all data in parallel instead of sequential per-company
+        // Fetch all data in parallel with batch loading for large datasets
         const companyIds = targetCompanies.map(c => c.id);
 
-        const [
-          { data: allLeads },
-          { data: allConvos },
-          { count: _totalMessagesCount },
-          { data: allInstances },
-        ] = await Promise.all([
-          supabase.from("campaign_leads").select("id, status, created_at, company_id").in("company_id", companyIds),
-          supabase.from("wapi_conversations").select("id, is_closed, created_at, company_id").in("company_id", companyIds),
+        // Batch loader: fetches all rows in chunks of 1000
+        async function fetchAll<T>(query: any): Promise<T[]> {
+          const results: T[] = [];
+          let from = 0;
+          const PAGE = 1000;
+          while (true) {
+            const { data } = await query.range(from, from + PAGE - 1);
+            if (!data || data.length === 0) break;
+            results.push(...data);
+            if (data.length < PAGE) break;
+            from += PAGE;
+          }
+          return results;
+        }
+
+        const [allLeads, allConvos, { count: _totalMessagesCount }, { data: allInstances }] = await Promise.all([
+          fetchAll<any>(supabase.from("campaign_leads").select("id, status, created_at, company_id").in("company_id", companyIds)),
+          fetchAll<any>(supabase.from("wapi_conversations").select("id, is_closed, created_at, company_id").in("company_id", companyIds)),
           supabase.from("wapi_messages").select("id", { count: "exact", head: true }).in("company_id", companyIds),
           supabase.from("wapi_instances").select("status, phone_number, company_id, connected_at").in("company_id", companyIds).order("connected_at", { ascending: false }),
         ]);
 
-        const leadsByCompany = new Map<string, typeof allLeads>();
-        (allLeads || []).forEach(l => {
+        const leadsByCompany = new Map<string, any[]>();
+        allLeads.forEach(l => {
           const arr = leadsByCompany.get(l.company_id) || [];
           arr.push(l);
           leadsByCompany.set(l.company_id, arr);
         });
 
-        const convosByCompany = new Map<string, typeof allConvos>();
-        (allConvos || []).forEach(c => {
+        const convosByCompany = new Map<string, any[]>();
+        allConvos.forEach(c => {
           const arr = convosByCompany.get(c.company_id) || [];
           arr.push(c);
           convosByCompany.set(c.company_id, arr);
         });
 
         // Get first messages for response time - batch up to 50 convos total for speed
-        const allConvosList = allConvos || [];
-        const sampleConvos = allConvosList.slice(0, 100);
+        // Get first messages for response time - batch up to 100 convos total for speed
+        const sampleConvos = allConvos.slice(0, 100);
         if (sampleConvos.length > 0) {
           const convoIds = sampleConvos.map(c => c.id);
           const { data: firstMessages } = await supabase
