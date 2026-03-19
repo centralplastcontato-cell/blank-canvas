@@ -66,11 +66,14 @@ export interface VariableContext {
     idade_aniversariante?: string | null;
     data_nascimento?: string | null;
     nomes_pais?: string | null;
+    telefone_pais?: string | null;
+    celular?: string | null;
     valor_sinal?: string | null;
     valor_restante?: string | null;
     forma_pagamento?: string | null;
     parcelas?: string | null;
     brindes?: string | null;
+    descricao?: string | null;
     observacoes_comerciais?: string | null;
     tema?: string | null;
     valor_convidado_adicional?: string | null;
