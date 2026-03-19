@@ -14,6 +14,7 @@ interface CompanyPackage {
   id: string;
   name: string;
   description: string | null;
+  valor_pessoa_adicional: number | null;
   is_active: boolean;
   sort_order: number;
 }
