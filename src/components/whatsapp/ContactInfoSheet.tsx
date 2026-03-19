@@ -9,13 +9,14 @@ import { ImageLightbox } from "@/components/ui/image-lightbox";
 import {
   X, Calendar, MapPin, Users, Tag,
   User, Clock, ExternalLink, Image as ImageIcon,
-  FileText, Link2, Play
+  FileText, Link2, Play, Send, Loader2, ClipboardList
 } from "lucide-react";
 import { LEAD_STATUS_LABELS } from "@/types/crm";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
 
 interface ContactInfoSheetProps {
   isOpen: boolean;
@@ -40,6 +41,7 @@ interface ContactInfoSheetProps {
     campaign_name: string | null;
   } | null;
   onOpenLeadDetail?: () => void;
+  instanceId?: string | null;
 }
 
 interface MediaItem {
@@ -81,7 +83,9 @@ export function ContactInfoSheet({
   conversationId,
   linkedLead,
   onOpenLeadDetail,
+  instanceId,
 }: ContactInfoSheetProps) {
+  const { toast } = useToast();
   const displayName = linkedLead?.name || contactName || contactPhone;
   const statusLabel = linkedLead
     ? (LEAD_STATUS_LABELS as Record<string, string>)[linkedLead.status] || linkedLead.status
@@ -94,18 +98,72 @@ export function ContactInfoSheet({
   const [mediaCounts, setMediaCounts] = useState({ media: 0, links: 0, docs: 0 });
   const [showMediaSection, setShowMediaSection] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [clientDataLink, setClientDataLink] = useState<string | null>(null);
+  const [clientDataStatus, setClientDataStatus] = useState<string | null>(null);
+  const [isSendingLink, setIsSendingLink] = useState(false);
 
   useEffect(() => {
     if (isOpen && conversationId) {
       fetchMediaCounts(conversationId);
     }
+    if (isOpen && linkedLead?.id) {
+      fetchClientDataLink(linkedLead.id);
+    }
     if (!isOpen) {
       setShowMediaSection(false);
+      setClientDataLink(null);
+      setClientDataStatus(null);
     }
-  }, [isOpen, conversationId]);
+  }, [isOpen, conversationId, linkedLead?.id]);
+
+  const fetchClientDataLink = async (leadId: string) => {
+    // Find event linked to this lead
+    const { data: events } = await supabase
+      .from("company_events")
+      .select("id")
+      .eq("lead_id", leadId)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (!events?.length) return;
+
+    const { data: req } = await supabase
+      .from("client_data_requests")
+      .select("token, status")
+      .eq("event_id", events[0].id)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (req?.length) {
+      setClientDataLink(`${window.location.origin}/dados-contratante/${req[0].token}`);
+      setClientDataStatus(req[0].status);
+    }
+  };
+
+  const handleSendClientDataLink = async () => {
+    if (!clientDataLink || !instanceId || !contactPhone) return;
+    setIsSendingLink(true);
+    try {
+      const message = `Olá! Segue o link para preenchimento dos dados do contratante:\n\n${clientDataLink}`;
+      const { error } = await supabase.functions.invoke("wapi-send", {
+        body: {
+          action: "send-text",
+          phone: contactPhone,
+          message,
+          conversationId,
+          instanceId,
+        },
+      });
+      if (error) throw error;
+      toast({ title: "Link enviado com sucesso!" });
+    } catch (err: any) {
+      toast({ title: "Erro ao enviar link", description: err.message, variant: "destructive" });
+    } finally {
+      setIsSendingLink(false);
+    }
+  };
 
   const fetchMediaCounts = async (convId: string) => {
-    // Fetch all messages with media or links
     const { data, error } = await supabase
       .from("wapi_messages")
       .select("id, message_type, media_url, content, timestamp, from_me")
@@ -192,6 +250,37 @@ export function ContactInfoSheet({
                     <p className="text-sm text-foreground/80 leading-relaxed bg-muted/30 rounded-xl p-3">
                       {linkedLead.observacoes}
                     </p>
+                  </div>
+                </>
+              )}
+
+              {/* Client Data Link - Send via WhatsApp */}
+              {clientDataLink && (
+                <>
+                  <Separator />
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Dados do Contratante</p>
+                    <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/30">
+                      <div className="p-1.5 rounded-md bg-primary/10 text-primary shrink-0">
+                        <ClipboardList className="w-3.5 h-3.5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs text-foreground truncate">{clientDataLink}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {clientDataStatus === "completed" ? "✅ Preenchido" : "⏳ Aguardando preenchimento"}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="w-full gap-2"
+                      disabled={isSendingLink || !instanceId}
+                      onClick={handleSendClientDataLink}
+                    >
+                      {isSendingLink ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                      Enviar link para o lead
+                    </Button>
                   </div>
                 </>
               )}
