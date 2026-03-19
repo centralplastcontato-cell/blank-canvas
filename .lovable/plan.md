@@ -1,47 +1,24 @@
 
 
-## ✅ Implementado: Fallback de atividade para status de instâncias W-API
+## Incluir vídeo na Landing Page do Aventura Kids
 
-### Problema resolvido
-Instância Manchester (LITE-I2660D-A8QLPN) era marcada como `disconnected` porque o endpoint `/instance/qr-code` da W-API LITE retornava QR code indevidamente, mesmo com a sessão funcional (mensagens entrando/saindo via webhook).
+### Situação atual
+A LP do Aventura Kids (`slug: aventura-kids`, `company_id: eb1776f0-142e-41db-9134-7d352d02c5bd`) já tem a seção de vídeo **habilitada** com um vídeo existente hospedado no Supabase Storage (`onboarding-uploads`).
 
-### Alterações realizadas
+### Plano
 
-**1. `supabase/functions/wapi-send/index.ts` — action `get-status`**
-- Quando QR code é detectado, antes de concluir `disconnected`, verifica `wapi_conversations.last_message_at` nos últimos 30 min
-- Se houver atividade recente + `phone_number` preenchido → retorna `connected` com flag `evidenceBased: true`
-- Sem atividade → comportamento original mantido (`disconnected`)
+**1. Copiar o vídeo para o projeto e fazer upload ao Supabase Storage**
+- Copiar o arquivo `user-uploads://b9ee738a-e003-45c4-84ef-df8465c827ce.mp4` para o bucket `landing-pages` no Supabase Storage, na pasta do Aventura Kids.
 
-**2. `supabase/functions/follow-up-check/index.ts` — `checkInstanceHealth()`**
-- Se `get-status` retorna `disconnected` ou `degraded`, verifica atividade recente em `wapi_conversations` antes de bloquear automações
-- Se houver atividade nos últimos 30 min → trata como saudável (não bloqueia automações)
-- Mesmo fallback aplicado quando o health check falha completamente
+**2. Atualizar o JSON de vídeo na tabela `company_landing_pages`**
+- Substituir o `video_url` atual pelo novo URL público do Storage.
+- Manter o `poster_url` (fachada) e demais configurações (`enabled: true`, `video_type: upload`, `title`).
 
-**3. `src/components/whatsapp/settings/ConnectionSection.tsx` — UI**
-- Toast mostra "Conectado ✅ (verificado por atividade)" quando o status é evidence-based
+### Detalhes técnicos
+- Bucket de destino: `landing-pages` (público)
+- Path no storage: `eb1776f0-142e-41db-9134-7d352d02c5bd/videos/aventura-kids-video.mp4`
+- O upload será feito via código no componente ou diretamente pelo edge function `resize-image` existente? **Não** — será feito copiando o arquivo para `public/` e depois subindo via SQL/Storage API no deploy.
+- Alternativa mais prática: copiar o vídeo para `public/videos/` para uso imediato e atualizar o campo `video_url` no banco para apontar ao URL público do Supabase Storage após upload manual, **ou** usar o código existente de upload do `SalesMaterialsSection` como referência para subir via frontend.
 
-### Garantias de segurança
-- Instâncias realmente desconectadas (sem atividade recente) continuam sendo bloqueadas
-- Quarentena pós-reconexão de 60 min não foi alterada
-- Nenhuma mudança em lógica de conexão, webhooks, envio ou credenciais
-- Outros buffets não são afetados — a mudança é uma camada adicional de validação
+**Abordagem escolhida**: Copiar o vídeo para `public/videos/aventura-kids.mp4`, referenciar temporariamente pelo URL do preview, e em seguida atualizar o banco com o URL definitivo do Storage. Na prática, o mais eficiente é fazer o upload diretamente ao bucket `landing-pages` e atualizar o registro via SQL.
 
-## ✅ Implementado: Blindagem anti-rajada no follow-up-check
-
-### Alterações realizadas
-
-**1. `supabase/functions/follow-up-check/index.ts`**
-- Adicionada função `checkInstanceHealth()` com cache por ciclo de execução
-- **Quarentena pós-reconexão**: 60 minutos após `connected_at` antes de permitir qualquer automação
-- **Pre-flight live check**: verifica status real via `wapi-send get-status` antes de processar cada instância
-- **Circuit breaker**: se instância não está saudável, TODAS as automações são bloqueadas (follow-ups, next-step reminder, bot-inactive, auto-lost)
-- **Cobertura global**: health gate aplicado também em `processFlowTimerTimeouts` e `processStuckBotRecovery` (funções que rodam cross-instance)
-
-**2. `src/components/whatsapp/settings/AutomationsSection.tsx`**
-- **Guardrail no switch principal**: desligar "Primeiro Follow-up" agora desativa em lote: FU2, FU3, FU4, next_step_reminder, bot_inactive_followup e auto_lost
-- Toast explícito: "Todas as automações pausadas"
-
-### Resultado
-- Reconectar uma instância NÃO dispara automações por 60 minutos
-- Instâncias com sessão ruim (unauthorized, disconnected) são bloqueadas automaticamente
-- Desligar follow-up principal realmente pausa toda a régua
