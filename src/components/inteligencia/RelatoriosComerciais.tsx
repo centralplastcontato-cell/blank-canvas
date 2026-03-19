@@ -208,16 +208,20 @@ export function RelatoriosComerciais({ selectedUnit: externalUnit, canViewRevenu
           value={`${data.attendanceRate.toFixed(0)}%`}
           highlight={data.attendanceRate >= 70}
         />
-        <SummaryCard
-          icon={<DollarSign className="h-4 w-4" />}
-          label="Faturamento vendido"
-          value={formatBRL(data.salesTotal)}
-        />
-        <SummaryCard
-          icon={<BarChart3 className="h-4 w-4" />}
-          label="Ticket médio"
-          value={formatBRL(data.ticketMedio)}
-        />
+        {canViewRevenue && (
+          <SummaryCard
+            icon={<DollarSign className="h-4 w-4" />}
+            label="Faturamento vendido"
+            value={formatBRL(data.salesTotal)}
+          />
+        )}
+        {canViewRevenue && (
+          <SummaryCard
+            icon={<BarChart3 className="h-4 w-4" />}
+            label="Ticket médio"
+            value={formatBRL(data.ticketMedio)}
+          />
+        )}
       </div>
 
       {/* Funnel */}
