@@ -495,6 +495,7 @@ export function getAvailableVariables(): {
     valor_sinal: 'contract', valor_restante: 'contract', forma_pagamento: 'contract',
     nome_aniversariante: 'contract', idade_aniversariante: 'contract',
     data_nascimento: 'contract', nomes_pais: 'contract', brindes: 'contract',
+    descricao: 'contract', telefone_pais: 'contract', cliente_celular: 'contract',
     tema: 'contract', valor_convidado_adicional: 'contract', quantidade_pessoas: 'contract',
     titulo: 'schedule', periodo: 'schedule', qtd_festas: 'schedule',
     link: 'schedule', observacoes: 'schedule', lista_escalados: 'schedule',
