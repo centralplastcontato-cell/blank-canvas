@@ -469,11 +469,11 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       }
 
       // Get active instance for company
-      const { data: instance } = await (supabase as any)
+      const { data: instance } = await supabase
         .from("wapi_instances")
         .select("instance_id")
         .eq("company_id", currentCompany?.id)
-        .eq("is_active", true)
+        .order("connected_at", { ascending: false })
         .limit(1)
         .single();
       if (!instance?.instance_id) {
