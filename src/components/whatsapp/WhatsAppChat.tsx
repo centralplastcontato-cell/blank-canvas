@@ -288,6 +288,7 @@ import { ConversationStatusActions } from "@/components/whatsapp/ConversationSta
 import { ConversationFilters, FilterType } from "@/components/whatsapp/ConversationFilters";
 import { LeadInfoPopover } from "@/components/whatsapp/LeadInfoPopover";
 import { LeadDetailSheet } from "@/components/admin/LeadDetailSheet";
+import { ContactInfoSheet } from "@/components/whatsapp/ContactInfoSheet";
 import { SalesMaterialsMenu } from "@/components/whatsapp/SalesMaterialsMenu";
 import { ShareToGroupDialog } from "@/components/whatsapp/ShareToGroupDialog";
 import { QuickVisitDialog } from "@/components/whatsapp/QuickVisitDialog";
@@ -349,6 +350,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [currentUserName, setCurrentUserName] = useState<string>("");
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
   const [showLeadDetailSheet, setShowLeadDetailSheet] = useState(false);
+  const [showContactInfoSheet, setShowContactInfoSheet] = useState(false);
   const [showShareToGroupDialog, setShowShareToGroupDialog] = useState(false);
   const [showQuickVisitDialog, setShowQuickVisitDialog] = useState(false);
   const [visitRefreshKey, setVisitRefreshKey] = useState(0);
@@ -4172,17 +4174,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                             : "text-muted-foreground"
                         )} />
                       </Button>
-                      {linkedLead && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => setShowLeadDetailSheet(true)}
-                          title="Abrir detalhes do lead"
-                        >
-                          <MoreVertical className="w-4 h-4 text-muted-foreground" />
-                        </Button>
-                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setShowContactInfoSheet(true)}
+                        title="Dados do contato"
+                      >
+                        <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                      </Button>
                     </div>
                   </div>
 
@@ -5153,17 +5153,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                             : "text-muted-foreground"
                         )} />
                       </Button>
-                      {linkedLead && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => setShowLeadDetailSheet(true)}
-                          title="Abrir detalhes do lead"
-                        >
-                          <MoreVertical className="w-4 h-4 text-muted-foreground" />
-                        </Button>
-                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setShowContactInfoSheet(true)}
+                        title="Dados do contato"
+                      >
+                        <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                      </Button>
                     </div>
                   </div>
                   <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
@@ -6482,6 +6480,18 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           </div>
         </DialogContent>
       </Dialog>
+      {/* Contact Info Sheet */}
+      {selectedConversation && (
+        <ContactInfoSheet
+          isOpen={showContactInfoSheet}
+          onClose={() => setShowContactInfoSheet(false)}
+          contactName={selectedConversation.contact_name}
+          contactPhone={selectedConversation.contact_phone}
+          contactPicture={selectedConversation.contact_picture}
+          linkedLead={linkedLead}
+          onOpenLeadDetail={linkedLead ? () => setShowLeadDetailSheet(true) : undefined}
+        />
+      )}
       {/* Lead Detail Sheet */}
       <LeadDetailSheet
         lead={linkedLead as any}
