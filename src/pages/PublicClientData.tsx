@@ -99,6 +99,7 @@ export default function PublicClientData() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fetchingCep, setFetchingCep] = useState(false);
+  const [cpfError, setCpfError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
