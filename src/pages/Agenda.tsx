@@ -631,19 +631,22 @@ export default function Agenda() {
 
               {/* Desktop search bar */}
               <div className="hidden md:block">
-                <div className="relative max-w-md">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    value={searchTerm}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                    placeholder="Buscar festa por nome ou telefone do lead..."
-                    className="pl-9 pr-9 h-10"
-                  />
-                  {searchTerm && (
-                    <button onClick={clearSearch} className="absolute right-3 top-1/2 -translate-y-1/2" aria-label="Limpar busca">
-                      <X className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
-                    </button>
-                  )}
+                <div className="relative group">
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 blur-sm" />
+                  <div className="relative flex items-center bg-card border border-border/40 rounded-2xl shadow-sm group-focus-within:shadow-md group-focus-within:border-primary/30 transition-all duration-300">
+                    <Search className="ml-4 h-4.5 w-4.5 text-muted-foreground/60 group-focus-within:text-primary transition-colors duration-300" />
+                    <input
+                      value={searchTerm}
+                      onChange={(e) => handleSearchChange(e.target.value)}
+                      placeholder="Buscar festa por nome ou telefone do lead..."
+                      className="flex-1 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground/50 px-3 py-3 tracking-wide"
+                    />
+                    {searchTerm && (
+                      <button onClick={clearSearch} className="mr-3 p-1 rounded-full hover:bg-muted/60 transition-colors" aria-label="Limpar busca">
+                        <X className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 
