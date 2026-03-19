@@ -257,7 +257,7 @@ export function ContactInfoSheet({
               {clientDataLink && (
                 <>
                   <Separator />
-                   <div className="space-y-3 -mx-1 px-1">
+                   <div className="space-y-3">
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">Dados do Contratante</p>
                     <div className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
                       <div className="px-4 py-3 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent flex items-center gap-3">
