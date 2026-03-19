@@ -190,7 +190,7 @@ export function PackagesManager() {
             </div>
 
             {/* Seção: Valores */}
-            <div className="rounded-xl border border-border/60 bg-muted/30 p-4 space-y-3">
+            <div className="rounded-xl border border-border/60 bg-card p-4 space-y-3">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">💰 Valores</span>
               </div>
