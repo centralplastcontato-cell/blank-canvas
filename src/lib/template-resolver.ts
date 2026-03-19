@@ -331,6 +331,25 @@ const ALIAS_MAP: Record<string, string> = {
   // Contract aliases
   parcelas: 'forma_pagamento',
   observacoes_contrato: 'observacoes',
+  // cliente_* aliases (used in Castelo da Diversão contracts)
+  cliente_nome: 'nome_responsavel',
+  cliente_cpf: 'cpf',
+  cliente_rg: 'rg',
+  cliente_email: 'email',
+  cliente_endereco: 'endereco',
+  cliente_numero: 'numero',
+  cliente_complemento: 'complemento',
+  cliente_bairro: 'bairro',
+  cliente_cep: 'cep',
+  cliente_cidade: 'cidade',
+  cliente_data_nascimento: 'data_nascimento',
+  aniversariante: 'nome_aniversariante',
+  idade: 'idade_aniversariante',
+  nome_pais: 'nomes_pais',
+  horario: 'hora_inicio',
+  horario_fim: 'hora_fim',
+  data_festa: 'data_evento',
+  pacote_valor: 'valor_convidado_adicional',
 };
 
 // ---------------------------------------------------------------------------
