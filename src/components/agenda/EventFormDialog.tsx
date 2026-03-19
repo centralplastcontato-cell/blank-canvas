@@ -232,6 +232,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [loadingClientRequest, setLoadingClientRequest] = useState(false);
   const [generatingLink, setGeneratingLink] = useState(false);
   const [resolvedMessage, setResolvedMessage] = useState<string | null>(null);
+  const [sendingClientLink, setSendingClientLink] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -449,6 +450,54 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     if (resolvedMessage) {
       navigator.clipboard.writeText(resolvedMessage);
       toast({ title: "Mensagem copiada!" });
+    }
+  };
+
+  const sendClientLinkToLead = async () => {
+    if (!form.lead_id || !clientRequest?.token) return;
+    setSendingClientLink(true);
+    try {
+      // Get lead phone
+      const { data: lead } = await supabase
+        .from("campaign_leads")
+        .select("whatsapp")
+        .eq("id", form.lead_id)
+        .single();
+      if (!lead?.whatsapp) {
+        toast({ title: "Lead sem WhatsApp cadastrado", variant: "destructive" });
+        return;
+      }
+
+      // Get active instance for company
+      const { data: instance } = await (supabase as any)
+        .from("wapi_instances")
+        .select("instance_id")
+        .eq("company_id", currentCompany?.id)
+        .eq("is_active", true)
+        .limit(1)
+        .single();
+      if (!instance?.instance_id) {
+        toast({ title: "Nenhuma instância WhatsApp ativa", variant: "destructive" });
+        return;
+      }
+
+      const link = getClientLink();
+      const message = resolvedMessage || `Olá! Segue o link para preenchimento dos dados do contratante:\n\n${link}`;
+
+      const { error } = await supabase.functions.invoke("wapi-send", {
+        body: {
+          action: "send-text",
+          phone: lead.whatsapp,
+          message,
+          instanceId: instance.instance_id,
+        },
+      });
+      if (error) throw error;
+      toast({ title: "Link enviado com sucesso via WhatsApp!" });
+    } catch (err: any) {
+      toast({ title: "Erro ao enviar link", description: err.message, variant: "destructive" });
+    } finally {
+      setSendingClientLink(false);
     }
   };
 
@@ -993,6 +1042,21 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                       <ExternalLink className="h-3.5 w-3.5" />
                     </Button>
                   </div>
+                  {form.lead_id && (
+                    <div className="px-4 py-3 border-t border-border/40 bg-muted/20">
+                      <Button
+                        type="button"
+                        variant="default"
+                        size="sm"
+                        className="w-full gap-2 rounded-xl shadow-sm"
+                        disabled={sendingClientLink}
+                        onClick={sendClientLinkToLead}
+                      >
+                        {sendingClientLink ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                        Enviar link via WhatsApp
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 {resolvedMessage && (
                   <div className="space-y-2">
