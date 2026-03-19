@@ -190,6 +190,8 @@ export function AdminSidebar({
                           to={item.url} 
                           end 
                           className="flex items-center gap-3"
+                          onMouseEnter={() => prefetchRoute(item.url)}
+                          onFocus={() => prefetchRoute(item.url)}
                         >
                           <item.icon className="h-[22px] w-[22px] shrink-0" />
                           {!collapsed && <span>{item.title}</span>}
