@@ -6488,6 +6488,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           contactName={selectedConversation.contact_name}
           contactPhone={selectedConversation.contact_phone}
           contactPicture={selectedConversation.contact_picture}
+          conversationId={selectedConversation.id}
           linkedLead={linkedLead}
           onOpenLeadDetail={linkedLead ? () => setShowLeadDetailSheet(true) : undefined}
         />
