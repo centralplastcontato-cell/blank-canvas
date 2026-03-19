@@ -44,7 +44,7 @@ import {
   Users, ArrowRightLeft, Trash2, Eraser,
   CalendarCheck, Briefcase, FileCheck, ArrowDown, Video,
   Pencil, Copy, ChevronDown, ChevronUp, Download, Pin, PinOff, Reply,
-  CheckSquare
+  CheckSquare, MoreVertical
 } from "lucide-react";
 import JSZip from "jszip";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
@@ -287,6 +287,7 @@ import { MediaMessage } from "@/components/whatsapp/MediaMessage";
 import { ConversationStatusActions } from "@/components/whatsapp/ConversationStatusActions";
 import { ConversationFilters, FilterType } from "@/components/whatsapp/ConversationFilters";
 import { LeadInfoPopover } from "@/components/whatsapp/LeadInfoPopover";
+import { LeadDetailSheet } from "@/components/admin/LeadDetailSheet";
 import { SalesMaterialsMenu } from "@/components/whatsapp/SalesMaterialsMenu";
 import { ShareToGroupDialog } from "@/components/whatsapp/ShareToGroupDialog";
 import { QuickVisitDialog } from "@/components/whatsapp/QuickVisitDialog";
@@ -347,6 +348,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [isTransferring, setIsTransferring] = useState(false);
   const [currentUserName, setCurrentUserName] = useState<string>("");
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
+  const [showLeadDetailSheet, setShowLeadDetailSheet] = useState(false);
   const [showShareToGroupDialog, setShowShareToGroupDialog] = useState(false);
   const [showQuickVisitDialog, setShowQuickVisitDialog] = useState(false);
   const [visitRefreshKey, setVisitRefreshKey] = useState(0);
@@ -4170,6 +4172,17 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                             : "text-muted-foreground"
                         )} />
                       </Button>
+                      {linkedLead && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setShowLeadDetailSheet(true)}
+                          title="Abrir detalhes do lead"
+                        >
+                          <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                        </Button>
+                      )}
                     </div>
                   </div>
 
@@ -5140,6 +5153,17 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                             : "text-muted-foreground"
                         )} />
                       </Button>
+                      {linkedLead && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setShowLeadDetailSheet(true)}
+                          title="Abrir detalhes do lead"
+                        >
+                          <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                   <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
@@ -6458,6 +6482,22 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           </div>
         </DialogContent>
       </Dialog>
+      {/* Lead Detail Sheet */}
+      <LeadDetailSheet
+        lead={linkedLead as any}
+        isOpen={showLeadDetailSheet}
+        onClose={() => setShowLeadDetailSheet(false)}
+        onUpdate={() => {
+          if (linkedLead) {
+            fetchLinkedLead(linkedLead.id, selectedConversation);
+          }
+        }}
+        responsaveis={responsaveis as any}
+        currentUserId={userId}
+        currentUserName={currentUserName}
+        canEdit={true}
+        canViewContact={true}
+      />
     </div>
   );
 }
