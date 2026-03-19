@@ -876,8 +876,8 @@ export default function Visitas() {
 
   const headerContent = (
     <>
-      <div className="p-2 rounded-xl bg-primary/10">
-        <MapPin className="h-5 w-5 text-primary" />
+      <div className="p-2.5 rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/20">
+        <MapPin className="h-5 w-5 text-primary-foreground" />
       </div>
       <h1 className="font-display font-bold text-foreground text-lg tracking-tight">Agenda de Visitas</h1>
     </>
