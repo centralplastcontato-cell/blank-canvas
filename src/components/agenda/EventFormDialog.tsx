@@ -16,6 +16,11 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 
+export interface ParcelaDetail {
+  valor: number | null;
+  vencimento: string; // yyyy-MM-dd
+}
+
 export interface PaymentDetails {
   entrada_valor: number | null;
   entrada_forma: string;
@@ -23,6 +28,9 @@ export interface PaymentDetails {
   saldo_forma: string;
   parcelas: number | null;
   observacoes_pagamento: string;
+  parcelas_details?: ParcelaDetail[];
+  parcelas_same_day?: boolean;
+  parcelas_day?: number | null;
 }
 
 export interface EventFormData {
