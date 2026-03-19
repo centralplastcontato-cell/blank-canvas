@@ -211,7 +211,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [loadingLeads, setLoadingLeads] = useState(false);
 
   const [templates, setTemplates] = useState<Array<{ id: string; name: string; items: string[] }>>([]);
-  const [packages, setPackages] = useState<Array<{ id: string; name: string }>>([]);
+  const [packages, setPackages] = useState<Array<{ id: string; name: string; valor_pessoa_adicional: number | null }>>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [companyUsers, setCompanyUsers] = useState<Array<{ id: string; name: string }>>([]);
   const [fechamentoDate, setFechamentoDate] = useState<Date | undefined>(undefined);
@@ -282,12 +282,12 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       });
     supabase
       .from("company_packages")
-      .select("id, name")
+      .select("id, name, valor_pessoa_adicional")
       .eq("company_id", currentCompany.id)
       .eq("is_active", true)
       .order("sort_order")
       .then(({ data }) => {
-        setPackages((data || []).map((p: any) => ({ id: p.id, name: p.name })));
+        setPackages((data || []).map((p: any) => ({ id: p.id, name: p.name, valor_pessoa_adicional: p.valor_pessoa_adicional })));
       });
     supabase
       .from("user_companies")
@@ -602,6 +602,17 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 ) : (
                   <Input value={form.package_name} onChange={(e) => setForm({ ...form, package_name: e.target.value })} placeholder="Nenhum pacote cadastrado" />
                 )}
+                {(() => {
+                  const selectedPkg = packages.find(p => p.name === form.package_name);
+                  if (selectedPkg?.valor_pessoa_adicional != null) {
+                    return (
+                      <p className="text-xs text-primary font-medium mt-1">
+                        Pessoa adicional: R$ {selectedPkg.valor_pessoa_adicional.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
 
               <div className="space-y-2.5 md:pr-6">

@@ -14,6 +14,7 @@ interface CompanyPackage {
   id: string;
   name: string;
   description: string | null;
+  valor_pessoa_adicional: number | null;
   is_active: boolean;
   sort_order: number;
 }
@@ -26,6 +27,7 @@ export function PackagesManager() {
   const [editing, setEditing] = useState<CompanyPackage | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [valorPessoaAdicional, setValorPessoaAdicional] = useState("");
   const [saving, setSaving] = useState(false);
 
   const fetchPackages = async () => {
@@ -48,6 +50,7 @@ export function PackagesManager() {
     setEditing(null);
     setName("");
     setDescription("");
+    setValorPessoaAdicional("");
     setDialogOpen(true);
   };
 
@@ -55,6 +58,7 @@ export function PackagesManager() {
     setEditing(pkg);
     setName(pkg.name);
     setDescription(pkg.description || "");
+    setValorPessoaAdicional(pkg.valor_pessoa_adicional != null ? pkg.valor_pessoa_adicional.toString() : "");
     setDialogOpen(true);
   };
 
@@ -62,10 +66,12 @@ export function PackagesManager() {
     if (!name.trim() || !currentCompany?.id) return;
     setSaving(true);
 
+    const parsedValor = valorPessoaAdicional.trim() ? parseFloat(valorPessoaAdicional.replace(",", ".")) : null;
+
     if (editing) {
       await supabase
         .from("company_packages")
-        .update({ name: name.trim(), description: description.trim() || null })
+        .update({ name: name.trim(), description: description.trim() || null, valor_pessoa_adicional: parsedValor })
         .eq("id", editing.id);
       toast({ title: "Pacote atualizado!" });
     } else {
@@ -75,6 +81,7 @@ export function PackagesManager() {
           company_id: currentCompany.id,
           name: name.trim(),
           description: description.trim() || null,
+          valor_pessoa_adicional: parsedValor,
         });
       toast({ title: "Pacote criado!" });
     }
@@ -134,6 +141,11 @@ export function PackagesManager() {
               {pkg.description && (
                 <p className="text-xs text-muted-foreground line-clamp-2">{pkg.description}</p>
               )}
+              {pkg.valor_pessoa_adicional != null && (
+                <p className="text-xs text-primary font-medium">
+                  Pessoa adicional: R$ {pkg.valor_pessoa_adicional.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+              )}
             </CardContent>
           </Card>
         ))}
@@ -156,6 +168,16 @@ export function PackagesManager() {
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Descrição do pacote (opcional)"
                 rows={3}
+              />
+            </div>
+            <div>
+              <Label>Valor por pessoa adicional (R$)</Label>
+              <Input
+                type="text"
+                inputMode="decimal"
+                value={valorPessoaAdicional}
+                onChange={(e) => setValorPessoaAdicional(e.target.value)}
+                placeholder="Ex: 85,00"
               />
             </div>
             <div className="flex justify-end gap-2">
