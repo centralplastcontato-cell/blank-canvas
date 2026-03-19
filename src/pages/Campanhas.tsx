@@ -331,7 +331,9 @@ export default function Campanhas() {
             </AlertDialogContent>
           </AlertDialog>
           </div>
-        </main>
+          </div>
+        </div>
+      </div>
       </div>
     </SidebarProvider>
   );

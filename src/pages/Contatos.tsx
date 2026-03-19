@@ -268,6 +268,7 @@ export default function Contatos() {
             </Table>
           </Card>
         )}
+      </div>
       </main>
 
       <ContactFormDialog
