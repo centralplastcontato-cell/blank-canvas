@@ -137,7 +137,7 @@ export function PackagesManager() {
       await supabase.from("company_packages").update(payload).eq("id", editing.id);
       toast({ title: "Pacote atualizado!" });
     } else {
-      await supabase.from("company_packages").insert({ ...payload, company_id: currentCompany.id });
+      await supabase.from("company_packages").insert({ ...payload, company_id: currentCompany.id } as any);
       toast({ title: "Pacote criado!" });
     }
 
