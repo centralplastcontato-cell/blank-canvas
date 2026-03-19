@@ -121,6 +121,7 @@ export default function ContratosModule() {
               </TabsContent>
             </Tabs>
           </div>
+          </div>
         </main>
       </div>
     </SidebarProvider>
