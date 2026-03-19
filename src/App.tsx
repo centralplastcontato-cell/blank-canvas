@@ -11,39 +11,89 @@ import { Loader2 } from "lucide-react";
 import RootPage from "./pages/RootPage";
 import NotFound from "./pages/NotFound";
 
+// Lazy-loaded pages with prefetch support
+const lazyImports = {
+  "/dashboard": () => import("./pages/Index"),
+  "/auth": () => import("./pages/Auth"),
+  "/atendimento": () => import("./pages/CentralAtendimento"),
+  "/configuracoes": () => import("./pages/Configuracoes"),
+  "/users": () => import("./pages/Users"),
+  "/promo": () => import("./pages/PromoPage"),
+  "/hub/comercial-b2b": () => import("./pages/ComercialB2B"),
+  "/para-buffets": () => import("./pages/ParaBuffets"),
+  "/hub-login": () => import("./pages/HubLogin"),
+  "/hub-landing": () => import("./pages/HubLandingPage"),
+  "/hub": () => import("./pages/HubDashboard"),
+  "/hub/empresas": () => import("./pages/HubEmpresas"),
+  "/hub/users": () => import("./pages/HubUsers"),
+  "/hub/whatsapp": () => import("./pages/HubWhatsApp"),
+  "/hub/onboarding": () => import("./pages/HubOnboarding"),
+  "/hub/prospeccao": () => import("./pages/HubProspeccao"),
+  "/hub/consumo-ia": () => import("./pages/HubAIUsage"),
+  "/hub/treinamento": () => import("./pages/HubTreinamento"),
+  "/hub/leads": () => import("./pages/HubLeads"),
+  "/hub/suporte": () => import("./pages/HubSuporte"),
+  "/hub/materiais": () => import("./pages/HubMateriais"),
+  "/hub/recrutamento": () => import("./pages/HubRecruitment"),
+  "/treinamento": () => import("./pages/Treinamento"),
+  "/inteligencia": () => import("./pages/Inteligencia"),
+  "/agenda": () => import("./pages/Agenda"),
+  "/formularios": () => import("./pages/Formularios"),
+  "/avaliacoes": () => import("./pages/Avaliacoes"),
+  "/pre-festa": () => import("./pages/PreFesta"),
+  "/campanhas": () => import("./pages/Campanhas"),
+  "/visitas": () => import("./pages/Visitas"),
+  "/contratos": () => import("./pages/ContratosModule"),
+  "/contrato": () => import("./pages/Contrato"),
+  "/cardapio": () => import("./pages/Cardapio"),
+} as Record<string, () => Promise<any>>;
+
+// Prefetch cache to avoid double-importing
+const prefetched = new Set<string>();
+
+export function prefetchRoute(path: string) {
+  const normalizedPath = "/" + path.replace(/^\/+/, "");
+  if (prefetched.has(normalizedPath)) return;
+  const loader = lazyImports[normalizedPath];
+  if (loader) {
+    prefetched.add(normalizedPath);
+    loader();
+  }
+}
+
 // Lazy-loaded pages
-const Index = lazy(() => import("./pages/Index"));
-const Auth = lazy(() => import("./pages/Auth"));
-const CentralAtendimento = lazy(() => import("./pages/CentralAtendimento"));
-const Configuracoes = lazy(() => import("./pages/Configuracoes"));
+const Index = lazy(lazyImports["/dashboard"]);
+const Auth = lazy(lazyImports["/auth"]);
+const CentralAtendimento = lazy(lazyImports["/atendimento"]);
+const Configuracoes = lazy(lazyImports["/configuracoes"]);
 const UserSettings = lazy(() => import("./pages/UserSettings"));
-const Users = lazy(() => import("./pages/Users"));
-const PromoPage = lazy(() => import("./pages/PromoPage"));
-const ComercialB2B = lazy(() => import("./pages/ComercialB2B"));
-const ParaBuffets = lazy(() => import("./pages/ParaBuffets"));
-const HubLogin = lazy(() => import("./pages/HubLogin"));
-const HubLandingPage = lazy(() => import("./pages/HubLandingPage"));
-const HubDashboard = lazy(() => import("./pages/HubDashboard"));
-const HubEmpresas = lazy(() => import("./pages/HubEmpresas"));
-const HubUsers = lazy(() => import("./pages/HubUsers"));
-const HubWhatsApp = lazy(() => import("./pages/HubWhatsApp"));
-const HubOnboarding = lazy(() => import("./pages/HubOnboarding"));
-const HubProspeccao = lazy(() => import("./pages/HubProspeccao"));
-const HubAIUsage = lazy(() => import("./pages/HubAIUsage"));
-const HubTreinamento = lazy(() => import("./pages/HubTreinamento"));
-const HubLeads = lazy(() => import("./pages/HubLeads"));
-const HubSuporte = lazy(() => import("./pages/HubSuporte"));
-const HubMateriais = lazy(() => import("./pages/HubMateriais"));
-const HubRecruitment = lazy(() => import("./pages/HubRecruitment"));
-const Treinamento = lazy(() => import("./pages/Treinamento"));
+const Users = lazy(lazyImports["/users"]);
+const PromoPage = lazy(lazyImports["/promo"]);
+const ComercialB2B = lazy(lazyImports["/hub/comercial-b2b"]);
+const ParaBuffets = lazy(lazyImports["/para-buffets"]);
+const HubLogin = lazy(lazyImports["/hub-login"]);
+const HubLandingPage = lazy(lazyImports["/hub-landing"]);
+const HubDashboard = lazy(lazyImports["/hub"]);
+const HubEmpresas = lazy(lazyImports["/hub/empresas"]);
+const HubUsers = lazy(lazyImports["/hub/users"]);
+const HubWhatsApp = lazy(lazyImports["/hub/whatsapp"]);
+const HubOnboarding = lazy(lazyImports["/hub/onboarding"]);
+const HubProspeccao = lazy(lazyImports["/hub/prospeccao"]);
+const HubAIUsage = lazy(lazyImports["/hub/consumo-ia"]);
+const HubTreinamento = lazy(lazyImports["/hub/treinamento"]);
+const HubLeads = lazy(lazyImports["/hub/leads"]);
+const HubSuporte = lazy(lazyImports["/hub/suporte"]);
+const HubMateriais = lazy(lazyImports["/hub/materiais"]);
+const HubRecruitment = lazy(lazyImports["/hub/recrutamento"]);
+const Treinamento = lazy(lazyImports["/treinamento"]);
 const Onboarding = lazy(() => import("./pages/Onboarding"));
-const Inteligencia = lazy(() => import("./pages/Inteligencia"));
-const Agenda = lazy(() => import("./pages/Agenda"));
-const Formularios = lazy(() => import("./pages/Formularios"));
-const Avaliacoes = lazy(() => import("./pages/Avaliacoes"));
-const PreFesta = lazy(() => import("./pages/PreFesta"));
-const Campanhas = lazy(() => import("./pages/Campanhas"));
-const Visitas = lazy(() => import("./pages/Visitas"));
+const Inteligencia = lazy(lazyImports["/inteligencia"]);
+const Agenda = lazy(lazyImports["/agenda"]);
+const Formularios = lazy(lazyImports["/formularios"]);
+const Avaliacoes = lazy(lazyImports["/avaliacoes"]);
+const PreFesta = lazy(lazyImports["/pre-festa"]);
+const Campanhas = lazy(lazyImports["/campanhas"]);
+const Visitas = lazy(lazyImports["/visitas"]);
 const PublicRecruitmentForm = lazy(() => import("./pages/PublicRecruitmentForm"));
 const DynamicLandingPage = lazy(() => import("./pages/DynamicLandingPage"));
 const PublicEvaluation = lazy(() => import("./pages/PublicEvaluation"));
@@ -58,9 +108,9 @@ const PublicAttendanceReview = lazy(() => import("./pages/PublicAttendanceReview
 const PublicEventInfo = lazy(() => import("./pages/PublicEventInfo"));
 const PublicFreelancer = lazy(() => import("./pages/PublicFreelancer"));
 const PublicFreelancerSchedule = lazy(() => import("./pages/PublicFreelancerSchedule"));
-const Contrato = lazy(() => import("./pages/Contrato"));
-const ContratosModule = lazy(() => import("./pages/ContratosModule"));
-const Cardapio = lazy(() => import("./pages/Cardapio"));
+const Contrato = lazy(lazyImports["/contrato"]);
+const ContratosModule = lazy(lazyImports["/contratos"]);
+const Cardapio = lazy(lazyImports["/cardapio"]);
 const PublicPartyControl = lazy(() => import("./pages/PublicPartyControl"));
 const PublicClientData = lazy(() => import("./pages/PublicClientData"));
 
@@ -68,7 +118,7 @@ const SupportChatbot = lazy(() => import("./components/support/SupportChatbot").
 
 const PageLoader = () => (
   <div className="min-h-screen bg-background flex items-center justify-center">
-    <Loader2 className="h-10 w-10 animate-spin text-primary" />
+    <Loader2 className="h-8 w-8 animate-spin text-primary/40" />
   </div>
 );
 

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
 import { Users, LogOut, RefreshCw, Headset, Settings, Pin, PinOff, ChevronLeft, Building2, Brain, CalendarDays, FolderOpen, GraduationCap, Megaphone, MapPin, FileSignature } from "lucide-react";
+import { prefetchRoute } from "@/App";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -189,6 +190,8 @@ export function AdminSidebar({
                           to={item.url} 
                           end 
                           className="flex items-center gap-3"
+                          onMouseEnter={() => prefetchRoute(item.url)}
+                          onFocus={() => prefetchRoute(item.url)}
                         >
                           <item.icon className="h-[22px] w-[22px] shrink-0" />
                           {!collapsed && <span>{item.title}</span>}
