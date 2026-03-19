@@ -36,17 +36,42 @@ export interface VariableContext {
   event?: {
     date?: string | null;
     time?: string | null;
+    end_time?: string | null;
     package_name?: string | null;
     value?: number | null;
     guest_count?: number | null;
     unit?: string | null;
+    event_type?: string | null;
   };
   contract?: {
     value?: string | null;
     date?: string | null;
     responsible_name?: string | null;
     cpf?: string | null;
+    rg?: string | null;
+    email?: string | null;
     address?: string | null;
+    numero?: string | null;
+    complemento?: string | null;
+    bairro?: string | null;
+    cidade?: string | null;
+    cep?: string | null;
+    nome_aniversariante?: string | null;
+    idade_aniversariante?: string | null;
+    data_nascimento?: string | null;
+    nomes_pais?: string | null;
+    telefone_pais?: string | null;
+    celular?: string | null;
+    valor_sinal?: string | null;
+    valor_restante?: string | null;
+    forma_pagamento?: string | null;
+    parcelas?: string | null;
+    brindes?: string | null;
+    descricao?: string | null;
+    observacoes_comerciais?: string | null;
+    tema?: string | null;
+    valor_convidado_adicional?: string | null;
+    quantidade_pessoas?: string | null;
   };
   freelancer?: {
     name?: string | null;
