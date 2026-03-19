@@ -320,7 +320,7 @@ export default function Formularios() {
                   <Tabs defaultValue="pacotes" className="flex-1 flex flex-col overflow-hidden">
                     <div className="px-3 md:px-5 pt-4">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="text-sm font-bold tracking-wide text-foreground/80">Contratos</span>
+                        <span className="text-sm font-bold tracking-wide text-foreground/80">Pacotes</span>
                         <div className="flex-1 h-px bg-border/50" />
                       </div>
                       <TabsList className="flex justify-start gap-1.5 overflow-x-auto pb-1 bg-transparent h-auto p-0">
