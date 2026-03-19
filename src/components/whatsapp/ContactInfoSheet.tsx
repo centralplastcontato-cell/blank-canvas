@@ -5,12 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Skeleton } from "@/components/ui/skeleton";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
 import {
   X, Calendar, MapPin, Users, Tag,
   User, Clock, ExternalLink, Image as ImageIcon,
-  FileText, Link2, Play, Loader2
+  FileText, Link2, Play
 } from "lucide-react";
 import { LEAD_STATUS_LABELS } from "@/types/crm";
 import { format } from "date-fns";
