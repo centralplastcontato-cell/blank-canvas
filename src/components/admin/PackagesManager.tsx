@@ -159,7 +159,7 @@ export function PackagesManager() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md p-0 gap-0 overflow-hidden bg-muted/40">
+        <DialogContent className="max-w-md p-0 gap-0 overflow-hidden bg-background border-border/60 shadow-xl">
           <DialogHeader className="p-6 pb-4">
             <DialogTitle className="text-lg font-bold">{editing ? "Editar Pacote" : "Novo Pacote"}</DialogTitle>
             <p className="text-sm text-muted-foreground mt-0.5">
