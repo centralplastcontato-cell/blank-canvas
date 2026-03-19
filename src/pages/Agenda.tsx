@@ -248,6 +248,7 @@ export default function Agenda() {
     fetchClosedInPeriod(start, end, selectedUnit).then(result => {
       setClosedInPeriod(result?.count || 0);
       setClosedRevenue(result?.revenue || 0);
+      setClosedEvents(result?.events || []);
     });
   }, [selectedUnit]);
 
