@@ -271,6 +271,7 @@ export default function Agenda() {
     if (!eventsRes.error && eventsRes.data) setPeriodEvents(eventsRes.data as CompanyEvent[]);
     setClosedInPeriod(closedResult?.count || 0);
     setClosedRevenue(closedResult?.revenue || 0);
+    setClosedEvents(closedResult?.events || []);
     setPeriodLoading(false);
   };
 
