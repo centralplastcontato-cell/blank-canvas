@@ -972,18 +972,27 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <ClientDataStatusBadge status={clientRequest.status} />
-                  <span className="text-sm text-muted-foreground">Link enviado, aguardando preenchimento</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Input readOnly value={getClientLink()} className="text-xs font-mono bg-muted/50" />
-                  <Button type="button" variant="outline" size="icon" onClick={copyLink} title="Copiar link">
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                  <Button type="button" variant="outline" size="icon" onClick={() => window.open(getClientLink(), "_blank")} title="Abrir link">
-                    <ExternalLink className="h-4 w-4" />
-                  </Button>
+                <div className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
+                  <div className="px-4 py-3 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-primary/15 text-primary shadow-sm">
+                      <Handshake className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <ClientDataStatusBadge status={clientRequest.status} />
+                        <span className="text-sm text-muted-foreground">Link enviado, aguardando preenchimento</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="px-4 py-2.5 border-t border-border/40 flex items-center gap-2">
+                    <p className="text-[11px] text-muted-foreground truncate font-mono flex-1">{getClientLink()}</p>
+                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={copyLink} title="Copiar link">
+                      <Copy className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => window.open(getClientLink(), "_blank")} title="Abrir link">
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
                 {resolvedMessage && (
                   <div className="space-y-2">
