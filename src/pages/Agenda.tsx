@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AgendaCalendar } from "@/components/agenda/AgendaCalendar";
@@ -24,7 +25,7 @@ import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDia
 import { EventDetailSheet } from "@/components/agenda/EventDetailSheet";
 import { MonthSummaryCards } from "@/components/agenda/MonthSummaryCards";
 import { PeriodFilterPopover } from "@/components/agenda/PeriodFilterPopover";
-import { CalendarDays, Plus, Loader2, ShieldAlert, Menu, Clock, AlertTriangle, List, ListChecks, MapPin, Users, DollarSign, Search, X, Phone, Pencil } from "lucide-react";
+import { CalendarDays, Plus, Loader2, ShieldAlert, Menu, Clock, AlertTriangle, List, ListChecks, MapPin, Users, DollarSign, Search, X, Phone, Pencil, Handshake } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, startOfMonth, endOfMonth, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -71,6 +72,8 @@ export default function Agenda() {
   const [periodLoading, setPeriodLoading] = useState(false);
   const [closedInPeriod, setClosedInPeriod] = useState(0);
   const [closedRevenue, setClosedRevenue] = useState(0);
+  const [closedEvents, setClosedEvents] = useState<CompanyEvent[]>([]);
+  const [closedListOpen, setClosedListOpen] = useState(false);
 
   const { canViewAll, allowedUnits, unitAccess, isLoading: permUnitLoading } = useUnitPermissions(currentUser?.id, currentCompany?.id);
   const { hasPermission: userHasPermission } = usePermissions(currentUser?.id);
@@ -172,11 +175,11 @@ export default function Agenda() {
   }, [navigate]);
 
   // Fetch events for current month
-  const fetchClosedInPeriod = async (start: string, end: string, unit?: string): Promise<{ count: number; revenue: number }> => {
-    if (!currentCompany?.id) return { count: 0, revenue: 0 };
+  const fetchClosedInPeriod = async (start: string, end: string, unit?: string): Promise<{ count: number; revenue: number; events: CompanyEvent[] }> => {
+    if (!currentCompany?.id) return { count: 0, revenue: 0, events: [] };
     let query = supabase
       .from("company_events")
-      .select("id, unit, total_value")
+      .select("*")
       .eq("company_id", currentCompany.id)
       .gte("data_fechamento_venda", start)
       .lte("data_fechamento_venda", end);
@@ -192,9 +195,10 @@ export default function Agenda() {
     }
     
     const { data } = await query;
-    const count = data?.length || 0;
-    const revenue = (data || []).reduce((sum, e) => sum + (e.total_value || 0), 0);
-    return { count, revenue };
+    const evts = (data || []) as CompanyEvent[];
+    const count = evts.length;
+    const revenue = evts.reduce((sum, e) => sum + (e.total_value || 0), 0);
+    return { count, revenue, events: evts };
   };
 
   const fetchEvents = async () => {
@@ -221,6 +225,7 @@ export default function Agenda() {
     if (!eventsRes.error && eventsRes.data) setEvents(eventsRes.data as CompanyEvent[]);
     setClosedInPeriod(closedResult?.count || 0);
     setClosedRevenue(closedResult?.revenue || 0);
+    setClosedEvents(closedResult?.events || []);
 
     // Build checklist progress map
     const progressMap: Record<string, { total: number; completed: number }> = {};
@@ -244,6 +249,7 @@ export default function Agenda() {
     fetchClosedInPeriod(start, end, selectedUnit).then(result => {
       setClosedInPeriod(result?.count || 0);
       setClosedRevenue(result?.revenue || 0);
+      setClosedEvents(result?.events || []);
     });
   }, [selectedUnit]);
 
@@ -266,6 +272,7 @@ export default function Agenda() {
     if (!eventsRes.error && eventsRes.data) setPeriodEvents(eventsRes.data as CompanyEvent[]);
     setClosedInPeriod(closedResult?.count || 0);
     setClosedRevenue(closedResult?.revenue || 0);
+    setClosedEvents(closedResult?.events || []);
     setPeriodLoading(false);
   };
 
@@ -746,6 +753,7 @@ export default function Agenda() {
                   showRevenue={showRevenue}
                   closedInPeriod={closedInPeriod}
                   closedRevenue={closedRevenue}
+                  onClosedClick={() => setClosedListOpen(true)}
                 />
               </div>
 
@@ -941,6 +949,86 @@ export default function Agenda() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Closed parties list Sheet */}
+      <Sheet open={closedListOpen} onOpenChange={setClosedListOpen}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Handshake className="h-5 w-5 text-violet-600" />
+              Festas Fechadas ({closedEvents.length})
+            </SheetTitle>
+          </SheetHeader>
+          <div className="space-y-3 mt-4">
+            {closedEvents.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">Nenhuma festa fechada neste período.</p>
+            ) : (
+              closedEvents
+                .sort((a, b) => a.event_date.localeCompare(b.event_date))
+                .map((ev) => (
+                  <button
+                    key={ev.id}
+                    onClick={() => {
+                      setClosedListOpen(false);
+                      setDetailEvent(ev);
+                      setDetailOpen(true);
+                    }}
+                    className="w-full text-left p-4 rounded-xl border border-border/30 border-l-[3px] border-l-violet-500 bg-violet-500/[0.02] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="font-semibold text-sm truncate">{ev.title}</span>
+                      <Badge
+                        variant={ev.status === "confirmado" ? "default" : ev.status === "cancelado" ? "destructive" : "secondary"}
+                        className="text-[10px] uppercase tracking-wider px-2 py-0.5 shrink-0"
+                      >
+                        {ev.status}
+                      </Badge>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <CalendarDays className="h-3 w-3" />
+                        {format(new Date(ev.event_date + "T12:00:00"), "dd/MM/yyyy")}
+                      </span>
+                      {ev.start_time && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {ev.start_time.slice(0, 5)}
+                        </span>
+                      )}
+                      {ev.unit && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {ev.unit}
+                        </span>
+                      )}
+                      {ev.guest_count && (
+                        <span className="flex items-center gap-1">
+                          <Users className="h-3 w-3" />
+                          {ev.guest_count}
+                        </span>
+                      )}
+                    </div>
+                    {ev.total_value != null && ev.total_value > 0 && (
+                      <p className="text-sm font-bold text-foreground mt-2">
+                        {ev.total_value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                      </p>
+                    )}
+                  </button>
+                ))
+            )}
+            {closedEvents.length > 0 && (
+              <div className="pt-2 border-t border-border/30">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground font-medium">Total faturado:</span>
+                  <span className="font-bold text-foreground">
+                    {closedEvents.reduce((sum, e) => sum + (e.total_value || 0), 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </SidebarProvider>
   );
 }
