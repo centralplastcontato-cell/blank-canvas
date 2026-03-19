@@ -125,11 +125,16 @@ export function PackagesManager() {
 
       <div className="grid gap-3 sm:grid-cols-2">
         {packages.map((pkg) => (
-          <Card key={pkg.id} className="border-border">
-            <CardContent className="p-4 space-y-2">
+          <Card key={pkg.id} className="group border-border/50 bg-gradient-to-br from-card to-muted/30 hover:border-primary/20 hover:shadow-lg transition-all duration-300">
+            <CardContent className="p-5 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="font-medium text-sm">{pkg.name}</span>
-                <div className="flex gap-1">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
+                    <Package className="h-4 w-4 text-primary" />
+                  </div>
+                  <span className="font-semibold text-sm text-foreground">{pkg.name}</span>
+                </div>
+                <div className="flex gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(pkg)}>
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
@@ -139,12 +144,14 @@ export function PackagesManager() {
                 </div>
               </div>
               {pkg.description && (
-                <p className="text-xs text-muted-foreground line-clamp-2">{pkg.description}</p>
+                <p className="text-xs text-muted-foreground line-clamp-2 pl-[46px]">{pkg.description}</p>
               )}
               {pkg.valor_pessoa_adicional != null && (
-                <p className="text-xs text-primary font-medium">
-                  Pessoa adicional: R$ {pkg.valor_pessoa_adicional.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
+                <div className="ml-[46px] inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/5 border border-primary/10">
+                  <span className="text-[11px] font-semibold text-primary tracking-wide uppercase">
+                    Pessoa adicional: R$ {pkg.valor_pessoa_adicional.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
               )}
             </CardContent>
           </Card>
