@@ -699,8 +699,16 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 <Label className="text-sm font-medium text-foreground/70">Parcelas</Label>
                 <Input type="number" min={1} max={24} placeholder="1" value={payment.parcelas ?? ""} onChange={(e) => {
                   const num = e.target.value ? Math.max(1, Math.min(24, Number(e.target.value))) : null;
+                  const saldo = payment.saldo_valor ?? 0;
                   const details = num && num > 1
-                    ? Array.from({ length: num }, (_, i) => (payment.parcelas_details?.[i] || { valor: null, vencimento: "" }))
+                    ? Array.from({ length: num }, (_, i) => {
+                        const existing = payment.parcelas_details?.[i];
+                        const autoValor = saldo > 0 ? Math.round((saldo / num) * 100) / 100 : null;
+                        return {
+                          valor: existing?.valor ?? autoValor,
+                          vencimento: existing?.vencimento ?? "",
+                        };
+                      })
                     : [];
                   setPayment({ ...payment, parcelas: num, parcelas_details: details });
                 }} />
