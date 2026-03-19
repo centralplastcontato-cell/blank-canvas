@@ -132,8 +132,8 @@ function HubDashboardContent({ userId }: { userId: string }) {
         });
 
         // Get first messages for response time - batch up to 50 convos total for speed
-        const allConvosList = allConvos || [];
-        const sampleConvos = allConvosList.slice(0, 100);
+        // Get first messages for response time - batch up to 100 convos total for speed
+        const sampleConvos = allConvos.slice(0, 100);
         if (sampleConvos.length > 0) {
           const convoIds = sampleConvos.map(c => c.id);
           const { data: firstMessages } = await supabase
