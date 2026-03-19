@@ -151,8 +151,15 @@ export default function PublicClientData() {
     }
     if (form.cpf.replace(/\D/g, "").length < 11) {
       toast({ title: "Preencha o CPF completo", variant: "destructive" });
+      setCpfError("CPF incompleto");
       return;
     }
+    if (!isValidCPF(form.cpf)) {
+      toast({ title: "CPF inválido", description: "Verifique os números digitados.", variant: "destructive" });
+      setCpfError("CPF inválido");
+      return;
+    }
+    setCpfError(null);
     setSubmitting(true);
     try {
       const { error } = await supabase.rpc("submit_client_data_public", {
