@@ -482,7 +482,21 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       }
 
       const link = getClientLink();
-      const message = resolvedMessage || `Olá! Segue o link para preenchimento dos dados do contratante:\n\n${link}`;
+
+      // Always re-fetch the saved template so edited text is respected
+      let message = "";
+      const { data: msgSettings } = await (supabase as any)
+        .from("contract_message_settings")
+        .select("is_enabled, message_template")
+        .eq("company_id", currentCompany?.id)
+        .maybeSingle();
+
+      if (msgSettings?.is_enabled && msgSettings?.message_template) {
+        message = resolveContractMessage(msgSettings.message_template, link);
+        setResolvedMessage(message);
+      } else {
+        message = `Olá! Segue o link para preenchimento dos dados do contratante:\n\n${link}`;
+      }
 
       const { error } = await supabase.functions.invoke("wapi-send", {
         body: {
