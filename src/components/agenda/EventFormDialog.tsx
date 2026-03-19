@@ -699,8 +699,16 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 <Label className="text-sm font-medium text-foreground/70">Parcelas</Label>
                 <Input type="number" min={1} max={24} placeholder="1" value={payment.parcelas ?? ""} onChange={(e) => {
                   const num = e.target.value ? Math.max(1, Math.min(24, Number(e.target.value))) : null;
+                  const saldo = payment.saldo_valor ?? 0;
                   const details = num && num > 1
-                    ? Array.from({ length: num }, (_, i) => (payment.parcelas_details?.[i] || { valor: null, vencimento: "" }))
+                    ? Array.from({ length: num }, (_, i) => {
+                        const existing = payment.parcelas_details?.[i];
+                        const autoValor = saldo > 0 ? Math.round((saldo / num) * 100) / 100 : null;
+                        return {
+                          valor: existing?.valor ?? autoValor,
+                          vencimento: existing?.vencimento ?? "",
+                        };
+                      })
                     : [];
                   setPayment({ ...payment, parcelas: num, parcelas_details: details });
                 }} />
@@ -815,7 +823,18 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
               <div className="space-y-2.5 md:pr-6">
                 <Label className="text-sm font-medium text-foreground/70">Valor do saldo</Label>
-                <MoneyInput value={payment.saldo_valor} onChange={(v) => setPayment({ ...payment, saldo_valor: v })} />
+                <MoneyInput value={payment.saldo_valor} onChange={(v) => {
+                  const num = payment.parcelas ?? 0;
+                  let updatedDetails = payment.parcelas_details || [];
+                  if (num > 1 && v && v > 0) {
+                    const perParcela = Math.round((v / num) * 100) / 100;
+                    updatedDetails = Array.from({ length: num }, (_, i) => ({
+                      vencimento: updatedDetails[i]?.vencimento || "",
+                      valor: perParcela,
+                    }));
+                  }
+                  setPayment({ ...payment, saldo_valor: v, parcelas_details: updatedDetails });
+                }} />
               </div>
 
               <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
