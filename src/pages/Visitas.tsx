@@ -493,7 +493,10 @@ export default function Visitas() {
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2 flex-wrap">
           <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="h-9 w-[140px] text-xs rounded-xl">
+            <SelectTrigger className={cn(
+              "h-9 w-[140px] text-xs rounded-xl border-border/50 bg-card shadow-sm transition-all duration-200",
+              filterStatus !== "all" && "border-primary/40 bg-primary/5 text-primary font-semibold ring-1 ring-primary/20"
+            )}>
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -503,7 +506,10 @@ export default function Visitas() {
           </Select>
           {units.length > 1 && (
             <Select value={filterUnit} onValueChange={setFilterUnit}>
-              <SelectTrigger className="h-9 w-[140px] text-xs rounded-xl">
+              <SelectTrigger className={cn(
+                "h-9 w-[140px] text-xs rounded-xl border-border/50 bg-card shadow-sm transition-all duration-200",
+                filterUnit !== "all" && "border-primary/40 bg-primary/5 text-primary font-semibold ring-1 ring-primary/20"
+              )}>
                 <SelectValue placeholder="Unidade" />
               </SelectTrigger>
               <SelectContent>
@@ -513,7 +519,10 @@ export default function Visitas() {
             </Select>
           )}
           <Select value={filterResponsavel} onValueChange={setFilterResponsavel}>
-            <SelectTrigger className="h-9 w-[140px] text-xs rounded-xl">
+            <SelectTrigger className={cn(
+              "h-9 w-[140px] text-xs rounded-xl border-border/50 bg-card shadow-sm transition-all duration-200",
+              filterResponsavel !== "all" && "border-primary/40 bg-primary/5 text-primary font-semibold ring-1 ring-primary/20"
+            )}>
               <SelectValue placeholder="Responsável" />
             </SelectTrigger>
             <SelectContent>
