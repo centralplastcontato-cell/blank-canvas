@@ -142,11 +142,50 @@ export function ContactInfoSheet({
     }
   };
 
+  const resolveContractTemplate = (template: string, link: string) => {
+    const leadName = linkedLead?.name || contactName || "Cliente";
+    const firstName = leadName.split(" ")[0];
+    const companyName = currentCompany?.name || "Buffet";
+
+    // Try to get event date from lead's month/day
+    let eventDate = "";
+    if (linkedLead?.day_of_month && linkedLead?.month) {
+      eventDate = `${linkedLead.day_of_month}/${linkedLead.month}`;
+    } else if (linkedLead?.day_preference && linkedLead?.month) {
+      eventDate = `${linkedLead.day_preference}/${linkedLead.month}`;
+    }
+
+    return template
+      .replace(/\{\{nome\}\}/gi, leadName)
+      .replace(/\{\{primeiro_nome\}\}/gi, firstName)
+      .replace(/\{\{empresa\}\}/gi, companyName)
+      .replace(/\{\{buffet\}\}/gi, companyName)
+      .replace(/\{\{nome_buffet\}\}/gi, companyName)
+      .replace(/\{\{data_festa\}\}/gi, eventDate)
+      .replace(/\{\{tipo_festa\}\}/gi, "")
+      .replace(/\{\{pacote\}\}/gi, "")
+      .replace(/\{\{link_formulario_contrato\}\}/gi, link);
+  };
+
   const handleSendClientDataLink = async () => {
     if (!clientDataLink || !instanceId || !contactPhone) return;
     setIsSendingLink(true);
     try {
-      const message = `Olá! Segue o link para preenchimento dos dados do contratante:\n\n${clientDataLink}`;
+      let message = `Olá! Segue o link para preenchimento dos dados do contratante:\n\n${clientDataLink}`;
+
+      // Fetch the user's custom template from contract_message_settings
+      if (currentCompany?.id) {
+        const { data: msgSettings } = await supabase
+          .from("contract_message_settings")
+          .select("is_enabled, message_template")
+          .eq("company_id", currentCompany.id)
+          .maybeSingle();
+
+        if (msgSettings?.is_enabled && msgSettings?.message_template) {
+          message = resolveContractTemplate(msgSettings.message_template, clientDataLink);
+        }
+      }
+
       const { error } = await supabase.functions.invoke("wapi-send", {
         body: {
           action: "send-text",
