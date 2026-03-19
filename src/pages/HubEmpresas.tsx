@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { HubLPVideosManager } from "@/components/hub/HubLPVideosManager";
 import { supabase } from "@/integrations/supabase/client";
 import { Company } from "@/types/company";
 import { HubLayout } from "@/components/hub/HubLayout";
