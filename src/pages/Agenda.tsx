@@ -515,6 +515,25 @@ export default function Agenda() {
             </div>
           </header>
 
+          {/* Mobile content mode toggle */}
+          <div className="md:hidden px-3 pt-3">
+            <Tabs value={contentMode} onValueChange={(v) => setContentMode(v as "agendadas" | "fechadas")}>
+              <TabsList className="w-full h-10">
+                <TabsTrigger value="agendadas" className="flex-1 gap-1.5 text-xs font-medium">
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  Agendadas
+                </TabsTrigger>
+                <TabsTrigger value="fechadas" className="flex-1 gap-1.5 text-xs font-medium">
+                  <Handshake className="h-3.5 w-3.5" />
+                  Fechadas
+                  {closedInPeriod > 0 && (
+                    <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{closedInPeriod}</Badge>
+                  )}
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+
           {/* Mobile unit filter */}
           {(() => {
             const visibleUnits = canViewAll ? physicalUnits : physicalUnits.filter(u => unitAccess[u.name]);
