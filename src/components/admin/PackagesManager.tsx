@@ -58,6 +58,7 @@ export function PackagesManager() {
     setEditing(pkg);
     setName(pkg.name);
     setDescription(pkg.description || "");
+    setValorPessoaAdicional(pkg.valor_pessoa_adicional != null ? pkg.valor_pessoa_adicional.toString() : "");
     setDialogOpen(true);
   };
 
