@@ -9,13 +9,14 @@ import { ImageLightbox } from "@/components/ui/image-lightbox";
 import {
   X, Calendar, MapPin, Users, Tag,
   User, Clock, ExternalLink, Image as ImageIcon,
-  FileText, Link2, Play
+  FileText, Link2, Play, Send, Loader2, ClipboardList
 } from "lucide-react";
 import { LEAD_STATUS_LABELS } from "@/types/crm";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
 
 interface ContactInfoSheetProps {
   isOpen: boolean;
