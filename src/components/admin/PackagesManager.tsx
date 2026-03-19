@@ -27,6 +27,7 @@ export function PackagesManager() {
   const [editing, setEditing] = useState<CompanyPackage | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [valorPessoaAdicional, setValorPessoaAdicional] = useState("");
   const [saving, setSaving] = useState(false);
 
   const fetchPackages = async () => {
