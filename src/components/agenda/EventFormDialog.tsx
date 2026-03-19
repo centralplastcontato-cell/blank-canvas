@@ -211,7 +211,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [loadingLeads, setLoadingLeads] = useState(false);
 
   const [templates, setTemplates] = useState<Array<{ id: string; name: string; items: string[] }>>([]);
-  const [packages, setPackages] = useState<Array<{ id: string; name: string; valor_pessoa_adicional: number | null }>>([]);
+  const [packages, setPackages] = useState<Array<{ id: string; name: string; valor_pessoa_adicional: number | null; preco_separado: boolean; valor_pessoa_adicional_adulto: number | null; valor_pessoa_adicional_crianca: number | null }>>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [companyUsers, setCompanyUsers] = useState<Array<{ id: string; name: string }>>([]);
   const [fechamentoDate, setFechamentoDate] = useState<Date | undefined>(undefined);
@@ -282,12 +282,12 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       });
     supabase
       .from("company_packages")
-      .select("id, name, valor_pessoa_adicional")
+      .select("id, name, valor_pessoa_adicional, preco_separado, valor_pessoa_adicional_adulto, valor_pessoa_adicional_crianca")
       .eq("company_id", currentCompany.id)
       .eq("is_active", true)
       .order("sort_order")
       .then(({ data }) => {
-        setPackages((data || []).map((p: any) => ({ id: p.id, name: p.name, valor_pessoa_adicional: p.valor_pessoa_adicional })));
+        setPackages((data || []).map((p: any) => ({ id: p.id, name: p.name, valor_pessoa_adicional: p.valor_pessoa_adicional, preco_separado: !!p.preco_separado, valor_pessoa_adicional_adulto: p.valor_pessoa_adicional_adulto, valor_pessoa_adicional_crianca: p.valor_pessoa_adicional_crianca })));
       });
     supabase
       .from("user_companies")
@@ -604,7 +604,23 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 )}
                 {(() => {
                   const selectedPkg = packages.find(p => p.name === form.package_name);
-                  if (selectedPkg?.valor_pessoa_adicional != null) {
+                  if (!selectedPkg) return null;
+                  if (selectedPkg.preco_separado) {
+                    const hasAdulto = selectedPkg.valor_pessoa_adicional_adulto != null;
+                    const hasCrianca = selectedPkg.valor_pessoa_adicional_crianca != null;
+                    if (!hasAdulto && !hasCrianca) return null;
+                    return (
+                      <div className="text-xs text-primary font-medium mt-1 space-y-0.5">
+                        {hasCrianca && (
+                          <p>Criança adicional: R$ {selectedPkg.valor_pessoa_adicional_crianca!.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        )}
+                        {hasAdulto && (
+                          <p>Adulto adicional: R$ {selectedPkg.valor_pessoa_adicional_adulto!.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        )}
+                      </div>
+                    );
+                  }
+                  if (selectedPkg.valor_pessoa_adicional != null) {
                     return (
                       <p className="text-xs text-primary font-medium mt-1">
                         Pessoa adicional: R$ {selectedPkg.valor_pessoa_adicional.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
