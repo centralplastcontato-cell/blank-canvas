@@ -332,9 +332,9 @@ export default function Campanhas() {
           </AlertDialog>
           </div>
           </div>
-        </div>
+        </main>
       </div>
-      </div>
+    </SidebarProvider>
     </SidebarProvider>
   );
 }
