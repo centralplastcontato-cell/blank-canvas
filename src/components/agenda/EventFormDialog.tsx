@@ -211,7 +211,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [loadingLeads, setLoadingLeads] = useState(false);
 
   const [templates, setTemplates] = useState<Array<{ id: string; name: string; items: string[] }>>([]);
-  const [packages, setPackages] = useState<Array<{ id: string; name: string }>>([]);
+  const [packages, setPackages] = useState<Array<{ id: string; name: string; valor_pessoa_adicional: number | null }>>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [companyUsers, setCompanyUsers] = useState<Array<{ id: string; name: string }>>([]);
   const [fechamentoDate, setFechamentoDate] = useState<Date | undefined>(undefined);
