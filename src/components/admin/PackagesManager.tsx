@@ -170,6 +170,16 @@ export function PackagesManager() {
                 rows={3}
               />
             </div>
+            <div>
+              <Label>Valor por pessoa adicional (R$)</Label>
+              <Input
+                type="text"
+                inputMode="decimal"
+                value={valorPessoaAdicional}
+                onChange={(e) => setValorPessoaAdicional(e.target.value)}
+                placeholder="Ex: 85,00"
+              />
+            </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
               <Button onClick={handleSave} disabled={saving || !name.trim()}>
