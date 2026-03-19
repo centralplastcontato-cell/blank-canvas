@@ -12,7 +12,7 @@ interface MonthSummaryCardsProps {
   closedRevenue?: number;
 }
 
-export function MonthSummaryCards({ events, month, periodLabel, totalDaysOverride, showRevenue = true, closedInPeriod = 0, closedRevenue = 0, onClosedClick }: MonthSummaryCardsProps) {
+export function MonthSummaryCards({ events, month, periodLabel, totalDaysOverride, showRevenue = true, closedInPeriod = 0, closedRevenue = 0 }: MonthSummaryCardsProps) {
   const total = events.length;
   const cancelados = events.filter(e => e.status === "cancelado").length;
   const activeEvents = events.filter(e => e.status !== "cancelado");
