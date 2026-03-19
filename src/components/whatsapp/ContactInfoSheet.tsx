@@ -114,10 +114,56 @@ export function ContactInfoSheet({
       setClientDataLink(null);
       setClientDataStatus(null);
     }
-  }, [isOpen, conversationId]);
+  }, [isOpen, conversationId, linkedLead?.id]);
+
+  const fetchClientDataLink = async (leadId: string) => {
+    // Find event linked to this lead
+    const { data: events } = await supabase
+      .from("company_events")
+      .select("id")
+      .eq("lead_id", leadId)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (!events?.length) return;
+
+    const { data: req } = await supabase
+      .from("client_data_requests")
+      .select("token, status")
+      .eq("event_id", events[0].id)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (req?.length) {
+      setClientDataLink(`${window.location.origin}/dados-contratante/${req[0].token}`);
+      setClientDataStatus(req[0].status);
+    }
+  };
+
+  const handleSendClientDataLink = async () => {
+    if (!clientDataLink || !instanceId || !contactPhone) return;
+    setIsSendingLink(true);
+    try {
+      const message = `Olá! Segue o link para preenchimento dos dados do contratante:\n\n${clientDataLink}`;
+      const { error } = await supabase.functions.invoke("wapi-send", {
+        body: {
+          action: "send-text",
+          phone: contactPhone,
+          message,
+          conversationId,
+          instanceId,
+        },
+      });
+      if (error) throw error;
+      toast({ title: "Link enviado com sucesso!" });
+    } catch (err: any) {
+      toast({ title: "Erro ao enviar link", description: err.message, variant: "destructive" });
+    } finally {
+      setIsSendingLink(false);
+    }
+  };
 
   const fetchMediaCounts = async (convId: string) => {
-    // Fetch all messages with media or links
     const { data, error } = await supabase
       .from("wapi_messages")
       .select("id, message_type, media_url, content, timestamp, from_me")
