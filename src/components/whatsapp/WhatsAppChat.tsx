@@ -6482,6 +6482,22 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           </div>
         </DialogContent>
       </Dialog>
+      {/* Lead Detail Sheet */}
+      <LeadDetailSheet
+        lead={linkedLead}
+        isOpen={showLeadDetailSheet}
+        onClose={() => setShowLeadDetailSheet(false)}
+        onUpdate={() => {
+          if (linkedLead) {
+            fetchLinkedLead(linkedLead.id, selectedConversation);
+          }
+        }}
+        responsaveis={responsaveis as any}
+        currentUserId={userId}
+        currentUserName={currentUserName}
+        canEdit={true}
+        canViewContact={true}
+      />
     </div>
   );
 }
