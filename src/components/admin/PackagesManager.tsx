@@ -66,10 +66,12 @@ export function PackagesManager() {
     if (!name.trim() || !currentCompany?.id) return;
     setSaving(true);
 
+    const parsedValor = valorPessoaAdicional.trim() ? parseFloat(valorPessoaAdicional.replace(",", ".")) : null;
+
     if (editing) {
       await supabase
         .from("company_packages")
-        .update({ name: name.trim(), description: description.trim() || null })
+        .update({ name: name.trim(), description: description.trim() || null, valor_pessoa_adicional: parsedValor })
         .eq("id", editing.id);
       toast({ title: "Pacote atualizado!" });
     } else {
@@ -79,6 +81,7 @@ export function PackagesManager() {
           company_id: currentCompany.id,
           name: name.trim(),
           description: description.trim() || null,
+          valor_pessoa_adicional: parsedValor,
         });
       toast({ title: "Pacote criado!" });
     }
