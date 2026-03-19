@@ -41,6 +41,7 @@ interface ContactInfoSheetProps {
     campaign_name: string | null;
   } | null;
   onOpenLeadDetail?: () => void;
+  instanceId?: string | null;
 }
 
 interface MediaItem {
