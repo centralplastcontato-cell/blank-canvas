@@ -602,6 +602,17 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 ) : (
                   <Input value={form.package_name} onChange={(e) => setForm({ ...form, package_name: e.target.value })} placeholder="Nenhum pacote cadastrado" />
                 )}
+                {(() => {
+                  const selectedPkg = packages.find(p => p.name === form.package_name);
+                  if (selectedPkg?.valor_pessoa_adicional != null) {
+                    return (
+                      <p className="text-xs text-primary font-medium mt-1">
+                        Pessoa adicional: R$ {selectedPkg.valor_pessoa_adicional.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
 
               <div className="space-y-2.5 md:pr-6">
