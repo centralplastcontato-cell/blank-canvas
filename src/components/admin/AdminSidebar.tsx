@@ -44,6 +44,7 @@ export function AdminSidebar({
   const collapsed = state === "collapsed";
   const location = useLocation();
   const [isPinned, setIsPinned] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const modules = useCompanyModules();
   const { currentCompany } = useCompany();
