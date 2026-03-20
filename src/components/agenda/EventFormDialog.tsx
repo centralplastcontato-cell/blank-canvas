@@ -1058,53 +1058,73 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
-                  <div className="px-4 py-3 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-primary/15 text-primary shadow-sm">
-                      <Handshake className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <ClientDataStatusBadge status={clientRequest.status} />
-                        <span className="text-sm text-muted-foreground">Link enviado, aguardando preenchimento</span>
+                {showManualForm ? (
+                  <ManualClientDataForm
+                    eventId={eventId!}
+                    companyId={currentCompany!.id}
+                    leadId={form.lead_id}
+                    requestId={clientRequest.id}
+                    onSaved={(req) => {
+                      setClientRequest(req as ClientDataRequest);
+                      setShowManualForm(false);
+                    }}
+                    onCancel={() => setShowManualForm(false)}
+                  />
+                ) : (
+                  <>
+                    <div className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
+                      <div className="px-4 py-3 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent flex items-center gap-3">
+                        <div className="p-2 rounded-xl bg-primary/15 text-primary shadow-sm">
+                          <Handshake className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <ClientDataStatusBadge status={clientRequest.status} />
+                            <span className="text-sm text-muted-foreground">Link enviado, aguardando preenchimento</span>
+                          </div>
+                        </div>
                       </div>
+                      <div className="px-4 py-2.5 border-t border-border/40 flex items-center gap-2">
+                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={copyLink} title="Copiar link">
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => window.open(getClientLink(), "_blank")} title="Abrir link">
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                      {form.lead_id && (
+                        <div className="px-4 py-3 border-t border-border/40 bg-muted/20">
+                          <Button
+                            type="button"
+                            variant="default"
+                            size="sm"
+                            className="w-full gap-2 rounded-xl shadow-sm"
+                            disabled={sendingClientLink}
+                            onClick={sendClientLinkToLead}
+                          >
+                            {sendingClientLink ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                            Enviar link via WhatsApp
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                  <div className="px-4 py-2.5 border-t border-border/40 flex items-center gap-2">
-                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={copyLink} title="Copiar link">
-                      <Copy className="h-3.5 w-3.5" />
+                    <Button type="button" variant="outline" size="sm" onClick={() => setShowManualForm(true)} className="gap-2">
+                      <PenLine className="h-3.5 w-3.5" />
+                      Preencher manualmente
                     </Button>
-                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => window.open(getClientLink(), "_blank")} title="Abrir link">
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                  {form.lead_id && (
-                    <div className="px-4 py-3 border-t border-border/40 bg-muted/20">
-                      <Button
-                        type="button"
-                        variant="default"
-                        size="sm"
-                        className="w-full gap-2 rounded-xl shadow-sm"
-                        disabled={sendingClientLink}
-                        onClick={sendClientLinkToLead}
-                      >
-                        {sendingClientLink ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                        Enviar link via WhatsApp
-                      </Button>
-                    </div>
-                  )}
-                </div>
-                {resolvedMessage && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground">Mensagem para o cliente:</p>
-                    <div className="rounded-lg bg-muted/50 border border-border/30 p-3">
-                      <p className="text-xs whitespace-pre-line leading-relaxed">{resolvedMessage}</p>
-                    </div>
-                    <Button type="button" variant="outline" size="sm" onClick={copyMessage} className="gap-1.5 text-xs">
-                      <Copy className="h-3 w-3" />
-                      Copiar mensagem
-                    </Button>
-                  </div>
+                    {resolvedMessage && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground">Mensagem para o cliente:</p>
+                        <div className="rounded-lg bg-muted/50 border border-border/30 p-3">
+                          <p className="text-xs whitespace-pre-line leading-relaxed">{resolvedMessage}</p>
+                        </div>
+                        <Button type="button" variant="outline" size="sm" onClick={copyMessage} className="gap-1.5 text-xs">
+                          <Copy className="h-3 w-3" />
+                          Copiar mensagem
+                        </Button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
