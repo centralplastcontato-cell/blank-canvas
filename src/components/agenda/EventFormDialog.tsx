@@ -1004,14 +1004,35 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               </div>
             ) : !clientRequest ? (
               <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <ClientDataStatusBadge status="pending" />
-                  <span className="text-sm text-muted-foreground">Dados do contratante não solicitados</span>
-                </div>
-                <Button type="button" variant="outline" onClick={generateClientLink} disabled={generatingLink} className="gap-2">
-                  {generatingLink ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  Solicitar dados do contratante
-                </Button>
+                {!showManualForm ? (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <ClientDataStatusBadge status="pending" />
+                      <span className="text-sm text-muted-foreground">Dados do contratante não solicitados</span>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Button type="button" variant="outline" onClick={generateClientLink} disabled={generatingLink} className="gap-2">
+                        {generatingLink ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                        Enviar link ao cliente
+                      </Button>
+                      <Button type="button" variant="outline" onClick={() => setShowManualForm(true)} className="gap-2">
+                        <PenLine className="h-4 w-4" />
+                        Preencher manualmente
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <ManualClientDataForm
+                    eventId={eventId!}
+                    companyId={currentCompany!.id}
+                    leadId={form.lead_id}
+                    onSaved={(req) => {
+                      setClientRequest(req as ClientDataRequest);
+                      setShowManualForm(false);
+                    }}
+                    onCancel={() => setShowManualForm(false)}
+                  />
+                )}
               </div>
             ) : clientRequest.status === "completed" || clientRequest.status === "reviewed" ? (
               <div className="space-y-4">
