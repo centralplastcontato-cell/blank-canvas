@@ -367,6 +367,7 @@ export function ContractGenerator({ userId, onClose }: Props) {
               content={renderedContent}
               companyName={currentCompany?.name || ""}
               companyLogo={currentCompany?.logo_url || undefined}
+              packageName={eventData?.package_name || ""}
             />
 
             <div className="flex justify-between pt-4 border-t border-border/40">

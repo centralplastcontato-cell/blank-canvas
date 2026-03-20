@@ -6,6 +6,7 @@ interface Props {
   content: string;
   companyName: string;
   companyLogo?: string;
+  packageName?: string;
 }
 
 export function ContractPreviewPrint({ content, companyName, companyLogo }: Props) {
