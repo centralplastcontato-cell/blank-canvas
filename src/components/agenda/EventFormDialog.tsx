@@ -1317,6 +1317,19 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           </Button>
         </div>
       </DialogContent>
+
+      {/* Contract Generation Dialog */}
+      {isEdit && userId && selectedContractModelId && (
+        <EventContractDialog
+          open={contractDialogOpen}
+          onOpenChange={(o) => {
+            setContractDialogOpen(o);
+          }}
+          eventId={form.id!}
+          modelId={selectedContractModelId}
+          userId={userId}
+        />
+      )}
     </Dialog>
   );
 }
