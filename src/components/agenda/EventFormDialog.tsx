@@ -247,6 +247,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [resolvedMessage, setResolvedMessage] = useState<string | null>(null);
   const [sendingClientLink, setSendingClientLink] = useState(false);
   const [showManualForm, setShowManualForm] = useState(false);
+  const [contractModels, setContractModels] = useState<Array<{ id: string; nome_modelo: string; versao: number; tipo_evento: string }>>([]);
+  const [selectedContractModelId, setSelectedContractModelId] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
