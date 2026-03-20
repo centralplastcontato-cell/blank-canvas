@@ -681,7 +681,12 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
                 <Label className="text-sm font-medium text-foreground/70">Pacote</Label>
                 {packages.length > 0 ? (
-                  <Select value={form.package_name} onValueChange={(v) => setForm({ ...form, package_name: v === "none" ? "" : v })}>
+                  <Select value={form.package_name} onValueChange={(v) => {
+                    const pkgName = v === "none" ? "" : v;
+                    const selectedPkg = packages.find(p => p.name === pkgName);
+                    const autoExtraValue = selectedPkg?.valor_pessoa_adicional ?? null;
+                    setForm({ ...form, package_name: pkgName, extra_guest_value: autoExtraValue });
+                  }}>
                     <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Sem pacote</SelectItem>
