@@ -132,6 +132,7 @@ interface EventFormDialogProps {
   onSubmit: (data: EventFormData) => Promise<string | void>;
   initialData?: EventFormData | null;
   units: Array<{ name: string }>;
+  userId?: string;
 }
 
 const EMPTY_PAYMENT: PaymentDetails = {
