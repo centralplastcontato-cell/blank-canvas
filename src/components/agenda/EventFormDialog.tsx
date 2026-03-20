@@ -55,6 +55,12 @@ export interface EventFormData {
   vendedor_responsavel_name?: string | null;
   payment_method?: string | null;
   payment_details?: PaymentDetails | null;
+  child_name?: string | null;
+  child_age?: string | null;
+  child_birthdate?: string | null;
+  parent_names?: string | null;
+  gifts?: string | null;
+  extra_guest_value?: number | null;
 }
 
 const PAYMENT_METHODS = [
