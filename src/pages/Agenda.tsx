@@ -1072,6 +1072,7 @@ export default function Agenda() {
         onSubmit={handleSubmit}
         initialData={editingEvent}
         units={physicalUnits}
+        userId={currentUser?.id}
       />
 
       <EventDetailSheet

@@ -10,6 +10,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Loader2, Search, X, UserCheck, ListChecks, User, CalendarDays, PartyPopper, Briefcase, CalendarIcon, AlertTriangle, CreditCard, Handshake, Copy, ExternalLink, Clock, CheckCircle2, Send, PenLine, Baby, Gift, FileSignature } from "lucide-react";
 import { ManualClientDataForm } from "./ManualClientDataForm";
+import { EventContractDialog } from "@/components/contracts/EventContractDialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -131,6 +132,7 @@ interface EventFormDialogProps {
   onSubmit: (data: EventFormData) => Promise<string | void>;
   initialData?: EventFormData | null;
   units: Array<{ name: string }>;
+  userId?: string;
 }
 
 const EMPTY_PAYMENT: PaymentDetails = {
@@ -218,7 +220,7 @@ function ClientDataStatusBadge({ status }: { status: string }) {
   );
 }
 
-export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, units }: EventFormDialogProps) {
+export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, units, userId }: EventFormDialogProps) {
   const [form, setForm] = useState<EventFormData>(EMPTY);
   const [payment, setPayment] = useState<PaymentDetails>(EMPTY_PAYMENT);
   const [saving, setSaving] = useState(false);
@@ -249,6 +251,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [showManualForm, setShowManualForm] = useState(false);
   const [contractModels, setContractModels] = useState<Array<{ id: string; nome_modelo: string; versao: number; tipo_evento: string }>>([]);
   const [selectedContractModelId, setSelectedContractModelId] = useState<string | null>(null);
+  const [contractDialogOpen, setContractDialogOpen] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -1119,21 +1122,34 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 Modelo de Contrato
               </div>
               {contractModels.length > 0 ? (
-                <Select
-                  value={selectedContractModelId || ""}
-                  onValueChange={(val) => setSelectedContractModelId(val)}
-                >
-                  <SelectTrigger className="h-9 text-xs">
-                    <SelectValue placeholder="Selecione o modelo de contrato" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {contractModels.map((m) => (
-                      <SelectItem key={m.id} value={m.id} className="text-xs">
-                        {m.nome_modelo.toUpperCase()} — {m.tipo_evento} (v{m.versao})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <>
+                  <Select
+                    value={selectedContractModelId || ""}
+                    onValueChange={(val) => setSelectedContractModelId(val)}
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Selecione o modelo de contrato" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {contractModels.map((m) => (
+                        <SelectItem key={m.id} value={m.id} className="text-xs">
+                          {m.nome_modelo.toUpperCase()} — {m.tipo_evento} (v{m.versao})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {isEdit && selectedContractModelId && (
+                    <Button
+                      type="button"
+                      className="w-full gap-2 mt-3"
+                      variant="default"
+                      onClick={() => setContractDialogOpen(true)}
+                    >
+                      <FileSignature className="h-4 w-4" />
+                      Gerar Contrato
+                    </Button>
+                  )}
+                </>
               ) : (
                 <p className="text-xs text-muted-foreground">Nenhum modelo de contrato cadastrado</p>
               )}
@@ -1303,6 +1319,19 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           </Button>
         </div>
       </DialogContent>
+
+      {/* Contract Generation Dialog */}
+      {isEdit && userId && selectedContractModelId && (
+        <EventContractDialog
+          open={contractDialogOpen}
+          onOpenChange={(o) => {
+            setContractDialogOpen(o);
+          }}
+          eventId={form.id!}
+          modelId={selectedContractModelId}
+          userId={userId}
+        />
+      )}
     </Dialog>
   );
 }
