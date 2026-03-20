@@ -256,6 +256,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       setSelectedTemplate("");
       setFechamentoDate(data.data_fechamento_venda ? new Date(data.data_fechamento_venda + "T12:00:00") : undefined);
       setClientRequest(null);
+      setShowManualForm(false);
     }
   }, [open, initialData]);
 
