@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Users, LogOut, RefreshCw, Headset, Settings, Pin, PinOff, ChevronLeft, Building2, Brain, CalendarDays, FolderOpen, GraduationCap, Megaphone, MapPin, FileSignature } from "lucide-react";
+import { Users, LogOut, RefreshCw, Headset, Settings, Pin, PinOff, ChevronLeft, Building2, Brain, CalendarDays, FolderOpen, GraduationCap, Megaphone, MapPin, FileSignature, Lock, Unlock } from "lucide-react";
 import { prefetchRoute } from "@/App";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { NavLink } from "@/components/NavLink";
@@ -44,6 +44,7 @@ export function AdminSidebar({
   const collapsed = state === "collapsed";
   const location = useLocation();
   const [isPinned, setIsPinned] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const modules = useCompanyModules();
   const { currentCompany } = useCompany();
@@ -69,7 +70,7 @@ export function AdminSidebar({
 
   // Handle hover expand/collapse only when not pinned and not touch device
   const handleMouseEnter = () => {
-    if (!isPinned && !isTouchDevice) {
+    if (!isPinned && !isLocked && !isTouchDevice) {
       setOpen(true);
     }
   };
@@ -83,7 +84,17 @@ export function AdminSidebar({
   const handlePinToggle = () => {
     const newPinned = !isPinned;
     setIsPinned(newPinned);
+    if (newPinned) setIsLocked(false);
     setOpen(newPinned);
+  };
+
+  const handleLockToggle = () => {
+    const newLocked = !isLocked;
+    setIsLocked(newLocked);
+    if (newLocked) {
+      setIsPinned(false);
+      setOpen(false);
+    }
   };
 
   // Quick close function
@@ -146,7 +157,7 @@ export function AdminSidebar({
                 </TooltipContent>
               </Tooltip>
 
-              {/* Quick close button - more visible */}
+              {/* Quick close button */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -163,6 +174,23 @@ export function AdminSidebar({
                 </TooltipContent>
               </Tooltip>
             </>
+          )}
+          {collapsed && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={`h-7 w-7 shrink-0 mt-1 mx-auto ${isLocked ? 'text-sidebar-primary bg-sidebar-accent' : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent'}`}
+                  onClick={handleLockToggle}
+                >
+                  {isLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right" sideOffset={10}>
+                {isLocked ? "Desbloquear menu" : "Travar menu fechado"}
+              </TooltipContent>
+            </Tooltip>
           )}
         </div>
       </SidebarHeader>
