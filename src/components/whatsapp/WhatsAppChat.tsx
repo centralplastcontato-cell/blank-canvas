@@ -2108,6 +2108,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation || !selectedInstance || isSending) return;
 
+    if (selectedInstance.status !== 'connected' && selectedInstance.status !== 'degraded') {
+      toast({ title: "Unidade desconectada", description: "Não é possível enviar mensagens com esta unidade desconectada.", variant: "destructive" });
+      return;
+    }
+
     if (!canSendMessages) {
       toast({ title: "Sem permissão", description: "Você não tem permissão para enviar mensagens.", variant: "destructive" });
       return;
