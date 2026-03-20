@@ -105,6 +105,29 @@ export function AdminSidebar({
 
   return (
     <>
+      {/* Floating lock button OUTSIDE sidebar - always accessible */}
+      {collapsed && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`fixed top-2 left-1 z-50 h-7 w-7 rounded-md ${isLocked ? 'text-primary bg-accent shadow-sm' : 'text-muted-foreground/60 hover:text-foreground hover:bg-accent'}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleLockToggle();
+              }}
+              onMouseEnter={(e) => e.stopPropagation()}
+            >
+              {isLocked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right" sideOffset={10}>
+            {isLocked ? "Desbloquear menu" : "Travar menu fechado"}
+          </TooltipContent>
+        </Tooltip>
+      )}
+
       {/* Overlay to close sidebar easily when open and not pinned */}
       {open && !collapsed && !isPinned && (
         <div 
