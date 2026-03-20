@@ -144,7 +144,7 @@ const EMPTY: EventFormData = {
   event_date: "",
   start_time: "",
   end_time: "",
-  event_type: "infantil",
+  event_type: "aniversario",
   guest_count: null,
   unit: "",
   status: "pendente",
