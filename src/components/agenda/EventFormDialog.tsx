@@ -75,10 +75,10 @@ const PAYMENT_FORMS = [
 ];
 
 const EVENT_TYPES = [
-  { value: "infantil", label: "Infantil" },
+  { value: "aniversario", label: "Aniversário" },
   { value: "formatura", label: "Formatura" },
   { value: "escolar", label: "Escolar" },
-  { value: "kids", label: "Kids" },
+  { value: "aniversario_kids", label: "Aniversário Kids" },
   { value: "confraternizacao", label: "Confraternização" },
 ];
 
