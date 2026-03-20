@@ -1137,6 +1137,17 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                     ))}
                   </SelectContent>
                 </Select>
+                {isEdit && selectedContractModelId && (
+                  <Button
+                    type="button"
+                    className="w-full gap-2 mt-3"
+                    variant="default"
+                    onClick={() => setContractDialogOpen(true)}
+                  >
+                    <FileSignature className="h-4 w-4" />
+                    Gerar Contrato
+                  </Button>
+                )}
               ) : (
                 <p className="text-xs text-muted-foreground">Nenhum modelo de contrato cadastrado</p>
               )}
