@@ -374,6 +374,12 @@ export default function Agenda() {
       data_fechamento_venda: data.data_fechamento_venda || null,
       vendedor_responsavel_id: data.vendedor_responsavel_id || null,
       payment_method: data.payment_method || null,
+      child_name: data.child_name || null,
+      child_age: data.child_age || null,
+      child_birthdate: data.child_birthdate || null,
+      parent_names: data.parent_names || null,
+      gifts: data.gifts || null,
+      extra_guest_value: data.extra_guest_value,
     };
     console.log('[Evento:DadosComerciais]', { data_fechamento_venda: payload.data_fechamento_venda, vendedor_responsavel_id: payload.vendedor_responsavel_id });
 
@@ -447,6 +453,12 @@ export default function Agenda() {
       data_fechamento_venda: (ev as any).data_fechamento_venda || null,
       vendedor_responsavel_id: (ev as any).vendedor_responsavel_id || null,
       payment_method: (ev as any).payment_method || null,
+      child_name: (ev as any).child_name || null,
+      child_age: (ev as any).child_age || null,
+      child_birthdate: (ev as any).child_birthdate || null,
+      parent_names: (ev as any).parent_names || null,
+      gifts: (ev as any).gifts || null,
+      extra_guest_value: (ev as any).extra_guest_value || null,
     });
     setDetailOpen(false);
     setFormOpen(true);

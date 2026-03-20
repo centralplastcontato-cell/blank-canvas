@@ -41,7 +41,7 @@ export function ContractGenerator({ userId, onClose }: Props) {
     (async () => {
       const [modelsRes, eventsRes] = await Promise.all([
         (supabase as any).from("contract_models").select("id, nome_modelo, tipo_evento, conteudo_template, versao, company_id").eq("company_id", currentCompany.id).eq("is_active", true).order("nome_modelo"),
-        (supabase as any).from("company_events").select("id, title, event_date, start_time, end_time, event_type, package_name, guest_count, total_value, unit, lead_id, status").eq("company_id", currentCompany.id).neq("status", "cancelado").order("event_date", { ascending: false }).limit(200),
+        (supabase as any).from("company_events").select("id, title, event_date, start_time, end_time, event_type, package_name, guest_count, total_value, unit, lead_id, status, child_name, child_age, child_birthdate, parent_names, gifts, extra_guest_value").eq("company_id", currentCompany.id).neq("status", "cancelado").order("event_date", { ascending: false }).limit(200),
       ]);
       setModels(modelsRes.data || []);
       setEvents(eventsRes.data || []);
@@ -106,12 +106,16 @@ export function ContractGenerator({ userId, onClose }: Props) {
       cpf: contractData.cpf, rg: contractData.rg, email: contractData.email,
       address: contractData.endereco, numero: contractData.numero, complemento: contractData.complemento,
       bairro: contractData.bairro, cidade: contractData.cidade, cep: contractData.cep,
-      nome_aniversariante: contractData.nome_aniversariante, idade_aniversariante: contractData.idade_aniversariante,
-      data_nascimento: contractData.data_nascimento, nomes_pais: contractData.nomes_pais,
+      nome_aniversariante: contractData.nome_aniversariante || eventData?.child_name || "",
+      idade_aniversariante: contractData.idade_aniversariante || eventData?.child_age || "",
+      data_nascimento: contractData.data_nascimento || (eventData?.child_birthdate ? (() => { const [y, m, d] = eventData.child_birthdate.split("-"); return `${d}/${m}/${y}`; })() : ""),
+      nomes_pais: contractData.nomes_pais || eventData?.parent_names || "",
       value: eventData?.total_value ? `R$ ${Number(eventData.total_value).toLocaleString("pt-BR")}` : "",
       valor_sinal: contractData.valor_sinal ? `R$ ${Number(contractData.valor_sinal).toLocaleString("pt-BR")}` : "",
       valor_restante: contractData.valor_restante ? `R$ ${Number(contractData.valor_restante).toLocaleString("pt-BR")}` : "",
-      forma_pagamento: contractData.forma_pagamento, brindes: contractData.brindes,
+      forma_pagamento: contractData.forma_pagamento,
+      brindes: contractData.brindes || eventData?.gifts || "",
+      valor_convidado_adicional: eventData?.extra_guest_value ? `R$ ${Number(eventData.extra_guest_value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "",
       date: new Date().toLocaleDateString("pt-BR"),
     },
   }), [leadData, eventData, contractData, currentCompany?.name]);

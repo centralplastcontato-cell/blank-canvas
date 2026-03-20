@@ -892,6 +892,9 @@ export type Database = {
       }
       company_events: {
         Row: {
+          child_age: string | null
+          child_birthdate: string | null
+          child_name: string | null
           company_id: string
           created_at: string
           created_by: string
@@ -899,11 +902,14 @@ export type Database = {
           end_time: string | null
           event_date: string
           event_type: string | null
+          extra_guest_value: number | null
+          gifts: string | null
           guest_count: number | null
           id: string
           lead_id: string | null
           notes: string | null
           package_name: string | null
+          parent_names: string | null
           payment_details: Json | null
           payment_method: string | null
           start_time: string | null
@@ -915,6 +921,9 @@ export type Database = {
           vendedor_responsavel_id: string | null
         }
         Insert: {
+          child_age?: string | null
+          child_birthdate?: string | null
+          child_name?: string | null
           company_id: string
           created_at?: string
           created_by: string
@@ -922,11 +931,14 @@ export type Database = {
           end_time?: string | null
           event_date: string
           event_type?: string | null
+          extra_guest_value?: number | null
+          gifts?: string | null
           guest_count?: number | null
           id?: string
           lead_id?: string | null
           notes?: string | null
           package_name?: string | null
+          parent_names?: string | null
           payment_details?: Json | null
           payment_method?: string | null
           start_time?: string | null
@@ -938,6 +950,9 @@ export type Database = {
           vendedor_responsavel_id?: string | null
         }
         Update: {
+          child_age?: string | null
+          child_birthdate?: string | null
+          child_name?: string | null
           company_id?: string
           created_at?: string
           created_by?: string
@@ -945,11 +960,14 @@ export type Database = {
           end_time?: string | null
           event_date?: string
           event_type?: string | null
+          extra_guest_value?: number | null
+          gifts?: string | null
           guest_count?: number | null
           id?: string
           lead_id?: string | null
           notes?: string | null
           package_name?: string | null
+          parent_names?: string | null
           payment_details?: Json | null
           payment_method?: string | null
           start_time?: string | null

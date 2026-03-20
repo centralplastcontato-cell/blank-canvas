@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Loader2, Search, X, UserCheck, ListChecks, User, CalendarDays, PartyPopper, Briefcase, CalendarIcon, AlertTriangle, CreditCard, Handshake, Copy, ExternalLink, Clock, CheckCircle2, Send, PenLine } from "lucide-react";
+import { Loader2, Search, X, UserCheck, ListChecks, User, CalendarDays, PartyPopper, Briefcase, CalendarIcon, AlertTriangle, CreditCard, Handshake, Copy, ExternalLink, Clock, CheckCircle2, Send, PenLine, Baby, Gift } from "lucide-react";
 import { ManualClientDataForm } from "./ManualClientDataForm";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -55,6 +55,12 @@ export interface EventFormData {
   vendedor_responsavel_name?: string | null;
   payment_method?: string | null;
   payment_details?: PaymentDetails | null;
+  child_name?: string | null;
+  child_age?: string | null;
+  child_birthdate?: string | null;
+  parent_names?: string | null;
+  gifts?: string | null;
+  extra_guest_value?: number | null;
 }
 
 const PAYMENT_METHODS = [
@@ -158,6 +164,12 @@ const EMPTY: EventFormData = {
   vendedor_responsavel_name: null,
   payment_method: null,
   payment_details: null,
+  child_name: null,
+  child_age: null,
+  child_birthdate: null,
+  parent_names: null,
+  gifts: null,
+  extra_guest_value: null,
 };
 
 function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
@@ -732,6 +744,42 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               <div className="space-y-2.5 md:col-span-2">
                 <Label className="text-sm font-medium text-foreground/70">Observações</Label>
                 <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} />
+              </div>
+            </div>
+          </div>
+
+          {/* Section – Aniversariante & Extras */}
+          <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
+            <SectionHeader icon={Baby} label="Aniversariante & Extras" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5">
+              <div className="space-y-2.5 md:pr-6">
+                <Label className="text-sm font-medium text-foreground/70">Nome da criança</Label>
+                <Input value={form.child_name || ""} onChange={(e) => setForm({ ...form, child_name: e.target.value || null })} placeholder="Nome do aniversariante" />
+              </div>
+
+              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
+                <Label className="text-sm font-medium text-foreground/70">Idade a comemorar</Label>
+                <Input value={form.child_age || ""} onChange={(e) => setForm({ ...form, child_age: e.target.value || null })} placeholder="Ex: 5 anos" />
+              </div>
+
+              <div className="space-y-2.5 md:pr-6">
+                <Label className="text-sm font-medium text-foreground/70">Data de nascimento</Label>
+                <Input type="date" value={form.child_birthdate || ""} onChange={(e) => setForm({ ...form, child_birthdate: e.target.value || null })} />
+              </div>
+
+              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
+                <Label className="text-sm font-medium text-foreground/70">Nomes dos pais</Label>
+                <Input value={form.parent_names || ""} onChange={(e) => setForm({ ...form, parent_names: e.target.value || null })} placeholder="Ex: Maria e João" />
+              </div>
+
+              <div className="space-y-2.5 md:pr-6">
+                <Label className="text-sm font-medium text-foreground/70 flex items-center gap-1.5"><Gift className="h-3.5 w-3.5" /> Brindes inclusos</Label>
+                <Input value={form.gifts || ""} onChange={(e) => setForm({ ...form, gifts: e.target.value || null })} placeholder="Ex: Kit lembrancinhas, balões" />
+              </div>
+
+              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
+                <Label className="text-sm font-medium text-foreground/70">Valor por convidado extra</Label>
+                <MoneyInput value={form.extra_guest_value} onChange={(v) => setForm({ ...form, extra_guest_value: v })} />
               </div>
             </div>
           </div>
