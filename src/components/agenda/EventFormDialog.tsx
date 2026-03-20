@@ -318,6 +318,20 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       .then(({ data }) => {
         setPackages((data || []).map((p: any) => ({ id: p.id, name: p.name, valor_pessoa_adicional: p.valor_pessoa_adicional, preco_separado: !!p.preco_separado, valor_pessoa_adicional_adulto: p.valor_pessoa_adicional_adulto, valor_pessoa_adicional_crianca: p.valor_pessoa_adicional_crianca })));
       });
+    // Fetch contract models
+    (supabase as any)
+      .from("contract_models")
+      .select("id, nome_modelo, versao, tipo_evento")
+      .eq("company_id", currentCompany.id)
+      .eq("is_active", true)
+      .then(({ data }: any) => {
+        const models = (data || []) as Array<{ id: string; nome_modelo: string; versao: number; tipo_evento: string }>;
+        setContractModels(models);
+        // Auto-select based on event_type
+        const eventType = (initialData?.event_type || "").toLowerCase();
+        const autoMatch = eventType ? models.find(m => m.tipo_evento.toLowerCase() === eventType) : null;
+        setSelectedContractModelId(autoMatch?.id || (models.length === 1 ? models[0].id : null));
+      });
     supabase
       .from("user_companies")
       .select("user_id, profiles:user_id(full_name)")
