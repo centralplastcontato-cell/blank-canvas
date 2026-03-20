@@ -220,7 +220,7 @@ function ClientDataStatusBadge({ status }: { status: string }) {
   );
 }
 
-export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, units }: EventFormDialogProps) {
+export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, units, userId }: EventFormDialogProps) {
   const [form, setForm] = useState<EventFormData>(EMPTY);
   const [payment, setPayment] = useState<PaymentDetails>(EMPTY_PAYMENT);
   const [saving, setSaving] = useState(false);
