@@ -897,7 +897,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                         const existing = payment.parcelas_details?.[i];
                         const autoValor = saldo > 0 ? Math.round((saldo / num) * 100) / 100 : null;
                         return {
-                          valor: existing?.valor ?? autoValor,
+                          valor: autoValor,
                           vencimento: existing?.vencimento ?? "",
                         };
                       })
