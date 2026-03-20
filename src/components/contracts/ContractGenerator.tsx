@@ -109,7 +109,23 @@ export function ContractGenerator({ userId, onClose }: Props) {
       nome_aniversariante: contractData.nome_aniversariante || eventData?.child_name || "",
       idade_aniversariante: contractData.idade_aniversariante || eventData?.child_age || "",
       data_nascimento: contractData.data_nascimento || (eventData?.child_birthdate ? (() => { const [y, m, d] = eventData.child_birthdate.split("-"); return `${d}/${m}/${y}`; })() : ""),
-      nomes_pais: contractData.nomes_pais || eventData?.parent_names || "",
+      nomes_pais: contractData.nomes_pais || (() => {
+        try {
+          const parsed = JSON.parse(eventData?.parent_names || "[]");
+          if (Array.isArray(parsed)) {
+            const LABELS: Record<string, string> = { pai: "Pai", mae: "Mãe", avo: "Avó", avo_m: "Avô", tio: "Tio", tia: "Tia", padrasto: "Padrasto", madrasta: "Madrasta", outros: "Outros" };
+            return parsed.filter((r: any) => r.name).map((r: any) => `${r.name}${r.relation ? ` (${LABELS[r.relation] || r.relation})` : ""}`).join(" e ");
+          }
+        } catch { /* plain text fallback */ }
+        return eventData?.parent_names || "";
+      })(),
+      telefone_pais: contractData.telefone_pais || (() => {
+        try {
+          const parsed = JSON.parse(eventData?.parent_names || "[]");
+          if (Array.isArray(parsed)) return parsed.filter((r: any) => r.phone).map((r: any) => r.phone).join(" / ");
+        } catch { /* ignore */ }
+        return "";
+      })(),
       value: eventData?.total_value ? `R$ ${Number(eventData.total_value).toLocaleString("pt-BR")}` : "",
       valor_sinal: contractData.valor_sinal ? `R$ ${Number(contractData.valor_sinal).toLocaleString("pt-BR")}` : "",
       valor_restante: contractData.valor_restante ? `R$ ${Number(contractData.valor_restante).toLocaleString("pt-BR")}` : "",

@@ -767,9 +767,59 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 <Input type="date" value={form.child_birthdate || ""} onChange={(e) => setForm({ ...form, child_birthdate: e.target.value || null })} />
               </div>
 
-              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
-                <Label className="text-sm font-medium text-foreground/70">Nomes dos pais</Label>
-                <Input value={form.parent_names || ""} onChange={(e) => setForm({ ...form, parent_names: e.target.value || null })} placeholder="Ex: Maria e João" />
+              <div className="space-y-3 md:col-span-2">
+                <Label className="text-sm font-medium text-foreground/70">Responsáveis</Label>
+                {(() => {
+                  let responsibles: Array<{ name: string; phone: string; relation: string }> = [];
+                  try {
+                    const parsed = JSON.parse(form.parent_names || "[]");
+                    if (Array.isArray(parsed)) responsibles = parsed;
+                  } catch { /* legacy plain text — ignore */ }
+                  while (responsibles.length < 2) responsibles.push({ name: "", phone: "", relation: "" });
+
+                  const updateResponsible = (idx: number, field: string, value: string) => {
+                    const updated = [...responsibles];
+                    updated[idx] = { ...updated[idx], [field]: value };
+                    setForm({ ...form, parent_names: JSON.stringify(updated) });
+                  };
+
+                  const RELATIONS = [
+                    { value: "pai", label: "Pai" },
+                    { value: "mae", label: "Mãe" },
+                    { value: "avo", label: "Avó" },
+                    { value: "avo_m", label: "Avô" },
+                    { value: "tio", label: "Tio" },
+                    { value: "tia", label: "Tia" },
+                    { value: "padrasto", label: "Padrasto" },
+                    { value: "madrasta", label: "Madrasta" },
+                    { value: "outros", label: "Outros" },
+                  ];
+
+                  return responsibles.map((r, idx) => (
+                    <div key={idx} className="rounded-lg border border-border/40 bg-muted/20 p-3 space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{idx + 1}º Responsável</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                        <Input
+                          placeholder="Nome"
+                          value={r.name}
+                          onChange={(e) => updateResponsible(idx, "name", e.target.value)}
+                        />
+                        <Input
+                          placeholder="Telefone"
+                          value={r.phone}
+                          onChange={(e) => updateResponsible(idx, "phone", e.target.value)}
+                        />
+                        <Select value={r.relation || "none"} onValueChange={(v) => updateResponsible(idx, "relation", v === "none" ? "" : v)}>
+                          <SelectTrigger><SelectValue placeholder="Parentesco" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Selecione</SelectItem>
+                            {RELATIONS.map((rel) => <SelectItem key={rel.value} value={rel.value}>{rel.label}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  ));
+                })()}
               </div>
 
               <div className="space-y-2.5 md:pr-6">
