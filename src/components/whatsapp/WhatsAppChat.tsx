@@ -3468,10 +3468,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       )}
 
       {/* Disconnected warning - Premium styled */}
-      {hasDisconnectedInstances && selectedInstance?.status !== 'connected' && selectedInstance?.status !== 'degraded' && (
+      {(allDisconnected || (hasDisconnectedInstances && selectedInstance?.status !== 'connected' && selectedInstance?.status !== 'degraded')) && (
         <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-3 mb-3 text-sm text-center shrink-0 shadow-sm backdrop-blur-sm">
           <WifiOff className="w-4 h-4 inline mr-2" />
-          Esta unidade está desconectada. Selecione outra ou aguarde o administrador.
+          {allDisconnected 
+            ? 'Todas as unidades estão desconectadas. Você pode visualizar as mensagens já registradas, mas não poderá enviar novas mensagens.'
+            : 'Esta unidade está desconectada. Selecione outra ou aguarde o administrador.'}
         </div>
       )}
 
