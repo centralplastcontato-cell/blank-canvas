@@ -436,7 +436,7 @@ export default function Agenda() {
       event_date: ev.event_date,
       start_time: ev.start_time || "",
       end_time: ev.end_time || "",
-      event_type: ev.event_type || "infantil",
+      event_type: ev.event_type || "aniversario",
       guest_count: ev.guest_count,
       unit: ev.unit || "",
       status: ev.status,
@@ -1021,7 +1021,7 @@ export default function Agenda() {
                         size="sm"
                         className="w-full mt-3"
                         onClick={() => {
-                          setEditingEvent({ ...({} as EventFormData), event_date: format(selectedDate, "yyyy-MM-dd"), title: "", start_time: "", end_time: "", event_type: "infantil", guest_count: null, unit: "", status: "pendente", package_name: "", total_value: null, notes: "" });
+                          setEditingEvent({ ...({} as EventFormData), event_date: format(selectedDate, "yyyy-MM-dd"), title: "", start_time: "", end_time: "", event_type: "aniversario", guest_count: null, unit: "", status: "pendente", package_name: "", total_value: null, notes: "" });
                           setFormOpen(true);
                         }}
                       >
