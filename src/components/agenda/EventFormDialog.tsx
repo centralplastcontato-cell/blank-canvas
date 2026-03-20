@@ -257,7 +257,19 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     if (open) {
       const data = initialData || EMPTY;
       setForm(data);
-      setPayment((data.payment_details as PaymentDetails) || EMPTY_PAYMENT);
+      const loadedPayment = (data.payment_details as PaymentDetails) || EMPTY_PAYMENT;
+      // Auto-fill parcelas details if saldo and parcelas are set but details have null values
+      if (loadedPayment.parcelas && loadedPayment.parcelas > 1 && loadedPayment.saldo_valor && loadedPayment.saldo_valor > 0) {
+        const hasEmptyValues = (loadedPayment.parcelas_details || []).some(d => d.valor == null);
+        if (hasEmptyValues || !loadedPayment.parcelas_details?.length) {
+          const perParcela = Math.round((loadedPayment.saldo_valor / loadedPayment.parcelas) * 100) / 100;
+          loadedPayment.parcelas_details = Array.from({ length: loadedPayment.parcelas }, (_, i) => ({
+            valor: perParcela,
+            vencimento: loadedPayment.parcelas_details?.[i]?.vencimento || "",
+          }));
+        }
+      }
+      setPayment(loadedPayment);
       if (data.event_date) {
         const [y, m, d] = data.event_date.split("-");
         setDateYear(y || "");
