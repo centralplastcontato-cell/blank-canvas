@@ -46,8 +46,7 @@ export function ContractPreviewPrint({ content, companyName, companyLogo }: Prop
         </div>
         <div class="content">${content}</div>
         <div class="footer">
-          <p>Documento gerado pela plataforma CELEBREI — ${new Date().toLocaleDateString("pt-BR")}</p>
-          <p>Página 1</p>
+          <p>Documento gerado pela plataforma CELEBREI</p>
         </div>
       </body>
       </html>
