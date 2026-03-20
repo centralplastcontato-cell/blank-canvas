@@ -671,7 +671,11 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5">
               <div className="space-y-2.5 md:pr-6">
                 <Label className="text-sm font-medium text-foreground/70">Tipo de festa</Label>
-                <Select value={form.event_type} onValueChange={(v) => setForm({ ...form, event_type: v })}>
+                <Select value={form.event_type} onValueChange={(v) => {
+                  setForm({ ...form, event_type: v });
+                  const autoMatch = contractModels.find(m => m.tipo_evento.toLowerCase() === v.toLowerCase());
+                  if (autoMatch) setSelectedContractModelId(autoMatch.id);
+                }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{EVENT_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
                 </Select>
