@@ -70,7 +70,7 @@ export function AdminSidebar({
 
   // Handle hover expand/collapse only when not pinned and not touch device
   const handleMouseEnter = () => {
-    if (!isPinned && !isTouchDevice) {
+    if (!isPinned && !isLocked && !isTouchDevice) {
       setOpen(true);
     }
   };
