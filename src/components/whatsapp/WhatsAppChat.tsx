@@ -3428,27 +3428,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const connectedInstances = instances.filter(i => i.status === 'connected' || i.status === 'degraded');
   const hasDisconnectedInstances = instances.some(i => i.status !== 'connected' && i.status !== 'degraded');
 
-  if (connectedInstances.length === 0) {
-    return (
-      <Card className="h-96">
-        <CardContent className="flex flex-col items-center justify-center h-full text-center">
-          <WifiOff className="w-12 h-12 text-muted-foreground mb-4" />
-          <h3 className="font-semibold mb-2">WhatsApp desconectado</h3>
-          <p className="text-sm text-muted-foreground">
-            As instâncias configuradas estão desconectadas. Aguarde o administrador conectar.
-          </p>
-          <div className="mt-4 space-y-2">
-            {instances.map(instance => (
-              <Badge key={instance.id} variant="secondary">
-                <Building2 className="w-3 h-3 mr-1" />
-                {instance.unit}: {instance.status}
-              </Badge>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const allDisconnected = connectedInstances.length === 0;
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
