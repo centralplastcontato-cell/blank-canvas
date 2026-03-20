@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   FileSignature, CheckCircle2, AlertTriangle, Loader2, ChevronRight,
   User, CalendarDays, CreditCard, Package, FileText, XCircle
@@ -35,6 +36,13 @@ interface ReadinessCheck {
   detail?: string;
 }
 
+interface ContractModel {
+  id: string;
+  nome_modelo: string;
+  versao: number;
+  tipo_evento: string;
+}
+
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
   festa: CalendarDays,
   pagamento: CreditCard,
@@ -56,7 +64,8 @@ export function ContractReadinessPanel({ eventId, eventData, onGenerateContract 
   const [loading, setLoading] = useState(true);
   const [clientData, setClientData] = useState<Record<string, string> | null>(null);
   const [clientStatus, setClientStatus] = useState<string>("pending");
-  const [matchingModel, setMatchingModel] = useState<{ id: string; nome_modelo: string; versao: number } | null>(null);
+  const [allModels, setAllModels] = useState<ContractModel[]>([]);
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [paymentDetails, setPaymentDetails] = useState<any>(null);
   const [existingContracts, setExistingContracts] = useState<any[]>([]);
 
@@ -65,32 +74,26 @@ export function ContractReadinessPanel({ eventId, eventData, onGenerateContract 
     setLoading(true);
 
     const fetchAll = async () => {
-      const [clientReqRes, modelRes, paymentRes, contractsRes] = await Promise.all([
-        // Get client data request
+      const [clientReqRes, modelsRes, paymentRes, contractsRes] = await Promise.all([
         supabase
           .from("client_data_requests")
           .select("status, client_data")
           .eq("event_id", eventId)
           .order("created_at", { ascending: false })
           .limit(1),
-        // Find matching contract model by event_type
-        eventData.event_type
-          ? (supabase as any)
-              .from("contract_models")
-              .select("id, nome_modelo, versao")
-              .eq("company_id", currentCompany.id)
-              .eq("is_active", true)
-              .eq("tipo_evento", eventData.event_type)
-              .order("versao", { ascending: false })
-              .limit(1)
-          : Promise.resolve({ data: [] }),
-        // Get payment details
+        // Fetch ALL active models for this company
+        (supabase as any)
+          .from("contract_models")
+          .select("id, nome_modelo, versao, tipo_evento")
+          .eq("company_id", currentCompany.id)
+          .eq("is_active", true)
+          .order("tipo_evento")
+          .order("versao", { ascending: false }),
         supabase
           .from("company_events")
           .select("payment_details, payment_method")
           .eq("id", eventId)
           .single(),
-        // Check existing contracts
         (supabase as any)
           .from("generated_contracts")
           .select("id, nome_documento, status, created_at")
@@ -108,8 +111,15 @@ export function ContractReadinessPanel({ eventId, eventData, onGenerateContract 
         setClientData(null);
       }
 
-      // Matching model
-      setMatchingModel(modelRes.data?.[0] || null);
+      // All models
+      const models: ContractModel[] = modelsRes.data || [];
+      setAllModels(models);
+
+      // Auto-select matching model by event_type, or first available
+      const autoMatch = eventData.event_type
+        ? models.find((m) => m.tipo_evento === eventData.event_type)
+        : null;
+      setSelectedModelId(autoMatch?.id || (models.length > 0 ? models[0].id : null));
 
       // Payment
       setPaymentDetails(paymentRes.data?.payment_details);
@@ -122,6 +132,10 @@ export function ContractReadinessPanel({ eventId, eventData, onGenerateContract 
 
     fetchAll();
   }, [currentCompany?.id, eventId, eventData.event_type]);
+
+  const selectedModel = useMemo(() => {
+    return allModels.find((m) => m.id === selectedModelId) || null;
+  }, [allModels, selectedModelId]);
 
   const checks: ReadinessCheck[] = useMemo(() => {
     const result: ReadinessCheck[] = [];
@@ -156,32 +170,31 @@ export function ContractReadinessPanel({ eventId, eventData, onGenerateContract 
       key: "contract_model",
       label: "Modelo de contrato",
       category: "modelo",
-      ok: !!matchingModel,
-      detail: matchingModel
-        ? `${matchingModel.nome_modelo} (v${matchingModel.versao})`
-        : eventData.event_type
-          ? `Nenhum modelo para "${eventData.event_type}"`
-          : "Tipo de festa não definido",
+      ok: !!selectedModel,
+      detail: selectedModel
+        ? `${selectedModel.nome_modelo} (v${selectedModel.versao})`
+        : allModels.length === 0
+          ? "Nenhum modelo cadastrado"
+          : "Selecione um modelo",
     });
 
     return result;
-  }, [eventData, clientData, clientStatus, matchingModel, paymentDetails]);
+  }, [eventData, clientData, clientStatus, selectedModel, allModels, paymentDetails]);
 
   const allOk = checks.every((c) => c.ok);
   const missingCount = checks.filter((c) => !c.ok).length;
 
-  const status: ReadinessStatus = loading ? "loading" : allOk ? "ready" : !matchingModel ? "missing_model" : "missing_data";
+  const status: ReadinessStatus = loading ? "loading" : allOk ? "ready" : !selectedModel ? "missing_model" : "missing_data";
 
   const statusConfig: Record<ReadinessStatus, { label: string; icon: React.ElementType; className: string }> = {
     loading: { label: "Verificando...", icon: Loader2, className: "text-muted-foreground" },
     ready: { label: "Pronto para gerar contrato", icon: CheckCircle2, className: "text-green-600" },
     missing_data: { label: `${missingCount} ${missingCount === 1 ? "pendência" : "pendências"}`, icon: AlertTriangle, className: "text-amber-600" },
-    missing_model: { label: "Modelo não encontrado", icon: XCircle, className: "text-destructive" },
+    missing_model: { label: "Selecione um modelo", icon: XCircle, className: "text-destructive" },
   };
 
   const StatusIcon = statusConfig[status].icon;
 
-  // Group checks by category
   const categories = ["festa", "pagamento", "contratante", "modelo"] as const;
 
   if (loading) {
@@ -222,21 +235,38 @@ export function ContractReadinessPanel({ eventId, eventData, onGenerateContract 
           </div>
         )}
 
-        {/* Matching model info */}
-        {matchingModel && (
-          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-green-500/5 border border-green-500/15 text-xs">
-            <Package className="h-3.5 w-3.5 text-green-600 shrink-0" />
-            <div>
-              <span className="font-medium text-foreground/80">Modelo: </span>
-              <span className="text-foreground/60">{matchingModel.nome_modelo} (v{matchingModel.versao})</span>
-            </div>
+        {/* Model selector dropdown */}
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <Package className="h-3 w-3" />
+            Modelo de Contrato
           </div>
-        )}
+          {allModels.length > 0 ? (
+            <Select
+              value={selectedModelId || ""}
+              onValueChange={(val) => setSelectedModelId(val)}
+            >
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="Selecione o modelo de contrato" />
+              </SelectTrigger>
+              <SelectContent>
+                {allModels.map((m) => (
+                  <SelectItem key={m.id} value={m.id} className="text-xs">
+                    {m.nome_modelo} — {m.tipo_evento} (v{m.versao})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <p className="text-xs text-destructive">Nenhum modelo de contrato cadastrado</p>
+          )}
+        </div>
 
-        {/* Pendencies grouped by category */}
+        {/* Pendencies grouped by category (excluding modelo since we have the selector) */}
         {!allOk && (
           <div className="space-y-2">
             {categories.map((cat) => {
+              if (cat === "modelo") return null; // handled by selector above
               const catChecks = checks.filter((c) => c.category === cat);
               const catMissing = catChecks.filter((c) => !c.ok);
               if (catMissing.length === 0) return null;
@@ -270,8 +300,8 @@ export function ContractReadinessPanel({ eventId, eventData, onGenerateContract 
         {/* Generate button */}
         <Button
           className="w-full gap-2 mt-1"
-          disabled={!allOk || !matchingModel}
-          onClick={() => matchingModel && onGenerateContract(matchingModel.id)}
+          disabled={!allOk || !selectedModel}
+          onClick={() => selectedModel && onGenerateContract(selectedModel.id)}
         >
           <FileSignature className="h-4 w-4" />
           {existingContracts.length > 0 ? "Gerar Nova Versão do Contrato" : "Gerar Contrato"}
