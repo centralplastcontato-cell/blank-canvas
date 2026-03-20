@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Loader2, Search, X, UserCheck, ListChecks, User, CalendarDays, PartyPopper, Briefcase, CalendarIcon, AlertTriangle, CreditCard, Handshake, Copy, ExternalLink, Clock, CheckCircle2, Send, PenLine, Baby, Gift } from "lucide-react";
+import { Loader2, Search, X, UserCheck, ListChecks, User, CalendarDays, PartyPopper, Briefcase, CalendarIcon, AlertTriangle, CreditCard, Handshake, Copy, ExternalLink, Clock, CheckCircle2, Send, PenLine, Baby, Gift, FileSignature } from "lucide-react";
 import { ManualClientDataForm } from "./ManualClientDataForm";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -247,6 +247,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [resolvedMessage, setResolvedMessage] = useState<string | null>(null);
   const [sendingClientLink, setSendingClientLink] = useState(false);
   const [showManualForm, setShowManualForm] = useState(false);
+  const [contractModels, setContractModels] = useState<Array<{ id: string; nome_modelo: string; versao: number; tipo_evento: string }>>([]);
+  const [selectedContractModelId, setSelectedContractModelId] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -315,6 +317,20 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       .order("sort_order")
       .then(({ data }) => {
         setPackages((data || []).map((p: any) => ({ id: p.id, name: p.name, valor_pessoa_adicional: p.valor_pessoa_adicional, preco_separado: !!p.preco_separado, valor_pessoa_adicional_adulto: p.valor_pessoa_adicional_adulto, valor_pessoa_adicional_crianca: p.valor_pessoa_adicional_crianca })));
+      });
+    // Fetch contract models
+    (supabase as any)
+      .from("contract_models")
+      .select("id, nome_modelo, versao, tipo_evento")
+      .eq("company_id", currentCompany.id)
+      .eq("is_active", true)
+      .then(({ data }: any) => {
+        const models = (data || []) as Array<{ id: string; nome_modelo: string; versao: number; tipo_evento: string }>;
+        setContractModels(models);
+        // Auto-select based on event_type
+        const eventType = (initialData?.event_type || "").toLowerCase();
+        const autoMatch = eventType ? models.find(m => m.tipo_evento.toLowerCase() === eventType) : null;
+        setSelectedContractModelId(autoMatch?.id || (models.length === 1 ? models[0].id : null));
       });
     supabase
       .from("user_companies")
@@ -655,7 +671,11 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5">
               <div className="space-y-2.5 md:pr-6">
                 <Label className="text-sm font-medium text-foreground/70">Tipo de festa</Label>
-                <Select value={form.event_type} onValueChange={(v) => setForm({ ...form, event_type: v })}>
+                <Select value={form.event_type} onValueChange={(v) => {
+                  setForm({ ...form, event_type: v });
+                  const autoMatch = contractModels.find(m => m.tipo_evento.toLowerCase() === v.toLowerCase());
+                  if (autoMatch) setSelectedContractModelId(autoMatch.id);
+                }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{EVENT_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
                 </Select>
@@ -1090,6 +1110,33 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            {/* Contract Model Selector */}
+            <div className="mt-5 pt-5 border-t border-border/40">
+              <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2.5">
+                <FileSignature className="h-3 w-3" />
+                Modelo de Contrato
+              </div>
+              {contractModels.length > 0 ? (
+                <Select
+                  value={selectedContractModelId || ""}
+                  onValueChange={(val) => setSelectedContractModelId(val)}
+                >
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Selecione o modelo de contrato" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {contractModels.map((m) => (
+                      <SelectItem key={m.id} value={m.id} className="text-xs">
+                        {m.nome_modelo.toUpperCase()} — {m.tipo_evento} (v{m.versao})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-xs text-muted-foreground">Nenhum modelo de contrato cadastrado</p>
+              )}
             </div>
           </div>
 
