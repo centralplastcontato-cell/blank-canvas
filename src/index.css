@@ -68,16 +68,16 @@
     --shadow-button: 0 4px 14px -3px hsl(215 85% 50% / 0.35);
     --shadow-floating: 0 12px 36px -8px hsl(215 85% 50% / 0.2);
 
-    /* Dark Sidebar for contrast */
-    --sidebar-background: 222 47% 11%;
-    --sidebar-foreground: 225 10% 95%;
-    --sidebar-primary: 215 85% 55%;
+    /* Light Sidebar — matches mobile menu */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 225 40% 15%;
+    --sidebar-primary: 215 85% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 225 25% 20%;
-    --sidebar-accent-foreground: 225 10% 95%;
-    --sidebar-border: 225 25% 22%;
-    --sidebar-ring: 215 85% 55%;
-    --sidebar-muted: 225 20% 40%;
+    --sidebar-accent: 215 85% 95%;
+    --sidebar-accent-foreground: 225 40% 15%;
+    --sidebar-border: 228 24% 89%;
+    --sidebar-ring: 215 85% 50%;
+    --sidebar-muted: 225 18% 44%;
   }
 
   .dark {
@@ -115,11 +115,11 @@
     --input: 225 25% 20%;
     --ring: 215 85% 55%;
 
-    --sidebar-background: 225 35% 10%;
+    --sidebar-background: 225 30% 12%;
     --sidebar-foreground: 225 10% 95%;
     --sidebar-primary: 215 85% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 225 30% 15%;
+    --sidebar-accent: 225 30% 18%;
     --sidebar-accent-foreground: 225 10% 95%;
     --sidebar-border: 225 30% 18%;
     --sidebar-ring: 215 85% 55%;

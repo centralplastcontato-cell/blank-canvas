@@ -245,7 +245,7 @@ export function AdminSidebar({
               <TooltipTrigger asChild>
                 <SidebarMenuButton 
                   onClick={onLogout}
-                  className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
                 >
                   <LogOut className="h-5 w-5 shrink-0" />
                   {!collapsed && <span>Sair da Conta</span>}
