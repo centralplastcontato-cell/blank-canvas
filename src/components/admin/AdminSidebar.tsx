@@ -84,7 +84,17 @@ export function AdminSidebar({
   const handlePinToggle = () => {
     const newPinned = !isPinned;
     setIsPinned(newPinned);
+    if (newPinned) setIsLocked(false);
     setOpen(newPinned);
+  };
+
+  const handleLockToggle = () => {
+    const newLocked = !isLocked;
+    setIsLocked(newLocked);
+    if (newLocked) {
+      setIsPinned(false);
+      setOpen(false);
+    }
   };
 
   // Quick close function
