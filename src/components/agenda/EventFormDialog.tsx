@@ -753,7 +753,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             <SectionHeader icon={Baby} label="Aniversariante & Extras" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5">
               <div className="space-y-2.5 md:pr-6">
-                <Label className="text-sm font-medium text-foreground/70">Nome da criança</Label>
+                <Label className="text-sm font-medium text-foreground/70">Nome do aniversariante</Label>
                 <Input value={form.child_name || ""} onChange={(e) => setForm({ ...form, child_name: e.target.value || null })} placeholder="Nome do aniversariante" />
               </div>
 
