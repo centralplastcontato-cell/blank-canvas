@@ -112,12 +112,11 @@ export function AdminSidebar({
             <Button
               variant="ghost"
               size="icon"
-              className={`fixed top-2 left-1 z-50 h-7 w-7 rounded-md ${isLocked ? 'text-primary bg-accent shadow-sm' : 'text-muted-foreground/60 hover:text-foreground hover:bg-accent'}`}
+              className={`fixed top-3 left-16 z-[60] h-8 w-8 rounded-md border border-border bg-background shadow-sm ${isLocked ? 'text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}`}
               onClick={(e) => {
                 e.stopPropagation();
                 handleLockToggle();
               }}
-              onMouseEnter={(e) => e.stopPropagation()}
             >
               {isLocked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
             </Button>
