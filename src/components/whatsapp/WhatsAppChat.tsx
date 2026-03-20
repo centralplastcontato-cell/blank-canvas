@@ -2108,6 +2108,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation || !selectedInstance || isSending) return;
 
+    if (selectedInstance.status !== 'connected' && selectedInstance.status !== 'degraded') {
+      toast({ title: "Unidade desconectada", description: "Não é possível enviar mensagens com esta unidade desconectada.", variant: "destructive" });
+      return;
+    }
+
     if (!canSendMessages) {
       toast({ title: "Sem permissão", description: "Você não tem permissão para enviar mensagens.", variant: "destructive" });
       return;
@@ -3428,27 +3433,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const connectedInstances = instances.filter(i => i.status === 'connected' || i.status === 'degraded');
   const hasDisconnectedInstances = instances.some(i => i.status !== 'connected' && i.status !== 'degraded');
 
-  if (connectedInstances.length === 0) {
-    return (
-      <Card className="h-96">
-        <CardContent className="flex flex-col items-center justify-center h-full text-center">
-          <WifiOff className="w-12 h-12 text-muted-foreground mb-4" />
-          <h3 className="font-semibold mb-2">WhatsApp desconectado</h3>
-          <p className="text-sm text-muted-foreground">
-            As instâncias configuradas estão desconectadas. Aguarde o administrador conectar.
-          </p>
-          <div className="mt-4 space-y-2">
-            {instances.map(instance => (
-              <Badge key={instance.id} variant="secondary">
-                <Building2 className="w-3 h-3 mr-1" />
-                {instance.unit}: {instance.status}
-              </Badge>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const allDisconnected = connectedInstances.length === 0;
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -3466,7 +3451,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                   <TabsTrigger 
                     key={instance.id} 
                     value={instance.id}
-                    disabled={instance.status !== 'connected' && instance.status !== 'degraded'}
+                    disabled={false}
                     className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                   >
                     <Building2 className="w-4 h-4" />
@@ -3488,10 +3473,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       )}
 
       {/* Disconnected warning - Premium styled */}
-      {hasDisconnectedInstances && selectedInstance?.status !== 'connected' && selectedInstance?.status !== 'degraded' && (
+      {(allDisconnected || (hasDisconnectedInstances && selectedInstance?.status !== 'connected' && selectedInstance?.status !== 'degraded')) && (
         <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-3 mb-3 text-sm text-center shrink-0 shadow-sm backdrop-blur-sm">
           <WifiOff className="w-4 h-4 inline mr-2" />
-          Esta unidade está desconectada. Selecione outra ou aguarde o administrador.
+          {allDisconnected 
+            ? 'Todas as unidades estão desconectadas. Você pode visualizar as mensagens já registradas, mas não poderá enviar novas mensagens.'
+            : 'Esta unidade está desconectada. Selecione outra ou aguarde o administrador.'}
         </div>
       )}
 
