@@ -198,23 +198,7 @@ export function AdminSidebar({
               </Tooltip>
             </>
           )}
-          {collapsed && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={`h-7 w-7 shrink-0 mt-1 mx-auto ${isLocked ? 'text-sidebar-primary bg-sidebar-accent' : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent'}`}
-                  onClick={handleLockToggle}
-                >
-                  {isLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right" sideOffset={10}>
-                {isLocked ? "Desbloquear menu" : "Travar menu fechado"}
-              </TooltipContent>
-            </Tooltip>
-          )}
+          {/* Lock button moved outside sidebar - see floating button above */}
         </div>
       </SidebarHeader>
 
