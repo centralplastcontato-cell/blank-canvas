@@ -6,10 +6,12 @@ interface Props {
   content: string;
   companyName: string;
   companyLogo?: string;
+  packageName?: string;
 }
 
-export function ContractPreviewPrint({ content, companyName, companyLogo }: Props) {
+export function ContractPreviewPrint({ content, companyName, companyLogo, packageName }: Props) {
   const printRef = useRef<HTMLDivElement>(null);
+  const headerTitle = `Contrato de Festa${packageName ? ` ${packageName}` : ""}`;
 
   const handlePrint = () => {
     const printWindow = window.open("", "_blank");
@@ -32,8 +34,8 @@ export function ContractPreviewPrint({ content, companyName, companyLogo }: Prop
             padding: 20px;
           }
           .header { text-align: center; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 2px solid #333; }
-          .header img { height: 50px; margin-bottom: 8px; }
-          .header h1 { font-size: 16pt; margin: 0; }
+          .header img { height: 100px; margin-bottom: 12px; }
+          .header h1 { font-size: 14pt; margin: 0; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
           .content { white-space: pre-wrap; word-wrap: break-word; }
           .footer { margin-top: 60px; text-align: center; font-size: 9pt; color: #666; border-top: 1px solid #ccc; padding-top: 15px; }
           @media print { body { padding: 0; } }
@@ -42,7 +44,7 @@ export function ContractPreviewPrint({ content, companyName, companyLogo }: Prop
       <body>
         <div class="header">
           ${companyLogo ? `<img src="${companyLogo}" alt="" />` : ""}
-          <h1>${companyName}</h1>
+          <h1>${headerTitle}</h1>
         </div>
         <div class="content">${content}</div>
         <div class="footer">
@@ -69,8 +71,8 @@ export function ContractPreviewPrint({ content, companyName, companyLogo }: Prop
       >
         {/* Header */}
         <div className="text-center mb-6 pb-4 border-b-2 border-foreground/20">
-          {companyLogo && <img src={companyLogo} alt="" className="h-10 md:h-12 mx-auto mb-2" />}
-          <h2 className="text-base md:text-lg font-bold text-foreground">{companyName}</h2>
+          {companyLogo && <img src={companyLogo} alt="" className="h-20 md:h-24 mx-auto mb-3" />}
+          <h2 className="text-sm md:text-base font-semibold text-foreground uppercase tracking-wide">{headerTitle}</h2>
         </div>
 
         {/* Content */}
