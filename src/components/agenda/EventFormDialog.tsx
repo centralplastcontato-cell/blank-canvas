@@ -748,6 +748,42 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             </div>
           </div>
 
+          {/* Section – Aniversariante & Extras */}
+          <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
+            <SectionHeader icon={Baby} label="Aniversariante & Extras" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5">
+              <div className="space-y-2.5 md:pr-6">
+                <Label className="text-sm font-medium text-foreground/70">Nome da criança</Label>
+                <Input value={form.child_name || ""} onChange={(e) => setForm({ ...form, child_name: e.target.value || null })} placeholder="Nome do aniversariante" />
+              </div>
+
+              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
+                <Label className="text-sm font-medium text-foreground/70">Idade a comemorar</Label>
+                <Input value={form.child_age || ""} onChange={(e) => setForm({ ...form, child_age: e.target.value || null })} placeholder="Ex: 5 anos" />
+              </div>
+
+              <div className="space-y-2.5 md:pr-6">
+                <Label className="text-sm font-medium text-foreground/70">Data de nascimento</Label>
+                <Input type="date" value={form.child_birthdate || ""} onChange={(e) => setForm({ ...form, child_birthdate: e.target.value || null })} />
+              </div>
+
+              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
+                <Label className="text-sm font-medium text-foreground/70">Nomes dos pais</Label>
+                <Input value={form.parent_names || ""} onChange={(e) => setForm({ ...form, parent_names: e.target.value || null })} placeholder="Ex: Maria e João" />
+              </div>
+
+              <div className="space-y-2.5 md:pr-6">
+                <Label className="text-sm font-medium text-foreground/70 flex items-center gap-1.5"><Gift className="h-3.5 w-3.5" /> Brindes inclusos</Label>
+                <Input value={form.gifts || ""} onChange={(e) => setForm({ ...form, gifts: e.target.value || null })} placeholder="Ex: Kit lembrancinhas, balões" />
+              </div>
+
+              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
+                <Label className="text-sm font-medium text-foreground/70">Valor por convidado extra</Label>
+                <MoneyInput value={form.extra_guest_value} onChange={(v) => setForm({ ...form, extra_guest_value: v })} />
+              </div>
+            </div>
+          </div>
+
           {/* Section 4 – Pagamento */}
           <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
             <SectionHeader icon={CreditCard} label="Pagamento" />
