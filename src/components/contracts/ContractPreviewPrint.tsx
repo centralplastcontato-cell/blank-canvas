@@ -21,7 +21,11 @@ export function ContractPreviewPrint({ content, companyName, companyLogo }: Prop
       <head>
         <title>${companyName} — Contrato</title>
         <style>
-          @page { margin: 2cm; size: A4; }
+          @page { margin: 2cm; size: A4; margin-top: 1.5cm; margin-bottom: 1.5cm; }
+          @media print {
+            body { padding: 0; }
+            @page { margin: 2cm; size: A4; margin-top: 1.5cm; margin-bottom: 1.5cm; }
+          }
           body {
             font-family: 'Georgia', 'Times New Roman', serif;
             font-size: 12pt;
