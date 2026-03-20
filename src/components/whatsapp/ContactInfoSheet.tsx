@@ -315,9 +315,6 @@ export function ContactInfoSheet({
                           </div>
                         </div>
                         <div className="w-full max-w-full min-w-0 px-3 py-2 border-t border-border/40 bg-muted/20 box-border overflow-hidden">
-                          <p className="mb-2 block w-full max-w-full min-w-0 whitespace-normal break-words [overflow-wrap:anywhere] font-mono text-[10px] leading-relaxed text-muted-foreground box-border">
-                            {clientDataLink}
-                          </p>
                           <Button
                             variant="default"
                             size="sm"

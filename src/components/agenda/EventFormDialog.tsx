@@ -1048,7 +1048,6 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                     </div>
                   </div>
                   <div className="px-4 py-2.5 border-t border-border/40 flex items-center gap-2">
-                    <p className="text-[11px] text-muted-foreground truncate font-mono flex-1">{getClientLink()}</p>
                     <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={copyLink} title="Copiar link">
                       <Copy className="h-3.5 w-3.5" />
                     </Button>
