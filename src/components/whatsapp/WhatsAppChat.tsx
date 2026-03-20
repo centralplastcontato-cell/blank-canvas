@@ -3570,7 +3570,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       )}
 
       {/* Chat Area - Premium Container */}
-      {(selectedInstance?.status === 'connected' || selectedInstance?.status === 'degraded') && (
+      {selectedInstance && (
         <div className="flex flex-1 min-w-0 border-0 md:border border-border/60 rounded-none md:rounded-xl overflow-hidden bg-gradient-to-br from-card via-card to-muted/20 min-h-0 md:shadow-lg">
           {/* Mobile: Show full width list or chat */}
           <div className={cn(
