@@ -113,9 +113,9 @@ export function ManualClientDataForm({ eventId, companyId, leadId, initialClient
       } else {
         // Create new request with data already filled
         const token = crypto.randomUUID().replace(/-/g, "").slice(0, 24);
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
           .from("client_data_requests")
-          .insert({
+          .insert([{
             company_id: companyId,
             event_id: eventId,
             lead_id: leadId || null,
@@ -124,7 +124,7 @@ export function ManualClientDataForm({ eventId, companyId, leadId, initialClient
             sent_at: new Date().toISOString(),
             completed_at: new Date().toISOString(),
             client_data: formData,
-          })
+          }])
           .select("id, token, status, client_data, completed_at")
           .single();
         if (error) throw error;
