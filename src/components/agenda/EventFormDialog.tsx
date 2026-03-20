@@ -164,6 +164,12 @@ const EMPTY: EventFormData = {
   vendedor_responsavel_name: null,
   payment_method: null,
   payment_details: null,
+  child_name: null,
+  child_age: null,
+  child_birthdate: null,
+  parent_names: null,
+  gifts: null,
+  extra_guest_value: null,
 };
 
 function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
