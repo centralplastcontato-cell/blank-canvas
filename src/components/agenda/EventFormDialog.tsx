@@ -1107,6 +1107,33 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 </Select>
               </div>
             </div>
+
+            {/* Contract Model Selector */}
+            <div className="mt-5 pt-5 border-t border-border/40">
+              <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2.5">
+                <FileSignature className="h-3 w-3" />
+                Modelo de Contrato
+              </div>
+              {contractModels.length > 0 ? (
+                <Select
+                  value={selectedContractModelId || ""}
+                  onValueChange={(val) => setSelectedContractModelId(val)}
+                >
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Selecione o modelo de contrato" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {contractModels.map((m) => (
+                      <SelectItem key={m.id} value={m.id} className="text-xs">
+                        {m.nome_modelo.toUpperCase()} — {m.tipo_evento} (v{m.versao})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-xs text-muted-foreground">Nenhum modelo de contrato cadastrado</p>
+              )}
+            </div>
           </div>
 
           {/* Section 6 – Dados do Contratante */}
