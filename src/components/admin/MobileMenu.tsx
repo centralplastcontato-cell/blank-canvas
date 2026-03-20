@@ -166,7 +166,7 @@ export function MobileMenu({
       <SheetTrigger asChild>
         {trigger}
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 p-0">
+      <SheetContent side="left" className="w-72 p-0 flex flex-col h-full">
         <SheetHeader className="p-4 border-b border-border">
           <div className="flex items-center gap-3">
             <Avatar 
