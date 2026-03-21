@@ -520,7 +520,7 @@ export default function Visitas() {
           )}
           <Select value={filterResponsavel} onValueChange={setFilterResponsavel}>
             <SelectTrigger className={cn(
-              "h-9 w-[140px] text-xs rounded-xl border-border/50 bg-card shadow-sm transition-all duration-200",
+              "h-9 flex-1 min-w-0 text-xs rounded-xl border-border/50 bg-card shadow-sm transition-all duration-200",
               filterResponsavel !== "all" && "border-primary/40 bg-primary/5 text-primary font-semibold ring-1 ring-primary/20"
             )}>
               <SelectValue placeholder="Responsável" />
