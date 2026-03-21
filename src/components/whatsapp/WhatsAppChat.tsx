@@ -4450,7 +4450,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                 msg.from_me ? "justify-end" : "justify-start"
                               )}
                             >
-                              <div className={cn("relative w-full", msg.from_me ? "flex flex-row-reverse items-start gap-1" : "flex items-start gap-1")}>
+                              <div className={cn("relative w-full min-w-0 overflow-hidden", msg.from_me ? "flex flex-row-reverse items-start gap-1" : "flex items-start gap-1")}>
                                 <div
                                   className={cn(
                                     "max-w-[85%] sm:max-w-[75%] rounded-2xl text-sm",
@@ -4640,14 +4640,14 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                   </div>
                                 ) : msg.message_type === 'text' ? (
                                   <>
-                                    <p className="whitespace-pre-wrap break-words">{formatMessageContent(msg.content)}</p>
+                                    <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{formatMessageContent(msg.content)}</p>
                                     {extractFirstUrl(msg.content) && (
                                       <LinkPreviewCard url={extractFirstUrl(msg.content)!} fromMe={msg.from_me} />
                                     )}
                                   </>
                                 ) : null}
                                 {msg.message_type !== 'text' && msg.message_type !== 'contact' && msg.content && msg.content !== '[Imagem]' && msg.content !== '[Áudio]' && (
-                                  <p className={cn("whitespace-pre-wrap break-words mt-1", (msg.message_type === 'image' || msg.message_type === 'video') && "px-2")}>{formatMessageContent(msg.content)}</p>
+                                  <p className={cn("whitespace-pre-wrap break-words [overflow-wrap:anywhere] mt-1", (msg.message_type === 'image' || msg.message_type === 'video') && "px-2")}>{formatMessageContent(msg.content)}</p>
                                 )}
                                 <div className={cn(
                                   "flex items-center gap-1 mt-1",
@@ -5054,7 +5054,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
           {/* Mobile: Show chat when conversation is selected */}
           <div className={cn(
-            "w-full flex flex-col overflow-hidden md:hidden",
+            "w-full max-w-full flex flex-col overflow-hidden md:hidden",
             !selectedConversation && "hidden"
           )}>
             {selectedConversation && (
@@ -5501,7 +5501,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
                 <div className="flex-1 relative min-h-0">
                   <ScrollArea ref={scrollAreaMobileRef} className="h-full bg-muted/30">
-                    <div className="space-y-2 p-3">
+                    <div className="space-y-2 p-3 overflow-hidden">
                       {/* Loading indicator at top - mobile */}
                       {isLoadingMoreMessages && (
                         <div className="flex justify-center py-2">
@@ -5556,7 +5556,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                             msg.from_me ? "justify-end" : "justify-start"
                           )}
                         >
-                          <div className={cn("relative w-full", msg.from_me ? "flex flex-row-reverse items-start gap-1" : "flex items-start gap-1")}>
+                          <div className={cn("relative w-full min-w-0 overflow-hidden", msg.from_me ? "flex flex-row-reverse items-start gap-1" : "flex items-start gap-1")}>
                             <div
                               className={cn(
                                 "max-w-[85%] rounded-lg text-sm shadow-sm",
@@ -5737,7 +5737,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                               </div>
                             ) : msg.message_type === 'text' ? (
                               <>
-                                <p className="whitespace-pre-wrap break-words">{formatMessageContent(msg.content)}</p>
+                                <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{formatMessageContent(msg.content)}</p>
                                 {extractFirstUrl(msg.content) && (
                                   <LinkPreviewCard url={extractFirstUrl(msg.content)!} fromMe={msg.from_me} />
                                 )}
