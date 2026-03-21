@@ -2137,8 +2137,8 @@ Deno.serve(async (req) => {
         
         console.error(`send-reaction: all attempts failed. lastStatus=${lastStatus}`);
         
-        return new Response(JSON.stringify({ error: errorMsg }), {
-          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        return new Response(JSON.stringify({ success: false, error: errorMsg }), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
