@@ -667,6 +667,19 @@ export default function Visitas() {
               </SheetHeader>
             </div>
             <div className="p-6 space-y-5">
+              {detailVisit.lead_phone && (
+                <Button
+                  className="w-full gap-2"
+                  onClick={() => {
+                    const cleanPhone = detailVisit.lead_phone.replace(/\D/g, '');
+                    const phoneWithCountry = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+                    navigate(`/atendimento?phone=${phoneWithCountry}`);
+                  }}
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Abrir Conversa
+                </Button>
+              )}
               <div className="rounded-xl border border-border/40 bg-card p-4 space-y-3">
                 <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">Informações do Lead</p>
                 <div className="grid grid-cols-2 gap-3 text-sm">
