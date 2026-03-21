@@ -5556,7 +5556,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                             msg.from_me ? "justify-end" : "justify-start"
                           )}
                         >
-                          <div className={cn("relative w-full", msg.from_me ? "flex flex-row-reverse items-start gap-1" : "flex items-start gap-1")}>
+                          <div className={cn("relative w-full min-w-0 overflow-hidden", msg.from_me ? "flex flex-row-reverse items-start gap-1" : "flex items-start gap-1")}>
                             <div
                               className={cn(
                                 "max-w-[85%] rounded-lg text-sm shadow-sm",
