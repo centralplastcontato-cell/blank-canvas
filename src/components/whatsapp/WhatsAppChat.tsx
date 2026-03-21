@@ -2332,8 +2332,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         },
       });
       if (response.error) throw new Error(response.error.message);
-      if (response.data?.error) {
-        toast({ title: "Erro", description: response.data.error, variant: "destructive" });
+      if (response.data?.success === false || response.data?.error) {
+        toast({ title: "Reações indisponíveis", description: response.data?.error || "Reações não disponíveis neste plano" });
+        return;
       }
     } catch (err: any) {
       toast({ title: "Erro ao reagir", description: err.message, variant: "destructive" });
