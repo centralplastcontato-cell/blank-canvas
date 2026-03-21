@@ -2337,7 +2337,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         return;
       }
     } catch (err: any) {
-      toast({ title: "Erro ao reagir", description: err.message, variant: "destructive" });
+      toast({ title: "😊 Reações indisponíveis", description: "Este recurso não está disponível no momento." });
     }
   };
 
