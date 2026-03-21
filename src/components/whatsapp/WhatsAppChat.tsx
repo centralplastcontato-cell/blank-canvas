@@ -5501,7 +5501,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
                 <div className="flex-1 relative min-h-0">
                   <ScrollArea ref={scrollAreaMobileRef} className="h-full bg-muted/30">
-                    <div className="space-y-2 p-3">
+                    <div className="space-y-2 p-3 overflow-hidden">
                       {/* Loading indicator at top - mobile */}
                       {isLoadingMoreMessages && (
                         <div className="flex justify-center py-2">
