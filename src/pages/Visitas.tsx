@@ -491,10 +491,10 @@ export default function Visitas() {
 
       {/* Filters + CTA row */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 w-full">
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className={cn(
-              "h-9 w-[140px] text-xs rounded-xl border-border/50 bg-card shadow-sm transition-all duration-200",
+              "h-9 flex-1 min-w-0 text-xs rounded-xl border-border/50 bg-card shadow-sm transition-all duration-200",
               filterStatus !== "all" && "border-primary/40 bg-primary/5 text-primary font-semibold ring-1 ring-primary/20"
             )}>
               <SelectValue placeholder="Status" />
@@ -507,7 +507,7 @@ export default function Visitas() {
           {units.length > 1 && (
             <Select value={filterUnit} onValueChange={setFilterUnit}>
               <SelectTrigger className={cn(
-                "h-9 w-[140px] text-xs rounded-xl border-border/50 bg-card shadow-sm transition-all duration-200",
+                "h-9 flex-1 min-w-0 text-xs rounded-xl border-border/50 bg-card shadow-sm transition-all duration-200",
                 filterUnit !== "all" && "border-primary/40 bg-primary/5 text-primary font-semibold ring-1 ring-primary/20"
               )}>
                 <SelectValue placeholder="Unidade" />
@@ -520,7 +520,7 @@ export default function Visitas() {
           )}
           <Select value={filterResponsavel} onValueChange={setFilterResponsavel}>
             <SelectTrigger className={cn(
-              "h-9 w-[140px] text-xs rounded-xl border-border/50 bg-card shadow-sm transition-all duration-200",
+              "h-9 flex-1 min-w-0 text-xs rounded-xl border-border/50 bg-card shadow-sm transition-all duration-200",
               filterResponsavel !== "all" && "border-primary/40 bg-primary/5 text-primary font-semibold ring-1 ring-primary/20"
             )}>
               <SelectValue placeholder="Responsável" />
