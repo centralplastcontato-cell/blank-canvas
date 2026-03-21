@@ -491,7 +491,7 @@ export default function Visitas() {
 
       {/* Filters + CTA row */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 w-full">
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className={cn(
               "h-9 w-[140px] text-xs rounded-xl border-border/50 bg-card shadow-sm transition-all duration-200",
