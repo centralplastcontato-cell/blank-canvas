@@ -420,6 +420,16 @@ export default function Agenda() {
     if (!deleteConfirmId) return;
     setDeleting(true);
     // Delete dependent records first to avoid foreign key violations
+    // 1) Delete contract audit logs for contracts linked to this event
+    const { data: contracts } = await (supabase as any).from("generated_contracts").select("id").eq("event_id", deleteConfirmId);
+    const contractIds = (contracts || []).map((c: any) => c.id);
+    if (contractIds.length > 0) {
+      await (supabase as any).from("contract_audit_logs").delete().in("contract_id", contractIds);
+    }
+    // 2) Delete generated contracts and client data requests
+    await (supabase as any).from("generated_contracts").delete().eq("event_id", deleteConfirmId);
+    await (supabase as any).from("client_data_requests").delete().eq("event_id", deleteConfirmId);
+    // 3) Delete other dependent records
     await (supabase as any).from("freelancer_evaluations").delete().eq("event_id", deleteConfirmId);
     await (supabase as any).from("event_checklist_items").delete().eq("event_id", deleteConfirmId);
     await (supabase as any).from("event_staff_entries").delete().eq("event_id", deleteConfirmId);
