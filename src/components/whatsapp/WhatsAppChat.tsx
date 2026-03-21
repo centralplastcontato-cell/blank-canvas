@@ -5054,7 +5054,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
           {/* Mobile: Show chat when conversation is selected */}
           <div className={cn(
-            "w-full flex flex-col overflow-hidden md:hidden",
+            "w-full max-w-full flex flex-col overflow-hidden md:hidden",
             !selectedConversation && "hidden"
           )}>
             {selectedConversation && (
