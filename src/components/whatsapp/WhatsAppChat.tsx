@@ -4640,7 +4640,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                   </div>
                                 ) : msg.message_type === 'text' ? (
                                   <>
-                                    <p className="whitespace-pre-wrap break-words">{formatMessageContent(msg.content)}</p>
+                                    <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{formatMessageContent(msg.content)}</p>
                                     {extractFirstUrl(msg.content) && (
                                       <LinkPreviewCard url={extractFirstUrl(msg.content)!} fromMe={msg.from_me} />
                                     )}
