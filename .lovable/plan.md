@@ -1,42 +1,21 @@
 
 
-## Problema
+## Adicionar botão "Abrir Conversa" no card de detalhes da visita
 
-Ao tentar excluir a festa da Jéssica Martins, o Supabase retorna o erro:
+### Problema
+O card de detalhes da visita não tem um botão visível/prominente para abrir a conversa do lead na Central de Atendimento.
 
-> `update or delete on table "company_events" violates foreign key constraint "generated_contracts_event_id_fkey" on table "generated_contracts"`
+### Solução
+Adicionar um botão primário "Abrir Conversa" no topo do card (na área do header, logo abaixo das informações do lead), que navega diretamente para `/atendimento?phone=...`.
 
-Isso acontece porque existe um **contrato gerado** vinculado a esse evento. A função `confirmDelete` no `Agenda.tsx` já deleta registros dependentes de outras tabelas (checklists, staff, avaliações, etc.), mas **não deleta os registros de `generated_contracts`** nem de `contract_audit_logs` antes de excluir o evento.
+### Arquivo: `src/pages/Visitas.tsx` (~linha 668, após o fechamento do header)
 
-Também pode haver registros em `client_data_requests` vinculados ao evento.
+- Adicionar um `Button` com variante `default` (primário) logo após a seção de informações do lead, dentro da área de conteúdo
+- O botão terá ícone `MessageSquare` e texto "Abrir Conversa"
+- Usará `navigate(\`/atendimento?phone=\${phone}\`)` — mesma lógica já existente no botão WhatsApp das ações
+- Ficará em largura total (`w-full`) para destaque visual
+- Condição: só aparece se `detailVisit.lead_phone` existir
 
-## Solução
-
-Adicionar a exclusão das tabelas `generated_contracts`, `contract_audit_logs` e `client_data_requests` **antes** de excluir o `company_events`, na função `confirmDelete` do `Agenda.tsx`.
-
-### Arquivo: `src/pages/Agenda.tsx` (função `confirmDelete`, ~linha 422-428)
-
-Adicionar 3 linhas de delete antes do delete do `company_events`:
-
-```typescript
-// Novos deletes (adicionar após os existentes):
-await (supabase as any).from("contract_audit_logs").delete().eq("contract_id", deleteConfirmId); // logs de auditoria via contract
-await (supabase as any).from("generated_contracts").delete().eq("event_id", deleteConfirmId);
-await (supabase as any).from("client_data_requests").delete().eq("event_id", deleteConfirmId);
-```
-
-Nota: os `contract_audit_logs` referenciam `contract_id` (não `event_id`), então precisamos primeiro buscar os IDs dos contratos do evento, e depois deletar os logs. Alternativa mais simples: deletar os audit logs pelo `contract_id` dos contratos que serão removidos.
-
-### Abordagem ajustada:
-
-1. Buscar IDs dos `generated_contracts` vinculados ao evento
-2. Deletar `contract_audit_logs` desses contratos
-3. Deletar `generated_contracts` do evento
-4. Deletar `client_data_requests` do evento
-5. Continuar com os deletes existentes
-
-### Resumo
-- **1 arquivo editado**: `src/pages/Agenda.tsx`
-- **~10 linhas adicionadas** na função `confirmDelete`
-- Sem mudança de lógica existente, apenas adição de limpeza de tabelas dependentes
+### Resultado
+Um botão azul prominente no topo do card de detalhes, facilitando o acesso rápido à conversa do lead sem precisar rolar até a seção de ações.
 
