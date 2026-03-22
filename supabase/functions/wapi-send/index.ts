@@ -712,6 +712,40 @@ Deno.serve(async (req) => {
 
         const messageId = (res.data as { messageId?: string })?.messageId;
         
+        // If audio was sent as base64, upload to Storage to get a persistent URL
+        let persistedAudioUrl = audioMediaUrl || null;
+        if (audioBase64 && !persistedAudioUrl) {
+          try {
+            const rawBase64 = audioBase64.includes(',') ? audioBase64.split(',')[1] : audioBase64;
+            const binaryStr = atob(rawBase64);
+            const bytes = new Uint8Array(binaryStr.length);
+            for (let i = 0; i < binaryStr.length; i++) {
+              bytes[i] = binaryStr.charCodeAt(i);
+            }
+            const audioFileName = `audio_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.ogg`;
+            const storagePath = `${companyId || 'unknown'}/${audioFileName}`;
+            const { error: uploadErr } = await supabase.storage
+              .from('whatsapp-media')
+              .upload(storagePath, bytes.buffer, {
+                contentType: 'audio/ogg',
+                upsert: false,
+              });
+            if (!uploadErr) {
+              // Bucket is private, use signed URL (1 year expiry)
+              const { data: signedData, error: signErr } = await supabase.storage
+                .from('whatsapp-media')
+                .createSignedUrl(storagePath, 60 * 60 * 24 * 365);
+              if (!signErr && signedData?.signedUrl) {
+                persistedAudioUrl = signedData.signedUrl;
+              }
+            } else {
+              console.error('send-audio: storage upload failed:', uploadErr.message);
+            }
+          } catch (uploadEx) {
+            console.error('send-audio: storage upload exception:', uploadEx);
+          }
+        }
+
         if (conversationId) {
           await supabase.from('wapi_messages').insert({
             conversation_id: conversationId,
@@ -719,7 +753,7 @@ Deno.serve(async (req) => {
             from_me: true,
             message_type: 'audio',
             content: '[Áudio]',
-            media_url: audioMediaUrl || null,
+            media_url: persistedAudioUrl,
             status: 'sent',
             timestamp: new Date().toISOString(),
             company_id: companyId,
