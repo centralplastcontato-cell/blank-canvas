@@ -1,20 +1,23 @@
 
 
-## Correção: Mensagem amigável para erro de reação emoji
+## Adicionar scroll no PopoverContent do LeadInfoPopover (mobile)
 
 ### Problema
-A edge function `wapi-send` ainda retorna HTTP 400 para `send-reaction` (deploy pendente), fazendo `supabase.functions.invoke` lançar exceção. O `catch` na linha 2340 exibe um toast vermelho destrutivo "Erro ao reagir".
+No mobile, o conteúdo do popover de informações do lead ultrapassa a altura da tela e o usuário não consegue ver/acessar o final (observações, botões de ação, etc.).
 
 ### Solução
-No `catch` do `handleReaction` (linha 2339-2341 de `WhatsAppChat.tsx`), trocar o toast destrutivo por um toast informativo amigável:
+Adicionar `max-h-[70vh] overflow-y-auto` ao `PopoverContent` para limitar a altura e permitir scroll interno. Isso afeta apenas o container do popover, mantendo o layout desktop intacto.
 
+### Alteração
+**Arquivo:** `src/components/whatsapp/LeadInfoPopover.tsx` (linha 386-389)
+
+Adicionar classes de altura máxima e overflow ao `PopoverContent`:
 ```typescript
-} catch (err: any) {
-  toast({ title: "😊 Reações indisponíveis", description: "Este recurso não está disponível no momento." });
-}
+className={cn(
+  "p-0 rounded-2xl shadow-2xl shadow-black/10 border-border/30 overflow-hidden backdrop-blur-sm",
+  mobile ? "w-[310px] max-h-[70vh] overflow-y-auto" : "w-[360px] max-h-[80vh] overflow-y-auto"
+)}
 ```
 
-- Remove `variant: "destructive"` (sem banner vermelho)
-- Mensagem clara e amigável
-- 1 linha alterada em 1 arquivo
+Isso limita o popover a 70% da viewport no mobile (e 80% no desktop como segurança), habilitando scroll quando o conteúdo excede esse limite.
 
