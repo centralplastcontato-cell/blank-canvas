@@ -731,11 +731,12 @@ Deno.serve(async (req) => {
                 upsert: false,
               });
             if (!uploadErr) {
-              const { data: urlData } = supabase.storage
+              // Bucket is private, use signed URL (1 year expiry)
+              const { data: signedData, error: signErr } = await supabase.storage
                 .from('whatsapp-media')
-                .getPublicUrl(storagePath);
-              if (urlData?.publicUrl) {
-                persistedAudioUrl = urlData.publicUrl;
+                .createSignedUrl(storagePath, 60 * 60 * 24 * 365);
+              if (!signErr && signedData?.signedUrl) {
+                persistedAudioUrl = signedData.signedUrl;
               }
             } else {
               console.error('send-audio: storage upload failed:', uploadErr.message);
