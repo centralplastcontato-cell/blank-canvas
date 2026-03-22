@@ -663,9 +663,12 @@ Deno.serve(async (req) => {
         if (audioBase64) {
           let finalAudio = audioBase64;
           if (!finalAudio.startsWith('data:')) {
-            finalAudio = `data:audio/ogg;codecs=opus;base64,${finalAudio}`;
+            // Use client mimeType if provided, otherwise default to audio/ogg
+            // Important: strip codec params (e.g. ;codecs=opus) from mime for clean data URI
+            const baseMime = (clientMimeType || 'audio/ogg').split(';')[0].trim();
+            finalAudio = `data:${baseMime};base64,${finalAudio}`;
           }
-          console.log('send-audio: using direct base64, mimeType from client:', clientMimeType || 'not provided');
+          console.log('send-audio: using direct base64, mimeType from client:', clientMimeType || 'not provided', 'baseMime used:', (clientMimeType || 'audio/ogg').split(';')[0].trim());
           audioPayload.audio = finalAudio;
         } else if (audioMediaUrl) {
           console.log('send-audio: fetching and converting to base64:', audioMediaUrl.substring(0, 80));
