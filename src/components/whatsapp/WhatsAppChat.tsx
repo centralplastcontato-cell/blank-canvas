@@ -2745,6 +2745,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       if (response.error) {
         throw new Error(response.error.message);
       }
+      
+      if (response.data?.success === false) {
+        throw new Error(response.data?.error || 'Falha ao enviar áudio');
+      }
 
       // Wait for storage URL and update message for history
       const mediaUrl = await storagePromise;
