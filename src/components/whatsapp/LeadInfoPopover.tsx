@@ -385,7 +385,7 @@ export function LeadInfoPopover({
         align="end" 
         className={cn(
           "p-0 rounded-2xl shadow-2xl shadow-black/10 border-border/30 overflow-hidden backdrop-blur-sm",
-          mobile ? "w-[310px]" : "w-[360px]"
+          mobile ? "w-[310px] max-h-[70vh] overflow-y-auto" : "w-[360px] max-h-[80vh] overflow-y-auto"
         )}
       >
         {isGroup ? (
