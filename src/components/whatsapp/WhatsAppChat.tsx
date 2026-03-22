@@ -2707,6 +2707,16 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     // Capture blob before clearing recording UI
     const capturedBlob = audioBlob;
     const mimeType = capturedBlob.type || 'audio/webm';
+    const mimeBase = mimeType.split(';')[0].trim().toLowerCase();
+    const storageExtension = mimeBase === 'audio/ogg'
+      ? 'ogg'
+      : mimeBase === 'audio/mp4' || mimeBase === 'audio/aac'
+        ? 'm4a'
+        : mimeBase === 'audio/mpeg'
+          ? 'mp3'
+          : mimeBase === 'audio/wav' || mimeBase === 'audio/x-wav'
+            ? 'wav'
+            : 'webm';
     
     // Clear the recording UI immediately for better UX
     cancelRecording();
@@ -2717,7 +2727,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       const base64Audio = arrayBufferToBase64(audioBuffer);
 
       // Storage upload in parallel for history persistence (non-blocking)
-      const fileName = `${selectedConversation.id}/${Date.now()}.webm`;
+      const fileName = `${selectedConversation.id}/${Date.now()}.${storageExtension}`;
       const storagePromise = supabase.storage
         .from('whatsapp-media')
         .upload(fileName, capturedBlob, { contentType: mimeType })
