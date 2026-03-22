@@ -272,6 +272,28 @@ async function sendTextWithFallback(instanceId: string, token: string, rawPhone:
   return { ok: false, error: lastError };
 }
 
+function getExtensionFromMimeType(mimeType: string | null | undefined): string {
+  const normalized = (mimeType || '').split(';')[0].trim().toLowerCase();
+
+  switch (normalized) {
+    case 'audio/webm':
+      return 'webm';
+    case 'audio/ogg':
+    case 'audio/opus':
+      return 'ogg';
+    case 'audio/mp4':
+    case 'audio/aac':
+      return 'm4a';
+    case 'audio/mpeg':
+      return 'mp3';
+    case 'audio/wav':
+    case 'audio/x-wav':
+      return 'wav';
+    default:
+      return 'webm';
+  }
+}
+
 // Helper to find or create a conversation for LP/bot outbound messages
 async function findOrCreateConversation(
   supabase: ReturnType<typeof createClient>,
@@ -657,6 +679,10 @@ Deno.serve(async (req) => {
 
       case 'send-audio': {
         const { base64: audioBase64, mediaUrl: audioMediaUrl, mimeType: clientMimeType } = body;
+        const originalMimeType = (typeof clientMimeType === 'string' && clientMimeType.trim().length > 0
+          ? clientMimeType.split(';')[0].trim().toLowerCase()
+          : 'audio/webm');
+        const storageExtension = getExtensionFromMimeType(originalMimeType);
         
         let audioPayload: Record<string, unknown> = {};
 
@@ -722,12 +748,12 @@ Deno.serve(async (req) => {
             for (let i = 0; i < binaryStr.length; i++) {
               bytes[i] = binaryStr.charCodeAt(i);
             }
-            const audioFileName = `audio_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.ogg`;
+            const audioFileName = `audio_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${storageExtension}`;
             const storagePath = `${companyId || 'unknown'}/${audioFileName}`;
             const { error: uploadErr } = await supabase.storage
               .from('whatsapp-media')
               .upload(storagePath, bytes.buffer, {
-                contentType: 'audio/ogg',
+                contentType: originalMimeType,
                 upsert: false,
               });
             if (!uploadErr) {
