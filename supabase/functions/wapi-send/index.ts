@@ -702,8 +702,8 @@ Deno.serve(async (req) => {
         
         if (!res.ok) {
           console.error('send-audio failed:', res.error, 'hadBase64:', !!audioBase64, 'mediaUrl:', audioMediaUrl?.substring(0, 80));
-          return new Response(JSON.stringify({ error: res.error }), {
-            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          return new Response(JSON.stringify({ success: false, error: res.error || 'Falha ao enviar áudio' }), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
 
