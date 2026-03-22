@@ -684,7 +684,8 @@ Deno.serve(async (req) => {
               bin += String.fromCharCode(bytes[j]);
             }
           }
-          audioPayload.audio = `data:audio/ogg;codecs=opus;base64,${btoa(bin)}`;
+          const downloadMime = (clientMimeType || 'audio/ogg').split(';')[0].trim();
+          audioPayload.audio = `data:${downloadMime};base64,${btoa(bin)}`;
         } else {
           return new Response(JSON.stringify({ error: 'Áudio é obrigatório' }), {
             status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
