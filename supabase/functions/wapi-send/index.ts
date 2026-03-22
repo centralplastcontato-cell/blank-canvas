@@ -662,13 +662,17 @@ Deno.serve(async (req) => {
 
         if (audioBase64) {
           let finalAudio = audioBase64;
-          if (!finalAudio.startsWith('data:')) {
-            // Use client mimeType if provided, otherwise default to audio/ogg
-            // Important: strip codec params (e.g. ;codecs=opus) from mime for clean data URI
-            const baseMime = (clientMimeType || 'audio/ogg').split(';')[0].trim();
-            finalAudio = `data:${baseMime};base64,${finalAudio}`;
+          // W-API only accepts audio/ogg — force mime type regardless of browser recording format
+          if (finalAudio.startsWith('data:')) {
+            // Strip existing data URI header and re-wrap with audio/ogg
+            const commaIdx = finalAudio.indexOf(',');
+            if (commaIdx !== -1) {
+              finalAudio = `data:audio/ogg;base64,${finalAudio.substring(commaIdx + 1)}`;
+            }
+          } else {
+            finalAudio = `data:audio/ogg;base64,${finalAudio}`;
           }
-          console.log('send-audio: using direct base64, mimeType from client:', clientMimeType || 'not provided', 'baseMime used:', (clientMimeType || 'audio/ogg').split(';')[0].trim());
+          console.log('send-audio: forcing audio/ogg mime for W-API, original client mimeType:', clientMimeType || 'not provided');
           audioPayload.audio = finalAudio;
         } else if (audioMediaUrl) {
           console.log('send-audio: fetching and converting to base64:', audioMediaUrl.substring(0, 80));
@@ -684,8 +688,7 @@ Deno.serve(async (req) => {
               bin += String.fromCharCode(bytes[j]);
             }
           }
-          const downloadMime = (clientMimeType || 'audio/ogg').split(';')[0].trim();
-          audioPayload.audio = `data:${downloadMime};base64,${btoa(bin)}`;
+          audioPayload.audio = `data:audio/ogg;base64,${btoa(bin)}`;
         } else {
           return new Response(JSON.stringify({ error: 'Áudio é obrigatório' }), {
             status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
