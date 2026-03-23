@@ -109,7 +109,7 @@ export function ContractDocumentViewer({
           ${companyLogo ? `<img src="${companyLogo}" alt="" />` : ""}
           <h1>${companyName}</h1>
         </div>
-        <div class="content">${content}</div>
+        <div class="content">${parseBoldMarkdown(content)}</div>
         <div class="footer">
           <p>Documento gerado pela plataforma CELEBREI — ${new Date().toLocaleDateString("pt-BR")}</p>
         </div>
