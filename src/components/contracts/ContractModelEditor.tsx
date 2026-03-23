@@ -220,7 +220,12 @@ export function ContractModelEditor({ model, userId, onClose }: Props) {
                 🏷️ O logotipo e nome de <strong>{currentCompany?.name || "sua empresa"}</strong> serão adicionados automaticamente no topo de todo contrato gerado.
               </p>
             </div>
-            <Textarea
+            <div className="flex items-center gap-1 mb-1 p-1 rounded-md border border-border/30 bg-muted/30">
+              <Button type="button" variant="ghost" size="sm" onClick={handleBold} className="h-7 w-7 p-0" title="Negrito (selecione o texto primeiro)">
+                <Bold className="h-4 w-4" />
+              </Button>
+              <span className="text-[10px] text-muted-foreground ml-2">Selecione o texto e clique para aplicar negrito</span>
+            </div>
               value={conteudo}
               onChange={e => setConteudo(e.target.value)}
               placeholder="Digite o conteúdo do contrato aqui..."
