@@ -5,9 +5,14 @@ import { Printer, AlertTriangle, FileSignature, Calendar, Package, Eye, ArrowLef
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-/** Convert **bold** markdown markers to <strong> tags */
+/** Convert **bold** markdown markers to <strong> tags.
+ *  Line breaks inside a bold block are collapsed into spaces
+ *  so the section renders as a single continuous paragraph. */
 function parseBoldMarkdown(text: string): string {
-  return text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  return text.replace(/\*\*([\s\S]+?)\*\*/g, (_match, inner: string) => {
+    const collapsed = inner.replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+    return `<strong>${collapsed}</strong>`;
+  });
 }
 
 interface ContractMeta {
