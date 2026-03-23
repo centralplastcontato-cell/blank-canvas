@@ -260,7 +260,7 @@ export function ContractDocumentViewer({
                   <img src={companyLogo} alt="" className="h-36 md:h-40 mx-auto mb-3" />
                 )}
                 <h2 className="text-base md:text-lg font-bold text-foreground tracking-wide uppercase">
-                  {companyName}
+                  Contrato de festa {companyName}
                 </h2>
               </div>
 
