@@ -300,9 +300,43 @@ Deno.serve(async (req) => {
             for (const stage of stages) {
               if (monthsUntil !== stage.monthsBefore) continue;
 
-              // Check if already sent this stage
+              // Check if already sent this stage (bulk map)
               const leadStages = historyMap.get(lead.id);
               if (leadStages?.has(stage.stage)) continue;
+
+              // ── CRITICAL: Per-lead dedup check right before sending ──
+              const { data: existingRecord } = await supabase
+                .from("lead_reactivation_history")
+                .select("id")
+                .eq("lead_id", lead.id)
+                .eq("reactivation_stage", stage.stage)
+                .limit(1)
+                .maybeSingle();
+
+              if (existingRecord) {
+                console.log(`[reactivation-engine] ⏭️ Skipping ${stage.stage} for lead ${lead.id} (already exists)`);
+                continue;
+              }
+
+              // ── Reserve the slot BEFORE sending to prevent race conditions ──
+              const { error: reserveErr } = await supabase.from("lead_reactivation_history").insert({
+                company_id: settings.company_id,
+                lead_id: lead.id,
+                conversation_id: null as unknown as string,
+                reactivation_type: "month_proximity",
+                reactivation_stage: stage.stage,
+                message_sent: "",
+                sent_at: null,
+                status: "pending",
+                failure_reason: null,
+                is_interactive: settings.interactive_options_enabled,
+              });
+
+              if (reserveErr) {
+                // Unique constraint violation = already processed by concurrent run
+                console.log(`[reactivation-engine] ⏭️ Slot already reserved for ${stage.stage} lead ${lead.id}: ${reserveErr.message}`);
+                continue;
+              }
 
               // Find conversation for this lead
               const { data: conv } = await supabase
@@ -314,11 +348,20 @@ Deno.serve(async (req) => {
                 .limit(1)
                 .maybeSingle();
 
-              if (!conv) continue;
+              if (!conv) {
+                // Clean up the reserved slot
+                await supabase.from("lead_reactivation_history")
+                  .delete().eq("lead_id", lead.id).eq("reactivation_stage", stage.stage).eq("status", "pending");
+                continue;
+              }
 
               // Find the matching instance
               const instance = instances.find(i => i.id === conv.instance_id);
-              if (!instance) continue;
+              if (!instance) {
+                await supabase.from("lead_reactivation_history")
+                  .delete().eq("lead_id", lead.id).eq("reactivation_stage", stage.stage).eq("status", "pending");
+                continue;
+              }
 
               // Interpolate message
               const firstName = resolveFirstName(lead.name);
@@ -373,19 +416,18 @@ Deno.serve(async (req) => {
                 console.log(`[reactivation-engine] ✅ Sent ${stage.stage} to ${phone} (lead: ${lead.name})`);
               }
 
-              // Record in history
-              await supabase.from("lead_reactivation_history").insert({
-                company_id: settings.company_id,
-                lead_id: lead.id,
-                conversation_id: conv.id,
-                reactivation_type: "month_proximity",
-                reactivation_stage: stage.stage,
-                message_sent: message,
-                sent_at: sendStatus === "sent" ? new Date().toISOString() : null,
-                status: sendStatus,
-                failure_reason: failureReason,
-                is_interactive: isInteractive,
-              });
+              // Update the reserved history record with actual result
+              await supabase.from("lead_reactivation_history")
+                .update({
+                  conversation_id: conv.id,
+                  message_sent: message,
+                  sent_at: sendStatus === "sent" ? new Date().toISOString() : null,
+                  status: sendStatus,
+                  failure_reason: failureReason,
+                })
+                .eq("lead_id", lead.id)
+                .eq("reactivation_stage", stage.stage)
+                .eq("status", "pending");
 
               // Save message in wapi_messages
               if (sendStatus === "sent") {
