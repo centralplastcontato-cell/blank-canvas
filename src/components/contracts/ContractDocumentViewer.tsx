@@ -107,7 +107,7 @@ export function ContractDocumentViewer({
       <body>
         <div class="header">
           ${companyLogo ? `<img src="${companyLogo}" alt="" />` : ""}
-          <h1>${companyName}</h1>
+          <h1>Contrato de festa ${companyName}</h1>
         </div>
         <div class="content">${parseBoldMarkdown(content)}</div>
         <div class="footer">
