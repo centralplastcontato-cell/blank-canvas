@@ -69,7 +69,7 @@ export function ContractDocumentViewer({
             color: #1a1a1a;
             max-width: 680px;
             margin: 0 auto;
-            padding: 0;
+            padding: 1.5cm 2cm;
           }
           .header {
             text-align: center;
