@@ -54,26 +54,6 @@ export function ContractModelEditor({ model, userId, onClose }: Props) {
   const [conteudo, setConteudo] = useState(model?.conteudo_template || DEFAULT_TEMPLATE);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("editor");
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  const handleBold = () => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    const start = ta.selectionStart;
-    const end = ta.selectionEnd;
-    const selected = conteudo.substring(start, end);
-    const before = conteudo.substring(0, start);
-    const after = conteudo.substring(end);
-    if (selected) {
-      const newContent = `${before}**${selected}**${after}`;
-      setConteudo(newContent);
-      setTimeout(() => { ta.focus(); ta.setSelectionRange(start + 2, end + 2); }, 0);
-    } else {
-      const newContent = `${before}****${after}`;
-      setConteudo(newContent);
-      setTimeout(() => { ta.focus(); ta.setSelectionRange(start + 2, start + 2); }, 0);
-    }
-  };
 
   const variables = useMemo(() => getAvailableVariables(), []);
   const groupedVars = useMemo(() => {
