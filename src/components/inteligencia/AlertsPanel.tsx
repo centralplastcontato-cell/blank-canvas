@@ -22,6 +22,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   orcamentos_sem_resposta: <FileText className="h-5 w-5 text-amber-500" />,
   poucos_leads: <Bell className="h-5 w-5 text-yellow-500" />,
   baixa_ocupacao: <Calendar className="h-5 w-5 text-blue-500" />,
+  reativacao_volume_alto: <Zap className="h-5 w-5 text-red-500" />,
 };
 
 const SEVERITY_STYLES: Record<string, string> = {
