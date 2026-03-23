@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Save, Eye, Info, Loader2 } from "lucide-react";
+import { Save, Eye, Info, Loader2, Bold } from "lucide-react";
+import { useRef } from "react";
 import { toast } from "@/hooks/use-toast";
 import { getAvailableVariables, resolveSystemVariables } from "@/lib/template-resolver";
 
@@ -52,6 +53,26 @@ export function ContractModelEditor({ model, userId, onClose }: Props) {
   const [conteudo, setConteudo] = useState(model?.conteudo_template || DEFAULT_TEMPLATE);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("editor");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleBold = () => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const selected = conteudo.substring(start, end);
+    const before = conteudo.substring(0, start);
+    const after = conteudo.substring(end);
+    if (selected) {
+      const newContent = `${before}**${selected}**${after}`;
+      setConteudo(newContent);
+      setTimeout(() => { ta.focus(); ta.setSelectionRange(start + 2, end + 2); }, 0);
+    } else {
+      const newContent = `${before}****${after}`;
+      setConteudo(newContent);
+      setTimeout(() => { ta.focus(); ta.setSelectionRange(start + 2, start + 2); }, 0);
+    }
+  };
 
   const variables = useMemo(() => getAvailableVariables(), []);
   const groupedVars = useMemo(() => {
@@ -199,7 +220,14 @@ export function ContractModelEditor({ model, userId, onClose }: Props) {
                 🏷️ O logotipo e nome de <strong>{currentCompany?.name || "sua empresa"}</strong> serão adicionados automaticamente no topo de todo contrato gerado.
               </p>
             </div>
+            <div className="flex items-center gap-1 mb-1 p-1 rounded-md border border-border/30 bg-muted/30">
+              <Button type="button" variant="ghost" size="sm" onClick={handleBold} className="h-7 w-7 p-0" title="Negrito (selecione o texto primeiro)">
+                <Bold className="h-4 w-4" />
+              </Button>
+              <span className="text-[10px] text-muted-foreground ml-2">Selecione o texto e clique para aplicar negrito</span>
+            </div>
             <Textarea
+              ref={textareaRef}
               value={conteudo}
               onChange={e => setConteudo(e.target.value)}
               placeholder="Digite o conteúdo do contrato aqui..."
