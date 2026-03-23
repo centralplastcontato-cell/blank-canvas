@@ -3118,13 +3118,17 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const filteredConversations = conversations
     .filter((conv) => {
       // Apply text search (normalize phone digits for matching)
-      const searchLower = searchQuery.toLowerCase();
-      const nameMatch = (conv.contact_name || '').toLowerCase().includes(searchLower);
+      const searchLower = searchQuery.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const displayName = getConversationDisplayName(conv, conversationLeadsMap);
+      const nameMatch = (displayName || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(searchLower);
+      const contactNameMatch = (conv.contact_name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(searchLower);
       const phoneMatch = conv.contact_phone.toLowerCase().includes(searchLower);
       const digitsOnly = searchQuery.replace(/\D/g, '');
       const convDigits = conv.contact_phone.replace(/\D/g, '');
       const digitMatch = digitsOnly.length >= 4 && (convDigits.includes(digitsOnly) || digitsOnly.includes(convDigits));
-      const matchesSearch = nameMatch || phoneMatch || digitMatch;
+      // Also search in last_message_content for broader results
+      const contentMatch = (conv.last_message_content || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(searchLower);
+      const matchesSearch = nameMatch || contactNameMatch || phoneMatch || digitMatch || contentMatch;
       
       // When searching, bypass filters to find leads across all conversations
       if (searchQuery.trim().length > 0) return matchesSearch;
