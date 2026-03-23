@@ -58,9 +58,9 @@ export function ContractDocumentViewer({
       <!DOCTYPE html>
       <html>
       <head>
-        <title>${companyName} — Contrato</title>
+        <title></title>
         <style>
-          @page { margin: 2cm; size: A4; }
+          @page { margin: 2cm; size: A4; margin-top: 1.5cm; margin-bottom: 1.5cm; }
           * { box-sizing: border-box; }
           body {
             font-family: 'Georgia', 'Times New Roman', serif;
