@@ -11,8 +11,6 @@ import { Save, Eye, Info, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { getAvailableVariables, resolveSystemVariables } from "@/lib/template-resolver";
 import { RichContractEditor } from "./RichContractEditor";
-import { toast } from "@/hooks/use-toast";
-import { getAvailableVariables, resolveSystemVariables } from "@/lib/template-resolver";
 
 const TIPO_OPTIONS = [
   { value: "aniversario", label: "Aniversário" },
