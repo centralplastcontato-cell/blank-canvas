@@ -13,7 +13,6 @@ const MONTH_NAMES: Record<number, string> = {
   9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro",
 };
 
-// Reverse: name → month number
 function parseMonthName(raw: string): number | null {
   if (!raw) return null;
   const normalized = raw.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -21,7 +20,6 @@ function parseMonthName(raw: string): number | null {
     const n = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     if (normalized.includes(n) || n.includes(normalized)) return parseInt(num);
   }
-  // Try numeric extraction (e.g. "10/2026" or "10")
   const numMatch = raw.match(/(\d{1,2})/);
   if (numMatch) {
     const m = parseInt(numMatch[1]);
@@ -37,13 +35,9 @@ function resolveFirstName(name: string | null): string {
   return raw;
 }
 
-function interpolateMessage(
-  template: string,
-  vars: Record<string, string>
-): string {
+function interpolateMessage(template: string, vars: Record<string, string>): string {
   let result = template;
   for (const [key, value] of Object.entries(vars)) {
-    // Support both {{key}} and {{ key }}
     result = result.replace(new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, "g"), value);
   }
   return result;
@@ -56,25 +50,16 @@ function randomDelay(minSec: number, maxSec: number): Promise<void> {
 
 function isOutsideSendWindow(start: number, end: number): boolean {
   const nowSP = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-  const h = nowSP.getHours();
-  return h < start || h >= end;
+  return nowSP.getHours() < start || nowSP.getHours() >= end;
 }
 
-/** Get current month number in São Paulo timezone */
 function getCurrentMonthSP(): number {
-  const nowSP = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-  return nowSP.getMonth() + 1; // 1-indexed
+  return new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })).getMonth() + 1;
 }
 
-function getCurrentYearSP(): number {
-  const nowSP = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-  return nowSP.getFullYear();
-}
-
-/** Calculate months until party month. Handles year wrap (e.g. current=Nov, party=Feb → 3 months) */
 function monthsUntilParty(currentMonth: number, partyMonth: number): number {
   if (partyMonth >= currentMonth) return partyMonth - currentMonth;
-  return 12 - currentMonth + partyMonth; // wrap around year
+  return 12 - currentMonth + partyMonth;
 }
 
 interface ReactivationSettings {
@@ -99,13 +84,14 @@ interface ReactivationSettings {
   exclude_existing_event: boolean;
   min_days_without_reply: number;
   max_messages_per_lead: number;
-  // Fase 4B
   interactive_options_enabled: boolean;
   capture_window_hours: number;
   pause_days_on_analyzing: number;
   option_1_label: string;
   option_2_label: string;
   option_3_label: string;
+  max_daily_sends: number;
+  max_per_execution: number;
 }
 
 Deno.serve(async (req) => {
@@ -121,7 +107,6 @@ Deno.serve(async (req) => {
 
     console.log("[reactivation-engine] Starting reactivation check...");
 
-    // Fetch all enabled reactivation settings
     const { data: allSettings, error: settingsError } = await supabase
       .from("automation_reactivation_settings")
       .select("*")
@@ -136,19 +121,52 @@ Deno.serve(async (req) => {
     }
 
     let totalSent = 0;
+    let totalSkipped = 0;
     const errors: string[] = [];
     const currentMonth = getCurrentMonthSP();
-    const currentYear = getCurrentYearSP();
+
+    // ── GUARD 3: Global execution cap (across all companies) ──
+    const HARD_EXECUTION_CAP = 100; // absolute safety net
 
     for (const settings of allSettings as ReactivationSettings[]) {
+      // ── GUARD 3 check: stop processing if global cap reached ──
+      if (totalSent >= HARD_EXECUTION_CAP) {
+        console.log(`[reactivation-engine] 🛑 HARD execution cap (${HARD_EXECUTION_CAP}) reached. Stopping.`);
+        break;
+      }
+
+      const maxPerExecution = settings.max_per_execution || 50;
+      if (totalSent >= maxPerExecution) {
+        console.log(`[reactivation-engine] 🛑 Execution cap (${maxPerExecution}) reached. Stopping.`);
+        break;
+      }
+
       try {
-        // Check send window
         if (isOutsideSendWindow(settings.send_window_start, settings.send_window_end)) {
           console.log(`[reactivation-engine] Outside send window for company ${settings.company_id}`);
           continue;
         }
 
-        // Determine which stages to process
+        // ── GUARD 1: Circuit Breaker – 24h daily limit per company ──
+        const maxDaily = settings.max_daily_sends || 30;
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+        const { count: dailySentCount } = await supabase
+          .from("lead_reactivation_history")
+          .select("id", { count: "exact", head: true })
+          .eq("company_id", settings.company_id)
+          .eq("status", "sent")
+          .gte("sent_at", twentyFourHoursAgo);
+
+        if ((dailySentCount || 0) >= maxDaily) {
+          console.log(`[reactivation-engine] 🔴 Circuit breaker: company ${settings.company_id} already sent ${dailySentCount}/${maxDaily} in 24h. SKIPPING.`);
+          totalSkipped++;
+          continue;
+        }
+
+        const remainingDaily = maxDaily - (dailySentCount || 0);
+
+        // Determine stages
         const stages: { stage: string; monthsBefore: number; message: string }[] = [];
         if (settings.trigger_three_months_enabled && settings.message_three_months) {
           stages.push({ stage: "3_months_before", monthsBefore: 3, message: settings.message_three_months });
@@ -160,18 +178,13 @@ Deno.serve(async (req) => {
           stages.push({ stage: "1_month_before", monthsBefore: 1, message: settings.message_one_month });
         }
 
-        if (stages.length === 0) {
-          console.log(`[reactivation-engine] No stages enabled for company ${settings.company_id}`);
-          continue;
-        }
+        if (stages.length === 0) continue;
 
-        // Build status filter
         const statusFilter = settings.eligible_statuses || ['novo', 'em_contato', 'orcamento_enviado', 'aguardando_resposta'];
         const excludeStatuses: string[] = [];
         if (settings.exclude_closed) excludeStatuses.push('fechado');
         if (settings.exclude_lost) excludeStatuses.push('perdido');
 
-        // Fetch eligible leads with month info
         let leadsQuery = supabase
           .from("campaign_leads")
           .select("id, name, whatsapp, month, status, unit")
@@ -185,23 +198,15 @@ Deno.serve(async (req) => {
         const { data: leads, error: leadsError } = await leadsQuery.limit(1000);
 
         if (leadsError) {
-          console.error(`[reactivation-engine] Error fetching leads for company ${settings.company_id}:`, leadsError);
           errors.push(`leads fetch: ${leadsError.message}`);
           continue;
         }
+        if (!leads || leads.length === 0) continue;
 
-        if (!leads || leads.length === 0) {
-          console.log(`[reactivation-engine] No eligible leads for company ${settings.company_id}`);
-          continue;
-        }
-
-        console.log(`[reactivation-engine] Found ${leads.length} potential leads for company ${settings.company_id}`);
-
-        // Filter leads with excluded statuses
         const filteredLeads = leads.filter(l => !excludeStatuses.includes(l.status));
-
-        // Get existing reactivation history for these leads
         const leadIds = filteredLeads.map(l => l.id);
+
+        // Batch fetch: existing history
         const { data: existingHistory } = await supabase
           .from("lead_reactivation_history")
           .select("lead_id, reactivation_stage, status")
@@ -219,7 +224,18 @@ Deno.serve(async (req) => {
           }
         }
 
-        // If exclude_existing_event, get leads that have events
+        // ── GUARD 2: Lead-level rate limit – batch fetch last sent_at per lead ──
+        const { data: recentLeadSends } = await supabase
+          .from("lead_reactivation_history")
+          .select("lead_id, sent_at")
+          .eq("company_id", settings.company_id)
+          .eq("status", "sent")
+          .in("lead_id", leadIds)
+          .gte("sent_at", twentyFourHoursAgo);
+
+        const recentlySentLeads = new Set((recentLeadSends || []).map(r => r.lead_id));
+
+        // Exclude leads with events
         let leadsWithEvents = new Set<string>();
         if (settings.exclude_existing_event) {
           const { data: events } = await supabase
@@ -231,7 +247,7 @@ Deno.serve(async (req) => {
           leadsWithEvents = new Set((events || []).map(e => e.lead_id).filter(Boolean));
         }
 
-        // If require_human_interaction, get conversations with human_takeover
+        // Human takeover check
         let humanTakeoverLeads = new Set<string>();
         if (settings.require_human_interaction) {
           const { data: convs } = await supabase
@@ -243,7 +259,7 @@ Deno.serve(async (req) => {
           humanTakeoverLeads = new Set((convs || []).map(c => c.lead_id).filter(Boolean));
         }
 
-        // Check min_days_without_reply: get conversations with recent activity
+        // Min days without reply
         const minDaysCutoff = new Date(Date.now() - settings.min_days_without_reply * 24 * 60 * 60 * 1000).toISOString();
         const { data: recentConvs } = await supabase
           .from("wapi_conversations")
@@ -253,7 +269,6 @@ Deno.serve(async (req) => {
           .gte("last_message_at", minDaysCutoff);
         const recentlyActiveLeads = new Set((recentConvs || []).map(c => c.lead_id).filter(Boolean));
 
-        // Get company name for interpolation
         const { data: company } = await supabase
           .from("companies")
           .select("name")
@@ -261,50 +276,50 @@ Deno.serve(async (req) => {
           .single();
         const companyName = company?.name || "nosso buffet";
 
-        // Get instance for this company to send messages
         const { data: instances } = await supabase
           .from("wapi_instances")
           .select("id, instance_id, instance_token, unit, status")
           .eq("company_id", settings.company_id)
           .eq("status", "connected");
 
-        if (!instances || instances.length === 0) {
-          console.log(`[reactivation-engine] No connected instances for company ${settings.company_id}`);
-          continue;
-        }
+        if (!instances || instances.length === 0) continue;
 
-        // Process each lead
+        let companySentThisCycle = 0;
+
         for (const lead of filteredLeads) {
+          // ── GUARD 3: Execution cap check ──
+          if (totalSent >= maxPerExecution || totalSent >= HARD_EXECUTION_CAP) break;
+          // ── GUARD 1: Remaining daily check ──
+          if (companySentThisCycle >= remainingDaily) {
+            console.log(`[reactivation-engine] 🔴 Daily limit reached mid-cycle for company ${settings.company_id}`);
+            break;
+          }
+
           try {
-            // Skip if max messages reached
             const totalSentForLead = sentCountMap.get(lead.id) || 0;
-            if (totalSentForLead >= settings.max_messages_per_lead) continue;
+            if (totalSentForLead >= settings.max_messages_per_lead) { totalSkipped++; continue; }
+            if (leadsWithEvents.has(lead.id)) { totalSkipped++; continue; }
+            if (settings.require_human_interaction && !humanTakeoverLeads.has(lead.id)) { totalSkipped++; continue; }
+            if (recentlyActiveLeads.has(lead.id)) { totalSkipped++; continue; }
 
-            // Skip if has event
-            if (leadsWithEvents.has(lead.id)) continue;
+            // ── GUARD 2: Lead rate limit – skip if sent anything in last 24h ──
+            if (recentlySentLeads.has(lead.id)) {
+              totalSkipped++;
+              continue;
+            }
 
-            // Skip if require_human_interaction and not had it
-            if (settings.require_human_interaction && !humanTakeoverLeads.has(lead.id)) continue;
-
-            // Skip if recently active
-            if (recentlyActiveLeads.has(lead.id)) continue;
-
-            // Parse party month
             const partyMonth = parseMonthName(lead.month || "");
-            if (!partyMonth && settings.require_party_date) continue;
-            if (!partyMonth) continue; // Can't trigger month-based reactivation without month
+            if (!partyMonth) { totalSkipped++; continue; }
 
             const monthsUntil = monthsUntilParty(currentMonth, partyMonth);
 
-            // Find matching stage
             for (const stage of stages) {
               if (monthsUntil !== stage.monthsBefore) continue;
 
-              // Check if already sent this stage (bulk map)
               const leadStages = historyMap.get(lead.id);
               if (leadStages?.has(stage.stage)) continue;
 
-              // ── CRITICAL: Per-lead dedup check right before sending ──
+              // Per-lead dedup check
               const { data: existingRecord } = await supabase
                 .from("lead_reactivation_history")
                 .select("id")
@@ -313,12 +328,9 @@ Deno.serve(async (req) => {
                 .limit(1)
                 .maybeSingle();
 
-              if (existingRecord) {
-                console.log(`[reactivation-engine] ⏭️ Skipping ${stage.stage} for lead ${lead.id} (already exists)`);
-                continue;
-              }
+              if (existingRecord) continue;
 
-              // ── Reserve the slot BEFORE sending to prevent race conditions ──
+              // Reserve slot
               const { error: reserveErr } = await supabase.from("lead_reactivation_history").insert({
                 company_id: settings.company_id,
                 lead_id: lead.id,
@@ -333,12 +345,11 @@ Deno.serve(async (req) => {
               });
 
               if (reserveErr) {
-                // Unique constraint violation = already processed by concurrent run
-                console.log(`[reactivation-engine] ⏭️ Slot already reserved for ${stage.stage} lead ${lead.id}: ${reserveErr.message}`);
+                console.log(`[reactivation-engine] ⏭️ Slot already reserved for ${stage.stage} lead ${lead.id}`);
                 continue;
               }
 
-              // Find conversation for this lead
+              // Find conversation
               const { data: conv } = await supabase
                 .from("wapi_conversations")
                 .select("id, remote_jid, instance_id, contact_name, bot_data")
@@ -349,13 +360,11 @@ Deno.serve(async (req) => {
                 .maybeSingle();
 
               if (!conv) {
-                // Clean up the reserved slot
                 await supabase.from("lead_reactivation_history")
                   .delete().eq("lead_id", lead.id).eq("reactivation_stage", stage.stage).eq("status", "pending");
                 continue;
               }
 
-              // Find the matching instance
               const instance = instances.find(i => i.id === conv.instance_id);
               if (!instance) {
                 await supabase.from("lead_reactivation_history")
@@ -363,7 +372,7 @@ Deno.serve(async (req) => {
                 continue;
               }
 
-              // Interpolate message
+              // Build message
               const firstName = resolveFirstName(lead.name);
               const partyMonthName = MONTH_NAMES[partyMonth] || lead.month || "";
 
@@ -375,7 +384,6 @@ Deno.serve(async (req) => {
                 telefone: lead.whatsapp || "",
               });
 
-              // Fase 4B: Append interactive options if enabled
               const isInteractive = settings.interactive_options_enabled;
               if (isInteractive) {
                 message += "\n\nMe responde com o número da opção 👇\n\n";
@@ -384,7 +392,7 @@ Deno.serve(async (req) => {
                 message += `3️⃣ ${settings.option_3_label || 'Ainda estou analisando'}`;
               }
 
-              // Send message via W-API
+              // Send
               const phone = conv.remote_jid.replace("@s.whatsapp.net", "").replace("@c.us", "");
 
               const sendResponse = await fetch(
@@ -416,7 +424,7 @@ Deno.serve(async (req) => {
                 console.log(`[reactivation-engine] ✅ Sent ${stage.stage} to ${phone} (lead: ${lead.name})`);
               }
 
-              // Update the reserved history record with actual result
+              // Update history record
               await supabase.from("lead_reactivation_history")
                 .update({
                   conversation_id: conv.id,
@@ -429,7 +437,6 @@ Deno.serve(async (req) => {
                 .eq("reactivation_stage", stage.stage)
                 .eq("status", "pending");
 
-              // Save message in wapi_messages
               if (sendStatus === "sent") {
                 await supabase.from("wapi_messages").insert({
                   conversation_id: conv.id,
@@ -443,14 +450,12 @@ Deno.serve(async (req) => {
                   company_id: settings.company_id,
                 });
 
-                // Update conversation last_message
                 await supabase.from("wapi_conversations").update({
                   last_message_at: new Date().toISOString(),
                   last_message_content: message.substring(0, 100),
                   last_message_from_me: true,
                 }).eq("id", conv.id);
 
-                // Record in lead_history
                 await supabase.from("lead_history").insert({
                   lead_id: lead.id,
                   action: `Reativação: ${stage.stage.replace(/_/g, ' ')}`,
@@ -459,18 +464,45 @@ Deno.serve(async (req) => {
                 });
 
                 totalSent++;
+                companySentThisCycle++;
               }
 
-              // Safety delay between sends
               await randomDelay(settings.safety_interval_min_seconds, settings.safety_interval_max_seconds);
-
-              // Only send one stage per lead per cycle
-              break;
+              break; // one stage per lead per cycle
             }
           } catch (leadErr) {
             console.error(`[reactivation-engine] Error processing lead ${lead.id}:`, leadErr);
             errors.push(`lead ${lead.id}: ${String(leadErr)}`);
           }
+        }
+
+        // ── GUARD 4: Execution log for this company ──
+        await supabase.from("reactivation_execution_log").insert({
+          company_id: settings.company_id,
+          total_sent: companySentThisCycle,
+          total_skipped: totalSkipped,
+          total_errors: errors.length,
+          details: { stages: stages.map(s => s.stage), daily_sent_before: dailySentCount || 0 },
+        });
+
+        // ── GUARD 5: Anomaly notification if volume is high ──
+        if (companySentThisCycle > 10) {
+          const { data: companyUsers } = await supabase
+            .from("user_companies")
+            .select("user_id")
+            .eq("company_id", settings.company_id);
+
+          for (const u of (companyUsers || [])) {
+            await supabase.from("notifications").insert({
+              user_id: u.user_id,
+              company_id: settings.company_id,
+              type: "reactivation_volume_alert",
+              title: "⚠️ Volume alto de reativações",
+              message: `O motor de reativação enviou ${companySentThisCycle} mensagens nesta execução. Verifique se está dentro do esperado.`,
+              data: { sent: companySentThisCycle, skipped: totalSkipped },
+            });
+          }
+          console.log(`[reactivation-engine] ⚠️ Anomaly alert: ${companySentThisCycle} msgs sent for company ${settings.company_id}`);
         }
       } catch (companyErr) {
         console.error(`[reactivation-engine] Error processing company ${settings.company_id}:`, companyErr);
@@ -478,13 +510,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[reactivation-engine] Completed. Sent: ${totalSent}, Errors: ${errors.length}`);
+    console.log(`[reactivation-engine] Completed. Sent: ${totalSent}, Skipped: ${totalSkipped}, Errors: ${errors.length}`);
 
     return new Response(
       JSON.stringify({
         success: true,
         message: `Sent ${totalSent} reactivation messages`,
         count: totalSent,
+        skipped: totalSkipped,
         errors: errors.length > 0 ? errors : undefined,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

@@ -171,7 +171,9 @@ export type Database = {
           id: string
           interactive_options_enabled: boolean
           is_enabled: boolean
+          max_daily_sends: number
           max_messages_per_lead: number
+          max_per_execution: number
           message_one_month: string | null
           message_three_months: string | null
           message_two_months: string | null
@@ -202,7 +204,9 @@ export type Database = {
           id?: string
           interactive_options_enabled?: boolean
           is_enabled?: boolean
+          max_daily_sends?: number
           max_messages_per_lead?: number
+          max_per_execution?: number
           message_one_month?: string | null
           message_three_months?: string | null
           message_two_months?: string | null
@@ -233,7 +237,9 @@ export type Database = {
           id?: string
           interactive_options_enabled?: boolean
           is_enabled?: boolean
+          max_daily_sends?: number
           max_messages_per_lead?: number
+          max_per_execution?: number
           message_one_month?: string | null
           message_three_months?: string | null
           message_two_months?: string | null
@@ -3645,6 +3651,44 @@ export type Database = {
           valid_days?: number
         }
         Relationships: []
+      }
+      reactivation_execution_log: {
+        Row: {
+          company_id: string | null
+          details: Json | null
+          executed_at: string | null
+          id: string
+          total_errors: number | null
+          total_sent: number | null
+          total_skipped: number | null
+        }
+        Insert: {
+          company_id?: string | null
+          details?: Json | null
+          executed_at?: string | null
+          id?: string
+          total_errors?: number | null
+          total_sent?: number | null
+          total_skipped?: number | null
+        }
+        Update: {
+          company_id?: string | null
+          details?: Json | null
+          executed_at?: string | null
+          id?: string
+          total_errors?: number | null
+          total_sent?: number | null
+          total_skipped?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reactivation_execution_log_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sales_material_captions: {
         Row: {
