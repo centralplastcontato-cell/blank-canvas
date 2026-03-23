@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
-import { AlertTriangle, ArrowRight, Bell, RefreshCw, TrendingDown, Users, Calendar, FileText, Lightbulb } from "lucide-react";
+import { AlertTriangle, ArrowRight, Bell, RefreshCw, TrendingDown, Users, Calendar, FileText, Lightbulb, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -22,6 +22,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   orcamentos_sem_resposta: <FileText className="h-5 w-5 text-amber-500" />,
   poucos_leads: <Bell className="h-5 w-5 text-yellow-500" />,
   baixa_ocupacao: <Calendar className="h-5 w-5 text-blue-500" />,
+  reativacao_volume_alto: <Zap className="h-5 w-5 text-red-500" />,
 };
 
 const SEVERITY_STYLES: Record<string, string> = {
@@ -90,6 +91,13 @@ const ALERT_ACTIONS: Record<string, AlertAction[]> = {
       },
     },
   ],
+  reativacao_volume_alto: [
+    {
+      label: "Ver configurações",
+      primary: true,
+      handler: (_alert, navigate) => navigate("/configuracoes"),
+    },
+  ],
 };
 
 const SUGGESTIONS: Record<string, string> = {
@@ -98,6 +106,7 @@ const SUGGESTIONS: Record<string, string> = {
   conversao_caiu: "💡 Revise o funil para identificar em qual etapa os leads estão sendo perdidos.",
   poucos_leads: "💡 Sugerimos intensificar a divulgação e campanhas para atrair novos leads.",
   baixa_ocupacao: "💡 Sugerimos intensificar a divulgação para esse mês e oferecer condições especiais.",
+  reativacao_volume_alto: "💡 Verifique os limites de envio na tela de Reativação Inteligente e ajuste se necessário.",
 };
 
 interface AlertsPanelProps {

@@ -182,6 +182,42 @@ Deno.serve(async (req) => {
         }
       }
 
+      // ===================== ALERTA 6: VOLUME DE REATIVAÇÕES ALTO =====================
+      const { data: reactivationLogs } = await supabase
+        .from("reactivation_execution_log")
+        .select("total_sent, executed_at")
+        .eq("company_id", companyId)
+        .gte("executed_at", sevenDaysAgoDate)
+        .order("executed_at", { ascending: false });
+
+      if (reactivationLogs?.length) {
+        const totalReactivations24h = reactivationLogs
+          .filter(l => new Date(l.executed_at) > new Date(now.getTime() - 24 * 60 * 60 * 1000))
+          .reduce((sum, l) => sum + (l.total_sent || 0), 0);
+
+        // Get the company's daily limit
+        const { data: reactivationSettings } = await supabase
+          .from("automation_reactivation_settings")
+          .select("max_daily_sends")
+          .eq("company_id", companyId)
+          .maybeSingle();
+
+        const dailyLimit = reactivationSettings?.max_daily_sends || 30;
+
+        if (totalReactivations24h >= dailyLimit * 0.8) {
+          const isOver = totalReactivations24h >= dailyLimit;
+          alerts.push({
+            alert_type: "reativacao_volume_alto",
+            alert_message: isOver
+              ? `🚨 Limite diário de reativações atingido: ${totalReactivations24h}/${dailyLimit} mensagens nas últimas 24h.`
+              : `⚠️ Volume de reativações próximo do limite: ${totalReactivations24h}/${dailyLimit} mensagens nas últimas 24h.`,
+            severity: isOver ? "critical" : "warning",
+            related_filter: { action: "navigate", path: "/configuracoes", tab: "automacoes" },
+            priority: isOver ? 1 : 3,
+          });
+        }
+      }
+
       // Sort by priority, take top MAX_ALERTS
       alerts.sort((a, b) => a.priority - b.priority);
       const topAlerts = alerts.slice(0, MAX_ALERTS);
