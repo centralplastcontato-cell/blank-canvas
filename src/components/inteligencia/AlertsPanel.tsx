@@ -91,6 +91,13 @@ const ALERT_ACTIONS: Record<string, AlertAction[]> = {
       },
     },
   ],
+  reativacao_volume_alto: [
+    {
+      label: "Ver configurações",
+      primary: true,
+      handler: (_alert, navigate) => navigate("/configuracoes"),
+    },
+  ],
 };
 
 const SUGGESTIONS: Record<string, string> = {
