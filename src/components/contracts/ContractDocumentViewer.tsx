@@ -265,9 +265,10 @@ export function ContractDocumentViewer({
               </div>
 
               {/* Document content */}
-              <div className="whitespace-pre-wrap text-sm leading-[1.85] text-foreground/90 font-serif text-justify">
-                {content}
-              </div>
+              <div
+                className="whitespace-pre-wrap text-sm leading-[1.85] text-foreground/90 font-serif text-justify"
+                dangerouslySetInnerHTML={{ __html: parseBoldMarkdown(content) }}
+              />
 
               {/* Document footer */}
               <div className="mt-16 pt-4 border-t border-border/30 text-center">
