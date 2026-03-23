@@ -257,14 +257,34 @@ export function ContractModelEditor({ model, userId, onClose }: Props) {
           </TabsContent>
 
           <TabsContent value="preview" className="mt-3">
-            <div className="rounded-2xl border border-border/40 bg-white dark:bg-card p-8 min-h-[400px] prose prose-sm max-w-none dark:prose-invert">
-              <div className="text-center mb-6 pb-4 border-b">
-                {currentCompany?.logo_url && <img src={currentCompany.logo_url} alt="" className="h-12 mx-auto mb-2" />}
-                <h2 className="text-lg font-bold">{currentCompany?.name || "Buffet"}</h2>
-              </div>
-              <div className="whitespace-pre-wrap text-sm leading-relaxed">{previewContent}</div>
-              <div className="mt-12 pt-6 border-t text-center text-xs text-muted-foreground">
-                <p>Documento gerado em {new Date().toLocaleDateString("pt-BR")}</p>
+            <div className="bg-muted/30 rounded-2xl p-4 md:p-6 max-h-[500px] overflow-y-auto">
+              <div className="max-w-[680px] mx-auto bg-white dark:bg-card rounded-xl shadow-sm border border-border/30 p-8 md:p-10">
+                {/* Document header — matches print */}
+                <div className="text-center mb-6 pb-3 border-b-2 border-foreground/15">
+                  {currentCompany?.logo_url && (
+                    <img src={currentCompany.logo_url} alt="" className="h-28 mx-auto mb-2" />
+                  )}
+                  <h2 className="text-sm md:text-base font-bold text-foreground tracking-wide uppercase">
+                    Contrato de festa {currentCompany?.name || "Buffet"}
+                  </h2>
+                </div>
+
+                {/* Document body — matches ContractDocumentViewer */}
+                <div
+                  className="whitespace-pre-wrap text-sm leading-[1.85] text-foreground/90 font-serif text-justify"
+                  dangerouslySetInnerHTML={{
+                    __html: previewContent.replace(/\*\*([\s\S]+?)\*\*/g, (_m: string, inner: string) =>
+                      `<strong>${inner.replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ').trim()}</strong>`
+                    ),
+                  }}
+                />
+
+                {/* Document footer */}
+                <div className="mt-12 pt-3 border-t border-border/30 text-center">
+                  <p className="text-[10px] text-muted-foreground">
+                    Documento gerado pela plataforma CELEBREI — {new Date().toLocaleDateString("pt-BR")}
+                  </p>
+                </div>
               </div>
             </div>
           </TabsContent>
