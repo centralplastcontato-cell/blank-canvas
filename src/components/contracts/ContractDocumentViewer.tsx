@@ -5,6 +5,11 @@ import { Printer, AlertTriangle, FileSignature, Calendar, Package, Eye, ArrowLef
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
+/** Convert **bold** markdown markers to <strong> tags */
+function parseBoldMarkdown(text: string): string {
+  return text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+}
+
 interface ContractMeta {
   modelName?: string;
   templateVersion?: number;
