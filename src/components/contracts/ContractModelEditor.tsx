@@ -201,32 +201,11 @@ export function ContractModelEditor({ model, userId, onClose }: Props) {
                 🏷️ O logotipo e nome de <strong>{currentCompany?.name || "sua empresa"}</strong> serão adicionados automaticamente no topo de todo contrato gerado.
               </p>
             </div>
-            <div className="flex items-center gap-1 mb-1 p-1 rounded-md border border-border/30 bg-muted/30">
-              <Button type="button" variant="ghost" size="sm" onClick={handleBold} className="h-7 w-7 p-0" title="Negrito (selecione o texto primeiro)">
-                <Bold className="h-4 w-4" />
-              </Button>
-              <span className="text-[10px] text-muted-foreground ml-2">Selecione o texto e clique para aplicar negrito</span>
-            </div>
-            <Textarea
-              ref={textareaRef}
+            <RichContractEditor
               value={conteudo}
-              onChange={e => setConteudo(e.target.value)}
+              onChange={setConteudo}
               placeholder="Digite o conteúdo do contrato aqui..."
-              className="min-h-[300px] font-mono text-sm leading-relaxed"
             />
-            {conteudo.includes("**") && (
-              <div className="mt-2 p-4 rounded-xl border border-border/30 bg-card">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Pré-visualização do negrito</p>
-                <div
-                  className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90"
-                  dangerouslySetInnerHTML={{
-                    __html: conteudo.replace(/\*\*([\s\S]+?)\*\*/g, (_m: string, inner: string) =>
-                      `<strong>${inner.replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ').trim()}</strong>`
-                    ),
-                  }}
-                />
-              </div>
-            )}
             {unresolvedVars.length > 0 && (
               <div className="mt-2 p-3 rounded-xl bg-amber-500/10 border border-amber-300/30 text-sm">
                 <p className="font-semibold text-amber-700 text-xs mb-1">⚠️ Variáveis não reconhecidas:</p>
