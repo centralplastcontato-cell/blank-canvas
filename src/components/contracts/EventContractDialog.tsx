@@ -99,10 +99,30 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
         address: clientData.endereco || "", numero: clientData.numero || "",
         complemento: clientData.complemento || "", bairro: clientData.bairro || "",
         cidade: clientData.cidade || "", cep: clientData.cep || "",
-        nome_aniversariante: clientData.nome_aniversariante || "",
-        idade_aniversariante: clientData.idade_aniversariante || "",
-        data_nascimento: clientData.nascimento || "",
-        nomes_pais: clientData.nomes_pais || "",
+        nome_aniversariante: clientData.nome_aniversariante || eventData?.child_name || "",
+        idade_aniversariante: clientData.idade_aniversariante || eventData?.child_age || "",
+        data_nascimento: clientData.nascimento || (eventData?.child_birthdate ? (() => { const [y, m, d] = eventData.child_birthdate.split("-"); return `${d}/${m}/${y}`; })() : ""),
+        nomes_pais: clientData.nomes_pais || (() => {
+          try {
+            const parsed = JSON.parse(eventData?.parent_names || "[]");
+            if (Array.isArray(parsed)) {
+              const LABELS: Record<string, string> = { pai: "Pai", mae: "Mãe", avo: "Avó", avo_m: "Avô", tio: "Tio", tia: "Tia", padrasto: "Padrasto", madrasta: "Madrasta", outros: "Outros" };
+              return parsed.filter((r: any) => r.name).map((r: any) => `${r.name}${r.relation ? ` (${LABELS[r.relation] || r.relation})` : ""}`).join(" e ");
+            }
+          } catch { /* plain text fallback */ }
+          return eventData?.parent_names || "";
+        })(),
+        telefone_pais: (() => {
+          try {
+            const parsed = JSON.parse(eventData?.parent_names || "[]");
+            if (Array.isArray(parsed)) return parsed.filter((r: any) => r.phone).map((r: any) => r.phone).join(" / ");
+          } catch { /* ignore */ }
+          return "";
+        })(),
+        brindes: eventData?.gifts || "",
+        tema: clientData.tema || "",
+        valor_convidado_adicional: eventData?.extra_guest_value ? `R$ ${Number(eventData.extra_guest_value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "",
+        quantidade_pessoas: eventData?.guest_count?.toString() || leadData?.guests || "",
         value: eventData?.total_value ? `R$ ${Number(eventData.total_value).toLocaleString("pt-BR")}` : "",
         valor_sinal: pd?.entrada_valor ? `R$ ${Number(pd.entrada_valor).toLocaleString("pt-BR")}` : "",
         valor_restante: pd?.saldo_valor ? `R$ ${Number(pd.saldo_valor).toLocaleString("pt-BR")}` : "",
