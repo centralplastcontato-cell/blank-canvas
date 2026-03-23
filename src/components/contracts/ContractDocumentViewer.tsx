@@ -257,7 +257,7 @@ export function ContractDocumentViewer({
               {/* Document header */}
               <div className="text-center mb-8 pb-4 border-b-2 border-foreground/15">
                 {companyLogo && (
-                  <img src={companyLogo} alt="" className="h-12 md:h-14 mx-auto mb-3" />
+                  <img src={companyLogo} alt="" className="h-36 md:h-40 mx-auto mb-3" />
                 )}
                 <h2 className="text-base md:text-lg font-bold text-foreground tracking-wide uppercase">
                   {companyName}
