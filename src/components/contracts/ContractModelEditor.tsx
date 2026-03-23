@@ -4,14 +4,13 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Save, Eye, Info, Loader2, Bold } from "lucide-react";
-import { useRef } from "react";
+import { Save, Eye, Info, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { getAvailableVariables, resolveSystemVariables } from "@/lib/template-resolver";
+import { RichContractEditor } from "./RichContractEditor";
 
 const TIPO_OPTIONS = [
   { value: "aniversario", label: "Aniversário" },
@@ -53,26 +52,6 @@ export function ContractModelEditor({ model, userId, onClose }: Props) {
   const [conteudo, setConteudo] = useState(model?.conteudo_template || DEFAULT_TEMPLATE);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("editor");
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  const handleBold = () => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    const start = ta.selectionStart;
-    const end = ta.selectionEnd;
-    const selected = conteudo.substring(start, end);
-    const before = conteudo.substring(0, start);
-    const after = conteudo.substring(end);
-    if (selected) {
-      const newContent = `${before}**${selected}**${after}`;
-      setConteudo(newContent);
-      setTimeout(() => { ta.focus(); ta.setSelectionRange(start + 2, end + 2); }, 0);
-    } else {
-      const newContent = `${before}****${after}`;
-      setConteudo(newContent);
-      setTimeout(() => { ta.focus(); ta.setSelectionRange(start + 2, start + 2); }, 0);
-    }
-  };
 
   const variables = useMemo(() => getAvailableVariables(), []);
   const groupedVars = useMemo(() => {
@@ -220,32 +199,11 @@ export function ContractModelEditor({ model, userId, onClose }: Props) {
                 🏷️ O logotipo e nome de <strong>{currentCompany?.name || "sua empresa"}</strong> serão adicionados automaticamente no topo de todo contrato gerado.
               </p>
             </div>
-            <div className="flex items-center gap-1 mb-1 p-1 rounded-md border border-border/30 bg-muted/30">
-              <Button type="button" variant="ghost" size="sm" onClick={handleBold} className="h-7 w-7 p-0" title="Negrito (selecione o texto primeiro)">
-                <Bold className="h-4 w-4" />
-              </Button>
-              <span className="text-[10px] text-muted-foreground ml-2">Selecione o texto e clique para aplicar negrito</span>
-            </div>
-            <Textarea
-              ref={textareaRef}
+            <RichContractEditor
               value={conteudo}
-              onChange={e => setConteudo(e.target.value)}
+              onChange={setConteudo}
               placeholder="Digite o conteúdo do contrato aqui..."
-              className="min-h-[300px] font-mono text-sm leading-relaxed"
             />
-            {conteudo.includes("**") && (
-              <div className="mt-2 p-4 rounded-xl border border-border/30 bg-card">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Pré-visualização do negrito</p>
-                <div
-                  className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90"
-                  dangerouslySetInnerHTML={{
-                    __html: conteudo.replace(/\*\*([\s\S]+?)\*\*/g, (_m: string, inner: string) =>
-                      `<strong>${inner.replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ').trim()}</strong>`
-                    ),
-                  }}
-                />
-              </div>
-            )}
             {unresolvedVars.length > 0 && (
               <div className="mt-2 p-3 rounded-xl bg-amber-500/10 border border-amber-300/30 text-sm">
                 <p className="font-semibold text-amber-700 text-xs mb-1">⚠️ Variáveis não reconhecidas:</p>
