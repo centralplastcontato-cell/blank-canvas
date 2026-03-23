@@ -82,7 +82,7 @@ export function ContractDocumentViewer({
             padding-bottom: 12px;
             border-bottom: 2px solid #222;
           }
-          .header img { height: 48px; margin-bottom: 6px; display: block; margin-left: auto; margin-right: auto; }
+          .header img { height: 144px; margin-bottom: 6px; display: block; margin-left: auto; margin-right: auto; }
           .header h1 { font-size: 14pt; margin: 0; letter-spacing: 1px; text-transform: uppercase; }
           .content {
             white-space: pre-wrap;
@@ -107,7 +107,7 @@ export function ContractDocumentViewer({
       <body>
         <div class="header">
           ${companyLogo ? `<img src="${companyLogo}" alt="" />` : ""}
-          <h1>${companyName}</h1>
+          <h1>Contrato de festa ${companyName}</h1>
         </div>
         <div class="content">${parseBoldMarkdown(content)}</div>
         <div class="footer">
@@ -257,10 +257,10 @@ export function ContractDocumentViewer({
               {/* Document header */}
               <div className="text-center mb-8 pb-4 border-b-2 border-foreground/15">
                 {companyLogo && (
-                  <img src={companyLogo} alt="" className="h-12 md:h-14 mx-auto mb-3" />
+                  <img src={companyLogo} alt="" className="h-36 md:h-40 mx-auto mb-3" />
                 )}
                 <h2 className="text-base md:text-lg font-bold text-foreground tracking-wide uppercase">
-                  {companyName}
+                  Contrato de festa {companyName}
                 </h2>
               </div>
 
