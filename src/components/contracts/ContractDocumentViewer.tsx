@@ -82,7 +82,7 @@ export function ContractDocumentViewer({
             padding-bottom: 12px;
             border-bottom: 2px solid #222;
           }
-          .header img { height: 48px; margin-bottom: 6px; display: block; margin-left: auto; margin-right: auto; }
+          .header img { height: 144px; margin-bottom: 6px; display: block; margin-left: auto; margin-right: auto; }
           .header h1 { font-size: 14pt; margin: 0; letter-spacing: 1px; text-transform: uppercase; }
           .content {
             white-space: pre-wrap;
