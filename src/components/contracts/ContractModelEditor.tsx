@@ -226,6 +226,8 @@ export function ContractModelEditor({ model, userId, onClose }: Props) {
               </Button>
               <span className="text-[10px] text-muted-foreground ml-2">Selecione o texto e clique para aplicar negrito</span>
             </div>
+            <Textarea
+              ref={textareaRef}
               value={conteudo}
               onChange={e => setConteudo(e.target.value)}
               placeholder="Digite o conteúdo do contrato aqui..."
