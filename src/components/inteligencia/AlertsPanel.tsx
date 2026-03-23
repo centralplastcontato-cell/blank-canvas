@@ -106,6 +106,7 @@ const SUGGESTIONS: Record<string, string> = {
   conversao_caiu: "💡 Revise o funil para identificar em qual etapa os leads estão sendo perdidos.",
   poucos_leads: "💡 Sugerimos intensificar a divulgação e campanhas para atrair novos leads.",
   baixa_ocupacao: "💡 Sugerimos intensificar a divulgação para esse mês e oferecer condições especiais.",
+  reativacao_volume_alto: "💡 Verifique os limites de envio na tela de Reativação Inteligente e ajuste se necessário.",
 };
 
 interface AlertsPanelProps {
