@@ -231,8 +231,21 @@ export function ContractModelEditor({ model, userId, onClose }: Props) {
               value={conteudo}
               onChange={e => setConteudo(e.target.value)}
               placeholder="Digite o conteúdo do contrato aqui..."
-              className="min-h-[400px] font-mono text-sm leading-relaxed"
+              className="min-h-[300px] font-mono text-sm leading-relaxed"
             />
+            {conteudo.includes("**") && (
+              <div className="mt-2 p-4 rounded-xl border border-border/30 bg-card">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Pré-visualização do negrito</p>
+                <div
+                  className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90"
+                  dangerouslySetInnerHTML={{
+                    __html: conteudo.replace(/\*\*([\s\S]+?)\*\*/g, (_m: string, inner: string) =>
+                      `<strong>${inner.replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ').trim()}</strong>`
+                    ),
+                  }}
+                />
+              </div>
+            )}
             {unresolvedVars.length > 0 && (
               <div className="mt-2 p-3 rounded-xl bg-amber-500/10 border border-amber-300/30 text-sm">
                 <p className="font-semibold text-amber-700 text-xs mb-1">⚠️ Variáveis não reconhecidas:</p>
