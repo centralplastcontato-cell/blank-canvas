@@ -280,16 +280,7 @@ CEP: {{cep}}
 Cidade: {{cidade}}
 E-mail: {{email}}
 
-Aniversariante: {{nome_aniversariante}}
-Idade a comemorar: {{idade_aniversariante}}
-Data Nascimento: {{data_nascimento}}
-Data do Evento: {{data_evento}}
-Data do Contrato: {{data_contrato}}
-Pacote escolhido: {{pacote}}
-Tema: {{tema}}
-Nome dos pais: {{nomes_pais}}
-Telefone dos pais: {{telefone}}
-Denominada CONTRATANTE.
+**Aniversariante: {{nome_aniversariante}}, Idade a comemorar: {{idade_aniversariante}}, Data Nascimento: {{data_nascimento}}, Data do Evento: {{data_evento}}, Data do Contrato: {{data_contrato}}, Pacote escolhido: {{pacote}}, Tema: {{tema}}, Nome dos pais: {{nomes_pais}}, Telefone dos pais: {{telefone}}, Denominada CONTRATANTE.**
 
 Cláusula 1ª.) O BUFFET {{empresa}} prestará serviços, em seu salão de eventos localizado à Avenida General Osório, 1442 - Trujillo - O CONTRATADO assume a responsabilidade de planejar, organizar e executar as expensas do CONTRATANTE, destinada à {{convidados}} pessoas no dia {{data_evento}}, das {{hora_inicio}} às {{hora_fim}}, devendo para tanto fornecer toda mão de obra bem como todo o material necessário para o evento, que será composto de: serviço de Buffet.
 

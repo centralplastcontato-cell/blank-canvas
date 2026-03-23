@@ -5,6 +5,11 @@ import { Printer, AlertTriangle, FileSignature, Calendar, Package, Eye, ArrowLef
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
+/** Convert **bold** markdown markers to <strong> tags */
+function parseBoldMarkdown(text: string): string {
+  return text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+}
+
 interface ContractMeta {
   modelName?: string;
   templateVersion?: number;
@@ -104,7 +109,7 @@ export function ContractDocumentViewer({
           ${companyLogo ? `<img src="${companyLogo}" alt="" />` : ""}
           <h1>${companyName}</h1>
         </div>
-        <div class="content">${content}</div>
+        <div class="content">${parseBoldMarkdown(content)}</div>
         <div class="footer">
           <p>Documento gerado pela plataforma CELEBREI — ${new Date().toLocaleDateString("pt-BR")}</p>
         </div>
@@ -260,9 +265,10 @@ export function ContractDocumentViewer({
               </div>
 
               {/* Document content */}
-              <div className="whitespace-pre-wrap text-sm leading-[1.85] text-foreground/90 font-serif text-justify">
-                {content}
-              </div>
+              <div
+                className="whitespace-pre-wrap text-sm leading-[1.85] text-foreground/90 font-serif text-justify"
+                dangerouslySetInnerHTML={{ __html: parseBoldMarkdown(content) }}
+              />
 
               {/* Document footer */}
               <div className="mt-16 pt-4 border-t border-border/30 text-center">
