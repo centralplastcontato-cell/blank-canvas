@@ -128,8 +128,8 @@ export default function Financeiro() {
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   <MobileMenu
-                    isOpen={false}
-                    onOpenChange={() => {}}
+                    isOpen={isMobileMenuOpen}
+                    onOpenChange={setIsMobileMenuOpen}
                     trigger={<Button variant="ghost" size="icon" className="h-9 w-9"><Menu className="w-5 h-5" /></Button>}
                     currentPage="financeiro"
                     userName=""
