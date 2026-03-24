@@ -3953,7 +3953,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
             {/* Messages Panel */}
             <ResizablePanel defaultSize={65} minSize={40} className="flex flex-col min-h-0 min-w-0">
-              <div className="flex flex-col h-full bg-card rounded-2xl shadow-card m-1.5 ml-0 overflow-hidden">
+              <div className="flex flex-col h-full bg-card rounded-2xl shadow-premium border border-border/50 m-1.5 ml-0 overflow-hidden ring-1 ring-primary/5">
               {selectedConversation ? (
                 <>
                   {/* Chat Header - Premium Glassmorphism */}
@@ -5057,12 +5057,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                   </div>
                 </>
               ) : (
-                <div className="flex-1 flex flex-col items-center justify-center text-center p-4 bg-muted/20">
-                  <div className="bg-muted/50 rounded-full p-4 mb-4">
-                    <MessageSquare className="w-10 h-10 text-muted-foreground" />
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-4 bg-gradient-to-br from-muted/30 via-background/50 to-primary/5">
+                  <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-2xl p-5 mb-5 shadow-subtle border border-primary/10">
+                    <MessageSquare className="w-12 h-12 text-primary/40" />
                   </div>
-                  <h3 className="font-semibold mb-2">Selecione uma conversa</h3>
-                  <p className="text-sm text-muted-foreground max-w-xs">
+                  <h3 className="font-display font-semibold text-lg mb-2 text-foreground/80">Selecione uma conversa</h3>
+                  <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
                     Escolha uma conversa na lista ao lado para começar a enviar mensagens.
                   </p>
                 </div>
