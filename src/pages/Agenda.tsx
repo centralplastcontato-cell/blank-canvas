@@ -1067,13 +1067,6 @@ export default function Agenda() {
                       </Button>
                     </div>
 
-                    {/* Status filter tabs */}
-                    {(() => {
-                      const [preResStatusFilter, setPreResStatusFilter] = [
-                        // We'll use a simple inline approach - filter in render
-                      ] as any;
-                      return null;
-                    })()}
 
                     {allPreReservations.length === 0 ? (
                       <p className="text-sm text-muted-foreground text-center py-12">Nenhuma pré-reserva encontrada.</p>
