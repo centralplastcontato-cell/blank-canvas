@@ -1296,6 +1296,12 @@ async function processAutoLost({
         continue;
       }
 
+      // Deactivate bot on conversation linked to this lead
+      await supabase
+        .from("wapi_conversations")
+        .update({ bot_enabled: false, bot_step: 'human_takeover' })
+        .eq("lead_id", lead.id);
+
       // Register in lead_history
       await supabase.from("lead_history").insert({
         lead_id: lead.id,
