@@ -27,6 +27,7 @@ export interface Expense {
   amount: number;
   expense_date: string;
   category: string;
+  expense_type: string; // 'fixa' | 'variavel' | 'festa'
   unit: string | null;
   status: string;
   created_at: string;
@@ -168,9 +169,9 @@ export function useFinanceiroDashboard() {
   const saldoMonth = totalReceivedMonth - totalExpensesMonth;
 
   // CRUD expenses
-  const addExpense = async (data: { description: string; amount: number; expense_date: string; category: string; unit?: string; status: string }) => {
+  const addExpense = async (data: { description: string; amount: number; expense_date: string; category: string; expense_type?: string; unit?: string; status: string }) => {
     if (!companyId) return;
-    const { error } = await supabase.from('company_expenses').insert({ ...data, company_id: companyId });
+    const { error } = await supabase.from('company_expenses').insert({ ...data, expense_type: data.expense_type || 'fixa', company_id: companyId });
     if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
     toast({ title: 'Despesa adicionada' });
     fetchData();

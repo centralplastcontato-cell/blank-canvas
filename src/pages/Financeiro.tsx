@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale } from 'lucide-react';
+import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale, Building, Zap, PartyPopper } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -36,6 +36,7 @@ export default function Financeiro() {
   const dashboard = useFinanceiroDashboard();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
+  const [expenseDialogType, setExpenseDialogType] = useState<string>('fixa');
 
   const months = Array.from({ length: 12 }, (_, i) => {
     const d = new Date(new Date().getFullYear(), i, 1);
@@ -237,44 +238,68 @@ export default function Financeiro() {
 
                 {/* Tab Despesas */}
                 <TabsContent value="despesas" className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-sm font-semibold text-foreground">Despesas do período</h2>
-                    <Button size="sm" onClick={() => setExpenseDialogOpen(true)}>
-                      <Plus className="h-4 w-4 mr-1" /> Adicionar
-                    </Button>
-                  </div>
+                  <Tabs defaultValue="fixa" className="w-full">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <TabsList className="h-9">
+                        <TabsTrigger value="fixa" className="text-xs gap-1.5"><Building className="h-3.5 w-3.5" /> Fixas</TabsTrigger>
+                        <TabsTrigger value="variavel" className="text-xs gap-1.5"><Zap className="h-3.5 w-3.5" /> Variáveis</TabsTrigger>
+                        <TabsTrigger value="festa" className="text-xs gap-1.5"><PartyPopper className="h-3.5 w-3.5" /> Festas</TabsTrigger>
+                      </TabsList>
+                    </div>
 
-                  {dashboard.expensesThisMonth.length === 0 ? (
-                    <Card className="p-8">
-                      <p className="text-sm text-muted-foreground text-center">Nenhuma despesa registrada neste período</p>
-                    </Card>
-                  ) : (
-                    <div className="space-y-2">
-                      {dashboard.expensesThisMonth.map(e => (
-                        <div key={e.id} className="p-3 md:p-4 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="font-semibold text-sm text-foreground truncate">{e.description}</p>
-                              <Badge variant="secondary" className="text-xs">{CATEGORY_LABELS[e.category] || e.category}</Badge>
-                              <Badge variant="outline" className={e.status === 'pago' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}>
-                                {e.status === 'pago' ? 'Pago' : 'Pendente'}
-                              </Badge>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              {format(new Date(e.expense_date + 'T12:00:00'), 'dd/MM/yyyy')}
-                              {e.unit && ` · ${e.unit}`}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <p className="text-sm font-bold text-blue-400">{fmt(e.amount)}</p>
-                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:text-destructive/80" onClick={() => dashboard.deleteExpense(e.id)}>
-                              <Trash2 className="h-4 w-4" />
+                    {(['fixa', 'variavel', 'festa'] as const).map(expType => {
+                      const typeExpenses = dashboard.expensesThisMonth.filter(e => (e.expense_type || 'fixa') === expType);
+                      const typeLabel = expType === 'fixa' ? 'fixa' : expType === 'variavel' ? 'variável' : 'de festa';
+                      return (
+                        <TabsContent key={expType} value={expType} className="space-y-3 mt-3">
+                          <div className="flex items-center justify-between">
+                            <h2 className="text-sm font-semibold text-foreground">
+                              Despesas {typeLabel}s ({typeExpenses.length})
+                              {typeExpenses.length > 0 && (
+                                <span className="ml-2 text-blue-400 font-bold">
+                                  {fmt(typeExpenses.reduce((s, e) => s + e.amount, 0))}
+                                </span>
+                              )}
+                            </h2>
+                            <Button size="sm" onClick={() => { setExpenseDialogType(expType); setExpenseDialogOpen(true); }}>
+                              <Plus className="h-4 w-4 mr-1" /> Adicionar
                             </Button>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                          {typeExpenses.length === 0 ? (
+                            <Card className="p-8">
+                              <p className="text-sm text-muted-foreground text-center">Nenhuma despesa {typeLabel} neste período</p>
+                            </Card>
+                          ) : (
+                            <div className="space-y-2">
+                              {typeExpenses.map(e => (
+                                <div key={e.id} className="p-3 md:p-4 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <p className="font-semibold text-sm text-foreground truncate">{e.description}</p>
+                                      <Badge variant="secondary" className="text-xs">{CATEGORY_LABELS[e.category] || e.category}</Badge>
+                                      <Badge variant="outline" className={e.status === 'pago' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}>
+                                        {e.status === 'pago' ? 'Pago' : 'Pendente'}
+                                      </Badge>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                      {format(new Date(e.expense_date + 'T12:00:00'), 'dd/MM/yyyy')}
+                                      {e.unit && ` · ${e.unit}`}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <p className="text-sm font-bold text-blue-400">{fmt(e.amount)}</p>
+                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:text-destructive/80" onClick={() => dashboard.deleteExpense(e.id)}>
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </TabsContent>
+                      );
+                    })}
+                  </Tabs>
                 </TabsContent>
 
                 {/* Tab Resultado */}
@@ -303,7 +328,10 @@ export default function Financeiro() {
                       <div className="flex justify-between"><span className="text-muted-foreground">Receitas pendentes</span><span className="text-amber-400 font-medium">{fmt(dashboard.totalPendingMonth)}</span></div>
                       <div className="flex justify-between"><span className="text-muted-foreground">Em atraso</span><span className="text-red-400 font-medium">{fmt(dashboard.totalLate)}</span></div>
                       <div className="border-t border-border my-2" />
-                      <div className="flex justify-between"><span className="text-muted-foreground">Despesas do mês</span><span className="text-blue-400 font-medium">{fmt(dashboard.totalExpensesMonth)}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Despesas fixas</span><span className="text-blue-400 font-medium">{fmt(dashboard.expensesThisMonth.filter(e => (e.expense_type || 'fixa') === 'fixa').reduce((s, e) => s + e.amount, 0))}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Despesas variáveis</span><span className="text-blue-400 font-medium">{fmt(dashboard.expensesThisMonth.filter(e => e.expense_type === 'variavel').reduce((s, e) => s + e.amount, 0))}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Despesas de festas</span><span className="text-blue-400 font-medium">{fmt(dashboard.expensesThisMonth.filter(e => e.expense_type === 'festa').reduce((s, e) => s + e.amount, 0))}</span></div>
+                      <div className="flex justify-between font-medium"><span className="text-muted-foreground">Total despesas</span><span className="text-blue-400">{fmt(dashboard.totalExpensesMonth)}</span></div>
                       <div className="border-t border-border my-2" />
                       <div className="flex justify-between font-semibold"><span className="text-foreground">Saldo</span><span className={dashboard.saldoMonth >= 0 ? 'text-emerald-400' : 'text-red-400'}>{fmt(dashboard.saldoMonth)}</span></div>
                     </div>
@@ -320,6 +348,7 @@ export default function Financeiro() {
         onOpenChange={setExpenseDialogOpen}
         onSubmit={dashboard.addExpense}
         unitOptions={unitOptions}
+        defaultExpenseType={expenseDialogType}
       />
     </SidebarProvider>
   );

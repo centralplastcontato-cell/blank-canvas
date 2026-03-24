@@ -1009,6 +1009,7 @@ export type Database = {
           created_at: string | null
           description: string
           expense_date: string
+          expense_type: string
           id: string
           status: string
           unit: string | null
@@ -1021,6 +1022,7 @@ export type Database = {
           created_at?: string | null
           description: string
           expense_date?: string
+          expense_type?: string
           id?: string
           status?: string
           unit?: string | null
@@ -1033,6 +1035,7 @@ export type Database = {
           created_at?: string | null
           description?: string
           expense_date?: string
+          expense_type?: string
           id?: string
           status?: string
           unit?: string | null
