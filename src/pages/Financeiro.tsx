@@ -120,29 +120,66 @@ export default function Financeiro() {
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
         <AdminSidebar canManageUsers={false} currentUserName="" onRefresh={() => {}} onLogout={() => navigate("/auth")} />
-        <main className="flex-1 p-4 md:p-6 overflow-auto">
-          <div className="max-w-5xl mx-auto space-y-6">
-            {/* Premium Header */}
-            <div className="relative rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden">
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_80%_-20%,hsl(var(--primary)/0.06),transparent)]" />
-              <div className="relative flex items-center justify-between gap-4 p-5 md:p-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/20">
-                    <DollarSign className="h-7 w-7 text-primary-foreground" />
-                  </div>
-                  <div>
-                    <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground">Financeiro</h1>
-                    <p className="text-sm text-muted-foreground/70 mt-0.5">Visão consolidada dos pagamentos</p>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Mobile Header */}
+          <header className="bg-card border-b border-border shrink-0 z-10 md:hidden">
+            <div className="px-3 py-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <MobileMenu
+                    isOpen={false}
+                    onOpenChange={() => {}}
+                    trigger={<Button variant="ghost" size="icon" className="h-9 w-9"><Menu className="w-5 h-5" /></Button>}
+                    currentPage="financeiro"
+                    userName=""
+                    userEmail=""
+                    canManageUsers={false}
+                    isAdmin={false}
+                    onRefresh={() => {}}
+                    onLogout={() => navigate("/auth")}
+                  />
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="p-1.5 rounded-lg bg-gradient-to-br from-primary to-primary/80">
+                      <DollarSign className="h-5 w-5 text-primary-foreground" />
+                    </div>
+                    <h1 className="font-display font-bold text-foreground text-sm truncate">Financeiro</h1>
                   </div>
                 </div>
-                <Select value={monthFilter} onValueChange={setMonthFilter}>
-                  <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Select value={monthFilter} onValueChange={setMonthFilter}>
+                    <SelectTrigger className="w-36 h-9 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <NotificationBell />
+                </div>
               </div>
             </div>
+          </header>
+          <main className="flex-1 p-4 md:p-6 overflow-auto">
+            <div className="max-w-5xl mx-auto space-y-6">
+              {/* Premium Header - desktop only */}
+              <div className="relative rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden hidden md:block">
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_80%_-20%,hsl(var(--primary)/0.06),transparent)]" />
+                <div className="relative flex items-center justify-between gap-4 p-5 md:p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/20">
+                      <DollarSign className="h-7 w-7 text-primary-foreground" />
+                    </div>
+                    <div>
+                      <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground">Financeiro</h1>
+                      <p className="text-sm text-muted-foreground/70 mt-0.5">Visão consolidada dos pagamentos</p>
+                    </div>
+                  </div>
+                  <Select value={monthFilter} onValueChange={setMonthFilter}>
+                    <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
             {/* Dashboard Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
