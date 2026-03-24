@@ -206,6 +206,7 @@ export const MODULE_LABELS: Record<keyof CompanyModules, { label: string; descri
   data_import: { label: 'Importar Dados', description: 'Importação de leads, conversas e mensagens' },
   advanced: { label: 'Avançado', description: 'Configurações avançadas do WhatsApp' },
   contrato: { label: 'Contrato', description: 'Templates de contrato digital para clientes' },
+  financeiro: { label: 'Financeiro', description: 'Controle financeiro integrado aos eventos' },
   // --- Outros ---
   treinamento: { label: 'Treinamento', description: 'Videoaulas de treinamento da plataforma' },
   onboarding_checklist: { label: 'Onboarding Guiado', description: 'Checklist interativo de primeiros passos no painel' },
