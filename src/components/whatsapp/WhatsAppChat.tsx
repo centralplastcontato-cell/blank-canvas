@@ -3747,7 +3747,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
               maxSize={50}
               className="flex flex-col min-h-0"
             >
-              <div className="flex flex-col h-full bg-card rounded-2xl shadow-card m-1.5 mr-0 overflow-hidden">
+              <div className="flex flex-col h-full bg-card rounded-2xl shadow-premium border border-border/50 m-1.5 mr-0 overflow-hidden ring-1 ring-primary/5">
                 <div className="p-4 border-b border-border/40 space-y-3">
                   <div className="flex items-center gap-2">
                     <div className="relative flex-1">
