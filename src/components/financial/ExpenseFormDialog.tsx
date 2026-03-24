@@ -14,19 +14,27 @@ const CATEGORIES = [
   { value: 'outros', label: 'Outros' },
 ];
 
+const EXPENSE_TYPES = [
+  { value: 'fixa', label: 'Despesa Fixa' },
+  { value: 'variavel', label: 'Despesa Variável' },
+  { value: 'festa', label: 'Despesa de Festa' },
+];
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: { description: string; amount: number; expense_date: string; category: string; unit?: string; status: string }) => void;
+  onSubmit: (data: { description: string; amount: number; expense_date: string; category: string; expense_type?: string; unit?: string; status: string }) => void;
   unitOptions?: { value: string; label: string }[];
-  defaultValues?: { description?: string; amount?: number; expense_date?: string; category?: string; unit?: string; status?: string };
+  defaultValues?: { description?: string; amount?: number; expense_date?: string; category?: string; expense_type?: string; unit?: string; status?: string };
+  defaultExpenseType?: string;
 }
 
-export function ExpenseFormDialog({ open, onOpenChange, onSubmit, unitOptions, defaultValues }: Props) {
+export function ExpenseFormDialog({ open, onOpenChange, onSubmit, unitOptions, defaultValues, defaultExpenseType }: Props) {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [expenseDate, setExpenseDate] = useState('');
   const [category, setCategory] = useState('outros');
+  const [expenseType, setExpenseType] = useState('fixa');
   const [unit, setUnit] = useState('');
   const [status, setStatus] = useState('pendente');
 
@@ -36,6 +44,7 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, unitOptions, d
       setAmount(defaultValues.amount?.toString() || '');
       setExpenseDate(defaultValues.expense_date || '');
       setCategory(defaultValues.category || 'outros');
+      setExpenseType(defaultValues.expense_type || defaultExpenseType || 'fixa');
       setUnit(defaultValues.unit || '');
       setStatus(defaultValues.status || 'pendente');
     } else if (open) {
@@ -43,10 +52,11 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, unitOptions, d
       setAmount('');
       setExpenseDate(new Date().toISOString().split('T')[0]);
       setCategory('outros');
+      setExpenseType(defaultExpenseType || 'fixa');
       setUnit('');
       setStatus('pendente');
     }
-  }, [open, defaultValues]);
+  }, [open, defaultValues, defaultExpenseType]);
 
   const handleSubmit = () => {
     const val = parseFloat(amount);
@@ -56,6 +66,7 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, unitOptions, d
       amount: val,
       expense_date: expenseDate,
       category,
+      expense_type: expenseType,
       unit: unit || undefined,
       status,
     });
@@ -69,6 +80,15 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, unitOptions, d
           <DialogTitle>{defaultValues ? 'Editar Despesa' : 'Nova Despesa'}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
+          <div>
+            <Label>Tipo de despesa</Label>
+            <Select value={expenseType} onValueChange={setExpenseType}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {EXPENSE_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
           <div>
             <Label>Descrição</Label>
             <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Ex: DJ para festa" />
