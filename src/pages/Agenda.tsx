@@ -304,16 +304,20 @@ export default function Agenda() {
     setPeriodEvents([]);
   };
 
-  // Auto-select unit based on permissions
+  // Auto-select unit based on permissions (and force "all" for sales-channel-only companies)
   useEffect(() => {
     if (permUnitLoading) return;
+    if (isSalesChannelOnly) {
+      setSelectedUnit("all");
+      return;
+    }
     if (!canViewAll) {
       const permitted = allowedUnits.filter(u => u !== "As duas");
       if (permitted.length === 1) {
         setSelectedUnit(permitted[0]);
       }
     }
-  }, [canViewAll, allowedUnits, permUnitLoading]);
+  }, [canViewAll, allowedUnits, permUnitLoading, isSalesChannelOnly]);
 
   // Filtered events (respects unit permissions)
   const filteredEvents = useMemo(() => {
