@@ -29,6 +29,7 @@ export interface CompanyModules {
   data_import: boolean;
   advanced: boolean;
   contrato: boolean;
+  financeiro: boolean;
   // --- Outros ---
   treinamento: boolean;
   onboarding_checklist: boolean;
