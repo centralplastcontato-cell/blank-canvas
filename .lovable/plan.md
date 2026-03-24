@@ -1,48 +1,62 @@
 
 
+# Correção: Desligar robô quando lead é marcado como "Perdido"
+
 ## Problema
+Quando um lead é marcado como "perdido" (automático ou manual), o bot do WhatsApp continua ativo na conversa (`bot_enabled: true`, `bot_step` ativo). Se o lead enviar uma mensagem depois, o bot responde com todo o material de vendas novamente.
 
-O bot do WhatsApp exibe nomes internos de unidade ("Vendas 1", "Vendas 2") nas mensagens enviadas ao cliente. Exemplo: "📍 Unidade: Vendas 1" e "Conheça a unidade Vendas 1". O cliente deveria ver apenas o nome da empresa ("Castelo da Diversão").
+## Correções (4 arquivos)
 
-## Solução
+### 1. Auto-Lost no `follow-up-check` (Edge Function)
+**Arquivo:** `supabase/functions/follow-up-check/index.ts`
+- Após a linha 1291 (update do lead para "perdido"), adicionar update em `wapi_conversations` para o lead correspondente:
+  - `bot_enabled: false`
+  - `bot_step: 'human_takeover'`
+- Buscar a conversa pelo `lead_id` e atualizar
 
-Substituir a variável `{unidade}` pelo nome da empresa (`companies.name`) em todas as mensagens voltadas ao cliente, em 3 arquivos:
+### 2. Guard no `wapi-webhook` (Edge Function)
+**Arquivo:** `supabase/functions/wapi-webhook/index.ts`
+- No início da função `processBotQualification` (linha ~1912, após settings check), adicionar verificação:
+  - Se `conv.lead_id` existe, buscar o status do lead em `campaign_leads`
+  - Se status é `'perdido'`, fazer log e retornar sem processar o bot
+- Isso funciona como defesa em profundidade caso o auto-lost não tenha desabilitado o bot
 
-### 1. `supabase/functions/wapi-webhook/index.ts`
+### 3. Mudança manual no `LeadDetailSheet`
+**Arquivo:** `src/components/admin/LeadDetailSheet.tsx`
+- Na função `handleSave`, após o update do lead (linha ~230), verificar se o novo status é `'perdido'`
+- Se sim, buscar `wapi_conversations` pelo `lead_id` e atualizar `bot_enabled: false`, `bot_step: 'human_takeover'`
 
-**Função `sendQualificationMaterials`** (linha ~2766):
-- Expandir o tipo do parâmetro `instance` para incluir `company_id: string`
-- Buscar `companies.name` no início da função
-- Usar o nome da empresa no lugar de `unit` em todas as substituições de `{unidade}` (linhas ~2949, 2975, 2989, 3025)
-- Alterar o fallback do caption de vídeo de `"Conheça a unidade ${unit}"` para `"Conheça o ${companyName}"` (linha ~2974)
+### 4. Mudança manual via `ConversationStatusActions`
+**Arquivo:** `src/components/whatsapp/ConversationStatusActions.tsx`
+- Na função `handleStatusChange`, após o update do lead (linha ~141), verificar se `newStatus === 'perdido'`
+- Se sim, atualizar `wapi_conversations` com `bot_enabled: false`, `bot_step: 'human_takeover'` usando `conversation.id`
 
-**Função `sendQualificationMaterialsThenQuestion`** (linha ~3061):
-- Mesma expansão do tipo `instance` para incluir `company_id`
+### 5. Mudança via Kanban/Table (Admin.tsx e CentralAtendimento.tsx)
+**Arquivos:** `src/pages/Admin.tsx`, `src/pages/CentralAtendimento.tsx`
+- Nos handlers inline de status change (onde fazem `supabase.from("campaign_leads").update`), adicionar a mesma lógica: se `newStatus === 'perdido'`, desabilitar bot na conversa vinculada
 
-**Default do `pdfIntro`** (linha ~2811):
-- Alterar de `"na unidade {unidade}"` para `"no {empresa}"`
+## Detalhes Técnicos
 
-### 2. `src/components/landing/LeadChatbot.tsx`
+Query para desabilitar o bot:
+```sql
+UPDATE wapi_conversations 
+SET bot_enabled = false, bot_step = 'human_takeover' 
+WHERE lead_id = :lead_id
+```
 
-- Na mensagem padrão (linha ~392), trocar `📍 Unidade: ${unit}` por `📍 Local: ${displayName}`
-- Na mensagem de redirect (linha ~401), mesma alteração
-- Na função `buildWhatsAppMessage` (linha ~559), trocar `📍 Unidade: ${leadData.unit}` por `📍 Local: ${displayName}`
-
-### 3. `src/components/whatsapp/settings/LPBotSection.tsx`
-
-- Atualizar o template padrão `whatsapp_welcome_template` (linha ~49): trocar `📍 Unidade: {unidade}` por `📍 Local: {empresa}`
-- Atualizar o placeholder (linha ~201) de forma correspondente
-
-### 4. `supabase/functions/follow-up-check/index.ts`
-
-- Mesma alteração no default do `pdfIntro` (linha ~2348): `"na unidade {unidade}"` → `"no {empresa}"`
-- Alterar fallback do video caption (linha ~2485): `"Conheça a unidade ${unit}"` → buscar nome da empresa e usar
-
-### 5. `supabase/functions/rescue-orphan-leads/index.ts`
-
-- Trocar `📍 Unidade: ${TARGET_UNIT}` por `📍 Local: Castelo da Diversão` (linha ~76)
-
-### Nota importante
-
-O `unit` continua sendo usado internamente para filtrar `sales_materials` no banco (queries com `.eq('unit', unit)`). A mudança é apenas nas mensagens visíveis ao cliente.
+Guard no webhook:
+```typescript
+// No início de processBotQualification, após settings check:
+if (conv.lead_id) {
+  const { data: linkedLead } = await supabase
+    .from('campaign_leads')
+    .select('status')
+    .eq('id', conv.lead_id)
+    .single();
+  if (linkedLead?.status === 'perdido') {
+    console.log(`[Bot] Lead ${conv.lead_id} is perdido, skipping bot`);
+    return;
+  }
+}
+```
 
