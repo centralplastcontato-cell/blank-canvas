@@ -46,6 +46,7 @@ const lazyImports = {
   "/contratos": () => import("./pages/ContratosModule"),
   "/contrato": () => import("./pages/Contrato"),
   "/cardapio": () => import("./pages/Cardapio"),
+  "/financeiro": () => import("./pages/Financeiro"),
 } as Record<string, () => Promise<any>>;
 
 // Prefetch cache to avoid double-importing
