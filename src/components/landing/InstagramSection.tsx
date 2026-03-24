@@ -1,26 +1,11 @@
 import { useState } from "react";
-import { Instagram, Sparkles, MapPin } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Instagram, Sparkles } from "lucide-react";
+import { motion } from "framer-motion";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
-
-const SUPABASE_STORAGE = "https://rsezgnkfhodltrsewlhz.supabase.co/storage/v1/object/public/sales-materials";
-
-const manchesterPhotos = [
-  `${SUPABASE_STORAGE}/manchester/collections/1772395758130_0.jpeg`,
-  `${SUPABASE_STORAGE}/manchester/collections/1772395759058_1.jpeg`,
-  `${SUPABASE_STORAGE}/manchester/collections/1772395759570_2.jpeg`,
-  `${SUPABASE_STORAGE}/manchester/collections/1772395760275_3.jpeg`,
-  `${SUPABASE_STORAGE}/manchester/collections/1772395760979_4.jpeg`,
-  `${SUPABASE_STORAGE}/manchester/collections/1772395761599_5.jpeg`,
-  `${SUPABASE_STORAGE}/manchester/collections/1772395762150_6.jpeg`,
-  `${SUPABASE_STORAGE}/manchester/collections/1772395762643_7.jpeg`,
-  `${SUPABASE_STORAGE}/manchester/collections/1772395763126_8.jpeg`,
-  `${SUPABASE_STORAGE}/manchester/collections/1772395763766_9.jpeg`,
-];
 
 const COMPANY_STORAGE = "https://rsezgnkfhodltrsewlhz.supabase.co/storage/v1/object/public/sales-materials/a0000000-0000-0000-0000-000000000001";
 
-const trujilloPhotos = [
+const photos = [
   `${COMPANY_STORAGE}/Trujillo/1772397433865-ks2d8aotn8.jpeg`,
   `${COMPANY_STORAGE}/Trujillo/1772397434726-7istdpq1jfo.jpeg`,
   `${COMPANY_STORAGE}/Trujillo/1772397435228-t98o450962.jpeg`,
@@ -33,13 +18,7 @@ const trujilloPhotos = [
   `${COMPANY_STORAGE}/Trujillo/1772397441314-cvadllwqf7v.jpeg`,
 ];
 
-const units = [
-  { name: "Manchester", photos: manchesterPhotos },
-  { name: "Trujillo", photos: trujilloPhotos },
-];
-
 export const InstagramSection = () => {
-  const [activeUnit, setActiveUnit] = useState(0);
   const [selectedImage, setSelectedImage] = useState<number | null>(null);
   return (
     <section className="py-20 relative overflow-hidden bg-gradient-to-br from-primary/5 via-background to-secondary/10">
@@ -76,58 +55,38 @@ export const InstagramSection = () => {
           </p>
         </motion.div>
 
-        {/* Unit Tabs */}
-        <div className="flex justify-center gap-3 mb-8">
-          {units.map((unit, idx) => (
-            <button
-              key={unit.name}
-              onClick={() => setActiveUnit(idx)}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-full font-semibold transition-all duration-300 ${
-                activeUnit === idx
-                  ? "bg-primary text-primary-foreground shadow-lg scale-105"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              }`}
-            >
-              <MapPin className="w-4 h-4" />
-              {unit.name}
-            </button>
-          ))}
-        </div>
-
         {/* Photo Grid */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeUnit}
-            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 max-w-5xl mx-auto"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.4 }}
-          >
-            {units[activeUnit].photos.map((src, index) => (
-              <motion.div
-                key={src}
-                className="group relative rounded-xl overflow-hidden shadow-lg aspect-square cursor-pointer"
-                onClick={() => setSelectedImage(index)}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.3, delay: index * 0.05 }}
-              >
-                <img
-                  src={src}
-                  alt={`${units[activeUnit].name} - Foto ${index + 1}`}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              </motion.div>
-            ))}
-          </motion.div>
-        </AnimatePresence>
+        <motion.div
+          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 max-w-5xl mx-auto"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          viewport={{ once: true }}
+        >
+          {photos.map((src, index) => (
+            <motion.div
+              key={src}
+              className="group relative rounded-xl overflow-hidden shadow-lg aspect-square cursor-pointer"
+              onClick={() => setSelectedImage(index)}
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3, delay: index * 0.05 }}
+              viewport={{ once: true }}
+            >
+              <img
+                src={src}
+                alt={`Castelo da Diversão - Foto ${index + 1}`}
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            </motion.div>
+          ))}
+        </motion.div>
 
         {selectedImage !== null && (
           <ImageLightbox
-            images={units[activeUnit].photos}
+            images={photos}
             currentIndex={selectedImage}
             onClose={() => setSelectedImage(null)}
             onNavigate={setSelectedImage}

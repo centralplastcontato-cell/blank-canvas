@@ -192,7 +192,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
     if (isOpen && messages.length === 0) {
       const welcomeMsg = isDynamic
         ? (lpBotConfig?.welcome_message || `Oi 👋 Que bom te ver por aqui!\n\nVou te fazer algumas perguntas rápidas para montar seu orçamento 😉`)
-        : "Oi 👋 Que bom te ver por aqui!\n\nVou te fazer algumas perguntas rápidas para montar seu orçamento com os bônus do Mês do Consumidor 🎉";
+        : "Oi 👋 Que bom te ver por aqui!\n\nVou te fazer algumas perguntas rápidas para montar seu orçamento 😉";
 
       setTimeout(() => {
         setMessages([
@@ -233,16 +233,18 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
               setCurrentStep(1); // month step
             }
           } else {
-            // Default Castelo mode: ask unit first
+            // Default Castelo mode: auto-assign Trujillo, skip unit selection
+            setLeadData((prev) => ({ ...prev, unit: "Trujillo" }));
             setMessages((prev) => [
               ...prev,
               {
-                id: "unit",
+                id: "month",
                 type: "bot",
-                content: "Em qual unidade você deseja fazer sua festa?",
-                options: campaignConfig.chatbot.unitOptions,
+                content: "Para qual mês você pretende realizar a festa?",
+                options: campaignConfig.chatbot.monthOptions,
               },
             ]);
+            setCurrentStep(1);
           }
         }, 800);
       }, 500);
@@ -348,39 +350,11 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
             break;
         }
       } else {
-        // Default Castelo mode flow: unit(0) -> month(1) -> day -> guests(3) -> capture(4)
+        // Default Castelo mode flow: month(1) -> day -> guests(3) -> capture(4)
         switch (currentStep) {
-          case 0:
-            setLeadData((prev) => ({ ...prev, unit: option }));
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: "month",
-                type: "bot",
-                content: "Perfeito! Para qual mês você pretende realizar a festa?",
-                options: campaignConfig.chatbot.monthOptions,
-              },
-            ]);
-            setCurrentStep(1);
-            break;
           case 1:
             setLeadData((prev) => ({ ...prev, month: option }));
-            const isPromoMonth = campaignConfig.chatbot.promoMonths?.includes(option);
-            if (!isPromoMonth && campaignConfig.chatbot.nonPromoMessage) {
-              setMessages((prev) => [
-                ...prev,
-                {
-                  id: "non-promo-warning",
-                  type: "bot",
-                  content: campaignConfig.chatbot.nonPromoMessage,
-                },
-              ]);
-              setTimeout(() => {
-                addDayOfMonthStep(option);
-              }, 1500);
-            } else {
-              addDayOfMonthStep(option);
-            }
+            addDayOfMonthStep(option);
             setCurrentStep(2);
             break;
           case 2:
@@ -514,7 +488,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
 
         if (leadData.unit === "As duas") {
           // Send to all units (dynamic or default)
-          const allUnits = isDynamic && unitOptions?.length ? unitOptions : ["Manchester", "Trujillo"];
+          const allUnits = isDynamic && unitOptions?.length ? unitOptions : ["Trujillo"];
           Promise.all(
             allUnits.map(u => sendWelcomeMessage(whatsappValue, u, finalLeadData, redirectInfo))
           ).catch(err => console.error("Erro ao enviar mensagem automática:", err));
@@ -529,7 +503,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
             : `Prontinho! 🎉\n\nSeus dados foram encaminhados para o ${lpBotConfig?.guest_limit_redirect_name || 'buffet parceiro'}. Eles entrarão em contato em breve!\n\nObrigado pelo interesse! 💜`)
           : isDynamic
           ? (lpBotConfig?.completion_message || `Prontinho 🎉\n\nRecebemos suas informações e nossa equipe vai entrar em contato em breve para confirmar valores e disponibilidade da sua data.\n\nAcabei de te enviar uma mensagem no seu WhatsApp, dá uma olhadinha lá! 📲`)
-          : `Prontinho 🎉\n\nRecebemos suas informações e nossa equipe vai entrar em contato em breve para confirmar valores e disponibilidade da sua data.\n\nPromoção válida conforme regras da campanha: ${campaignConfig.campaignName}\n\nAcabei de te enviar uma mensagem no seu WhatsApp, dá uma olhadinha lá! 📲`;
+          : `Prontinho 🎉\n\nRecebemos suas informações e nossa equipe vai entrar em contato em breve para confirmar valores e disponibilidade da sua data.\n\nAcabei de te enviar uma mensagem no seu WhatsApp, dá uma olhadinha lá! 📲`;
 
         setMessages((prev) => [
           ...prev,
@@ -660,7 +634,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
                             if (message.id === "day-of-month" && option === "") {
                               return <div key={`empty-${idx}`} className="w-9 h-9" />;
                             }
-                            const isPromoMonth = !isDynamic && message.id === "month" && campaignConfig.chatbot.promoMonths?.includes(option);
+                            const isPromoMonth = false;
                             return (
                               <button
                                 key={option || `opt-${idx}`}
@@ -778,29 +752,17 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
                     <span>{displayName}</span>
                   </a>
                 ) : !isDynamic ? (
-                  // Default Castelo mode: two WhatsApp buttons
-                  <>
-                    <a
-                      href={`https://wa.me/5515991336278?text=${encodeURIComponent(buildWhatsAppMessage())}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full transition-all duration-300 text-sm font-medium hover:scale-105"
-                    >
-                      <MessageCircle size={16} className="transition-transform duration-300 group-hover:scale-110" />
-                      <MapPin size={12} />
-                      <span>Manchester</span>
-                    </a>
-                    <a
-                      href={`https://wa.me/5515974034646?text=${encodeURIComponent(buildWhatsAppMessage())}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full transition-all duration-300 text-sm font-medium hover:scale-105"
-                    >
-                      <MessageCircle size={16} className="transition-transform duration-300 group-hover:scale-110" />
-                      <MapPin size={12} />
-                      <span>Trujilo</span>
-                    </a>
-                  </>
+                  // Default Castelo mode: Trujillo only
+                  <a
+                    href={`https://wa.me/5515974034646?text=${encodeURIComponent(buildWhatsAppMessage())}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full transition-all duration-300 text-sm font-medium hover:scale-105"
+                  >
+                    <MessageCircle size={16} className="transition-transform duration-300 group-hover:scale-110" />
+                    <MapPin size={12} />
+                    <span>Trujillo</span>
+                  </a>
                 ) : null}
               </div>
               <button
