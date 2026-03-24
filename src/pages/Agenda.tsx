@@ -381,6 +381,9 @@ export default function Agenda() {
       gifts: data.gifts || null,
       extra_guest_value: data.extra_guest_value,
     };
+    if (data.payment_details) {
+      payload.payment_details = data.payment_details;
+    }
     console.log('[Evento:DadosComerciais]', { data_fechamento_venda: payload.data_fechamento_venda, vendedor_responsavel_id: payload.vendedor_responsavel_id });
 
     if (data.id) {
