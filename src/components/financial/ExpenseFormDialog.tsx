@@ -110,17 +110,6 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, unitOptions, d
               </SelectContent>
             </Select>
           </div>
-          {unitOptions && unitOptions.length > 0 && (
-            <div>
-              <Label>Unidade</Label>
-              <Select value={unit} onValueChange={setUnit}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  {unitOptions.map(u => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
           <div>
             <Label>Status</Label>
             <Select value={status} onValueChange={setStatus}>
