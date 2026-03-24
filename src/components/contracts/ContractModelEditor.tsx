@@ -12,6 +12,38 @@ import { toast } from "@/hooks/use-toast";
 import { getAvailableVariables, resolveSystemVariables } from "@/lib/template-resolver";
 import { RichContractEditor } from "./RichContractEditor";
 
+/** Convert **bold** markdown markers into <strong> tags.
+ *  Handles bold blocks that span multiple lines by tracking open/close state. */
+function parseBoldMarkdown(text: string): string {
+  const lines = text.split('\n');
+  let inBold = false;
+  const result = lines.map(line => {
+    // First handle complete **..** pairs within this line
+    line = line.replace(/\*\*([^\n]+?)\*\*/g, (_m, inner) => `<strong>${inner}</strong>`);
+    // Count remaining unmatched ** markers
+    const parts = line.split('**');
+    if (parts.length > 1) {
+      let rebuilt = '';
+      for (let i = 0; i < parts.length; i++) {
+        if (i > 0) {
+          inBold = !inBold;
+          rebuilt += inBold ? '<strong>' : '</strong>';
+        }
+        rebuilt += parts[i];
+      }
+      return rebuilt;
+    }
+    if (inBold) {
+      return `<strong>${line}</strong>`;
+    }
+    return line;
+  });
+  let output = result.join('\n');
+  if (inBold) output += '</strong>';
+  output = output.replace(/<strong><\/strong>/g, '');
+  return output;
+}
+
 const TIPO_OPTIONS = [
   { value: "aniversario", label: "Aniversário" },
   { value: "aniversario_kids", label: "Aniversário Kids" },
