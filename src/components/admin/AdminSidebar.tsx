@@ -106,7 +106,7 @@ export function AdminSidebar({
 
   return (
     <>
-      {/* Floating lock button OUTSIDE sidebar - always accessible */}
+      {/* Floating lock button OUTSIDE sidebar - desktop only */}
       {collapsed && (
         <Tooltip>
           <TooltipTrigger asChild>
