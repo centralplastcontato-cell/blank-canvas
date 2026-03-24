@@ -134,7 +134,7 @@ export function ContractDocumentViewer({
         {/* Toolbar */}
         <div className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-border/40 bg-card shrink-0 print-hide">
           <div className="flex items-center gap-3 min-w-0">
-            <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="gap-1.5 text-xs rounded-full shrink-0">
+            <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="gap-1.5 text-xs rounded-full shrink-0 relative z-10">
               <ArrowLeft className="h-3.5 w-3.5" /> Voltar
             </Button>
             <div className="min-w-0">
