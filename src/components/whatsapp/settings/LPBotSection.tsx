@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Save, Plus, X, AlertTriangle, RefreshCw } from "lucide-react";
+import { Loader2, Save, Plus, X, AlertTriangle, RefreshCw, Route } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface LPBotSettings {
   id?: string;
@@ -28,6 +29,7 @@ interface LPBotSettings {
   redirect_completion_message: string | null;
   auto_rotate_months: boolean;
   whatsapp_welcome_template: string | null;
+  lead_routing_mode: string;
 }
 
 const DEFAULTS: Omit<LPBotSettings, 'company_id'> = {
@@ -45,6 +47,7 @@ const DEFAULTS: Omit<LPBotSettings, 'company_id'> = {
   redirect_completion_message: null,
   auto_rotate_months: false,
   whatsapp_welcome_template: 'Olá! 👋🏼✨\n\nVim pelo site do *{empresa}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: {nome}\n📍 Unidade: {unidade}\n📅 Data: {data}\n👥 Convidados: {convidados}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n1️⃣ - 📩 Receber agora meu orçamento\n2️⃣ - 💬 Falar com um atendente',
+  lead_routing_mode: 'auto',
 };
 
 export function LPBotSection() {
@@ -87,6 +90,7 @@ export function LPBotSection() {
         redirect_completion_message: (data as any).redirect_completion_message || null,
         auto_rotate_months: (data as any).auto_rotate_months ?? false,
         whatsapp_welcome_template: (data as any).whatsapp_welcome_template || DEFAULTS.whatsapp_welcome_template,
+        lead_routing_mode: (data as any).lead_routing_mode || 'auto',
       });
     } else {
       setSettings({
@@ -117,6 +121,7 @@ export function LPBotSection() {
       redirect_completion_message: settings.redirect_completion_message || null,
       auto_rotate_months: settings.auto_rotate_months,
       whatsapp_welcome_template: settings.whatsapp_welcome_template || null,
+      lead_routing_mode: settings.lead_routing_mode,
     };
 
     let error;
@@ -363,7 +368,40 @@ export function LPBotSection() {
         </CardContent>
       </Card>
 
-      {/* Save Button */}
+      {/* Lead Routing */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Route className="w-4 h-4 text-primary" />
+            Distribuição de Leads da Landing Page
+          </CardTitle>
+          <CardDescription>Escolha qual instância do WhatsApp recebe os leads da LP</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Select
+            value={settings.lead_routing_mode}
+            onValueChange={(value) => updateField('lead_routing_mode', value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione o modo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="auto">🔄 Automático (Round-Robin)</SelectItem>
+              <SelectItem value="vendas1">📱 Apenas Vendas 1</SelectItem>
+              <SelectItem value="vendas2">📱 Apenas Vendas 2</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            {settings.lead_routing_mode === 'auto' 
+              ? 'Leads serão alternados automaticamente entre Vendas 1 e Vendas 2.'
+              : settings.lead_routing_mode === 'vendas1'
+              ? 'Todos os leads da LP serão direcionados para Vendas 1.'
+              : 'Todos os leads da LP serão direcionados para Vendas 2.'}
+          </p>
+        </CardContent>
+      </Card>
+
+
       <Button onClick={handleSave} disabled={saving} className="w-full">
         {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
         Salvar configurações do Bot LP

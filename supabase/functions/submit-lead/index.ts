@@ -199,6 +199,43 @@ Deno.serve(async (req) => {
 
     // Rate limiting by phone number
     const normalizedPhone = whatsappValidation.normalized!;
+
+    // Resolve lead routing (which WhatsApp instance should receive this lead)
+    let resolvedUnit = unit || null;
+    if (company_id) {
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const supabaseEarly = createClient(supabaseUrl, supabaseServiceKey);
+
+        const { data: routingSettings } = await supabaseEarly
+          .from('lp_bot_settings')
+          .select('lead_routing_mode, lead_routing_counter')
+          .eq('company_id', company_id)
+          .maybeSingle();
+
+        if (routingSettings) {
+          const mode = routingSettings.lead_routing_mode || 'auto';
+          if (mode === 'vendas1') {
+            resolvedUnit = 'Vendas 1';
+          } else if (mode === 'vendas2') {
+            resolvedUnit = 'Vendas 2';
+          } else if (mode === 'auto') {
+            const counter = routingSettings.lead_routing_counter || 0;
+            resolvedUnit = counter % 2 === 0 ? 'Vendas 1' : 'Vendas 2';
+            // Increment counter
+            await supabaseEarly
+              .from('lp_bot_settings')
+              .update({ lead_routing_counter: counter + 1 })
+              .eq('company_id', company_id);
+          }
+        }
+      } catch (routingErr) {
+        console.error('Error resolving lead routing:', routingErr);
+        // Non-blocking — fall back to original unit
+      }
+    }
+
     if (isRateLimited(normalizedPhone)) {
       console.log(`Rate limit exceeded for phone: ${normalizedPhone}`);
       return new Response(
@@ -228,7 +265,7 @@ Deno.serve(async (req) => {
       leadId = existingLead.id;
       const newData = {
         name: name.trim(),
-        unit: unit || null,
+        unit: resolvedUnit || unit || null,
         month: month || null,
         day_of_month: day_of_month || null,
         guests: guests || null,
@@ -274,7 +311,7 @@ Deno.serve(async (req) => {
         .insert({
           name: name.trim(),
           whatsapp: normalizedPhone,
-          unit: unit || null,
+          unit: resolvedUnit || unit || null,
           month: month || null,
           day_of_month: day_of_month || null,
           guests: guests || null,
@@ -328,7 +365,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ success: true, resolved_unit: resolvedUnit }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err) {
