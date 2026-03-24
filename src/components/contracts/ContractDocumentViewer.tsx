@@ -130,7 +130,7 @@ export function ContractDocumentViewer({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl h-[95vh] flex flex-col p-0 gap-0 overflow-hidden print-hide-chrome [&>button[class*='absolute']]:hidden">
+      <DialogContent className="max-w-5xl h-[95vh] flex flex-col p-0 gap-0 overflow-hidden print-hide-chrome [&>button]:hidden">
         {/* Toolbar */}
         <div className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-border/40 bg-card shrink-0 print-hide">
           <div className="flex items-center gap-3 min-w-0">
