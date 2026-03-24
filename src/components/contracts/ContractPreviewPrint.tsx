@@ -38,7 +38,7 @@ export function ContractPreviewPrint({ content, companyName, companyLogo, packag
           .header h1 { font-size: 14pt; margin: 0; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
           .content { white-space: pre-wrap; word-wrap: break-word; }
           .footer { margin-top: 60px; text-align: center; font-size: 9pt; color: #666; border-top: 1px solid #ccc; padding-top: 15px; }
-          @media print { body { padding: 0; } }
+          @media print { }
         </style>
       </head>
       <body>

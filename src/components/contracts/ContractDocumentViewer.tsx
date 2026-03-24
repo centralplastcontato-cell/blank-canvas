@@ -104,7 +104,6 @@ export function ContractDocumentViewer({
             padding-top: 10px;
           }
           @media print {
-            body { padding: 0; }
             .no-print { display: none !important; }
           }
         </style>
