@@ -113,7 +113,7 @@ export function AdminSidebar({
             <Button
               variant="ghost"
               size="icon"
-              className={`fixed top-3 left-16 z-[60] h-8 w-8 rounded-md border border-border bg-background shadow-sm ${isLocked ? 'text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}`}
+              className={`fixed top-3 left-16 z-[60] h-8 w-8 rounded-md border border-border bg-background shadow-sm hidden md:flex ${isLocked ? 'text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}`}
               onClick={(e) => {
                 e.stopPropagation();
                 handleLockToggle();
