@@ -425,18 +425,20 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
             </div>
           </div>
 
-          {/* Financial Tab */}
-          {modules.financeiro && event.company_id && (
-            <div className="mt-4">
-              <Separator className="mb-4" />
-              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-primary" /> Financeiro
-              </h3>
-              <EventFinancialTab
-                eventId={event.id}
-                companyId={event.company_id}
-                baseValue={event.total_value || 0}
-              />
+          {/* Financial Tab — always visible when event has company */}
+          {event.company_id && (
+            <div className="rounded-xl border border-border/40 bg-card shadow-sm overflow-hidden">
+              <div className="px-4 py-2.5 bg-muted/30 border-b border-border/30 flex items-center gap-2">
+                <DollarSign className="h-3.5 w-3.5 text-primary" />
+                <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Financeiro</p>
+              </div>
+              <div className="p-4">
+                <EventFinancialTab
+                  eventId={event.id}
+                  companyId={event.company_id}
+                  baseValue={event.total_value || 0}
+                />
+              </div>
             </div>
           )}
 
