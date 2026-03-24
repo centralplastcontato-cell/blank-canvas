@@ -634,7 +634,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
                             if (message.id === "day-of-month" && option === "") {
                               return <div key={`empty-${idx}`} className="w-9 h-9" />;
                             }
-                            const isPromoMonth = !isDynamic && message.id === "month" && campaignConfig.chatbot.promoMonths?.includes(option);
+                            const isPromoMonth = false;
                             return (
                               <button
                                 key={option || `opt-${idx}`}

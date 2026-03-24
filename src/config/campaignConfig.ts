@@ -36,10 +36,10 @@ export const campaignConfig = {
 
   // CHATBOT - Opções configuráveis
   chatbot: {
-    unitOptions: ["Manchester", "Trujillo", "As duas"],
-    monthOptions: ["Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"],
-    promoMonths: ["Março"],
-    nonPromoMessage: "Atenção: A promoção do Mês do Consumidor é válida apenas para contratos fechados em Março de 2026. Para outros meses, entre em contato para conhecer nossas condições especiais! 😊",
+    unitOptions: ["Trujillo"],
+    monthOptions: ["Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"],
+    promoMonths: [],
+    nonPromoMessage: "",
     dayOptions: ["Segunda a Quinta", "Sexta", "Sábado", "Domingo"],
     guestOptions: ["50 pessoas", "60 pessoas", "70 pessoas", "80 pessoas", "90 pessoas", "100 pessoas"],
   },
