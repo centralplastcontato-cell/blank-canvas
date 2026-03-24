@@ -216,7 +216,7 @@ export default function Agenda() {
     setLoading(true);
     const start = format(startOfMonth(month), "yyyy-MM-dd");
     const end = format(endOfMonth(month), "yyyy-MM-dd");
-    const [eventsRes, checklistRes, closedResult] = await Promise.all([
+    const [eventsRes, checklistRes, closedResult, preResRes] = await Promise.all([
       supabase
         .from("company_events")
         .select("*")
@@ -230,9 +230,17 @@ export default function Agenda() {
         .select("event_id, is_completed")
         .eq("company_id", currentCompany.id),
       fetchClosedInPeriod(start, end, selectedUnit),
+      (supabase as any)
+        .from("pre_reservations")
+        .select("*")
+        .eq("company_id", currentCompany.id)
+        .gte("event_date", start)
+        .lte("event_date", end)
+        .in("status", ["ativa", "convertida"]),
     ]);
 
     if (!eventsRes.error && eventsRes.data) setEvents(eventsRes.data as CompanyEvent[]);
+    if (!preResRes.error && preResRes.data) setPreReservations(preResRes.data as PreReservation[]);
     setClosedInPeriod(closedResult?.count || 0);
     setClosedRevenue(closedResult?.revenue || 0);
     setClosedEvents(closedResult?.events || []);
