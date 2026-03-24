@@ -23,7 +23,7 @@ export function ContractPreviewPrint({ content, companyName, companyLogo, packag
       <head>
         <title> </title>
         <style>
-          @page { margin: 2cm; size: A4; }
+          @page { margin: 0; size: A4; }
           body {
             font-family: 'Georgia', 'Times New Roman', serif;
             font-size: 12pt;
