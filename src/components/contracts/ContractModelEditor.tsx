@@ -231,8 +231,8 @@ export function ContractModelEditor({ model, userId, onClose }: Props) {
                 <div
                   className="whitespace-pre-wrap text-sm leading-[1.85] text-foreground/90 font-serif text-justify"
                   dangerouslySetInnerHTML={{
-                    __html: previewContent.replace(/\*\*([\s\S]+?)\*\*/g, (_m: string, inner: string) =>
-                      `<strong>${inner.replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ').trim()}</strong>`
+                    __html: previewContent.replace(/\*\*([^\n]+?)\*\*/g, (_m: string, inner: string) =>
+                      `<strong>${inner}</strong>`
                     ),
                   }}
                 />
