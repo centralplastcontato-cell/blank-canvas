@@ -42,7 +42,7 @@ Pode me responder com:
   second_message_hours_after: 6,
   second_message_text: `Olá {{nome}} 😊
 
-Só passando para lembrar da sua visita hoje às {{hora_visita}} no {{nome_buffet}}.
+Só passando para lembrar da sua visita {{dia_visita}} às {{hora_visita}} no {{nome_buffet}}.
 
 Estamos te aguardando! 🎉`,
   send_window_start: 8,
@@ -265,7 +265,7 @@ export function VisitConfirmationSection() {
                   <TooltipContent className="max-w-xs">
                     <p className="text-xs">
                       Variáveis disponíveis: {"{{nome}}"}, {"{{data_visita}}"},{" "}
-                      {"{{hora_visita}}"}, {"{{nome_buffet}}"}
+                      {"{{hora_visita}}"}, {"{{nome_buffet}}"}, {"{{dia_visita}}"} (hoje/amanhã)
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -279,7 +279,7 @@ export function VisitConfirmationSection() {
               />
 
               <div className="flex flex-wrap gap-1.5">
-                {["{{nome}}", "{{data_visita}}", "{{hora_visita}}", "{{nome_buffet}}"].map(
+                {["{{nome}}", "{{data_visita}}", "{{hora_visita}}", "{{nome_buffet}}", "{{dia_visita}}"].map(
                   (v) => (
                     <Badge
                       key={v}
