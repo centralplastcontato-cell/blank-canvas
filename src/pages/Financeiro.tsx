@@ -328,7 +328,10 @@ export default function Financeiro() {
                       <div className="flex justify-between"><span className="text-muted-foreground">Receitas pendentes</span><span className="text-amber-400 font-medium">{fmt(dashboard.totalPendingMonth)}</span></div>
                       <div className="flex justify-between"><span className="text-muted-foreground">Em atraso</span><span className="text-red-400 font-medium">{fmt(dashboard.totalLate)}</span></div>
                       <div className="border-t border-border my-2" />
-                      <div className="flex justify-between"><span className="text-muted-foreground">Despesas do mês</span><span className="text-blue-400 font-medium">{fmt(dashboard.totalExpensesMonth)}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Despesas fixas</span><span className="text-blue-400 font-medium">{fmt(dashboard.expensesThisMonth.filter(e => (e.expense_type || 'fixa') === 'fixa').reduce((s, e) => s + e.amount, 0))}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Despesas variáveis</span><span className="text-blue-400 font-medium">{fmt(dashboard.expensesThisMonth.filter(e => e.expense_type === 'variavel').reduce((s, e) => s + e.amount, 0))}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Despesas de festas</span><span className="text-blue-400 font-medium">{fmt(dashboard.expensesThisMonth.filter(e => e.expense_type === 'festa').reduce((s, e) => s + e.amount, 0))}</span></div>
+                      <div className="flex justify-between font-medium"><span className="text-muted-foreground">Total despesas</span><span className="text-blue-400">{fmt(dashboard.totalExpensesMonth)}</span></div>
                       <div className="border-t border-border my-2" />
                       <div className="flex justify-between font-semibold"><span className="text-foreground">Saldo</span><span className={dashboard.saldoMonth >= 0 ? 'text-emerald-400' : 'text-red-400'}>{fmt(dashboard.saldoMonth)}</span></div>
                     </div>
