@@ -1869,6 +1869,135 @@ export type Database = {
           },
         ]
       }
+      event_discounts: {
+        Row: {
+          company_id: string
+          created_at: string
+          event_id: string
+          id: string
+          reason: string | null
+          type: string
+          value: number
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          event_id: string
+          id?: string
+          reason?: string | null
+          type?: string
+          value?: number
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          event_id?: string
+          id?: string
+          reason?: string | null
+          type?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_discounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_discounts_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "company_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_extras: {
+        Row: {
+          amount: number
+          company_id: string
+          created_at: string
+          description: string
+          event_id: string
+          id: string
+        }
+        Insert: {
+          amount?: number
+          company_id: string
+          created_at?: string
+          description: string
+          event_id: string
+          id?: string
+        }
+        Update: {
+          amount?: number
+          company_id?: string
+          created_at?: string
+          description?: string
+          event_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_extras_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_extras_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "company_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_financial_timeline: {
+        Row: {
+          company_id: string
+          created_at: string
+          description: string
+          event_id: string
+          id: string
+          type: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          description: string
+          event_id: string
+          id?: string
+          type: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          description?: string
+          event_id?: string
+          id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_financial_timeline_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_financial_timeline_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "company_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_info_entries: {
         Row: {
           company_id: string
@@ -1910,6 +2039,63 @@ export type Database = {
           },
           {
             foreignKeyName: "event_info_entries_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "company_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_payments: {
+        Row: {
+          amount: number
+          company_id: string
+          created_at: string
+          due_date: string
+          event_id: string
+          id: string
+          paid_at: string | null
+          payment_method: string | null
+          status: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          company_id: string
+          created_at?: string
+          due_date: string
+          event_id: string
+          id?: string
+          paid_at?: string | null
+          payment_method?: string | null
+          status?: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          company_id?: string
+          created_at?: string
+          due_date?: string
+          event_id?: string
+          id?: string
+          paid_at?: string | null
+          payment_method?: string | null
+          status?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_payments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_payments_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "company_events"

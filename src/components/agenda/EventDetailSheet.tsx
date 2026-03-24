@@ -13,6 +13,8 @@ import { ptBR } from "date-fns/locale";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { EventChecklist } from "./EventChecklist";
+import { EventFinancialTab } from "@/components/financial/EventFinancialTab";
+import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
@@ -58,6 +60,7 @@ const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondar
 };
 
 export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, conflicts = [], userId }: EventDetailSheetProps) {
+  const modules = useCompanyModules();
   const [leadName, setLeadName] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -421,6 +424,21 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
               </button>
             </div>
           </div>
+
+          {/* Financial Tab */}
+          {modules.financeiro && event.company_id && (
+            <div className="mt-4">
+              <Separator className="mb-4" />
+              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-primary" /> Financeiro
+              </h3>
+              <EventFinancialTab
+                eventId={event.id}
+                companyId={event.company_id}
+                baseValue={event.total_value || 0}
+              />
+            </div>
+          )}
 
           {/* Action Buttons */}
           <div className="flex gap-2 pt-1 pb-2">

@@ -46,6 +46,7 @@ const lazyImports = {
   "/contratos": () => import("./pages/ContratosModule"),
   "/contrato": () => import("./pages/Contrato"),
   "/cardapio": () => import("./pages/Cardapio"),
+  "/financeiro": () => import("./pages/Financeiro"),
 } as Record<string, () => Promise<any>>;
 
 // Prefetch cache to avoid double-importing
@@ -111,6 +112,7 @@ const PublicFreelancerSchedule = lazy(() => import("./pages/PublicFreelancerSche
 const Contrato = lazy(lazyImports["/contrato"]);
 const ContratosModule = lazy(lazyImports["/contratos"]);
 const Cardapio = lazy(lazyImports["/cardapio"]);
+const Financeiro = lazy(lazyImports["/financeiro"]);
 const PublicPartyControl = lazy(() => import("./pages/PublicPartyControl"));
 const PublicClientData = lazy(() => import("./pages/PublicClientData"));
 
@@ -191,6 +193,7 @@ const App = () => (
               <Route path="/cardapio/:companySlug/:templateSlug" element={<PublicCardapio />} />
               <Route path="/cardapio/:templateId" element={<PublicCardapio />} />
               <Route path="/cardapio" element={<Cardapio />} />
+              <Route path="/financeiro" element={<Financeiro />} />
               {/* Public staff form */}
               <Route path="/equipe/:recordId" element={<PublicStaff />} />
               {/* Public maintenance form */}

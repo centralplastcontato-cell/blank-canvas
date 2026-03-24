@@ -13,6 +13,7 @@ import {
   Megaphone,
   MapPin,
   FileSignature,
+  DollarSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -115,6 +116,13 @@ export function MobileMenu({
       icon: FileSignature,
       path: "/contratos",
       show: !!modules.contrato,
+    },
+    {
+      id: "financeiro",
+      label: "Financeiro",
+      icon: DollarSign,
+      path: "/financeiro",
+      show: !!modules.financeiro,
     },
     {
       id: "configuracoes",
