@@ -240,6 +240,11 @@ export default function Agenda() {
         .gte("event_date", start)
         .lte("event_date", end)
         .in("status", ["ativa", "convertida"]),
+      (supabase as any)
+        .from("pre_reservations")
+        .select("*")
+        .eq("company_id", currentCompany.id)
+        .order("event_date", { ascending: true }),
     ]);
 
     if (!eventsRes.error && eventsRes.data) setEvents(eventsRes.data as CompanyEvent[]);
