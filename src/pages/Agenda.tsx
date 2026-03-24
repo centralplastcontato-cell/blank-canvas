@@ -25,7 +25,9 @@ import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDia
 import { EventDetailSheet } from "@/components/agenda/EventDetailSheet";
 import { MonthSummaryCards } from "@/components/agenda/MonthSummaryCards";
 import { PeriodFilterPopover } from "@/components/agenda/PeriodFilterPopover";
-import { CalendarDays, Plus, Loader2, ShieldAlert, Menu, Clock, AlertTriangle, List, ListChecks, MapPin, Users, DollarSign, Search, X, Phone, Pencil, Handshake, ArrowUpDown } from "lucide-react";
+import { PreReservationFormDialog, type PreReservation } from "@/components/agenda/PreReservationFormDialog";
+import { PreReservationDetailSheet } from "@/components/agenda/PreReservationDetailSheet";
+import { CalendarDays, Plus, Loader2, ShieldAlert, Menu, Clock, AlertTriangle, List, ListChecks, MapPin, Users, DollarSign, Search, X, Phone, Pencil, Handshake, ArrowUpDown, CalendarClock } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, startOfMonth, endOfMonth, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -87,6 +89,13 @@ export default function Agenda() {
   const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Pre-reservation state
+  const [preReservations, setPreReservations] = useState<PreReservation[]>([]);
+  const [preResFormOpen, setPreResFormOpen] = useState(false);
+  const [editingPreRes, setEditingPreRes] = useState<PreReservation | null>(null);
+  const [detailPreRes, setDetailPreRes] = useState<PreReservation | null>(null);
+  const [detailPreResOpen, setDetailPreResOpen] = useState(false);
 
   // Search state
   const [searchTerm, setSearchTerm] = useState("");
