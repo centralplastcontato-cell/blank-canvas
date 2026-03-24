@@ -816,6 +816,11 @@ export function AutomationsSection() {
             <FileText className="w-3.5 h-3.5" />
             <span>Contrato</span>
           </TabsTrigger>
+          <TabsTrigger value="prereserva" className="flex items-center gap-1.5 text-xs sm:text-sm">
+            <CalendarClock className="w-3.5 h-3.5" />
+            <span>Pré-reserva</span>
+          </TabsTrigger>
+          </TabsTrigger>
         </TabsList>
 
         {/* ============ TAB: GERAL ============ */}
@@ -2396,6 +2401,11 @@ export function AutomationsSection() {
         {/* ============ TAB: CONTRATO ============ */}
         <TabsContent value="contrato" className="mt-4">
           <ContractMessageSection />
+        </TabsContent>
+
+        {/* ============ TAB: PRÉ-RESERVA ============ */}
+        <TabsContent value="prereserva" className="mt-4">
+          <PreReservationAutomationSection />
         </TabsContent>
       </Tabs>
     </div>
