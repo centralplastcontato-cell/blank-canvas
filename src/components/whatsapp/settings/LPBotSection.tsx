@@ -368,7 +368,40 @@ export function LPBotSection() {
         </CardContent>
       </Card>
 
-      {/* Save Button */}
+      {/* Lead Routing */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Route className="w-4 h-4 text-primary" />
+            Distribuição de Leads da Landing Page
+          </CardTitle>
+          <CardDescription>Escolha qual instância do WhatsApp recebe os leads da LP</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Select
+            value={settings.lead_routing_mode}
+            onValueChange={(value) => updateField('lead_routing_mode', value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione o modo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="auto">🔄 Automático (Round-Robin)</SelectItem>
+              <SelectItem value="vendas1">📱 Apenas Vendas 1</SelectItem>
+              <SelectItem value="vendas2">📱 Apenas Vendas 2</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            {settings.lead_routing_mode === 'auto' 
+              ? 'Leads serão alternados automaticamente entre Vendas 1 e Vendas 2.'
+              : settings.lead_routing_mode === 'vendas1'
+              ? 'Todos os leads da LP serão direcionados para Vendas 1.'
+              : 'Todos os leads da LP serão direcionados para Vendas 2.'}
+          </p>
+        </CardContent>
+      </Card>
+
+
       <Button onClick={handleSave} disabled={saving} className="w-full">
         {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
         Salvar configurações do Bot LP
