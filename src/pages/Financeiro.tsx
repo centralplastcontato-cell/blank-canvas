@@ -254,8 +254,9 @@ export default function Financeiro() {
                 </div>
               )}
             </Card>
-          </div>
-        </main>
+            </div>
+          </main>
+        </div>
       </div>
     </SidebarProvider>
   );
