@@ -70,7 +70,7 @@ export function ContractDocumentViewer({
       <head>
         <title></title>
         <style>
-          @page { size: A4; margin: 1.5cm 2cm; }
+          @page { size: A4; margin: 0; }
           * { box-sizing: border-box; }
           body {
             font-family: 'Georgia', 'Times New Roman', serif;
@@ -79,7 +79,7 @@ export function ContractDocumentViewer({
             color: #1a1a1a;
             max-width: 680px;
             margin: 0 auto;
-            padding: 0;
+            padding: 1.5cm 2cm;
           }
           .header {
             text-align: center;
@@ -104,7 +104,6 @@ export function ContractDocumentViewer({
             padding-top: 10px;
           }
           @media print {
-            body { padding: 0; }
             .no-print { display: none !important; }
           }
         </style>

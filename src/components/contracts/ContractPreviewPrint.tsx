@@ -23,7 +23,7 @@ export function ContractPreviewPrint({ content, companyName, companyLogo, packag
       <head>
         <title> </title>
         <style>
-          @page { margin: 2cm; size: A4; }
+          @page { margin: 0; size: A4; }
           body {
             font-family: 'Georgia', 'Times New Roman', serif;
             font-size: 12pt;
@@ -31,14 +31,14 @@ export function ContractPreviewPrint({ content, companyName, companyLogo, packag
             color: #1a1a1a;
             max-width: 700px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 2cm;
           }
           .header { text-align: center; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 2px solid #333; }
           .header img { height: 100px; margin-bottom: 12px; }
           .header h1 { font-size: 14pt; margin: 0; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
           .content { white-space: pre-wrap; word-wrap: break-word; }
           .footer { margin-top: 60px; text-align: center; font-size: 9pt; color: #666; border-top: 1px solid #ccc; padding-top: 15px; }
-          @media print { body { padding: 0; } }
+          @media print { }
         </style>
       </head>
       <body>
