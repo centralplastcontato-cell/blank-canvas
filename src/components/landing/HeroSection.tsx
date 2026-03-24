@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Star, Heart, PartyPopper } from "lucide-react";
-import fachada1 from "@/assets/fachada-unidade-1.jpg";
+import fachada1 from "@/assets/fachada-unidade-2.jpg";
 import logoCastelo from "@/assets/logo-castelo.png";
 
 interface HeroSectionProps {
