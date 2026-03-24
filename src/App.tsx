@@ -112,6 +112,7 @@ const PublicFreelancerSchedule = lazy(() => import("./pages/PublicFreelancerSche
 const Contrato = lazy(lazyImports["/contrato"]);
 const ContratosModule = lazy(lazyImports["/contratos"]);
 const Cardapio = lazy(lazyImports["/cardapio"]);
+const Financeiro = lazy(lazyImports["/financeiro"]);
 const PublicPartyControl = lazy(() => import("./pages/PublicPartyControl"));
 const PublicClientData = lazy(() => import("./pages/PublicClientData"));
 
