@@ -25,7 +25,9 @@ import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDia
 import { EventDetailSheet } from "@/components/agenda/EventDetailSheet";
 import { MonthSummaryCards } from "@/components/agenda/MonthSummaryCards";
 import { PeriodFilterPopover } from "@/components/agenda/PeriodFilterPopover";
-import { CalendarDays, Plus, Loader2, ShieldAlert, Menu, Clock, AlertTriangle, List, ListChecks, MapPin, Users, DollarSign, Search, X, Phone, Pencil, Handshake, ArrowUpDown } from "lucide-react";
+import { PreReservationFormDialog, type PreReservation } from "@/components/agenda/PreReservationFormDialog";
+import { PreReservationDetailSheet } from "@/components/agenda/PreReservationDetailSheet";
+import { CalendarDays, Plus, Loader2, ShieldAlert, Menu, Clock, AlertTriangle, List, ListChecks, MapPin, Users, DollarSign, Search, X, Phone, Pencil, Handshake, ArrowUpDown, CalendarClock } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, startOfMonth, endOfMonth, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -87,6 +89,13 @@ export default function Agenda() {
   const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Pre-reservation state
+  const [preReservations, setPreReservations] = useState<PreReservation[]>([]);
+  const [preResFormOpen, setPreResFormOpen] = useState(false);
+  const [editingPreRes, setEditingPreRes] = useState<PreReservation | null>(null);
+  const [detailPreRes, setDetailPreRes] = useState<PreReservation | null>(null);
+  const [detailPreResOpen, setDetailPreResOpen] = useState(false);
 
   // Search state
   const [searchTerm, setSearchTerm] = useState("");
@@ -207,7 +216,7 @@ export default function Agenda() {
     setLoading(true);
     const start = format(startOfMonth(month), "yyyy-MM-dd");
     const end = format(endOfMonth(month), "yyyy-MM-dd");
-    const [eventsRes, checklistRes, closedResult] = await Promise.all([
+    const [eventsRes, checklistRes, closedResult, preResRes] = await Promise.all([
       supabase
         .from("company_events")
         .select("*")
@@ -221,9 +230,17 @@ export default function Agenda() {
         .select("event_id, is_completed")
         .eq("company_id", currentCompany.id),
       fetchClosedInPeriod(start, end, selectedUnit),
+      (supabase as any)
+        .from("pre_reservations")
+        .select("*")
+        .eq("company_id", currentCompany.id)
+        .gte("event_date", start)
+        .lte("event_date", end)
+        .in("status", ["ativa", "convertida"]),
     ]);
 
     if (!eventsRes.error && eventsRes.data) setEvents(eventsRes.data as CompanyEvent[]);
+    if (!preResRes.error && preResRes.data) setPreReservations(preResRes.data as PreReservation[]);
     setClosedInPeriod(closedResult?.count || 0);
     setClosedRevenue(closedResult?.revenue || 0);
     setClosedEvents(closedResult?.events || []);
@@ -332,6 +349,22 @@ export default function Agenda() {
     const dateStr = format(selectedDate, "yyyy-MM-dd");
     return filteredEvents.filter(e => e.event_date === dateStr);
   }, [filteredEvents, selectedDate]);
+
+  // Pre-reservations for selected day
+  const dayPreReservations = useMemo(() => {
+    if (!selectedDate) return [];
+    const dateStr = format(selectedDate, "yyyy-MM-dd");
+    return preReservations.filter(pr => pr.event_date === dateStr && pr.status === "ativa");
+  }, [preReservations, selectedDate]);
+
+  // Filtered pre-reservations (respects unit)
+  const filteredPreReservations = useMemo(() => {
+    let filtered = preReservations;
+    if (selectedUnit !== "all") {
+      filtered = filtered.filter(pr => pr.unit === selectedUnit);
+    }
+    return filtered;
+  }, [preReservations, selectedUnit]);
 
   // Detect conflicts (same unit + overlapping time)
   // When end_time is missing, assume event lasts ~3 hours from start to avoid false conflicts
@@ -589,6 +622,9 @@ export default function Agenda() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  <Button variant="outline" size="sm" className="border-pink-300 text-pink-600 hover:bg-pink-50" onClick={() => { setEditingPreRes(null); setPreResFormOpen(true); }}>
+                    <CalendarClock className="h-4 w-4 mr-1" /> Pré-reserva
+                  </Button>
                   <Button variant="default" size="sm" onClick={() => { setEditingEvent(null); setFormOpen(true); }}>
                     <Plus className="h-4 w-4 mr-1" /> Nova
                   </Button>
@@ -706,6 +742,9 @@ export default function Agenda() {
                           </Select>
                         );
                       })()}
+                      <Button variant="outline" className="h-10 px-4 border-pink-300 text-pink-600 hover:bg-pink-50" onClick={() => { setEditingPreRes(null); setPreResFormOpen(true); }}>
+                        <CalendarClock className="h-4 w-4 mr-2" /> Pré-reserva
+                      </Button>
                       <Button onClick={() => { setEditingEvent(null); setFormOpen(true); }} className="h-10 px-5 shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all duration-200">
                         <Plus className="h-4 w-4 mr-2" /> Nova Festa
                       </Button>
@@ -997,6 +1036,7 @@ export default function Agenda() {
                         onDayClick={setSelectedDate}
                         selectedDate={selectedDate}
                         checklistProgress={checklistProgress}
+                        preReservations={filteredPreReservations}
                       />
                     )}
                   </CardContent>
@@ -1097,6 +1137,28 @@ export default function Agenda() {
                         );
                       })}
                     </div>
+                    {/* Pre-reservations for this day */}
+                    {dayPreReservations.length > 0 && (
+                      <div className="space-y-2 mt-4 pt-3 border-t border-pink-200/50">
+                        <p className="text-[11px] font-bold text-pink-500 uppercase tracking-widest">Pré-reservas</p>
+                        {dayPreReservations.map((pr) => (
+                          <button
+                            key={pr.id}
+                            onClick={() => { setDetailPreRes(pr); setDetailPreResOpen(true); }}
+                            className="w-full text-left p-3 rounded-xl border border-pink-200/50 border-l-[3px] border-l-pink-400 bg-pink-50/30 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+                          >
+                            <div className="flex items-center justify-between gap-2 mb-1">
+                              <span className="font-semibold text-[13px] truncate">{pr.customer_name}</span>
+                              <Badge className="bg-pink-100 text-pink-700 border-pink-200 border text-[10px]">Pré-reserva</Badge>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                              {pr.unit && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{pr.unit}</span>}
+                              <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{pr.reservation_days}d</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     {selectedDate && (
                       <Button
                         variant="outline"
@@ -1176,6 +1238,49 @@ export default function Agenda() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PreReservationFormDialog
+        open={preResFormOpen}
+        onOpenChange={setPreResFormOpen}
+        companyId={currentCompany?.id || ""}
+        userId={currentUser?.id || ""}
+        units={physicalUnits}
+        onSuccess={fetchEvents}
+        initialData={editingPreRes}
+        initialDate={selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined}
+      />
+
+      <PreReservationDetailSheet
+        open={detailPreResOpen}
+        onOpenChange={setDetailPreResOpen}
+        preReservation={detailPreRes}
+        onEdit={(pr) => { setEditingPreRes(pr); setPreResFormOpen(true); }}
+        onConvert={(pr) => {
+          setEditingEvent({
+            ...({} as EventFormData),
+            title: pr.customer_name,
+            event_date: pr.event_date,
+            unit: pr.unit || "",
+            lead_id: pr.lead_id || null,
+            start_time: "", end_time: "", event_type: "aniversario", guest_count: null, status: "pendente", package_name: "", total_value: null, notes: pr.notes || "",
+          });
+          setFormOpen(true);
+          setDetailPreResOpen(false);
+          // Mark as converted after event is created (handled via fetchEvents refresh)
+          if (pr.id) {
+            (supabase as any).from("pre_reservations").update({ status: "convertida" }).eq("id", pr.id);
+            if (pr.lead_id) {
+              (supabase as any).from("lead_history").insert({
+                lead_id: pr.lead_id, company_id: pr.company_id,
+                action: "pre_reserva_convertida", details: "Pré-reserva convertida em festa oficial",
+                performed_by: currentUser?.id,
+              });
+            }
+          }
+        }}
+        onRefresh={fetchEvents}
+        userId={currentUser?.id}
+      />
 
     </SidebarProvider>
   );

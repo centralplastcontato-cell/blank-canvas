@@ -3652,6 +3652,141 @@ export type Database = {
         }
         Relationships: []
       }
+      pre_reservation_settings: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          expiry_message: string | null
+          hours_before_expiry: number | null
+          id: string
+          is_enabled: boolean | null
+          send_on_last_day: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          expiry_message?: string | null
+          hours_before_expiry?: number | null
+          id?: string
+          is_enabled?: boolean | null
+          send_on_last_day?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          expiry_message?: string | null
+          hours_before_expiry?: number | null
+          id?: string
+          is_enabled?: boolean | null
+          send_on_last_day?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pre_reservation_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pre_reservations: {
+        Row: {
+          cancellation_reason: string | null
+          company_id: string
+          converted_event_id: string | null
+          created_at: string | null
+          created_by: string | null
+          customer_name: string
+          customer_phone: string | null
+          customer_response_at: string | null
+          customer_response_status: string | null
+          customer_response_text: string | null
+          event_date: string
+          id: string
+          last_automation_sent_at: string | null
+          lead_id: string | null
+          notes: string | null
+          reservation_days: number
+          reservation_expires_at: string
+          reservation_start_at: string
+          status: string
+          unit: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          cancellation_reason?: string | null
+          company_id: string
+          converted_event_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          customer_response_at?: string | null
+          customer_response_status?: string | null
+          customer_response_text?: string | null
+          event_date: string
+          id?: string
+          last_automation_sent_at?: string | null
+          lead_id?: string | null
+          notes?: string | null
+          reservation_days?: number
+          reservation_expires_at: string
+          reservation_start_at?: string
+          status?: string
+          unit?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          cancellation_reason?: string | null
+          company_id?: string
+          converted_event_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          customer_response_at?: string | null
+          customer_response_status?: string | null
+          customer_response_text?: string | null
+          event_date?: string
+          id?: string
+          last_automation_sent_at?: string | null
+          lead_id?: string | null
+          notes?: string | null
+          reservation_days?: number
+          reservation_expires_at?: string
+          reservation_start_at?: string
+          status?: string
+          unit?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pre_reservations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pre_reservations_converted_event_id_fkey"
+            columns: ["converted_event_id"]
+            isOneToOne: false
+            referencedRelation: "company_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pre_reservations_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prefesta_responses: {
         Row: {
           answers: Json

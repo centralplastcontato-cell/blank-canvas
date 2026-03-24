@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bot, Clock, Forward, Zap, Plus, Trash2, Phone, Shield, Beaker, Power, Loader2, MessageSquare, Save, RotateCcw, Images, Video, FileText, Send, RefreshCw, GitBranch, Map, GripVertical, Workflow, Globe2, Sparkles } from "lucide-react";
+import { Bot, Clock, Forward, Zap, Plus, Trash2, Phone, Shield, Beaker, Power, Loader2, MessageSquare, Save, RotateCcw, Images, Video, FileText, Send, RefreshCw, GitBranch, Map, GripVertical, Workflow, Globe2, Sparkles, CalendarClock } from "lucide-react";
 import { LPBotSection } from "./LPBotSection";
 import { FreelancerApprovalMessageCard } from "./FreelancerApprovalMessageCard";
 import { ScheduleGroupMessageCard } from "./ScheduleGroupMessageCard";
@@ -23,6 +23,7 @@ import { BotJourneyDiagram } from "./BotJourneyDiagram";
 import { ReactivationSection } from "./ReactivationSection";
 import { VisitConfirmationSection } from "./VisitConfirmationSection";
 import { ContractMessageSection } from "./ContractMessageSection";
+import { PreReservationAutomationSection } from "./PreReservationAutomationSection";
 import { PartyBotMessagesCard } from "./PartyBotMessagesCard";
 import {
   DndContext,
@@ -814,6 +815,10 @@ export function AutomationsSection() {
           <TabsTrigger value="contrato" className="flex items-center gap-1.5 text-xs sm:text-sm">
             <FileText className="w-3.5 h-3.5" />
             <span>Contrato</span>
+          </TabsTrigger>
+          <TabsTrigger value="prereserva" className="flex items-center gap-1.5 text-xs sm:text-sm">
+            <CalendarClock className="w-3.5 h-3.5" />
+            <span>Pré-reserva</span>
           </TabsTrigger>
         </TabsList>
 
@@ -2395,6 +2400,11 @@ export function AutomationsSection() {
         {/* ============ TAB: CONTRATO ============ */}
         <TabsContent value="contrato" className="mt-4">
           <ContractMessageSection />
+        </TabsContent>
+
+        {/* ============ TAB: PRÉ-RESERVA ============ */}
+        <TabsContent value="prereserva" className="mt-4">
+          <PreReservationAutomationSection />
         </TabsContent>
       </Tabs>
     </div>

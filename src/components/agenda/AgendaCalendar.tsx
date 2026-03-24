@@ -16,6 +16,12 @@ interface ChecklistProgress {
   [eventId: string]: { total: number; completed: number };
 }
 
+interface PreReservationCalendar {
+  id: string;
+  event_date: string;
+  status: string;
+}
+
 interface AgendaCalendarProps {
   events: CalendarEvent[];
   month: Date;
@@ -23,6 +29,7 @@ interface AgendaCalendarProps {
   onDayClick: (date: Date) => void;
   selectedDate: Date | null;
   checklistProgress?: ChecklistProgress;
+  preReservations?: PreReservationCalendar[];
 }
 
 const STATUS_DOT: Record<string, string> = {
@@ -31,12 +38,19 @@ const STATUS_DOT: Record<string, string> = {
   cancelado: "bg-red-400",
 };
 
-export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selectedDate, checklistProgress = {} }: AgendaCalendarProps) {
+export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selectedDate, checklistProgress = {}, preReservations = [] }: AgendaCalendarProps) {
   const eventsByDate = new Map<string, CalendarEvent[]>();
   events.forEach((ev) => {
     const key = ev.event_date;
     if (!eventsByDate.has(key)) eventsByDate.set(key, []);
     eventsByDate.get(key)!.push(ev);
+  });
+
+  const preResByDate = new Map<string, PreReservationCalendar[]>();
+  preReservations.forEach((pr) => {
+    const key = pr.event_date;
+    if (!preResByDate.has(key)) preResByDate.set(key, []);
+    preResByDate.get(key)!.push(pr);
   });
 
   return (
@@ -92,7 +106,9 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
         DayContent: ({ date }) => {
           const dateKey = format(date, "yyyy-MM-dd");
           const dayEvents = eventsByDate.get(dateKey) || [];
+          const dayPreRes = preResByDate.get(dateKey) || [];
           const hasEvents = dayEvents.length > 0;
+          const hasPreRes = dayPreRes.filter(pr => pr.status === "ativa").length > 0;
           const eventCount = dayEvents.length;
 
           const hasPending = dayEvents.some((ev) => {
@@ -104,13 +120,17 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
             <div className="flex flex-col items-center gap-0.5 lg:gap-1 w-full h-full justify-center relative">
               <span className={cn(
                 "text-sm lg:text-base transition-colors duration-150",
-                hasEvents ? "font-semibold text-foreground" : "text-foreground/65"
+                (hasEvents || hasPreRes) ? "font-semibold text-foreground" : "text-foreground/65"
               )}>
                 {date.getDate()}
               </span>
 
-              {hasEvents && (
+              {(hasEvents || hasPreRes) && (
                 <div className="flex items-center gap-[2px] lg:gap-[3px] justify-center">
+                  {/* Pre-reservation pink dots */}
+                  {hasPreRes && (
+                    <span className="h-[5px] w-[5px] lg:h-[6px] lg:w-[6px] rounded-full bg-pink-400" />
+                  )}
                   {/* Show up to 3 status dots */}
                   {dayEvents.slice(0, 3).map((ev) => (
                     <span
