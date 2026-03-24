@@ -34,7 +34,6 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
   const [expenseDate, setExpenseDate] = useState('');
   const [category, setCategory] = useState('outros');
   const [expenseType, setExpenseType] = useState('fixa');
-  const [unit, setUnit] = useState('');
   const [status, setStatus] = useState('pendente');
 
   useEffect(() => {
@@ -44,7 +43,6 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
       setExpenseDate(defaultValues.expense_date || '');
       setCategory(defaultValues.category || 'outros');
       setExpenseType(defaultValues.expense_type || defaultExpenseType || 'fixa');
-      setUnit(defaultValues.unit || '');
       setStatus(defaultValues.status || 'pendente');
     } else if (open) {
       setDescription('');
@@ -52,7 +50,6 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
       setExpenseDate(new Date().toISOString().split('T')[0]);
       setCategory('outros');
       setExpenseType(defaultExpenseType || 'fixa');
-      setUnit('');
       setStatus('pendente');
     }
   }, [open, defaultValues, defaultExpenseType]);
@@ -66,7 +63,6 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
       expense_date: expenseDate,
       category,
       expense_type: expenseType,
-      unit: unit || undefined,
       status,
     });
     onOpenChange(false);
