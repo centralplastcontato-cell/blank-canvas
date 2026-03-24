@@ -386,6 +386,7 @@ export default function Agenda() {
   };
 
   const physicalUnits = units.filter(u => u.slug !== "trabalhe-conosco");
+  const isSalesChannelOnly = physicalUnits.length > 0 && physicalUnits.every(u => u.name.toLowerCase().includes("vendas"));
 
   const handleSubmit = async (data: EventFormData): Promise<string | void> => {
     if (!currentCompany?.id || !currentUser?.id) return;
@@ -652,8 +653,8 @@ export default function Agenda() {
             </div>
           </header>
 
-          {/* Mobile unit filter */}
-          {(() => {
+          {/* Mobile unit filter — hidden when units are sales channels only */}
+          {!isSalesChannelOnly && (() => {
             const visibleUnits = canViewAll ? physicalUnits : physicalUnits.filter(u => unitAccess[u.name]);
             if (visibleUnits.length <= 1) return null;
             return (
@@ -729,7 +730,8 @@ export default function Agenda() {
                           <TabsTrigger value="list" className="px-3 data-[state=active]:shadow-sm"><List className="h-4 w-4" /></TabsTrigger>
                         </TabsList>
                       </Tabs>
-                      {(() => {
+                      {/* Desktop unit filter — hidden when units are sales channels only */}
+                      {!isSalesChannelOnly && (() => {
                         const visibleUnits = canViewAll ? physicalUnits : physicalUnits.filter(u => unitAccess[u.name]);
                         if (visibleUnits.length <= 1) return null;
                         return (
