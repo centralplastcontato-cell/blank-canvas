@@ -220,6 +220,26 @@ function ClientDataStatusBadge({ status }: { status: string }) {
   );
 }
 
+function buildParcelasDetails(parcelas: number | null, saldo: number | null, existing: ParcelaDetail[] = []): ParcelaDetail[] {
+  if (!parcelas || parcelas <= 1) return [];
+
+  if (!saldo || saldo <= 0) {
+    return Array.from({ length: parcelas }, (_, i) => ({
+      valor: existing[i]?.valor ?? null,
+      vencimento: existing[i]?.vencimento ?? "",
+    }));
+  }
+
+  const saldoEmCentavos = Math.round(saldo * 100);
+  const valorBase = Math.floor(saldoEmCentavos / parcelas);
+  const restante = saldoEmCentavos - valorBase * parcelas;
+
+  return Array.from({ length: parcelas }, (_, i) => ({
+    valor: (valorBase + (i < restante ? 1 : 0)) / 100,
+    vencimento: existing[i]?.vencimento ?? "",
+  }));
+}
+
 export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, units, userId }: EventFormDialogProps) {
   const [form, setForm] = useState<EventFormData>(EMPTY);
   const [payment, setPayment] = useState<PaymentDetails>(EMPTY_PAYMENT);
@@ -882,9 +902,13 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 <Label className="text-sm font-medium text-foreground/70">Valor total</Label>
                 <MoneyInput value={form.total_value} onChange={(v) => {
                   setForm({ ...form, total_value: v });
-                  // Auto-calculate saldo
                   const entrada = payment.entrada_valor ?? 0;
-                  setPayment(prev => ({ ...prev, saldo_valor: v != null ? Math.max(0, v - entrada) : null }));
+                  const novoSaldo = v != null ? Math.max(0, v - entrada) : null;
+                  setPayment(prev => ({
+                    ...prev,
+                    saldo_valor: novoSaldo,
+                    parcelas_details: buildParcelasDetails(prev.parcelas, novoSaldo, prev.parcelas_details || []),
+                  }));
                 }} />
               </div>
 
@@ -903,17 +927,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 <Label className="text-sm font-medium text-foreground/70">Parcelas</Label>
                 <Input type="number" min={1} max={24} placeholder="1" value={payment.parcelas ?? ""} onChange={(e) => {
                   const num = e.target.value ? Math.max(1, Math.min(24, Number(e.target.value))) : null;
-                  const saldo = payment.saldo_valor ?? 0;
-                  const details = num && num > 1
-                    ? Array.from({ length: num }, (_, i) => {
-                        const existing = payment.parcelas_details?.[i];
-                        const autoValor = saldo > 0 ? Math.round((saldo / num) * 100) / 100 : null;
-                        return {
-                          valor: autoValor,
-                          vencimento: existing?.vencimento ?? "",
-                        };
-                      })
-                    : [];
+                  const details = buildParcelasDetails(num, payment.saldo_valor, payment.parcelas_details || []);
                   setPayment({ ...payment, parcelas: num, parcelas_details: details });
                 }} />
               </div>
@@ -1007,10 +1021,14 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               <div className="space-y-2.5 md:pr-6">
                 <Label className="text-sm font-medium text-foreground/70">Valor da entrada</Label>
                 <MoneyInput value={payment.entrada_valor} onChange={(v) => {
-                  setPayment(prev => ({ ...prev, entrada_valor: v }));
-                  // Auto-calculate saldo
                   const total = form.total_value ?? 0;
-                  setPayment(prev => ({ ...prev, entrada_valor: v, saldo_valor: total > 0 ? Math.max(0, total - (v ?? 0)) : prev.saldo_valor }));
+                  const novoSaldo = total > 0 ? Math.max(0, total - (v ?? 0)) : payment.saldo_valor;
+                  setPayment(prev => ({
+                    ...prev,
+                    entrada_valor: v,
+                    saldo_valor: novoSaldo,
+                    parcelas_details: buildParcelasDetails(prev.parcelas, novoSaldo, prev.parcelas_details || []),
+                  }));
                 }} />
               </div>
 
@@ -1028,16 +1046,11 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               <div className="space-y-2.5 md:pr-6">
                 <Label className="text-sm font-medium text-foreground/70">Valor do saldo</Label>
                 <MoneyInput value={payment.saldo_valor} onChange={(v) => {
-                  const num = payment.parcelas ?? 0;
-                  let updatedDetails = payment.parcelas_details || [];
-                  if (num > 1 && v && v > 0) {
-                    const perParcela = Math.round((v / num) * 100) / 100;
-                    updatedDetails = Array.from({ length: num }, (_, i) => ({
-                      vencimento: updatedDetails[i]?.vencimento || "",
-                      valor: perParcela,
-                    }));
-                  }
-                  setPayment({ ...payment, saldo_valor: v, parcelas_details: updatedDetails });
+                  setPayment({
+                    ...payment,
+                    saldo_valor: v,
+                    parcelas_details: buildParcelasDetails(payment.parcelas, v, payment.parcelas_details || []),
+                  });
                 }} />
               </div>
 
