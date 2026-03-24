@@ -1,24 +1,7 @@
 import { Play, MapPin } from "lucide-react";
 import { motion } from "framer-motion";
 import videoTrujillo from "@/assets/video-trujillo.mp4";
-import videoManchester from "@/assets/video-manchester.mov";
 import thumbTrujillo from "@/assets/thumb-trujillo.jpg";
-import thumbManchester from "@/assets/thumb-manchester.jpg";
-
-const units = [
-  {
-    name: "Unidade Trujillo",
-    video: videoTrujillo,
-    poster: thumbTrujillo,
-    location: "Trujillo",
-  },
-  {
-    name: "Unidade Manchester",
-    video: videoManchester,
-    poster: thumbManchester,
-    location: "Manchester",
-  },
-];
 
 export const VideoGallerySection = () => {
   return (
@@ -39,59 +22,52 @@ export const VideoGallerySection = () => {
             viewport={{ once: true }}
           >
             <Play className="w-4 h-4" />
-            <span className="text-sm font-medium">Conheça nossos espaços</span>
+            <span className="text-sm font-medium">Conheça nosso espaço</span>
           </motion.div>
 
           <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-4">
-            Nossas <span className="gradient-text">Unidades</span>
+            Nosso <span className="gradient-text">Espaço</span>
           </h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Descubra os espaços incríveis onde realizamos festas inesquecíveis para crianças de todas as idades
+            Descubra o espaço incrível onde realizamos festas inesquecíveis para crianças de todas as idades
           </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-          {units.map((unit, index) => (
-            <motion.div
-              key={unit.name}
-              className="group"
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: index * 0.2 }}
-              viewport={{ once: true }}
-            >
-              <div className="relative rounded-2xl overflow-hidden shadow-xl border-2 border-primary/10 bg-card">
-                {/* Video Player */}
-                <div className="aspect-[9/16] md:aspect-video relative">
-                  <video
-                    src={unit.video}
-                    poster={unit.poster}
-                    controls
-                    className="w-full h-full object-cover"
-                    preload="none"
-                    playsInline
-                    aria-label={`Vídeo da ${unit.name}`}
-                  >
-                    Seu navegador não suporta vídeos.
-                  </video>
-                </div>
+        <motion.div
+          className="max-w-3xl mx-auto"
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+        >
+          <div className="relative rounded-2xl overflow-hidden shadow-xl border-2 border-primary/10 bg-card">
+            <div className="aspect-[9/16] md:aspect-video relative">
+              <video
+                src={videoTrujillo}
+                poster={thumbTrujillo}
+                controls
+                className="w-full h-full object-cover"
+                preload="none"
+                playsInline
+                aria-label="Vídeo do Castelo da Diversão"
+              >
+                Seu navegador não suporta vídeos.
+              </video>
+            </div>
 
-                {/* Unit Info */}
-                <div className="p-5 bg-gradient-to-t from-card to-card/80">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xl font-bold text-foreground">
-                      {unit.name}
-                    </h3>
-                    <div className="flex items-center gap-1 text-muted-foreground text-sm">
-                      <MapPin className="w-4 h-4 text-primary" />
-                      <span>{unit.location}</span>
-                    </div>
-                  </div>
+            <div className="p-5 bg-gradient-to-t from-card to-card/80">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-foreground">
+                  Castelo da Diversão
+                </h3>
+                <div className="flex items-center gap-1 text-muted-foreground text-sm">
+                  <MapPin className="w-4 h-4 text-primary" />
+                  <span>Trujillo - Sorocaba</span>
                 </div>
               </div>
-            </motion.div>
-          ))}
-        </div>
+            </div>
+          </div>
+        </motion.div>
       </div>
     </section>
   );

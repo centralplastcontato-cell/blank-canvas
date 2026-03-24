@@ -2,11 +2,10 @@ import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { Moon, Sun } from "lucide-react";
 import { HeroSection } from "@/components/landing/HeroSection";
-import { OfferSection } from "@/components/landing/OfferSection";
 import { BenefitsSection } from "@/components/landing/BenefitsSection";
 import { InstagramSection } from "@/components/landing/InstagramSection";
-import { UrgencySection } from "@/components/landing/UrgencySection";
 import { VideoGallerySection } from "@/components/landing/VideoGallerySection";
+import { TestimonialsSection } from "@/components/landing/TestimonialsSection";
 import { LeadChatbot } from "@/components/landing/LeadChatbot";
 import { FloatingCTA } from "@/components/landing/FloatingCTA";
 import { Footer } from "@/components/landing/Footer";
@@ -25,7 +24,6 @@ const LandingPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Dark mode toggle */}
       <button
         onClick={() => setIsDark(!isDark)}
         className="fixed bottom-4 left-4 z-50 bg-card/80 backdrop-blur-md border border-border rounded-full p-3 shadow-lg hover:scale-110 transition-transform"
@@ -34,16 +32,16 @@ const LandingPage = () => {
         {isDark ? <Sun className="w-5 h-5 text-secondary" /> : <Moon className="w-5 h-5 text-foreground" />}
       </button>
       <Helmet>
-        <title>Castelo da Diversão | Mês do Consumidor</title>
-        <meta property="og:title" content="Castelo da Diversão | Mês do Consumidor" />
+        <title>Castelo da Diversão | Buffet Infantil em Sorocaba</title>
+        <meta name="description" content="Buffet infantil especializado em festas inesquecíveis em Sorocaba. Brinquedos incríveis, cardápio delicioso e equipe dedicada." />
+        <meta property="og:title" content="Castelo da Diversão | Buffet Infantil em Sorocaba" />
         <meta property="og:url" content="https://www.castelodadiversao.online" />
       </Helmet>
       <HeroSection onCtaClick={openChat} />
       <BenefitsSection />
-      <OfferSection onCtaClick={openChat} />
       <VideoGallerySection />
       <InstagramSection />
-      <UrgencySection onCtaClick={openChat} />
+      <TestimonialsSection />
       <Footer />
       
       <FloatingCTA onClick={openChat} />

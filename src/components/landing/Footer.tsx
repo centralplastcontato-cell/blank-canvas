@@ -1,6 +1,6 @@
 import logoCastelo from "@/assets/logo-castelo.png";
- import { Instagram, Facebook, MessageCircle, MapPin, Building2 } from "lucide-react";
- import { Link } from "react-router-dom";
+import { Instagram, Facebook, MessageCircle, MapPin, Building2 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export function Footer() {
   return (
@@ -21,7 +21,7 @@ export function Footer() {
               href="https://www.instagram.com/castelodadiversao?igsh=bXFiaHU5dmxjdGsz&utm_source=qr"
               target="_blank"
               rel="noopener noreferrer"
-               className="group flex items-center gap-2 text-white/70 hover:text-white transition-all duration-300 text-lg"
+              className="group flex items-center gap-2 text-white/70 hover:text-white transition-all duration-300 text-lg"
             >
               <Instagram size={24} className="transition-transform duration-300 group-hover:scale-125 group-hover:rotate-6" />
               <span>Instagram</span>
@@ -39,16 +39,6 @@ export function Footer() {
           
           <div className="flex flex-wrap justify-center gap-4 mb-8">
             <a
-              href="https://wa.me/5515991336278"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full transition-all duration-300 text-sm font-medium hover:scale-105 hover:shadow-lg"
-            >
-              <MessageCircle size={18} className="transition-transform duration-300 group-hover:scale-110" />
-              <MapPin size={14} />
-              <span>WhatsApp Manchester</span>
-            </a>
-            <a
               href="https://wa.me/5515974034646"
               target="_blank"
               rel="noopener noreferrer"
@@ -56,20 +46,20 @@ export function Footer() {
             >
               <MessageCircle size={18} className="transition-transform duration-300 group-hover:scale-110" />
               <MapPin size={14} />
-              <span>WhatsApp Trujilo</span>
+              <span>WhatsApp Trujillo</span>
             </a>
           </div>
 
           <div className="border-t border-white/20 pt-6">
-             <div className="mb-4">
-               <Link
-                 to="/para-buffets"
-                  className="inline-flex items-center gap-2 text-white/70 hover:text-white transition-colors text-sm"
-               >
-                 <Building2 size={16} />
-                 <span>Tem um buffet? Conheça nossa plataforma de gestão</span>
-               </Link>
-             </div>
+            <div className="mb-4">
+              <Link
+                to="/para-buffets"
+                className="inline-flex items-center gap-2 text-white/70 hover:text-white transition-colors text-sm"
+              >
+                <Building2 size={16} />
+                <span>Tem um buffet? Conheça nossa plataforma de gestão</span>
+              </Link>
+            </div>
             <p className="text-sm text-white/50">
               Buffet infantil em Sorocaba - SP
             </p>
