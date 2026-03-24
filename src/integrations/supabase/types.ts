@@ -3254,6 +3254,8 @@ export type Database = {
           guest_options: Json | null
           guest_question: string | null
           id: string
+          lead_routing_counter: number
+          lead_routing_mode: string
           month_options: Json | null
           month_question: string | null
           name_question: string | null
@@ -3274,6 +3276,8 @@ export type Database = {
           guest_options?: Json | null
           guest_question?: string | null
           id?: string
+          lead_routing_counter?: number
+          lead_routing_mode?: string
           month_options?: Json | null
           month_question?: string | null
           name_question?: string | null
@@ -3294,6 +3298,8 @@ export type Database = {
           guest_options?: Json | null
           guest_question?: string | null
           id?: string
+          lead_routing_counter?: number
+          lead_routing_mode?: string
           month_options?: Json | null
           month_question?: string | null
           name_question?: string | null
@@ -5166,6 +5172,7 @@ export type Database = {
           guest_limit_redirect_name: string
           guest_options: Json
           guest_question: string
+          lead_routing_mode: string
           month_options: Json
           month_question: string
           name_question: string
