@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, TrendingUp, TrendingDown, CheckCircle } from "lucide-react";
+import { DollarSign, TrendingDown, CheckCircle } from "lucide-react";
 import type { FinancialSummary } from "@/hooks/useEventFinancial";
 
 const STATUS_CONFIG = {
