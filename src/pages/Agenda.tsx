@@ -630,7 +630,6 @@ export default function Agenda() {
                   </Button>
                   <NotificationBell />
                 </div>
-                </div>
               </div>
               {/* Mobile content mode toggle - inside header */}
               <div className="pt-2">
