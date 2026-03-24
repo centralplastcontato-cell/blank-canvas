@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import { useEventFinancial } from "@/hooks/useEventFinancial";
 import { FinancialSummaryCards } from "./FinancialSummaryCards";
 import { PaymentFormDialog } from "./PaymentFormDialog";
 import { FinancialTimeline } from "./FinancialTimeline";
+import { supabase } from "@/integrations/supabase/client";
 
 const METHOD_LABELS: Record<string, string> = {
   pix: "PIX",
@@ -47,6 +48,50 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
   const [discountType, setDiscountType] = useState<"fixed" | "percentage">("fixed");
   const [discountValue, setDiscountValue] = useState("");
   const [discountReason, setDiscountReason] = useState("");
+  const syncAttempted = useRef(false);
+
+  // Auto-sync: if no payments exist but event has payment_details, sync them
+  useEffect(() => {
+    if (financial.isLoading || syncAttempted.current) return;
+    if (financial.payments.length > 0) return;
+    syncAttempted.current = true;
+
+    (async () => {
+      const { data: ev } = await supabase
+        .from("company_events")
+        .select("payment_details")
+        .eq("id", eventId)
+        .single();
+      const pd = ev?.payment_details as any;
+      if (!pd) return;
+
+      const rows: any[] = [];
+      if (pd.entrada_valor && pd.entrada_valor > 0) {
+        rows.push({
+          event_id: eventId, company_id: companyId, type: "entrada",
+          amount: pd.entrada_valor,
+          due_date: pd.parcelas_details?.[0]?.vencimento || new Date().toISOString().split("T")[0],
+          payment_method: pd.entrada_forma || null, status: "pending",
+        });
+      }
+      if (pd.parcelas_details?.length) {
+        pd.parcelas_details.forEach((p: any) => {
+          if (p.valor && p.valor > 0) {
+            rows.push({
+              event_id: eventId, company_id: companyId, type: "parcela",
+              amount: p.valor,
+              due_date: p.vencimento || new Date().toISOString().split("T")[0],
+              payment_method: pd.saldo_forma || null, status: "pending",
+            });
+          }
+        });
+      }
+      if (rows.length > 0) {
+        await supabase.from("event_payments").insert(rows);
+        financial.refresh();
+      }
+    })();
+  }, [financial.isLoading, financial.payments.length, eventId, companyId]);
 
   const handleAddExtra = () => {
     const val = parseFloat(extraAmount);
