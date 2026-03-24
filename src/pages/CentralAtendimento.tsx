@@ -1127,151 +1127,154 @@ export default function CentralAtendimento() {
         
         <SidebarInset className="flex-1 flex flex-col overflow-hidden min-w-0 bg-background">
           {/* Desktop Header */}
-          <header className="bg-card/80 backdrop-blur-sm border-b border-border/60 shrink-0 z-10 shadow-subtle">
-            <div className="px-6 py-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
-                <h1 className="font-display font-bold text-foreground text-lg tracking-tight">Central de Atendimento</h1>
-                
-                {/* Quick Tab Buttons - Premium Style */}
-                <div className="flex items-center gap-1.5 ml-3 bg-border rounded-lg p-1">
-                  <Button
-                    variant={activeTab === "chat" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setActiveTab("chat")}
-                    className={`relative h-8 px-4 rounded-md transition-all ${
-                      activeTab === "chat" 
-                        ? "shadow-sm" 
-                        : "hover:bg-background/80"
-                    }`}
-                  >
-                    <MessageSquare className="w-4 h-4 mr-1.5" />
-                    Chat
-                    {unreadCount > 0 && (
-                      <AnimatedBadge 
-                        className="ml-1.5 h-5 min-w-5 px-1.5 text-[10px] bg-primary text-primary-foreground"
-                        value={unreadCount > 99 ? "99+" : unreadCount}
-                      />
-                    )}
-                  </Button>
-                  <Button
-                    variant={activeTab === "leads" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setActiveTab("leads")}
-                    className={`relative h-8 px-4 rounded-md transition-all ${
-                      activeTab === "leads" 
-                        ? "shadow-sm" 
-                        : "hover:bg-background/80"
-                    }`}
-                  >
-                    <LayoutList className="w-4 h-4 mr-1.5" />
-                    Leads
-                    {newLeadsCount > 0 && (
-                      <AnimatedBadge 
-                        className="ml-1.5 h-5 min-w-5 px-1.5 text-[10px] bg-primary text-primary-foreground"
-                        value={newLeadsCount > 99 ? "99+" : newLeadsCount}
-                      />
-                    )}
-                  </Button>
-                </div>
+          <header className="shrink-0 z-10 px-4 md:px-6 pt-4 md:pt-6">
+            <div className="relative overflow-hidden rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)]">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_80%_-20%,hsl(var(--primary)/0.06),transparent)]" />
+              <div className="relative px-6 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
+                  <h1 className="font-display font-bold text-foreground text-lg tracking-tight shrink-0">Central de Atendimento</h1>
+                  
+                  {/* Quick Tab Buttons - Premium Style */}
+                  <div className="flex items-center gap-1.5 ml-3 bg-border rounded-lg p-1 shrink-0">
+                    <Button
+                      variant={activeTab === "chat" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setActiveTab("chat")}
+                      className={`relative h-8 px-4 rounded-md transition-all ${
+                        activeTab === "chat" 
+                          ? "shadow-sm" 
+                          : "hover:bg-background/80"
+                      }`}
+                    >
+                      <MessageSquare className="w-4 h-4 mr-1.5" />
+                      Chat
+                      {unreadCount > 0 && (
+                        <AnimatedBadge 
+                          className="ml-1.5 h-5 min-w-5 px-1.5 text-[10px] bg-primary text-primary-foreground"
+                          value={unreadCount > 99 ? "99+" : unreadCount}
+                        />
+                      )}
+                    </Button>
+                    <Button
+                      variant={activeTab === "leads" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setActiveTab("leads")}
+                      className={`relative h-8 px-4 rounded-md transition-all ${
+                        activeTab === "leads" 
+                          ? "shadow-sm" 
+                          : "hover:bg-background/80"
+                      }`}
+                    >
+                      <LayoutList className="w-4 h-4 mr-1.5" />
+                      Leads
+                      {newLeadsCount > 0 && (
+                        <AnimatedBadge 
+                          className="ml-1.5 h-5 min-w-5 px-1.5 text-[10px] bg-primary text-primary-foreground"
+                          value={newLeadsCount > 99 ? "99+" : newLeadsCount}
+                        />
+                      )}
+                    </Button>
+                  </div>
 
-                {/* Unit selector in header when on chat tab */}
-                {activeTab === "chat" && chatInstances.length > 1 && (
-                  <div className="flex items-center gap-1 ml-2 bg-border rounded-lg p-1">
-                    {chatInstances.map((inst) => (
+                  {/* Unit selector in header when on chat tab */}
+                  {activeTab === "chat" && chatInstances.length > 1 && (
+                    <div className="flex items-center gap-1 ml-2 bg-border rounded-lg p-1 shrink-0">
+                      {chatInstances.map((inst) => (
+                        <Button
+                          key={inst.id}
+                          variant={selectedChatUnit === inst.unit ? "default" : "ghost"}
+                          size="sm"
+                          onClick={() => setSelectedChatUnit(inst.unit)}
+                          className={`h-7 px-3 rounded-md transition-all text-xs ${
+                            selectedChatUnit === inst.unit ? "shadow-sm" : "hover:bg-background/80"
+                          }`}
+                        >
+                          <Building2 className="w-3.5 h-3.5 mr-1" />
+                          {inst.unit}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Lista/CRM toggle in header when on leads tab */}
+                  {activeTab === "leads" && (
+                    <div className="flex items-center gap-1 ml-2 bg-border rounded-lg p-1 shrink-0">
                       <Button
-                        key={inst.id}
-                        variant={selectedChatUnit === inst.unit ? "default" : "ghost"}
+                        variant={viewMode === "list" ? "default" : "ghost"}
                         size="sm"
-                        onClick={() => setSelectedChatUnit(inst.unit)}
+                        onClick={() => setViewMode("list")}
                         className={`h-7 px-3 rounded-md transition-all text-xs ${
-                          selectedChatUnit === inst.unit ? "shadow-sm" : "hover:bg-background/80"
+                          viewMode === "list" ? "shadow-sm" : "hover:bg-background/80"
                         }`}
                       >
-                        <Building2 className="w-3.5 h-3.5 mr-1" />
-                        {inst.unit}
+                        <LayoutList className="w-3.5 h-3.5 mr-1" />
+                        Lista
                       </Button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Lista/CRM toggle in header when on leads tab */}
-                {activeTab === "leads" && (
-                  <div className="flex items-center gap-1 ml-2 bg-border rounded-lg p-1">
-                    <Button
-                      variant={viewMode === "list" ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => setViewMode("list")}
-                      className={`h-7 px-3 rounded-md transition-all text-xs ${
-                        viewMode === "list" ? "shadow-sm" : "hover:bg-background/80"
-                      }`}
-                    >
-                      <LayoutList className="w-3.5 h-3.5 mr-1" />
-                      Lista
-                    </Button>
-                    <Button
-                      variant={viewMode === "kanban" ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => setViewMode("kanban")}
-                      className={`h-7 px-3 rounded-md transition-all text-xs ${
-                        viewMode === "kanban" ? "shadow-sm" : "hover:bg-background/80"
-                      }`}
-                    >
-                      <Columns className="w-3.5 h-3.5 mr-1" />
-                      CRM
-                    </Button>
-                  </div>
-                )}
-                
-                {/* Inteligência Shortcut */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => navigate("/inteligencia")}
-                  className="h-8 px-3 rounded-lg transition-all duration-200 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:text-emerald-300 dark:hover:bg-emerald-900/20"
-                  title="Inteligência"
-                >
-                  <Brain className="w-4 h-4 mr-1.5 text-[hsl(155,75%,38%)]" />
-                  <span className="hidden lg:inline text-sm">Inteligência</span>
-                </Button>
-
-                {/* Sound Toggle - Separate */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={toggleNotifications}
-                  className={`h-8 px-3 rounded-lg transition-all duration-200 ${
-                    notificationsEnabled 
-                      ? "bg-gradient-to-r from-amber-100 to-amber-50 text-amber-700 hover:from-amber-200 hover:to-amber-100 dark:from-amber-900/30 dark:to-amber-800/20 dark:text-amber-400" 
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                  }`}
-                  title={notificationsEnabled ? "Notificações ativadas" : "Notificações desativadas"}
-                >
-                  {notificationsEnabled ? (
-                    <Bell className="w-4 h-4 mr-1.5" />
-                  ) : (
-                    <BellOff className="w-4 h-4 mr-1.5" />
+                      <Button
+                        variant={viewMode === "kanban" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setViewMode("kanban")}
+                        className={`h-7 px-3 rounded-md transition-all text-xs ${
+                          viewMode === "kanban" ? "shadow-sm" : "hover:bg-background/80"
+                        }`}
+                      >
+                        <Columns className="w-3.5 h-3.5 mr-1" />
+                        CRM
+                      </Button>
+                    </div>
                   )}
-                  <span className="hidden lg:inline text-sm">
-                    {notificationsEnabled ? "Som" : "Mudo"}
-                  </span>
-                </Button>
-              </div>
-              
-              {/* User Info Desktop */}
-              <div className="flex items-center gap-3">
-                <NotificationBell />
-                <div 
-                  className="flex items-center gap-2 bg-muted/60 rounded-full pl-3 pr-1 py-1 cursor-pointer hover:bg-muted/80 transition-all"
-                  onClick={() => navigate("/perfil")}
-                >
-                  <span className="text-sm text-muted-foreground hidden lg:block">{currentUserProfile?.full_name || user.email}</span>
-                  <Avatar className="h-8 w-8 border-2 border-primary/20">
-                    <AvatarImage src={currentUserProfile?.avatar_url || undefined} />
-                    <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
-                      {getInitials(currentUserProfile?.full_name || user.email || "U")}
-                    </AvatarFallback>
-                  </Avatar>
+                  
+                  {/* Inteligência Shortcut */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate("/inteligencia")}
+                    className="h-8 px-3 rounded-lg transition-all duration-200 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:text-emerald-300 dark:hover:bg-emerald-900/20 shrink-0"
+                    title="Inteligência"
+                  >
+                    <Brain className="w-4 h-4 mr-1.5 text-[hsl(155,75%,38%)]" />
+                    <span className="hidden lg:inline text-sm">Inteligência</span>
+                  </Button>
+
+                  {/* Sound Toggle - Separate */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={toggleNotifications}
+                    className={`h-8 px-3 rounded-lg transition-all duration-200 shrink-0 ${
+                      notificationsEnabled 
+                        ? "bg-gradient-to-r from-amber-100 to-amber-50 text-amber-700 hover:from-amber-200 hover:to-amber-100 dark:from-amber-900/30 dark:to-amber-800/20 dark:text-amber-400" 
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                    }`}
+                    title={notificationsEnabled ? "Notificações ativadas" : "Notificações desativadas"}
+                  >
+                    {notificationsEnabled ? (
+                      <Bell className="w-4 h-4 mr-1.5" />
+                    ) : (
+                      <BellOff className="w-4 h-4 mr-1.5" />
+                    )}
+                    <span className="hidden lg:inline text-sm">
+                      {notificationsEnabled ? "Som" : "Mudo"}
+                    </span>
+                  </Button>
+                </div>
+                
+                {/* User Info Desktop */}
+                <div className="flex items-center gap-3 shrink-0">
+                  <NotificationBell />
+                  <div 
+                    className="flex items-center gap-2 bg-muted/60 rounded-full pl-3 pr-1 py-1 cursor-pointer hover:bg-muted/80 transition-all"
+                    onClick={() => navigate("/perfil")}
+                  >
+                    <span className="text-sm text-muted-foreground hidden lg:block">{currentUserProfile?.full_name || user.email}</span>
+                    <Avatar className="h-8 w-8 border-2 border-primary/20">
+                      <AvatarImage src={currentUserProfile?.avatar_url || undefined} />
+                      <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
+                        {getInitials(currentUserProfile?.full_name || user.email || "U")}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
                 </div>
               </div>
             </div>
