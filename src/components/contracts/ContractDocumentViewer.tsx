@@ -130,11 +130,11 @@ export function ContractDocumentViewer({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl h-[95vh] flex flex-col p-0 gap-0 overflow-hidden print-hide-chrome [&>button.absolute]:z-50 [&>button.absolute]:top-3 [&>button.absolute]:right-3">
+      <DialogContent className="max-w-5xl h-[95vh] flex flex-col p-0 gap-0 overflow-hidden print-hide-chrome [&>button]:hidden">
         {/* Toolbar */}
-        <div className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-border/40 bg-card shrink-0 print-hide">
+        <div className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-border/40 bg-card shrink-0 print-hide relative z-10">
           <div className="flex items-center gap-3 min-w-0">
-            <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="gap-1.5 text-xs rounded-full shrink-0">
+            <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="gap-1.5 text-xs rounded-full shrink-0 relative z-10">
               <ArrowLeft className="h-3.5 w-3.5" /> Voltar
             </Button>
             <div className="min-w-0">
