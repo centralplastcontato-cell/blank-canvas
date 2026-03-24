@@ -65,7 +65,7 @@ export function PreReservationFormDialog({
   const [selectedLead, setSelectedLead] = useState<LeadOption | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const physicalUnits = units.filter(u => u.slug !== "trabalhe-conosco");
+  const physicalUnits = units.filter(u => u.slug !== "trabalhe-conosco" && !u.slug.startsWith("vendas-"));
 
   useEffect(() => {
     if (open) {
