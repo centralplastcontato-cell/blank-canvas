@@ -425,6 +425,21 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
             </div>
           </div>
 
+          {/* Financial Tab */}
+          {modules.financeiro && event.company_id && (
+            <div className="mt-4">
+              <Separator className="mb-4" />
+              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-primary" /> Financeiro
+              </h3>
+              <EventFinancialTab
+                eventId={event.id}
+                companyId={event.company_id}
+                baseValue={event.total_value || 0}
+              />
+            </div>
+          )}
+
           {/* Action Buttons */}
           <div className="flex gap-2 pt-1 pb-2">
             <Button variant="outline" className="flex-1 rounded-xl h-10" onClick={() => onEdit(event)}>
