@@ -23,13 +23,12 @@ const EXPENSE_TYPES = [
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: { description: string; amount: number; expense_date: string; category: string; expense_type?: string; unit?: string; status: string }) => void;
-  unitOptions?: { value: string; label: string }[];
-  defaultValues?: { description?: string; amount?: number; expense_date?: string; category?: string; expense_type?: string; unit?: string; status?: string };
+  onSubmit: (data: { description: string; amount: number; expense_date: string; category: string; expense_type?: string; status: string }) => void;
+  defaultValues?: { description?: string; amount?: number; expense_date?: string; category?: string; expense_type?: string; status?: string };
   defaultExpenseType?: string;
 }
 
-export function ExpenseFormDialog({ open, onOpenChange, onSubmit, unitOptions, defaultValues, defaultExpenseType }: Props) {
+export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues, defaultExpenseType }: Props) {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [expenseDate, setExpenseDate] = useState('');
