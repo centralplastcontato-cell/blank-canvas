@@ -1037,6 +1037,9 @@ export default function CentralAtendimento() {
                         await supabase.from("lead_history").insert({ lead_id: leadId, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de status", old_value: lead.status, new_value: newStatus });
                         const { error } = await supabase.from("campaign_leads").update({ status: newStatus }).eq("id", leadId);
                         if (error) throw error;
+                        if (newStatus === "perdido") {
+                          await supabase.from("wapi_conversations").update({ bot_enabled: false, bot_step: 'human_takeover' }).eq("lead_id", leadId);
+                        }
                         handleStatusChange(leadId, newStatus);
                         if (newStatus === "fechado") {
                           const closedLead = leads.find((l) => l.id === leadId);
@@ -1445,6 +1448,9 @@ export default function CentralAtendimento() {
                         await supabase.from("lead_history").insert({ lead_id: leadId, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de status", old_value: lead.status, new_value: newStatus });
                         const { error } = await supabase.from("campaign_leads").update({ status: newStatus }).eq("id", leadId);
                         if (error) throw error;
+                        if (newStatus === "perdido") {
+                          await supabase.from("wapi_conversations").update({ bot_enabled: false, bot_step: 'human_takeover' }).eq("lead_id", leadId);
+                        }
                         handleStatusChange(leadId, newStatus);
                         if (newStatus === "fechado") {
                           const closedLead = leads.find((l) => l.id === leadId);

@@ -1912,6 +1912,19 @@ async function processBotQualification(
   const settings = await getBotSettings(supabase, instance.id);
   if (!settings) return;
 
+  // ── Guard: skip bot if linked lead is "perdido" ──
+  if (conv.lead_id) {
+    const { data: linkedLead } = await supabase
+      .from('campaign_leads')
+      .select('status')
+      .eq('id', conv.lead_id)
+      .single();
+    if (linkedLead?.status === 'perdido') {
+      console.log(`[Bot] Lead ${conv.lead_id} is perdido, skipping bot processing`);
+      return;
+    }
+  }
+
   // ── Test mode guard (applies to ALL bot modes including Flow Builder) ──
   const n = normalizePhone(contactPhone);
   const isTest = Boolean(settings.test_mode_number) && isSameTestPhone(contactPhone, settings.test_mode_number);

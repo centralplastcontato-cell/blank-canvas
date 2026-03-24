@@ -168,6 +168,14 @@ export function ConversationStatusActions({
 
       if (updateError) throw updateError;
 
+      // Deactivate bot when lead is moved to perdido
+      if (newStatus === 'perdido') {
+        await supabase
+          .from("wapi_conversations")
+          .update({ bot_enabled: false, bot_step: 'human_takeover' })
+          .eq("id", conversation.id);
+      }
+
       // Update local state IMMEDIATELY after DB success to prevent double-clicks
       onStatusChange?.(linkedLead.id, newStatus);
 

@@ -231,6 +231,14 @@ export function LeadDetailSheet({
 
       if (error) throw error;
 
+      // Deactivate bot when lead is moved to perdido
+      if (status === "perdido" && lead.status !== "perdido") {
+        await supabase
+          .from("wapi_conversations")
+          .update({ bot_enabled: false, bot_step: 'human_takeover' })
+          .eq("lead_id", lead.id);
+      }
+
       toast({
         title: "Lead atualizado",
         description: "As alterações foram salvas com sucesso.",
