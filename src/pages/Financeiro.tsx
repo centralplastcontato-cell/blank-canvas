@@ -345,6 +345,7 @@ export default function Financeiro() {
         onOpenChange={setExpenseDialogOpen}
         onSubmit={dashboard.addExpense}
         unitOptions={unitOptions}
+        defaultExpenseType={expenseDialogType}
       />
     </SidebarProvider>
   );
