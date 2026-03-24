@@ -9,9 +9,8 @@ import { ptBR } from "date-fns/locale";
  *  Line breaks inside a bold block are collapsed into spaces
  *  so the section renders as a single continuous paragraph. */
 function parseBoldMarkdown(text: string): string {
-  return text.replace(/\*\*([\s\S]+?)\*\*/g, (_match, inner: string) => {
-    const collapsed = inner.replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ').trim();
-    return `<strong>${collapsed}</strong>`;
+  return text.replace(/\*\*([^\n]+?)\*\*/g, (_match, inner: string) => {
+    return `<strong>${inner}</strong>`;
   });
 }
 
