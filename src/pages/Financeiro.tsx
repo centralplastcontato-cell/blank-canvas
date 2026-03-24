@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale } from 'lucide-react';
+import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale, Building, Zap, PartyPopper } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -36,6 +36,7 @@ export default function Financeiro() {
   const dashboard = useFinanceiroDashboard();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
+  const [expenseDialogType, setExpenseDialogType] = useState<string>('fixa');
 
   const months = Array.from({ length: 12 }, (_, i) => {
     const d = new Date(new Date().getFullYear(), i, 1);
