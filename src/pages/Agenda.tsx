@@ -466,12 +466,13 @@ export default function Agenda() {
       data_fechamento_venda: (ev as any).data_fechamento_venda || null,
       vendedor_responsavel_id: (ev as any).vendedor_responsavel_id || null,
       payment_method: (ev as any).payment_method || null,
+      payment_details: (ev as any).payment_details || null,
       child_name: (ev as any).child_name || null,
       child_age: (ev as any).child_age || null,
       child_birthdate: (ev as any).child_birthdate || null,
       parent_names: (ev as any).parent_names || null,
       gifts: (ev as any).gifts || null,
-      extra_guest_value: (ev as any).extra_guest_value || null,
+      extra_guest_value: (ev as any).extra_guest_value ?? null,
     });
     setDetailOpen(false);
     setFormOpen(true);
