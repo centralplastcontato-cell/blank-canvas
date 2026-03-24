@@ -57,6 +57,8 @@ export default function Agenda() {
   const { currentCompany } = useCompany();
   const modules = useCompanyModules();
   const { units } = useCompanyUnits(currentCompany?.id);
+  const physicalUnits = units.filter(u => u.slug !== "trabalhe-conosco");
+  const isSalesChannelOnly = physicalUnits.length > 0 && physicalUnits.every(u => u.name.toLowerCase().includes("vendas"));
 
   const [isAdmin, setIsAdmin] = useState(false);
   const [permLoading, setPermLoading] = useState(true);
