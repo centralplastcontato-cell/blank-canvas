@@ -122,6 +122,7 @@ const DEFAULT_MODULES: CompanyModules = {
   data_import: true,
   advanced: true,
   contrato: false,
+  financeiro: false,
   // --- Outros ---
   treinamento: true,
   onboarding_checklist: false,
