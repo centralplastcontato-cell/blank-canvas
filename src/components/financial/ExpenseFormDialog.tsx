@@ -23,19 +23,17 @@ const EXPENSE_TYPES = [
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: { description: string; amount: number; expense_date: string; category: string; expense_type?: string; unit?: string; status: string }) => void;
-  unitOptions?: { value: string; label: string }[];
-  defaultValues?: { description?: string; amount?: number; expense_date?: string; category?: string; expense_type?: string; unit?: string; status?: string };
+  onSubmit: (data: { description: string; amount: number; expense_date: string; category: string; expense_type?: string; status: string }) => void;
+  defaultValues?: { description?: string; amount?: number; expense_date?: string; category?: string; expense_type?: string; status?: string };
   defaultExpenseType?: string;
 }
 
-export function ExpenseFormDialog({ open, onOpenChange, onSubmit, unitOptions, defaultValues, defaultExpenseType }: Props) {
+export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues, defaultExpenseType }: Props) {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [expenseDate, setExpenseDate] = useState('');
   const [category, setCategory] = useState('outros');
   const [expenseType, setExpenseType] = useState('fixa');
-  const [unit, setUnit] = useState('');
   const [status, setStatus] = useState('pendente');
 
   useEffect(() => {
@@ -45,7 +43,6 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, unitOptions, d
       setExpenseDate(defaultValues.expense_date || '');
       setCategory(defaultValues.category || 'outros');
       setExpenseType(defaultValues.expense_type || defaultExpenseType || 'fixa');
-      setUnit(defaultValues.unit || '');
       setStatus(defaultValues.status || 'pendente');
     } else if (open) {
       setDescription('');
@@ -53,7 +50,6 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, unitOptions, d
       setExpenseDate(new Date().toISOString().split('T')[0]);
       setCategory('outros');
       setExpenseType(defaultExpenseType || 'fixa');
-      setUnit('');
       setStatus('pendente');
     }
   }, [open, defaultValues, defaultExpenseType]);
@@ -67,7 +63,6 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, unitOptions, d
       expense_date: expenseDate,
       category,
       expense_type: expenseType,
-      unit: unit || undefined,
       status,
     });
     onOpenChange(false);
@@ -110,17 +105,6 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, unitOptions, d
               </SelectContent>
             </Select>
           </div>
-          {unitOptions && unitOptions.length > 0 && (
-            <div>
-              <Label>Unidade</Label>
-              <Select value={unit} onValueChange={setUnit}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  {unitOptions.map(u => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
           <div>
             <Label>Status</Label>
             <Select value={status} onValueChange={setStatus}>
