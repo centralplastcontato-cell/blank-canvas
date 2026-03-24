@@ -77,7 +77,8 @@ export default function Agenda() {
   const [closedInPeriod, setClosedInPeriod] = useState(0);
   const [closedRevenue, setClosedRevenue] = useState(0);
   const [closedEvents, setClosedEvents] = useState<CompanyEvent[]>([]);
-  const [contentMode, setContentMode] = useState<"agendadas" | "fechadas">("agendadas");
+  const [contentMode, setContentMode] = useState<"agendadas" | "fechadas" | "pre-reservas">("agendadas");
+  const [allPreReservations, setAllPreReservations] = useState<PreReservation[]>([]);
   const [closedSortBy, setClosedSortBy] = useState<"event_date" | "fechamento">("fechamento");
 
   const { canViewAll, allowedUnits, unitAccess, isLoading: permUnitLoading } = useUnitPermissions(currentUser?.id, currentCompany?.id);
@@ -218,7 +219,7 @@ export default function Agenda() {
     setLoading(true);
     const start = format(startOfMonth(month), "yyyy-MM-dd");
     const end = format(endOfMonth(month), "yyyy-MM-dd");
-    const [eventsRes, checklistRes, closedResult, preResRes] = await Promise.all([
+    const [eventsRes, checklistRes, closedResult, preResRes, allPreResRes] = await Promise.all([
       supabase
         .from("company_events")
         .select("*")
@@ -239,10 +240,16 @@ export default function Agenda() {
         .gte("event_date", start)
         .lte("event_date", end)
         .in("status", ["ativa", "convertida"]),
+      (supabase as any)
+        .from("pre_reservations")
+        .select("*")
+        .eq("company_id", currentCompany.id)
+        .order("event_date", { ascending: true }),
     ]);
 
     if (!eventsRes.error && eventsRes.data) setEvents(eventsRes.data as CompanyEvent[]);
     if (!preResRes.error && preResRes.data) setPreReservations(preResRes.data as PreReservation[]);
+    if (!allPreResRes.error && allPreResRes.data) setAllPreReservations(allPreResRes.data as PreReservation[]);
     setClosedInPeriod(closedResult?.count || 0);
     setClosedRevenue(closedResult?.revenue || 0);
     setClosedEvents(closedResult?.events || []);
@@ -638,7 +645,7 @@ export default function Agenda() {
               </div>
               {/* Mobile content mode toggle - inside header */}
               <div className="pt-2">
-                <Tabs value={contentMode} onValueChange={(v) => setContentMode(v as "agendadas" | "fechadas")}>
+                <Tabs value={contentMode} onValueChange={(v) => setContentMode(v as "agendadas" | "fechadas" | "pre-reservas")}>
                   <TabsList className="w-full h-10 bg-muted/60">
                     <TabsTrigger value="agendadas" className="flex-1 gap-1.5 text-xs font-medium">
                       <CalendarDays className="h-3.5 w-3.5" />
@@ -649,6 +656,13 @@ export default function Agenda() {
                       Fechadas
                       {closedInPeriod > 0 && (
                         <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{closedInPeriod}</Badge>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="pre-reservas" className="flex-1 gap-1.5 text-xs font-medium">
+                      <CalendarClock className="h-3.5 w-3.5" />
+                      Pré-reservas
+                      {allPreReservations.filter(pr => pr.status === "ativa").length > 0 && (
+                        <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{allPreReservations.filter(pr => pr.status === "ativa").length}</Badge>
                       )}
                     </TabsTrigger>
                   </TabsList>
@@ -713,7 +727,7 @@ export default function Agenda() {
                     </div>
                     <div className="flex items-center gap-2.5">
                       {/* Content mode toggle: Agendadas vs Fechadas */}
-                      <Tabs value={contentMode} onValueChange={(v) => setContentMode(v as "agendadas" | "fechadas")}>
+                      <Tabs value={contentMode} onValueChange={(v) => setContentMode(v as "agendadas" | "fechadas" | "pre-reservas")}>
                         <TabsList className="h-10 bg-muted/60 backdrop-blur-sm">
                           <TabsTrigger value="agendadas" className="px-3 gap-1.5 data-[state=active]:shadow-sm text-xs font-medium">
                             <CalendarDays className="h-4 w-4" />
@@ -724,6 +738,13 @@ export default function Agenda() {
                             <span className="hidden sm:inline">Fechadas</span>
                             {closedInPeriod > 0 && (
                               <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{closedInPeriod}</Badge>
+                            )}
+                          </TabsTrigger>
+                          <TabsTrigger value="pre-reservas" className="px-3 gap-1.5 data-[state=active]:shadow-sm text-xs font-medium">
+                            <CalendarClock className="h-4 w-4" />
+                            <span className="hidden sm:inline">Pré-reservas</span>
+                            {allPreReservations.filter(pr => pr.status === "ativa").length > 0 && (
+                              <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{allPreReservations.filter(pr => pr.status === "ativa").length}</Badge>
                             )}
                           </TabsTrigger>
                         </TabsList>
@@ -1022,6 +1043,183 @@ export default function Agenda() {
                             </span>
                           </div>
                         </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ) : contentMode === "pre-reservas" ? (
+                /* Pre-reservations list */
+                <Card className="bg-card border-border/30 shadow-[0_4px_24px_rgba(0,0,0,0.04)] rounded-2xl">
+                  <CardContent className="p-4 md:p-6">
+                    <div className="flex items-center justify-between gap-2 mb-4">
+                      <div className="flex items-center gap-2">
+                        <CalendarClock className="h-5 w-5 text-pink-500" />
+                        <h2 className="font-bold text-lg tracking-tight">Pré-reservas ({allPreReservations.length})</h2>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs rounded-full px-3 gap-1.5 border-pink-300 text-pink-600 hover:bg-pink-50"
+                        onClick={() => { setEditingPreRes(null); setPreResFormOpen(true); }}
+                      >
+                        <Plus className="h-3 w-3" />
+                        Nova pré-reserva
+                      </Button>
+                    </div>
+
+
+                    {allPreReservations.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-12">Nenhuma pré-reserva encontrada.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {/* Ativas */}
+                        {allPreReservations.filter(pr => pr.status === "ativa").length > 0 && (
+                          <div>
+                            <h3 className="text-xs font-bold text-muted-foreground/70 uppercase tracking-widest mb-2">Ativas ({allPreReservations.filter(pr => pr.status === "ativa").length})</h3>
+                            <div className="space-y-2">
+                              {allPreReservations.filter(pr => pr.status === "ativa").map((pr) => {
+                                const expiresAt = new Date(pr.reservation_expires_at);
+                                const daysLeft = Math.max(0, Math.ceil((expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+                                return (
+                                  <button
+                                    key={pr.id}
+                                    onClick={() => { setDetailPreRes(pr); setDetailPreResOpen(true); }}
+                                    className="w-full text-left p-4 rounded-xl border border-border/30 border-l-[3px] border-l-pink-400 bg-pink-500/[0.02] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+                                  >
+                                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                                      <span className="font-semibold text-sm truncate">{pr.customer_name}</span>
+                                      <Badge className="text-[10px] uppercase tracking-wider px-2 py-0.5 bg-pink-100 text-pink-700 border-pink-200 shrink-0">
+                                        Ativa · {daysLeft}d restantes
+                                      </Badge>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                                      <span className="flex items-center gap-1">
+                                        <CalendarDays className="h-3 w-3" />
+                                        {format(new Date(pr.event_date + "T12:00:00"), "dd/MM/yyyy")}
+                                      </span>
+                                      {pr.unit && (
+                                        <span className="flex items-center gap-1">
+                                          <MapPin className="h-3 w-3" />
+                                          {pr.unit}
+                                        </span>
+                                      )}
+                                      {pr.customer_phone && (
+                                        <span className="flex items-center gap-1">
+                                          <Phone className="h-3 w-3" />
+                                          {pr.customer_phone}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Convertidas */}
+                        {allPreReservations.filter(pr => pr.status === "convertida").length > 0 && (
+                          <div>
+                            <h3 className="text-xs font-bold text-muted-foreground/70 uppercase tracking-widest mb-2 mt-4">Convertidas ({allPreReservations.filter(pr => pr.status === "convertida").length})</h3>
+                            <div className="space-y-2">
+                              {allPreReservations.filter(pr => pr.status === "convertida").map((pr) => (
+                                <button
+                                  key={pr.id}
+                                  onClick={() => { setDetailPreRes(pr); setDetailPreResOpen(true); }}
+                                  className="w-full text-left p-4 rounded-xl border border-border/30 border-l-[3px] border-l-emerald-500 bg-emerald-500/[0.02] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+                                >
+                                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                                    <span className="font-semibold text-sm truncate">{pr.customer_name}</span>
+                                    <Badge className="text-[10px] uppercase tracking-wider px-2 py-0.5 bg-emerald-100 text-emerald-700 border-emerald-200 shrink-0">Convertida</Badge>
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                                    <span className="flex items-center gap-1">
+                                      <CalendarDays className="h-3 w-3" />
+                                      {format(new Date(pr.event_date + "T12:00:00"), "dd/MM/yyyy")}
+                                    </span>
+                                    {pr.unit && (
+                                      <span className="flex items-center gap-1">
+                                        <MapPin className="h-3 w-3" />
+                                        {pr.unit}
+                                      </span>
+                                    )}
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Expiradas */}
+                        {allPreReservations.filter(pr => pr.status === "expirada").length > 0 && (
+                          <div>
+                            <h3 className="text-xs font-bold text-muted-foreground/70 uppercase tracking-widest mb-2 mt-4">Expiradas ({allPreReservations.filter(pr => pr.status === "expirada").length})</h3>
+                            <div className="space-y-2">
+                              {allPreReservations.filter(pr => pr.status === "expirada").map((pr) => (
+                                <button
+                                  key={pr.id}
+                                  onClick={() => { setDetailPreRes(pr); setDetailPreResOpen(true); }}
+                                  className="w-full text-left p-4 rounded-xl border border-border/30 border-l-[3px] border-l-amber-400 bg-amber-500/[0.02] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer opacity-70"
+                                >
+                                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                                    <span className="font-semibold text-sm truncate">{pr.customer_name}</span>
+                                    <Badge variant="secondary" className="text-[10px] uppercase tracking-wider px-2 py-0.5 shrink-0">Expirada</Badge>
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                                    <span className="flex items-center gap-1">
+                                      <CalendarDays className="h-3 w-3" />
+                                      {format(new Date(pr.event_date + "T12:00:00"), "dd/MM/yyyy")}
+                                    </span>
+                                    {pr.unit && (
+                                      <span className="flex items-center gap-1">
+                                        <MapPin className="h-3 w-3" />
+                                        {pr.unit}
+                                      </span>
+                                    )}
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Canceladas */}
+                        {allPreReservations.filter(pr => pr.status === "cancelada").length > 0 && (
+                          <div>
+                            <h3 className="text-xs font-bold text-muted-foreground/70 uppercase tracking-widest mb-2 mt-4">Canceladas ({allPreReservations.filter(pr => pr.status === "cancelada").length})</h3>
+                            <div className="space-y-2">
+                              {allPreReservations.filter(pr => pr.status === "cancelada").map((pr) => (
+                                <button
+                                  key={pr.id}
+                                  onClick={() => { setDetailPreRes(pr); setDetailPreResOpen(true); }}
+                                  className="w-full text-left p-4 rounded-xl border border-border/30 border-l-[3px] border-l-destructive bg-destructive/[0.02] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer opacity-60"
+                                >
+                                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                                    <span className="font-semibold text-sm truncate">{pr.customer_name}</span>
+                                    <Badge variant="destructive" className="text-[10px] uppercase tracking-wider px-2 py-0.5 shrink-0">Cancelada</Badge>
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                                    <span className="flex items-center gap-1">
+                                      <CalendarDays className="h-3 w-3" />
+                                      {format(new Date(pr.event_date + "T12:00:00"), "dd/MM/yyyy")}
+                                    </span>
+                                    {pr.unit && (
+                                      <span className="flex items-center gap-1">
+                                        <MapPin className="h-3 w-3" />
+                                        {pr.unit}
+                                      </span>
+                                    )}
+                                    {pr.cancellation_reason && (
+                                      <span className="text-destructive/70 italic">
+                                        {pr.cancellation_reason}
+                                      </span>
+                                    )}
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </CardContent>
