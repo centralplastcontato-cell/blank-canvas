@@ -1,115 +1,52 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { useCompany } from "@/contexts/CompanyContext";
-import { Card } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu } from "lucide-react";
-import { format, startOfMonth, endOfMonth, differenceInDays } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { AdminSidebar } from "@/components/admin/AdminSidebar";
-import { MobileMenu } from "@/components/admin/MobileMenu";
-import { NotificationBell } from "@/components/admin/NotificationBell";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useFinanceiroDashboard, type EnrichedPayment } from '@/hooks/useFinanceiroDashboard';
+import { useCompanyUnits } from '@/hooks/useCompanyUnits';
+import { useCompany } from '@/contexts/CompanyContext';
+import { FinancialPaymentCard } from '@/components/financial/FinancialPaymentCard';
+import { ExpenseFormDialog } from '@/components/financial/ExpenseFormDialog';
+import { AdminSidebar } from '@/components/admin/AdminSidebar';
+import { MobileMenu } from '@/components/admin/MobileMenu';
+import { NotificationBell } from '@/components/admin/NotificationBell';
+import { SidebarProvider } from '@/components/ui/sidebar';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale } from 'lucide-react';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
-interface PaymentRow {
-  id: string;
-  event_id: string;
-  amount: number;
-  due_date: string;
-  status: string;
-  payment_method: string | null;
-  paid_at: string | null;
-  event_title?: string;
-  lead_name?: string;
-}
+const CATEGORY_LABELS: Record<string, string> = {
+  fornecedor: 'Fornecedor',
+  freela: 'Freela',
+  compras: 'Compras',
+  manutencao: 'Manutenção',
+  aluguel: 'Aluguel',
+  outros: 'Outros',
+};
+
+const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 export default function Financeiro() {
   const navigate = useNavigate();
   const { currentCompany } = useCompany();
-  const companyId = currentCompany?.id;
-  const [payments, setPayments] = useState<PaymentRow[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { unitOptions } = useCompanyUnits(currentCompany?.id);
+  const dashboard = useFinanceiroDashboard();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [monthFilter, setMonthFilter] = useState(() => format(new Date(), "yyyy-MM"));
-
-  useEffect(() => {
-    if (!companyId) return;
-    const fetchPayments = async () => {
-      setIsLoading(true);
-      const { data } = await supabase
-        .from("event_payments")
-        .select("*")
-        .eq("company_id", companyId)
-        .order("due_date");
-
-      // Enrich with event info
-      const eventIds = [...new Set((data || []).map(p => p.event_id))];
-      let eventsMap: Record<string, { title: string; lead_name: string }> = {};
-      if (eventIds.length > 0) {
-        const { data: events } = await supabase
-          .from("company_events")
-          .select("id, title, lead_id")
-          .in("id", eventIds);
-        
-        if (events) {
-          const leadIds = events.filter(e => e.lead_id).map(e => e.lead_id!);
-          let leadsMap: Record<string, string> = {};
-          if (leadIds.length > 0) {
-            const { data: leads } = await supabase
-              .from("campaign_leads")
-              .select("id, name")
-              .in("id", leadIds);
-            if (leads) leadsMap = Object.fromEntries(leads.map(l => [l.id, l.name]));
-          }
-          eventsMap = Object.fromEntries(events.map(e => [e.id, {
-            title: e.title,
-            lead_name: e.lead_id ? leadsMap[e.lead_id] || "" : "",
-          }]));
-        }
-      }
-
-      const now = new Date().toISOString().split("T")[0];
-      setPayments((data || []).map(p => ({
-        ...p,
-        amount: Number(p.amount),
-        status: p.status === "pending" && p.due_date < now ? "late" : p.status,
-        event_title: eventsMap[p.event_id]?.title || "",
-        lead_name: eventsMap[p.event_id]?.lead_name || "",
-      })));
-      setIsLoading(false);
-    };
-    fetchPayments();
-  }, [companyId]);
-
-  const monthStart = startOfMonth(new Date(monthFilter + "-01"));
-  const monthEnd = endOfMonth(monthStart);
-  const monthStartStr = format(monthStart, "yyyy-MM-dd");
-  const monthEndStr = format(monthEnd, "yyyy-MM-dd");
-
-  const paidThisMonth = payments.filter(p => p.status === "paid" && p.paid_at && p.paid_at.slice(0, 7) === monthFilter);
-  const totalReceivedMonth = paidThisMonth.reduce((s, p) => s + p.amount, 0);
-
-  const pendingPayments = payments.filter(p => p.status === "pending" && p.due_date >= monthStartStr && p.due_date <= monthEndStr);
-  const totalPendingMonth = pendingPayments.reduce((s, p) => s + p.amount, 0);
-
-  const latePayments = payments.filter(p => p.status === "late").sort((a, b) => a.due_date.localeCompare(b.due_date));
-  const totalLate = latePayments.reduce((s, p) => s + p.amount, 0);
-
-  const upcomingPayments = payments
-    .filter(p => p.status === "pending")
-    .sort((a, b) => a.due_date.localeCompare(b.due_date))
-    .slice(0, 20);
-
-  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
 
   const months = Array.from({ length: 12 }, (_, i) => {
     const d = new Date(new Date().getFullYear(), i, 1);
-    return { value: format(d, "yyyy-MM"), label: format(d, "MMMM yyyy", { locale: ptBR }) };
+    return { value: format(d, 'yyyy-MM'), label: format(d, 'MMMM yyyy', { locale: ptBR }) };
   });
 
-  if (isLoading) {
+  const handleOpenEvent = (eventId: string) => {
+    navigate(`/agenda?event=${eventId}`);
+  };
+
+  if (dashboard.isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary/40" />
@@ -117,10 +54,15 @@ export default function Financeiro() {
     );
   }
 
+  // Categorized payment lists
+  const allPaid = dashboard.payments.filter(p => p.status === 'paid').sort((a, b) => (b.paid_at || '').localeCompare(a.paid_at || ''));
+  const allPending = dashboard.payments.filter(p => p.status === 'pending').sort((a, b) => a.due_date.localeCompare(b.due_date));
+  const allLate = dashboard.latePayments;
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
-        <AdminSidebar canManageUsers={false} currentUserName="" onRefresh={() => {}} onLogout={() => navigate("/auth")} />
+        <AdminSidebar canManageUsers={false} currentUserName="" onRefresh={() => {}} onLogout={() => navigate('/auth')} />
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Mobile Header */}
           <header className="bg-card border-b border-border shrink-0 z-10 md:hidden">
@@ -132,12 +74,8 @@ export default function Financeiro() {
                     onOpenChange={setIsMobileMenuOpen}
                     trigger={<Button variant="ghost" size="icon" className="h-9 w-9"><Menu className="w-5 h-5" /></Button>}
                     currentPage="financeiro"
-                    userName=""
-                    userEmail=""
-                    canManageUsers={false}
-                    isAdmin={false}
-                    onRefresh={() => {}}
-                    onLogout={() => navigate("/auth")}
+                    userName="" userEmail="" canManageUsers={false} isAdmin={false}
+                    onRefresh={() => {}} onLogout={() => navigate('/auth')}
                   />
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="p-1.5 rounded-lg bg-gradient-to-br from-primary to-primary/80">
@@ -147,20 +85,15 @@ export default function Financeiro() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <Select value={monthFilter} onValueChange={setMonthFilter}>
-                    <SelectTrigger className="w-36 h-9 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
                   <NotificationBell />
                 </div>
               </div>
             </div>
           </header>
+
           <main className="flex-1 p-4 md:p-6 overflow-auto">
-            <div className="max-w-5xl mx-auto space-y-6">
-              {/* Premium Header - desktop only */}
+            <div className="max-w-6xl mx-auto space-y-5">
+              {/* Desktop Header */}
               <div className="relative rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden hidden md:block">
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_80%_-20%,hsl(var(--primary)/0.06),transparent)]" />
                 <div className="relative flex items-center justify-between gap-4 p-5 md:p-6">
@@ -170,95 +103,224 @@ export default function Financeiro() {
                     </div>
                     <div>
                       <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground">Financeiro</h1>
-                      <p className="text-sm text-muted-foreground/70 mt-0.5">Visão consolidada dos pagamentos</p>
+                      <p className="text-sm text-muted-foreground/70 mt-0.5">Central de gestão financeira</p>
                     </div>
                   </div>
-                  <Select value={monthFilter} onValueChange={setMonthFilter}>
-                    <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
                 </div>
               </div>
 
-            {/* Dashboard Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="p-5 bg-card border-border">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                  <TrendingUp className="h-4 w-4 text-emerald-400" /> Recebido no mês
-                </div>
-                <p className="text-2xl font-bold text-emerald-400">{fmt(totalReceivedMonth)}</p>
-              </Card>
-              <Card className="p-5 bg-card border-border">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                  <CalendarDays className="h-4 w-4 text-amber-400" /> A receber no mês
-                </div>
-                <p className="text-2xl font-bold text-amber-400">{fmt(totalPendingMonth)}</p>
-              </Card>
-              <Card className="p-5 bg-card border-border">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                  <AlertTriangle className="h-4 w-4 text-red-400" /> Total em atraso
-                </div>
-                <p className="text-2xl font-bold text-red-400">{fmt(totalLate)}</p>
-              </Card>
-            </div>
+              {/* Filters */}
+              <div className="flex flex-wrap gap-2">
+                <Select value={dashboard.filters.month} onValueChange={v => dashboard.setFilters(f => ({ ...f, month: v }))}>
+                  <SelectTrigger className="w-40 h-9 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {unitOptions.length > 0 && (
+                  <Select value={dashboard.filters.unit} onValueChange={v => dashboard.setFilters(f => ({ ...f, unit: v }))}>
+                    <SelectTrigger className="w-36 h-9 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas unidades</SelectItem>
+                      {unitOptions.map(u => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
+                <Select value={dashboard.filters.status} onValueChange={v => dashboard.setFilters(f => ({ ...f, status: v }))}>
+                  <SelectTrigger className="w-32 h-9 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos status</SelectItem>
+                    <SelectItem value="paid">Pago</SelectItem>
+                    <SelectItem value="pending">Pendente</SelectItem>
+                    <SelectItem value="late">Atrasado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Late Payments */}
-            {latePayments.length > 0 && (
-              <Card className="p-5 bg-card border-border">
-                <h2 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-red-400" /> Pagamentos em Atraso
-                </h2>
-                <div className="space-y-2">
-                  {latePayments.map(p => (
-                    <div key={p.id} className="flex items-center justify-between p-3 rounded-lg bg-red-500/5 border border-red-500/20">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{p.lead_name || p.event_title}</p>
-                        <p className="text-xs text-muted-foreground">{p.event_title}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-bold text-red-400">{fmt(p.amount)}</p>
-                        <p className="text-xs text-red-400">
-                          {differenceInDays(new Date(), new Date(p.due_date))} dias de atraso
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
+              {/* 5 Dashboard Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <Card className="p-4 bg-card border-border">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
+                    <TrendingUp className="h-3.5 w-3.5 text-emerald-400" /> Recebido
+                  </div>
+                  <p className="text-lg md:text-xl font-bold text-emerald-400">{fmt(dashboard.totalReceivedMonth)}</p>
+                </Card>
+                <Card className="p-4 bg-card border-border">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
+                    <CalendarDays className="h-3.5 w-3.5 text-amber-400" /> A receber
+                  </div>
+                  <p className="text-lg md:text-xl font-bold text-amber-400">{fmt(dashboard.totalPendingMonth)}</p>
+                </Card>
+                <Card className="p-4 bg-card border-border">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5 text-red-400" /> Em atraso
+                  </div>
+                  <p className="text-lg md:text-xl font-bold text-red-400">{fmt(dashboard.totalLate)}</p>
+                </Card>
+                <Card className="p-4 bg-card border-border">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
+                    <Wallet className="h-3.5 w-3.5 text-blue-400" /> Despesas
+                  </div>
+                  <p className="text-lg md:text-xl font-bold text-blue-400">{fmt(dashboard.totalExpensesMonth)}</p>
+                </Card>
+                <Card className="p-4 bg-card border-border col-span-2 md:col-span-1">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
+                    <Scale className="h-3.5 w-3.5 text-primary" /> Saldo
+                  </div>
+                  <p className={`text-lg md:text-xl font-bold ${dashboard.saldoMonth >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {fmt(dashboard.saldoMonth)}
+                  </p>
+                </Card>
+              </div>
 
-            {/* Upcoming Payments */}
-            <Card className="p-5 bg-card border-border">
-              <h2 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
-                <CalendarDays className="h-4 w-4 text-primary" /> Próximos Vencimentos
-              </h2>
-              {upcomingPayments.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">Nenhum vencimento pendente</p>
-              ) : (
-                <div className="space-y-2">
-                  {upcomingPayments.map(p => (
-                    <div key={p.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{p.lead_name || p.event_title}</p>
-                        <p className="text-xs text-muted-foreground">{p.event_title}</p>
+              {/* Tabs */}
+              <Tabs defaultValue="receitas" className="w-full">
+                <TabsList className="w-full md:w-auto">
+                  <TabsTrigger value="receitas" className="flex-1 md:flex-none">Receitas</TabsTrigger>
+                  <TabsTrigger value="despesas" className="flex-1 md:flex-none">Despesas</TabsTrigger>
+                  <TabsTrigger value="resultado" className="flex-1 md:flex-none">Resultado</TabsTrigger>
+                </TabsList>
+
+                {/* Tab Receitas */}
+                <TabsContent value="receitas" className="space-y-5">
+                  {/* Atrasados */}
+                  {allLate.length > 0 && (
+                    <section>
+                      <h2 className="text-sm font-semibold text-red-400 mb-2 flex items-center gap-1.5">
+                        <AlertTriangle className="h-4 w-4" /> Em Atraso ({allLate.length})
+                      </h2>
+                      <div className="space-y-2">
+                        {allLate.map(p => (
+                          <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />
+                        ))}
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-bold text-foreground">{fmt(p.amount)}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(p.due_date + "T12:00:00"), "dd/MM/yyyy")}
-                        </p>
+                    </section>
+                  )}
+
+                  {/* Pendentes */}
+                  <section>
+                    <h2 className="text-sm font-semibold text-amber-400 mb-2 flex items-center gap-1.5">
+                      <CalendarDays className="h-4 w-4" /> A Receber ({allPending.length})
+                    </h2>
+                    {allPending.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">Nenhum vencimento pendente</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {allPending.map(p => (
+                          <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />
+                        ))}
                       </div>
+                    )}
+                  </section>
+
+                  {/* Recebidos */}
+                  <section>
+                    <h2 className="text-sm font-semibold text-emerald-400 mb-2 flex items-center gap-1.5">
+                      <TrendingUp className="h-4 w-4" /> Recebidos ({allPaid.length})
+                    </h2>
+                    {allPaid.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">Nenhum pagamento recebido</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {allPaid.slice(0, 20).map(p => (
+                          <FinancialPaymentCard key={p.id} payment={p} onOpenEvent={handleOpenEvent} />
+                        ))}
+                        {allPaid.length > 20 && (
+                          <p className="text-xs text-muted-foreground text-center py-2">
+                            E mais {allPaid.length - 20} pagamentos...
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </section>
+                </TabsContent>
+
+                {/* Tab Despesas */}
+                <TabsContent value="despesas" className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-sm font-semibold text-foreground">Despesas do período</h2>
+                    <Button size="sm" onClick={() => setExpenseDialogOpen(true)}>
+                      <Plus className="h-4 w-4 mr-1" /> Adicionar
+                    </Button>
+                  </div>
+
+                  {dashboard.expensesThisMonth.length === 0 ? (
+                    <Card className="p-8">
+                      <p className="text-sm text-muted-foreground text-center">Nenhuma despesa registrada neste período</p>
+                    </Card>
+                  ) : (
+                    <div className="space-y-2">
+                      {dashboard.expensesThisMonth.map(e => (
+                        <div key={e.id} className="p-3 md:p-4 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-semibold text-sm text-foreground truncate">{e.description}</p>
+                              <Badge variant="secondary" className="text-xs">{CATEGORY_LABELS[e.category] || e.category}</Badge>
+                              <Badge variant="outline" className={e.status === 'pago' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}>
+                                {e.status === 'pago' ? 'Pago' : 'Pendente'}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {format(new Date(e.expense_date + 'T12:00:00'), 'dd/MM/yyyy')}
+                              {e.unit && ` · ${e.unit}`}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <p className="text-sm font-bold text-blue-400">{fmt(e.amount)}</p>
+                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:text-destructive/80" onClick={() => dashboard.deleteExpense(e.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              )}
-            </Card>
+                  )}
+                </TabsContent>
+
+                {/* Tab Resultado */}
+                <TabsContent value="resultado" className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Card className="p-6 bg-card border-border text-center">
+                      <p className="text-sm text-muted-foreground mb-2">Total Recebido</p>
+                      <p className="text-3xl font-bold text-emerald-400">{fmt(dashboard.totalReceivedMonth)}</p>
+                    </Card>
+                    <Card className="p-6 bg-card border-border text-center">
+                      <p className="text-sm text-muted-foreground mb-2">Total Despesas</p>
+                      <p className="text-3xl font-bold text-blue-400">{fmt(dashboard.totalExpensesMonth)}</p>
+                    </Card>
+                    <Card className="p-6 bg-card border-border text-center">
+                      <p className="text-sm text-muted-foreground mb-2">Saldo do Mês</p>
+                      <p className={`text-3xl font-bold ${dashboard.saldoMonth >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {fmt(dashboard.saldoMonth)}
+                      </p>
+                    </Card>
+                  </div>
+
+                  <Card className="p-6 bg-card border-border">
+                    <h3 className="text-sm font-semibold text-foreground mb-3">Resumo</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between"><span className="text-muted-foreground">Receitas recebidas</span><span className="text-emerald-400 font-medium">{fmt(dashboard.totalReceivedMonth)}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Receitas pendentes</span><span className="text-amber-400 font-medium">{fmt(dashboard.totalPendingMonth)}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Em atraso</span><span className="text-red-400 font-medium">{fmt(dashboard.totalLate)}</span></div>
+                      <div className="border-t border-border my-2" />
+                      <div className="flex justify-between"><span className="text-muted-foreground">Despesas do mês</span><span className="text-blue-400 font-medium">{fmt(dashboard.totalExpensesMonth)}</span></div>
+                      <div className="border-t border-border my-2" />
+                      <div className="flex justify-between font-semibold"><span className="text-foreground">Saldo</span><span className={dashboard.saldoMonth >= 0 ? 'text-emerald-400' : 'text-red-400'}>{fmt(dashboard.saldoMonth)}</span></div>
+                    </div>
+                  </Card>
+                </TabsContent>
+              </Tabs>
             </div>
           </main>
         </div>
       </div>
+
+      <ExpenseFormDialog
+        open={expenseDialogOpen}
+        onOpenChange={setExpenseDialogOpen}
+        onSubmit={dashboard.addExpense}
+        unitOptions={unitOptions}
+      />
     </SidebarProvider>
   );
 }
