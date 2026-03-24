@@ -820,7 +820,6 @@ export function AutomationsSection() {
             <CalendarClock className="w-3.5 h-3.5" />
             <span>Pré-reserva</span>
           </TabsTrigger>
-          </TabsTrigger>
         </TabsList>
 
         {/* ============ TAB: GERAL ============ */}
