@@ -1,127 +1,45 @@
 
 
-# Central de Gestão Financeira — Evolução da tela Financeiro
+# Unificar Calendário — Vendas 1/2 como Canal, não Unidade Física
 
-## Resumo
-Transformar a tela `/financeiro` de um painel simples em uma central completa de gestão financeira com identificação completa dos lançamentos, separação de receitas, módulo de despesas e visão de resultado.
+## Problema
+"Vendas 1" e "Vendas 2" são instâncias de vendas (canais WhatsApp), não locais físicos distintos. Ao filtrar por uma delas, os dados ficam zerados ou incompletos porque os eventos não estão distribuídos uniformemente entre elas. O calendário deveria mostrar tudo unificado.
 
-## 1. Nova tabela: `company_expenses` (migração)
+## Solução
 
-```sql
-CREATE TABLE public.company_expenses (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  company_id uuid NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-  description text NOT NULL,
-  amount numeric NOT NULL DEFAULT 0,
-  expense_date date NOT NULL DEFAULT CURRENT_DATE,
-  category text NOT NULL DEFAULT 'outros',
-  unit text,
-  status text NOT NULL DEFAULT 'pendente',
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
+### Abordagem
+Quando a empresa tem apenas unidades do tipo "canal de vendas" (e não locais físicos distintos), o filtro de unidade na Agenda deve ser **ocultado** ou convertido em filtro secundário opcional. Os KPIs e o calendário mostram sempre a visão consolidada.
 
-ALTER TABLE public.company_expenses ENABLE ROW LEVEL SECURITY;
+### Mudanças em `src/pages/Agenda.tsx`
 
-CREATE POLICY "Users can manage expenses of their companies"
-ON public.company_expenses FOR ALL TO authenticated
-USING (company_id IN (SELECT unnest(public.get_user_company_ids(auth.uid()))))
-WITH CHECK (company_id IN (SELECT unnest(public.get_user_company_ids(auth.uid()))));
-```
+1. **Detectar se unidades são canais de venda vs locais físicos**
+   - Se todas as unidades ativas contêm "Vendas" no nome (ou são ≤2 e seguem esse padrão), tratar como canal de vendas
+   - Nesse caso: ocultar o seletor de unidade do header e mostrar dados unificados (manter `selectedUnit = "all"` fixo)
 
-Categorias: `fornecedor`, `freela`, `compras`, `manutencao`, `aluguel`, `outros`.
-Status: `pago`, `pendente`.
+2. **Manter unidade no formulário de evento**
+   - Ao criar/editar festa, o campo "Unidade" continua disponível para o usuário indicar por qual canal (Vendas 1 ou 2) o lead entrou
+   - Isso preserva a rastreabilidade sem fragmentar a visualização
 
-## 2. Enriquecer query de pagamentos
+3. **Lógica de detecção** (simples):
+   ```
+   const isSalesChannelOnly = physicalUnits.length > 0 && 
+     physicalUnits.every(u => u.name.toLowerCase().includes("vendas"));
+   ```
+   - Se `isSalesChannelOnly` → não renderiza o `Select` de unidades no header (desktop e mobile)
+   - Os `filteredEvents` e `filteredPeriodEvents` usam sempre "all"
 
-A query atual busca `event_payments` + `company_events.title/lead_id` + `campaign_leads.name`. Expandir para também buscar:
-- `company_events.event_date` (data da festa)
-- `company_events.unit` (unidade)
-- `company_events.event_type` (tipo da festa)
-- `event_payments.type` (entrada/parcela)
+4. **Cards de resumo e "Fechadas"**
+   - Mostram totais consolidados (já funciona quando `selectedUnit = "all"`)
 
-Tudo já disponível nas tabelas existentes — sem novas joins complexas.
+### Arquivos alterados
 
-## 3. Novo hook: `src/hooks/useFinanceiroDashboard.ts`
+| Arquivo | Mudança |
+|---------|---------|
+| `src/pages/Agenda.tsx` | Adicionar flag `isSalesChannelOnly`, condicionar renderização do seletor de unidade, forçar `selectedUnit = "all"` quando flag ativa |
 
-Hook dedicado que centraliza:
-- Fetch de todos `event_payments` da company (enriquecidos)
-- Fetch de todos `company_expenses` da company
-- Filtragem por mês, unidade, status, tipo (receita/despesa)
-- Cálculos agregados: recebido, a receber, atrasado, total despesas, saldo
-- CRUD de despesas (add, update, delete)
-- Função `markAsPaid` reutilizando a mesma lógica do `useEventFinancial`
-
-## 4. Refatorar `src/pages/Financeiro.tsx`
-
-### Header (mantido + expandido)
-- Mesmo header premium com gradiente
-- Filtros expandidos: mês + unidade + status + tipo
-
-### Cards do topo (5 cards, grid responsivo)
-| Card | Cor | Dado |
-|------|-----|------|
-| Recebido no mês | Verde | soma pagamentos `paid` no período |
-| A receber no mês | Amarelo | soma `pending` com vencimento no mês |
-| Em atraso | Vermelho | soma de todos `late` |
-| Despesas do mês | Azul/Neutro | soma despesas no período |
-| Saldo do mês | Roxo/Primary | recebido - despesas |
-
-### Seções com Tabs
-Usar `Tabs` para organizar: **Receitas** | **Despesas** | **Resultado**
-
-#### Tab Receitas
-3 sub-seções (acordeões ou blocos):
-1. **Receitas Recebidas** — lista paga, mais recente primeiro
-2. **Receitas a Receber** — pendentes, ordenadas por vencimento
-3. **Receitas em Atraso** — vencidas com destaque vermelho e dias de atraso
-
-Cada item (card) exibe:
-- Nome do cliente (lead_name)
-- Tipo + nome da festa (event_type + title)
-- Data da festa (event_date)
-- Unidade
-- Tipo da parcela (Entrada / Parcela)
-- Valor
-- Data de vencimento
-- Status badge (Pago/Pendente/Atrasado)
-- Botão "Abrir evento" (navega para agenda/evento)
-- Botão "Marcar como pago" (apenas para pending/late)
-
-#### Tab Despesas
-- Botão "+ Adicionar despesa" abre dialog com campos: descrição, valor, data, categoria (select), unidade (select), status
-- Lista de despesas do mês (cards com descrição, valor, data, categoria badge, status)
-- Botão de excluir/editar despesa
-
-#### Tab Resultado
-- Cards grandes: Total Recebido, Total Despesas, Saldo
-- Gráfico simples opcional (barra receitas vs despesas) — pode ser adicionado depois
-
-## 5. Novo componente: `src/components/financial/ExpenseFormDialog.tsx`
-Dialog para criar/editar despesa com os campos definidos.
-
-## 6. Novo componente: `src/components/financial/FinancialPaymentCard.tsx`
-Card reutilizável para cada lançamento de receita com todos os dados contextuais.
-
-## 7. Mobile
-- Cards em grid 1 coluna
-- Tabs com scroll horizontal
-- Cards de lançamento com layout empilhado (nome/festa em cima, valor/status embaixo)
-- Botão "+ Despesa" como FAB ou dentro da tab
-
-## Arquivos
-
-| Arquivo | Ação |
-|---------|------|
-| Migração SQL | Criar tabela `company_expenses` + RLS |
-| `src/hooks/useFinanceiroDashboard.ts` | Criar — hook com fetch, filtros, CRUD despesas |
-| `src/components/financial/ExpenseFormDialog.tsx` | Criar — dialog de despesa |
-| `src/components/financial/FinancialPaymentCard.tsx` | Criar — card de lançamento enriquecido |
-| `src/pages/Financeiro.tsx` | Refatorar — tabs, cards expandidos, filtros, integração com novo hook |
-
-## O que NÃO muda
-- `useEventFinancial` permanece intacto (módulo dentro do evento)
-- `EventFinancialTab` não é alterado
-- Tabelas `event_payments`, `event_extras`, `event_discounts` mantidas
-- Rota `/financeiro` e sidebar existentes mantidos
+### O que NÃO muda
+- `EventFormDialog` — campo unidade continua disponível para registro
+- `company_units` — nenhuma alteração na tabela
+- Lógica de permissões por unidade — preservada para empresas com múltiplos locais físicos
+- Todas as outras páginas que usam unidades
 
