@@ -981,23 +981,6 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               {/* Installment details */}
               {(payment.parcelas ?? 0) > 1 && (
                 <div className="md:col-span-2 space-y-3">
-                  {payment.parcelas_same_day !== false && (
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-foreground/70">Dia do vencimento (todo mês)</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={31}
-                        placeholder="Ex: 10"
-                        value={payment.parcelas_day ?? ""}
-                        onChange={(e) => {
-                          const day = e.target.value ? Number(e.target.value) : null;
-                          setPayment(prev => ({ ...prev, parcelas_day: day }));
-                        }}
-                        className="w-32"
-                      />
-                    </div>
-                  )}
                   <div className="rounded-lg border border-border/40 bg-muted/20 p-3 space-y-2">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Detalhes das parcelas</p>
                     {(payment.parcelas_details || []).map((parcela, idx) => (
@@ -1016,7 +999,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                             placeholder="Valor"
                           />
                         </div>
-                        {payment.parcelas_same_day === false && (
+                        {payment.parcelas_same_day === false ? (
                           <div className="w-36">
                             <Input
                               type="date"
@@ -1028,6 +1011,36 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                               }}
                               className="text-xs"
                             />
+                          </div>
+                        ) : (
+                          <div className="w-36">
+                            {idx === 0 ? (
+                              <Input
+                                type="date"
+                                value={parcela.vencimento}
+                                onChange={(e) => {
+                                  const baseDate = e.target.value;
+                                  const updated = [...(payment.parcelas_details || [])];
+                                  updated[0] = { ...updated[0], vencimento: baseDate };
+                                  if (baseDate) {
+                                    const [y, m, d] = baseDate.split("-").map(Number);
+                                    for (let i = 1; i < updated.length; i++) {
+                                      const nextDate = new Date(y, m - 1 + i, d);
+                                      const ny = nextDate.getFullYear();
+                                      const nm = String(nextDate.getMonth() + 1).padStart(2, "0");
+                                      const nd = String(nextDate.getDate()).padStart(2, "0");
+                                      updated[i] = { ...updated[i], vencimento: `${ny}-${nm}-${nd}` };
+                                    }
+                                  }
+                                  setPayment(prev => ({ ...prev, parcelas_details: updated }));
+                                }}
+                                className="text-xs"
+                              />
+                            ) : (
+                              <span className="text-xs text-muted-foreground">
+                                {parcela.vencimento ? (() => { const [y,m,d] = parcela.vencimento.split("-"); return `${d}/${m}/${y}`; })() : "—"}
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>
