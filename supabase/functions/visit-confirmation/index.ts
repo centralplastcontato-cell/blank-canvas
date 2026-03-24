@@ -33,6 +33,16 @@ function formatDateBR(dateStr: string): string {
   return `${d}/${m}/${y}`;
 }
 
+function resolveDiaVisita(visitDate: string, nowSP: Date): string {
+  const todayStr = `${nowSP.getFullYear()}-${String(nowSP.getMonth() + 1).padStart(2, "0")}-${String(nowSP.getDate()).padStart(2, "0")}`;
+  if (visitDate === todayStr) return "hoje";
+  const tomorrow = new Date(nowSP);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
+  if (visitDate === tomorrowStr) return "amanhã";
+  return formatDateBR(visitDate);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -46,7 +56,6 @@ Deno.serve(async (req) => {
 
     console.log("[visit-confirmation] Starting confirmation check...");
 
-    // Fetch all enabled settings
     const { data: allSettings, error: settingsError } = await supabase
       .from("visit_confirmation_settings")
       .select("*")
@@ -75,20 +84,17 @@ Deno.serve(async (req) => {
         const companyId = settings.company_id;
         const hoursBefore = settings.hours_before_visit || 24;
 
-        // Calculate the target window: visits happening in ~hoursBefore from now
-        // We check visits within a 2-hour window to avoid missing any
         const targetTimeMin = new Date(nowSP.getTime() + (hoursBefore - 1) * 60 * 60 * 1000);
         const targetTimeMax = new Date(nowSP.getTime() + (hoursBefore + 1) * 60 * 60 * 1000);
 
         const targetDateMin = targetTimeMin.toISOString().split("T")[0];
         const targetDateMax = targetTimeMax.toISOString().split("T")[0];
 
-        // Fetch upcoming visits (agendada status only - not cancelled, confirmed, etc.)
         const { data: visits, error: visitsError } = await supabase
           .from("lead_visits")
           .select("id, lead_id, data_visita, horario_visita, status_visita, company_id")
           .eq("company_id", companyId)
-          .in("status_visita", ["agendada"]) // Only send for "agendada" visits
+          .in("status_visita", ["agendada"])
           .gte("data_visita", targetDateMin)
           .lte("data_visita", targetDateMax);
 
@@ -105,7 +111,6 @@ Deno.serve(async (req) => {
 
         console.log(`[visit-confirmation] Found ${visits.length} upcoming visits for company ${companyId}`);
 
-        // Check which visits already have confirmations sent
         const visitIds = visits.map((v: any) => v.id);
         const { data: existingConfirmations } = await supabase
           .from("visit_confirmation_history")
@@ -119,7 +124,6 @@ Deno.serve(async (req) => {
           confirmationMap.get(c.visit_id)!.push(c);
         }
 
-        // Get lead info
         const leadIds = [...new Set(visits.map((v: any) => v.lead_id))];
         const { data: leads } = await supabase
           .from("campaign_leads")
@@ -127,7 +131,6 @@ Deno.serve(async (req) => {
           .in("id", leadIds);
         const leadMap = new Map((leads || []).map((l: any) => [l.id, l]));
 
-        // Get company name
         const { data: company } = await supabase
           .from("companies")
           .select("name")
@@ -135,7 +138,6 @@ Deno.serve(async (req) => {
           .single();
         const companyName = company?.name || "nosso buffet";
 
-        // Get connected instances
         const { data: instances } = await supabase
           .from("wapi_instances")
           .select("id, instance_id, instance_token, unit, status")
@@ -147,13 +149,16 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        // Track visits where we just sent the first message in THIS run
+        // to prevent sending the second message in the same execution
+        const sentFirstInThisRun = new Set<string>();
+
         for (const visit of visits) {
           try {
             const existingConfs = confirmationMap.get(visit.id) || [];
             const lead = leadMap.get(visit.lead_id);
             if (!lead) continue;
 
-            // Determine if we should send first or second message
             const firstSent = existingConfs.find((c: any) => c.message_type === "first" && c.status === "sent");
             const secondSent = existingConfs.find((c: any) => c.message_type === "second" && c.status === "sent");
             const hasResponse = existingConfs.some((c: any) => c.response_received);
@@ -162,16 +167,15 @@ Deno.serve(async (req) => {
             let messageType = "first";
 
             if (!firstSent) {
-              // Send first confirmation
               messageToSend = settings.confirmation_message;
               messageType = "first";
             } else if (
               settings.second_message_enabled &&
               !secondSent &&
               !hasResponse &&
-              firstSent.sent_at
+              firstSent.sent_at &&
+              !sentFirstInThisRun.has(visit.id) // Don't send second if first was just sent
             ) {
-              // Check if enough time has passed since first message
               const firstSentAt = new Date(firstSent.sent_at).getTime();
               const hoursAfter = (settings.second_message_hours_after || 6) * 60 * 60 * 1000;
               if (Date.now() - firstSentAt >= hoursAfter) {
@@ -197,8 +201,7 @@ Deno.serve(async (req) => {
               continue;
             }
 
-            // DEDUP GUARD: Check if a confirmation message was already sent to this conversation recently
-            // This prevents duplicates when the cron fires multiple times within the 2-hour window
+            // DEDUP GUARD: Check per message_type to avoid duplicates
             const dedup_cutoff = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
             const { data: recentMsgs } = await supabase
               .from("wapi_messages")
@@ -208,26 +211,28 @@ Deno.serve(async (req) => {
               .gte("timestamp", dedup_cutoff)
               .limit(20);
 
-            const alreadySentConfirmation = (recentMsgs || []).some((m: any) => {
+            const alreadySentThisType = (recentMsgs || []).some((m: any) => {
               const meta = m.metadata as Record<string, unknown> | null;
-              return meta?.source === "visit_confirmation";
+              return meta?.source === "visit_confirmation" && meta?.type === messageType;
             });
 
-            if (alreadySentConfirmation) {
-              console.log(`[visit-confirmation] ⚠️ Dedup: confirmation already sent to lead ${visit.lead_id} recently, skipping`);
+            if (alreadySentThisType) {
+              console.log(`[visit-confirmation] ⚠️ Dedup: ${messageType} already sent to lead ${visit.lead_id} recently, skipping`);
               continue;
             }
 
             const instance = instances.find((i: any) => i.id === conv.instance_id);
             if (!instance) continue;
 
-            // Interpolate message
+            // Interpolate message with smart day reference
             const firstName = resolveFirstName(lead.name);
+            const diaVisita = resolveDiaVisita(visit.data_visita, nowSP);
             const message = interpolateMessage(messageToSend, {
               nome: firstName,
               data_visita: formatDateBR(visit.data_visita),
               hora_visita: visit.horario_visita || "horário a confirmar",
               nome_buffet: companyName,
+              dia_visita: diaVisita,
             });
 
             // Send via W-API
@@ -271,6 +276,11 @@ Deno.serve(async (req) => {
 
             // Save message in wapi_messages
             if (sentStatus === "sent") {
+              // Track that we just sent the first message for this visit
+              if (messageType === "first") {
+                sentFirstInThisRun.add(visit.id);
+              }
+
               await supabase.from("wapi_messages").insert({
                 conversation_id: conv.id,
                 content: message,
@@ -283,7 +293,6 @@ Deno.serve(async (req) => {
                 company_id: companyId,
               });
 
-              // Update conversation
               await supabase.from("wapi_conversations").update({
                 last_message_at: new Date().toISOString(),
                 last_message_content: message.substring(0, 100),

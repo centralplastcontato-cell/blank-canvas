@@ -42,7 +42,7 @@ Pode me responder com:
   second_message_hours_after: 6,
   second_message_text: `Olá {{nome}} 😊
 
-Só passando para lembrar da sua visita hoje às {{hora_visita}} no {{nome_buffet}}.
+Só passando para lembrar da sua visita {{dia_visita}} às {{hora_visita}} no {{nome_buffet}}.
 
 Estamos te aguardando! 🎉`,
   send_window_start: 8,
