@@ -1,0 +1,107 @@
+import { format, differenceInDays } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { CalendarDays, ExternalLink, Check, MapPin, PartyPopper } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import type { EnrichedPayment } from '@/hooks/useFinanceiroDashboard';
+
+interface Props {
+  payment: EnrichedPayment;
+  onMarkAsPaid?: (id: string) => void;
+  onOpenEvent?: (eventId: string) => void;
+}
+
+const statusConfig = {
+  paid: { label: 'Pago', className: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' },
+  pending: { label: 'Pendente', className: 'bg-amber-500/10 text-amber-500 border-amber-500/20' },
+  late: { label: 'Atrasado', className: 'bg-red-500/10 text-red-500 border-red-500/20' },
+};
+
+const typeLabels: Record<string, string> = {
+  entrada: 'Entrada',
+  parcela: 'Parcela',
+};
+
+export function FinancialPaymentCard({ payment, onMarkAsPaid, onOpenEvent }: Props) {
+  const cfg = statusConfig[payment.status];
+  const daysLate = payment.status === 'late' ? differenceInDays(new Date(), new Date(payment.due_date)) : 0;
+  const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  return (
+    <div className={`p-3 md:p-4 rounded-xl border transition-all ${
+      payment.status === 'late' ? 'border-red-500/20 bg-red-500/[0.03]' :
+      payment.status === 'paid' ? 'border-emerald-500/10 bg-emerald-500/[0.02]' :
+      'border-border bg-card'
+    }`}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex-1 min-w-0 space-y-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="font-semibold text-sm text-foreground truncate">
+              {payment.lead_name || payment.event_title || 'Sem identificação'}
+            </p>
+            <Badge variant="outline" className={cfg.className}>
+              {cfg.label}
+            </Badge>
+            <Badge variant="secondary" className="text-xs">
+              {typeLabels[payment.type] || payment.type}
+            </Badge>
+          </div>
+
+          <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+            {payment.event_title && (
+              <span className="flex items-center gap-1">
+                <PartyPopper className="h-3 w-3" />
+                {payment.event_type ? `${payment.event_type} — ` : ''}{payment.event_title}
+              </span>
+            )}
+            {payment.event_date && (
+              <span className="flex items-center gap-1">
+                <CalendarDays className="h-3 w-3" />
+                {format(new Date(payment.event_date + 'T12:00:00'), 'dd/MM/yyyy')}
+              </span>
+            )}
+            {payment.unit && (
+              <span className="flex items-center gap-1">
+                <MapPin className="h-3 w-3" />
+                {payment.unit}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="text-right">
+            <p className={`text-sm font-bold ${
+              payment.status === 'late' ? 'text-red-400' :
+              payment.status === 'paid' ? 'text-emerald-400' :
+              'text-foreground'
+            }`}>
+              {fmt(payment.amount)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {payment.status === 'late'
+                ? `${daysLate}d atraso`
+                : payment.status === 'paid' && payment.paid_at
+                  ? `Pago ${format(new Date(payment.paid_at), 'dd/MM', { locale: ptBR })}`
+                  : `Venc. ${format(new Date(payment.due_date + 'T12:00:00'), 'dd/MM/yyyy')}`
+              }
+            </p>
+          </div>
+
+          <div className="flex items-center gap-1">
+            {payment.status !== 'paid' && onMarkAsPaid && (
+              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10" onClick={() => onMarkAsPaid(payment.id)} title="Marcar como pago">
+                <Check className="h-4 w-4" />
+              </Button>
+            )}
+            {onOpenEvent && (
+              <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => onOpenEvent(payment.event_id)} title="Abrir evento">
+                <ExternalLink className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
