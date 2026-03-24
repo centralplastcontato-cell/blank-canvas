@@ -1001,6 +1001,53 @@ export type Database = {
           },
         ]
       }
+      company_expenses: {
+        Row: {
+          amount: number
+          category: string
+          company_id: string
+          created_at: string | null
+          description: string
+          expense_date: string
+          id: string
+          status: string
+          unit: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount?: number
+          category?: string
+          company_id: string
+          created_at?: string | null
+          description: string
+          expense_date?: string
+          id?: string
+          status?: string
+          unit?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          category?: string
+          company_id?: string
+          created_at?: string | null
+          description?: string
+          expense_date?: string
+          id?: string
+          status?: string
+          unit?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_expenses_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_landing_pages: {
         Row: {
           benefits: Json | null
