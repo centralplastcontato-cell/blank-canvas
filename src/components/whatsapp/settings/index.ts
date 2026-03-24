@@ -10,3 +10,4 @@ export { CaptionsCard } from './CaptionsCard';
 export { ReactivationSection } from './ReactivationSection';
 export { VisitConfirmationSection } from './VisitConfirmationSection';
 export { ContractMessageSection } from './ContractMessageSection';
+export { PreReservationAutomationSection } from './PreReservationAutomationSection';

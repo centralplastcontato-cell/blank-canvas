@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarDays, Clock, MapPin, Phone, User, Pencil, Trash2, PartyPopper, ExternalLink, Loader2, XCircle } from "lucide-react";
+import { CalendarDays, Clock, MapPin, Phone, User, Pencil, PartyPopper, ExternalLink, Loader2, XCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import type { PreReservation } from "./PreReservationFormDialog";
 
