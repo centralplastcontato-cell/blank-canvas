@@ -389,6 +389,7 @@ export default function Agenda() {
     if (data.id) {
       const { error } = await supabase.from("company_events").update(payload).eq("id", data.id);
       if (error) { toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" }); return; }
+      await syncPaymentDetails(data.id, currentCompany.id, data.payment_details);
       toast({ title: "Festa atualizada!" });
     } else {
       const { data: newEvent, error } = await supabase.from("company_events").insert(payload).select("id").single();
@@ -413,10 +414,65 @@ export default function Agenda() {
       }
 
       toast({ title: "Festa criada!" });
+      await syncPaymentDetails(newEvent.id, currentCompany.id, data.payment_details);
       fetchEvents();
       return newEvent.id;
     }
     fetchEvents();
+  };
+
+  const syncPaymentDetails = async (eventId: string, companyId: string, pd: any) => {
+    if (!pd) return;
+    try {
+      // Check if there are already manually-managed payments (paid ones should not be wiped)
+      const { data: existing } = await supabase
+        .from("event_payments")
+        .select("id, status")
+        .eq("event_id", eventId);
+      const hasPaidPayments = (existing || []).some((p: any) => p.status === "paid");
+      if (hasPaidPayments) return; // Don't overwrite if user already marked payments as paid
+
+      // Delete existing pending payments to re-sync
+      await supabase.from("event_payments").delete().eq("event_id", eventId);
+
+      const rows: any[] = [];
+
+      // Entrada
+      if (pd.entrada_valor && pd.entrada_valor > 0) {
+        rows.push({
+          event_id: eventId,
+          company_id: companyId,
+          type: "entrada",
+          amount: pd.entrada_valor,
+          due_date: pd.parcelas_details?.[0]?.vencimento || new Date().toISOString().split("T")[0],
+          payment_method: pd.entrada_forma || null,
+          status: "pending",
+        });
+      }
+
+      // Parcelas
+      if (pd.parcelas_details && pd.parcelas_details.length > 0) {
+        pd.parcelas_details.forEach((p: any, idx: number) => {
+          if (p.valor && p.valor > 0) {
+            rows.push({
+              event_id: eventId,
+              company_id: companyId,
+              type: "parcela",
+              amount: p.valor,
+              due_date: p.vencimento || new Date().toISOString().split("T")[0],
+              payment_method: pd.saldo_forma || null,
+              status: "pending",
+            });
+          }
+        });
+      }
+
+      if (rows.length > 0) {
+        await supabase.from("event_payments").insert(rows);
+      }
+    } catch (err) {
+      console.error("[syncPaymentDetails] error:", err);
+    }
   };
 
   const confirmDelete = async () => {
