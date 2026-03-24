@@ -353,7 +353,21 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       .then(({ data }) => {
         setPackages((data || []).map((p: any) => ({ id: p.id, name: p.name, valor_pessoa_adicional: p.valor_pessoa_adicional, preco_separado: !!p.preco_separado, valor_pessoa_adicional_adulto: p.valor_pessoa_adicional_adulto, valor_pessoa_adicional_crianca: p.valor_pessoa_adicional_crianca })));
       });
-    // Fetch contract models
+
+  }, [open, currentCompany?.id]);
+
+  // Auto-fill extra_guest_value from package when packages load or package_name changes
+  useEffect(() => {
+    if (!form.package_name || packages.length === 0) return;
+    const pkg = packages.find(p => p.name === form.package_name);
+    if (pkg && form.extra_guest_value == null && pkg.valor_pessoa_adicional != null) {
+      setForm(prev => ({ ...prev, extra_guest_value: pkg.valor_pessoa_adicional }));
+    }
+  }, [packages, form.package_name]);
+
+  // Fetch contract models
+  useEffect(() => {
+    if (!open || !currentCompany?.id) return;
     (supabase as any)
       .from("contract_models")
       .select("id, nome_modelo, versao, tipo_evento")
@@ -367,6 +381,10 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         const autoMatch = eventType ? models.find(m => m.tipo_evento.toLowerCase() === eventType) : null;
         setSelectedContractModelId(autoMatch?.id || (models.length === 1 ? models[0].id : null));
       });
+  }, [open, currentCompany?.id, initialData?.event_type]);
+
+  useEffect(() => {
+    if (!open || !currentCompany?.id) return;
     supabase
       .from("user_companies")
       .select("user_id, profiles:user_id(full_name)")
