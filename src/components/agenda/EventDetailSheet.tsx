@@ -60,7 +60,7 @@ const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondar
 };
 
 export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, conflicts = [], userId }: EventDetailSheetProps) {
-  const modules = useCompanyModules();
+  
   const [leadName, setLeadName] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
