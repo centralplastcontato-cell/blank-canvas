@@ -2789,8 +2789,15 @@ async function sendQualificationMaterials(
   const month = botData.mes || '';
   const guestsStr = botData.convidados || '';
   const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
+
+  // Fetch company name for customer-facing messages (internal unit names should not be shown)
+  let companyName = unit || '';
+  if ((instance as any).company_id) {
+    const { data: companyRow } = await supabase.from('companies').select('name').eq('id', (instance as any).company_id).maybeSingle();
+    if (companyRow?.name) companyName = companyRow.name;
+  }
   
-  console.log(`[Bot Materials] Starting auto-send for ${phone}, unit: ${unit}, month: ${month}, guests: ${guestsStr}`);
+  console.log(`[Bot Materials] Starting auto-send for ${phone}, unit: ${unit}, companyName: ${companyName}, month: ${month}, guests: ${guestsStr}`);
   
   if (!unit) {
     console.log('[Bot Materials] No unit configured, skipping');
@@ -2808,7 +2815,7 @@ async function sendQualificationMaterials(
   
   // Custom intro messages
   const photosIntro = settings?.auto_send_photos_intro || '✨ Conheça nosso espaço incrível! 🏰🎉';
-  const pdfIntro = settings?.auto_send_pdf_intro || '📋 Oi {nome}! Segue o pacote completo para {convidados} na unidade {unidade}. Qualquer dúvida é só chamar! 💜';
+  const pdfIntro = settings?.auto_send_pdf_intro || '📋 Oi {nome}! Segue o pacote completo para {convidados} no {empresa}. Qualquer dúvida é só chamar! 💜';
   
   // Delay to ensure completion message is delivered first (uses configured delay)
   await new Promise(r => setTimeout(r, messageDelay));
@@ -2946,7 +2953,7 @@ async function sendQualificationMaterials(
       console.log(`[Bot Materials] Sending ${photos.length} photos from collection`);
       
       // Send intro text (use custom or default caption)
-      const introText = photosIntro.replace(/\{unidade\}/gi, unit);
+      const introText = photosIntro.replace(/\{unidade\}/gi, companyName).replace(/\{empresa\}/gi, companyName);
       const introMsgId = await sendText(introText);
       if (introMsgId) await saveMessage(introMsgId, 'text', introText);
       
@@ -2971,8 +2978,8 @@ async function sendQualificationMaterials(
     const video = presentationVideos[0];
     console.log(`[Bot Materials] Sending presentation video: ${video.name}`);
     
-    const videoCaption = captionMap['video'] || `🎬 Conheça a unidade ${unit}! ✨`;
-    const caption = videoCaption.replace(/\{unidade\}/gi, unit);
+    const videoCaption = captionMap['video'] || `🎬 Conheça o ${companyName}! ✨`;
+    const caption = videoCaption.replace(/\{unidade\}/gi, companyName).replace(/\{empresa\}/gi, companyName);
     
     const msgId = await sendVideo(video.file_url, caption);
     if (msgId) await saveMessage(msgId, 'video', caption, video.file_url);
@@ -2986,7 +2993,7 @@ async function sendQualificationMaterials(
     console.log(`[Bot Materials] Sending promo video: ${promoVideo.name}`);
     
     const promoCaption = captionMap['video_promo'] || captionMap['video'] || `🎬 Confira nosso vídeo! ✨`;
-    const caption = promoCaption.replace(/\{unidade\}/gi, unit);
+    const caption = promoCaption.replace(/\{unidade\}/gi, companyName).replace(/\{empresa\}/gi, companyName);
     
     const msgId = await sendVideo(promoVideo.file_url, caption);
     if (msgId) await saveMessage(msgId, 'video', caption, promoVideo.file_url);
@@ -3022,7 +3029,8 @@ async function sendQualificationMaterials(
       const pdfIntroText = pdfIntro
         .replace(/\{nome\}/gi, firstName)
         .replace(/\{convidados\}/gi, guestsStr)
-        .replace(/\{unidade\}/gi, unit);
+        .replace(/\{unidade\}/gi, companyName)
+        .replace(/\{empresa\}/gi, companyName);
       const introMsgId = await sendText(pdfIntroText);
       if (introMsgId) await saveMessage(introMsgId, 'text', pdfIntroText);
       

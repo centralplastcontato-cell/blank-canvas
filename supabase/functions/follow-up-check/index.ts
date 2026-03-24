@@ -2334,6 +2334,13 @@ async function recoverySendMaterials(
   const guestsStr = botData.convidados || '';
   const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
 
+  // Fetch company name for customer-facing messages
+  let companyName = unit || '';
+  if (instance.company_id) {
+    const { data: companyRow } = await supabase.from('companies').select('name').eq('id', instance.company_id).maybeSingle();
+    if (companyRow?.name) companyName = companyRow.name;
+  }
+
   if (!unit) {
     console.log('[Recovery Materials] No unit configured, skipping');
     return;
@@ -2345,7 +2352,7 @@ async function recoverySendMaterials(
   const sendPdf = settings?.auto_send_pdf !== false;
   const messageDelay = ((settings?.message_delay_seconds as number) || 5) * 1000;
   const photosIntro = (settings?.auto_send_photos_intro as string) || '✨ Conheça nosso espaço incrível! 🏰🎉';
-  const pdfIntro = (settings?.auto_send_pdf_intro as string) || '📋 Oi {nome}! Segue o pacote completo para {convidados} na unidade {unidade}. Qualquer dúvida é só chamar! 💜';
+  const pdfIntro = (settings?.auto_send_pdf_intro as string) || '📋 Oi {nome}! Segue o pacote completo para {convidados} no {empresa}. Qualquer dúvida é só chamar! 💜';
 
   await new Promise(r => setTimeout(r, messageDelay));
 
@@ -2464,7 +2471,7 @@ async function recoverySendMaterials(
     const photos = collection.photo_urls || [];
     if (photos.length > 0) {
       console.log(`[Recovery Materials] Sending ${photos.length} photos`);
-      const introText = photosIntro.replace(/\{unidade\}/gi, unit);
+      const introText = photosIntro.replace(/\{unidade\}/gi, companyName).replace(/\{empresa\}/gi, companyName);
       const introMsgId = await sendText(introText);
       if (introMsgId) await saveMessage(introMsgId, 'text', introText);
       await new Promise(r => setTimeout(r, messageDelay / 2));
@@ -2482,8 +2489,8 @@ async function recoverySendMaterials(
   if (sendPresentationVideo && presentationVideos.length > 0) {
     const video = presentationVideos[0] as any;
     console.log(`[Recovery Materials] Sending presentation video: ${video.name}`);
-    const videoCaption = captionMap['video'] || `🎬 Conheça a unidade ${unit}! ✨`;
-    const caption = videoCaption.replace(/\{unidade\}/gi, unit);
+    const videoCaption = captionMap['video'] || `🎬 Conheça o ${companyName}! ✨`;
+    const caption = videoCaption.replace(/\{unidade\}/gi, companyName).replace(/\{empresa\}/gi, companyName);
     const msgId = await sendVideo(video.file_url, caption);
     if (msgId) await saveMessage(msgId, 'video', caption, video.file_url);
     await new Promise(r => setTimeout(r, messageDelay));
@@ -2502,7 +2509,8 @@ async function recoverySendMaterials(
       const pdfIntroText = pdfIntro
         .replace(/\{nome\}/gi, firstName)
         .replace(/\{convidados\}/gi, guestsStr)
-        .replace(/\{unidade\}/gi, unit);
+        .replace(/\{unidade\}/gi, companyName)
+        .replace(/\{empresa\}/gi, companyName);
       const introMsgId = await sendText(pdfIntroText);
       if (introMsgId) await saveMessage(introMsgId, 'text', pdfIntroText);
       await new Promise(r => setTimeout(r, messageDelay / 4));
