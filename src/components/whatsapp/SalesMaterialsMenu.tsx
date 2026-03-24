@@ -80,7 +80,26 @@ export function SalesMaterialsMenu({
   const [isSending, setIsSending] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<CategoryType>("main");
+  const [companyName, setCompanyName] = useState<string>('');
   const isMobile = useIsMobile();
+
+  // Fetch company name to use in client-facing messages instead of internal unit name
+  useEffect(() => {
+    const fetchCompanyName = async () => {
+      const storedCompanyId = localStorage.getItem('selected_company_id');
+      if (!storedCompanyId) return;
+      const { data } = await supabase
+        .from('companies')
+        .select('name')
+        .eq('id', storedCompanyId)
+        .single();
+      if (data?.name) setCompanyName(data.name);
+    };
+    fetchCompanyName();
+  }, []);
+
+  // The display name for client-facing messages (company name or fallback to unit)
+  const publicName = companyName || unit;
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -144,15 +163,14 @@ export function SalesMaterialsMenu({
   const getCaption = (captionType: "video" | "video_promo" | "photo_collection"): string => {
     const caption = captions.find(c => c.caption_type === captionType);
     if (caption) {
-      // Replace {unidade} variable with actual unit name
-      return caption.caption_text.replace(/\{unidade\}/gi, unit);
+      return caption.caption_text.replace(/\{unidade\}/gi, publicName);
     }
     
     // Fallback defaults if not found in database
     const defaults: Record<string, string> = {
-      video: `🎬 Veja como é incrível o nosso espaço! ✨ Unidade ${unit} te espera para uma festa inesquecível! 🎉`,
+      video: `🎬 Veja como é incrível o nosso espaço! ✨ ${publicName} te espera para uma festa inesquecível! 🎉`,
       video_promo: "🎭🎉 PROMOÇÃO ESPECIAL DE CARNAVAL! 🎊✨ Aproveite condições imperdíveis para garantir a festa dos sonhos do seu filho! Entre em contato agora e confira! 🏰💜",
-      photo_collection: `✨ Espaço incrível para festas inesquecíveis! Venha conhecer a unidade ${unit} e encante-se com a estrutura completa para a diversão da criançada! 🎉🏰`
+      photo_collection: `✨ Espaço incrível para festas inesquecíveis! Venha conhecer o ${publicName} e encante-se com a estrutura completa para a diversão da criançada! 🎉🏰`
     };
     
     return defaults[captionType] || defaults.video;
@@ -253,10 +271,10 @@ export function SalesMaterialsMenu({
           
           let introMessage = '';
           if (leadName) {
-            introMessage = `Oi ${leadName}! Segue o pacote para ${guestCount} convidados da unidade ${unit}. Qualquer dúvida, estou à disposição! 🎉`;
-          } else {
-            introMessage = `Segue o pacote para ${guestCount} convidados da unidade ${unit}. Qualquer dúvida, estou à disposição! 🎉`;
-          }
+             introMessage = `Oi ${leadName}! Segue o pacote para ${guestCount} convidados do ${publicName}. Qualquer dúvida, estou à disposição! 🎉`;
+           } else {
+             introMessage = `Segue o pacote para ${guestCount} convidados do ${publicName}. Qualquer dúvida, estou à disposição! 🎉`;
+           }
           
           await onSendTextMessage(introMessage);
           // Small delay to ensure message order
