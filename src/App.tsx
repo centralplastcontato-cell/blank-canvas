@@ -193,6 +193,7 @@ const App = () => (
               <Route path="/cardapio/:companySlug/:templateSlug" element={<PublicCardapio />} />
               <Route path="/cardapio/:templateId" element={<PublicCardapio />} />
               <Route path="/cardapio" element={<Cardapio />} />
+              <Route path="/financeiro" element={<Financeiro />} />
               {/* Public staff form */}
               <Route path="/equipe/:recordId" element={<PublicStaff />} />
               {/* Public maintenance form */}

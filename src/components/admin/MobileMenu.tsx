@@ -118,6 +118,13 @@ export function MobileMenu({
       show: !!modules.contrato,
     },
     {
+      id: "financeiro",
+      label: "Financeiro",
+      icon: DollarSign,
+      path: "/financeiro",
+      show: !!modules.financeiro,
+    },
+    {
       id: "configuracoes",
       label: "Configurações",
       icon: Settings,
