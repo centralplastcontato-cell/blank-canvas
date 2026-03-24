@@ -1,113 +1,48 @@
 
 
-## Plano: Distribuição de Leads entre "Vendas 1" e "Vendas 2" com Controle de Modo
+## Problema
 
-### Conceito
+O bot do WhatsApp exibe nomes internos de unidade ("Vendas 1", "Vendas 2") nas mensagens enviadas ao cliente. Exemplo: "📍 Unidade: Vendas 1" e "Conheça a unidade Vendas 1". O cliente deveria ver apenas o nome da empresa ("Castelo da Diversão").
 
-Internamente, as duas instâncias WhatsApp da empresa passam a se chamar **Vendas 1** (número antigo do Manchester) e **Vendas 2** (número atual do Trujillo). Ambas atendem a unidade Trujillo. Um seletor nas Configurações de WhatsApp permite escolher entre:
+## Solução
 
-- **Automático (Round-Robin)** — alterna leads entre as duas instâncias
-- **Apenas Vendas 1** — só o número antigo do Manchester recebe leads da LP
-- **Apenas Vendas 2** — só o número atual do Trujillo recebe leads da LP
+Substituir a variável `{unidade}` pelo nome da empresa (`companies.name`) em todas as mensagens voltadas ao cliente, em 3 arquivos:
 
-Leads já vinculados a uma instância continuam isolados nela (follow-ups, bot, mensagens automáticas).
+### 1. `supabase/functions/wapi-webhook/index.ts`
 
----
+**Função `sendQualificationMaterials`** (linha ~2766):
+- Expandir o tipo do parâmetro `instance` para incluir `company_id: string`
+- Buscar `companies.name` no início da função
+- Usar o nome da empresa no lugar de `unit` em todas as substituições de `{unidade}` (linhas ~2949, 2975, 2989, 3025)
+- Alterar o fallback do caption de vídeo de `"Conheça a unidade ${unit}"` para `"Conheça o ${companyName}"` (linha ~2974)
 
-### Etapa 1 — Banco de Dados
+**Função `sendQualificationMaterialsThenQuestion`** (linha ~3061):
+- Mesma expansão do tipo `instance` para incluir `company_id`
 
-**1a. Adicionar coluna `lead_routing_mode` em `lp_bot_settings`**
+**Default do `pdfIntro`** (linha ~2811):
+- Alterar de `"na unidade {unidade}"` para `"no {empresa}"`
 
-```sql
-ALTER TABLE lp_bot_settings 
-  ADD COLUMN lead_routing_mode text NOT NULL DEFAULT 'auto';
--- Valores: 'auto' | 'vendas1' | 'vendas2'
-```
+### 2. `src/components/landing/LeadChatbot.tsx`
 
-**1b. Adicionar coluna `lead_routing_counter` em `lp_bot_settings`**
+- Na mensagem padrão (linha ~392), trocar `📍 Unidade: ${unit}` por `📍 Local: ${displayName}`
+- Na mensagem de redirect (linha ~401), mesma alteração
+- Na função `buildWhatsAppMessage` (linha ~559), trocar `📍 Unidade: ${leadData.unit}` por `📍 Local: ${displayName}`
 
-```sql
-ALTER TABLE lp_bot_settings 
-  ADD COLUMN lead_routing_counter integer NOT NULL DEFAULT 0;
-```
+### 3. `src/components/whatsapp/settings/LPBotSection.tsx`
 
-Esse contador será incrementado a cada lead para alternar (par → Vendas 1, ímpar → Vendas 2).
+- Atualizar o template padrão `whatsapp_welcome_template` (linha ~49): trocar `📍 Unidade: {unidade}` por `📍 Local: {empresa}`
+- Atualizar o placeholder (linha ~201) de forma correspondente
 
-**1c. Desativar a unidade Manchester em `company_units`** (via INSERT tool — UPDATE)
+### 4. `supabase/functions/follow-up-check/index.ts`
 
-```sql
-UPDATE company_units SET is_active = false WHERE name = 'Manchester' AND company_id = 'a0000000-0000-0000-0000-000000000001';
-```
+- Mesma alteração no default do `pdfIntro` (linha ~2348): `"na unidade {unidade}"` → `"no {empresa}"`
+- Alterar fallback do video caption (linha ~2485): `"Conheça a unidade ${unit}"` → buscar nome da empresa e usar
 
-**1d. Renomear instâncias em `wapi_instances`** (via INSERT tool — UPDATE)
+### 5. `supabase/functions/rescue-orphan-leads/index.ts`
 
-- Instância com unit = 'Manchester' → `unit = 'Vendas 1'`
-- Instância com unit = 'Trujillo' → `unit = 'Vendas 2'`
+- Trocar `📍 Unidade: ${TARGET_UNIT}` por `📍 Local: Castelo da Diversão` (linha ~76)
 
-**1e. Criar duas novas unidades em `company_units`** (ou renomear as existentes)
+### Nota importante
 
-As unidades `Vendas 1` e `Vendas 2` precisam existir em `company_units` para que `wapi-send` resolva a instância pelo campo `unit`. Essas unidades serão internas (não aparecerão na LP para o cliente escolher — o lead ainda vê "Trujillo").
-
----
-
-### Etapa 2 — Edge Function `submit-lead`
-
-Após validar e antes de inserir/atualizar o lead, a função resolve qual instância receberá a mensagem:
-
-1. Buscar `lp_bot_settings` para o `company_id` → ler `lead_routing_mode` e `lead_routing_counter`
-2. Se `auto` → incrementar counter, par = 'Vendas 1', ímpar = 'Vendas 2'
-3. Se `vendas1` → fixo 'Vendas 1'
-4. Se `vendas2` → fixo 'Vendas 2'
-5. Gravar a unidade resolvida no campo `unit` do lead (para que o CRM e o chat fiquem vinculados à instância correta)
-6. Retornar a `resolved_unit` na resposta JSON para o frontend saber para qual instância enviar a welcome message
-
----
-
-### Etapa 3 — Frontend: `LeadChatbot.tsx`
-
-Ajustar o fluxo para:
-
-1. O lead continua vendo "Trujillo" como unidade (UX não muda)
-2. Após o `submit-lead`, ler a `resolved_unit` da resposta
-3. Usar essa `resolved_unit` (ex: "Vendas 1") no `sendWelcomeMessage` ao invés do nome visível da unidade
-
-Mudança localizada: ~5 linhas no `handleInputSubmit`.
-
----
-
-### Etapa 4 — Configurações: Card de Distribuição de Leads
-
-Adicionar um card na seção **LP Bot** (`LPBotSection`) ou **Automações** (`AutomationsSection`) com:
-
-- Título: "Distribuição de Leads da Landing Page"
-- Um `Select` com 3 opções:
-  - `Automático (Round-Robin)` — valor `auto`
-  - `Apenas Vendas 1` — valor `vendas1`  
-  - `Apenas Vendas 2` — valor `vendas2`
-- Salva em `lp_bot_settings.lead_routing_mode`
-
----
-
-### Etapa 5 — Atualizar `get_lp_bot_settings_public`
-
-Adicionar `lead_routing_mode` ao retorno da função SQL pública para que o frontend (se necessário) ou o `submit-lead` possam consultá-lo.
-
----
-
-### Resumo de Arquivos Modificados
-
-| Arquivo | Ação |
-|---|---|
-| Migration SQL | Adicionar 2 colunas em `lp_bot_settings` |
-| `supabase/functions/submit-lead/index.ts` | Resolver routing mode + retornar `resolved_unit` |
-| `src/components/landing/LeadChatbot.tsx` | Usar `resolved_unit` da resposta no envio da welcome |
-| `src/components/whatsapp/settings/LPBotSection.tsx` | Adicionar card de seleção de modo |
-| DB function `get_lp_bot_settings_public` | Incluir `lead_routing_mode` no retorno |
-| Data updates (INSERT tool) | Renomear instâncias, desativar Manchester, criar unidades internas |
-
-### O que NÃO muda
-
-- Estrutura de `wapi_instances`, `wapi_conversations`, `wapi_messages`
-- Lógica de follow-up, bot, conexão — tudo continua isolado por instância
-- A LP para o cliente final — ele continua vendo "Trujillo"
+O `unit` continua sendo usado internamente para filtrar `sales_materials` no banco (queries com `.eq('unit', unit)`). A mudança é apenas nas mensagens visíveis ao cliente.
 
