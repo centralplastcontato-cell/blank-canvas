@@ -472,12 +472,14 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
             body.status = 'transferido';
             body.observacoes = `Redirecionado para ${lpBotConfig?.guest_limit_redirect_name || 'buffet parceiro'} - acima de ${lpBotConfig?.guest_limit} convidados`;
           }
-          const { error } = await supabase.functions.invoke('submit-lead', { body });
+          const { data: responseData, error } = await supabase.functions.invoke('submit-lead', { body });
           if (error) throw error;
-          console.log(`Lead criado para ${unit}${isRedirected ? ' (transferido)' : ''}`);
+          const resolvedUnit = responseData?.resolved_unit || unit;
+          console.log(`Lead criado para ${resolvedUnit}${isRedirected ? ' (transferido)' : ''}`);
+          return resolvedUnit;
         };
         
-        await submitLead(leadData.unit!);
+        const resolvedUnit = await submitLead(leadData.unit!);
 
         // Send welcome message(s) in background
         const redirectInfo = isRedirected ? {
@@ -492,8 +494,9 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
           Promise.all(
             allUnits.map(u => sendWelcomeMessage(whatsappValue, u, finalLeadData, redirectInfo))
           ).catch(err => console.error("Erro ao enviar mensagem automática:", err));
-        } else if (leadData.unit) {
-          sendWelcomeMessage(whatsappValue, leadData.unit, finalLeadData, redirectInfo)
+        } else {
+          // Use the resolved unit from the server (e.g., "Vendas 1" or "Vendas 2")
+          sendWelcomeMessage(whatsappValue, resolvedUnit, finalLeadData, redirectInfo)
             .catch(err => console.error("Erro ao enviar mensagem automática:", err));
         }
 
