@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useFinanceiroDashboard, type EnrichedPayment } from '@/hooks/useFinanceiroDashboard';
+import { useFinanceiroDashboard } from '@/hooks/useFinanceiroDashboard';
 import { useCompanyUnits } from '@/hooks/useCompanyUnits';
 import { useCompany } from '@/contexts/CompanyContext';
 import { FinancialPaymentCard } from '@/components/financial/FinancialPaymentCard';
