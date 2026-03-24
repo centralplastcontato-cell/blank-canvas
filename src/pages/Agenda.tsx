@@ -389,8 +389,6 @@ export default function Agenda() {
     });
   };
 
-  const physicalUnits = units.filter(u => u.slug !== "trabalhe-conosco");
-  const isSalesChannelOnly = physicalUnits.length > 0 && physicalUnits.every(u => u.name.toLowerCase().includes("vendas"));
 
   const handleSubmit = async (data: EventFormData): Promise<string | void> => {
     if (!currentCompany?.id || !currentUser?.id) return;
