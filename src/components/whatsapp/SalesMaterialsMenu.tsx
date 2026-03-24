@@ -80,7 +80,26 @@ export function SalesMaterialsMenu({
   const [isSending, setIsSending] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<CategoryType>("main");
+  const [companyName, setCompanyName] = useState<string>('');
   const isMobile = useIsMobile();
+
+  // Fetch company name to use in client-facing messages instead of internal unit name
+  useEffect(() => {
+    const fetchCompanyName = async () => {
+      const storedCompanyId = localStorage.getItem('selected_company_id');
+      if (!storedCompanyId) return;
+      const { data } = await supabase
+        .from('companies')
+        .select('name')
+        .eq('id', storedCompanyId)
+        .single();
+      if (data?.name) setCompanyName(data.name);
+    };
+    fetchCompanyName();
+  }, []);
+
+  // The display name for client-facing messages (company name or fallback to unit)
+  const publicName = companyName || unit;
 
   const fetchData = async () => {
     setIsLoading(true);
