@@ -13,6 +13,8 @@ import { ptBR } from "date-fns/locale";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { EventChecklist } from "./EventChecklist";
+import { EventFinancialTab } from "@/components/financial/EventFinancialTab";
+import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
