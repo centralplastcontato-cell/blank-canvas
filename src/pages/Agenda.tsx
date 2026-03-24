@@ -350,6 +350,22 @@ export default function Agenda() {
     return filteredEvents.filter(e => e.event_date === dateStr);
   }, [filteredEvents, selectedDate]);
 
+  // Pre-reservations for selected day
+  const dayPreReservations = useMemo(() => {
+    if (!selectedDate) return [];
+    const dateStr = format(selectedDate, "yyyy-MM-dd");
+    return preReservations.filter(pr => pr.event_date === dateStr && pr.status === "ativa");
+  }, [preReservations, selectedDate]);
+
+  // Filtered pre-reservations (respects unit)
+  const filteredPreReservations = useMemo(() => {
+    let filtered = preReservations;
+    if (selectedUnit !== "all") {
+      filtered = filtered.filter(pr => pr.unit === selectedUnit);
+    }
+    return filtered;
+  }, [preReservations, selectedUnit]);
+
   // Detect conflicts (same unit + overlapping time)
   // When end_time is missing, assume event lasts ~3 hours from start to avoid false conflicts
   const inferEndTime = (startTime: string, endTime: string | null | undefined): string => {
