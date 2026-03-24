@@ -30,6 +30,7 @@ export default function Financeiro() {
   const { currentCompany } = useCompany();
   const companyId = currentCompany?.id;
   const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [monthFilter, setMonthFilter] = useState(() => format(new Date(), "yyyy-MM"));
 
