@@ -31,7 +31,7 @@ export function ContractPreviewPrint({ content, companyName, companyLogo, packag
             color: #1a1a1a;
             max-width: 700px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 2cm;
           }
           .header { text-align: center; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 2px solid #333; }
           .header img { height: 100px; margin-bottom: 12px; }
