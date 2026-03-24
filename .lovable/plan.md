@@ -1,100 +1,113 @@
 
 
-# Plano: Modulo Financeiro do Celebrei
+## Plano: Distribuição de Leads entre "Vendas 1" e "Vendas 2" com Controle de Modo
 
-## Visao Geral
+### Conceito
 
-Criar um modulo financeiro integrado ao evento, com parcelas, extras, descontos, timeline e uma pagina consolidada de visualizacao. O financeiro nasce e vive dentro do evento.
+Internamente, as duas instâncias WhatsApp da empresa passam a se chamar **Vendas 1** (número antigo do Manchester) e **Vendas 2** (número atual do Trujillo). Ambas atendem a unidade Trujillo. Um seletor nas Configurações de WhatsApp permite escolher entre:
 
-## Fase 1 -- Banco de Dados (Migration SQL)
+- **Automático (Round-Robin)** — alterna leads entre as duas instâncias
+- **Apenas Vendas 1** — só o número antigo do Manchester recebe leads da LP
+- **Apenas Vendas 2** — só o número atual do Trujillo recebe leads da LP
 
-Criar 5 tabelas com RLS e company_id:
+Leads já vinculados a uma instância continuam isolados nela (follow-ups, bot, mensagens automáticas).
 
-```text
-event_payments          -- parcelas (entrada/parcela, valor, vencimento, metodo, status)
-event_extras            -- valores extras (descricao, valor)
-event_discounts         -- descontos (tipo fixo/%, valor, motivo)
-event_financial_timeline -- historico (tipo, descricao, created_at)
+---
+
+### Etapa 1 — Banco de Dados
+
+**1a. Adicionar coluna `lead_routing_mode` em `lp_bot_settings`**
+
+```sql
+ALTER TABLE lp_bot_settings 
+  ADD COLUMN lead_routing_mode text NOT NULL DEFAULT 'auto';
+-- Valores: 'auto' | 'vendas1' | 'vendas2'
 ```
 
-Nao criar tabela `event_financial` separada -- o resumo sera calculado em tempo real (SUM das parcelas pagas, total = base + extras - descontos).
+**1b. Adicionar coluna `lead_routing_counter` em `lp_bot_settings`**
 
-**RLS**: Todas as tabelas usarao `get_user_company_ids(auth.uid())` para filtrar por company_id, seguindo o padrao existente.
+```sql
+ALTER TABLE lp_bot_settings 
+  ADD COLUMN lead_routing_counter integer NOT NULL DEFAULT 0;
+```
 
-**Permissoes**: Inserir 4 novas permission_definitions:
-- `financial.view` -- ver aba financeiro
-- `financial.values` -- ver valores monetarios
-- `financial.edit` -- editar parcelas/extras/descontos
-- `financial.payments` -- registrar pagamentos
+Esse contador será incrementado a cada lead para alternar (par → Vendas 1, ímpar → Vendas 2).
 
-**Trigger**: Criar trigger que insere automaticamente na `event_financial_timeline` quando parcelas sao criadas/pagas, extras adicionados, descontos aplicados.
+**1c. Desativar a unidade Manchester em `company_units`** (via INSERT tool — UPDATE)
 
-## Fase 2 -- Componentes do Evento (Aba Financeiro)
+```sql
+UPDATE company_units SET is_active = false WHERE name = 'Manchester' AND company_id = 'a0000000-0000-0000-0000-000000000001';
+```
 
-### 2.1 `EventFinancialTab.tsx`
-Componente principal que sera adicionado ao `EventDetailSheet.tsx` como nova secao. Contem:
+**1d. Renomear instâncias em `wapi_instances`** (via INSERT tool — UPDATE)
 
-- **Cards de resumo**: Valor Total | Recebido | Pendente | Status (Pago/Parcial/Atrasado)
-- **Lista de parcelas**: Tabela com valor, vencimento, status, acoes (pagar/editar/excluir)
-- **Botao adicionar parcela**: Abre dialog com campos tipo/valor/vencimento/metodo
-- **Secao extras**: Lista + botao adicionar (descricao + valor)
-- **Secao descontos**: Lista + botao aplicar (tipo + valor + motivo)
-- **Timeline financeira**: Lista cronologica de eventos
+- Instância com unit = 'Manchester' → `unit = 'Vendas 1'`
+- Instância com unit = 'Trujillo' → `unit = 'Vendas 2'`
 
-### 2.2 Dialogs auxiliares
-- `PaymentFormDialog.tsx` -- criar/editar parcela
-- Reutilizar Dialog/Sheet existentes do shadcn
+**1e. Criar duas novas unidades em `company_units`** (ou renomear as existentes)
 
-### 2.3 Hook `useEventFinancial.ts`
-- Carrega parcelas, extras, descontos e timeline do evento
-- Calcula totais em tempo real
-- CRUD operations com toast feedback
-- Marca parcelas vencidas como "atrasado" automaticamente (client-side)
+As unidades `Vendas 1` e `Vendas 2` precisam existir em `company_units` para que `wapi-send` resolva a instância pelo campo `unit`. Essas unidades serão internas (não aparecerão na LP para o cliente escolher — o lead ainda vê "Trujillo").
 
-## Fase 3 -- Integracao no EventDetailSheet
+---
 
-Adicionar a aba/secao "Financeiro" no `EventDetailSheet.tsx`, condicionada a:
-- `hasPermission('financial.view')` para ver a secao
-- `hasPermission('financial.values')` para ver valores
-- `hasPermission('financial.edit')` para botoes de edicao
+### Etapa 2 — Edge Function `submit-lead`
 
-## Fase 4 -- Pagina Financeiro Geral
+Após validar e antes de inserir/atualizar o lead, a função resolve qual instância receberá a mensagem:
 
-### 4.1 `src/pages/Financeiro.tsx`
-Pagina somente-leitura com:
-- **Dashboard cards**: Total recebido no mes, a receber, em atraso
-- **Proximos vencimentos**: Lista com cliente, evento, valor, data
-- **Pagamentos em atraso**: Lista com cliente, evento, valor, dias de atraso
-- Filtros por periodo e unidade
+1. Buscar `lp_bot_settings` para o `company_id` → ler `lead_routing_mode` e `lead_routing_counter`
+2. Se `auto` → incrementar counter, par = 'Vendas 1', ímpar = 'Vendas 2'
+3. Se `vendas1` → fixo 'Vendas 1'
+4. Se `vendas2` → fixo 'Vendas 2'
+5. Gravar a unidade resolvida no campo `unit` do lead (para que o CRM e o chat fiquem vinculados à instância correta)
+6. Retornar a `resolved_unit` na resposta JSON para o frontend saber para qual instância enviar a welcome message
 
-### 4.2 Rota e navegacao
-- Adicionar rota `/financeiro` no `App.tsx`
-- Adicionar item no `AdminSidebar.tsx` e `MobileMenu.tsx` (condicionado a modulo `financeiro`)
-- Adicionar modulo `financeiro` no `useCompanyModules.ts`
+---
 
-## Fase 5 -- Modulo Hub
+### Etapa 3 — Frontend: `LeadChatbot.tsx`
 
-Adicionar flag `financeiro` no `CompanyModules` interface e `MODULE_LABELS` para controle de visibilidade pelo Hub.
+Ajustar o fluxo para:
 
-## Arquivos a Criar
-1. `src/components/financial/EventFinancialTab.tsx`
-2. `src/components/financial/PaymentFormDialog.tsx`
-3. `src/components/financial/FinancialSummaryCards.tsx`
-4. `src/components/financial/FinancialTimeline.tsx`
-5. `src/hooks/useEventFinancial.ts`
-6. `src/pages/Financeiro.tsx`
-7. Migration SQL (1 arquivo)
+1. O lead continua vendo "Trujillo" como unidade (UX não muda)
+2. Após o `submit-lead`, ler a `resolved_unit` da resposta
+3. Usar essa `resolved_unit` (ex: "Vendas 1") no `sendWelcomeMessage` ao invés do nome visível da unidade
 
-## Arquivos a Editar
-1. `src/components/agenda/EventDetailSheet.tsx` -- adicionar secao financeiro
-2. `src/App.tsx` -- rota `/financeiro`
-3. `src/components/admin/AdminSidebar.tsx` -- menu item
-4. `src/components/admin/MobileMenu.tsx` -- menu item
-5. `src/hooks/useCompanyModules.ts` -- flag `financeiro`
+Mudança localizada: ~5 linhas no `handleInputSubmit`.
 
-## Economia de Creditos
-- Reutilizar Card, Badge, Button, Dialog, Sheet, Table, Select do shadcn
-- Reutilizar padrao de permissoes existente (usePermissions)
-- Calculos client-side (sem edge functions)
-- Um unico hook centralizado para todo o CRUD financeiro
+---
+
+### Etapa 4 — Configurações: Card de Distribuição de Leads
+
+Adicionar um card na seção **LP Bot** (`LPBotSection`) ou **Automações** (`AutomationsSection`) com:
+
+- Título: "Distribuição de Leads da Landing Page"
+- Um `Select` com 3 opções:
+  - `Automático (Round-Robin)` — valor `auto`
+  - `Apenas Vendas 1` — valor `vendas1`  
+  - `Apenas Vendas 2` — valor `vendas2`
+- Salva em `lp_bot_settings.lead_routing_mode`
+
+---
+
+### Etapa 5 — Atualizar `get_lp_bot_settings_public`
+
+Adicionar `lead_routing_mode` ao retorno da função SQL pública para que o frontend (se necessário) ou o `submit-lead` possam consultá-lo.
+
+---
+
+### Resumo de Arquivos Modificados
+
+| Arquivo | Ação |
+|---|---|
+| Migration SQL | Adicionar 2 colunas em `lp_bot_settings` |
+| `supabase/functions/submit-lead/index.ts` | Resolver routing mode + retornar `resolved_unit` |
+| `src/components/landing/LeadChatbot.tsx` | Usar `resolved_unit` da resposta no envio da welcome |
+| `src/components/whatsapp/settings/LPBotSection.tsx` | Adicionar card de seleção de modo |
+| DB function `get_lp_bot_settings_public` | Incluir `lead_routing_mode` no retorno |
+| Data updates (INSERT tool) | Renomear instâncias, desativar Manchester, criar unidades internas |
+
+### O que NÃO muda
+
+- Estrutura de `wapi_instances`, `wapi_conversations`, `wapi_messages`
+- Lógica de follow-up, bot, conexão — tudo continua isolado por instância
+- A LP para o cliente final — ele continua vendo "Trujillo"
 
