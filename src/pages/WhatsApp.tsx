@@ -158,7 +158,7 @@ export default function WhatsApp() {
         />
         
         <SidebarInset className="flex-1 flex flex-col">
-          <main className="flex-1 flex flex-col h-screen p-2 pt-2">
+          <main className="flex-1 flex flex-col h-screen p-4 pt-4">
             <WhatsAppChat userId={user.id} allowedUnits={canViewAll ? ['all'] : allowedUnits} />
           </main>
         </SidebarInset>
