@@ -57,6 +57,8 @@ export default function Agenda() {
   const { currentCompany } = useCompany();
   const modules = useCompanyModules();
   const { units } = useCompanyUnits(currentCompany?.id);
+  const physicalUnits = units.filter(u => u.slug !== "trabalhe-conosco");
+  const isSalesChannelOnly = physicalUnits.length > 0 && physicalUnits.every(u => u.name.toLowerCase().includes("vendas"));
 
   const [isAdmin, setIsAdmin] = useState(false);
   const [permLoading, setPermLoading] = useState(true);
@@ -304,16 +306,20 @@ export default function Agenda() {
     setPeriodEvents([]);
   };
 
-  // Auto-select unit based on permissions
+  // Auto-select unit based on permissions (and force "all" for sales-channel-only companies)
   useEffect(() => {
     if (permUnitLoading) return;
+    if (isSalesChannelOnly) {
+      setSelectedUnit("all");
+      return;
+    }
     if (!canViewAll) {
       const permitted = allowedUnits.filter(u => u !== "As duas");
       if (permitted.length === 1) {
         setSelectedUnit(permitted[0]);
       }
     }
-  }, [canViewAll, allowedUnits, permUnitLoading]);
+  }, [canViewAll, allowedUnits, permUnitLoading, isSalesChannelOnly]);
 
   // Filtered events (respects unit permissions)
   const filteredEvents = useMemo(() => {
@@ -385,7 +391,6 @@ export default function Agenda() {
     });
   };
 
-  const physicalUnits = units.filter(u => u.slug !== "trabalhe-conosco");
 
   const handleSubmit = async (data: EventFormData): Promise<string | void> => {
     if (!currentCompany?.id || !currentUser?.id) return;
@@ -652,8 +657,8 @@ export default function Agenda() {
             </div>
           </header>
 
-          {/* Mobile unit filter */}
-          {(() => {
+          {/* Mobile unit filter — hidden when units are sales channels only */}
+          {!isSalesChannelOnly && (() => {
             const visibleUnits = canViewAll ? physicalUnits : physicalUnits.filter(u => unitAccess[u.name]);
             if (visibleUnits.length <= 1) return null;
             return (
@@ -729,7 +734,8 @@ export default function Agenda() {
                           <TabsTrigger value="list" className="px-3 data-[state=active]:shadow-sm"><List className="h-4 w-4" /></TabsTrigger>
                         </TabsList>
                       </Tabs>
-                      {(() => {
+                      {/* Desktop unit filter — hidden when units are sales channels only */}
+                      {!isSalesChannelOnly && (() => {
                         const visibleUnits = canViewAll ? physicalUnits : physicalUnits.filter(u => unitAccess[u.name]);
                         if (visibleUnits.length <= 1) return null;
                         return (
