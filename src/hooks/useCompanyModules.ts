@@ -166,6 +166,7 @@ export function parseModules(settings: Json | null | undefined): CompanyModules 
     data_import: modules.data_import !== false,
     advanced: modules.advanced !== false,
     contrato: modules.contrato === true,
+    financeiro: modules.financeiro === true,
     // --- Outros ---
     treinamento: modules.treinamento !== false,
     onboarding_checklist: modules.onboarding_checklist === true,
