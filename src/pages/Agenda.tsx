@@ -645,7 +645,7 @@ export default function Agenda() {
               </div>
               {/* Mobile content mode toggle - inside header */}
               <div className="pt-2">
-                <Tabs value={contentMode} onValueChange={(v) => setContentMode(v as "agendadas" | "fechadas")}>
+                <Tabs value={contentMode} onValueChange={(v) => setContentMode(v as "agendadas" | "fechadas" | "pre-reservas")}>
                   <TabsList className="w-full h-10 bg-muted/60">
                     <TabsTrigger value="agendadas" className="flex-1 gap-1.5 text-xs font-medium">
                       <CalendarDays className="h-3.5 w-3.5" />
@@ -656,6 +656,13 @@ export default function Agenda() {
                       Fechadas
                       {closedInPeriod > 0 && (
                         <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{closedInPeriod}</Badge>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="pre-reservas" className="flex-1 gap-1.5 text-xs font-medium">
+                      <CalendarClock className="h-3.5 w-3.5" />
+                      Pré-reservas
+                      {allPreReservations.filter(pr => pr.status === "ativa").length > 0 && (
+                        <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{allPreReservations.filter(pr => pr.status === "ativa").length}</Badge>
                       )}
                     </TabsTrigger>
                   </TabsList>
@@ -720,7 +727,7 @@ export default function Agenda() {
                     </div>
                     <div className="flex items-center gap-2.5">
                       {/* Content mode toggle: Agendadas vs Fechadas */}
-                      <Tabs value={contentMode} onValueChange={(v) => setContentMode(v as "agendadas" | "fechadas")}>
+                      <Tabs value={contentMode} onValueChange={(v) => setContentMode(v as "agendadas" | "fechadas" | "pre-reservas")}>
                         <TabsList className="h-10 bg-muted/60 backdrop-blur-sm">
                           <TabsTrigger value="agendadas" className="px-3 gap-1.5 data-[state=active]:shadow-sm text-xs font-medium">
                             <CalendarDays className="h-4 w-4" />
@@ -731,6 +738,13 @@ export default function Agenda() {
                             <span className="hidden sm:inline">Fechadas</span>
                             {closedInPeriod > 0 && (
                               <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{closedInPeriod}</Badge>
+                            )}
+                          </TabsTrigger>
+                          <TabsTrigger value="pre-reservas" className="px-3 gap-1.5 data-[state=active]:shadow-sm text-xs font-medium">
+                            <CalendarClock className="h-4 w-4" />
+                            <span className="hidden sm:inline">Pré-reservas</span>
+                            {allPreReservations.filter(pr => pr.status === "ativa").length > 0 && (
+                              <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{allPreReservations.filter(pr => pr.status === "ativa").length}</Badge>
                             )}
                           </TabsTrigger>
                         </TabsList>
