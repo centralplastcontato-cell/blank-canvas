@@ -389,7 +389,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
         || `Nossa capacidade máxima é de ${redirectInfo?.limit || 0} convidados.`;
 
       const dateStr = `${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}`;
-      const defaultNormalMsg = `Olá! 👋🏼✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n1️⃣ - 📩 Receber agora o orçamento\n2️⃣ - 💬 Falar com um atendente`;
+      const defaultNormalMsg = `Olá! 👋🏼✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Local: ${displayName}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n1️⃣ - 📩 Receber agora o orçamento\n2️⃣ - 💬 Falar com um atendente`;
       
       const applyTemplate = (template: string) => template
         .replace(/\{nome\}/g, leadInfo.name || '')
@@ -398,7 +398,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
         .replace(/\{convidados\}/g, leadInfo.guests || '')
         .replace(/\{empresa\}/g, displayName);
 
-      const redirectDefaultMsg = `Olá! 👋✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Unidade: ${unit}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\n${redirectText}\n\nObrigado pelo interesse! 💜`;
+      const redirectDefaultMsg = `Olá! 👋✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Local: ${displayName}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\n${redirectText}\n\nObrigado pelo interesse! 💜`;
 
       const message = redirectInfo
         ? redirectDefaultMsg
@@ -556,7 +556,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
 
   // Build WhatsApp message for final buttons
   const buildWhatsAppMessage = () => {
-    return `Olá! 👋🏼✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadData.name || ''}\n📍 Unidade: ${leadData.unit || ''}\n📅 Data: ${leadData.dayOfMonth || ''}/${leadData.month || ''}\n👥 Convidados: ${leadData.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n1️⃣ - 📩 Receber agora meu orçamento\n2️⃣ - 💬 Falar com um atendente`;
+    return `Olá! 👋🏼✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadData.name || ''}\n📍 Local: ${displayName}\n📅 Data: ${leadData.dayOfMonth || ''}/${leadData.month || ''}\n👥 Convidados: ${leadData.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n1️⃣ - 📩 Receber agora meu orçamento\n2️⃣ - 💬 Falar com um atendente`;
   };
 
   return (
