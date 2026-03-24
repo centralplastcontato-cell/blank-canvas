@@ -33,7 +33,7 @@ const MODULE_GROUPS: { label: string; icon: React.ReactNode; keys: (keyof Compan
   {
     label: 'Gestão',
     icon: <BarChart3 className="h-3.5 w-3.5 text-blue-500" />,
-    keys: ['dashboard', 'inteligencia', 'agenda', 'operacoes'],
+    keys: ['dashboard', 'inteligencia', 'agenda', 'operacoes', 'financeiro'],
   },
   {
     label: 'Automações & Bot',
