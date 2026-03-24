@@ -174,6 +174,25 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
             </div>
           )}
 
+          {/* 💰 FINANCIAL — Primary Block (first visible) */}
+          {event.company_id && (
+            <div className="rounded-xl border border-primary/20 bg-gradient-to-br from-card to-primary/[0.02] shadow-md overflow-hidden">
+              <div className="px-4 py-3 bg-primary/[0.06] border-b border-primary/10 flex items-center gap-2.5">
+                <div className="p-1.5 rounded-lg bg-primary/15">
+                  <DollarSign className="h-4 w-4 text-primary" />
+                </div>
+                <p className="text-xs font-bold uppercase tracking-[0.15em] text-foreground">Financeiro</p>
+              </div>
+              <div className="p-4">
+                <EventFinancialTab
+                  eventId={event.id}
+                  companyId={event.company_id}
+                  baseValue={event.total_value || 0}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Detalhes do Evento */}
           <div className="rounded-xl border border-border/40 bg-card shadow-sm overflow-hidden">
             <div className="px-4 py-2.5 bg-muted/30 border-b border-border/30">
