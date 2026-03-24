@@ -1,4 +1,4 @@
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Printer, AlertTriangle, FileSignature, Calendar, Package, Eye, ArrowLeft, Lock, Loader2 } from "lucide-react";
