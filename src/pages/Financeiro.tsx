@@ -4,10 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu } from "lucide-react";
 import { format, startOfMonth, endOfMonth, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { MobileMenu } from "@/components/admin/MobileMenu";
+import { NotificationBell } from "@/components/admin/NotificationBell";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
 interface PaymentRow {
