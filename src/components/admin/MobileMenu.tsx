@@ -122,7 +122,7 @@ export function MobileMenu({
       label: "Financeiro",
       icon: DollarSign,
       path: "/financeiro",
-      show: !!modules.financeiro,
+      show: true,
     },
     {
       id: "configuracoes",
