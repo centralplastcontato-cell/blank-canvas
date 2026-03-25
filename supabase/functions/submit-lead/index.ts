@@ -216,18 +216,42 @@ Deno.serve(async (req) => {
 
         if (routingSettings) {
           const mode = routingSettings.lead_routing_mode || 'auto';
-          if (mode === 'vendas1') {
-            resolvedUnit = 'Vendas 1';
-          } else if (mode === 'vendas2') {
-            resolvedUnit = 'Vendas 2';
-          } else if (mode === 'auto') {
-            const counter = routingSettings.lead_routing_counter || 0;
-            resolvedUnit = counter % 2 === 0 ? 'Vendas 1' : 'Vendas 2';
-            // Increment counter
-            await supabaseEarly
-              .from('lp_bot_settings')
-              .update({ lead_routing_counter: counter + 1 })
-              .eq('company_id', company_id);
+
+          // Fetch the actual active units for THIS company (not hardcoded names)
+          const { data: companyUnits } = await supabaseEarly
+            .from('wapi_instances')
+            .select('unit')
+            .eq('company_id', company_id)
+            .eq('status', 'connected')
+            .order('created_at', { ascending: true });
+
+          const activeUnits = (companyUnits || []).map((u: { unit: string }) => u.unit).filter(Boolean);
+
+          if (activeUnits.length === 0) {
+            // No active instances — keep original unit
+            console.log(`No active instances for company ${company_id}, keeping original unit`);
+          } else if (activeUnits.length === 1) {
+            // Single instance — always route there
+            resolvedUnit = activeUnits[0];
+          } else {
+            // Multiple instances — check routing mode
+            // Check if mode matches a specific unit name
+            const fixedUnit = activeUnits.find((u: string) => u.toLowerCase().replace(/\s+/g, '') === mode.toLowerCase().replace(/\s+/g, ''));
+            if (fixedUnit) {
+              resolvedUnit = fixedUnit;
+            } else if (mode === 'auto') {
+              // Round-robin across all active units
+              const counter = routingSettings.lead_routing_counter || 0;
+              resolvedUnit = activeUnits[counter % activeUnits.length];
+              // Increment counter
+              await supabaseEarly
+                .from('lp_bot_settings')
+                .update({ lead_routing_counter: counter + 1 })
+                .eq('company_id', company_id);
+            } else {
+              // Unknown mode — default to first unit
+              resolvedUnit = activeUnits[0];
+            }
           }
         }
       } catch (routingErr) {
