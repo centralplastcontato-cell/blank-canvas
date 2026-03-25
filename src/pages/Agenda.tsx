@@ -984,7 +984,7 @@ export default function Agenda() {
                       <p className="text-sm text-muted-foreground text-center py-12">Nenhuma festa fechada neste período.</p>
                     ) : (
                       <div className="space-y-3">
-                        {closedEvents
+                        {[...closedEvents]
                           .sort((a, b) => {
                             if (closedSortBy === "fechamento") {
                               const dateA = (a as any).data_fechamento_venda || "";
