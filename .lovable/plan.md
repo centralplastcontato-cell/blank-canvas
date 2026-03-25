@@ -1,45 +1,25 @@
 
 
-# Unificar Calendário — Vendas 1/2 como Canal, não Unidade Física
+## Plan: Add Edit Button for Contractor Data (Dados do Contratante)
 
-## Problema
-"Vendas 1" e "Vendas 2" são instâncias de vendas (canais WhatsApp), não locais físicos distintos. Ao filtrar por uma delas, os dados ficam zerados ou incompletos porque os eventos não estão distribuídos uniformemente entre elas. O calendário deveria mostrar tudo unificado.
+### Problem
+When client data has been submitted (status "completed" or "reviewed"), the data is displayed as read-only with no way to correct mistakes.
 
-## Solução
+### Solution
+Add an "Editar" (Edit) button next to the completed client data that opens the `ManualClientDataForm` pre-filled with the existing data, allowing the user to make corrections.
 
-### Abordagem
-Quando a empresa tem apenas unidades do tipo "canal de vendas" (e não locais físicos distintos), o filtro de unidade na Agenda deve ser **ocultado** ou convertido em filtro secundário opcional. Os KPIs e o calendário mostram sempre a visão consolidada.
+### Changes
 
-### Mudanças em `src/pages/Agenda.tsx`
+**File: `src/components/agenda/EventFormDialog.tsx`**
+- Add a local state `editingClientData` (boolean, default false)
+- In the "completed/reviewed" block (around line 1269), add an edit button (pencil icon) next to the status badge
+- When clicked, show `ManualClientDataForm` with `initialClientData={clientData}` and `requestId={clientRequest.id}` instead of the read-only grid
+- On save or cancel, toggle back to the read-only view and refresh `clientRequest`
 
-1. **Detectar se unidades são canais de venda vs locais físicos**
-   - Se todas as unidades ativas contêm "Vendas" no nome (ou são ≤2 e seguem esse padrão), tratar como canal de vendas
-   - Nesse caso: ocultar o seletor de unidade do header e mostrar dados unificados (manter `selectedUnit = "all"` fixo)
+**File: `src/components/agenda/ManualClientDataForm.tsx`**
+- Ensure `initialClientData` prop correctly pre-fills all form fields (nome, cpf, rg, nascimento, email, cep, endereco, numero, complemento, bairro, cidade, estado)
+- The existing update logic (line 95-112) already handles updating an existing request by `requestId`, so no changes needed there
 
-2. **Manter unidade no formulário de evento**
-   - Ao criar/editar festa, o campo "Unidade" continua disponível para o usuário indicar por qual canal (Vendas 1 ou 2) o lead entrou
-   - Isso preserva a rastreabilidade sem fragmentar a visualização
-
-3. **Lógica de detecção** (simples):
-   ```
-   const isSalesChannelOnly = physicalUnits.length > 0 && 
-     physicalUnits.every(u => u.name.toLowerCase().includes("vendas"));
-   ```
-   - Se `isSalesChannelOnly` → não renderiza o `Select` de unidades no header (desktop e mobile)
-   - Os `filteredEvents` e `filteredPeriodEvents` usam sempre "all"
-
-4. **Cards de resumo e "Fechadas"**
-   - Mostram totais consolidados (já funciona quando `selectedUnit = "all"`)
-
-### Arquivos alterados
-
-| Arquivo | Mudança |
-|---------|---------|
-| `src/pages/Agenda.tsx` | Adicionar flag `isSalesChannelOnly`, condicionar renderização do seletor de unidade, forçar `selectedUnit = "all"` quando flag ativa |
-
-### O que NÃO muda
-- `EventFormDialog` — campo unidade continua disponível para registro
-- `company_units` — nenhuma alteração na tabela
-- Lógica de permissões por unidade — preservada para empresas com múltiplos locais físicos
-- Todas as outras páginas que usam unidades
+### UI Result
+The completed data card will show a small "Editar" button. Clicking it swaps the read-only display for the editable form, pre-filled with all current values. Saving updates the existing `client_data_requests` row and returns to the read-only view.
 
