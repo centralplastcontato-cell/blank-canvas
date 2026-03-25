@@ -1243,8 +1243,9 @@ export default function Agenda() {
               /* Calendar + Day detail or List view */
               viewMode === "calendar" ? (
               <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-5 min-h-[520px]">
-                <Card className="bg-card border-border/30 shadow-[0_4px_24px_rgba(0,0,0,0.04)] rounded-2xl">
-                  <CardContent className="p-2 md:p-4 lg:p-5">
+                <Card className="relative bg-card border-border/20 shadow-[0_8px_40px_rgba(0,0,0,0.06)] rounded-2xl overflow-hidden">
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_0%,hsl(var(--primary)/0.03),transparent)] pointer-events-none" />
+                  <CardContent className="relative p-2 md:p-4 lg:p-5">
                     {loading ? (
                       <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
                     ) : (
