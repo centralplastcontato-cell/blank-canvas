@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ChevronDown, ChevronRight, PartyPopper } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { FinancialPaymentCard } from './FinancialPaymentCard';
 import type { EnrichedPayment } from '@/hooks/useFinanceiroDashboard';
