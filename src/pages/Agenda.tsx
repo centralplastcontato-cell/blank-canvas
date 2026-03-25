@@ -214,8 +214,8 @@ export default function Agenda() {
     return { count, revenue, events: evts };
   };
 
-  const fetchEvents = async () => {
-    if (!currentCompany?.id) return;
+  const fetchEvents = useCallback(async () => {
+    if (!currentCompany?.id || permUnitLoading) return;
     setLoading(true);
     const start = format(startOfMonth(month), "yyyy-MM-dd");
     const end = format(endOfMonth(month), "yyyy-MM-dd");
@@ -264,9 +264,9 @@ export default function Agenda() {
     setChecklistProgress(progressMap);
 
     setLoading(false);
-  };
+  }, [currentCompany?.id, month, selectedUnit, permUnitLoading, canViewAll, allowedUnits]);
 
-  useEffect(() => { fetchEvents(); }, [currentCompany?.id, month, selectedUnit]);
+  useEffect(() => { fetchEvents(); }, [fetchEvents]);
 
   // Re-fetch closed count when unit changes (for period mode)
   useEffect(() => {
