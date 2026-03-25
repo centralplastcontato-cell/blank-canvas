@@ -54,6 +54,7 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
   });
 
   return (
+    <div className="flex flex-col">
     <DayPicker
       mode="single"
       selected={selectedDate ?? undefined}
