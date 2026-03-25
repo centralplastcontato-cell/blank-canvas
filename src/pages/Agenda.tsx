@@ -62,6 +62,11 @@ interface CompanyEvent {
   extra_guest_value?: number | null;
 }
 
+const normalizeTimeValue = (value?: string | null) => {
+  if (!value) return "";
+  return value.slice(0, 5);
+};
+
 const getSortableDateValue = (value?: string | null) => {
   if (!value) return Number.NEGATIVE_INFINITY;
   const normalizedValue = value.includes("T") ? value : `${value}T12:00:00`;
@@ -98,8 +103,8 @@ const mapEventToFormData = (ev: CompanyEvent): EventFormData => ({
   id: ev.id,
   title: ev.title,
   event_date: ev.event_date,
-  start_time: ev.start_time || "",
-  end_time: ev.end_time || "",
+  start_time: normalizeTimeValue(ev.start_time),
+  end_time: normalizeTimeValue(ev.end_time),
   event_type: ev.event_type || "aniversario",
   guest_count: ev.guest_count,
   unit: ev.unit || "",
