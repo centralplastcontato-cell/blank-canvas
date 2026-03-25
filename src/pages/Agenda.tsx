@@ -50,7 +50,40 @@ interface CompanyEvent {
   total_value: number | null;
   notes: string | null;
   created_by: string;
+  data_fechamento_venda?: string | null;
 }
+
+const getSortableDateValue = (value?: string | null) => {
+  if (!value) return Number.NEGATIVE_INFINITY;
+  const normalizedValue = value.includes("T") ? value : `${value}T12:00:00`;
+  const parsedValue = new Date(normalizedValue).getTime();
+  return Number.isNaN(parsedValue) ? Number.NEGATIVE_INFINITY : parsedValue;
+};
+
+const compareClosedEvents = (
+  a: CompanyEvent,
+  b: CompanyEvent,
+  sortBy: "event_date" | "fechamento",
+) => {
+  if (sortBy === "fechamento") {
+    const closingDifference = getSortableDateValue(b.data_fechamento_venda) - getSortableDateValue(a.data_fechamento_venda);
+    if (closingDifference !== 0) return closingDifference;
+
+    const eventDifference = getSortableDateValue(a.event_date) - getSortableDateValue(b.event_date);
+    if (eventDifference !== 0) return eventDifference;
+  } else {
+    const eventDifference = getSortableDateValue(a.event_date) - getSortableDateValue(b.event_date);
+    if (eventDifference !== 0) return eventDifference;
+
+    const closingDifference = getSortableDateValue(b.data_fechamento_venda) - getSortableDateValue(a.data_fechamento_venda);
+    if (closingDifference !== 0) return closingDifference;
+  }
+
+  const titleDifference = a.title.localeCompare(b.title, "pt-BR", { sensitivity: "base" });
+  if (titleDifference !== 0) return titleDifference;
+
+  return a.id.localeCompare(b.id);
+};
 
 export default function Agenda() {
   const navigate = useNavigate();
@@ -171,6 +204,11 @@ export default function Agenda() {
     return searchResults.filter(ev => ev.status === searchStatusFilter);
   }, [searchResults, searchStatusFilter]);
 
+  const sortedClosedEvents = useMemo(
+    () => [...closedEvents].sort((a, b) => compareClosedEvents(a, b, closedSortBy)),
+    [closedEvents, closedSortBy],
+  );
+
   // Auth check
   useEffect(() => {
     async function check() {
@@ -195,7 +233,10 @@ export default function Agenda() {
       .select("*")
       .eq("company_id", currentCompany.id)
       .gte("data_fechamento_venda", start)
-      .lte("data_fechamento_venda", end);
+      .lte("data_fechamento_venda", end)
+      .order("data_fechamento_venda", { ascending: false })
+      .order("event_date", { ascending: true })
+      .order("title", { ascending: true });
     
     // Apply unit filter
     if (unit && unit !== "all") {
@@ -986,16 +1027,7 @@ export default function Agenda() {
                       <p className="text-sm text-muted-foreground text-center py-12">Nenhuma festa fechada neste período.</p>
                     ) : (
                       <div className="space-y-3">
-                        {[...closedEvents]
-                          .sort((a, b) => {
-                            if (closedSortBy === "fechamento") {
-                              const dateA = (a as any).data_fechamento_venda || "";
-                              const dateB = (b as any).data_fechamento_venda || "";
-                              return dateA.localeCompare(dateB);
-                            }
-                            return a.event_date.localeCompare(b.event_date);
-                          })
-                          .map((ev) => (
+                        {sortedClosedEvents.map((ev) => (
                             <button
                               key={ev.id}
                               onClick={() => {
