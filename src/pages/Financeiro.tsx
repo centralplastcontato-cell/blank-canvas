@@ -269,10 +269,7 @@ export default function Financeiro() {
                     </>
                   )}
                 </TabsContent>
-                      );
-                    })}
-                  </Tabs>
-                </TabsContent>
+
 
                 {/* Tab Resultado */}
                 <TabsContent value="resultado" className="space-y-4">
