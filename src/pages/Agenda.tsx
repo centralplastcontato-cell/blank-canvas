@@ -1262,20 +1262,24 @@ export default function Agenda() {
                   </CardContent>
                 </Card>
 
-                <Card className="bg-muted/20 border-border/30 shadow-[0_4px_24px_rgba(0,0,0,0.04)] rounded-2xl">
-                  <CardContent className="p-5 md:p-6">
-                    <h3 className="font-semibold text-sm tracking-tight text-foreground/90 mb-0.5">
+                <Card className="relative bg-gradient-to-b from-card to-muted/10 border-border/20 shadow-[0_8px_40px_rgba(0,0,0,0.06)] rounded-2xl overflow-hidden">
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_100%,hsl(var(--primary)/0.02),transparent)] pointer-events-none" />
+                  <CardContent className="relative p-5 md:p-6">
+                    <h3 className="font-bold text-sm tracking-tight text-foreground mb-0.5">
                       {selectedDate
                         ? format(selectedDate, "dd 'de' MMMM", { locale: ptBR })
                         : "Selecione um dia"}
                     </h3>
+                    {selectedDate && (
+                      <div className="h-[2px] w-10 rounded-full bg-gradient-to-r from-primary/40 to-transparent mt-2 mb-3" />
+                    )}
                     {!selectedDate && (
-                      <p className="text-xs text-muted-foreground/60 mt-3">Clique em um dia no calendário para ver os eventos.</p>
+                      <p className="text-xs text-muted-foreground/50 mt-3">Clique em um dia no calendário para ver os eventos.</p>
                     )}
                     {selectedDate && dayEvents.length === 0 && (
-                      <p className="text-xs text-muted-foreground/60 mt-3">Nenhuma festa neste dia.</p>
+                      <p className="text-xs text-muted-foreground/50 mt-1">Nenhuma festa neste dia.</p>
                     )}
-                    <div className="space-y-2.5 mt-4">
+                    <div className="space-y-2.5 mt-3">
                       {dayEvents.map((ev) => {
                         const conflicts = getConflicts(ev);
                         const statusColors = ev.status === "confirmado"
