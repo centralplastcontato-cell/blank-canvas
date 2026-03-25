@@ -273,7 +273,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [generatingLink, setGeneratingLink] = useState(false);
   const [resolvedMessage, setResolvedMessage] = useState<string | null>(null);
   const [sendingClientLink, setSendingClientLink] = useState(false);
-  const [showManualForm, setShowManualForm] = useState(false);
+   const [showManualForm, setShowManualForm] = useState(false);
+   const [editingClientData, setEditingClientData] = useState(false);
   const [contractModels, setContractModels] = useState<Array<{ id: string; nome_modelo: string; versao: number; tipo_evento: string }>>([]);
   const [selectedContractModelId, setSelectedContractModelId] = useState<string | null>(null);
   const [contractDialogOpen, setContractDialogOpen] = useState(false);
@@ -315,6 +316,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       setFechamentoDate(data.data_fechamento_venda ? new Date(data.data_fechamento_venda + "T12:00:00") : undefined);
       setClientRequest(null);
       setShowManualForm(false);
+      setEditingClientData(false);
     }
   }, [open, initialData]);
 
@@ -1268,24 +1270,47 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               </div>
             ) : clientRequest.status === "completed" || clientRequest.status === "reviewed" ? (
               <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <ClientDataStatusBadge status={clientRequest.status} />
-                  <span className="text-sm text-muted-foreground">
-                    {clientRequest.completed_at ? `Recebido em ${format(new Date(clientRequest.completed_at), "dd/MM/yyyy 'às' HH:mm")}` : "Dados recebidos"}
-                  </span>
-                </div>
-                {clientData && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 rounded-lg bg-muted/50 border border-border/40">
-                    {clientData.nome && <div><span className="text-xs text-muted-foreground">Nome</span><p className="text-sm font-medium">{clientData.nome}</p></div>}
-                    {clientData.cpf && <div><span className="text-xs text-muted-foreground">CPF</span><p className="text-sm font-medium">{clientData.cpf}</p></div>}
-                    {clientData.rg && <div><span className="text-xs text-muted-foreground">RG</span><p className="text-sm font-medium">{clientData.rg}</p></div>}
-                    {clientData.nascimento && <div><span className="text-xs text-muted-foreground">Nascimento</span><p className="text-sm font-medium">{clientData.nascimento}</p></div>}
-                    {clientData.email && <div><span className="text-xs text-muted-foreground">E-mail</span><p className="text-sm font-medium">{clientData.email}</p></div>}
-                    {clientData.endereco && <div className="md:col-span-2"><span className="text-xs text-muted-foreground">Endereço</span><p className="text-sm font-medium">{clientData.endereco}{clientData.numero ? `, ${clientData.numero}` : ""}{clientData.complemento ? ` - ${clientData.complemento}` : ""}</p></div>}
-                    {clientData.bairro && <div><span className="text-xs text-muted-foreground">Bairro</span><p className="text-sm font-medium">{clientData.bairro}</p></div>}
-                    {(clientData.cidade || clientData.estado) && <div><span className="text-xs text-muted-foreground">Cidade/Estado</span><p className="text-sm font-medium">{[clientData.cidade, clientData.estado].filter(Boolean).join(" - ")}</p></div>}
-                    {clientData.cep && <div><span className="text-xs text-muted-foreground">CEP</span><p className="text-sm font-medium">{clientData.cep}</p></div>}
-                  </div>
+                {editingClientData ? (
+                  <ManualClientDataForm
+                    eventId={eventId!}
+                    companyId={currentCompany!.id}
+                    leadId={form.lead_id}
+                    initialClientData={clientData}
+                    requestId={clientRequest.id}
+                    onSaved={(req) => {
+                      setClientRequest(req as ClientDataRequest);
+                      setEditingClientData(false);
+                    }}
+                    onCancel={() => setEditingClientData(false)}
+                  />
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <ClientDataStatusBadge status={clientRequest.status} />
+                        <span className="text-sm text-muted-foreground">
+                          {clientRequest.completed_at ? `Recebido em ${format(new Date(clientRequest.completed_at), "dd/MM/yyyy 'às' HH:mm")}` : "Dados recebidos"}
+                        </span>
+                      </div>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setEditingClientData(true)} className="gap-1.5 text-xs">
+                        <PenLine className="h-3.5 w-3.5" />
+                        Editar
+                      </Button>
+                    </div>
+                    {clientData && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 rounded-lg bg-muted/50 border border-border/40">
+                        {clientData.nome && <div><span className="text-xs text-muted-foreground">Nome</span><p className="text-sm font-medium">{clientData.nome}</p></div>}
+                        {clientData.cpf && <div><span className="text-xs text-muted-foreground">CPF</span><p className="text-sm font-medium">{clientData.cpf}</p></div>}
+                        {clientData.rg && <div><span className="text-xs text-muted-foreground">RG</span><p className="text-sm font-medium">{clientData.rg}</p></div>}
+                        {clientData.nascimento && <div><span className="text-xs text-muted-foreground">Nascimento</span><p className="text-sm font-medium">{clientData.nascimento}</p></div>}
+                        {clientData.email && <div><span className="text-xs text-muted-foreground">E-mail</span><p className="text-sm font-medium">{clientData.email}</p></div>}
+                        {clientData.endereco && <div className="md:col-span-2"><span className="text-xs text-muted-foreground">Endereço</span><p className="text-sm font-medium">{clientData.endereco}{clientData.numero ? `, ${clientData.numero}` : ""}{clientData.complemento ? ` - ${clientData.complemento}` : ""}</p></div>}
+                        {clientData.bairro && <div><span className="text-xs text-muted-foreground">Bairro</span><p className="text-sm font-medium">{clientData.bairro}</p></div>}
+                        {(clientData.cidade || clientData.estado) && <div><span className="text-xs text-muted-foreground">Cidade/Estado</span><p className="text-sm font-medium">{[clientData.cidade, clientData.estado].filter(Boolean).join(" - ")}</p></div>}
+                        {clientData.cep && <div><span className="text-xs text-muted-foreground">CEP</span><p className="text-sm font-medium">{clientData.cep}</p></div>}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             ) : (
