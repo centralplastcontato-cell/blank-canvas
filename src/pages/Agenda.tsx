@@ -188,7 +188,7 @@ export default function Agenda() {
   }, [navigate]);
 
   // Fetch events for current month
-  const fetchClosedInPeriod = async (start: string, end: string, unit?: string): Promise<{ count: number; revenue: number; events: CompanyEvent[] }> => {
+  const fetchClosedInPeriod = useCallback(async (start: string, end: string, unit?: string): Promise<{ count: number; revenue: number; events: CompanyEvent[] }> => {
     if (!currentCompany?.id) return { count: 0, revenue: 0, events: [] };
     let query = supabase
       .from("company_events")
@@ -212,10 +212,10 @@ export default function Agenda() {
     const count = evts.length;
     const revenue = evts.reduce((sum, e) => sum + (e.total_value || 0), 0);
     return { count, revenue, events: evts };
-  };
+  }, [currentCompany?.id, canViewAll, allowedUnits]);
 
-  const fetchEvents = async () => {
-    if (!currentCompany?.id) return;
+  const fetchEvents = useCallback(async () => {
+    if (!currentCompany?.id || permUnitLoading) return;
     setLoading(true);
     const start = format(startOfMonth(month), "yyyy-MM-dd");
     const end = format(endOfMonth(month), "yyyy-MM-dd");
@@ -264,9 +264,9 @@ export default function Agenda() {
     setChecklistProgress(progressMap);
 
     setLoading(false);
-  };
+  }, [currentCompany?.id, month, selectedUnit, permUnitLoading, canViewAll, allowedUnits, fetchClosedInPeriod]);
 
-  useEffect(() => { fetchEvents(); }, [currentCompany?.id, month, selectedUnit]);
+  useEffect(() => { fetchEvents(); }, [fetchEvents]);
 
   // Re-fetch closed count when unit changes (for period mode)
   useEffect(() => {
