@@ -430,6 +430,7 @@ export default function Agenda() {
       payload.payment_details = data.payment_details;
     }
     console.log('[Evento:DadosComerciais]', { data_fechamento_venda: payload.data_fechamento_venda, vendedor_responsavel_id: payload.vendedor_responsavel_id });
+    console.log('[Evento:DadosAniversariante]', { child_name: payload.child_name, child_age: payload.child_age, parent_names: payload.parent_names, gifts: payload.gifts, extra_guest_value: payload.extra_guest_value });
 
     if (data.id) {
       const { error } = await supabase.from("company_events").update(payload).eq("id", data.id);
