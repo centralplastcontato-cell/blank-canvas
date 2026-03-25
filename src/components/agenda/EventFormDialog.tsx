@@ -112,6 +112,11 @@ const MONTH_OPTIONS = [
 ];
 const YEAR_OPTIONS = ["2026", "2027", "2028", "2029", "2030"];
 
+const normalizeTimeValue = (value?: string | null) => {
+  if (!value) return "";
+  return value.slice(0, 5);
+};
+
 const STATUS_OPTIONS = [
   { value: "pendente", label: "Pendente" },
   { value: "confirmado", label: "Confirmado" },
@@ -276,7 +281,11 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   useEffect(() => {
     if (open) {
       const data = initialData || EMPTY;
-      setForm(data);
+      setForm({
+        ...data,
+        start_time: normalizeTimeValue(data.start_time),
+        end_time: normalizeTimeValue(data.end_time),
+      });
       const loadedPayment = (data.payment_details as PaymentDetails) || EMPTY_PAYMENT;
       // Auto-fill parcelas details if saldo and parcelas are set but details have null values
       if (loadedPayment.parcelas && loadedPayment.parcelas > 1 && loadedPayment.saldo_valor && loadedPayment.saldo_valor > 0) {
