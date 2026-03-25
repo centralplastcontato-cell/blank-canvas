@@ -33,9 +33,9 @@ interface AgendaCalendarProps {
 }
 
 const STATUS_DOT: Record<string, string> = {
-  confirmado: "bg-emerald-500",
-  pendente: "bg-amber-400",
-  cancelado: "bg-red-400",
+  confirmado: "bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.4)]",
+  pendente: "bg-amber-400 shadow-[0_0_4px_rgba(251,191,36,0.4)]",
+  cancelado: "bg-red-400 shadow-[0_0_4px_rgba(248,113,113,0.3)]",
 };
 
 export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selectedDate, checklistProgress = {}, preReservations = [] }: AgendaCalendarProps) {
@@ -62,42 +62,42 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
       onMonthChange={onMonthChange}
       locale={ptBR}
       showOutsideDays
-      className="p-2 lg:p-5"
+      className="p-3 lg:p-6"
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-        month: "space-y-4 w-full",
-        caption: "flex justify-center pt-2 lg:pt-3 relative items-center mb-2",
-        caption_label: "text-base lg:text-lg font-semibold capitalize tracking-tight text-foreground",
+        month: "space-y-5 w-full",
+        caption: "flex justify-center pt-2 lg:pt-3 relative items-center mb-3",
+        caption_label: "text-base lg:text-xl font-bold capitalize tracking-tight text-foreground",
         nav: "space-x-1 flex items-center",
         nav_button: cn(
           buttonVariants({ variant: "ghost" }),
-          "h-8 w-8 lg:h-9 lg:w-9 p-0 text-muted-foreground/60 hover:text-foreground hover:bg-accent rounded-xl transition-all duration-150"
+          "h-9 w-9 lg:h-10 lg:w-10 p-0 text-muted-foreground/50 hover:text-foreground hover:bg-primary/[0.06] rounded-xl transition-all duration-200 hover:shadow-sm"
         ),
-        nav_button_previous: "absolute left-1",
-        nav_button_next: "absolute right-1",
+        nav_button_previous: "absolute left-0",
+        nav_button_next: "absolute right-0",
         table: "w-full border-collapse",
         head_row: "flex",
-        head_cell: "text-muted-foreground/50 flex-1 font-medium text-[0.65rem] lg:text-[0.7rem] text-center uppercase tracking-[0.15em] pb-2",
+        head_cell: "text-muted-foreground/40 flex-1 font-semibold text-[0.6rem] lg:text-[0.65rem] text-center uppercase tracking-[0.2em] pb-3",
         row: "flex w-full",
-        cell: "flex-1 text-center text-sm p-0.5 lg:p-[3px] relative focus-within:relative focus-within:z-20",
+        cell: "flex-1 text-center text-sm p-[2px] lg:p-1 relative focus-within:relative focus-within:z-20",
         day: cn(
           buttonVariants({ variant: "ghost" }),
-          "h-12 lg:h-[4.5rem] w-full p-0 font-normal aria-selected:opacity-100 relative rounded-xl",
-          "hover:bg-primary/[0.06] transition-all duration-150 cursor-pointer"
+          "h-14 lg:h-[5rem] w-full p-0 font-normal aria-selected:opacity-100 relative rounded-2xl",
+          "hover:bg-primary/[0.04] hover:shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.08)] transition-all duration-200 cursor-pointer"
         ),
         day_range_end: "day-range-end",
         day_selected: cn(
-          "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground",
-          "hover:from-primary hover:to-primary/90 hover:text-primary-foreground",
-          "focus:from-primary focus:to-primary/90 focus:text-primary-foreground",
-          "shadow-[0_2px_12px_rgba(0,0,0,0.12)] ring-1 ring-primary/20"
+          "bg-gradient-to-br from-primary via-primary to-primary/85 text-primary-foreground",
+          "hover:from-primary hover:to-primary/85 hover:text-primary-foreground",
+          "focus:from-primary focus:to-primary/85 focus:text-primary-foreground",
+          "shadow-[0_4px_20px_rgba(0,0,0,0.15),0_0_0_2px_hsl(var(--primary)/0.15)] scale-[1.02]"
         ),
         day_today: cn(
-          "bg-accent text-foreground font-semibold",
-          "ring-1 ring-border"
+          "bg-accent/60 text-foreground font-bold",
+          "ring-2 ring-primary/20 shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.1)]"
         ),
-        day_outside: "day-outside text-muted-foreground/30",
-        day_disabled: "text-muted-foreground/30",
+        day_outside: "day-outside text-muted-foreground/20",
+        day_disabled: "text-muted-foreground/20",
         day_hidden: "invisible",
       }}
       components={{
@@ -117,33 +117,33 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
           });
 
           return (
-            <div className="flex flex-col items-center gap-0.5 lg:gap-1 w-full h-full justify-center relative">
+            <div className="flex flex-col items-center gap-0.5 lg:gap-1.5 w-full h-full justify-center relative">
               <span className={cn(
-                "text-sm lg:text-base transition-colors duration-150",
-                (hasEvents || hasPreRes) ? "font-semibold text-foreground" : "text-foreground/65"
+                "text-sm lg:text-[15px] transition-all duration-200 leading-none",
+                (hasEvents || hasPreRes) ? "font-bold text-foreground" : "text-foreground/55 font-medium"
               )}>
                 {date.getDate()}
               </span>
 
               {(hasEvents || hasPreRes) && (
-                <div className="flex items-center gap-[2px] lg:gap-[3px] justify-center">
+                <div className="flex items-center gap-[3px] lg:gap-1 justify-center">
                   {/* Pre-reservation pink dots */}
                   {hasPreRes && (
-                    <span className="h-[5px] w-[5px] lg:h-[6px] lg:w-[6px] rounded-full bg-pink-400" />
+                    <span className="h-[5px] w-[5px] lg:h-[6px] lg:w-[6px] rounded-full bg-pink-400 shadow-[0_0_4px_rgba(244,114,182,0.4)]" />
                   )}
                   {/* Show up to 3 status dots */}
                   {dayEvents.slice(0, 3).map((ev) => (
                     <span
                       key={ev.id}
                       className={cn(
-                        "h-[5px] w-[5px] lg:h-[6px] lg:w-[6px] rounded-full",
-                        STATUS_DOT[ev.status] || "bg-muted-foreground/40"
+                        "h-[5px] w-[5px] lg:h-[6px] lg:w-[6px] rounded-full transition-all duration-200",
+                        STATUS_DOT[ev.status] || "bg-muted-foreground/30"
                       )}
                     />
                   ))}
                   {/* Counter for 4+ events */}
                   {eventCount > 3 && (
-                    <span className="text-[7px] lg:text-[8px] font-bold text-muted-foreground/70 leading-none ml-0.5">
+                    <span className="text-[7px] lg:text-[8px] font-bold text-muted-foreground/60 leading-none ml-0.5">
                       +{eventCount - 3}
                     </span>
                   )}
@@ -152,12 +152,12 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
 
               {/* Checklist pending indicator */}
               {hasPending && (
-                <span className="text-[6px] lg:text-[7px] text-amber-500/80 leading-none">📋</span>
+                <span className="text-[6px] lg:text-[7px] text-amber-500/70 leading-none">📋</span>
               )}
 
               {/* Event count badge for days with many events */}
               {eventCount >= 2 && (
-                <span className="absolute top-0 right-0 lg:top-0.5 lg:right-0.5 h-3.5 w-3.5 lg:h-4 lg:w-4 rounded-full bg-primary/90 text-primary-foreground text-[7px] lg:text-[8px] font-bold flex items-center justify-center leading-none">
+                <span className="absolute -top-0.5 -right-0.5 lg:top-0 lg:right-0 h-4 w-4 lg:h-[18px] lg:w-[18px] rounded-full bg-gradient-to-br from-primary to-primary/80 text-primary-foreground text-[7px] lg:text-[8px] font-bold flex items-center justify-center leading-none shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
                   {eventCount}
                 </span>
               )}
