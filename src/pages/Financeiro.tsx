@@ -4,6 +4,7 @@ import { useFinanceiroDashboard } from '@/hooks/useFinanceiroDashboard';
 import { useCompanyUnits } from '@/hooks/useCompanyUnits';
 import { useCompany } from '@/contexts/CompanyContext';
 import { FinancialPaymentCard } from '@/components/financial/FinancialPaymentCard';
+import { PaymentsByClientView } from '@/components/financial/PaymentsByClientView';
 import { ExpenseFormDialog } from '@/components/financial/ExpenseFormDialog';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { MobileMenu } from '@/components/admin/MobileMenu';
@@ -14,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale, Building, Zap, PartyPopper } from 'lucide-react';
+import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale, Building, Zap, PartyPopper, List, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -37,6 +38,7 @@ export default function Financeiro() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
   const [expenseDialogType, setExpenseDialogType] = useState<string>('fixa');
+  const [viewMode, setViewMode] = useState<'list' | 'client'>('list');
 
   const months = Array.from({ length: 12 }, (_, i) => {
     const d = new Date(new Date().getFullYear(), i, 1);
@@ -184,56 +186,88 @@ export default function Financeiro() {
 
                 {/* Tab Receitas */}
                 <TabsContent value="receitas" className="space-y-5">
-                  {/* Atrasados */}
-                  {allLate.length > 0 && (
-                    <section>
-                      <h2 className="text-sm font-semibold text-red-400 mb-2 flex items-center gap-1.5">
-                        <AlertTriangle className="h-4 w-4" /> Em Atraso ({allLate.length})
-                      </h2>
-                      <div className="space-y-2">
-                        {allLate.map(p => (
-                          <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />
-                        ))}
-                      </div>
-                    </section>
-                  )}
+                  {/* View mode toggle */}
+                  <div className="flex items-center justify-end gap-1">
+                    <div className="flex items-center bg-muted/50 rounded-lg p-0.5 border border-border/50">
+                      <button
+                        onClick={() => setViewMode('list')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                          viewMode === 'list' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        <List className="h-3.5 w-3.5" /> Lista
+                      </button>
+                      <button
+                        onClick={() => setViewMode('client')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                          viewMode === 'client' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        <Users className="h-3.5 w-3.5" /> Por cliente
+                      </button>
+                    </div>
+                  </div>
 
-                  {/* Pendentes */}
-                  <section>
-                    <h2 className="text-sm font-semibold text-amber-400 mb-2 flex items-center gap-1.5">
-                      <CalendarDays className="h-4 w-4" /> A Receber ({allPending.length})
-                    </h2>
-                    {allPending.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">Nenhum vencimento pendente</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {allPending.map(p => (
-                          <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />
-                        ))}
-                      </div>
-                    )}
-                  </section>
+                  {viewMode === 'client' ? (
+                    <PaymentsByClientView
+                      payments={dashboard.payments}
+                      onMarkAsPaid={dashboard.markPaymentAsPaid}
+                      onOpenEvent={handleOpenEvent}
+                    />
+                  ) : (
+                    <>
+                      {/* Atrasados */}
+                      {allLate.length > 0 && (
+                        <section>
+                          <h2 className="text-sm font-semibold text-red-400 mb-2 flex items-center gap-1.5">
+                            <AlertTriangle className="h-4 w-4" /> Em Atraso ({allLate.length})
+                          </h2>
+                          <div className="space-y-2">
+                            {allLate.map(p => (
+                              <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />
+                            ))}
+                          </div>
+                        </section>
+                      )}
 
-                  {/* Recebidos */}
-                  <section>
-                    <h2 className="text-sm font-semibold text-emerald-400 mb-2 flex items-center gap-1.5">
-                      <TrendingUp className="h-4 w-4" /> Recebidos ({allPaid.length})
-                    </h2>
-                    {allPaid.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">Nenhum pagamento recebido</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {allPaid.slice(0, 20).map(p => (
-                          <FinancialPaymentCard key={p.id} payment={p} onOpenEvent={handleOpenEvent} />
-                        ))}
-                        {allPaid.length > 20 && (
-                          <p className="text-xs text-muted-foreground text-center py-2">
-                            E mais {allPaid.length - 20} pagamentos...
-                          </p>
+                      {/* Pendentes */}
+                      <section>
+                        <h2 className="text-sm font-semibold text-amber-400 mb-2 flex items-center gap-1.5">
+                          <CalendarDays className="h-4 w-4" /> A Receber ({allPending.length})
+                        </h2>
+                        {allPending.length === 0 ? (
+                          <p className="text-sm text-muted-foreground text-center py-4">Nenhum vencimento pendente</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {allPending.map(p => (
+                              <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />
+                            ))}
+                          </div>
                         )}
-                      </div>
-                    )}
-                  </section>
+                      </section>
+
+                      {/* Recebidos */}
+                      <section>
+                        <h2 className="text-sm font-semibold text-emerald-400 mb-2 flex items-center gap-1.5">
+                          <TrendingUp className="h-4 w-4" /> Recebidos ({allPaid.length})
+                        </h2>
+                        {allPaid.length === 0 ? (
+                          <p className="text-sm text-muted-foreground text-center py-4">Nenhum pagamento recebido</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {allPaid.slice(0, 20).map(p => (
+                              <FinancialPaymentCard key={p.id} payment={p} onOpenEvent={handleOpenEvent} />
+                            ))}
+                            {allPaid.length > 20 && (
+                              <p className="text-xs text-muted-foreground text-center py-2">
+                                E mais {allPaid.length - 20} pagamentos...
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </section>
+                    </>
+                  )}
                 </TabsContent>
 
                 {/* Tab Despesas */}
@@ -302,7 +336,7 @@ export default function Financeiro() {
                   </Tabs>
                 </TabsContent>
 
-                {/* Tab Resultado */}
+
                 <TabsContent value="resultado" className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Card className="p-6 bg-card border-border text-center">
