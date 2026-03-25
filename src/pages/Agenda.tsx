@@ -433,7 +433,8 @@ export default function Agenda() {
     console.log('[Evento:DadosAniversariante]', { child_name: payload.child_name, child_age: payload.child_age, parent_names: payload.parent_names, gifts: payload.gifts, extra_guest_value: payload.extra_guest_value });
 
     if (data.id) {
-      const { error } = await supabase.from("company_events").update(payload).eq("id", data.id);
+      const { error, data: updatedRows } = await supabase.from("company_events").update(payload).eq("id", data.id).select("child_name, parent_names, gifts");
+      console.log('[Evento:UpdateResult]', { error, updatedRows, eventId: data.id });
       if (error) { toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" }); return; }
       await syncPaymentDetails(data.id, currentCompany.id, data.payment_details);
       toast({ title: "Festa atualizada!" });
