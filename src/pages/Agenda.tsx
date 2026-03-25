@@ -523,26 +523,41 @@ export default function Agenda() {
   const confirmDelete = async () => {
     if (!deleteConfirmId) return;
     setDeleting(true);
-    // Delete dependent records first to avoid foreign key violations
-    // 1) Delete contract audit logs for contracts linked to this event
-    const { data: contracts } = await (supabase as any).from("generated_contracts").select("id").eq("event_id", deleteConfirmId);
-    const contractIds = (contracts || []).map((c: any) => c.id);
-    if (contractIds.length > 0) {
-      await (supabase as any).from("contract_audit_logs").delete().in("contract_id", contractIds);
-    }
-    // 2) Delete generated contracts and client data requests
-    await (supabase as any).from("generated_contracts").delete().eq("event_id", deleteConfirmId);
-    await (supabase as any).from("client_data_requests").delete().eq("event_id", deleteConfirmId);
-    // 3) Delete other dependent records
-    await (supabase as any).from("freelancer_evaluations").delete().eq("event_id", deleteConfirmId);
-    await (supabase as any).from("event_checklist_items").delete().eq("event_id", deleteConfirmId);
-    await (supabase as any).from("event_staff_entries").delete().eq("event_id", deleteConfirmId);
-    await (supabase as any).from("event_info_entries").delete().eq("event_id", deleteConfirmId);
-    await (supabase as any).from("attendance_entries").delete().eq("event_id", deleteConfirmId);
+    try {
+      // Delete dependent records first to avoid foreign key violations
+      // 1) Delete contract audit logs for contracts linked to this event
+      const { data: contracts } = await (supabase as any).from("generated_contracts").select("id").eq("event_id", deleteConfirmId);
+      const contractIds = (contracts || []).map((c: any) => c.id);
+      if (contractIds.length > 0) {
+        await (supabase as any).from("contract_audit_logs").delete().in("contract_id", contractIds);
+      }
+      // 2) Delete generated contracts and client data requests
+      const { error: gcErr } = await (supabase as any).from("generated_contracts").delete().eq("event_id", deleteConfirmId);
+      if (gcErr) console.error("[delete cascade] generated_contracts:", gcErr.message);
+      await (supabase as any).from("client_data_requests").delete().eq("event_id", deleteConfirmId);
+      // 3) Delete financial records
+      await (supabase as any).from("event_financial_timeline").delete().eq("event_id", deleteConfirmId);
+      await (supabase as any).from("event_payments").delete().eq("event_id", deleteConfirmId);
+      await (supabase as any).from("event_extras").delete().eq("event_id", deleteConfirmId);
+      await (supabase as any).from("event_discounts").delete().eq("event_id", deleteConfirmId);
+      // 4) Delete other dependent records
+      await (supabase as any).from("freelancer_evaluations").delete().eq("event_id", deleteConfirmId);
+      await (supabase as any).from("event_checklist_items").delete().eq("event_id", deleteConfirmId);
+      await (supabase as any).from("event_staff_entries").delete().eq("event_id", deleteConfirmId);
+      await (supabase as any).from("event_info_entries").delete().eq("event_id", deleteConfirmId);
+      await (supabase as any).from("attendance_entries").delete().eq("event_id", deleteConfirmId);
+      // 5) Delete pre-reservations linked to this event
+      await (supabase as any).from("pre_reservations").delete().eq("event_id", deleteConfirmId);
+      // 6) Delete cardapio responses
+      await (supabase as any).from("cardapio_responses").delete().eq("event_id", deleteConfirmId);
 
-    const { error } = await supabase.from("company_events").delete().eq("id", deleteConfirmId);
-    if (error) { toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" }); }
-    else { toast({ title: "Festa excluída" }); }
+      const { error } = await supabase.from("company_events").delete().eq("id", deleteConfirmId);
+      if (error) { toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" }); }
+      else { toast({ title: "Festa excluída" }); }
+    } catch (err) {
+      console.error("[delete event] unexpected error:", err);
+      toast({ title: "Erro ao excluir", description: "Erro inesperado ao excluir festa", variant: "destructive" });
+    }
     setDeleting(false);
     setDeleteConfirmId(null);
     setDetailOpen(false);
