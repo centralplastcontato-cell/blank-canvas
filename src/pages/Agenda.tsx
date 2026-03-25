@@ -51,6 +51,15 @@ interface CompanyEvent {
   notes: string | null;
   created_by: string;
   data_fechamento_venda?: string | null;
+  vendedor_responsavel_id?: string | null;
+  payment_method?: string | null;
+  payment_details?: any;
+  child_name?: string | null;
+  child_age?: string | null;
+  child_birthdate?: string | null;
+  parent_names?: string | null;
+  gifts?: string | null;
+  extra_guest_value?: number | null;
 }
 
 const getSortableDateValue = (value?: string | null) => {
@@ -84,6 +93,32 @@ const compareClosedEvents = (
 
   return a.id.localeCompare(b.id);
 };
+
+const mapEventToFormData = (ev: CompanyEvent): EventFormData => ({
+  id: ev.id,
+  title: ev.title,
+  event_date: ev.event_date,
+  start_time: ev.start_time || "",
+  end_time: ev.end_time || "",
+  event_type: ev.event_type || "aniversario",
+  guest_count: ev.guest_count,
+  unit: ev.unit || "",
+  status: ev.status,
+  package_name: ev.package_name || "",
+  total_value: ev.total_value,
+  notes: ev.notes || "",
+  lead_id: ev.lead_id || null,
+  data_fechamento_venda: ev.data_fechamento_venda || null,
+  vendedor_responsavel_id: ev.vendedor_responsavel_id || null,
+  payment_method: ev.payment_method || null,
+  payment_details: ev.payment_details || null,
+  child_name: ev.child_name || null,
+  child_age: ev.child_age || null,
+  child_birthdate: ev.child_birthdate || null,
+  parent_names: ev.parent_names || null,
+  gifts: ev.gifts || null,
+  extra_guest_value: ev.extra_guest_value ?? null,
+});
 
 export default function Agenda() {
   const navigate = useNavigate();
@@ -208,6 +243,17 @@ export default function Agenda() {
     () => [...closedEvents].sort((a, b) => compareClosedEvents(a, b, closedSortBy)),
     [closedEvents, closedSortBy],
   );
+
+  const mergeUpdatedEventIntoState = useCallback((updatedEvent: CompanyEvent) => {
+    const replaceEvent = (list: CompanyEvent[]) => list.map((event) => (event.id === updatedEvent.id ? updatedEvent : event));
+
+    setEvents((prev) => replaceEvent(prev));
+    setClosedEvents((prev) => replaceEvent(prev));
+    setPeriodEvents((prev) => replaceEvent(prev));
+    setSearchResults((prev) => prev.map((event) => (event.id === updatedEvent.id ? { ...event, ...updatedEvent } : event)));
+    setDetailEvent((prev) => (prev?.id === updatedEvent.id ? updatedEvent : prev));
+    setEditingEvent((prev) => (prev?.id === updatedEvent.id ? mapEventToFormData(updatedEvent) : prev));
+  }, []);
 
   // Auth check
   useEffect(() => {
@@ -474,9 +520,17 @@ export default function Agenda() {
     console.log('[Evento:DadosAniversariante]', { child_name: payload.child_name, child_age: payload.child_age, parent_names: payload.parent_names, gifts: payload.gifts, extra_guest_value: payload.extra_guest_value });
 
     if (data.id) {
-      const { error, data: updatedRows } = await supabase.from("company_events").update(payload).eq("id", data.id).select("child_name, parent_names, gifts");
-      console.log('[Evento:UpdateResult]', { error, updatedRows, eventId: data.id });
+      const { error, data: updatedEvent } = await supabase
+        .from("company_events")
+        .update(payload)
+        .eq("id", data.id)
+        .select("*")
+        .single();
+      console.log('[Evento:UpdateResult]', { error, updatedEvent, eventId: data.id });
       if (error) { toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" }); return; }
+      if (updatedEvent) {
+        mergeUpdatedEventIntoState(updatedEvent as CompanyEvent);
+      }
       await syncPaymentDetails(data.id, currentCompany.id, data.payment_details);
       toast({ title: "Festa atualizada!" });
     } else {
@@ -608,31 +662,7 @@ export default function Agenda() {
   };
 
   const handleEdit = (ev: CompanyEvent) => {
-    setEditingEvent({
-      id: ev.id,
-      title: ev.title,
-      event_date: ev.event_date,
-      start_time: ev.start_time || "",
-      end_time: ev.end_time || "",
-      event_type: ev.event_type || "aniversario",
-      guest_count: ev.guest_count,
-      unit: ev.unit || "",
-      status: ev.status,
-      package_name: ev.package_name || "",
-      total_value: ev.total_value,
-      notes: ev.notes || "",
-      lead_id: ev.lead_id || null,
-      data_fechamento_venda: (ev as any).data_fechamento_venda || null,
-      vendedor_responsavel_id: (ev as any).vendedor_responsavel_id || null,
-      payment_method: (ev as any).payment_method || null,
-      payment_details: (ev as any).payment_details || null,
-      child_name: (ev as any).child_name || null,
-      child_age: (ev as any).child_age || null,
-      child_birthdate: (ev as any).child_birthdate || null,
-      parent_names: (ev as any).parent_names || null,
-      gifts: (ev as any).gifts || null,
-      extra_guest_value: (ev as any).extra_guest_value ?? null,
-    });
+    setEditingEvent(mapEventToFormData(ev));
     setDetailOpen(false);
     setFormOpen(true);
   };
