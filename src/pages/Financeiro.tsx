@@ -270,8 +270,73 @@ export default function Financeiro() {
                   )}
                 </TabsContent>
 
+                {/* Tab Despesas */}
+                <TabsContent value="despesas" className="space-y-4">
+                  <Tabs defaultValue="fixa" className="w-full">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <TabsList className="h-9">
+                        <TabsTrigger value="fixa" className="text-xs gap-1.5"><Building className="h-3.5 w-3.5" /> Fixas</TabsTrigger>
+                        <TabsTrigger value="variavel" className="text-xs gap-1.5"><Zap className="h-3.5 w-3.5" /> Variáveis</TabsTrigger>
+                        <TabsTrigger value="festa" className="text-xs gap-1.5"><PartyPopper className="h-3.5 w-3.5" /> Festas</TabsTrigger>
+                      </TabsList>
+                    </div>
 
-                {/* Tab Resultado */}
+                    {(['fixa', 'variavel', 'festa'] as const).map(expType => {
+                      const typeExpenses = dashboard.expensesThisMonth.filter(e => (e.expense_type || 'fixa') === expType);
+                      const typeLabel = expType === 'fixa' ? 'fixa' : expType === 'variavel' ? 'variável' : 'de festa';
+                      return (
+                        <TabsContent key={expType} value={expType} className="space-y-3 mt-3">
+                          <div className="flex items-center justify-between">
+                            <h2 className="text-sm font-semibold text-foreground">
+                              Despesas {typeLabel}s ({typeExpenses.length})
+                              {typeExpenses.length > 0 && (
+                                <span className="ml-2 text-blue-400 font-bold">
+                                  {fmt(typeExpenses.reduce((s, e) => s + e.amount, 0))}
+                                </span>
+                              )}
+                            </h2>
+                            <Button size="sm" onClick={() => { setExpenseDialogType(expType); setExpenseDialogOpen(true); }}>
+                              <Plus className="h-4 w-4 mr-1" /> Adicionar
+                            </Button>
+                          </div>
+                          {typeExpenses.length === 0 ? (
+                            <Card className="p-8">
+                              <p className="text-sm text-muted-foreground text-center">Nenhuma despesa {typeLabel} neste período</p>
+                            </Card>
+                          ) : (
+                            <div className="space-y-2">
+                              {typeExpenses.map(e => (
+                                <div key={e.id} className="p-3 md:p-4 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <p className="font-semibold text-sm text-foreground truncate">{e.description}</p>
+                                      <Badge variant="secondary" className="text-xs">{CATEGORY_LABELS[e.category] || e.category}</Badge>
+                                      <Badge variant="outline" className={e.status === 'pago' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}>
+                                        {e.status === 'pago' ? 'Pago' : 'Pendente'}
+                                      </Badge>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                      {format(new Date(e.expense_date + 'T12:00:00'), 'dd/MM/yyyy')}
+                                      {e.unit && ` · ${e.unit}`}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <p className="text-sm font-bold text-blue-400">{fmt(e.amount)}</p>
+                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:text-destructive/80" onClick={() => dashboard.deleteExpense(e.id)}>
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </TabsContent>
+                      );
+                    })}
+                  </Tabs>
+                </TabsContent>
+
+
                 <TabsContent value="resultado" className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Card className="p-6 bg-card border-border text-center">
