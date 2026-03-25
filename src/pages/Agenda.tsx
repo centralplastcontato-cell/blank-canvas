@@ -51,6 +51,15 @@ interface CompanyEvent {
   notes: string | null;
   created_by: string;
   data_fechamento_venda?: string | null;
+  vendedor_responsavel_id?: string | null;
+  payment_method?: string | null;
+  payment_details?: EventFormData["payment_details"] | null;
+  child_name?: string | null;
+  child_age?: string | null;
+  child_birthdate?: string | null;
+  parent_names?: string | null;
+  gifts?: string | null;
+  extra_guest_value?: number | null;
 }
 
 const getSortableDateValue = (value?: string | null) => {
@@ -84,6 +93,32 @@ const compareClosedEvents = (
 
   return a.id.localeCompare(b.id);
 };
+
+const mapEventToFormData = (ev: CompanyEvent): EventFormData => ({
+  id: ev.id,
+  title: ev.title,
+  event_date: ev.event_date,
+  start_time: ev.start_time || "",
+  end_time: ev.end_time || "",
+  event_type: ev.event_type || "aniversario",
+  guest_count: ev.guest_count,
+  unit: ev.unit || "",
+  status: ev.status,
+  package_name: ev.package_name || "",
+  total_value: ev.total_value,
+  notes: ev.notes || "",
+  lead_id: ev.lead_id || null,
+  data_fechamento_venda: ev.data_fechamento_venda || null,
+  vendedor_responsavel_id: ev.vendedor_responsavel_id || null,
+  payment_method: ev.payment_method || null,
+  payment_details: ev.payment_details || null,
+  child_name: ev.child_name || null,
+  child_age: ev.child_age || null,
+  child_birthdate: ev.child_birthdate || null,
+  parent_names: ev.parent_names || null,
+  gifts: ev.gifts || null,
+  extra_guest_value: ev.extra_guest_value ?? null,
+});
 
 export default function Agenda() {
   const navigate = useNavigate();
