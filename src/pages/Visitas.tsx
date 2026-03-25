@@ -146,7 +146,7 @@ export default function Visitas() {
 
     const { data, error } = await (supabase as any)
       .from("lead_visits")
-      .select("id, lead_id, company_id, data_visita, horario_visita, status_visita, observacoes, responsavel_user_id, created_by, created_at, unit, package_interest, guest_count, party_date_interest, payment_preference, interest_level, restrictions, client_questions, seller_notes")
+      .select("id, lead_id, company_id, data_visita, horario_visita, status_visita, observacoes, responsavel_user_id, created_by, created_at, unit, package_interest, guest_count, party_date_interest, payment_preference, interest_level, restrictions, client_questions, seller_notes, lead_channel")
       .eq("company_id", companyId)
       .gte("data_visita", startDate)
       .lte("data_visita", endDate)
@@ -163,15 +163,19 @@ export default function Visitas() {
         .in("id", leadIds as string[]);
 
       const leadMap = new Map((leads || []).map((l: any) => [l.id, l]));
-      setVisits(data.map((v: any) => ({
+      const mappedVisits = data.map((v: any) => ({
         ...v,
         lead_name: leadMap.get(v.lead_id)?.name || "Lead desconhecido",
         lead_phone: leadMap.get(v.lead_id)?.whatsapp || "",
         lead_guests: leadMap.get(v.lead_id)?.guests || null,
         lead_month: leadMap.get(v.lead_id)?.month || null,
-      })));
+      }));
+
+      setVisits(mappedVisits);
+      setDetailVisit((current) => current ? mappedVisits.find((visit) => visit.id === current.id) || current : current);
     } else {
       setVisits([]);
+      setDetailVisit((current) => current ? null : current);
     }
   };
 
