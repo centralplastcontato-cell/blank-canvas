@@ -122,7 +122,7 @@ export function ContractModelEditor({ model, userId, onClose }: Props) {
         responsible_name: "Maria Silva", cpf: "123.456.789-00", rg: "12.345.678-9",
         email: "maria@email.com", address: "Rua das Flores", numero: "123", complemento: "Apto 45",
         bairro: "Centro", cidade: "São Paulo", cep: "01234-567",
-        nome_aniversariante: "João", idade_aniversariante: "5", data_nascimento: "15/03/2021",
+        nome_aniversariante: "João", idade_aniversariante: "5", data_nascimento: "15/03/1990", data_nascimento_aniversariante: "15/03/2021",
         nomes_pais: "Maria Silva e Pedro Silva",
         value: "R$ 5.000,00", valor_sinal: "R$ 1.500,00", valor_restante: "R$ 3.500,00",
         forma_pagamento: "3x no cartão", brindes: "Brinquedo surpresa", date: new Date().toLocaleDateString("pt-BR"),
@@ -329,7 +329,7 @@ CEP: {{cep}}
 Cidade: {{cidade}}
 E-mail: {{email}}
 
-**Aniversariante: {{nome_aniversariante}}, Idade a comemorar: {{idade_aniversariante}}, Data Nascimento: {{data_nascimento}}, Data do Evento: {{data_evento}}, Data do Contrato: {{data_contrato}}, Pacote escolhido: {{pacote}}, Tema: {{tema}}, Nome dos pais: {{nomes_pais}}, Telefone dos pais: {{telefone}}, Denominada CONTRATANTE.**
+**Aniversariante: {{nome_aniversariante}}, Idade a comemorar: {{idade_aniversariante}}, Data Nascimento: {{data_nascimento_aniversariante}}, Data do Evento: {{data_evento}}, Data do Contrato: {{data_contrato}}, Pacote escolhido: {{pacote}}, Tema: {{tema}}, Nome dos pais: {{nomes_pais}}, Telefone dos pais: {{telefone}}, Denominada CONTRATANTE.**
 
 Cláusula 1ª.) O BUFFET {{empresa}} prestará serviços, em seu salão de eventos localizado à Avenida General Osório, 1442 - Trujillo - O CONTRATADO assume a responsabilidade de planejar, organizar e executar as expensas do CONTRATANTE, destinada à {{convidados}} pessoas no dia {{data_evento}}, das {{hora_inicio}} às {{hora_fim}}, devendo para tanto fornecer toda mão de obra bem como todo o material necessário para o evento, que será composto de: serviço de Buffet.
 

@@ -108,7 +108,8 @@ export function ContractGenerator({ userId, onClose }: Props) {
       bairro: contractData.bairro, cidade: contractData.cidade, cep: contractData.cep,
       nome_aniversariante: contractData.nome_aniversariante || eventData?.child_name || "",
       idade_aniversariante: contractData.idade_aniversariante || eventData?.child_age || "",
-      data_nascimento: contractData.data_nascimento || (eventData?.child_birthdate ? (() => { const [y, m, d] = eventData.child_birthdate.split("-"); return `${d}/${m}/${y}`; })() : ""),
+      data_nascimento: contractData.data_nascimento || "",
+      data_nascimento_aniversariante: eventData?.child_birthdate ? (() => { const [y, m, d] = eventData.child_birthdate.split("-"); return `${d}/${m}/${y}`; })() : "",
       nomes_pais: contractData.nomes_pais || (() => {
         try {
           const parsed = JSON.parse(eventData?.parent_names || "[]");
