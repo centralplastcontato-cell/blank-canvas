@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFinanceiroDashboard } from '@/hooks/useFinanceiroDashboard';
 import { useCompanyUnits } from '@/hooks/useCompanyUnits';
@@ -215,58 +215,38 @@ export default function Financeiro() {
                       onOpenEvent={handleOpenEvent}
                     />
                   ) : (
-                    <>
-                      {/* Atrasados */}
-                      {allLate.length > 0 && (
-                        <section>
-                          <h2 className="text-sm font-semibold text-red-400 mb-2 flex items-center gap-1.5">
-                            <AlertTriangle className="h-4 w-4" /> Em Atraso ({allLate.length})
-                          </h2>
-                          <div className="space-y-2">
-                            {allLate.map(p => (
-                              <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />
-                            ))}
-                          </div>
-                        </section>
-                      )}
-
-                      {/* Pendentes */}
-                      <section>
-                        <h2 className="text-sm font-semibold text-amber-400 mb-2 flex items-center gap-1.5">
-                          <CalendarDays className="h-4 w-4" /> A Receber ({allPending.length})
-                        </h2>
-                        {allPending.length === 0 ? (
-                          <p className="text-sm text-muted-foreground text-center py-4">Nenhum vencimento pendente</p>
-                        ) : (
-                          <div className="space-y-2">
-                            {allPending.map(p => (
-                              <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />
-                            ))}
-                          </div>
-                        )}
-                      </section>
-
-                      {/* Recebidos */}
-                      <section>
-                        <h2 className="text-sm font-semibold text-emerald-400 mb-2 flex items-center gap-1.5">
-                          <TrendingUp className="h-4 w-4" /> Recebidos ({allPaid.length})
-                        </h2>
-                        {allPaid.length === 0 ? (
-                          <p className="text-sm text-muted-foreground text-center py-4">Nenhum pagamento recebido</p>
-                        ) : (
-                          <div className="space-y-2">
-                            {allPaid.slice(0, 20).map(p => (
-                              <FinancialPaymentCard key={p.id} payment={p} onOpenEvent={handleOpenEvent} />
-                            ))}
-                            {allPaid.length > 20 && (
-                              <p className="text-xs text-muted-foreground text-center py-2">
-                                E mais {allPaid.length - 20} pagamentos...
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </section>
-                    </>
+                    <CollapsiblePaymentSection
+                      title="Em Atraso"
+                      count={allLate.length}
+                      total={allLate.reduce((s, p) => s + p.amount, 0)}
+                      icon={<AlertTriangle className="h-4 w-4" />}
+                      colorClass="text-red-400"
+                      bgClass="bg-red-500/10 border-red-500/20"
+                      payments={allLate}
+                      onMarkAsPaid={dashboard.markPaymentAsPaid}
+                      onOpenEvent={handleOpenEvent}
+                    />
+                    <CollapsiblePaymentSection
+                      title="A Receber"
+                      count={allPending.length}
+                      total={allPending.reduce((s, p) => s + p.amount, 0)}
+                      icon={<CalendarDays className="h-4 w-4" />}
+                      colorClass="text-amber-400"
+                      bgClass="bg-amber-500/10 border-amber-500/20"
+                      payments={allPending}
+                      onMarkAsPaid={dashboard.markPaymentAsPaid}
+                      onOpenEvent={handleOpenEvent}
+                    />
+                    <CollapsiblePaymentSection
+                      title="Recebidos"
+                      count={allPaid.length}
+                      total={allPaid.reduce((s, p) => s + p.amount, 0)}
+                      icon={<TrendingUp className="h-4 w-4" />}
+                      colorClass="text-emerald-400"
+                      bgClass="bg-emerald-500/10 border-emerald-500/20"
+                      payments={allPaid}
+                      onOpenEvent={handleOpenEvent}
+                    />
                   )}
                 </TabsContent>
 
