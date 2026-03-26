@@ -606,6 +606,12 @@ async function processFlowBuilderMessage(
   console.log(`[FlowBuilder] ========== PROCESSING MESSAGE ==========`);
   console.log(`[FlowBuilder] Company: ${companyId}, Conv: ${conv.id}, Phone: ${contactPhone}`);
   console.log(`[FlowBuilder] Content: "${content}", BotStep: ${conv.bot_step}, BotEnabled: ${conv.bot_enabled}`);
+
+  // Guard: skip Flow Builder if bot was disabled (human takeover or lost lead)
+  if (conv.bot_step === 'human_takeover' || conv.bot_enabled === false) {
+    console.log(`[FlowBuilder] Bot disabled (step: ${conv.bot_step}, enabled: ${conv.bot_enabled}), skipping`);
+    return;
+  }
   
   // ── SANDBOX: número-piloto usa o Fluxo Comercial V2 ────────────
   const PILOT_PHONE = '15981121710';
@@ -4068,8 +4074,8 @@ async function processWebhookEvent(body: Record<string, unknown>) {
         }
         if (cPic) upd.contact_picture = cPic;
         
-        // Don't await - fire and forget for conversation update
-        supabase.from('wapi_conversations').update(upd).eq('id', ex.id).then(() => {});
+        // Await to ensure human_takeover flag is committed before next message arrives
+        await supabase.from('wapi_conversations').update(upd).eq('id', ex.id);
         
         // If no profile picture, fetch it in background
         if (!cPic && !ex.contact_picture) {
@@ -4231,7 +4237,21 @@ async function processWebhookEvent(body: Record<string, unknown>) {
       // Process bot qualification - MUST await to ensure bot messages are saved before function terminates
       if (!fromMe && !isGrp && type === 'text' && content) {
         try {
-          await processBotQualification(supabase, instance, conv, content, phone, cName as string | null);
+          // Re-read conversation to catch concurrent updates (e.g., human_takeover set by UI or phone-message webhook)
+          const { data: freshConv } = await supabase.from('wapi_conversations')
+            .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id')
+            .eq('id', conv.id)
+            .single();
+          if (freshConv) {
+            conv = freshConv;
+          }
+
+          // Skip bot if disabled after re-read
+          if (conv.bot_enabled === false || conv.bot_step === 'human_takeover') {
+            console.log(`[Bot] Skipping — bot disabled after re-read (step: ${conv.bot_step}, enabled: ${conv.bot_enabled})`);
+          } else {
+            await processBotQualification(supabase, instance, conv, content, phone, cName as string | null);
+          }
         } catch (err) {
           console.error('[Bot qualification error]', err);
         }
