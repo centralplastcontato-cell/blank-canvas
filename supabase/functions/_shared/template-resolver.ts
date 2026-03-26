@@ -150,7 +150,14 @@ const VARIABLE_CATALOG: Record<string, { resolver: VariableResolver }> = {
   forma_pagamento: { resolver: (ctx) => ctx.contract?.forma_pagamento || '' },
   nome_aniversariante: { resolver: (ctx) => ctx.contract?.nome_aniversariante || ctx.lead?.child_name || '' },
   idade_aniversariante: { resolver: (ctx) => ctx.contract?.idade_aniversariante || ctx.lead?.child_age || '' },
-  data_nascimento: { resolver: (ctx) => ctx.contract?.data_nascimento || '' },
+  data_nascimento: { resolver: (ctx) => {
+    const v = ctx.contract?.data_nascimento || '';
+    if (!v) return '';
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(v)) return v;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) { const [y, m, d] = v.split("-"); return `${d}/${m}/${y}`; }
+    if (/^\d{8}$/.test(v)) return `${v.slice(0,2)}/${v.slice(2,4)}/${v.slice(4)}`;
+    return v;
+  }},
   nomes_pais: { resolver: (ctx) => ctx.contract?.nomes_pais || '' },
   telefone_pais: { resolver: (ctx) => ctx.contract?.telefone_pais || '' },
   cliente_celular: { resolver: (ctx) => ctx.contract?.celular || ctx.lead?.whatsapp || '' },
