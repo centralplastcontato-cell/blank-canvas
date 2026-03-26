@@ -130,7 +130,7 @@ const VARIABLE_CATALOG: Record<string, { resolver: VariableResolver }> = {
   pacote: { resolver: (ctx) => ctx.event?.package_name || '' },
   valor: {
     resolver: (ctx) =>
-      ctx.contract?.value || (ctx.event?.value != null ? `R$ ${ctx.event.value.toLocaleString('pt-BR')}` : ''),
+      ctx.contract?.value || (ctx.event?.value != null ? `R$ ${ctx.event.value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''),
   },
   nome_responsavel: { resolver: (ctx) => ctx.contract?.responsible_name || ctx.lead?.name?.trim() || '' },
   cpf: { resolver: (ctx) => ctx.contract?.cpf || '' },
@@ -144,7 +144,7 @@ const VARIABLE_CATALOG: Record<string, { resolver: VariableResolver }> = {
   cep: { resolver: (ctx) => ctx.contract?.cep || '' },
   data_contrato: { resolver: (ctx) => ctx.contract?.date || '' },
   valor_contrato: { resolver: (ctx) => ctx.contract?.value || '' },
-  valor_total: { resolver: (ctx) => ctx.contract?.value || (ctx.event?.value != null ? `R$ ${ctx.event.value.toLocaleString('pt-BR')}` : '') },
+  valor_total: { resolver: (ctx) => ctx.contract?.value || (ctx.event?.value != null ? `R$ ${ctx.event.value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '') },
   valor_sinal: { resolver: (ctx) => ctx.contract?.valor_sinal || '' },
   valor_restante: { resolver: (ctx) => ctx.contract?.valor_restante || '' },
   forma_pagamento: { resolver: (ctx) => ctx.contract?.forma_pagamento || '' },
