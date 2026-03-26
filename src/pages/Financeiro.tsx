@@ -215,6 +215,7 @@ export default function Financeiro() {
                       onOpenEvent={handleOpenEvent}
                     />
                   ) : (
+                    <>
                     <CollapsiblePaymentSection
                       title="Em Atraso"
                       count={allLate.length}
@@ -247,6 +248,7 @@ export default function Financeiro() {
                       payments={allPaid}
                       onOpenEvent={handleOpenEvent}
                     />
+                    </>
                   )}
                 </TabsContent>
 
