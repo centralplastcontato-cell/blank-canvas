@@ -257,7 +257,17 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
     resolver: (ctx) => ctx.contract?.idade_aniversariante || ctx.lead?.child_age || '',
   },
   data_nascimento: {
-    resolver: (ctx) => ctx.contract?.data_nascimento || '',
+    resolver: (ctx) => {
+      const v = ctx.contract?.data_nascimento || '';
+      if (!v) return '';
+      // If already formatted as DD/MM/YYYY, return as-is
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(v)) return v;
+      // Convert YYYY-MM-DD to DD/MM/YYYY
+      if (/^\d{4}-\d{2}-\d{2}$/.test(v)) { const [y, m, d] = v.split("-"); return `${d}/${m}/${y}`; }
+      // Convert raw DDMMYYYY to DD/MM/YYYY
+      if (/^\d{8}$/.test(v)) return `${v.slice(0,2)}/${v.slice(2,4)}/${v.slice(4)}`;
+      return v;
+    },
   },
   nomes_pais: {
     resolver: (ctx) => ctx.contract?.nomes_pais || '',
