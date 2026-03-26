@@ -65,6 +65,7 @@ export interface VariableContext {
     nome_aniversariante?: string | null;
     idade_aniversariante?: string | null;
     data_nascimento?: string | null;
+    data_nascimento_aniversariante?: string | null;
     nomes_pais?: string | null;
     telefone_pais?: string | null;
     celular?: string | null;
@@ -269,6 +270,16 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
       return v;
     },
   },
+  data_nascimento_aniversariante: {
+    resolver: (ctx) => {
+      const v = ctx.contract?.data_nascimento_aniversariante || '';
+      if (!v) return '';
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(v)) return v;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(v)) { const [y, m, d] = v.split("-"); return `${d}/${m}/${y}`; }
+      if (/^\d{8}$/.test(v)) return `${v.slice(0,2)}/${v.slice(2,4)}/${v.slice(4)}`;
+      return v;
+    },
+  },
   nomes_pais: {
     resolver: (ctx) => ctx.contract?.nomes_pais || '',
   },
@@ -353,6 +364,7 @@ const ALIAS_MAP: Record<string, string> = {
   cliente_cep: 'cep',
   cliente_cidade: 'cidade',
   cliente_data_nascimento: 'data_nascimento',
+  nascimento_aniversariante: 'data_nascimento_aniversariante',
   aniversariante: 'nome_aniversariante',
   idade: 'idade_aniversariante',
   nome_pais: 'nomes_pais',
@@ -504,7 +516,7 @@ export function getAvailableVariables(): {
     data_contrato: 'contract', valor_contrato: 'contract', valor_total: 'contract',
     valor_sinal: 'contract', valor_restante: 'contract', forma_pagamento: 'contract',
     nome_aniversariante: 'contract', idade_aniversariante: 'contract',
-    data_nascimento: 'contract', nomes_pais: 'contract', brindes: 'contract',
+    data_nascimento: 'contract', data_nascimento_aniversariante: 'contract', nomes_pais: 'contract', brindes: 'contract',
     descricao: 'contract', telefone_pais: 'contract', cliente_celular: 'contract',
     tema: 'contract', valor_convidado_adicional: 'contract', quantidade_pessoas: 'contract',
     titulo: 'schedule', periodo: 'schedule', qtd_festas: 'schedule',
