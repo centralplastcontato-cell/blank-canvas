@@ -122,7 +122,7 @@ export function ContractModelEditor({ model, userId, onClose }: Props) {
         responsible_name: "Maria Silva", cpf: "123.456.789-00", rg: "12.345.678-9",
         email: "maria@email.com", address: "Rua das Flores", numero: "123", complemento: "Apto 45",
         bairro: "Centro", cidade: "São Paulo", cep: "01234-567",
-        nome_aniversariante: "João", idade_aniversariante: "5", data_nascimento: "15/03/2021",
+        nome_aniversariante: "João", idade_aniversariante: "5", data_nascimento: "15/03/1990", data_nascimento_aniversariante: "15/03/2021",
         nomes_pais: "Maria Silva e Pedro Silva",
         value: "R$ 5.000,00", valor_sinal: "R$ 1.500,00", valor_restante: "R$ 3.500,00",
         forma_pagamento: "3x no cartão", brindes: "Brinquedo surpresa", date: new Date().toLocaleDateString("pt-BR"),
