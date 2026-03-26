@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale, Building, Zap, PartyPopper, List, Users, ChevronDown, ChevronRight } from 'lucide-react';
+import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale, Building, Zap, PartyPopper, List, Users, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -62,20 +62,22 @@ function CollapsiblePaymentSection({ title, count, total, icon, colorClass, bgCl
     <section>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full p-4 rounded-xl border ${bgClass} flex items-center justify-between gap-3 transition-all hover:opacity-90`}
+        className={`w-full px-5 py-4 rounded-2xl border-l-4 ${bgClass} flex items-center justify-between gap-3 transition-all duration-200 hover:shadow-md group`}
       >
-        <div className="flex items-center gap-2">
-          <span className={colorClass}>{icon}</span>
-          <span className={`text-sm font-semibold ${colorClass}`}>{title}</span>
-          <Badge variant="secondary" className="text-xs">{count}</Badge>
+        <div className="flex items-center gap-3">
+          <span className={`${colorClass} opacity-80`}>{icon}</span>
+          <span className={`text-sm font-bold tracking-wide ${colorClass}`}>{title}</span>
+          <span className={`inline-flex items-center justify-center h-6 min-w-[24px] px-1.5 rounded-full text-xs font-bold text-white ${
+            title === 'Em Atraso' ? 'bg-red-500' : title === 'A Receber' ? 'bg-amber-500' : 'bg-emerald-500'
+          }`}>{count}</span>
         </div>
         <div className="flex items-center gap-3">
-          <span className={`text-base font-bold ${colorClass}`}>{fmt(total)}</span>
-          {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+          <span className={`text-base font-extrabold ${colorClass}`}>{fmt(total)}</span>
+          <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-90' : 'group-hover:translate-x-0.5'}`} />
         </div>
       </button>
       {isOpen && (
-        <div className="mt-2 space-y-2">
+        <div className="mt-3 space-y-2 pl-2">
           {payments.map(p => (
             <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={onMarkAsPaid} onOpenEvent={onOpenEvent} />
           ))}
