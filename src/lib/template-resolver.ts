@@ -198,7 +198,7 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
   },
   valor: {
     resolver: (ctx) =>
-      ctx.contract?.value || (ctx.event?.value != null ? `R$ ${ctx.event.value.toLocaleString('pt-BR')}` : ''),
+      ctx.contract?.value || (ctx.event?.value != null ? `R$ ${ctx.event.value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''),
   },
 
   // --- Contract ---
@@ -239,7 +239,7 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
     resolver: (ctx) => ctx.contract?.value || '',
   },
   valor_total: {
-    resolver: (ctx) => ctx.contract?.value || (ctx.event?.value != null ? `R$ ${ctx.event.value.toLocaleString('pt-BR')}` : ''),
+    resolver: (ctx) => ctx.contract?.value || (ctx.event?.value != null ? `R$ ${ctx.event.value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''),
   },
   valor_sinal: {
     resolver: (ctx) => ctx.contract?.valor_sinal || '',
