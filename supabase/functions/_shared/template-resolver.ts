@@ -59,6 +59,7 @@ export interface VariableContext {
     nome_aniversariante?: string | null;
     idade_aniversariante?: string | null;
     data_nascimento?: string | null;
+    data_nascimento_aniversariante?: string | null;
     nomes_pais?: string | null;
     telefone_pais?: string | null;
     celular?: string | null;
@@ -159,6 +160,14 @@ const VARIABLE_CATALOG: Record<string, { resolver: VariableResolver }> = {
     return v;
   }},
   nomes_pais: { resolver: (ctx) => ctx.contract?.nomes_pais || '' },
+  data_nascimento_aniversariante: { resolver: (ctx) => {
+    const v = ctx.contract?.data_nascimento_aniversariante || '';
+    if (!v) return '';
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(v)) return v;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) { const [y, m, d] = v.split("-"); return `${d}/${m}/${y}`; }
+    if (/^\d{8}$/.test(v)) return `${v.slice(0,2)}/${v.slice(2,4)}/${v.slice(4)}`;
+    return v;
+  }},
   telefone_pais: { resolver: (ctx) => ctx.contract?.telefone_pais || '' },
   cliente_celular: { resolver: (ctx) => ctx.contract?.celular || ctx.lead?.whatsapp || '' },
   brindes: { resolver: (ctx) => ctx.contract?.brindes || '' },
@@ -201,6 +210,7 @@ const ALIAS_MAP: Record<string, string> = {
   cliente_cep: 'cep',
   cliente_cidade: 'cidade',
   cliente_data_nascimento: 'data_nascimento',
+  nascimento_aniversariante: 'data_nascimento_aniversariante',
   aniversariante: 'nome_aniversariante',
   idade: 'idade_aniversariante',
   nome_pais: 'nomes_pais',
