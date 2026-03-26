@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFinanceiroDashboard } from '@/hooks/useFinanceiroDashboard';
 import { useCompanyUnits } from '@/hooks/useCompanyUnits';
@@ -29,6 +29,61 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+interface CollapsiblePaymentSectionProps {
+  title: string;
+  count: number;
+  total: number;
+  icon: ReactNode;
+  colorClass: string;
+  bgClass: string;
+  payments: any[];
+  onMarkAsPaid?: (id: string) => void;
+  onOpenEvent: (eventId: string) => void;
+}
+
+function CollapsiblePaymentSection({ title, count, total, icon, colorClass, bgClass, payments, onMarkAsPaid, onOpenEvent }: CollapsiblePaymentSectionProps) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (count === 0) {
+    return (
+      <Card className={`p-4 border ${bgClass}`}>
+        <div className="flex items-center gap-2">
+          <span className={colorClass}>{icon}</span>
+          <span className={`text-sm font-semibold ${colorClass}`}>{title}</span>
+          <span className="text-xs text-muted-foreground">(0)</span>
+        </div>
+        <p className="text-sm text-muted-foreground mt-1">Nenhum pagamento</p>
+      </Card>
+    );
+  }
+
+  return (
+    <section>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full p-4 rounded-xl border ${bgClass} flex items-center justify-between gap-3 transition-all hover:opacity-90`}
+      >
+        <div className="flex items-center gap-2">
+          <span className={colorClass}>{icon}</span>
+          <span className={`text-sm font-semibold ${colorClass}`}>{title}</span>
+          <Badge variant="secondary" className="text-xs">{count}</Badge>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className={`text-base font-bold ${colorClass}`}>{fmt(total)}</span>
+          {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+        </div>
+      </button>
+      {isOpen && (
+        <div className="mt-2 space-y-2">
+          {payments.map(p => (
+            <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={onMarkAsPaid} onOpenEvent={onOpenEvent} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
 
 export default function Financeiro() {
   const navigate = useNavigate();
