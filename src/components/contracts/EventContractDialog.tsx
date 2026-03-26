@@ -101,7 +101,7 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
         cidade: clientData.cidade || "", cep: clientData.cep || "",
         nome_aniversariante: clientData.nome_aniversariante || eventData?.child_name || "",
         idade_aniversariante: clientData.idade_aniversariante || eventData?.child_age || "",
-        data_nascimento: clientData.nascimento || (eventData?.child_birthdate ? (() => { const [y, m, d] = eventData.child_birthdate.split("-"); return `${d}/${m}/${y}`; })() : ""),
+        data_nascimento: clientData.nascimento ? (() => { const parts = clientData.nascimento.split("-"); return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : clientData.nascimento; })() : (eventData?.child_birthdate ? (() => { const [y, m, d] = eventData.child_birthdate.split("-"); return `${d}/${m}/${y}`; })() : ""),
         nomes_pais: clientData.nomes_pais || (() => {
           try {
             const parsed = JSON.parse(eventData?.parent_names || "[]");

@@ -78,7 +78,7 @@ export function ContractGenerator({ userId, onClose }: Props) {
           endereco: cd.endereco || "", numero: cd.numero || "", complemento: cd.complemento || "",
           bairro: cd.bairro || "", cidade: cd.cidade || "", cep: cd.cep || "",
           nome_aniversariante: cd.nome_aniversariante || "", idade_aniversariante: cd.idade_aniversariante || "",
-          data_nascimento: cd.data_nascimento || "", nomes_pais: cd.nomes_pais || "",
+          data_nascimento: cd.data_nascimento ? (() => { const v = cd.data_nascimento; if (/^\d{4}-\d{2}-\d{2}$/.test(v)) { const [y, m, d2] = v.split("-"); return `${d2}/${m}/${y}`; } return v; })() : "", nomes_pais: cd.nomes_pais || "",
           valor_sinal: cd.valor_sinal?.toString() || "", valor_restante: cd.valor_restante?.toString() || "",
           forma_pagamento: cd.forma_pagamento || "", brindes: cd.brindes || "",
         });
