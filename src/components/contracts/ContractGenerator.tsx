@@ -97,7 +97,7 @@ export function ContractGenerator({ userId, onClose }: Props) {
     company: { name: currentCompany?.name },
     event: eventData ? {
       date: eventData.event_date ? format(new Date(eventData.event_date + "T12:00:00"), "dd/MM/yyyy") : "",
-      time: eventData.start_time || "", end_time: eventData.end_time || "",
+      time: (eventData.start_time || "").substring(0, 5), end_time: (eventData.end_time || "").substring(0, 5),
       package_name: eventData.package_name || "", value: eventData.total_value,
       guest_count: eventData.guest_count, unit: eventData.unit || "", event_type: eventData.event_type || "",
     } : undefined,
