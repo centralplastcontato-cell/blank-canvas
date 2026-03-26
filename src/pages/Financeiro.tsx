@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFinanceiroDashboard } from '@/hooks/useFinanceiroDashboard';
 import { useCompanyUnits } from '@/hooks/useCompanyUnits';
@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale, Building, Zap, PartyPopper, List, Users } from 'lucide-react';
+import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale, Building, Zap, PartyPopper, List, Users, ChevronDown, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -29,6 +29,61 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+interface CollapsiblePaymentSectionProps {
+  title: string;
+  count: number;
+  total: number;
+  icon: ReactNode;
+  colorClass: string;
+  bgClass: string;
+  payments: any[];
+  onMarkAsPaid?: (id: string) => void;
+  onOpenEvent: (eventId: string) => void;
+}
+
+function CollapsiblePaymentSection({ title, count, total, icon, colorClass, bgClass, payments, onMarkAsPaid, onOpenEvent }: CollapsiblePaymentSectionProps) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (count === 0) {
+    return (
+      <Card className={`p-4 border ${bgClass}`}>
+        <div className="flex items-center gap-2">
+          <span className={colorClass}>{icon}</span>
+          <span className={`text-sm font-semibold ${colorClass}`}>{title}</span>
+          <span className="text-xs text-muted-foreground">(0)</span>
+        </div>
+        <p className="text-sm text-muted-foreground mt-1">Nenhum pagamento</p>
+      </Card>
+    );
+  }
+
+  return (
+    <section>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full p-4 rounded-xl border ${bgClass} flex items-center justify-between gap-3 transition-all hover:opacity-90`}
+      >
+        <div className="flex items-center gap-2">
+          <span className={colorClass}>{icon}</span>
+          <span className={`text-sm font-semibold ${colorClass}`}>{title}</span>
+          <Badge variant="secondary" className="text-xs">{count}</Badge>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className={`text-base font-bold ${colorClass}`}>{fmt(total)}</span>
+          {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+        </div>
+      </button>
+      {isOpen && (
+        <div className="mt-2 space-y-2">
+          {payments.map(p => (
+            <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={onMarkAsPaid} onOpenEvent={onOpenEvent} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
 
 export default function Financeiro() {
   const navigate = useNavigate();
@@ -216,56 +271,38 @@ export default function Financeiro() {
                     />
                   ) : (
                     <>
-                      {/* Atrasados */}
-                      {allLate.length > 0 && (
-                        <section>
-                          <h2 className="text-sm font-semibold text-red-400 mb-2 flex items-center gap-1.5">
-                            <AlertTriangle className="h-4 w-4" /> Em Atraso ({allLate.length})
-                          </h2>
-                          <div className="space-y-2">
-                            {allLate.map(p => (
-                              <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />
-                            ))}
-                          </div>
-                        </section>
-                      )}
-
-                      {/* Pendentes */}
-                      <section>
-                        <h2 className="text-sm font-semibold text-amber-400 mb-2 flex items-center gap-1.5">
-                          <CalendarDays className="h-4 w-4" /> A Receber ({allPending.length})
-                        </h2>
-                        {allPending.length === 0 ? (
-                          <p className="text-sm text-muted-foreground text-center py-4">Nenhum vencimento pendente</p>
-                        ) : (
-                          <div className="space-y-2">
-                            {allPending.map(p => (
-                              <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />
-                            ))}
-                          </div>
-                        )}
-                      </section>
-
-                      {/* Recebidos */}
-                      <section>
-                        <h2 className="text-sm font-semibold text-emerald-400 mb-2 flex items-center gap-1.5">
-                          <TrendingUp className="h-4 w-4" /> Recebidos ({allPaid.length})
-                        </h2>
-                        {allPaid.length === 0 ? (
-                          <p className="text-sm text-muted-foreground text-center py-4">Nenhum pagamento recebido</p>
-                        ) : (
-                          <div className="space-y-2">
-                            {allPaid.slice(0, 20).map(p => (
-                              <FinancialPaymentCard key={p.id} payment={p} onOpenEvent={handleOpenEvent} />
-                            ))}
-                            {allPaid.length > 20 && (
-                              <p className="text-xs text-muted-foreground text-center py-2">
-                                E mais {allPaid.length - 20} pagamentos...
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </section>
+                    <CollapsiblePaymentSection
+                      title="Em Atraso"
+                      count={allLate.length}
+                      total={allLate.reduce((s, p) => s + p.amount, 0)}
+                      icon={<AlertTriangle className="h-4 w-4" />}
+                      colorClass="text-red-400"
+                      bgClass="bg-red-500/10 border-red-500/20"
+                      payments={allLate}
+                      onMarkAsPaid={dashboard.markPaymentAsPaid}
+                      onOpenEvent={handleOpenEvent}
+                    />
+                    <CollapsiblePaymentSection
+                      title="A Receber"
+                      count={allPending.length}
+                      total={allPending.reduce((s, p) => s + p.amount, 0)}
+                      icon={<CalendarDays className="h-4 w-4" />}
+                      colorClass="text-amber-400"
+                      bgClass="bg-amber-500/10 border-amber-500/20"
+                      payments={allPending}
+                      onMarkAsPaid={dashboard.markPaymentAsPaid}
+                      onOpenEvent={handleOpenEvent}
+                    />
+                    <CollapsiblePaymentSection
+                      title="Recebidos"
+                      count={allPaid.length}
+                      total={allPaid.reduce((s, p) => s + p.amount, 0)}
+                      icon={<TrendingUp className="h-4 w-4" />}
+                      colorClass="text-emerald-400"
+                      bgClass="bg-emerald-500/10 border-emerald-500/20"
+                      payments={allPaid}
+                      onOpenEvent={handleOpenEvent}
+                    />
                     </>
                   )}
                 </TabsContent>
