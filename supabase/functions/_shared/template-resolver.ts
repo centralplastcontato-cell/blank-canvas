@@ -73,6 +73,10 @@ export interface VariableContext {
     tema?: string | null;
     valor_convidado_adicional?: string | null;
     quantidade_pessoas?: string | null;
+    estado?: string | null;
+    duracao_festa?: string | null;
+    cardapio?: string | null;
+    valor_total_extenso?: string | null;
   };
   freelancer?: {
     name?: string | null;
@@ -178,6 +182,10 @@ const VARIABLE_CATALOG: Record<string, { resolver: VariableResolver }> = {
   tema: { resolver: (ctx) => ctx.contract?.tema || '' },
   valor_convidado_adicional: { resolver: (ctx) => ctx.contract?.valor_convidado_adicional || '' },
   quantidade_pessoas: { resolver: (ctx) => ctx.contract?.quantidade_pessoas || ctx.lead?.guests || ctx.event?.guest_count?.toString() || '' },
+  estado: { resolver: (ctx) => ctx.contract?.estado || '' },
+  duracao_festa: { resolver: (ctx) => ctx.contract?.duracao_festa || '' },
+  cardapio: { resolver: (ctx) => ctx.contract?.cardapio || '' },
+  valor_total_extenso: { resolver: (ctx) => ctx.contract?.valor_total_extenso || '' },
   titulo: { resolver: (ctx) => ctx.schedule?.title || '' },
   periodo: { resolver: (ctx) => ctx.schedule?.period || '' },
   qtd_festas: { resolver: (ctx) => ctx.schedule?.event_count?.toString() || '' },
