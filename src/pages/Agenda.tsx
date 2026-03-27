@@ -190,33 +190,73 @@ export default function Agenda() {
     console.log('[Agenda:Search]', { term });
 
     const cleanTerm = `%${term.trim()}%`;
-    const { data: leads, error: leadsErr } = await supabase
+
+    // Search leads by name/phone
+    const leadsPromise = supabase
       .from("campaign_leads")
       .select("id, name, whatsapp")
       .eq("company_id", currentCompany.id)
       .or(`name.ilike.${cleanTerm},whatsapp.ilike.${cleanTerm}`)
       .limit(50);
 
-    if (leadsErr || !leads?.length) {
-      setSearchResults([]);
-      setSearchLoading(false);
-      return;
-    }
-
-    const leadIds = leads.map(l => l.id);
-    const { data: evts } = await supabase
+    // Also search events directly by title, child_name, parent_names
+    const eventsDirectPromise = supabase
       .from("company_events")
       .select("*")
       .eq("company_id", currentCompany.id)
-      .in("lead_id", leadIds)
+      .or(`title.ilike.${cleanTerm},child_name.ilike.${cleanTerm},parent_names.ilike.${cleanTerm}`)
       .order("event_date", { ascending: false })
       .limit(30);
 
-    const leadMap = new Map(leads.map(l => [l.id, l]));
-    const results = (evts || []).map((ev: any) => {
-      const lead = leadMap.get(ev.lead_id);
+    const [{ data: leads }, { data: directEvts }] = await Promise.all([leadsPromise, eventsDirectPromise]);
+
+    // Fetch events by lead_id if leads found
+    let leadEvts: any[] = [];
+    const leadMap = new Map<string, { id: string; name: string; whatsapp: string }>();
+    if (leads?.length) {
+      leads.forEach(l => leadMap.set(l.id, l));
+      const leadIds = leads.map(l => l.id);
+      const { data } = await supabase
+        .from("company_events")
+        .select("*")
+        .eq("company_id", currentCompany.id)
+        .in("lead_id", leadIds)
+        .order("event_date", { ascending: false })
+        .limit(30);
+      leadEvts = data || [];
+    }
+
+    // Merge and deduplicate
+    const allEvts = [...(directEvts || []), ...leadEvts];
+    const seen = new Set<string>();
+    const unique: any[] = [];
+    for (const ev of allEvts) {
+      if (!seen.has(ev.id)) {
+        seen.add(ev.id);
+        unique.push(ev);
+      }
+    }
+
+    // Enrich with lead info (fetch missing leads if needed)
+    const missingLeadIds = unique
+      .filter(ev => ev.lead_id && !leadMap.has(ev.lead_id))
+      .map(ev => ev.lead_id);
+
+    if (missingLeadIds.length > 0) {
+      const { data: extraLeads } = await supabase
+        .from("campaign_leads")
+        .select("id, name, whatsapp")
+        .in("id", [...new Set(missingLeadIds)]);
+      extraLeads?.forEach(l => leadMap.set(l.id, l));
+    }
+
+    const results = unique.map(ev => {
+      const lead = ev.lead_id ? leadMap.get(ev.lead_id) : undefined;
       return { ...ev, lead_name: lead?.name, lead_phone: lead?.whatsapp } as CompanyEvent & { lead_name?: string; lead_phone?: string };
     });
+
+    // Sort by event_date descending
+    results.sort((a, b) => (b.event_date || '').localeCompare(a.event_date || ''));
 
     setSearchResults(results);
     setSearchLoading(false);
