@@ -186,22 +186,35 @@ export default function Financeiro() {
 
                 {/* Tab Receitas */}
                 <TabsContent value="receitas" className="space-y-4">
-                  <Tabs defaultValue="atraso" className="w-full">
+                  <Tabs value={receitasSubTab} onValueChange={setReceitasSubTab} className="w-full">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <TabsList className="h-9">
-                        <TabsTrigger value="atraso" className="text-xs gap-1.5">
-                          <AlertTriangle className="h-3.5 w-3.5" /> Em Atraso
-                          {allLate.length > 0 && <Badge variant="destructive" className="ml-1 h-5 min-w-[20px] px-1 text-[10px]">{allLate.length}</Badge>}
-                        </TabsTrigger>
-                        <TabsTrigger value="receber" className="text-xs gap-1.5">
-                          <CalendarDays className="h-3.5 w-3.5" /> A Receber
-                          {allPending.length > 0 && <Badge className="ml-1 h-5 min-w-[20px] px-1 text-[10px] bg-amber-500">{allPending.length}</Badge>}
-                        </TabsTrigger>
-                        <TabsTrigger value="recebidos" className="text-xs gap-1.5">
-                          <TrendingUp className="h-3.5 w-3.5" /> Recebidos
-                          {allPaid.length > 0 && <Badge className="ml-1 h-5 min-w-[20px] px-1 text-[10px] bg-emerald-500">{allPaid.length}</Badge>}
-                        </TabsTrigger>
-                      </TabsList>
+                      <div className="flex gap-1.5 overflow-x-auto pb-1">
+                        {[
+                          { value: 'atraso', icon: AlertTriangle, label: 'Em Atraso', count: allLate.length },
+                          { value: 'receber', icon: CalendarDays, label: 'A Receber', count: allPending.length },
+                          { value: 'recebidos', icon: TrendingUp, label: 'Recebidos', count: allPaid.length },
+                        ].map(t => (
+                          <button
+                            key={t.value}
+                            onClick={() => setReceitasSubTab(t.value)}
+                            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border whitespace-nowrap ${
+                              receitasSubTab === t.value
+                                ? 'bg-foreground text-background border-foreground shadow-sm'
+                                : 'bg-transparent text-muted-foreground border-border hover:bg-accent hover:text-foreground'
+                            }`}
+                          >
+                            <t.icon className="h-3.5 w-3.5" />
+                            <span>{t.label}</span>
+                            {t.count > 0 && (
+                              <Badge className={`ml-0.5 h-5 min-w-[20px] px-1.5 text-[10px] ${
+                                receitasSubTab === t.value ? 'bg-background/20 text-background' :
+                                t.value === 'atraso' ? 'bg-red-500 text-white' :
+                                t.value === 'receber' ? 'bg-amber-500 text-white' : 'bg-emerald-500 text-white'
+                              }`}>{t.count}</Badge>
+                            )}
+                          </button>
+                        ))}
+                      </div>
                       <div className="flex items-center bg-muted/50 rounded-lg p-0.5 border border-border/50">
                         <button
                           onClick={() => setViewMode('list')}
