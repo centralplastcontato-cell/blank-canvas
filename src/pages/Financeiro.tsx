@@ -357,33 +357,40 @@ export default function Financeiro() {
                             <Card className="p-8">
                               <p className="text-sm text-muted-foreground text-center">Nenhuma despesa {typeLabel} neste período</p>
                             </Card>
-                          ) : (
-                            <div className="space-y-2">
-                              {typeExpenses.map(e => (
-                                <div key={e.id} className="p-3 md:p-4 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <p className="font-semibold text-sm text-foreground truncate">{e.description}</p>
-                                      <Badge variant="secondary" className="text-xs">{CATEGORY_LABELS[e.category] || e.category}</Badge>
-                                      <Badge variant="outline" className={e.status === 'pago' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}>
-                                        {e.status === 'pago' ? 'Pago' : 'Pendente'}
-                                      </Badge>
+                          ) : (() => {
+                            const totalPagesDespesas = Math.ceil(typeExpenses.length / PAGE_SIZE);
+                            const paginated = typeExpenses.slice((pageDespesas - 1) * PAGE_SIZE, pageDespesas * PAGE_SIZE);
+                            return (
+                              <>
+                                <div className="space-y-2">
+                                  {paginated.map(e => (
+                                    <div key={e.id} className="p-3 md:p-4 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <p className="font-semibold text-sm text-foreground truncate">{e.description}</p>
+                                          <Badge variant="secondary" className="text-xs">{CATEGORY_LABELS[e.category] || e.category}</Badge>
+                                          <Badge variant="outline" className={e.status === 'pago' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}>
+                                            {e.status === 'pago' ? 'Pago' : 'Pendente'}
+                                          </Badge>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                          {format(new Date(e.expense_date + 'T12:00:00'), 'dd/MM/yyyy')}
+                                          {e.unit && ` · ${e.unit}`}
+                                        </p>
+                                      </div>
+                                      <div className="flex items-center gap-2 shrink-0">
+                                        <p className="text-sm font-bold text-blue-400">{fmt(e.amount)}</p>
+                                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:text-destructive/80" onClick={() => dashboard.deleteExpense(e.id)}>
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </div>
                                     </div>
-                                    <p className="text-xs text-muted-foreground mt-0.5">
-                                      {format(new Date(e.expense_date + 'T12:00:00'), 'dd/MM/yyyy')}
-                                      {e.unit && ` · ${e.unit}`}
-                                    </p>
-                                  </div>
-                                  <div className="flex items-center gap-2 shrink-0">
-                                    <p className="text-sm font-bold text-blue-400">{fmt(e.amount)}</p>
-                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:text-destructive/80" onClick={() => dashboard.deleteExpense(e.id)}>
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
+                                  ))}
                                 </div>
-                              ))}
-                            </div>
-                          )}
+                                <PaginationControls page={pageDespesas} totalPages={totalPagesDespesas} onPageChange={setPageDespesas} />
+                              </>
+                            );
+                          })()}
                         </TabsContent>
                       );
                     })}
