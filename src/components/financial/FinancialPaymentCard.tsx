@@ -80,7 +80,7 @@ export function FinancialPaymentCard({ payment, onMarkAsPaid, onOpenEvent }: Pro
             </p>
             <p className="text-xs text-muted-foreground">
               {payment.status === 'late'
-                ? `${daysLate}d atraso`
+                ? `Venc. ${format(new Date(payment.due_date + 'T12:00:00'), 'dd/MM/yyyy')} · ${daysLate}d atraso`
                 : payment.status === 'paid' && payment.paid_at
                   ? `Pago ${format(new Date(payment.paid_at), 'dd/MM', { locale: ptBR })}`
                   : `Venc. ${format(new Date(payment.due_date + 'T12:00:00'), 'dd/MM/yyyy')}`
