@@ -15,9 +15,28 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale, Building, Zap, PartyPopper, List, Users } from 'lucide-react';
+import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale, Building, Zap, PartyPopper, List, Users, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+
+const PAGE_SIZE = 20;
+
+function PaginationControls({ page, totalPages, onPageChange }: { page: number; totalPages: number; onPageChange: (p: number) => void }) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex items-center justify-center gap-2 pt-4">
+      <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)} className="h-8 w-8 p-0">
+        <ChevronLeft className="h-4 w-4" />
+      </Button>
+      <span className="text-xs text-muted-foreground">
+        {page} de {totalPages}
+      </span>
+      <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)} className="h-8 w-8 p-0">
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
 
 const CATEGORY_LABELS: Record<string, string> = {
   fornecedor: 'Fornecedor',
@@ -40,6 +59,10 @@ export default function Financeiro() {
   const [expenseDialogType, setExpenseDialogType] = useState<string>('fixa');
   const [viewMode, setViewMode] = useState<'list' | 'client'>('list');
   const [receitasSubTab, setReceitasSubTab] = useState('atraso');
+  const [pageAtraso, setPageAtraso] = useState(1);
+  const [pageReceber, setPageReceber] = useState(1);
+  const [pageRecebidos, setPageRecebidos] = useState(1);
+  const [pageDespesas, setPageDespesas] = useState(1);
 
   const months = Array.from({ length: 12 }, (_, i) => {
     const d = new Date(new Date().getFullYear(), i, 1);
@@ -248,9 +271,12 @@ export default function Financeiro() {
                       ) : allLate.length === 0 ? (
                         <Card className="p-6 text-center text-muted-foreground text-sm">Nenhum pagamento em atraso 🎉</Card>
                       ) : (
-                        <div className="space-y-2">
-                          {allLate.map(p => <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />)}
-                        </div>
+                        <>
+                          <div className="space-y-2">
+                            {allLate.slice((pageAtraso - 1) * PAGE_SIZE, pageAtraso * PAGE_SIZE).map(p => <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />)}
+                          </div>
+                          <PaginationControls page={pageAtraso} totalPages={Math.ceil(allLate.length / PAGE_SIZE)} onPageChange={setPageAtraso} />
+                        </>
                       )}
                     </TabsContent>
 
@@ -266,9 +292,12 @@ export default function Financeiro() {
                       ) : allPending.length === 0 ? (
                         <Card className="p-6 text-center text-muted-foreground text-sm">Nenhum pagamento pendente</Card>
                       ) : (
-                        <div className="space-y-2">
-                          {allPending.map(p => <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />)}
-                        </div>
+                        <>
+                          <div className="space-y-2">
+                            {allPending.slice((pageReceber - 1) * PAGE_SIZE, pageReceber * PAGE_SIZE).map(p => <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />)}
+                          </div>
+                          <PaginationControls page={pageReceber} totalPages={Math.ceil(allPending.length / PAGE_SIZE)} onPageChange={setPageReceber} />
+                        </>
                       )}
                     </TabsContent>
 
@@ -284,9 +313,12 @@ export default function Financeiro() {
                       ) : allPaid.length === 0 ? (
                         <Card className="p-6 text-center text-muted-foreground text-sm">Nenhum pagamento recebido</Card>
                       ) : (
-                        <div className="space-y-2">
-                          {allPaid.map(p => <FinancialPaymentCard key={p.id} payment={p} onOpenEvent={handleOpenEvent} />)}
-                        </div>
+                        <>
+                          <div className="space-y-2">
+                            {allPaid.slice((pageRecebidos - 1) * PAGE_SIZE, pageRecebidos * PAGE_SIZE).map(p => <FinancialPaymentCard key={p.id} payment={p} onOpenEvent={handleOpenEvent} />)}
+                          </div>
+                          <PaginationControls page={pageRecebidos} totalPages={Math.ceil(allPaid.length / PAGE_SIZE)} onPageChange={setPageRecebidos} />
+                        </>
                       )}
                     </TabsContent>
                   </Tabs>
@@ -325,33 +357,40 @@ export default function Financeiro() {
                             <Card className="p-8">
                               <p className="text-sm text-muted-foreground text-center">Nenhuma despesa {typeLabel} neste período</p>
                             </Card>
-                          ) : (
-                            <div className="space-y-2">
-                              {typeExpenses.map(e => (
-                                <div key={e.id} className="p-3 md:p-4 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <p className="font-semibold text-sm text-foreground truncate">{e.description}</p>
-                                      <Badge variant="secondary" className="text-xs">{CATEGORY_LABELS[e.category] || e.category}</Badge>
-                                      <Badge variant="outline" className={e.status === 'pago' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}>
-                                        {e.status === 'pago' ? 'Pago' : 'Pendente'}
-                                      </Badge>
+                          ) : (() => {
+                            const totalPagesDespesas = Math.ceil(typeExpenses.length / PAGE_SIZE);
+                            const paginated = typeExpenses.slice((pageDespesas - 1) * PAGE_SIZE, pageDespesas * PAGE_SIZE);
+                            return (
+                              <>
+                                <div className="space-y-2">
+                                  {paginated.map(e => (
+                                    <div key={e.id} className="p-3 md:p-4 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <p className="font-semibold text-sm text-foreground truncate">{e.description}</p>
+                                          <Badge variant="secondary" className="text-xs">{CATEGORY_LABELS[e.category] || e.category}</Badge>
+                                          <Badge variant="outline" className={e.status === 'pago' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}>
+                                            {e.status === 'pago' ? 'Pago' : 'Pendente'}
+                                          </Badge>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                          {format(new Date(e.expense_date + 'T12:00:00'), 'dd/MM/yyyy')}
+                                          {e.unit && ` · ${e.unit}`}
+                                        </p>
+                                      </div>
+                                      <div className="flex items-center gap-2 shrink-0">
+                                        <p className="text-sm font-bold text-blue-400">{fmt(e.amount)}</p>
+                                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:text-destructive/80" onClick={() => dashboard.deleteExpense(e.id)}>
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </div>
                                     </div>
-                                    <p className="text-xs text-muted-foreground mt-0.5">
-                                      {format(new Date(e.expense_date + 'T12:00:00'), 'dd/MM/yyyy')}
-                                      {e.unit && ` · ${e.unit}`}
-                                    </p>
-                                  </div>
-                                  <div className="flex items-center gap-2 shrink-0">
-                                    <p className="text-sm font-bold text-blue-400">{fmt(e.amount)}</p>
-                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:text-destructive/80" onClick={() => dashboard.deleteExpense(e.id)}>
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
+                                  ))}
                                 </div>
-                              ))}
-                            </div>
-                          )}
+                                <PaginationControls page={pageDespesas} totalPages={totalPagesDespesas} onPageChange={setPageDespesas} />
+                              </>
+                            );
+                          })()}
                         </TabsContent>
                       );
                     })}
