@@ -39,6 +39,7 @@ export default function Financeiro() {
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
   const [expenseDialogType, setExpenseDialogType] = useState<string>('fixa');
   const [viewMode, setViewMode] = useState<'list' | 'client'>('list');
+  const [receitasSubTab, setReceitasSubTab] = useState('atraso');
 
   const months = Array.from({ length: 12 }, (_, i) => {
     const d = new Date(new Date().getFullYear(), i, 1);
