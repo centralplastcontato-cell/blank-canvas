@@ -55,6 +55,7 @@ export function useEventFinancial(eventId: string | undefined, companyId: string
   const [discounts, setDiscounts] = useState<EventDiscount[]>([]);
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
 
   const fetchAll = useCallback(async () => {
     if (!eventId) return;
@@ -130,11 +131,17 @@ export function useEventFinancial(eventId: string | undefined, companyId: string
   };
 
   const markAsPaid = async (payment: EventPayment) => {
-    const { error } = await supabase.from('event_payments').update({ status: 'paid', paid_at: new Date().toISOString() }).eq('id', payment.id);
-    if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
-    await addTimeline('payment_paid', `Pagamento de R$ ${payment.amount.toFixed(2)} registrado`);
-    toast({ title: 'Pagamento registrado' });
-    fetchAll();
+    if (busyIds.has(payment.id)) return;
+    setBusyIds(prev => new Set(prev).add(payment.id));
+    try {
+      const { error } = await supabase.from('event_payments').update({ status: 'paid', paid_at: new Date().toISOString() }).eq('id', payment.id);
+      if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
+      await addTimeline('payment_paid', `Pagamento de R$ ${payment.amount.toFixed(2)} registrado`);
+      toast({ title: 'Pagamento registrado' });
+      fetchAll();
+    } finally {
+      setBusyIds(prev => { const n = new Set(prev); n.delete(payment.id); return n; });
+    }
   };
 
   const deletePayment = async (id: string) => {
