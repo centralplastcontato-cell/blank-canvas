@@ -271,9 +271,12 @@ export default function Financeiro() {
                       ) : allLate.length === 0 ? (
                         <Card className="p-6 text-center text-muted-foreground text-sm">Nenhum pagamento em atraso 🎉</Card>
                       ) : (
-                        <div className="space-y-2">
-                          {allLate.map(p => <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />)}
-                        </div>
+                        <>
+                          <div className="space-y-2">
+                            {allLate.slice((pageAtraso - 1) * PAGE_SIZE, pageAtraso * PAGE_SIZE).map(p => <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />)}
+                          </div>
+                          <PaginationControls page={pageAtraso} totalPages={Math.ceil(allLate.length / PAGE_SIZE)} onPageChange={setPageAtraso} />
+                        </>
                       )}
                     </TabsContent>
 
@@ -289,9 +292,12 @@ export default function Financeiro() {
                       ) : allPending.length === 0 ? (
                         <Card className="p-6 text-center text-muted-foreground text-sm">Nenhum pagamento pendente</Card>
                       ) : (
-                        <div className="space-y-2">
-                          {allPending.map(p => <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />)}
-                        </div>
+                        <>
+                          <div className="space-y-2">
+                            {allPending.slice((pageReceber - 1) * PAGE_SIZE, pageReceber * PAGE_SIZE).map(p => <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />)}
+                          </div>
+                          <PaginationControls page={pageReceber} totalPages={Math.ceil(allPending.length / PAGE_SIZE)} onPageChange={setPageReceber} />
+                        </>
                       )}
                     </TabsContent>
 
@@ -307,9 +313,12 @@ export default function Financeiro() {
                       ) : allPaid.length === 0 ? (
                         <Card className="p-6 text-center text-muted-foreground text-sm">Nenhum pagamento recebido</Card>
                       ) : (
-                        <div className="space-y-2">
-                          {allPaid.map(p => <FinancialPaymentCard key={p.id} payment={p} onOpenEvent={handleOpenEvent} />)}
-                        </div>
+                        <>
+                          <div className="space-y-2">
+                            {allPaid.slice((pageRecebidos - 1) * PAGE_SIZE, pageRecebidos * PAGE_SIZE).map(p => <FinancialPaymentCard key={p.id} payment={p} onOpenEvent={handleOpenEvent} />)}
+                          </div>
+                          <PaginationControls page={pageRecebidos} totalPages={Math.ceil(allPaid.length / PAGE_SIZE)} onPageChange={setPageRecebidos} />
+                        </>
                       )}
                     </TabsContent>
                   </Tabs>
