@@ -116,8 +116,8 @@ export default function Financeiro() {
 
   // Categorized payment lists
   const allPaid = dashboard.payments.filter(p => p.status === 'paid').sort((a, b) => (b.paid_at || '').localeCompare(a.paid_at || ''));
-  const allPending = dashboard.payments.filter(p => p.status === 'pending').sort((a, b) => a.due_date.localeCompare(b.due_date));
-  const allLate = dashboard.latePayments;
+  const allPending = dashboard.payments.filter(p => p.status === 'pending').sort((a, b) => b.due_date.localeCompare(a.due_date));
+  const allLate = [...dashboard.latePayments].sort((a, b) => b.due_date.localeCompare(a.due_date));
 
   return (
     <SidebarProvider>
