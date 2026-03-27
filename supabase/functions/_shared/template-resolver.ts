@@ -295,6 +295,7 @@ export function getAvailableVariables(): { key: string; aliases: string[]; domai
     data_nascimento: 'contract', data_nascimento_aniversariante: 'contract', nomes_pais: 'contract', brindes: 'contract',
     descricao: 'contract', telefone_pais: 'contract', cliente_celular: 'contract',
     tema: 'contract', valor_convidado_adicional: 'contract', quantidade_pessoas: 'contract',
+    estado: 'contract', duracao_festa: 'contract', cardapio: 'contract', valor_total_extenso: 'contract',
     titulo: 'schedule', periodo: 'schedule', qtd_festas: 'schedule',
     link: 'schedule', observacoes: 'schedule', lista_escalados: 'schedule',
   };
