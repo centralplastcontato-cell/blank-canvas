@@ -746,6 +746,13 @@ export default function Visitas() {
                   <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={() => updateVisitStatus(detailVisit.id, "confirmada")}><Check className="h-3.5 w-3.5 text-green-600" /> Confirmar</Button>
                   <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={() => updateVisitStatus(detailVisit.id, "remarcada")}><RefreshCw className="h-3.5 w-3.5" /> Remarcar</Button>
                   <Button variant="outline" size="sm" className="text-xs gap-1.5 text-destructive hover:text-destructive" onClick={() => updateVisitStatus(detailVisit.id, "cancelada")}><X className="h-3.5 w-3.5" /> Cancelar</Button>
+                  <Button
+                    size="sm"
+                    className="col-span-2 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                    onClick={() => handleClosedAtVisit(detailVisit)}
+                  >
+                    <PartyPopper className="h-3.5 w-3.5" /> Fechou na Visita 🎉
+                  </Button>
                 </div>
                 <div className="pt-2 border-t border-border/30 mt-3">
                   <Label className="text-xs text-muted-foreground">Alterar status manualmente</Label>
