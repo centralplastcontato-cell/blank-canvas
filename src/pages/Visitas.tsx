@@ -21,7 +21,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Menu, CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, Phone, MessageSquare, Check, RefreshCw, X, Plus, User as UserIcon, AlertTriangle, Trash2 } from "lucide-react";
+import { Loader2, Menu, CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, Phone, MessageSquare, Check, RefreshCw, X, Plus, User as UserIcon, AlertTriangle, Trash2, PartyPopper } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -273,6 +273,30 @@ export default function Visitas() {
       toast({ title: "Status atualizado!" });
       fetchVisits();
       if (detailVisit?.id === visitId) setDetailVisit(prev => prev ? { ...prev, status_visita: newStatus } : null);
+    }
+  };
+
+  const handleClosedAtVisit = async (visit: Visit) => {
+    // Update lead status to "fechado"
+    const { error: leadError } = await supabase
+      .from("campaign_leads")
+      .update({ status: "fechado" as any, observacoes: `Fechou na visita em ${format(parseISO(visit.data_visita + "T12:00:00"), "dd/MM/yyyy")}` })
+      .eq("id", visit.lead_id);
+
+    if (leadError) {
+      toast({ title: "Erro ao atualizar lead", description: leadError.message, variant: "destructive" });
+      return;
+    }
+
+    // Also mark visit as "realizada" if not already
+    if (visit.status_visita !== "realizada") {
+      await (supabase as any).from("lead_visits").update({ status_visita: "realizada" }).eq("id", visit.id);
+    }
+
+    toast({ title: "🎉 Festa fechada na visita!", description: `${visit.lead_name} marcado como Fechado.` });
+    fetchVisits();
+    if (detailVisit?.id === visit.id) {
+      setDetailVisit(prev => prev ? { ...prev, status_visita: "realizada" } : null);
     }
   };
 
@@ -722,6 +746,13 @@ export default function Visitas() {
                   <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={() => updateVisitStatus(detailVisit.id, "confirmada")}><Check className="h-3.5 w-3.5 text-green-600" /> Confirmar</Button>
                   <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={() => updateVisitStatus(detailVisit.id, "remarcada")}><RefreshCw className="h-3.5 w-3.5" /> Remarcar</Button>
                   <Button variant="outline" size="sm" className="text-xs gap-1.5 text-destructive hover:text-destructive" onClick={() => updateVisitStatus(detailVisit.id, "cancelada")}><X className="h-3.5 w-3.5" /> Cancelar</Button>
+                  <Button
+                    size="sm"
+                    className="col-span-2 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                    onClick={() => handleClosedAtVisit(detailVisit)}
+                  >
+                    <PartyPopper className="h-3.5 w-3.5" /> Fechou na Visita 🎉
+                  </Button>
                 </div>
                 <div className="pt-2 border-t border-border/30 mt-3">
                   <Label className="text-xs text-muted-foreground">Alterar status manualmente</Label>
