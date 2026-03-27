@@ -124,6 +124,18 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
         tema: clientData.tema || "",
         valor_convidado_adicional: eventData?.extra_guest_value ? `R$ ${Number(eventData.extra_guest_value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "",
         quantidade_pessoas: eventData?.guest_count?.toString() || leadData?.guests || "",
+        estado: clientData.estado || "",
+        duracao_festa: (() => {
+          if (eventData?.start_time && eventData?.end_time) {
+            const [sh, sm] = eventData.start_time.split(":").map(Number);
+            const [eh, em] = eventData.end_time.split(":").map(Number);
+            const diff = (eh * 60 + em) - (sh * 60 + sm);
+            if (diff > 0) return (diff / 60).toFixed(2).replace(".", ",");
+          }
+          return "";
+        })(),
+        cardapio: clientData.cardapio || eventData?.package_name || "",
+        valor_total_extenso: clientData.valor_total_extenso || "",
         value: eventData?.total_value ? `R$ ${Number(eventData.total_value).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "",
         valor_sinal: pd?.entrada_valor ? `R$ ${Number(pd.entrada_valor).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "",
         valor_restante: pd?.saldo_valor ? `R$ ${Number(pd.saldo_valor).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "",
