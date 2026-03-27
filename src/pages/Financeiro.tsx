@@ -30,63 +30,6 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-interface CollapsiblePaymentSectionProps {
-  title: string;
-  count: number;
-  total: number;
-  icon: ReactNode;
-  colorClass: string;
-  bgClass: string;
-  payments: any[];
-  onMarkAsPaid?: (id: string) => void;
-  onOpenEvent: (eventId: string) => void;
-}
-
-function CollapsiblePaymentSection({ title, count, total, icon, colorClass, bgClass, payments, onMarkAsPaid, onOpenEvent }: CollapsiblePaymentSectionProps) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  if (count === 0) {
-    return (
-      <Card className={`p-4 border ${bgClass}`}>
-        <div className="flex items-center gap-2">
-          <span className={colorClass}>{icon}</span>
-          <span className={`text-sm font-semibold ${colorClass}`}>{title}</span>
-          <span className="text-xs text-muted-foreground">(0)</span>
-        </div>
-        <p className="text-sm text-muted-foreground mt-1">Nenhum pagamento</p>
-      </Card>
-    );
-  }
-
-  return (
-    <section>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`w-full px-5 py-4 rounded-2xl border-l-4 ${bgClass} flex items-center justify-between gap-3 transition-all duration-200 hover:shadow-md group`}
-      >
-        <div className="flex items-center gap-3">
-          <span className={`${colorClass} opacity-80`}>{icon}</span>
-          <span className={`text-sm font-bold tracking-wide ${colorClass}`}>{title}</span>
-          <span className={`inline-flex items-center justify-center h-6 min-w-[24px] px-1.5 rounded-full text-xs font-bold text-white ${
-            title === 'Em Atraso' ? 'bg-red-500' : title === 'A Receber' ? 'bg-amber-500' : 'bg-emerald-500'
-          }`}>{count}</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className={`text-base font-extrabold ${colorClass}`}>{fmt(total)}</span>
-          <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-90' : 'group-hover:translate-x-0.5'}`} />
-        </div>
-      </button>
-      {isOpen && (
-        <div className="mt-3 space-y-2 pl-2">
-          {payments.map(p => (
-            <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={onMarkAsPaid} onOpenEvent={onOpenEvent} />
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
 export default function Financeiro() {
   const navigate = useNavigate();
   const { currentCompany } = useCompany();
