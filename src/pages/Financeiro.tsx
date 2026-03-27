@@ -1,4 +1,4 @@
-import { useState, ReactNode } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFinanceiroDashboard } from '@/hooks/useFinanceiroDashboard';
 import { useCompanyUnits } from '@/hooks/useCompanyUnits';
@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale, Building, Zap, PartyPopper, List, Users, ChevronRight } from 'lucide-react';
+import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale, Building, Zap, PartyPopper, List, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -29,63 +29,6 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-interface CollapsiblePaymentSectionProps {
-  title: string;
-  count: number;
-  total: number;
-  icon: ReactNode;
-  colorClass: string;
-  bgClass: string;
-  payments: any[];
-  onMarkAsPaid?: (id: string) => void;
-  onOpenEvent: (eventId: string) => void;
-}
-
-function CollapsiblePaymentSection({ title, count, total, icon, colorClass, bgClass, payments, onMarkAsPaid, onOpenEvent }: CollapsiblePaymentSectionProps) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  if (count === 0) {
-    return (
-      <Card className={`p-4 border ${bgClass}`}>
-        <div className="flex items-center gap-2">
-          <span className={colorClass}>{icon}</span>
-          <span className={`text-sm font-semibold ${colorClass}`}>{title}</span>
-          <span className="text-xs text-muted-foreground">(0)</span>
-        </div>
-        <p className="text-sm text-muted-foreground mt-1">Nenhum pagamento</p>
-      </Card>
-    );
-  }
-
-  return (
-    <section>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`w-full px-5 py-4 rounded-2xl border-l-4 ${bgClass} flex items-center justify-between gap-3 transition-all duration-200 hover:shadow-md group`}
-      >
-        <div className="flex items-center gap-3">
-          <span className={`${colorClass} opacity-80`}>{icon}</span>
-          <span className={`text-sm font-bold tracking-wide ${colorClass}`}>{title}</span>
-          <span className={`inline-flex items-center justify-center h-6 min-w-[24px] px-1.5 rounded-full text-xs font-bold text-white ${
-            title === 'Em Atraso' ? 'bg-red-500' : title === 'A Receber' ? 'bg-amber-500' : 'bg-emerald-500'
-          }`}>{count}</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className={`text-base font-extrabold ${colorClass}`}>{fmt(total)}</span>
-          <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-90' : 'group-hover:translate-x-0.5'}`} />
-        </div>
-      </button>
-      {isOpen && (
-        <div className="mt-3 space-y-2 pl-2">
-          {payments.map(p => (
-            <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={onMarkAsPaid} onOpenEvent={onOpenEvent} />
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
 
 export default function Financeiro() {
   const navigate = useNavigate();
@@ -242,71 +185,97 @@ export default function Financeiro() {
                 </TabsList>
 
                 {/* Tab Receitas */}
-                <TabsContent value="receitas" className="space-y-5">
-                  {/* View mode toggle */}
-                  <div className="flex items-center justify-end gap-1">
-                    <div className="flex items-center bg-muted/50 rounded-lg p-0.5 border border-border/50">
-                      <button
-                        onClick={() => setViewMode('list')}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                          viewMode === 'list' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                      >
-                        <List className="h-3.5 w-3.5" /> Lista
-                      </button>
-                      <button
-                        onClick={() => setViewMode('client')}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                          viewMode === 'client' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                      >
-                        <Users className="h-3.5 w-3.5" /> Por cliente
-                      </button>
+                <TabsContent value="receitas" className="space-y-4">
+                  <Tabs defaultValue="atraso" className="w-full">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <TabsList className="h-9">
+                        <TabsTrigger value="atraso" className="text-xs gap-1.5">
+                          <AlertTriangle className="h-3.5 w-3.5" /> Em Atraso
+                          {allLate.length > 0 && <Badge variant="destructive" className="ml-1 h-5 min-w-[20px] px-1 text-[10px]">{allLate.length}</Badge>}
+                        </TabsTrigger>
+                        <TabsTrigger value="receber" className="text-xs gap-1.5">
+                          <CalendarDays className="h-3.5 w-3.5" /> A Receber
+                          {allPending.length > 0 && <Badge className="ml-1 h-5 min-w-[20px] px-1 text-[10px] bg-amber-500">{allPending.length}</Badge>}
+                        </TabsTrigger>
+                        <TabsTrigger value="recebidos" className="text-xs gap-1.5">
+                          <TrendingUp className="h-3.5 w-3.5" /> Recebidos
+                          {allPaid.length > 0 && <Badge className="ml-1 h-5 min-w-[20px] px-1 text-[10px] bg-emerald-500">{allPaid.length}</Badge>}
+                        </TabsTrigger>
+                      </TabsList>
+                      <div className="flex items-center bg-muted/50 rounded-lg p-0.5 border border-border/50">
+                        <button
+                          onClick={() => setViewMode('list')}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                            viewMode === 'list' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          <List className="h-3.5 w-3.5" /> Lista
+                        </button>
+                        <button
+                          onClick={() => setViewMode('client')}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                            viewMode === 'client' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          <Users className="h-3.5 w-3.5" /> Por cliente
+                        </button>
+                      </div>
                     </div>
-                  </div>
 
-                  {viewMode === 'client' ? (
-                    <PaymentsByClientView
-                      payments={dashboard.payments}
-                      onMarkAsPaid={dashboard.markPaymentAsPaid}
-                      onOpenEvent={handleOpenEvent}
-                    />
-                  ) : (
-                    <>
-                    <CollapsiblePaymentSection
-                      title="Em Atraso"
-                      count={allLate.length}
-                      total={allLate.reduce((s, p) => s + p.amount, 0)}
-                      icon={<AlertTriangle className="h-4 w-4" />}
-                      colorClass="text-red-400"
-                      bgClass="bg-red-500/10 border-red-500/20"
-                      payments={allLate}
-                      onMarkAsPaid={dashboard.markPaymentAsPaid}
-                      onOpenEvent={handleOpenEvent}
-                    />
-                    <CollapsiblePaymentSection
-                      title="A Receber"
-                      count={allPending.length}
-                      total={allPending.reduce((s, p) => s + p.amount, 0)}
-                      icon={<CalendarDays className="h-4 w-4" />}
-                      colorClass="text-amber-400"
-                      bgClass="bg-amber-500/10 border-amber-500/20"
-                      payments={allPending}
-                      onMarkAsPaid={dashboard.markPaymentAsPaid}
-                      onOpenEvent={handleOpenEvent}
-                    />
-                    <CollapsiblePaymentSection
-                      title="Recebidos"
-                      count={allPaid.length}
-                      total={allPaid.reduce((s, p) => s + p.amount, 0)}
-                      icon={<TrendingUp className="h-4 w-4" />}
-                      colorClass="text-emerald-400"
-                      bgClass="bg-emerald-500/10 border-emerald-500/20"
-                      payments={allPaid}
-                      onOpenEvent={handleOpenEvent}
-                    />
-                    </>
-                  )}
+                    <TabsContent value="atraso" className="space-y-3 mt-3">
+                      <div className="flex items-center justify-between">
+                        <h2 className="text-sm font-semibold text-foreground">
+                          Em Atraso ({allLate.length})
+                          {allLate.length > 0 && <span className="ml-2 text-red-400 font-bold">{fmt(allLate.reduce((s, p) => s + p.amount, 0))}</span>}
+                        </h2>
+                      </div>
+                      {viewMode === 'client' ? (
+                        <PaymentsByClientView payments={allLate} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />
+                      ) : allLate.length === 0 ? (
+                        <Card className="p-6 text-center text-muted-foreground text-sm">Nenhum pagamento em atraso 🎉</Card>
+                      ) : (
+                        <div className="space-y-2">
+                          {allLate.map(p => <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />)}
+                        </div>
+                      )}
+                    </TabsContent>
+
+                    <TabsContent value="receber" className="space-y-3 mt-3">
+                      <div className="flex items-center justify-between">
+                        <h2 className="text-sm font-semibold text-foreground">
+                          A Receber ({allPending.length})
+                          {allPending.length > 0 && <span className="ml-2 text-amber-400 font-bold">{fmt(allPending.reduce((s, p) => s + p.amount, 0))}</span>}
+                        </h2>
+                      </div>
+                      {viewMode === 'client' ? (
+                        <PaymentsByClientView payments={allPending} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />
+                      ) : allPending.length === 0 ? (
+                        <Card className="p-6 text-center text-muted-foreground text-sm">Nenhum pagamento pendente</Card>
+                      ) : (
+                        <div className="space-y-2">
+                          {allPending.map(p => <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />)}
+                        </div>
+                      )}
+                    </TabsContent>
+
+                    <TabsContent value="recebidos" className="space-y-3 mt-3">
+                      <div className="flex items-center justify-between">
+                        <h2 className="text-sm font-semibold text-foreground">
+                          Recebidos ({allPaid.length})
+                          {allPaid.length > 0 && <span className="ml-2 text-emerald-400 font-bold">{fmt(allPaid.reduce((s, p) => s + p.amount, 0))}</span>}
+                        </h2>
+                      </div>
+                      {viewMode === 'client' ? (
+                        <PaymentsByClientView payments={allPaid} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />
+                      ) : allPaid.length === 0 ? (
+                        <Card className="p-6 text-center text-muted-foreground text-sm">Nenhum pagamento recebido</Card>
+                      ) : (
+                        <div className="space-y-2">
+                          {allPaid.map(p => <FinancialPaymentCard key={p.id} payment={p} onOpenEvent={handleOpenEvent} />)}
+                        </div>
+                      )}
+                    </TabsContent>
+                  </Tabs>
                 </TabsContent>
 
                 {/* Tab Despesas */}
