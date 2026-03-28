@@ -21,7 +21,7 @@ export default function HubHero({ onOpenWizard, videoUrl }: HubHeroProps) {
           className="text-center max-w-3xl mx-auto"
         >
 
-          <h1 className="font-display text-[2rem] leading-[1.1] sm:text-5xl lg:text-[3.5rem] font-bold text-white tracking-tight">
+          <h1 className="font-display text-[2.5rem] leading-[1.1] sm:text-5xl lg:text-[3.75rem] font-bold text-white tracking-tight">
             Seu buffet perdendo festas
             <br className="hidden sm:block" />
             <span className="sm:mt-1 inline-block">
@@ -40,7 +40,7 @@ export default function HubHero({ onOpenWizard, videoUrl }: HubHeroProps) {
             </span>
           </h1>
 
-          <p className="mt-5 sm:mt-6 text-sm sm:text-lg text-white/50 leading-relaxed max-w-xl mx-auto">
+          <p className="mt-5 sm:mt-6 text-base sm:text-xl text-white/50 leading-relaxed max-w-xl mx-auto">
             A Celebrei automatiza seu WhatsApp, organiza seus leads e fecha festas enquanto você dorme.
           </p>
 
