@@ -1,4 +1,4 @@
-import { AbsoluteFill, useCurrentFrame, interpolate, useVideoConfig } from "remotion";
+import { AbsoluteFill, useCurrentFrame, interpolate } from "remotion";
 import { loadFont } from "@remotion/google-fonts/Inter";
 import { GridBackground } from "../components/GridBackground";
 
@@ -20,17 +20,17 @@ export const SceneProblem = () => {
   return (
     <AbsoluteFill>
       <GridBackground />
-      <AbsoluteFill style={{ padding: "0 50px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-        <div style={{ opacity: titleOpacity, transform: `translateY(${titleY}px)`, marginBottom: 60, textAlign: "center" }}>
-          <h2 style={{ fontFamily, fontWeight: 900, fontSize: 52, color: "white", margin: 0, lineHeight: 1.15 }}>
+      <AbsoluteFill style={{ padding: "0 60px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+        <div style={{ opacity: titleOpacity, transform: `translateY(${titleY}px)`, marginBottom: 70, textAlign: "center" }}>
+          <h2 style={{ fontFamily, fontWeight: 900, fontSize: 72, color: "white", margin: 0, lineHeight: 1.15 }}>
             Seu buffet ainda
           </h2>
-          <h2 style={{ fontFamily, fontWeight: 900, fontSize: 52, color: "#ef4444", margin: 0, lineHeight: 1.15 }}>
+          <h2 style={{ fontFamily, fontWeight: 900, fontSize: 72, color: "#ef4444", margin: 0, lineHeight: 1.15 }}>
             sofre com isso?
           </h2>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: "0 10px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 20, padding: "0 10px" }}>
           {painPoints.map((point, i) => {
             const delay = 40 + i * 18;
             const cardOpacity = interpolate(frame, [delay, delay + 15], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
@@ -41,14 +41,14 @@ export const SceneProblem = () => {
             return (
               <div key={i} style={{
                 opacity: cardOpacity, transform: `translateX(${cardX}px)`,
-                background: "rgba(255,255,255,0.04)", borderRadius: 16,
-                border: "1px solid rgba(255,255,255,0.06)", padding: "20px 24px",
-                display: "flex", alignItems: "center", gap: 16, position: "relative",
+                background: "rgba(255,255,255,0.04)", borderRadius: 20,
+                border: "1px solid rgba(255,255,255,0.06)", padding: "26px 30px",
+                display: "flex", alignItems: "center", gap: 20, position: "relative",
               }}>
-                <span style={{ fontSize: 24 }}>{point.icon}</span>
-                <span style={{ fontFamily, fontWeight: 600, fontSize: 22, color: "rgba(255,255,255,0.85)" }}>{point.text}</span>
+                <span style={{ fontSize: 38 }}>{point.icon}</span>
+                <span style={{ fontFamily, fontWeight: 600, fontSize: 30, color: "rgba(255,255,255,0.85)" }}>{point.text}</span>
                 <div style={{
-                  position: "absolute", left: 60, top: "50%", height: 2,
+                  position: "absolute", left: 80, top: "50%", height: 3,
                   width: `${strikeWidth}%`, background: "#ef4444", transform: "translateY(-50%)",
                 }} />
               </div>

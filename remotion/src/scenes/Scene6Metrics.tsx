@@ -21,14 +21,14 @@ export const Scene6Metrics = () => {
   return (
     <AbsoluteFill>
       <GridBackground />
-      <AbsoluteFill style={{ padding: "0 40px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-        <div style={{ opacity: titleOpacity, transform: `translateY(${titleY}px)`, marginBottom: 50, textAlign: "center" }}>
-          <h2 style={{ fontFamily, fontWeight: 900, fontSize: 48, color: "white", margin: 0 }}>
+      <AbsoluteFill style={{ padding: "0 55px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+        <div style={{ opacity: titleOpacity, transform: `translateY(${titleY}px)`, marginBottom: 60, textAlign: "center" }}>
+          <h2 style={{ fontFamily, fontWeight: 900, fontSize: 66, color: "white", margin: 0 }}>
             Resultados que{" "}<span style={{ color: "#8b5cf6" }}>transformam</span>
           </h2>
         </div>
 
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, justifyContent: "center" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 20, justifyContent: "center" }}>
           {metrics.map((m, i) => {
             const delay = 30 + i * 15;
             const cardOpacity = interpolate(frame, [delay, delay + 18], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
@@ -37,11 +37,11 @@ export const Scene6Metrics = () => {
               <div key={i} style={{
                 width: "46%", opacity: cardOpacity,
                 transform: `scale(${interpolate(cardScale, [0, 1], [0.9, 1])})`,
-                background: "rgba(255,255,255,0.04)", borderRadius: 20,
-                border: "1px solid rgba(255,255,255,0.06)", padding: "32px 20px", textAlign: "center",
+                background: "rgba(255,255,255,0.04)", borderRadius: 24,
+                border: "1px solid rgba(255,255,255,0.06)", padding: "44px 24px", textAlign: "center",
               }}>
-                <p style={{ fontFamily, fontWeight: 900, fontSize: 48, color: m.color, margin: "0 0 8px 0" }}>{m.value}</p>
-                <p style={{ fontFamily, fontWeight: 400, fontSize: 15, color: "rgba(255,255,255,0.45)", margin: 0, lineHeight: 1.3 }}>{m.label}</p>
+                <p style={{ fontFamily, fontWeight: 900, fontSize: 68, color: m.color, margin: "0 0 12px 0" }}>{m.value}</p>
+                <p style={{ fontFamily, fontWeight: 400, fontSize: 22, color: "rgba(255,255,255,0.45)", margin: 0, lineHeight: 1.3 }}>{m.label}</p>
               </div>
             );
           })}

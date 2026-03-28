@@ -23,42 +23,42 @@ export const Scene7CTA = () => {
       <GridBackground />
       <div style={{
         position: "absolute", bottom: -100, left: "50%", transform: "translateX(-50%)",
-        width: 800, height: 400, borderRadius: "50%",
+        width: 900, height: 500, borderRadius: "50%",
         background: "radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%)",
         filter: "blur(40px)",
       }} />
 
       <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, padding: "0 60px" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 28, padding: "0 60px" }}>
           <div style={{
-            width: 80, height: 80, borderRadius: 20,
+            width: 120, height: 120, borderRadius: 30,
             background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
             display: "flex", alignItems: "center", justifyContent: "center",
             transform: `scale(${interpolate(iconScale, [0, 1], [0.5, 1])})`,
-            opacity: iconOpacity, boxShadow: "0 8px 32px rgba(99,102,241,0.3)",
+            opacity: iconOpacity, boxShadow: "0 12px 48px rgba(99,102,241,0.35)",
           }}>
-            <span style={{ fontSize: 40, color: "white", fontFamily, fontWeight: 900 }}>C</span>
+            <span style={{ fontSize: 60, color: "white", fontFamily, fontWeight: 900 }}>C</span>
           </div>
 
           <h2 style={{
-            fontFamily, fontWeight: 900, fontSize: 52, color: "white", margin: 0, textAlign: "center", lineHeight: 1.1,
+            fontFamily, fontWeight: 900, fontSize: 72, color: "white", margin: 0, textAlign: "center", lineHeight: 1.1,
             opacity: titleOpacity, transform: `translateY(${titleY}px)`,
           }}>Transforme seu buffet</h2>
 
           <p style={{
-            fontFamily, fontWeight: 400, fontSize: 22, color: "rgba(255,255,255,0.5)", margin: 0, textAlign: "center", opacity: subOpacity,
+            fontFamily, fontWeight: 400, fontSize: 30, color: "rgba(255,255,255,0.5)", margin: 0, textAlign: "center", opacity: subOpacity,
           }}>Agende uma demonstração gratuita</p>
 
           <div style={{
             opacity: btnOpacity, transform: `translateY(${btnY}px) scale(${pulse})`,
-            background: "linear-gradient(135deg, #6366f1, #8b5cf6)", borderRadius: 14, padding: "18px 40px",
-            boxShadow: "0 4px 20px rgba(99,102,241,0.35)", marginTop: 10,
+            background: "linear-gradient(135deg, #6366f1, #8b5cf6)", borderRadius: 18, padding: "24px 56px",
+            boxShadow: "0 6px 28px rgba(99,102,241,0.35)", marginTop: 14,
           }}>
-            <span style={{ fontFamily, fontWeight: 700, fontSize: 20, color: "white" }}>Fale com um especialista →</span>
+            <span style={{ fontFamily, fontWeight: 700, fontSize: 28, color: "white" }}>Fale com um especialista →</span>
           </div>
 
           <p style={{
-            fontFamily, fontWeight: 400, fontSize: 16, color: "rgba(255,255,255,0.3)", margin: "8px 0 0 0", opacity: urlOpacity,
+            fontFamily, fontWeight: 400, fontSize: 24, color: "rgba(255,255,255,0.3)", margin: "12px 0 0 0", opacity: urlOpacity,
           }}>celebrei.com.br</p>
         </div>
       </AbsoluteFill>
