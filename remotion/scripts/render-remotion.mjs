@@ -34,7 +34,7 @@ await renderMedia({
   codec: "h264",
   outputLocation: "/mnt/documents/celebrei-promo.mp4",
   puppeteerInstance: browser,
-  muted: true,
+  muted: false,
   concurrency: 1,
 });
 
