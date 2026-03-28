@@ -32,7 +32,7 @@ export const Scene3WhatsApp = () => {
     <AbsoluteFill>
       {/* WhatsApp phone image behind */}
       <div style={{
-        position: "absolute", top: 80, left: "50%", transform: `translateX(-50%) scale(${interpolate(phoneScale, [0, 1], [0.8, 0.6])})`,
+        position: "absolute", top: 250, left: "50%", transform: `translateX(-50%) scale(${interpolate(phoneScale, [0, 1], [0.8, 0.6])})`,
         opacity: phoneOpacity * 0.2, filter: "blur(3px)",
       }}>
         <Img src={staticFile("images/whatsapp-chat.jpg")} style={{ width: 700, borderRadius: 40 }} />
