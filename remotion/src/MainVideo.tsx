@@ -55,6 +55,19 @@ export const MainVideo = () => {
         filter: "blur(40px)",
       }} />
 
+      {/* Trilha sonora */}
+      <Audio
+        src={staticFile("audio/trilha.mp3")}
+        volume={(f) =>
+          interpolate(
+            f,
+            [0, 2 * fps, durationInFrames - 3 * fps, durationInFrames],
+            [0, 0.7, 0.7, 0],
+            { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
+          )
+        }
+      />
+
       {/* Scenes */}
       <TransitionSeries>
         <TransitionSeries.Sequence durationInFrames={200}>
