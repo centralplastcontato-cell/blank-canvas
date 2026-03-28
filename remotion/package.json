@@ -15,7 +15,6 @@
     "@remotion/compositor-linux-x64-musl": "4.0.242",
     "@remotion/fonts": "4.0.242",
     "@remotion/google-fonts": "4.0.242",
-    "@remotion/media": "^4.0.441",
     "@remotion/renderer": "4.0.242",
     "@remotion/transitions": "4.0.242",
     "@types/react": "^19.2.14",
