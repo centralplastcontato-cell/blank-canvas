@@ -1,4 +1,4 @@
-import { AbsoluteFill, useCurrentFrame, interpolate, spring, useVideoConfig } from "remotion";
+import { AbsoluteFill, useCurrentFrame, interpolate, spring, useVideoConfig, Img, staticFile } from "remotion";
 import { loadFont } from "@remotion/google-fonts/Inter";
 
 const { fontFamily } = loadFont("normal", { weights: ["400", "800", "900"], subsets: ["latin"] });
@@ -7,82 +7,83 @@ export const Scene5Intel = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
+  // AI dashboard image
+  const dashOpacity = interpolate(frame, [10, 30], [0, 1], { extrapolateRight: "clamp" });
+  const dashY = interpolate(spring({ frame: frame - 10, fps, config: { damping: 20, stiffness: 150 } }), [0, 1], [80, 0]);
+
   // Animated chart bars
   const bars = [
-    { label: "Jan", height: 60, color: "#818cf8" },
-    { label: "Fev", height: 45, color: "#818cf8" },
-    { label: "Mar", height: 80, color: "#22d3ee" },
-    { label: "Abr", height: 70, color: "#818cf8" },
-    { label: "Mai", height: 95, color: "#f472b6" },
-    { label: "Jun", height: 85, color: "#818cf8" },
+    { label: "Jan", h: 55, color: "#818cf8" },
+    { label: "Fev", h: 42, color: "#818cf8" },
+    { label: "Mar", h: 78, color: "#22d3ee" },
+    { label: "Abr", h: 65, color: "#818cf8" },
+    { label: "Mai", h: 92, color: "#f472b6" },
+    { label: "Jun", h: 85, color: "#22d3ee" },
+    { label: "Jul", h: 98, color: "#f472b6" },
   ];
 
   const insights = [
-    { emoji: "🔥", text: "12 leads quentes para contatar hoje", delay: 80 },
-    { emoji: "⚠️", text: "5 negociações paradas há +7 dias", delay: 95 },
-    { emoji: "💡", text: "Melhor horário de resposta: 9h-11h", delay: 110 },
+    { emoji: "🔥", text: "12 leads quentes para hoje", color: "#ef4444" },
+    { emoji: "⚡", text: "Melhor horário: 9h-11h", color: "#eab308" },
+    { emoji: "📊", text: "Conversão subiu 23% este mês", color: "#22c55e" },
   ];
 
   return (
-    <AbsoluteFill style={{ justifyContent: "flex-start", alignItems: "center", padding: 60 }}>
+    <AbsoluteFill>
       {/* Badge */}
-      <div
-        style={{
-          marginTop: 150,
-          background: "rgba(34,211,238,0.15)",
-          borderRadius: 100,
-          padding: "10px 24px",
-          opacity: interpolate(frame, [0, 15], [0, 1], { extrapolateRight: "clamp" }),
-        }}
-      >
-        <span style={{ fontFamily, fontWeight: 800, fontSize: 18, color: "#22d3ee" }}>
-          🧠 INTELIGÊNCIA ARTIFICIAL
-        </span>
+      <div style={{
+        position: "absolute", top: 130, left: "50%", transform: "translateX(-50%)",
+        background: "rgba(34,211,238,0.15)", borderRadius: 100, padding: "12px 28px",
+        opacity: interpolate(frame, [0, 12], [0, 1], { extrapolateRight: "clamp" }),
+      }}>
+        <span style={{ fontFamily, fontWeight: 800, fontSize: 20, color: "#22d3ee" }}>🧠 INTELIGÊNCIA ARTIFICIAL</span>
       </div>
 
       {/* Title */}
-      <h2
-        style={{
-          fontFamily, fontWeight: 900, fontSize: 56, color: "white", margin: 0, marginTop: 24,
-          textAlign: "center", lineHeight: 1.1,
-          opacity: interpolate(frame, [5, 25], [0, 1], { extrapolateRight: "clamp" }),
-          transform: `translateY(${interpolate(spring({ frame: frame - 5, fps, config: { damping: 20, stiffness: 200 } }), [0, 1], [40, 0])}px)`,
-        }}
-      >
-        Dados que
-        <br />
-        <span style={{ color: "#22d3ee" }}>vendem festas</span>
-      </h2>
+      <div style={{
+        position: "absolute", top: 210, left: 50, right: 50, textAlign: "center",
+        opacity: interpolate(frame, [3, 20], [0, 1], { extrapolateRight: "clamp" }),
+        transform: `translateY(${interpolate(spring({ frame: frame - 3, fps, config: { damping: 20, stiffness: 200 } }), [0, 1], [50, 0])}px)`,
+      }}>
+        <h2 style={{ fontFamily, fontWeight: 900, fontSize: 60, color: "white", margin: 0, lineHeight: 1.05 }}>
+          Dados que
+        </h2>
+        <h2 style={{ fontFamily, fontWeight: 900, fontSize: 60, color: "#22d3ee", margin: 0, lineHeight: 1.05 }}>
+          vendem festas
+        </h2>
+      </div>
 
-      {/* Chart */}
-      <div
-        style={{
-          marginTop: 50, width: "100%", padding: "0 60px",
-          background: "rgba(255,255,255,0.04)",
-          borderRadius: 24,
-          border: "1px solid rgba(255,255,255,0.06)",
-          padding: 32,
-        }}
-      >
-        <p style={{ fontFamily, fontWeight: 800, fontSize: 18, color: "rgba(255,255,255,0.6)", margin: 0, marginBottom: 24 }}>
+      {/* AI Dashboard image */}
+      <div style={{
+        position: "absolute", top: 400, left: 25, right: 25,
+        borderRadius: 20, overflow: "hidden",
+        border: "1px solid rgba(255,255,255,0.1)",
+        boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+        opacity: dashOpacity, transform: `translateY(${dashY}px)`,
+      }}>
+        <Img src={staticFile("images/ai-analytics.jpg")} style={{ width: "100%", height: "auto", display: "block" }} />
+      </div>
+
+      {/* Chart overlay */}
+      <div style={{
+        position: "absolute", top: 780, left: 40, right: 40,
+        background: "rgba(10,15,26,0.9)", borderRadius: 24,
+        border: "1px solid rgba(255,255,255,0.08)", padding: "20px 24px",
+      }}>
+        <p style={{ fontFamily, fontWeight: 800, fontSize: 16, color: "rgba(255,255,255,0.5)", margin: 0, marginBottom: 16 }}>
           Festas fechadas por mês
         </p>
-        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", height: 200, gap: 16 }}>
+        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", height: 140, gap: 8 }}>
           {bars.map((bar, i) => {
-            const barDelay = 30 + i * 8;
-            const barHeight = spring({ frame: frame - barDelay, fps, config: { damping: 15, stiffness: 120 } });
-
+            const barDelay = 35 + i * 6;
+            const barH = spring({ frame: frame - barDelay, fps, config: { damping: 15, stiffness: 120 } });
             return (
-              <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, flex: 1 }}>
-                <div
-                  style={{
-                    width: "100%",
-                    height: interpolate(barHeight, [0, 1], [0, bar.height * 2]),
-                    borderRadius: 12,
-                    background: `linear-gradient(180deg, ${bar.color}, ${bar.color}66)`,
-                  }}
-                />
-                <span style={{ fontFamily, fontWeight: 400, fontSize: 13, color: "rgba(255,255,255,0.35)" }}>{bar.label}</span>
+              <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, flex: 1 }}>
+                <div style={{
+                  width: "100%", height: interpolate(barH, [0, 1], [0, bar.h * 1.4]),
+                  borderRadius: 8, background: `linear-gradient(180deg, ${bar.color}, ${bar.color}44)`,
+                }} />
+                <span style={{ fontFamily, fontWeight: 400, fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{bar.label}</span>
               </div>
             );
           })}
@@ -90,26 +91,23 @@ export const Scene5Intel = () => {
       </div>
 
       {/* AI Insights */}
-      <div style={{ marginTop: 30, width: "100%", padding: "0 60px", display: "flex", flexDirection: "column", gap: 12 }}>
-        {insights.map((insight, i) => {
-          const insightOpacity = interpolate(frame, [insight.delay, insight.delay + 15], [0, 1], { extrapolateRight: "clamp" });
-          const insightY = spring({ frame: frame - insight.delay, fps, config: { damping: 20, stiffness: 200 } });
-
+      <div style={{
+        position: "absolute", bottom: 200, left: 40, right: 40,
+        display: "flex", flexDirection: "column", gap: 10,
+      }}>
+        {insights.map((ins, i) => {
+          const delay = 80 + i * 10;
+          const insOpacity = interpolate(frame, [delay, delay + 10], [0, 1], { extrapolateRight: "clamp" });
+          const insX = interpolate(spring({ frame: frame - delay, fps, config: { damping: 20, stiffness: 200 } }), [0, 1], [-150, 0]);
           return (
-            <div
-              key={i}
-              style={{
-                display: "flex", alignItems: "center", gap: 16,
-                background: "rgba(255,255,255,0.04)",
-                borderRadius: 16,
-                padding: "16px 20px",
-                border: "1px solid rgba(255,255,255,0.06)",
-                opacity: insightOpacity,
-                transform: `translateY(${interpolate(insightY, [0, 1], [30, 0])}px)`,
-              }}
-            >
-              <span style={{ fontSize: 32 }}>{insight.emoji}</span>
-              <p style={{ fontFamily, fontWeight: 400, fontSize: 17, color: "rgba(255,255,255,0.7)", margin: 0 }}>{insight.text}</p>
+            <div key={i} style={{
+              display: "flex", alignItems: "center", gap: 14,
+              background: "rgba(255,255,255,0.05)", borderRadius: 16, padding: "14px 18px",
+              border: "1px solid rgba(255,255,255,0.06)",
+              opacity: insOpacity, transform: `translateX(${insX}px)`,
+            }}>
+              <span style={{ fontSize: 28 }}>{ins.emoji}</span>
+              <p style={{ fontFamily, fontWeight: 400, fontSize: 17, color: "rgba(255,255,255,0.75)", margin: 0 }}>{ins.text}</p>
             </div>
           );
         })}
