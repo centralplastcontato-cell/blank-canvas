@@ -1,104 +1,93 @@
-import { AbsoluteFill, useCurrentFrame, interpolate, spring, useVideoConfig, Img, staticFile } from "remotion";
+import { AbsoluteFill, useCurrentFrame, interpolate, useVideoConfig } from "remotion";
 import { loadFont } from "@remotion/google-fonts/Inter";
+import { GridBackground } from "../components/GridBackground";
 
-const { fontFamily } = loadFont("normal", { weights: ["400", "800", "900"], subsets: ["latin"] });
+const { fontFamily } = loadFont("normal", { weights: ["400", "700", "800", "900"], subsets: ["latin"] });
 
 export const SceneFinanceiro = () => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
 
-  const dashOpacity = interpolate(frame, [10, 30], [0, 1], { extrapolateRight: "clamp" });
-  const dashY = interpolate(spring({ frame: frame - 10, fps, config: { damping: 20, stiffness: 150 } }), [0, 1], [80, 0]);
+  const badgeOpacity = interpolate(frame, [5, 18], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const titleOpacity = interpolate(frame, [12, 30], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const titleY = interpolate(frame, [12, 30], [25, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
 
   const payments = [
-    { name: "Festa Sofia", value: "R$ 8.500", status: "Pago", color: "#22c55e" },
-    { name: "Festa Lucas", value: "R$ 12.000", status: "2/3 parcelas", color: "#eab308" },
-    { name: "Festa Helena", value: "R$ 6.800", status: "Pendente", color: "#ef4444" },
+    { name: "Festa Laura", value: "R$ 4.500", status: "Pago", statusColor: "#22c55e" },
+    { name: "Aniversário Pedro", value: "R$ 3.200", status: "Pendente", statusColor: "#f59e0b" },
+    { name: "Festa da Sofia", value: "R$ 5.800", status: "Vencido", statusColor: "#ef4444" },
   ];
-
-  const statProgress = interpolate(frame, [60, 100], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
 
   return (
     <AbsoluteFill>
-      {/* Badge */}
-      <div style={{
-        position: "absolute", top: 130, left: "50%", transform: "translateX(-50%)",
-        background: "rgba(34,197,94,0.15)", borderRadius: 100, padding: "12px 28px",
-        opacity: interpolate(frame, [0, 12], [0, 1], { extrapolateRight: "clamp" }),
-      }}>
-        <span style={{ fontFamily, fontWeight: 800, fontSize: 20, color: "#22c55e" }}>💰 CONTROLE FINANCEIRO</span>
-      </div>
-
-      {/* Title */}
-      <div style={{
-        position: "absolute", top: 210, left: 50, right: 50, textAlign: "center",
-        opacity: interpolate(frame, [3, 20], [0, 1], { extrapolateRight: "clamp" }),
-        transform: `translateY(${interpolate(spring({ frame: frame - 3, fps, config: { damping: 20, stiffness: 200 } }), [0, 1], [50, 0])}px)`,
-      }}>
-        <h2 style={{ fontFamily, fontWeight: 900, fontSize: 58, color: "white", margin: 0, lineHeight: 1.05 }}>
-          Dinheiro no
-        </h2>
-        <h2 style={{ fontFamily, fontWeight: 900, fontSize: 58, color: "#22c55e", margin: 0, lineHeight: 1.05 }}>
-          controle total
-        </h2>
-      </div>
-
-      {/* Dashboard image */}
-      <div style={{
-        position: "absolute", top: 410, left: 25, right: 25,
-        borderRadius: 20, overflow: "hidden",
-        border: "1px solid rgba(255,255,255,0.1)",
-        boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
-        opacity: dashOpacity, transform: `translateY(${dashY}px)`,
-      }}>
-        <Img src={staticFile("images/financial-dashboard.jpg")} style={{ width: "100%", height: "auto", display: "block" }} />
-      </div>
-
-      {/* Payment cards */}
-      <div style={{
-        position: "absolute", bottom: 340, left: 35, right: 35,
-        display: "flex", flexDirection: "column", gap: 12,
-      }}>
-        {payments.map((p, i) => {
-          const delay = 40 + i * 10;
-          const cOp = interpolate(frame, [delay, delay + 10], [0, 1], { extrapolateRight: "clamp" });
-          const cX = interpolate(spring({ frame: frame - delay, fps, config: { damping: 20, stiffness: 200 } }), [0, 1], [200, 0]);
-          return (
-            <div key={i} style={{
-              background: "rgba(10,15,26,0.85)", borderRadius: 18, padding: "16px 20px",
-              border: "1px solid rgba(255,255,255,0.08)",
-              display: "flex", justifyContent: "space-between", alignItems: "center",
-              opacity: cOp, transform: `translateX(${cX}px)`,
-            }}>
-              <div>
-                <p style={{ fontFamily, fontWeight: 800, fontSize: 18, color: "white", margin: 0 }}>{p.name}</p>
-                <p style={{ fontFamily, fontWeight: 400, fontSize: 13, color: "rgba(255,255,255,0.4)", margin: 0 }}>{p.status}</p>
-              </div>
-              <span style={{ fontFamily, fontWeight: 900, fontSize: 22, color: p.color }}>{p.value}</span>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Revenue stats */}
-      <div style={{
-        position: "absolute", bottom: 140, left: 40, right: 40,
-        display: "flex", gap: 16,
-        opacity: interpolate(frame, [80, 100], [0, 1], { extrapolateRight: "clamp" }),
-      }}>
-        {[
-          { label: "Receita mensal", value: `R$ ${Math.round(185000 * statProgress).toLocaleString("pt-BR")}`, color: "#22c55e" },
-          { label: "Ticket médio", value: `R$ ${Math.round(9500 * statProgress).toLocaleString("pt-BR")}`, color: "#818cf8" },
-        ].map((s, i) => (
-          <div key={i} style={{
-            flex: 1, textAlign: "center", background: "rgba(255,255,255,0.05)",
-            borderRadius: 18, padding: "18px 10px", border: "1px solid rgba(255,255,255,0.08)",
-          }}>
-            <p style={{ fontFamily, fontWeight: 900, fontSize: 28, color: s.color, margin: 0 }}>{s.value}</p>
-            <p style={{ fontFamily, fontWeight: 400, fontSize: 13, color: "rgba(255,255,255,0.4)", margin: 0 }}>{s.label}</p>
+      <GridBackground />
+      <AbsoluteFill style={{ padding: "0 50px", display: "flex", flexDirection: "column" }}>
+        <div style={{ marginTop: 260 }}>
+          <p style={{
+            fontFamily, fontWeight: 700, fontSize: 14, color: "#f59e0b",
+            letterSpacing: 3, textTransform: "uppercase", margin: "0 0 12px 0", opacity: badgeOpacity,
+          }}>CONTROLE FINANCEIRO</p>
+          <div style={{ opacity: titleOpacity, transform: `translateY(${titleY}px)` }}>
+            <h2 style={{ fontFamily, fontWeight: 900, fontSize: 46, color: "white", margin: 0, lineHeight: 1.1 }}>
+              Pagamentos e receita{" "}<span style={{ color: "#f59e0b" }}>sob controle</span>
+            </h2>
           </div>
-        ))}
-      </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 14, marginTop: 40 }}>
+          {[
+            { label: "Receita Mês", value: "R$ 48.500", color: "#22c55e" },
+            { label: "Pendente", value: "R$ 12.200", color: "#f59e0b" },
+          ].map((card, i) => {
+            const delay = 35 + i * 12;
+            return (
+              <div key={i} style={{
+                flex: 1, background: "rgba(255,255,255,0.04)", borderRadius: 18,
+                border: "1px solid rgba(255,255,255,0.06)", padding: "22px 20px",
+                opacity: interpolate(frame, [delay, delay + 15], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
+                transform: `translateY(${interpolate(frame, [delay, delay + 15], [20, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })}px)`,
+              }}>
+                <p style={{ fontFamily, fontWeight: 400, fontSize: 14, color: "rgba(255,255,255,0.4)", margin: "0 0 6px 0" }}>{card.label}</p>
+                <p style={{ fontFamily, fontWeight: 900, fontSize: 28, color: card.color, margin: 0 }}>{card.value}</p>
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{
+          marginTop: 18,
+          opacity: interpolate(frame, [55, 75], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
+          transform: `translateY(${interpolate(frame, [55, 75], [30, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })}px)`,
+          background: "rgba(255,255,255,0.04)", borderRadius: 20,
+          border: "1px solid rgba(255,255,255,0.06)", padding: "24px 20px",
+        }}>
+          <p style={{ fontFamily, fontWeight: 800, fontSize: 20, color: "white", margin: "0 0 16px 0" }}>💰 Pagamentos</p>
+          {payments.map((pay, i) => {
+            const payDelay = 65 + i * 14;
+            const payOpacity = interpolate(frame, [payDelay, payDelay + 12], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+            return (
+              <div key={i} style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                padding: "12px 0", opacity: payOpacity,
+                borderBottom: i < 2 ? "1px solid rgba(255,255,255,0.04)" : "none",
+              }}>
+                <span style={{ fontFamily, fontWeight: 600, fontSize: 17, color: "rgba(255,255,255,0.8)" }}>{pay.name}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontFamily, fontWeight: 700, fontSize: 17, color: "white" }}>{pay.value}</span>
+                  <span style={{
+                    fontFamily, fontWeight: 600, fontSize: 11, color: pay.statusColor,
+                    background: `${pay.statusColor}18`, padding: "3px 8px", borderRadius: 6,
+                  }}>{pay.status}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <p style={{
+          fontFamily, fontWeight: 400, fontSize: 14, color: "rgba(255,255,255,0.25)", margin: "24px 0 0 0",
+          opacity: interpolate(frame, [110, 125], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
+        }}>Geração automática de cards para cada obrigação</p>
+      </AbsoluteFill>
     </AbsoluteFill>
   );
 };
