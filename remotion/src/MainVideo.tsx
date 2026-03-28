@@ -55,47 +55,47 @@ export const MainVideo = () => {
 
       {/* Scenes */}
       <TransitionSeries>
-        <TransitionSeries.Sequence durationInFrames={130}>
+        <TransitionSeries.Sequence durationInFrames={200}>
           <Scene1Logo />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition presentation={fade()} timing={timing} />
 
-        <TransitionSeries.Sequence durationInFrames={120}>
+        <TransitionSeries.Sequence durationInFrames={200}>
           <SceneProblem />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition presentation={wipe({ direction: "from-left" })} timing={bouncyTiming} />
 
-        <TransitionSeries.Sequence durationInFrames={140}>
+        <TransitionSeries.Sequence durationInFrames={220}>
           <Scene2CRM />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition presentation={slide({ direction: "from-bottom" })} timing={timing} />
 
-        <TransitionSeries.Sequence durationInFrames={145}>
+        <TransitionSeries.Sequence durationInFrames={230}>
           <Scene3WhatsApp />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition presentation={wipe({ direction: "from-right" })} timing={timing} />
 
-        <TransitionSeries.Sequence durationInFrames={135}>
+        <TransitionSeries.Sequence durationInFrames={210}>
           <Scene4Agenda />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition presentation={fade()} timing={timing} />
 
-        <TransitionSeries.Sequence durationInFrames={130}>
+        <TransitionSeries.Sequence durationInFrames={200}>
           <Scene5Intel />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition presentation={slide({ direction: "from-left" })} timing={timing} />
 
-        <TransitionSeries.Sequence durationInFrames={125}>
+        <TransitionSeries.Sequence durationInFrames={200}>
           <SceneFinanceiro />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition presentation={fade()} timing={timing} />
 
-        <TransitionSeries.Sequence durationInFrames={130}>
+        <TransitionSeries.Sequence durationInFrames={200}>
           <Scene6Metrics />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition presentation={wipe({ direction: "from-bottom" })} timing={bouncyTiming} />
 
-        <TransitionSeries.Sequence durationInFrames={200}>
+        <TransitionSeries.Sequence durationInFrames={300}>
           <Scene7CTA />
         </TransitionSeries.Sequence>
       </TransitionSeries>
