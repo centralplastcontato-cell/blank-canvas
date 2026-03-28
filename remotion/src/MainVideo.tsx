@@ -1,5 +1,4 @@
-import { AbsoluteFill, useCurrentFrame, interpolate, staticFile, useVideoConfig } from "remotion";
-import { Audio } from "@remotion/media";
+import { AbsoluteFill, useCurrentFrame, interpolate, staticFile, useVideoConfig, Audio } from "remotion";
 import { TransitionSeries, springTiming } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
 import { slide } from "@remotion/transitions/slide";
