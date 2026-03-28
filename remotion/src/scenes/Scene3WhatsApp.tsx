@@ -40,7 +40,7 @@ export const Scene3WhatsApp = () => {
 
       {/* Badge */}
       <div style={{
-        position: "absolute", top: 80, left: "50%", transform: "translateX(-50%)",
+        position: "absolute", top: 200, left: "50%", transform: "translateX(-50%)",
         background: "rgba(34,197,94,0.15)", borderRadius: 100, padding: "12px 28px",
         opacity: interpolate(frame, [0, 12], [0, 1], { extrapolateRight: "clamp" }),
       }}>
@@ -49,7 +49,7 @@ export const Scene3WhatsApp = () => {
 
       {/* Title */}
       <div style={{
-        position: "absolute", top: 155, left: 50, right: 50, textAlign: "center",
+        position: "absolute", top: 280, left: 50, right: 50, textAlign: "center",
         opacity: interpolate(frame, [3, 20], [0, 1], { extrapolateRight: "clamp" }),
         transform: `translateY(${interpolate(spring({ frame: frame - 3, fps, config: { damping: 20, stiffness: 200 } }), [0, 1], [50, 0])}px)`,
       }}>
@@ -63,7 +63,7 @@ export const Scene3WhatsApp = () => {
 
       {/* Chat container */}
       <div style={{
-        position: "absolute", top: 350, left: 40, right: 40,
+        position: "absolute", top: 480, left: 40, right: 40,
         background: "rgba(0,0,0,0.3)", borderRadius: 32,
         border: "1px solid rgba(255,255,255,0.08)", padding: 24,
         display: "flex", flexDirection: "column", gap: 10,
@@ -117,7 +117,7 @@ export const Scene3WhatsApp = () => {
 
       {/* Bottom stats */}
       <div style={{
-        position: "absolute", bottom: 80, left: 50, right: 50,
+        position: "absolute", bottom: 120, left: 50, right: 50,
         display: "flex", justifyContent: "space-around",
         opacity: interpolate(frame, [115, 130], [0, 1], { extrapolateRight: "clamp" }),
       }}>
