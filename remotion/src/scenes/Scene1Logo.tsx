@@ -1,120 +1,150 @@
-import { AbsoluteFill, useCurrentFrame, interpolate, spring, useVideoConfig } from "remotion";
+import { AbsoluteFill, useCurrentFrame, interpolate, spring, useVideoConfig, Img, staticFile } from "remotion";
 import { loadFont } from "@remotion/google-fonts/Inter";
 
-const { fontFamily } = loadFont("normal", { weights: ["800", "900"], subsets: ["latin"] });
+const { fontFamily } = loadFont("normal", { weights: ["400", "800", "900"], subsets: ["latin"] });
 
 export const Scene1Logo = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  const logoScale = spring({ frame, fps, config: { damping: 15, stiffness: 80, mass: 1.5 } });
-  const logoOpacity = interpolate(frame, [0, 20], [0, 1], { extrapolateRight: "clamp" });
+  // Background image with zoom
+  const bgScale = interpolate(frame, [0, 120], [1.1, 1.25], { extrapolateRight: "clamp" });
+  const bgOpacity = interpolate(frame, [0, 30], [0, 0.35], { extrapolateRight: "clamp" });
 
-  const lineWidth = spring({ frame: frame - 25, fps, config: { damping: 20, stiffness: 200 } });
+  // Logo entrance - dramatic scale from huge to normal
+  const logoProgress = spring({ frame: frame - 5, fps, config: { damping: 12, stiffness: 60, mass: 2 } });
+  const logoScale = interpolate(logoProgress, [0, 1], [3, 1]);
+  const logoOpacity = interpolate(frame, [5, 20], [0, 1], { extrapolateRight: "clamp" });
 
-  const taglineOpacity = interpolate(frame, [40, 55], [0, 1], { extrapolateRight: "clamp" });
-  const taglineY = spring({ frame: frame - 40, fps, config: { damping: 20, stiffness: 200 } });
+  // Gradient line reveal
+  const lineWidth = interpolate(
+    spring({ frame: frame - 30, fps, config: { damping: 20, stiffness: 200 } }),
+    [0, 1], [0, 500]
+  );
 
-  const subtitleOpacity = interpolate(frame, [60, 75], [0, 1], { extrapolateRight: "clamp" });
+  // Tagline words stagger
+  const words = ["A plataforma", "completa para", "buffets infantis"];
+  
+  // Subtitle
+  const subOpacity = interpolate(frame, [70, 85], [0, 1], { extrapolateRight: "clamp" });
+  const subY = interpolate(spring({ frame: frame - 70, fps, config: { damping: 20, stiffness: 200 } }), [0, 1], [40, 0]);
 
-  // Sparkle particles
-  const particles = Array.from({ length: 8 }, (_, i) => {
-    const delay = 15 + i * 5;
-    const angle = (i / 8) * Math.PI * 2;
-    const radius = 200 + Math.sin(frame * 0.03 + i) * 30;
-    const particleOpacity = interpolate(frame, [delay, delay + 15, 120, 140], [0, 0.6, 0.6, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-    return { x: Math.cos(angle + frame * 0.01) * radius, y: Math.sin(angle + frame * 0.01) * radius, opacity: particleOpacity, size: 4 + (i % 3) * 2 };
+  // Confetti particles
+  const confetti = Array.from({ length: 24 }, (_, i) => {
+    const seed = i * 137.508;
+    const x = (seed * 3.7) % 1080;
+    const startY = -50 - (i * 40) % 200;
+    const speed = 3 + (i % 5) * 1.5;
+    const wobble = Math.sin(frame * 0.05 + i) * 30;
+    const y = startY + frame * speed + wobble;
+    const rotation = frame * (2 + i % 4) + seed;
+    const colors = ["#818cf8", "#f472b6", "#22d3ee", "#fbbf24", "#34d399"];
+    const color = colors[i % colors.length];
+    const size = 8 + (i % 4) * 4;
+    const opacity = interpolate(frame, [10, 25, 100, 120], [0, 0.8, 0.8, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+
+    return { x: x + wobble, y: y % 2200 - 200, rotation, color, size, opacity };
   });
 
   return (
-    <AbsoluteFill style={{ justifyContent: "center", alignItems: "center" }}>
-      {/* Particles */}
-      {particles.map((p, i) => (
+    <AbsoluteFill>
+      {/* Background party image */}
+      <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
+        <Img
+          src={staticFile("images/buffet-venue.jpg")}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            transform: `scale(${bgScale})`,
+            opacity: bgOpacity,
+          }}
+        />
+      </div>
+
+      {/* Dark overlay for contrast */}
+      <div style={{
+        position: "absolute", inset: 0,
+        background: "linear-gradient(180deg, rgba(10,15,26,0.7) 0%, rgba(10,15,26,0.9) 100%)",
+      }} />
+
+      {/* Confetti */}
+      {confetti.map((c, i) => (
         <div
           key={i}
           style={{
             position: "absolute",
-            width: p.size,
-            height: p.size,
-            borderRadius: "50%",
-            background: i % 2 === 0 ? "#818cf8" : "#f472b6",
-            left: 540 + p.x - p.size / 2,
-            top: 960 + p.y - p.size / 2,
-            opacity: p.opacity,
+            left: c.x,
+            top: c.y,
+            width: c.size,
+            height: c.size * 0.6,
+            borderRadius: 2,
+            background: c.color,
+            transform: `rotate(${c.rotation}deg)`,
+            opacity: c.opacity,
           }}
         />
       ))}
 
-      {/* Logo text */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 20,
+      {/* Center content */}
+      <AbsoluteFill style={{ justifyContent: "center", alignItems: "center" }}>
+        <div style={{
+          display: "flex", flexDirection: "column", alignItems: "center", gap: 16,
           transform: `scale(${logoScale})`,
           opacity: logoOpacity,
-        }}
-      >
-        {/* Emoji icon */}
-        <div style={{ fontSize: 80, lineHeight: 1 }}>🎉</div>
+        }}>
+          <div style={{ fontSize: 100, lineHeight: 1 }}>🎉</div>
+          <h1 style={{
+            fontFamily, fontWeight: 900, fontSize: 120, color: "white",
+            letterSpacing: -5, margin: 0, textAlign: "center",
+          }}>
+            Celebrei
+          </h1>
+        </div>
 
-        <h1
-          style={{
-            fontFamily,
-            fontWeight: 900,
-            fontSize: 96,
-            color: "white",
-            letterSpacing: -3,
-            margin: 0,
-            textAlign: "center",
-          }}
-        >
-          Celebrei
-        </h1>
+        {/* Gradient line */}
+        <div style={{
+          width: lineWidth, height: 5, borderRadius: 3, marginTop: 20,
+          background: "linear-gradient(90deg, #818cf8, #f472b6, #22d3ee)",
+        }} />
 
-        {/* Animated line */}
-        <div
-          style={{
-            width: interpolate(lineWidth, [0, 1], [0, 300]),
-            height: 4,
-            borderRadius: 2,
-            background: "linear-gradient(90deg, #818cf8, #f472b6, #22d3ee)",
-          }}
-        />
+        {/* Tagline words */}
+        <div style={{ marginTop: 30, textAlign: "center" }}>
+          {words.map((word, i) => {
+            const delay = 40 + i * 8;
+            const wordOpacity = interpolate(frame, [delay, delay + 12], [0, 1], { extrapolateRight: "clamp" });
+            const wordY = interpolate(
+              spring({ frame: frame - delay, fps, config: { damping: 20, stiffness: 200 } }),
+              [0, 1], [30, 0]
+            );
+            return (
+              <p key={i} style={{
+                fontFamily, fontWeight: 800, fontSize: 42, color: "rgba(255,255,255,0.9)",
+                margin: 0, lineHeight: 1.3, opacity: wordOpacity,
+                transform: `translateY(${wordY}px)`,
+              }}>
+                {word}
+              </p>
+            );
+          })}
+        </div>
 
-        {/* Tagline */}
-        <p
-          style={{
-            fontFamily,
-            fontWeight: 800,
-            fontSize: 36,
-            color: "rgba(255,255,255,0.85)",
-            margin: 0,
-            textAlign: "center",
-            opacity: taglineOpacity,
-            transform: `translateY(${interpolate(taglineY, [0, 1], [30, 0])}px)`,
-          }}
-        >
-          A plataforma completa
-          <br />
-          para buffets infantis
-        </p>
-
-        <p
-          style={{
-            fontFamily,
-            fontWeight: 400,
-            fontSize: 24,
-            color: "rgba(255,255,255,0.4)",
-            margin: 0,
-            textAlign: "center",
-            opacity: subtitleOpacity,
-          }}
-        >
-          CRM · WhatsApp · Agenda · IA
-        </p>
-      </div>
+        {/* Subtitle chips */}
+        <div style={{
+          display: "flex", gap: 16, marginTop: 36,
+          opacity: subOpacity,
+          transform: `translateY(${subY}px)`,
+        }}>
+          {["CRM", "WhatsApp", "Agenda", "IA", "Contratos"].map((chip, i) => (
+            <div key={i} style={{
+              background: "rgba(255,255,255,0.08)", borderRadius: 100,
+              padding: "10px 22px", border: "1px solid rgba(255,255,255,0.12)",
+            }}>
+              <span style={{ fontFamily, fontWeight: 800, fontSize: 18, color: "rgba(255,255,255,0.7)" }}>{chip}</span>
+            </div>
+          ))}
+        </div>
+      </AbsoluteFill>
     </AbsoluteFill>
   );
 };
