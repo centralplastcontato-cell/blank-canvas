@@ -20,6 +20,7 @@ const bouncyTiming = springTiming({ config: { damping: 15, stiffness: 150 }, dur
 
 export const MainVideo = () => {
   const frame = useCurrentFrame();
+  const { fps, durationInFrames } = useVideoConfig();
 
   // Persistent animated background
   const gradientAngle = 135 + Math.sin(frame * 0.006) * 15;
