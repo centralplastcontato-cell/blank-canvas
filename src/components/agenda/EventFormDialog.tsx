@@ -26,6 +26,7 @@ export interface ParcelaDetail {
 export interface PaymentDetails {
   entrada_valor: number | null;
   entrada_forma: string;
+  entrada_data?: string | null;
   saldo_valor: number | null;
   saldo_forma: string;
   parcelas: number | null;
@@ -143,6 +144,7 @@ interface EventFormDialogProps {
 const EMPTY_PAYMENT: PaymentDetails = {
   entrada_valor: null,
   entrada_forma: "",
+  entrada_data: null,
   saldo_valor: null,
   saldo_forma: "",
   parcelas: null,
@@ -1083,6 +1085,27 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                     {PAYMENT_FORMS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2.5 md:col-span-2">
+                <Label className="text-sm font-medium text-foreground/70">Data da entrada</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !payment.entrada_data && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {payment.entrada_data ? format(new Date(payment.entrada_data + "T12:00:00"), "dd/MM/yyyy") : "Selecionar data da entrada"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={payment.entrada_data ? new Date(payment.entrada_data + "T12:00:00") : undefined}
+                      onSelect={(d) => setPayment({ ...payment, entrada_data: d ? format(d, "yyyy-MM-dd") : null })}
+                      locale={ptBR}
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-2.5 md:pr-6">
