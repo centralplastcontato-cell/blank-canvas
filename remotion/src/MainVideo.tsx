@@ -1,4 +1,4 @@
-import { AbsoluteFill, useCurrentFrame, interpolate } from "remotion";
+import { AbsoluteFill, useCurrentFrame, interpolate, staticFile, useVideoConfig, Audio } from "remotion";
 import { TransitionSeries, springTiming } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
 import { slide } from "@remotion/transitions/slide";
@@ -19,6 +19,7 @@ const bouncyTiming = springTiming({ config: { damping: 15, stiffness: 150 }, dur
 
 export const MainVideo = () => {
   const frame = useCurrentFrame();
+  const { fps, durationInFrames } = useVideoConfig();
 
   // Persistent animated background
   const gradientAngle = 135 + Math.sin(frame * 0.006) * 15;
@@ -52,6 +53,19 @@ export const MainVideo = () => {
         left: 350 + Math.cos(frame * 0.012) * 25,
         filter: "blur(40px)",
       }} />
+
+      {/* Trilha sonora */}
+      <Audio
+        src={staticFile("audio/trilha.mp3")}
+        volume={(f) =>
+          interpolate(
+            f,
+            [0, 2 * fps, durationInFrames - 3 * fps, durationInFrames],
+            [0, 0.7, 0.7, 0],
+            { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
+          )
+        }
+      />
 
       {/* Scenes */}
       <TransitionSeries>
