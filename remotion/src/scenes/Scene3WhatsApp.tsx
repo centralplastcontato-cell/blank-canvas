@@ -1,4 +1,4 @@
-import { AbsoluteFill, useCurrentFrame, interpolate, useVideoConfig } from "remotion";
+import { AbsoluteFill, useCurrentFrame, interpolate } from "remotion";
 import { loadFont } from "@remotion/google-fonts/Inter";
 import { GridBackground } from "../components/GridBackground";
 
@@ -15,7 +15,6 @@ const messages = [
 
 export const Scene3WhatsApp = () => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
 
   const badgeOpacity = interpolate(frame, [5, 18], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const titleOpacity = interpolate(frame, [12, 30], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
@@ -24,52 +23,48 @@ export const Scene3WhatsApp = () => {
   return (
     <AbsoluteFill>
       <GridBackground />
-      <AbsoluteFill style={{ padding: "0 40px", display: "flex", flexDirection: "column" }}>
-        {/* Header */}
-        <div style={{ marginTop: 220 }}>
+      <AbsoluteFill style={{ padding: "0 55px", display: "flex", flexDirection: "column" }}>
+        <div style={{ marginTop: 240 }}>
           <p style={{
-            fontFamily, fontWeight: 700, fontSize: 14, color: "#22c55e",
-            letterSpacing: 3, textTransform: "uppercase", margin: "0 0 12px 0",
+            fontFamily, fontWeight: 700, fontSize: 22, color: "#22c55e",
+            letterSpacing: 4, textTransform: "uppercase", margin: "0 0 16px 0",
             opacity: badgeOpacity,
           }}>
             WHATSAPP INTEGRADO
           </p>
           <div style={{ opacity: titleOpacity, transform: `translateY(${titleY}px)` }}>
-            <h2 style={{ fontFamily, fontWeight: 900, fontSize: 46, color: "white", margin: 0, lineHeight: 1.1 }}>
+            <h2 style={{ fontFamily, fontWeight: 900, fontSize: 62, color: "white", margin: 0, lineHeight: 1.1 }}>
               Atendimento{" "}
               <span style={{ color: "#22c55e" }}>24/7 no automático</span>
             </h2>
           </div>
         </div>
 
-        {/* Chat container */}
         <div style={{
-          marginTop: 40,
+          marginTop: 50,
           background: "rgba(255,255,255,0.03)",
-          borderRadius: 24,
+          borderRadius: 28,
           border: "1px solid rgba(255,255,255,0.06)",
-          padding: "20px 20px",
-          display: "flex", flexDirection: "column", gap: 10,
+          padding: "28px 24px",
+          display: "flex", flexDirection: "column", gap: 14,
         }}>
-          {/* Chat header */}
           <div style={{
-            display: "flex", alignItems: "center", gap: 12, paddingBottom: 14,
+            display: "flex", alignItems: "center", gap: 16, paddingBottom: 18,
             borderBottom: "1px solid rgba(255,255,255,0.06)",
           }}>
             <div style={{
-              width: 40, height: 40, borderRadius: 20,
+              width: 56, height: 56, borderRadius: 28,
               background: "linear-gradient(135deg, #22c55e, #16a34a)",
               display: "flex", alignItems: "center", justifyContent: "center",
             }}>
-              <span style={{ fontSize: 20 }}>🤖</span>
+              <span style={{ fontSize: 28 }}>🤖</span>
             </div>
             <div>
-              <p style={{ fontFamily, fontWeight: 800, fontSize: 17, color: "white", margin: 0 }}>Bot Celebrei</p>
-              <p style={{ fontFamily, fontWeight: 400, fontSize: 12, color: "#22c55e", margin: 0 }}>● Online</p>
+              <p style={{ fontFamily, fontWeight: 800, fontSize: 24, color: "white", margin: 0 }}>Bot Celebrei</p>
+              <p style={{ fontFamily, fontWeight: 400, fontSize: 16, color: "#22c55e", margin: 0 }}>● Online</p>
             </div>
           </div>
 
-          {/* Messages */}
           {messages.map((msg, i) => {
             const delay = 30 + i * 18;
             const msgOpacity = interpolate(frame, [delay, delay + 10], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
@@ -84,12 +79,12 @@ export const Scene3WhatsApp = () => {
               }}>
                 <div style={{
                   background: isBot ? "rgba(255,255,255,0.06)" : "rgba(34,197,94,0.15)",
-                  borderRadius: 16,
-                  borderBottomLeftRadius: isBot ? 4 : 16,
-                  borderBottomRightRadius: isBot ? 16 : 4,
-                  padding: "11px 16px",
+                  borderRadius: 20,
+                  borderBottomLeftRadius: isBot ? 4 : 20,
+                  borderBottomRightRadius: isBot ? 20 : 4,
+                  padding: "14px 20px",
                 }}>
-                  <p style={{ fontFamily, fontWeight: 400, fontSize: 15, color: "rgba(255,255,255,0.85)", margin: 0, lineHeight: 1.35 }}>
+                  <p style={{ fontFamily, fontWeight: 400, fontSize: 22, color: "rgba(255,255,255,0.85)", margin: 0, lineHeight: 1.35 }}>
                     {msg.text}
                   </p>
                 </div>
@@ -98,10 +93,9 @@ export const Scene3WhatsApp = () => {
           })}
         </div>
 
-        {/* Bottom caption */}
         <p style={{
-          fontFamily, fontWeight: 400, fontSize: 15, color: "rgba(255,255,255,0.3)",
-          textAlign: "center", marginTop: 30,
+          fontFamily, fontWeight: 400, fontSize: 22, color: "rgba(255,255,255,0.3)",
+          textAlign: "center", marginTop: 36,
           opacity: interpolate(frame, [150, 165], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
         }}>
           Respostas automáticas que qualificam e agendam
