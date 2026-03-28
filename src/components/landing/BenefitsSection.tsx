@@ -33,19 +33,19 @@ const colorClasses = [
 
 export function BenefitsSection() {
   return (
-    <section className="py-20 bg-card">
+    <section className="py-24 sm:py-32 bg-card">
       <div className="section-container">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="text-center mb-16"
+          className="text-center mb-20"
         >
-          <h2 className="text-4xl md:text-6xl font-display font-bold text-foreground mb-5">
+          <h2 className="text-5xl md:text-7xl font-display font-bold text-foreground mb-6">
             Uma festa inesquecível para <span className="gradient-text">seu filho</span>
           </h2>
-          <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto">
+          <p className="text-2xl md:text-3xl text-muted-foreground max-w-4xl mx-auto">
             Conheça tudo que o Castelo da Diversão oferece para tornar esse dia único
           </p>
         </motion.div>
@@ -55,7 +55,7 @@ export function BenefitsSection() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
-          className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto"
+          className="grid sm:grid-cols-2 lg:grid-cols-3 gap-10 max-w-7xl mx-auto"
         >
           {castleBenefits.map((benefit, index) => {
             const IconComponent = iconMap[benefit.icon] || Sparkles;
@@ -64,22 +64,22 @@ export function BenefitsSection() {
                 key={index}
                 variants={cardVariants}
                 whileHover={{ y: -8, scale: 1.02 }}
-                className="relative card-festive p-8 sm:p-10 text-center group cursor-default overflow-hidden"
+                className="relative card-festive p-10 sm:p-12 text-center group cursor-default overflow-hidden"
               >
                 <div className={`absolute inset-0 bg-gradient-to-br ${colorClasses[index % colorClasses.length]} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
                 
                 <motion.div
                   whileHover={{ scale: 1.1, rotate: 5 }}
                   transition={{ type: "spring", stiffness: 300 }}
-                  className={`relative mx-auto w-24 h-24 rounded-2xl bg-gradient-to-br ${colorClasses[index % colorClasses.length]} flex items-center justify-center mb-6 shadow-lg group-hover:shadow-xl transition-shadow duration-300`}
+                  className={`relative mx-auto w-28 h-28 rounded-2xl bg-gradient-to-br ${colorClasses[index % colorClasses.length]} flex items-center justify-center mb-8 shadow-lg group-hover:shadow-xl transition-shadow duration-300`}
                 >
-                  <IconComponent className="w-12 h-12 text-white" strokeWidth={1.5} />
+                  <IconComponent className="w-14 h-14 text-white" strokeWidth={1.5} />
                 </motion.div>
                 
-                <h3 className="text-2xl font-display font-bold text-foreground mb-3 group-hover:text-primary transition-colors">
+                <h3 className="text-2xl sm:text-3xl font-display font-bold text-foreground mb-4 group-hover:text-primary transition-colors">
                   {benefit.title}
                 </h3>
-                <p className="text-lg text-muted-foreground relative z-10">
+                <p className="text-lg sm:text-xl text-muted-foreground relative z-10 leading-relaxed">
                   {benefit.description}
                 </p>
               </motion.div>
@@ -93,28 +93,28 @@ export function BenefitsSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6, delay: 0.5 }}
-          className="mt-16 flex flex-wrap justify-center items-center gap-6 md:gap-8"
+          className="mt-20 flex flex-wrap justify-center items-center gap-6 md:gap-8"
         >
           <motion.div 
             whileHover={{ scale: 1.05 }}
-            className="flex items-center gap-3 bg-gradient-to-r from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 border border-yellow-200 dark:border-yellow-700/30 px-6 py-3 rounded-full shadow-sm"
+            className="flex items-center gap-3 bg-gradient-to-r from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 border border-yellow-200 dark:border-yellow-700/30 px-8 py-4 rounded-full shadow-sm"
           >
-            <Star className="w-6 h-6 text-yellow-500 fill-yellow-500" />
-            <span className="font-bold text-foreground">4.9/5 no Google</span>
+            <Star className="w-7 h-7 text-yellow-500 fill-yellow-500" />
+            <span className="font-bold text-lg text-foreground">4.9/5 no Google</span>
           </motion.div>
           <motion.div 
             whileHover={{ scale: 1.05 }}
-            className="flex items-center gap-3 bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 px-6 py-3 rounded-full shadow-sm"
+            className="flex items-center gap-3 bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 px-8 py-4 rounded-full shadow-sm"
           >
-            <PartyPopper className="w-6 h-6 text-primary" />
-            <span className="font-bold text-foreground">+5.000 festas realizadas</span>
+            <PartyPopper className="w-7 h-7 text-primary" />
+            <span className="font-bold text-lg text-foreground">+5.000 festas realizadas</span>
           </motion.div>
           <motion.div 
             whileHover={{ scale: 1.05 }}
-            className="flex items-center gap-3 bg-gradient-to-r from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 border border-red-200 dark:border-red-700/30 px-6 py-3 rounded-full shadow-sm"
+            className="flex items-center gap-3 bg-gradient-to-r from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 border border-red-200 dark:border-red-700/30 px-8 py-4 rounded-full shadow-sm"
           >
-            <Heart className="w-6 h-6 text-red-500 fill-red-500" />
-            <span className="font-bold text-foreground">98% de satisfação</span>
+            <Heart className="w-7 h-7 text-red-500 fill-red-500" />
+            <span className="font-bold text-lg text-foreground">98% de satisfação</span>
           </motion.div>
         </motion.div>
       </div>
