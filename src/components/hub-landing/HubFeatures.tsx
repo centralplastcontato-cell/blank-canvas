@@ -44,20 +44,20 @@ const item = {
 
 export default function HubFeatures() {
   return (
-    <section className="py-16 sm:py-24 relative">
+    <section className="py-24 sm:py-32 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.6 }}
-          className="text-center mb-10 sm:mb-16"
+          className="text-center mb-14 sm:mb-20"
         >
-          <p className="text-xs font-semibold text-primary uppercase tracking-[0.2em] mb-3">Como funciona</p>
-          <h2 className="font-display text-2xl sm:text-4xl lg:text-5xl font-bold text-foreground leading-tight">
+          <p className="text-sm font-semibold text-primary uppercase tracking-[0.2em] mb-4">Como funciona</p>
+          <h2 className="font-display text-3xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-tight">
             Tudo que seu buffet precisa em um só lugar
           </h2>
-          <p className="mt-3 text-sm sm:text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="mt-5 text-base sm:text-xl text-muted-foreground max-w-3xl mx-auto">
             Automatize o atendimento e foque no que importa: fechar mais festas.
           </p>
         </motion.div>
@@ -67,19 +67,19 @@ export default function HubFeatures() {
           initial="hidden"
           whileInView="show"
           viewport={{ once: true, margin: "-50px" }}
-          className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6"
+          className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8"
         >
           {features.map((feature) => (
             <motion.div
               key={feature.title}
               variants={item}
-              className="group relative p-6 sm:p-8 rounded-2xl bg-card border border-border/40 hover:border-border transition-all duration-500 hover:shadow-card"
+              className="group relative p-8 sm:p-10 rounded-2xl bg-card border border-border/40 hover:border-border transition-all duration-500 hover:shadow-card"
             >
-              <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-4 sm:mb-5 group-hover:scale-110 transition-transform duration-300`}>
-                <feature.icon className={`h-5 w-5 ${feature.iconColor}`} />
+              <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-5 sm:mb-6 group-hover:scale-110 transition-transform duration-300`}>
+                <feature.icon className={`h-7 w-7 sm:h-8 sm:w-8 ${feature.iconColor}`} />
               </div>
-              <h3 className="font-display text-base sm:text-lg font-bold text-foreground mb-2">{feature.title}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
+              <h3 className="font-display text-xl sm:text-2xl font-bold text-foreground mb-3">{feature.title}</h3>
+              <p className="text-base sm:text-lg text-muted-foreground leading-relaxed">{feature.description}</p>
             </motion.div>
           ))}
         </motion.div>
