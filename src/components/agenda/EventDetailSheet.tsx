@@ -144,15 +144,21 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-md overflow-y-auto p-0">
+      <SheetContent className="w-full sm:max-w-md overflow-y-auto p-0 [&>button.absolute]:hidden">
         {/* Premium Header */}
         <div className="sticky top-0 z-10 bg-card border-b border-border/40 px-6 pt-6 pb-4 shadow-sm">
           <div className="absolute inset-0 bg-primary/[0.04] pointer-events-none" />
           <SheetHeader>
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-primary/10 ring-1 ring-primary/20 flex items-center justify-center shrink-0">
-                <CalendarDays className="h-5 w-5 text-primary" />
-              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 rounded-xl shrink-0"
+                onClick={() => onOpenChange(false)}
+              >
+                <X className="h-5 w-5" />
+                <span className="sr-only">Fechar</span>
+              </Button>
               <div className="flex-1 min-w-0">
                 <SheetTitle className="text-left text-lg truncate">{event.title}</SheetTitle>
                 <p className="text-xs text-muted-foreground capitalize mt-0.5">{dateFormatted}</p>
