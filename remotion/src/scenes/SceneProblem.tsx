@@ -1,97 +1,61 @@
-import { AbsoluteFill, useCurrentFrame, interpolate, spring, useVideoConfig } from "remotion";
+import { AbsoluteFill, useCurrentFrame, interpolate, useVideoConfig } from "remotion";
 import { loadFont } from "@remotion/google-fonts/Inter";
+import { GridBackground } from "../components/GridBackground";
 
-const { fontFamily } = loadFont("normal", { weights: ["400", "800", "900"], subsets: ["latin"] });
+const { fontFamily } = loadFont("normal", { weights: ["400", "700", "800", "900"], subsets: ["latin"] });
+
+const painPoints = [
+  { icon: "📋", text: "Planilhas para controlar leads" },
+  { icon: "📱", text: "WhatsApp caótico e sem histórico" },
+  { icon: "📅", text: "Agenda desorganizada" },
+  { icon: "💸", text: "Sem controle financeiro" },
+];
 
 export const SceneProblem = () => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
 
-  const problems = [
-    { emoji: "😤", text: "Leads perdidos no WhatsApp", delay: 10 },
-    { emoji: "📋", text: "Planilhas desorganizadas", delay: 22 },
-    { emoji: "⏰", text: "Horas respondendo manualmente", delay: 34 },
-    { emoji: "💸", text: "Festas que fogem do controle", delay: 46 },
-    { emoji: "😵", text: "Sem saber de onde vem cada lead", delay: 58 },
-  ];
-
-  // Red X marks that appear after each problem
-  const titleOpacity = interpolate(frame, [0, 15], [0, 1], { extrapolateRight: "clamp" });
-
-  // Shake effect
-  const shake = frame < 80 ? Math.sin(frame * 0.5) * 2 : 0;
-
-  // Transition to solution
-  const solutionOpacity = interpolate(frame, [80, 95], [0, 1], { extrapolateRight: "clamp" });
-  const solutionScale = spring({ frame: frame - 80, fps, config: { damping: 12, stiffness: 150 } });
+  const titleOpacity = interpolate(frame, [5, 25], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const titleY = interpolate(frame, [5, 25], [30, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
 
   return (
-    <AbsoluteFill style={{ transform: `translateX(${shake}px)` }}>
-      {/* Red gradient overlay */}
-      <div style={{
-        position: "absolute", inset: 0,
-        background: `radial-gradient(ellipse at center, rgba(239,68,68,${interpolate(frame, [0, 40, 80, 95], [0, 0.05, 0.05, 0], { extrapolateRight: "clamp" })}) 0%, transparent 70%)`,
-      }} />
+    <AbsoluteFill>
+      <GridBackground />
+      <AbsoluteFill style={{ padding: "0 50px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+        <div style={{ opacity: titleOpacity, transform: `translateY(${titleY}px)`, marginBottom: 60, textAlign: "center" }}>
+          <h2 style={{ fontFamily, fontWeight: 900, fontSize: 52, color: "white", margin: 0, lineHeight: 1.15 }}>
+            Seu buffet ainda
+          </h2>
+          <h2 style={{ fontFamily, fontWeight: 900, fontSize: 52, color: "#ef4444", margin: 0, lineHeight: 1.15 }}>
+            sofre com isso?
+          </h2>
+        </div>
 
-      {/* Title */}
-      <div style={{
-        position: "absolute", top: 250, left: 50, right: 50, textAlign: "center",
-        opacity: titleOpacity,
-        transform: `translateY(${interpolate(spring({ frame, fps, config: { damping: 20, stiffness: 200 } }), [0, 1], [50, 0])}px)`,
-      }}>
-        <h2 style={{ fontFamily, fontWeight: 900, fontSize: 56, color: "white", margin: 0, lineHeight: 1.1 }}>
-          Seu buffet ainda
-        </h2>
-        <h2 style={{ fontFamily, fontWeight: 900, fontSize: 56, color: "#ef4444", margin: 0, lineHeight: 1.1 }}>
-          sofre com isso?
-        </h2>
-      </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: "0 10px" }}>
+          {painPoints.map((point, i) => {
+            const delay = 40 + i * 18;
+            const cardOpacity = interpolate(frame, [delay, delay + 15], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+            const cardX = interpolate(frame, [delay, delay + 15], [-40, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+            const strikeDelay = delay + 25;
+            const strikeWidth = interpolate(frame, [strikeDelay, strikeDelay + 12], [0, 100], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
 
-      {/* Problem list */}
-      <div style={{
-        position: "absolute", top: 500, left: 50, right: 50,
-        display: "flex", flexDirection: "column", gap: 16,
-      }}>
-        {problems.map((prob, i) => {
-          const pOpacity = interpolate(frame, [prob.delay, prob.delay + 8], [0, 1], { extrapolateRight: "clamp" });
-          const pX = interpolate(spring({ frame: frame - prob.delay, fps, config: { damping: 18, stiffness: 200 } }), [0, 1], [-300, 0]);
-
-          return (
-            <div key={i} style={{
-              display: "flex", alignItems: "center", gap: 18,
-              background: "rgba(239,68,68,0.06)", borderRadius: 20,
-              border: "1px solid rgba(239,68,68,0.15)", padding: "18px 24px",
-              opacity: pOpacity, transform: `translateX(${pX}px)`,
-            }}>
-              <span style={{ fontSize: 36 }}>{prob.emoji}</span>
-              <p style={{ fontFamily, fontWeight: 800, fontSize: 22, color: "rgba(255,255,255,0.85)", margin: 0 }}>
-                {prob.text}
-              </p>
-              <span style={{
-                marginLeft: "auto", fontSize: 28, color: "#ef4444",
-                opacity: interpolate(frame, [prob.delay + 8, prob.delay + 14], [0, 1], { extrapolateRight: "clamp" }),
-              }}>✕</span>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Solution reveal */}
-      <div style={{
-        position: "absolute", bottom: 280, left: 50, right: 50, textAlign: "center",
-        opacity: solutionOpacity,
-        transform: `scale(${interpolate(solutionScale, [0, 1], [0.7, 1])})`,
-      }}>
-        <p style={{ fontFamily, fontWeight: 900, fontSize: 42, color: "white", margin: 0 }}>
-          E se existisse uma
-        </p>
-        <p style={{
-          fontFamily, fontWeight: 900, fontSize: 42, margin: 0,
-          background: "linear-gradient(90deg, #818cf8, #22d3ee)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-        }}>
-          solução completa?
-        </p>
-      </div>
+            return (
+              <div key={i} style={{
+                opacity: cardOpacity, transform: `translateX(${cardX}px)`,
+                background: "rgba(255,255,255,0.04)", borderRadius: 16,
+                border: "1px solid rgba(255,255,255,0.06)", padding: "20px 24px",
+                display: "flex", alignItems: "center", gap: 16, position: "relative",
+              }}>
+                <span style={{ fontSize: 24 }}>{point.icon}</span>
+                <span style={{ fontFamily, fontWeight: 600, fontSize: 22, color: "rgba(255,255,255,0.85)" }}>{point.text}</span>
+                <div style={{
+                  position: "absolute", left: 60, top: "50%", height: 2,
+                  width: `${strikeWidth}%`, background: "#ef4444", transform: "translateY(-50%)",
+                }} />
+              </div>
+            );
+          })}
+        </div>
+      </AbsoluteFill>
     </AbsoluteFill>
   );
 };
