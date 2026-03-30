@@ -1,35 +1,51 @@
 
 
-## Problem
+## Entendimento
 
-Currently, clicking the external link icon (🔗) on a payment card in the **Financeiro** page navigates to `/agenda?event={id}`, forcing the user to leave the financial module. The user wants to see the event's full financial details (the same `EventFinancialTab` shown in the Agenda's event detail sheet) directly within the Financeiro page.
+Duas necessidades:
+1. **Ajuste de saldo inicial** — como a plataforma é nova e já havia receitas/despesas anteriores, é preciso um mecanismo para "equiparar o caixa" com o saldo real da empresa (um lançamento de ajuste).
+2. **Campo de observações** no formulário de despesas — para descrever detalhes adicionais sobre a despesa.
 
-## Solution
+## Solução
 
-Add a **Sheet (slide-over panel)** to the Financeiro page that opens when clicking the link icon on any payment card. This sheet will display:
-- Event name, date, and status in the header
-- The existing `EventFinancialTab` component (payments, extras, discounts, timeline)
+### 1. Campo "Observações" no formulário de despesa
+- Adicionar um campo `notes` (textarea) no `ExpenseFormDialog`
+- Adicionar coluna `notes text` na tabela `company_expenses` via migration
+- Passar o campo no `onSubmit` e persistir via `addExpense`/`updateExpense` no hook
 
-This reuses the already-built component without duplicating logic.
+### 2. Ajuste de saldo inicial
+- Adicionar uma nova categoria especial `ajuste_saldo` nas despesas com expense_type `ajuste`
+- No Financeiro, adicionar um botão "Ajuste de Saldo" (na aba Resultado ou no header) que abre o `ExpenseFormDialog` pré-configurado com tipo "Ajuste de Saldo"
+- Ajustes positivos = dinheiro que já estava no caixa (receita anterior à plataforma)
+- Ajustes negativos = gastos que já haviam sido feitos
+- O campo `notes` serve para documentar o motivo do ajuste (ex: "Saldo em caixa na data de início da plataforma")
+- O saldo do dashboard incluirá automaticamente esses ajustes pois já soma/subtrai despesas
 
-## Changes
+**Abordagem simplificada**: usar a própria tabela `company_expenses` com uma categoria `ajuste` para evitar criar nova tabela. Valores positivos representam dinheiro que entrou antes da plataforma, negativos representam gastos anteriores.
 
-### 1. `src/pages/Financeiro.tsx`
-- Add state for `selectedEventId` and `selectedEventOpen`
-- Change `handleOpenEvent` to set state instead of `navigate()`
-- Fetch the selected event's basic data (title, date, total_value, status) from `company_events`
-- Render a `Sheet` containing `EventFinancialTab` with the event data
-- On sheet close, refresh dashboard data to reflect any changes made inside
+## Alterações
 
-### 2. `src/components/financial/FinancialPaymentCard.tsx`
-- No changes needed — already calls `onOpenEvent(eventId)` which will now open the sheet
+### Migration (nova)
+```sql
+ALTER TABLE public.company_expenses ADD COLUMN notes text;
+```
 
-### 3. `src/components/financial/PaymentsByClientView.tsx`
-- No changes needed — already passes through `onOpenEvent`
+### `src/components/financial/ExpenseFormDialog.tsx`
+- Adicionar estado `notes` e campo `<Textarea>` com label "Observações (opcional)"
+- Incluir `notes` no `onSubmit`
+- Adicionar tipo "Ajuste de Saldo" ao `EXPENSE_TYPES`
 
-## Technical Details
+### `src/hooks/useFinanceiroDashboard.ts`
+- Atualizar interface `Expense` com campo `notes`
+- Atualizar `addExpense` para aceitar `notes`
+- Calcular ajustes de saldo separadamente no dashboard (ajustes positivos somam à receita, negativos somam às despesas)
 
-- The sheet will query `company_events` for the selected event to get `title`, `event_date`, `total_value`, `status`
-- `EventFinancialTab` receives `eventId`, `companyId`, `baseValue` — all available
-- On sheet close, call `dashboard.refresh()` to sync any payment status changes back to the list
+### `src/pages/Financeiro.tsx`
+- Adicionar botão "Ajuste de Saldo" no header ou aba Resultado
+- Abrir o `ExpenseFormDialog` pré-configurado com tipo `ajuste`
+
+## Detalhes técnicos
+- Coluna `notes` é nullable (text) — sem impacto em registros existentes
+- Ajustes de saldo usam `expense_type = 'ajuste'` para diferenciá-los de despesas normais
+- O saldo mensal considera: Recebido + Ajustes positivos - Despesas - Ajustes negativos
 
