@@ -228,7 +228,7 @@ function ClientDataStatusBadge({ status }: { status: string }) {
 }
 
 function buildParcelasDetails(parcelas: number | null, saldo: number | null, existing: ParcelaDetail[] = []): ParcelaDetail[] {
-  if (!parcelas || parcelas <= 1) return [];
+  if (!parcelas || parcelas < 1) return [];
 
   if (!saldo || saldo <= 0) {
     return Array.from({ length: parcelas }, (_, i) => ({
@@ -291,7 +291,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       });
       const loadedPayment = (data.payment_details as PaymentDetails) || EMPTY_PAYMENT;
       // Auto-fill parcelas details if saldo and parcelas are set but details have null values
-      if (loadedPayment.parcelas && loadedPayment.parcelas > 1 && loadedPayment.saldo_valor && loadedPayment.saldo_valor > 0) {
+      if (loadedPayment.parcelas && loadedPayment.parcelas >= 1 && loadedPayment.saldo_valor && loadedPayment.saldo_valor > 0) {
         const hasEmptyValues = (loadedPayment.parcelas_details || []).some(d => d.valor == null);
         if (hasEmptyValues || !loadedPayment.parcelas_details?.length) {
           const perParcela = Math.round((loadedPayment.saldo_valor / loadedPayment.parcelas) * 100) / 100;
@@ -992,7 +992,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               </div>
 
               {/* Installment details */}
-              {(payment.parcelas ?? 0) > 1 && (
+              {(payment.parcelas ?? 0) >= 1 && (
                 <div className="md:col-span-2 space-y-3">
                   <div className="rounded-lg border border-border/40 bg-muted/20 p-3 space-y-2">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Detalhes das parcelas</p>
