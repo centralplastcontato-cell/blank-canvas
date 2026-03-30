@@ -94,7 +94,10 @@ export default function Financeiro() {
   const handleCloseEventSheet = () => {
     setSelectedEventId(null);
     setSelectedEventData(null);
-    dashboard.refresh();
+    // Delay refresh until after sheet close animation (300ms) to avoid flicker
+    setTimeout(() => {
+      dashboard.refresh();
+    }, 350);
   };
 
   if (dashboard.isLoading) {
