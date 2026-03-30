@@ -291,7 +291,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       });
       const loadedPayment = (data.payment_details as PaymentDetails) || EMPTY_PAYMENT;
       // Auto-fill parcelas details if saldo and parcelas are set but details have null values
-      if (loadedPayment.parcelas && loadedPayment.parcelas > 1 && loadedPayment.saldo_valor && loadedPayment.saldo_valor > 0) {
+      if (loadedPayment.parcelas && loadedPayment.parcelas >= 1 && loadedPayment.saldo_valor && loadedPayment.saldo_valor > 0) {
         const hasEmptyValues = (loadedPayment.parcelas_details || []).some(d => d.valor == null);
         if (hasEmptyValues || !loadedPayment.parcelas_details?.length) {
           const perParcela = Math.round((loadedPayment.saldo_valor / loadedPayment.parcelas) * 100) / 100;
