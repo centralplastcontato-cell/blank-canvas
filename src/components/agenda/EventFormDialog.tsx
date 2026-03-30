@@ -228,7 +228,7 @@ function ClientDataStatusBadge({ status }: { status: string }) {
 }
 
 function buildParcelasDetails(parcelas: number | null, saldo: number | null, existing: ParcelaDetail[] = []): ParcelaDetail[] {
-  if (!parcelas || parcelas <= 1) return [];
+  if (!parcelas || parcelas < 1) return [];
 
   if (!saldo || saldo <= 0) {
     return Array.from({ length: parcelas }, (_, i) => ({
