@@ -66,6 +66,8 @@ export default function Financeiro() {
   const [pageReceber, setPageReceber] = useState(1);
   const [pageRecebidos, setPageRecebidos] = useState(1);
   const [pageDespesas, setPageDespesas] = useState(1);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [selectedEventData, setSelectedEventData] = useState<{ title: string; event_date: string; total_value: number; status: string } | null>(null);
 
   const months = Array.from({ length: 12 }, (_, i) => {
     const d = new Date(new Date().getFullYear(), i, 1);
