@@ -6,10 +6,12 @@ import { useCompany } from '@/contexts/CompanyContext';
 import { FinancialPaymentCard } from '@/components/financial/FinancialPaymentCard';
 import { PaymentsByClientView } from '@/components/financial/PaymentsByClientView';
 import { ExpenseFormDialog } from '@/components/financial/ExpenseFormDialog';
+import { EventFinancialTab } from '@/components/financial/EventFinancialTab';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { MobileMenu } from '@/components/admin/MobileMenu';
 import { NotificationBell } from '@/components/admin/NotificationBell';
 import { SidebarProvider } from '@/components/ui/sidebar';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale, Building, Zap, PartyPopper, List, Users, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { supabase } from '@/integrations/supabase/client';
 
 const PAGE_SIZE = 20;
 
@@ -63,14 +66,35 @@ export default function Financeiro() {
   const [pageReceber, setPageReceber] = useState(1);
   const [pageRecebidos, setPageRecebidos] = useState(1);
   const [pageDespesas, setPageDespesas] = useState(1);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [selectedEventData, setSelectedEventData] = useState<{ title: string; event_date: string; total_value: number; status: string } | null>(null);
 
   const months = Array.from({ length: 12 }, (_, i) => {
     const d = new Date(new Date().getFullYear(), i, 1);
     return { value: format(d, 'yyyy-MM'), label: format(d, 'MMMM yyyy', { locale: ptBR }) };
   });
 
-  const handleOpenEvent = (eventId: string) => {
-    navigate(`/agenda?event=${eventId}`);
+  const handleOpenEvent = async (eventId: string) => {
+    setSelectedEventId(eventId);
+    const { data } = await supabase
+      .from('company_events')
+      .select('title, event_date, total_value, status')
+      .eq('id', eventId)
+      .single();
+    if (data) {
+      setSelectedEventData({
+        title: data.title,
+        event_date: data.event_date,
+        total_value: Number(data.total_value) || 0,
+        status: data.status,
+      });
+    }
+  };
+
+  const handleCloseEventSheet = () => {
+    setSelectedEventId(null);
+    setSelectedEventData(null);
+    dashboard.refresh();
   };
 
   if (dashboard.isLoading) {
@@ -451,6 +475,32 @@ export default function Financeiro() {
         
         defaultExpenseType={expenseDialogType}
       />
+
+      <Sheet open={!!selectedEventId} onOpenChange={(open) => { if (!open) handleCloseEventSheet(); }}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto p-0">
+          <SheetHeader className="p-6 pb-2">
+            <SheetTitle className="text-lg font-bold">
+              {selectedEventData?.title || 'Carregando...'}
+            </SheetTitle>
+            <SheetDescription className="text-sm text-muted-foreground">
+              {selectedEventData ? (
+                <>
+                  {format(new Date(selectedEventData.event_date + 'T12:00:00'), 'dd/MM/yyyy')} · {selectedEventData.status === 'confirmed' ? 'Confirmado' : selectedEventData.status}
+                </>
+              ) : 'Carregando dados do evento...'}
+            </SheetDescription>
+          </SheetHeader>
+          {selectedEventId && currentCompany?.id && selectedEventData && (
+            <div className="px-6 pb-6">
+              <EventFinancialTab
+                eventId={selectedEventId}
+                companyId={currentCompany.id}
+                baseValue={selectedEventData.total_value}
+              />
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </SidebarProvider>
   );
 }
