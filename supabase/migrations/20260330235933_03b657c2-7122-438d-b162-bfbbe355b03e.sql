@@ -1,0 +1,1 @@
+ALTER TABLE public.company_expenses ADD COLUMN notes text;
