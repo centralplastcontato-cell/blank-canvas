@@ -992,7 +992,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               </div>
 
               {/* Installment details */}
-              {(payment.parcelas ?? 0) > 1 && (
+              {(payment.parcelas ?? 0) >= 1 && (
                 <div className="md:col-span-2 space-y-3">
                   <div className="rounded-lg border border-border/40 bg-muted/20 p-3 space-y-2">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Detalhes das parcelas</p>
