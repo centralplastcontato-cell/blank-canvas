@@ -74,8 +74,27 @@ export default function Financeiro() {
     return { value: format(d, 'yyyy-MM'), label: format(d, 'MMMM yyyy', { locale: ptBR }) };
   });
 
-  const handleOpenEvent = (eventId: string) => {
-    navigate(`/agenda?event=${eventId}`);
+  const handleOpenEvent = async (eventId: string) => {
+    setSelectedEventId(eventId);
+    const { data } = await supabase
+      .from('company_events')
+      .select('title, event_date, total_value, status')
+      .eq('id', eventId)
+      .single();
+    if (data) {
+      setSelectedEventData({
+        title: data.title,
+        event_date: data.event_date,
+        total_value: Number(data.total_value) || 0,
+        status: data.status,
+      });
+    }
+  };
+
+  const handleCloseEventSheet = () => {
+    setSelectedEventId(null);
+    setSelectedEventData(null);
+    dashboard.refresh();
   };
 
   if (dashboard.isLoading) {
