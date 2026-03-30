@@ -492,6 +492,19 @@ export default function Financeiro() {
                 </>
               ) : 'Carregando dados do evento...'}
             </SheetDescription>
+            {selectedEventId && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 w-fit gap-1.5 text-xs"
+                onClick={() => {
+                  handleCloseEventSheet();
+                  navigate(`/agenda?event=${selectedEventId}`);
+                }}
+              >
+                <ExternalLink className="h-3.5 w-3.5" /> Ir para Agenda
+              </Button>
+            )}
           </SheetHeader>
           {selectedEventId && currentCompany?.id && selectedEventData && (
             <div className="px-6 pb-6">
