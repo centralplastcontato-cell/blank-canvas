@@ -475,6 +475,32 @@ export default function Financeiro() {
         
         defaultExpenseType={expenseDialogType}
       />
+
+      <Sheet open={!!selectedEventId} onOpenChange={(open) => { if (!open) handleCloseEventSheet(); }}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto p-0">
+          <SheetHeader className="p-6 pb-2">
+            <SheetTitle className="text-lg font-bold">
+              {selectedEventData?.title || 'Carregando...'}
+            </SheetTitle>
+            <SheetDescription className="text-sm text-muted-foreground">
+              {selectedEventData ? (
+                <>
+                  {format(new Date(selectedEventData.event_date + 'T12:00:00'), 'dd/MM/yyyy')} · {selectedEventData.status === 'confirmed' ? 'Confirmado' : selectedEventData.status}
+                </>
+              ) : 'Carregando dados do evento...'}
+            </SheetDescription>
+          </SheetHeader>
+          {selectedEventId && currentCompany?.id && selectedEventData && (
+            <div className="px-6 pb-6">
+              <EventFinancialTab
+                eventId={selectedEventId}
+                companyId={currentCompany.id}
+                baseValue={selectedEventData.total_value}
+              />
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </SidebarProvider>
   );
 }
