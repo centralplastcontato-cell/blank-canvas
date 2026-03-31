@@ -102,6 +102,7 @@ import {
 } from "@/components/ui/resizable";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { EventFinancialTab } from "@/components/financial/EventFinancialTab";
+import { useFinancialPermissions } from "@/hooks/useFinancialPermissions";
 
 interface WapiInstance {
   id: string;
