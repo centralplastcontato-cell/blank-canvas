@@ -761,6 +761,15 @@ export default function Financeiro() {
         companyName={currentCompany?.name || ''}
         unitOptions={unitOptions}
       />
+      {markPaidExpense && (
+        <MarkExpensePaidDialog
+          open={!!markPaidExpense}
+          onOpenChange={(open) => { if (!open) setMarkPaidExpense(null); }}
+          expenseId={markPaidExpense.id}
+          expenseDescription={markPaidExpense.description}
+          onConfirm={(id, data) => dashboard.updateExpense(id, data)}
+        />
+      )}
     </SidebarProvider>
   );
 }

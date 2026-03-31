@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Check, Upload, Loader2, X, Image } from 'lucide-react';
+import { Check, Upload, Loader2, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Props {
