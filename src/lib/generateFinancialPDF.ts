@@ -2,7 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { EnrichedPayment, Expense } from '@/hooks/useFinanceiroDashboard';
 
-export type ReportType = 'despesas' | 'receitas' | 'resultado' | 'despesas_fixas' | 'despesas_variaveis' | 'despesas_festa';
+export type ReportType = 'despesas' | 'receitas' | 'resultado' | 'despesas_fixas' | 'despesas_variaveis' | 'despesas_festa' | 'receitas_a_receber' | 'receitas_atrasadas' | 'receitas_recebidas';
 
 interface ReportParams {
   type: ReportType;
@@ -259,8 +259,14 @@ function generateExpenseReport(doc: jsPDF, params: ReportParams, filterType?: st
   });
 }
 
-function generateRevenueReport(doc: jsPDF, params: ReportParams) {
-  let y = addHeader(doc, params.companyName, 'Relatório de Receitas', params.periodLabel);
+function generateRevenueReport(doc: jsPDF, params: ReportParams, filterStatus?: 'pending' | 'late' | 'paid') {
+  const titleMap: Record<string, string> = {
+    pending: 'Relatório de Receitas — A Receber',
+    late: 'Relatório de Receitas — Em Atraso',
+    paid: 'Relatório de Receitas — Recebidas',
+  };
+  const title = filterStatus ? titleMap[filterStatus] : 'Relatório de Receitas';
+  let y = addHeader(doc, params.companyName, title, params.periodLabel);
 
   const paid = params.payments.filter(p => p.status === 'paid' && p.paid_at && p.paid_at.slice(0, 10) >= params.from && p.paid_at.slice(0, 10) <= params.to);
   const pending = params.payments.filter(p => p.status === 'pending' && p.due_date >= params.from && p.due_date <= params.to);
@@ -314,9 +320,9 @@ function generateRevenueReport(doc: jsPDF, params: ReportParams) {
     y = (doc as any).lastAutoTable?.finalY || y;
   };
 
-  renderSection(`Em Atraso (${late.length})`, late, [220, 50, 50]);
-  renderSection(`A Receber (${pending.length})`, pending, [200, 150, 0]);
-  renderSection(`Recebidos (${paid.length})`, paid, [50, 180, 80]);
+  if (!filterStatus || filterStatus === 'late') renderSection(`Em Atraso (${late.length})`, late, [220, 50, 50]);
+  if (!filterStatus || filterStatus === 'pending') renderSection(`A Receber (${pending.length})`, pending, [200, 150, 0]);
+  if (!filterStatus || filterStatus === 'paid') renderSection(`Recebidos (${paid.length})`, paid, [50, 180, 80]);
 }
 
 function generateResultReport(doc: jsPDF, params: ReportParams) {
@@ -449,6 +455,15 @@ export function generateFinancialPDF(params: ReportParams) {
     case 'receitas':
       generateRevenueReport(doc, params);
       break;
+    case 'receitas_a_receber':
+      generateRevenueReport(doc, params, 'pending');
+      break;
+    case 'receitas_atrasadas':
+      generateRevenueReport(doc, params, 'late');
+      break;
+    case 'receitas_recebidas':
+      generateRevenueReport(doc, params, 'paid');
+      break;
     case 'resultado':
       generateResultReport(doc, params);
       break;
@@ -457,6 +472,7 @@ export function generateFinancialPDF(params: ReportParams) {
   const TYPE_FILE_LABELS: Record<string, string> = {
     despesas: 'Despesas', receitas: 'Receitas', resultado: 'Resultado',
     despesas_fixas: 'Despesas_Fixas', despesas_variaveis: 'Despesas_Variaveis', despesas_festa: 'Despesas_Festa',
+    receitas_a_receber: 'Receitas_A_Receber', receitas_atrasadas: 'Receitas_Atrasadas', receitas_recebidas: 'Receitas_Recebidas',
   };
   const typeLabel = TYPE_FILE_LABELS[params.type] || 'Relatorio';
   doc.save(`Relatorio_${typeLabel}_${params.from}_a_${params.to}.pdf`);

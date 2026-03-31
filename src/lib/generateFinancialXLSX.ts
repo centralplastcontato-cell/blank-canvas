@@ -152,6 +152,21 @@ export function generateFinancialXLSX(params: ReportParams) {
       XLSX.utils.book_append_sheet(wb, recebidos, 'Recebidos');
       break;
     }
+    case 'receitas_a_receber': {
+      const { aReceber: sheet } = buildRevenueSheets(params);
+      XLSX.utils.book_append_sheet(wb, sheet, 'A Receber');
+      break;
+    }
+    case 'receitas_atrasadas': {
+      const { atrasados: sheet } = buildRevenueSheets(params);
+      XLSX.utils.book_append_sheet(wb, sheet, 'Em Atraso');
+      break;
+    }
+    case 'receitas_recebidas': {
+      const { recebidos: sheet } = buildRevenueSheets(params);
+      XLSX.utils.book_append_sheet(wb, sheet, 'Recebidos');
+      break;
+    }
     case 'resultado': {
       const { resumo, categorias } = buildResultSheets(params);
       XLSX.utils.book_append_sheet(wb, resumo, 'Resumo');
@@ -163,6 +178,7 @@ export function generateFinancialXLSX(params: ReportParams) {
   const TYPE_FILE_LABELS: Record<string, string> = {
     despesas: 'Despesas', receitas: 'Receitas', resultado: 'Resultado',
     despesas_fixas: 'Despesas_Fixas', despesas_variaveis: 'Despesas_Variaveis', despesas_festa: 'Despesas_Festa',
+    receitas_a_receber: 'Receitas_A_Receber', receitas_atrasadas: 'Receitas_Atrasadas', receitas_recebidas: 'Receitas_Recebidas',
   };
   const typeLabel = TYPE_FILE_LABELS[params.type] || 'Relatorio';
   XLSX.writeFile(wb, `Relatorio_${typeLabel}_${params.from}_a_${params.to}.xlsx`);
