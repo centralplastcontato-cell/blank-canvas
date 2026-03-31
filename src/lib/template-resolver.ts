@@ -150,7 +150,7 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
     resolver: (ctx) => resolveFirstName(ctx.lead?.name) || 'cliente',
   },
   nome_completo: {
-    resolver: (ctx) => ctx.lead?.name?.trim() || 'cliente',
+    resolver: (ctx) => ctx.contract?.responsible_name?.trim() || ctx.lead?.name?.trim() || 'cliente',
   },
   telefone: {
     resolver: (ctx) => ctx.lead?.whatsapp || '',
