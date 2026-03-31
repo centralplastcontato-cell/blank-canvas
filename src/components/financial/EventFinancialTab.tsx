@@ -87,6 +87,13 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
             });
           }
         });
+      } else if (pd.saldo_valor && pd.saldo_valor > 0) {
+        rows.push({
+          event_id: eventId, company_id: companyId, type: "parcela",
+          amount: pd.saldo_valor,
+          due_date: pd.saldo_data || new Date().toISOString().split("T")[0],
+          payment_method: pd.saldo_forma || null, status: "pending",
+        });
       }
       if (rows.length > 0) {
         await supabase.from("event_payments").insert(rows);
