@@ -4166,7 +4166,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                           selectedConversation.is_equipe ? "text-cyan-600" : "text-muted-foreground"
                         )} />
                       </Button>
-                      {leadEventId && (
+                      {leadEventId && financialPerms.canView && (
                         <Button
                           variant="ghost"
                           size="icon"
