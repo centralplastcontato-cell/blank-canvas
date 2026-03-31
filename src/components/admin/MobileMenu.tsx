@@ -1,4 +1,6 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Headset, 
   Settings, 
@@ -38,6 +40,7 @@ interface MobileMenuProps {
   userAvatar?: string | null;
   canManageUsers: boolean;
   isAdmin?: boolean;
+  canViewFinanceiro?: boolean;
   onRefresh?: () => void;
   onLogout: () => void;
 }
@@ -61,11 +64,30 @@ export function MobileMenu({
   userAvatar,
   canManageUsers,
   isAdmin,
+  canViewFinanceiro,
   onRefresh,
   onLogout,
 }: MobileMenuProps) {
   const navigate = useNavigate();
   const modules = useCompanyModules();
+
+  // Check financial.view permission for current user
+  const [finViewAllowed, setFinViewAllowed] = useState(true);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) return;
+      supabase
+        .from('user_permissions')
+        .select('granted')
+        .eq('user_id', data.user.id)
+        .eq('permission', 'financial.view')
+        .maybeSingle()
+        .then(({ data: perm }) => {
+          if (perm && perm.granted === false) setFinViewAllowed(false);
+        });
+    });
+  }, []);
+  const showFinanceiro = canViewFinanceiro !== false && finViewAllowed;
 
   const menuItems = [
     {
@@ -122,7 +144,7 @@ export function MobileMenu({
       label: "Financeiro",
       icon: DollarSign,
       path: "/financeiro",
-      show: true,
+      show: showFinanceiro,
     },
     {
       id: "configuracoes",

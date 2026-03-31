@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { useFinanceiroDashboard } from '@/hooks/useFinanceiroDashboard';
 import { useCompanyUnits } from '@/hooks/useCompanyUnits';
 import { useCompany } from '@/contexts/CompanyContext';
@@ -100,6 +101,23 @@ export default function Financeiro() {
   const [activePreset, setActivePreset] = useState<PeriodPreset>('mes');
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [customPopoverOpen, setCustomPopoverOpen] = useState(false);
+
+  // Auth & financial permission check
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>();
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setCurrentUserId(data.user?.id);
+      if (!data.user) navigate('/auth');
+    });
+  }, [navigate]);
+  const financialPerms = useFinancialPermissions(currentUserId);
+
+  // Redirect if user doesn't have financial.view permission
+  useEffect(() => {
+    if (!financialPerms.isLoading && currentUserId && !financialPerms.canView) {
+      navigate('/atendimento');
+    }
+  }, [financialPerms.isLoading, financialPerms.canView, currentUserId, navigate]);
 
   const handlePresetChange = (preset: PeriodPreset) => {
     setActivePreset(preset);

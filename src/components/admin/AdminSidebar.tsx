@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { useLocation } from "react-router-dom";
 import { Users, LogOut, RefreshCw, Headset, Settings, Pin, PinOff, ChevronLeft, Building2, Brain, CalendarDays, FolderOpen, GraduationCap, Megaphone, MapPin, FileSignature, Lock, Unlock, DollarSign } from "lucide-react";
 import { prefetchRoute } from "@/App";
@@ -28,6 +29,7 @@ interface AdminSidebarProps {
   canManageUsers: boolean;
   isAdmin?: boolean;
   currentUserName: string;
+  canViewFinanceiro?: boolean;
   onRefresh: () => void;
   onLogout: () => void;
 }
@@ -37,6 +39,7 @@ export function AdminSidebar({
   canManageUsers,
   isAdmin,
   currentUserName, 
+  canViewFinanceiro = true,
   onRefresh, 
   onLogout 
 }: AdminSidebarProps) {
@@ -49,6 +52,24 @@ export function AdminSidebar({
   const modules = useCompanyModules();
   const { currentCompany } = useCompany();
 
+  // Check financial.view permission for current user
+  const [finViewAllowed, setFinViewAllowed] = useState(true);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) return;
+      supabase
+        .from('user_permissions')
+        .select('granted')
+        .eq('user_id', data.user.id)
+        .eq('permission', 'financial.view')
+        .maybeSingle()
+        .then(({ data: perm }) => {
+          if (perm && perm.granted === false) setFinViewAllowed(false);
+        });
+    });
+  }, []);
+  const showFinanceiro = canViewFinanceiro !== false && finViewAllowed;
+
   // Build menu items dynamically based on permissions AND enabled modules
   const allItems = [
     ...(modules.central_atendimento ? [{ title: "Central de Atendimento", url: "/atendimento", icon: Headset }] : []),
@@ -59,7 +80,7 @@ export function AdminSidebar({
     ...(modules.campanhas ? [{ title: "Campanhas", url: "/campanhas", icon: Megaphone }] : []),
     ...(modules.visitas ? [{ title: "Visitas", url: "/visitas", icon: MapPin }] : []),
     ...(modules.contrato ? [{ title: "Contratos", url: "/contratos", icon: FileSignature }] : []),
-    { title: "Financeiro", url: "/financeiro", icon: DollarSign },
+    ...(showFinanceiro ? [{ title: "Financeiro", url: "/financeiro", icon: DollarSign }] : []),
     
     ...(canManageUsers ? [{ title: "Gerenciar Usuários", url: "/users", icon: Users }] : []),
     ...(isAdmin ? [{ title: "Empresas", url: "/hub/empresas", icon: Building2 }] : []),
