@@ -79,7 +79,7 @@ export function PeriodFilterPopover({ onConfirm, activePeriod, onClear }: Period
               mode="range"
               selected={range}
               onSelect={setRange}
-              numberOfMonths={2}
+              numberOfMonths={isMobile ? 1 : 2}
               locale={ptBR}
               className={cn("p-3 pointer-events-auto")}
             />
