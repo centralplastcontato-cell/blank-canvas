@@ -369,7 +369,7 @@ export default function Financeiro() {
                     </div>
 
                     {(['fixa', 'variavel', 'festa'] as const).map(expType => {
-                      const typeExpenses = dashboard.expensesThisMonth.filter(e => (e.expense_type || 'fixa') === expType);
+                      const typeExpenses = dashboard.expenses.filter(e => (e.expense_type || 'fixa') === expType);
                       const typeLabel = expType === 'fixa' ? 'fixa' : expType === 'variavel' ? 'variável' : 'de festa';
                       return (
                         <TabsContent key={expType} value={expType} className="space-y-3 mt-3">
@@ -388,7 +388,7 @@ export default function Financeiro() {
                           </div>
                           {typeExpenses.length === 0 ? (
                             <Card className="p-8">
-                              <p className="text-sm text-muted-foreground text-center">Nenhuma despesa {typeLabel} neste período</p>
+                              <p className="text-sm text-muted-foreground text-center">Nenhuma despesa {typeLabel} cadastrada</p>
                             </Card>
                           ) : (() => {
                             const totalPagesDespesas = Math.ceil(typeExpenses.length / PAGE_SIZE);
