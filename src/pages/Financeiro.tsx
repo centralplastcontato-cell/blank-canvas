@@ -211,6 +211,9 @@ export default function Financeiro() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setReportDialogOpen(true)}>
+                    <FileText className="w-5 h-5" />
+                  </Button>
                   <NotificationBell />
                 </div>
               </div>
