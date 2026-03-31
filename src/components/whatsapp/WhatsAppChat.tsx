@@ -6572,10 +6572,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       {leadEventId && currentCompany && (
         <Sheet open={showFinancialSheet} onOpenChange={setShowFinancialSheet}>
           <SheetContent side="bottom" className="h-[85vh] overflow-y-auto p-0">
-            <SheetHeader className="px-4 pt-4 pb-2 sticky top-0 bg-background z-10 border-b">
+            <SheetHeader className="px-4 pt-4 pb-2 sticky top-0 bg-background z-10 border-b flex flex-row items-center justify-between">
               <SheetTitle className="text-base font-bold">
                 {linkedLead?.name || selectedConversation?.contact_name || 'Financeiro'}
               </SheetTitle>
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setShowFinancialSheet(false)}>
+                <X className="h-4 w-4" />
+              </Button>
             </SheetHeader>
             <div className="p-4">
               <EventFinancialTab
