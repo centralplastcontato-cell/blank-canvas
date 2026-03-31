@@ -144,7 +144,7 @@ export function MobileMenu({
       label: "Financeiro",
       icon: DollarSign,
       path: "/financeiro",
-      show: canViewFinanceiro !== false,
+      show: showFinanceiro,
     },
     {
       id: "configuracoes",
