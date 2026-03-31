@@ -62,6 +62,7 @@ export function MobileMenu({
   userAvatar,
   canManageUsers,
   isAdmin,
+  canViewFinanceiro,
   onRefresh,
   onLogout,
 }: MobileMenuProps) {
