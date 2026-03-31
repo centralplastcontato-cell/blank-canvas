@@ -14,6 +14,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { EventChecklist } from "./EventChecklist";
 import { EventFinancialTab } from "@/components/financial/EventFinancialTab";
+import { useFinancialPermissions } from "@/hooks/useFinancialPermissions";
 
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -60,6 +61,7 @@ const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondar
 };
 
 export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, conflicts = [], userId }: EventDetailSheetProps) {
+  const financialPerms = useFinancialPermissions(userId);
   
   const [leadName, setLeadName] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -181,7 +183,7 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
           )}
 
           {/* 💰 FINANCIAL — Primary Block (first visible) */}
-          {event.company_id && (
+          {event.company_id && financialPerms.canView && (
             <div className="rounded-xl border border-primary/20 bg-gradient-to-br from-card to-primary/[0.02] shadow-md overflow-hidden">
               <div className="px-4 py-3 bg-primary/[0.06] border-b border-primary/10 flex items-center gap-2.5">
                 <div className="p-1.5 rounded-lg bg-primary/15">
@@ -194,6 +196,9 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
                   eventId={event.id}
                   companyId={event.company_id}
                   baseValue={event.total_value || 0}
+                  canEdit={financialPerms.canEdit}
+                  canPay={financialPerms.canPay}
+                  showValues={financialPerms.canViewValues}
                 />
               </div>
             </div>

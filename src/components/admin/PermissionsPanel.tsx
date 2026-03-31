@@ -16,7 +16,7 @@ import { toast } from "@/hooks/use-toast";
 import { 
   ClipboardList, Users, Shield, Loader2, Crown, Building2, MapPin, 
   MessageCircle, Settings, BarChart3, Briefcase, Plus, Pencil, Trash2, Save,
-  Calendar, Megaphone, GraduationCap, Eye
+  Calendar, Megaphone, GraduationCap, Eye, DollarSign
 } from "lucide-react";
 import { useCompanyModules, CompanyModules } from "@/hooks/useCompanyModules";
 
@@ -54,6 +54,7 @@ const categoryIcons: Record<string, React.ElementType> = {
   Visitas: MapPin,
   Campanhas: Megaphone,
   Treinamento: GraduationCap,
+  Financeiro: DollarSign,
 };
 
 const iconOptions: Record<string, React.ElementType> = {

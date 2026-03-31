@@ -102,6 +102,7 @@ import {
 } from "@/components/ui/resizable";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { EventFinancialTab } from "@/components/financial/EventFinancialTab";
+import { useFinancialPermissions } from "@/hooks/useFinancialPermissions";
 
 interface WapiInstance {
   id: string;
@@ -602,6 +603,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   // Permissions hook - check all WhatsApp granular permissions
   const { hasPermission: hasUserPermission } = usePermissions(userId);
   const { isAdmin } = useUserRole(userId);
+  const financialPerms = useFinancialPermissions(userId);
   const canTransferLeads = isAdmin || hasUserPermission('leads.transfer');
   const canDeleteFromChat = isAdmin || hasUserPermission('leads.delete.from_chat');
   const canSendMessages = isAdmin || hasUserPermission('whatsapp.send');
@@ -4164,7 +4166,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                           selectedConversation.is_equipe ? "text-cyan-600" : "text-muted-foreground"
                         )} />
                       </Button>
-                      {leadEventId && (
+                      {leadEventId && financialPerms.canView && (
                         <Button
                           variant="ghost"
                           size="icon"
@@ -5184,7 +5186,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         visitRefreshKey={visitRefreshKey}
                         mobile
                       />
-                      {leadEventId && (
+                      {leadEventId && financialPerms.canView && (
                         <Button
                           variant="ghost"
                           size="icon"
@@ -6580,9 +6582,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                 eventId={leadEventId}
                 companyId={currentCompany.id}
                 baseValue={leadEventValue}
-                canEdit={true}
-                canPay={true}
-                showValues={true}
+                canEdit={financialPerms.canEdit}
+                canPay={financialPerms.canPay}
+                showValues={financialPerms.canViewValues}
               />
             </div>
           </SheetContent>
