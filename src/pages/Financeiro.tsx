@@ -9,6 +9,7 @@ import { PaymentsByClientView } from '@/components/financial/PaymentsByClientVie
 import { ExpenseFormDialog } from '@/components/financial/ExpenseFormDialog';
 import { EventFinancialTab } from '@/components/financial/EventFinancialTab';
 import { FinancialReportDialog } from '@/components/financial/FinancialReportDialog';
+import { MarkExpensePaidDialog } from '@/components/financial/MarkExpensePaidDialog';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { MobileMenu } from '@/components/admin/MobileMenu';
 import { NotificationBell } from '@/components/admin/NotificationBell';
