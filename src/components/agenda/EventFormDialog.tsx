@@ -1160,6 +1160,9 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                   </PopoverContent>
                 </Popover>
               </div>
+
+              <div className="space-y-2.5 md:col-span-2">
+                <Label className="text-sm font-medium text-foreground/70">Observações de pagamento</Label>
                 <Textarea
                   value={payment.observacoes_pagamento}
                   onChange={(e) => setPayment({ ...payment, observacoes_pagamento: e.target.value })}
