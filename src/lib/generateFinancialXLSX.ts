@@ -152,6 +152,21 @@ export function generateFinancialXLSX(params: ReportParams) {
       XLSX.utils.book_append_sheet(wb, recebidos, 'Recebidos');
       break;
     }
+    case 'receitas_a_receber': {
+      const { aReceber: sheet } = buildRevenueSheets(params);
+      XLSX.utils.book_append_sheet(wb, sheet, 'A Receber');
+      break;
+    }
+    case 'receitas_atrasadas': {
+      const { atrasados: sheet } = buildRevenueSheets(params);
+      XLSX.utils.book_append_sheet(wb, sheet, 'Em Atraso');
+      break;
+    }
+    case 'receitas_recebidas': {
+      const { recebidos: sheet } = buildRevenueSheets(params);
+      XLSX.utils.book_append_sheet(wb, sheet, 'Recebidos');
+      break;
+    }
     case 'resultado': {
       const { resumo, categorias } = buildResultSheets(params);
       XLSX.utils.book_append_sheet(wb, resumo, 'Resumo');
