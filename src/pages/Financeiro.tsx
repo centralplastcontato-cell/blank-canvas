@@ -548,9 +548,20 @@ export default function Financeiro() {
                                 </span>
                               )}
                             </h2>
-                            <Button size="sm" onClick={() => { setExpenseDialogType(expType); setExpenseDialogOpen(true); }}>
-                              <Plus className="h-4 w-4 mr-1" /> Adicionar
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-1.5 text-xs"
+                                onClick={() => { setDespesasSortAsc(prev => !prev); setPageDespesas(1); }}
+                              >
+                                <ArrowUpDown className="h-3.5 w-3.5" />
+                                {despesasSortAsc ? 'Mais próxima' : 'Mais recente'}
+                              </Button>
+                              <Button size="sm" onClick={() => { setExpenseDialogType(expType); setExpenseDialogOpen(true); }}>
+                                <Plus className="h-4 w-4 mr-1" /> Adicionar
+                              </Button>
+                            </div>
                           </div>
                           {typeExpenses.length === 0 ? (
                             <Card className="p-8">
