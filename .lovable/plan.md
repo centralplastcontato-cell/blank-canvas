@@ -1,24 +1,42 @@
 
 
-## Plano: Incluir datas na variável {{forma_pagamento}}
+## Plano: Geração de Relatórios Financeiros (PDF)
 
-### O que muda
+### Abordagem Arquitetural
 
-A variável `{{forma_pagamento}}` passará a incluir as datas de pagamento, ficando mais completa. Exemplo:
+A melhor abordagem é **centralizada dentro da página Financeiro**, com um botão "Gerar Relatório" que abre um dialog onde o usuário escolhe o tipo de relatório e o período. Isso evita fragmentação e mantém tudo no contexto financeiro.
 
-**Antes:** `Entrada: R$ 1.500 (PIX) | Saldo: R$ 3.500 (Cartão) | 1x`
+Cada aba (Receitas, Despesas, Resultado) já tem os dados filtrados — o relatório vai usar esses mesmos dados para gerar o PDF.
 
-**Depois:** `Entrada: R$ 1.500 (PIX) em 01/04/2026 | Saldo: R$ 3.500 (Cartão) em 15/05/2026 | 1x`
+### O que será construído
 
-### Alterações técnicas
+1. **Componente `FinancialReportDialog`** — Dialog com:
+   - Seletor de tipo de relatório: Despesas, Receitas (a receber/recebidas), Resultado Geral
+   - Seletor de período (reutilizando os mesmos presets do Financeiro)
+   - Filtro opcional de unidade
+   - Botão "Gerar PDF"
 
-**1. `src/components/contracts/EventContractDialog.tsx` (linhas 74-80)**
-- No trecho que monta `paymentDesc`, adicionar a data formatada (DD/MM/YYYY) após cada valor:
-  - Entrada: append `em ${formatDate(pd.entrada_data)}` se existir
-  - Saldo: append `em ${formatDate(pd.saldo_data)}` se existir
+2. **Gerador de PDF `generateFinancialPDF.ts`** — usando `jsPDF` + `jspdf-autotable` (já no projeto), gera:
+   - **Relatório de Despesas**: lista todas despesas do período com categoria, tipo, valor, status, comprovante
+   - **Relatório de Receitas**: parcelas por cliente/evento com status (pago/pendente/atrasado)
+   - **Relatório de Resultado**: resumo consolidado (receitas vs despesas, saldo, breakdown por categoria)
+   - Cabeçalho com nome da empresa, período e data de geração
+   - Totalizadores ao final de cada seção
 
-**2. `src/components/contracts/ContractGenerator.tsx`**
-- Mesma lógica no gerador legado, se ele monta `forma_pagamento` de forma similar.
+3. **Botão na página Financeiro** — ícone de download/relatório no header, abre o dialog
 
-Apenas 2 arquivos editados, sem migrations.
+### Arquivos a criar/editar
+
+| Arquivo | Ação |
+|---------|------|
+| `src/lib/generateFinancialPDF.ts` | Criar — lógica de geração do PDF |
+| `src/components/financial/FinancialReportDialog.tsx` | Criar — dialog de seleção |
+| `src/pages/Financeiro.tsx` | Editar — adicionar botão que abre o dialog |
+
+### Detalhes técnicos
+
+- Reutiliza `jsPDF` e `jspdf-autotable` já instalados (usados em `SchedulePDFGenerator.ts`)
+- Os dados vêm do hook `useFinanceiroDashboard` já existente, passados como props ao dialog
+- O PDF é gerado client-side e baixado diretamente no dispositivo do usuário
+- Formatação em pt-BR com moeda BRL
 
