@@ -198,10 +198,12 @@ function drawBarChart(
 
 // ─── Reports ─────────────────────────────────────────────────────────────────
 
-function generateExpenseReport(doc: jsPDF, params: ReportParams) {
-  let y = addHeader(doc, params.companyName, 'Relatório de Despesas', params.periodLabel);
+function generateExpenseReport(doc: jsPDF, params: ReportParams, filterType?: string, titleSuffix?: string) {
+  const title = titleSuffix ? `Relatório de Despesas — ${titleSuffix}` : 'Relatório de Despesas';
+  let y = addHeader(doc, params.companyName, title, params.periodLabel);
 
-  const periodExpenses = filterByPeriod(params.expenses, params.from, params.to, 'expense_date');
+  let periodExpenses = filterByPeriod(params.expenses, params.from, params.to, 'expense_date');
+  if (filterType) periodExpenses = periodExpenses.filter(e => e.expense_type === filterType);
   const sorted = [...periodExpenses].sort((a, b) => a.expense_date.localeCompare(b.expense_date));
   const total = sorted.reduce((s, e) => s + e.amount, 0);
 
