@@ -58,13 +58,8 @@ function buildExpenseSheet(params: ReportParams): XLSX.WorkSheet {
   return ws;
 }
 
-function buildRevenueSheet(params: ReportParams): XLSX.WorkSheet {
-  const paid = params.payments.filter(p => p.status === 'paid' && p.paid_at && p.paid_at.slice(0, 10) >= params.from && p.paid_at.slice(0, 10) <= params.to);
-  const pending = params.payments.filter(p => p.status === 'pending' && p.due_date >= params.from && p.due_date <= params.to);
-  const late = params.payments.filter(p => p.status === 'late');
-
-  const all = [...late, ...pending, ...paid];
-  const rows = all.map(p => ({
+function buildPaymentRows(payments: EnrichedPayment[]) {
+  return payments.map(p => ({
     Vencimento: fmtDate(p.due_date),
     Cliente: p.lead_name || '—',
     Evento: p.event_title || '—',
@@ -73,10 +68,31 @@ function buildRevenueSheet(params: ReportParams): XLSX.WorkSheet {
     Valor: p.amount,
     Status: STATUS_LABELS[p.status] || p.status,
   }));
+}
 
-  const ws = XLSX.utils.json_to_sheet(rows);
-  ws['!cols'] = [{ wch: 12 }, { wch: 25 }, { wch: 25 }, { wch: 10 }, { wch: 12 }, { wch: 15 }, { wch: 12 }];
-  return ws;
+const PAYMENT_COLS = [{ wch: 12 }, { wch: 25 }, { wch: 25 }, { wch: 10 }, { wch: 12 }, { wch: 15 }, { wch: 12 }];
+
+function buildRevenueSheets(params: ReportParams): { geral: XLSX.WorkSheet; atrasados: XLSX.WorkSheet; aReceber: XLSX.WorkSheet; recebidos: XLSX.WorkSheet } {
+  const paid = params.payments.filter(p => p.status === 'paid' && p.paid_at && p.paid_at.slice(0, 10) >= params.from && p.paid_at.slice(0, 10) <= params.to);
+  const pending = params.payments.filter(p => p.status === 'pending' && p.due_date >= params.from && p.due_date <= params.to);
+  const late = params.payments.filter(p => p.status === 'late');
+
+  const makeSheet = (items: EnrichedPayment[]) => {
+    const rows = buildPaymentRows(items);
+    const total = items.reduce((s, p) => s + p.amount, 0);
+    rows.push({ Vencimento: '', Cliente: '', Evento: '', Tipo: '', Forma: 'TOTAL', Valor: total, Status: '' });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = PAYMENT_COLS;
+    return ws;
+  };
+
+  const allRows = buildPaymentRows([...late, ...pending, ...paid]);
+  const totalAll = [...late, ...pending, ...paid].reduce((s, p) => s + p.amount, 0);
+  allRows.push({ Vencimento: '', Cliente: '', Evento: '', Tipo: '', Forma: 'TOTAL', Valor: totalAll, Status: '' });
+  const geral = XLSX.utils.json_to_sheet(allRows);
+  geral['!cols'] = PAYMENT_COLS;
+
+  return { geral, atrasados: makeSheet(late), aReceber: makeSheet(pending), recebidos: makeSheet(paid) };
 }
 
 function buildResultSheets(params: ReportParams): { resumo: XLSX.WorkSheet; categorias: XLSX.WorkSheet } {
