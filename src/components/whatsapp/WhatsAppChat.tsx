@@ -1280,6 +1280,29 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     prevConversationIdRef.current = selectedConversation?.id || null;
   }, [selectedConversation?.id]);
 
+  // Fetch linked event for financial icon
+  useEffect(() => {
+    if (!linkedLead?.id) {
+      setLeadEventId(null);
+      setLeadEventValue(0);
+      return;
+    }
+    supabase
+      .from('company_events')
+      .select('id, total_value')
+      .eq('lead_id', linkedLead.id)
+      .limit(1)
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setLeadEventId(data[0].id);
+          setLeadEventValue(data[0].total_value || 0);
+        } else {
+          setLeadEventId(null);
+          setLeadEventValue(0);
+        }
+      });
+  }, [linkedLead?.id]);
+
   // Scroll to bottom - only on initial load or new messages from me
   const prevMessagesLengthRef = useRef(0);
   const lastMessageFromMeRef = useRef(false);
