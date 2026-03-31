@@ -532,14 +532,15 @@ export default function Financeiro() {
                       </div>
                     </div>
 
-                    {(['fixa', 'variavel', 'festa'] as const).map(expType => {
+                    {(['todos', 'fixa', 'variavel', 'festa'] as const).map(expType => {
                       const typeExpenses = dashboard.expenses
-                        .filter(e => (e.expense_type || 'fixa') === expType)
+                        .filter(e => expType === 'todos' ? true : (e.expense_type || 'fixa') === expType)
                         .sort((a, b) => despesasSortAsc
                           ? a.expense_date.localeCompare(b.expense_date)
                           : b.expense_date.localeCompare(a.expense_date)
                         );
-                      const typeLabel = expType === 'fixa' ? 'fixa' : expType === 'variavel' ? 'variável' : 'de festa';
+                      const typeLabel = expType === 'todos' ? '' : expType === 'fixa' ? 'fixa' : expType === 'variavel' ? 'variável' : 'de festa';
+                      const sectionTitle = expType === 'todos' ? `Todas as despesas (${typeExpenses.length})` : `Despesas ${typeLabel}s (${typeExpenses.length})`;
                       return (
                         <TabsContent key={expType} value={expType} className="space-y-3 mt-3">
                           <div className="flex items-center justify-between">
