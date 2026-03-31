@@ -589,7 +589,28 @@ export default function Financeiro() {
                                         </p>
                                         {e.notes && <p className="text-xs text-muted-foreground/70 mt-0.5 italic">{e.notes}</p>}
                                       </div>
-                                      <div className="flex items-center gap-2 shrink-0">
+                                      <div className="flex items-center gap-1.5 shrink-0">
+                                        {e.status !== 'pago' ? (
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-8 w-8 p-0 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10"
+                                            title="Marcar como pago"
+                                            onClick={() => dashboard.updateExpense(e.id, { status: 'pago' })}
+                                          >
+                                            <Check className="h-4 w-4" />
+                                          </Button>
+                                        ) : (
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-8 w-8 p-0 text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10"
+                                            title="Reabrir como pendente"
+                                            onClick={() => dashboard.updateExpense(e.id, { status: 'pendente' })}
+                                          >
+                                            <RotateCcw className="h-4 w-4" />
+                                          </Button>
+                                        )}
                                         <p className="text-sm font-bold text-blue-400">{fmt(e.amount)}</p>
                                         <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:text-destructive/80" onClick={() => dashboard.deleteExpense(e.id)}>
                                           <Trash2 className="h-4 w-4" />
