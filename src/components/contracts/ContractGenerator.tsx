@@ -136,6 +136,8 @@ export function ContractGenerator({ userId, onClose }: Props) {
       valor_sinal: contractData.valor_sinal ? `R$ ${Number(contractData.valor_sinal).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "",
       valor_restante: contractData.valor_restante ? `R$ ${Number(contractData.valor_restante).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "",
       forma_pagamento: contractData.forma_pagamento,
+      data_entrada: eventData?.payment_details?.entrada_data || "",
+      data_saldo: eventData?.payment_details?.saldo_data || "",
       brindes: contractData.brindes || eventData?.gifts || "",
       valor_convidado_adicional: eventData?.extra_guest_value ? `R$ ${Number(eventData.extra_guest_value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "",
       date: new Date().toLocaleDateString("pt-BR"),
