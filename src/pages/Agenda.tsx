@@ -397,6 +397,7 @@ export default function Agenda() {
     setChecklistProgress(progressMap);
 
     setLoading(false);
+    initialLoadDone.current = true;
   }, [currentCompany?.id, month, selectedUnit, permUnitLoading, canViewAll, allowedUnits, fetchClosedInPeriod]);
 
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
