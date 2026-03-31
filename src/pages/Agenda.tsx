@@ -1666,6 +1666,26 @@ export default function Agenda() {
         userId={currentUser?.id}
       />
 
+      <ReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        title="Relatório de Agenda"
+        reportTypes={[
+          { value: 'geral', label: 'Relatório Geral', desc: 'Todos os eventos com resumo, tabela e gráficos' },
+        ]}
+        unitOptions={(() => {
+          const vu = canViewAll ? physicalUnits : physicalUnits.filter(u => unitAccess[u.name]);
+          return vu.map(u => ({ value: u.name, label: u.name }));
+        })()}
+        onGenerate={(p) => {
+          const allEvts = [...events, ...closedEvents, ...periodEvents];
+          const unique = [...new Map(allEvts.map(e => [e.id, e])).values()];
+          const filtered = p.unit === 'all' ? unique : unique.filter(e => e.unit === p.unit);
+          const reportParams = { type: p.type, companyName: currentCompany?.name || '', periodLabel: p.periodLabel, from: p.from, to: p.to, events: filtered };
+          if (p.format === 'xlsx') generateAgendaXLSX(reportParams);
+          else generateAgendaPDF(reportParams);
+        }}
+      />
     </SidebarProvider>
   );
 }
