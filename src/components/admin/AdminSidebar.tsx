@@ -28,6 +28,7 @@ interface AdminSidebarProps {
   canManageUsers: boolean;
   isAdmin?: boolean;
   currentUserName: string;
+  canViewFinanceiro?: boolean;
   onRefresh: () => void;
   onLogout: () => void;
 }
