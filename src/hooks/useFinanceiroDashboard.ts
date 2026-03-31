@@ -330,6 +330,7 @@ export function useFinanceiroDashboard() {
     totalPendingMonth,
     totalLate,
     totalExpensesMonth,
+    totalExpensesPaidMonth,
     saldoMonth,
     // Categorized lists
     paidThisMonth,
