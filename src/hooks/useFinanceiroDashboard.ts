@@ -285,6 +285,7 @@ export function useFinanceiroDashboard() {
 
   const expensesThisMonth = filteredExpenses.filter(e => e.expense_date >= periodFrom && e.expense_date <= periodTo);
   const totalExpensesMonth = expensesThisMonth.reduce((s, e) => s + e.amount, 0);
+  const totalExpensesPaidMonth = expensesThisMonth.filter(e => e.status === 'pago').reduce((s, e) => s + e.amount, 0);
 
   const saldoMonth = totalReceivedMonth - totalExpensesMonth;
 
@@ -329,6 +330,7 @@ export function useFinanceiroDashboard() {
     totalPendingMonth,
     totalLate,
     totalExpensesMonth,
+    totalExpensesPaidMonth,
     saldoMonth,
     // Categorized lists
     paidThisMonth,

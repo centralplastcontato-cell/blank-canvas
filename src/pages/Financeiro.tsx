@@ -335,7 +335,7 @@ export default function Financeiro() {
               </div>
 
               {/* 5 Dashboard Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                 <Card className="p-4 bg-card border-border">
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
                     <TrendingUp className="h-3.5 w-3.5 text-emerald-400" /> Recebido
@@ -356,9 +356,15 @@ export default function Financeiro() {
                 </Card>
                 <Card className="p-4 bg-card border-border">
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
-                    <Wallet className="h-3.5 w-3.5 text-blue-400" /> Despesas
+                    <Wallet className="h-3.5 w-3.5 text-blue-400" /> Despesas Lançadas
                   </div>
                   <p className="text-lg md:text-xl font-bold text-blue-400">{fmt(dashboard.totalExpensesMonth)}</p>
+                </Card>
+                <Card className="p-4 bg-card border-border">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
+                    <CheckCircle className="h-3.5 w-3.5 text-teal-400" /> Despesas Pagas
+                  </div>
+                  <p className="text-lg md:text-xl font-bold text-teal-400">{fmt(dashboard.totalExpensesPaidMonth)}</p>
                 </Card>
                 <Card className="p-4 bg-card border-border col-span-2 md:col-span-1">
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
