@@ -202,7 +202,7 @@ export function useEventFinancial(eventId: string | undefined, companyId: string
 
   return {
     payments, extras, discounts, timeline, summary, isLoading,
-    addPayment, updatePayment, markAsPaid, deletePayment,
+    addPayment, updatePayment, markAsPaid, reopenPayment, deletePayment,
     addExtra, deleteExtra, addDiscount, deleteDiscount,
     refresh: fetchAll,
   };

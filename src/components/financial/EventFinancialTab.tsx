@@ -211,6 +211,17 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
                           <CheckCircle className="h-4 w-4" />
                         </Button>
                       )}
+                      {canPay && p.status === "paid" && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300"
+                          onClick={() => financial.reopenPayment(p)}
+                          title="Reabrir parcela"
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                        </Button>
+                      )}
                       {justPaid && (
                         <motion.div
                           initial={{ scale: 0 }}
