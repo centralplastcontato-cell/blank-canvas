@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Trash2, CheckCircle, Tag, Receipt, Clock } from "lucide-react";
+import { Plus, Trash2, CheckCircle, RotateCcw, Tag, Receipt, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
@@ -209,6 +209,17 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
                           title="Marcar como pago"
                         >
                           <CheckCircle className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {canPay && p.status === "paid" && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300"
+                          onClick={() => financial.reopenPayment(p)}
+                          title="Reabrir parcela"
+                        >
+                          <RotateCcw className="h-4 w-4" />
                         </Button>
                       )}
                       {justPaid && (
