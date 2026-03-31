@@ -1011,6 +1011,22 @@ export default function Visitas() {
       </div>
       {detailSheet}
       {createDialog}
+      <ReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        title="Relatório de Visitas"
+        reportTypes={[
+          { value: 'geral', label: 'Relatório Geral', desc: 'Todas as visitas com resumo, tabela e gráficos de canal' },
+        ]}
+        unitOptions={units.filter(u => u.slug !== 'trabalhe-conosco').map(u => ({ value: u.name, label: u.name }))}
+        onGenerate={(p) => {
+          const filtered = p.unit === 'all' ? visits : visits.filter(v => v.unit === p.unit);
+          const mapped = filtered.map(v => ({ ...v, como_conheceu: (v as any).lead_channel || null }));
+          const reportParams = { type: p.type, companyName: currentCompany?.name || '', periodLabel: p.periodLabel, from: p.from, to: p.to, visits: mapped };
+          if (p.format === 'xlsx') generateVisitasXLSX(reportParams);
+          else generateVisitasPDF(reportParams);
+        }}
+      />
     </SidebarProvider>
   );
 }
