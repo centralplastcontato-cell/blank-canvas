@@ -9,6 +9,7 @@ import { PaymentsByClientView } from '@/components/financial/PaymentsByClientVie
 import { ExpenseFormDialog } from '@/components/financial/ExpenseFormDialog';
 import { EventFinancialTab } from '@/components/financial/EventFinancialTab';
 import { FinancialReportDialog } from '@/components/financial/FinancialReportDialog';
+import { MarkExpensePaidDialog } from '@/components/financial/MarkExpensePaidDialog';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { MobileMenu } from '@/components/admin/MobileMenu';
 import { NotificationBell } from '@/components/admin/NotificationBell';
@@ -104,6 +105,7 @@ export default function Financeiro() {
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [customPopoverOpen, setCustomPopoverOpen] = useState(false);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [markPaidExpense, setMarkPaidExpense] = useState<{ id: string; description: string } | null>(null);
 
   // Auth & financial permission check
   const [currentUserId, setCurrentUserId] = useState<string | undefined>();
@@ -596,7 +598,7 @@ export default function Financeiro() {
                                             variant="ghost"
                                             className="h-8 w-8 p-0 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10"
                                             title="Marcar como pago"
-                                            onClick={() => dashboard.updateExpense(e.id, { status: 'pago' })}
+                                            onClick={() => setMarkPaidExpense({ id: e.id, description: e.description })}
                                           >
                                             <Check className="h-4 w-4" />
                                           </Button>
@@ -759,6 +761,15 @@ export default function Financeiro() {
         companyName={currentCompany?.name || ''}
         unitOptions={unitOptions}
       />
+      {markPaidExpense && (
+        <MarkExpensePaidDialog
+          open={!!markPaidExpense}
+          onOpenChange={(open) => { if (!open) setMarkPaidExpense(null); }}
+          expenseId={markPaidExpense.id}
+          expenseDescription={markPaidExpense.description}
+          onConfirm={(id, data) => dashboard.updateExpense(id, data)}
+        />
+      )}
     </SidebarProvider>
   );
 }
