@@ -55,7 +55,8 @@ const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', curren
 export default function Financeiro() {
   const navigate = useNavigate();
   const { currentCompany } = useCompany();
-  const { unitOptions } = useCompanyUnits(currentCompany?.id);
+  const { unitOptions, units } = useCompanyUnits(currentCompany?.id);
+  const isSalesOnly = units.length > 0 && units.every(u => /vendas/i.test(u.name));
   const dashboard = useFinanceiroDashboard();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
