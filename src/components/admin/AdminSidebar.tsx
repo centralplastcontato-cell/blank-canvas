@@ -38,6 +38,7 @@ export function AdminSidebar({
   canManageUsers,
   isAdmin,
   currentUserName, 
+  canViewFinanceiro = true,
   onRefresh, 
   onLogout 
 }: AdminSidebarProps) {
