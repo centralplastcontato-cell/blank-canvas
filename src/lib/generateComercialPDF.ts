@@ -101,7 +101,6 @@ function drawFunnel(doc: jsPDF, x: number, y: number, w: number, data: { label: 
 
 export function generateComercialPDF(params: ComercialReportParams) {
   const periodLeads = filterByPeriod(params.leads, params.from, params.to);
-  const allLeads = params.leads; // for funnel we use all current leads
   const doc = new jsPDF('p', 'mm', 'a4');
   let y = addHeader(doc, params.companyName, 'Relatório Comercial — Leads/CRM', params.periodLabel);
 
@@ -135,10 +134,10 @@ export function generateComercialPDF(params: ComercialReportParams) {
   });
   y += 22;
 
-  // Funnel (all leads, not just period)
-  doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.text('Funil de Vendas (Posição Atual)', 14, y); y += 5;
+  // Funnel — leads created in the period only
+  doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.text('Funil de Vendas (Leads do Período)', 14, y); y += 5;
   const funnelData = FUNNEL_ORDER
-    .map((status, i) => ({ label: STATUS_LABELS[status] || status, value: allLeads.filter(l => l.status === status).length, color: CHART_COLORS[i % CHART_COLORS.length] }))
+    .map((status, i) => ({ label: STATUS_LABELS[status] || status, value: periodLeads.filter(l => l.status === status).length, color: CHART_COLORS[i % CHART_COLORS.length] }))
     .filter(d => d.value > 0);
   drawFunnel(doc, 14, y, doc.internal.pageSize.getWidth() - 28, funnelData);
   y += funnelData.length * 14 + 10;
@@ -191,10 +190,10 @@ export function generateComercialXLSX(params: ComercialReportParams) {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Leads');
 
-  // Funnel sheet
+  // Funnel sheet (period leads only)
   const funnelRows = FUNNEL_ORDER.map(status => ({
     Etapa: STATUS_LABELS[status] || status,
-    Quantidade: params.leads.filter(l => l.status === status).length,
+    Quantidade: periodLeads.filter(l => l.status === status).length,
   })).filter(r => r.Quantidade > 0);
   const ws2 = XLSX.utils.json_to_sheet(funnelRows);
   XLSX.utils.book_append_sheet(wb, ws2, 'Funil');
