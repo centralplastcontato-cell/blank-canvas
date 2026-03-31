@@ -22,17 +22,19 @@ const typeLabels: Record<string, string> = {
   parcela: 'Parcela',
 };
 
+const borderColors: Record<string, string> = {
+  late: 'border-l-red-500',
+  pending: 'border-l-amber-500',
+  paid: 'border-l-emerald-500',
+};
+
 export function FinancialPaymentCard({ payment, onMarkAsPaid, onOpenEvent }: Props) {
   const cfg = statusConfig[payment.status];
   const daysLate = payment.status === 'late' ? differenceInDays(new Date(), new Date(payment.due_date)) : 0;
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   return (
-    <div className={`p-3 md:p-4 rounded-xl border transition-all ${
-      payment.status === 'late' ? 'border-red-500/20 bg-red-500/[0.03]' :
-      payment.status === 'paid' ? 'border-emerald-500/10 bg-emerald-500/[0.02]' :
-      'border-border bg-card'
-    }`}>
+    <div className={`p-3 md:p-4 rounded-xl border border-border bg-card border-l-4 ${borderColors[payment.status] || 'border-l-border'} transition-all`}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex-1 min-w-0 space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
