@@ -1,0 +1,1 @@
+ALTER TABLE public.event_payments ADD COLUMN notes text;

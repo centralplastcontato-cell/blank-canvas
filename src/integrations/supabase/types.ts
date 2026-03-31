@@ -2107,6 +2107,7 @@ export type Database = {
           due_date: string
           event_id: string
           id: string
+          notes: string | null
           paid_at: string | null
           payment_method: string | null
           status: string
@@ -2120,6 +2121,7 @@ export type Database = {
           due_date: string
           event_id: string
           id?: string
+          notes?: string | null
           paid_at?: string | null
           payment_method?: string | null
           status?: string
@@ -2133,6 +2135,7 @@ export type Database = {
           due_date?: string
           event_id?: string
           id?: string
+          notes?: string | null
           paid_at?: string | null
           payment_method?: string | null
           status?: string

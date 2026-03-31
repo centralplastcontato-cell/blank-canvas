@@ -12,6 +12,7 @@ export interface EventPayment {
   status: 'pending' | 'paid' | 'late';
   payment_method: string | null;
   paid_at: string | null;
+  notes: string | null;
   created_at: string;
 }
 
@@ -112,10 +113,11 @@ export function useEventFinancial(eventId: string | undefined, companyId: string
   };
 
   // CRUD operations
-  const addPayment = async (data: { type: string; amount: number; due_date: string; payment_method: string }) => {
+  const addPayment = async (data: { type: string; amount: number; due_date: string; payment_method: string; notes?: string }) => {
     if (!eventId || !companyId) return;
+    const { notes, ...rest } = data;
     const { error } = await supabase.from('event_payments').insert({
-      event_id: eventId, company_id: companyId, ...data,
+      event_id: eventId, company_id: companyId, ...rest, notes: notes || null,
     });
     if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
     await addTimeline('payment_created', `${data.type === 'entrada' ? 'Entrada' : 'Parcela'} de R$ ${data.amount.toFixed(2)} criada`);
