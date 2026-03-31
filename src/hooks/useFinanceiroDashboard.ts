@@ -62,14 +62,93 @@ export function useFinanceiroDashboard() {
     setIsLoading(true);
 
     try {
-      const [paymentsRes, expensesRes] = await Promise.all([
+      const [paymentsRes, expensesRes, eventsWithDetailsRes] = await Promise.all([
         supabase.from('event_payments').select('*').eq('company_id', companyId).order('due_date'),
         supabase.from('company_expenses').select('*').eq('company_id', companyId).order('expense_date', { ascending: false }),
+        supabase.from('company_events').select('id, payment_details').eq('company_id', companyId).not('payment_details', 'is', null),
       ]);
 
+      // Auto-heal: backfill missing financial rows from payment_details (legacy events)
+      let rawPayments = paymentsRes.data || [];
+      const eventsWithDetails = (eventsWithDetailsRes.data || []) as Array<{ id: string; payment_details: any }>;
+
+      if (eventsWithDetails.length > 0) {
+        const paymentsByEvent = new Map<string, any[]>();
+        rawPayments.forEach((p: any) => {
+          const list = paymentsByEvent.get(p.event_id) || [];
+          list.push(p);
+          paymentsByEvent.set(p.event_id, list);
+        });
+
+        const today = new Date().toISOString().split('T')[0];
+        const rowsToInsert: any[] = [];
+
+        eventsWithDetails.forEach((ev) => {
+          const pd = ev.payment_details as any;
+          if (!pd) return;
+
+          const existing = paymentsByEvent.get(ev.id) || [];
+          const hasEntrada = existing.some((p: any) => p.type === 'entrada');
+          const parcelaCount = existing.filter((p: any) => p.type === 'parcela').length;
+
+          if (pd.entrada_valor && Number(pd.entrada_valor) > 0 && !hasEntrada) {
+            rowsToInsert.push({
+              event_id: ev.id,
+              company_id: companyId,
+              type: 'entrada',
+              amount: Number(pd.entrada_valor),
+              due_date: pd.entrada_data || today,
+              payment_method: pd.entrada_forma || null,
+              status: 'pending',
+            });
+          }
+
+          if (parcelaCount === 0) {
+            if (Array.isArray(pd.parcelas_details) && pd.parcelas_details.length > 0) {
+              pd.parcelas_details.forEach((p: any) => {
+                if (p?.valor && Number(p.valor) > 0) {
+                  rowsToInsert.push({
+                    event_id: ev.id,
+                    company_id: companyId,
+                    type: 'parcela',
+                    amount: Number(p.valor),
+                    due_date: p.vencimento || pd.saldo_data || today,
+                    payment_method: pd.saldo_forma || null,
+                    status: 'pending',
+                  });
+                }
+              });
+            } else if (pd.saldo_valor && Number(pd.saldo_valor) > 0) {
+              rowsToInsert.push({
+                event_id: ev.id,
+                company_id: companyId,
+                type: 'parcela',
+                amount: Number(pd.saldo_valor),
+                due_date: pd.saldo_data || today,
+                payment_method: pd.saldo_forma || null,
+                status: 'pending',
+              });
+            }
+          }
+        });
+
+        if (rowsToInsert.length > 0) {
+          const { error: backfillError } = await supabase.from('event_payments').insert(rowsToInsert);
+          if (backfillError) {
+            console.error('[Financeiro] backfill event_payments error:', backfillError);
+          } else {
+            const { data: refreshedPayments } = await supabase
+              .from('event_payments')
+              .select('*')
+              .eq('company_id', companyId)
+              .order('due_date');
+            rawPayments = refreshedPayments || rawPayments;
+          }
+        }
+      }
+
       // Enrich payments with event + lead data
-      const rawPayments = paymentsRes.data || [];
-      const eventIds = [...new Set(rawPayments.map(p => p.event_id))];
+      const eventIds = [...new Set(rawPayments.map((p: any) => p.event_id))];
 
       let eventsMap: Record<string, { title: string; lead_name: string; event_date: string; event_type: string; unit: string }> = {};
 
