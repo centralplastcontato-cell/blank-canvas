@@ -50,6 +50,7 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
   const [category, setCategory] = useState('outros');
   const [expenseType, setExpenseType] = useState('fixa');
   const [status, setStatus] = useState('pendente');
+  const [notes, setNotes] = useState('');
 
   useEffect(() => {
     if (open && defaultValues) {
@@ -59,6 +60,7 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
       setCategory(defaultValues.category || 'outros');
       setExpenseType(defaultValues.expense_type || defaultExpenseType || 'fixa');
       setStatus(defaultValues.status || 'pendente');
+      setNotes(defaultValues.notes || '');
     } else if (open) {
       setDescription('');
       setAmount('');
@@ -66,6 +68,7 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
       setCategory('outros');
       setExpenseType(defaultExpenseType || 'fixa');
       setStatus('pendente');
+      setNotes('');
     }
   }, [open, defaultValues, defaultExpenseType]);
 
