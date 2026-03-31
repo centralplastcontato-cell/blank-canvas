@@ -13,6 +13,15 @@ interface LeadData {
   guests?: string | null;
 }
 
+interface EventData {
+  id: string;
+  lead_id?: string | null;
+  data_fechamento_venda?: string | null;
+  status: string;
+  unit?: string | null;
+  total_value?: number | null;
+}
+
 export interface ComercialReportParams {
   type: string;
   companyName: string;
@@ -20,6 +29,7 @@ export interface ComercialReportParams {
   from: string;
   to: string;
   leads: LeadData[];
+  events?: EventData[];
 }
 
 const fmtDate = (d: string) => { if (!d) return '—'; const [y, m, day] = d.slice(0, 10).split('-'); return `${day}/${m}/${y}`; };
