@@ -2,7 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { EnrichedPayment, Expense } from '@/hooks/useFinanceiroDashboard';
 
-export type ReportType = 'despesas' | 'receitas' | 'resultado';
+export type ReportType = 'despesas' | 'receitas' | 'resultado' | 'despesas_fixas' | 'despesas_variaveis' | 'despesas_festa';
 
 interface ReportParams {
   type: ReportType;
