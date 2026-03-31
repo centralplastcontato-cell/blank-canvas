@@ -410,6 +410,7 @@ export default function Financeiro() {
                                           {format(new Date(e.expense_date + 'T12:00:00'), 'dd/MM/yyyy')}
                                           {e.unit && ` · ${e.unit}`}
                                         </p>
+                                        {e.notes && <p className="text-xs text-muted-foreground/70 mt-0.5 italic">{e.notes}</p>}
                                       </div>
                                       <div className="flex items-center gap-2 shrink-0">
                                         <p className="text-sm font-bold text-blue-400">{fmt(e.amount)}</p>
