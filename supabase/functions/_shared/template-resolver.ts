@@ -119,7 +119,7 @@ type VariableResolver = (ctx: VariableContext) => string;
 const VARIABLE_CATALOG: Record<string, { resolver: VariableResolver }> = {
   nome: { resolver: (ctx) => resolveFirstName(ctx.lead?.name) || 'cliente' },
   primeiro_nome: { resolver: (ctx) => resolveFirstName(ctx.lead?.name) || 'cliente' },
-  nome_completo: { resolver: (ctx) => ctx.lead?.name?.trim() || 'cliente' },
+  nome_completo: { resolver: (ctx) => ctx.contract?.responsible_name?.trim() || ctx.lead?.name?.trim() || 'cliente' },
   telefone: { resolver: (ctx) => ctx.lead?.whatsapp || '' },
   mes: { resolver: (ctx) => ctx.lead?.month || '' },
   convidados: { resolver: (ctx) => ctx.lead?.guests || ctx.event?.guest_count?.toString() || '' },
@@ -294,7 +294,7 @@ export function resolveSystemVariables(
 
 export function getAvailableVariables(): { key: string; aliases: string[]; domain: string }[] {
   const domainMap: Record<string, string> = {
-    nome: 'lead', primeiro_nome: 'lead', nome_completo: 'lead',
+    nome: 'lead', primeiro_nome: 'lead', nome_completo: 'contract',
     telefone: 'lead', mes: 'lead', convidados: 'lead', unidade: 'lead',
     dia: 'lead', campanha: 'lead', child_name: 'lead', child_age: 'lead',
     customer_name: 'lead',

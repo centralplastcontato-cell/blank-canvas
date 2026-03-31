@@ -150,7 +150,7 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
     resolver: (ctx) => resolveFirstName(ctx.lead?.name) || 'cliente',
   },
   nome_completo: {
-    resolver: (ctx) => ctx.lead?.name?.trim() || 'cliente',
+    resolver: (ctx) => ctx.contract?.responsible_name?.trim() || ctx.lead?.name?.trim() || 'cliente',
   },
   telefone: {
     resolver: (ctx) => ctx.lead?.whatsapp || '',
@@ -538,7 +538,7 @@ export function getAvailableVariables(): {
   domain: string;
 }[] {
   const domainMap: Record<string, string> = {
-    nome: 'lead', primeiro_nome: 'lead', nome_completo: 'lead',
+    nome: 'lead', primeiro_nome: 'lead', nome_completo: 'contract',
     telefone: 'lead', mes: 'lead', convidados: 'lead', unidade: 'lead',
     dia: 'lead', campanha: 'lead', child_name: 'lead', child_age: 'lead',
     customer_name: 'lead',
