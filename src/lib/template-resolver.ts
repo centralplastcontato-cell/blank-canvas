@@ -538,7 +538,7 @@ export function getAvailableVariables(): {
   domain: string;
 }[] {
   const domainMap: Record<string, string> = {
-    nome: 'lead', primeiro_nome: 'lead', nome_completo: 'lead',
+    nome: 'lead', primeiro_nome: 'lead', nome_completo: 'contract',
     telefone: 'lead', mes: 'lead', convidados: 'lead', unidade: 'lead',
     dia: 'lead', campanha: 'lead', child_name: 'lead', child_age: 'lead',
     customer_name: 'lead',
