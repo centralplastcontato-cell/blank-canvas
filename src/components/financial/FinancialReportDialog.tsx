@@ -4,11 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, CalendarRange, Download, Loader2 } from 'lucide-react';
+import { FileText, CalendarRange, Download, Loader2, FileSpreadsheet } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, addMonths, startOfYear, endOfYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { generateFinancialPDF, type ReportType } from '@/lib/generateFinancialPDF';
+import { generateFinancialXLSX } from '@/lib/generateFinancialXLSX';
 import type { EnrichedPayment, Expense } from '@/hooks/useFinanceiroDashboard';
 import type { DateRange } from 'react-day-picker';
 
@@ -56,6 +57,7 @@ export function FinancialReportDialog({ open, onOpenChange, payments, expenses, 
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [customOpen, setCustomOpen] = useState(false);
   const [unit, setUnit] = useState('all');
+  const [outputFormat, setOutputFormat] = useState<'pdf' | 'xlsx'>('pdf');
   const [generating, setGenerating] = useState(false);
 
   const range = activePreset === 'custom' && customRange?.from && customRange?.to
@@ -70,16 +72,22 @@ export function FinancialReportDialog({ open, onOpenChange, payments, expenses, 
     const filteredPayments = unit === 'all' ? payments : payments.filter(p => p.unit === unit);
     const filteredExpenses = unit === 'all' ? expenses : expenses.filter(e => e.unit === unit);
 
+    const reportParams = {
+      type: reportType,
+      companyName,
+      periodLabel,
+      from: range.from,
+      to: range.to,
+      payments: filteredPayments,
+      expenses: filteredExpenses,
+    };
+
     setTimeout(() => {
-      generateFinancialPDF({
-        type: reportType,
-        companyName,
-        periodLabel,
-        from: range.from,
-        to: range.to,
-        payments: filteredPayments,
-        expenses: filteredExpenses,
-      });
+      if (outputFormat === 'xlsx') {
+        generateFinancialXLSX(reportParams);
+      } else {
+        generateFinancialPDF(reportParams);
+      }
       setGenerating(false);
     }, 100);
   };
@@ -191,10 +199,41 @@ export function FinancialReportDialog({ open, onOpenChange, payments, expenses, 
             </div>
           )}
 
+          {/* Format */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">Formato</label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setOutputFormat('pdf')}
+                className={cn(
+                  'flex-1 flex items-center justify-center gap-2 rounded-lg border p-2.5 transition-all text-sm font-medium',
+                  outputFormat === 'pdf'
+                    ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                    : 'border-border hover:bg-accent/50'
+                )}
+              >
+                <FileText className="h-4 w-4" />
+                PDF
+              </button>
+              <button
+                onClick={() => setOutputFormat('xlsx')}
+                className={cn(
+                  'flex-1 flex items-center justify-center gap-2 rounded-lg border p-2.5 transition-all text-sm font-medium',
+                  outputFormat === 'xlsx'
+                    ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                    : 'border-border hover:bg-accent/50'
+                )}
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                Excel
+              </button>
+            </div>
+          </div>
+
           {/* Generate */}
           <Button onClick={handleGenerate} disabled={generating} className="w-full gap-2">
             {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            {generating ? 'Gerando...' : 'Gerar PDF'}
+            {generating ? 'Gerando...' : `Gerar ${outputFormat === 'xlsx' ? 'Excel' : 'PDF'}`}
           </Button>
         </div>
       </DialogContent>
