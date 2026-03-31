@@ -18,13 +18,14 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues 
   const [amount, setAmount] = useState(defaultValues?.amount?.toString() || "");
   const [dueDate, setDueDate] = useState(defaultValues?.due_date || "");
   const [method, setMethod] = useState(defaultValues?.payment_method || "pix");
+  const [notes, setNotes] = useState(defaultValues?.notes || "");
 
   const handleSubmit = () => {
     const val = parseFloat(amount);
     if (!val || !dueDate) return;
-    onSubmit({ type, amount: val, due_date: dueDate, payment_method: method });
+    onSubmit({ type, amount: val, due_date: dueDate, payment_method: method, notes: notes.trim() || undefined });
     onOpenChange(false);
-    setAmount(""); setDueDate("");
+    setAmount(""); setDueDate(""); setNotes("");
   };
 
   return (

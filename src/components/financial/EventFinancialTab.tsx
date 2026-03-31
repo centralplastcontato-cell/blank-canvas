@@ -195,6 +195,9 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
                           </span>
                         )}
                       </div>
+                      {p.notes && (
+                        <p className="text-[11px] text-muted-foreground/70 italic mt-0.5">{p.notes}</p>
+                      )}
                     </div>
                     <div className="flex gap-1.5 shrink-0">
                       {canPay && p.status !== "paid" && (
