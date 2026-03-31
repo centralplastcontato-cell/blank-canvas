@@ -602,12 +602,11 @@ export default function Financeiro() {
                                         {e.status !== 'pago' ? (
                                           <Button
                                             size="sm"
-                                            variant="ghost"
-                                            className="h-8 w-8 p-0 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10"
-                                            title="Marcar como pago"
+                                            variant="outline"
+                                            className="h-7 px-2.5 text-xs font-medium bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-600 hover:border-emerald-600"
                                             onClick={() => setMarkPaidExpense({ id: e.id, description: e.description })}
                                           >
-                                            <Check className="h-4 w-4" />
+                                            Baixar
                                           </Button>
                                         ) : (
                                           <Button
