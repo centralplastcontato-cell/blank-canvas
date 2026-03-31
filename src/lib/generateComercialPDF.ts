@@ -13,6 +13,15 @@ interface LeadData {
   guests?: string | null;
 }
 
+interface EventData {
+  id: string;
+  lead_id?: string | null;
+  data_fechamento_venda?: string | null;
+  status: string;
+  unit?: string | null;
+  total_value?: number | null;
+}
+
 export interface ComercialReportParams {
   type: string;
   companyName: string;
@@ -20,6 +29,7 @@ export interface ComercialReportParams {
   from: string;
   to: string;
   leads: LeadData[];
+  events?: EventData[];
 }
 
 const fmtDate = (d: string) => { if (!d) return '—'; const [y, m, day] = d.slice(0, 10).split('-'); return `${day}/${m}/${y}`; };
@@ -96,18 +106,27 @@ export function generateComercialPDF(params: ComercialReportParams) {
   let y = addHeader(doc, params.companyName, 'Relatório Comercial — Leads/CRM', params.periodLabel);
 
   const novos = periodLeads.length;
-  const fechados = periodLeads.filter(l => l.status === 'fechado').length;
+  // Count "fechados" using events with data_fechamento_venda in the period
+  const events = params.events || [];
+  const fechadosNoPeriodo = events.filter(e => {
+    const dt = e.data_fechamento_venda?.slice(0, 10);
+    return dt && dt >= params.from && dt <= params.to && e.status !== 'cancelado';
+  });
+  const fechados = fechadosNoPeriodo.length;
   const perdidos = periodLeads.filter(l => l.status === 'perdido').length;
   const taxaConversao = novos > 0 ? ((fechados / novos) * 100).toFixed(1) : '0';
+  const faturamentoFechado = fechadosNoPeriodo.reduce((sum, e) => sum + (e.total_value || 0), 0);
 
   // KPI cards
+  const fmtCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 });
   const kpis = [
     { label: 'Novos Leads', value: String(novos) },
     { label: 'Fechados', value: String(fechados) },
     { label: 'Perdidos', value: String(perdidos) },
     { label: 'Tx. Conversão', value: `${taxaConversao}%` },
+    { label: 'Faturamento', value: fmtCurrency(faturamentoFechado) },
   ];
-  const kw = (doc.internal.pageSize.getWidth() - 28 - 12) / 4;
+  const kw = (doc.internal.pageSize.getWidth() - 28 - 16) / 5;
   kpis.forEach((k, i) => {
     const kx = 14 + i * (kw + 4);
     doc.setFillColor(245, 247, 250); doc.roundedRect(kx, y, kw, 16, 2, 2, 'F');
@@ -182,13 +201,20 @@ export function generateComercialXLSX(params: ComercialReportParams) {
 
   // Summary
   const novos = periodLeads.length;
-  const fechados = periodLeads.filter(l => l.status === 'fechado').length;
+  const events = params.events || [];
+  const fechadosNoPeriodo = events.filter(e => {
+    const dt = e.data_fechamento_venda?.slice(0, 10);
+    return dt && dt >= params.from && dt <= params.to && e.status !== 'cancelado';
+  });
+  const fechados = fechadosNoPeriodo.length;
+  const faturamento = fechadosNoPeriodo.reduce((sum, e) => sum + (e.total_value || 0), 0);
   const summaryRows = [
     { Métrica: 'Período', Valor: params.periodLabel },
     { Métrica: 'Novos Leads', Valor: novos },
-    { Métrica: 'Fechados', Valor: fechados },
+    { Métrica: 'Fechados no Período', Valor: fechados },
     { Métrica: 'Perdidos', Valor: periodLeads.filter(l => l.status === 'perdido').length },
     { Métrica: 'Taxa de Conversão', Valor: novos > 0 ? `${((fechados / novos) * 100).toFixed(1)}%` : '0%' },
+    { Métrica: 'Faturamento Fechado', Valor: faturamento.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) },
   ];
   const ws3 = XLSX.utils.json_to_sheet(summaryRows);
   XLSX.utils.book_append_sheet(wb, ws3, 'Resumo');
