@@ -608,7 +608,7 @@ export default function Financeiro() {
                       <p className="text-3xl font-bold text-blue-400">{fmt(dashboard.totalExpensesMonth)}</p>
                     </Card>
                     <Card className="p-6 bg-card border-border text-center">
-                      <p className="text-sm text-muted-foreground mb-2">Saldo do Mês</p>
+                      <p className="text-sm text-muted-foreground mb-2">Saldo do Período</p>
                       <p className={`text-3xl font-bold ${dashboard.saldoMonth >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                         {fmt(dashboard.saldoMonth)}
                       </p>
