@@ -545,7 +545,7 @@ export default function Financeiro() {
                         <TabsContent key={expType} value={expType} className="space-y-3 mt-3">
                           <div className="flex items-center justify-between">
                             <h2 className="text-sm font-semibold text-foreground">
-                              Despesas {typeLabel}s ({typeExpenses.length})
+                              {sectionTitle}
                               {typeExpenses.length > 0 && (
                                 <span className="ml-2 text-blue-400 font-bold">
                                   {fmt(typeExpenses.reduce((s, e) => s + e.amount, 0))}
