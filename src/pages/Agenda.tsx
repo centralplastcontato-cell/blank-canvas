@@ -934,6 +934,9 @@ export default function Agenda() {
                           </Select>
                         );
                       })()}
+                      <Button variant="outline" size="icon" className="h-10 w-10" onClick={() => setReportOpen(true)} title="Gerar Relatório">
+                        <FileText className="h-4 w-4" />
+                      </Button>
                       <Button variant="outline" className="h-10 px-4 border-pink-300 text-pink-600 hover:bg-pink-50" onClick={() => { setEditingPreRes(null); setPreResFormOpen(true); }}>
                         <CalendarClock className="h-4 w-4 mr-2" /> Pré-reserva
                       </Button>
