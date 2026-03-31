@@ -23,7 +23,10 @@ interface Props {
 }
 
 const REPORT_TYPES: { value: ReportType; label: string; desc: string }[] = [
-  { value: 'despesas', label: 'Despesas', desc: 'Lista completa de despesas com categoria e status' },
+  { value: 'despesas', label: 'Todas as Despesas', desc: 'Lista completa de despesas com categoria e status' },
+  { value: 'despesas_fixas', label: 'Despesas Fixas', desc: 'Aluguel, salários e custos recorrentes' },
+  { value: 'despesas_variaveis', label: 'Despesas Variáveis', desc: 'Compras pontuais e custos não recorrentes' },
+  { value: 'despesas_festa', label: 'Despesas de Festa', desc: 'Custos vinculados a eventos e festas' },
   { value: 'receitas', label: 'Receitas', desc: 'Parcelas por cliente: pagas, pendentes e atrasadas' },
   { value: 'resultado', label: 'Resultado Geral', desc: 'Resumo consolidado: receitas vs despesas e saldo' },
 ];

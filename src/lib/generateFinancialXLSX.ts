@@ -37,9 +37,10 @@ function filterByPeriod<T extends Record<string, any>>(items: T[], from: string,
   });
 }
 
-function buildExpenseSheet(params: ReportParams): XLSX.WorkSheet {
-  const periodExpenses = filterByPeriod(params.expenses, params.from, params.to, 'expense_date')
-    .sort((a, b) => a.expense_date.localeCompare(b.expense_date));
+function buildExpenseSheet(params: ReportParams, filterType?: string): XLSX.WorkSheet {
+  let periodExpenses = filterByPeriod(params.expenses, params.from, params.to, 'expense_date');
+  if (filterType) periodExpenses = periodExpenses.filter(e => e.expense_type === filterType);
+  periodExpenses.sort((a, b) => a.expense_date.localeCompare(b.expense_date));
 
   const rows = periodExpenses.map(e => ({
     Data: fmtDate(e.expense_date),
@@ -134,6 +135,15 @@ export function generateFinancialXLSX(params: ReportParams) {
     case 'despesas':
       XLSX.utils.book_append_sheet(wb, buildExpenseSheet(params), 'Despesas');
       break;
+    case 'despesas_fixas':
+      XLSX.utils.book_append_sheet(wb, buildExpenseSheet(params, 'fixa'), 'Despesas Fixas');
+      break;
+    case 'despesas_variaveis':
+      XLSX.utils.book_append_sheet(wb, buildExpenseSheet(params, 'variavel'), 'Despesas Variáveis');
+      break;
+    case 'despesas_festa':
+      XLSX.utils.book_append_sheet(wb, buildExpenseSheet(params, 'festa'), 'Despesas Festa');
+      break;
     case 'receitas': {
       const { geral, atrasados, aReceber, recebidos } = buildRevenueSheets(params);
       XLSX.utils.book_append_sheet(wb, geral, 'Visão Geral');
@@ -150,6 +160,10 @@ export function generateFinancialXLSX(params: ReportParams) {
     }
   }
 
-  const typeLabel = params.type === 'despesas' ? 'Despesas' : params.type === 'receitas' ? 'Receitas' : 'Resultado';
+  const TYPE_FILE_LABELS: Record<string, string> = {
+    despesas: 'Despesas', receitas: 'Receitas', resultado: 'Resultado',
+    despesas_fixas: 'Despesas_Fixas', despesas_variaveis: 'Despesas_Variaveis', despesas_festa: 'Despesas_Festa',
+  };
+  const typeLabel = TYPE_FILE_LABELS[params.type] || 'Relatorio';
   XLSX.writeFile(wb, `Relatorio_${typeLabel}_${params.from}_a_${params.to}.xlsx`);
 }
