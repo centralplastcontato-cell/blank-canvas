@@ -506,6 +506,7 @@ export default function Financeiro() {
                     <div className="flex items-center justify-between gap-2 flex-wrap">
                       <div className="flex gap-1.5 overflow-x-auto pb-1">
                         {[
+                          { value: 'todos', icon: List, label: 'Todos', count: dashboard.expenses.length },
                           { value: 'fixa', icon: Building, label: 'Fixas', count: dashboard.expenses.filter(e => (e.expense_type || 'fixa') === 'fixa').length },
                           { value: 'variavel', icon: Zap, label: 'Variáveis', count: dashboard.expenses.filter(e => e.expense_type === 'variavel').length },
                           { value: 'festa', icon: PartyPopper, label: 'Festas', count: dashboard.expenses.filter(e => e.expense_type === 'festa').length },
