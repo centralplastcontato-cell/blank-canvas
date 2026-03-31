@@ -66,14 +66,17 @@ export function ContractGenerator({ userId, onClose }: Props) {
 
       if (!ev?.lead_id) { setLoading(false); return; }
 
-      const [leadRes, contractDataRes] = await Promise.all([
+      const [leadRes, contractDataRes, clientDataReqRes] = await Promise.all([
         supabase.from("campaign_leads").select("id, name, whatsapp, month, guests, unit").eq("id", ev.lead_id).single(),
         (supabase as any).from("lead_contract_data").select("*").eq("lead_id", ev.lead_id).maybeSingle(),
+        supabase.from("client_data_requests").select("client_data").eq("event_id", selectedEventId).eq("status", "completed").order("created_at", { ascending: false }).limit(1),
       ]);
       setLeadData(leadRes.data);
+      const clientReqData = (clientDataReqRes.data as any)?.[0]?.client_data as Record<string, string> | null;
       if (contractDataRes.data) {
         const cd = contractDataRes.data;
         setContractData({
+          nome: clientReqData?.nome || "",
           cpf: cd.cpf || "", rg: cd.rg || "", email: cd.email || "",
           endereco: cd.endereco || "", numero: cd.numero || "", complemento: cd.complemento || "",
           bairro: cd.bairro || "", cidade: cd.cidade || "", cep: cd.cep || "",
@@ -82,6 +85,8 @@ export function ContractGenerator({ userId, onClose }: Props) {
           valor_sinal: cd.valor_sinal?.toString() || "", valor_restante: cd.valor_restante?.toString() || "",
           forma_pagamento: cd.forma_pagamento || "", brindes: cd.brindes || "",
         });
+      } else if (clientReqData?.nome) {
+        setContractData(prev => ({ ...prev, nome: clientReqData.nome }));
       }
       setLoading(false);
     })();
