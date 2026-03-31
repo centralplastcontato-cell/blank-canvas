@@ -101,7 +101,6 @@ function drawFunnel(doc: jsPDF, x: number, y: number, w: number, data: { label: 
 
 export function generateComercialPDF(params: ComercialReportParams) {
   const periodLeads = filterByPeriod(params.leads, params.from, params.to);
-  const allLeads = params.leads; // for funnel we use all current leads
   const doc = new jsPDF('p', 'mm', 'a4');
   let y = addHeader(doc, params.companyName, 'Relatório Comercial — Leads/CRM', params.periodLabel);
 
