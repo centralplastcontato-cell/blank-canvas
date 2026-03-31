@@ -33,6 +33,7 @@ export function PeriodFilterPopover({ onConfirm, activePeriod, onClear }: Period
   );
   const [open, setOpen] = useState(false);
   const presets = getPresets();
+  const isMobile = useIsMobile();
 
   const handleConfirm = () => {
     if (range?.from && range?.to) {
