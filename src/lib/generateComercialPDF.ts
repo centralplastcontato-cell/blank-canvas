@@ -106,9 +106,16 @@ export function generateComercialPDF(params: ComercialReportParams) {
   let y = addHeader(doc, params.companyName, 'Relatório Comercial — Leads/CRM', params.periodLabel);
 
   const novos = periodLeads.length;
-  const fechados = periodLeads.filter(l => l.status === 'fechado').length;
+  // Count "fechados" using events with data_fechamento_venda in the period
+  const events = params.events || [];
+  const fechadosNoPeriodo = events.filter(e => {
+    const dt = e.data_fechamento_venda?.slice(0, 10);
+    return dt && dt >= params.from && dt <= params.to && e.status !== 'cancelado';
+  });
+  const fechados = fechadosNoPeriodo.length;
   const perdidos = periodLeads.filter(l => l.status === 'perdido').length;
   const taxaConversao = novos > 0 ? ((fechados / novos) * 100).toFixed(1) : '0';
+  const faturamentoFechado = fechadosNoPeriodo.reduce((sum, e) => sum + (e.total_value || 0), 0);
 
   // KPI cards
   const kpis = [
