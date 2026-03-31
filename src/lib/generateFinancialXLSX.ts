@@ -37,9 +37,10 @@ function filterByPeriod<T extends Record<string, any>>(items: T[], from: string,
   });
 }
 
-function buildExpenseSheet(params: ReportParams, filterType?: string): XLSX.WorkSheet {
+function buildExpenseSheet(params: ReportParams, filterType?: string, filterStatus?: string): XLSX.WorkSheet {
   let periodExpenses = filterByPeriod(params.expenses, params.from, params.to, 'expense_date');
   if (filterType) periodExpenses = periodExpenses.filter(e => e.expense_type === filterType);
+  if (filterStatus) periodExpenses = periodExpenses.filter(e => e.status === filterStatus);
   periodExpenses.sort((a, b) => a.expense_date.localeCompare(b.expense_date));
 
   const rows = periodExpenses.map(e => ({
