@@ -12,6 +12,7 @@ export interface EventPayment {
   status: 'pending' | 'paid' | 'late';
   payment_method: string | null;
   paid_at: string | null;
+  notes: string | null;
   created_at: string;
 }
 

@@ -66,6 +66,15 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues 
               </SelectContent>
             </Select>
           </div>
+          <div>
+            <Label>Anotações (opcional)</Label>
+            <Textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Informações adicionais sobre a parcela"
+              rows={2}
+            />
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
