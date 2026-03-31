@@ -994,10 +994,13 @@ export default function Visitas() {
                 <div className="p-3 rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/20">
                   <MapPin className="h-7 w-7 text-primary-foreground" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground">Agenda de Visitas</h1>
                   <p className="text-sm text-muted-foreground/70 mt-0.5">Gerencie visitas e acompanhamentos</p>
                 </div>
+                <Button variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => setReportOpen(true)} title="Gerar Relatório">
+                  <FileText className="h-4 w-4" />
+                </Button>
               </div>
             </div>
           </header>
