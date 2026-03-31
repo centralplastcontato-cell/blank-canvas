@@ -124,6 +124,17 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
               </SelectContent>
             </Select>
           </div>
+          {expenseType !== 'ajuste' && (
+            <div>
+              <Label>Categoria</Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div>
             <Label>Status</Label>
             <Select value={status} onValueChange={setStatus}>
@@ -133,6 +144,15 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
                 <SelectItem value="pago">Pago</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div>
+            <Label>Observações (opcional)</Label>
+            <Textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder={expenseType === 'ajuste' ? 'Ex: Saldo em caixa na data de início da plataforma' : 'Detalhes adicionais sobre a despesa'}
+              rows={3}
+            />
           </div>
         </div>
         <DialogFooter>
