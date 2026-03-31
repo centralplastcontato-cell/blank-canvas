@@ -263,6 +263,9 @@ export default function Inteligencia() {
                     </SelectContent>
                   </Select>
                 )}
+                <Button variant="outline" size="icon" className="shrink-0 h-10 w-10" onClick={() => setReportOpen(true)} title="Gerar Relatório Comercial">
+                  <FileText className="h-5 w-5" />
+                </Button>
                 <Dialog>
                   <DialogTrigger asChild>
                     <Button variant="outline" size="icon" className="shrink-0 h-10 w-10 border-red-500 text-red-500 hover:bg-red-500/10 hover:text-red-600">
