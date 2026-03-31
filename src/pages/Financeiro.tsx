@@ -17,64 +17,31 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale, Building, Zap, PartyPopper, List, Users, ChevronLeft, ChevronRight, ExternalLink, ArrowUpDown } from 'lucide-react';
-import { format } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale, Building, Zap, PartyPopper, List, Users, ChevronLeft, ChevronRight, ExternalLink, ArrowUpDown, CalendarRange, X } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, addMonths, startOfYear, endOfYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import type { DateRange } from 'react-day-picker';
 
 const PAGE_SIZE = 20;
 
-function PaginationControls({ page, totalPages, onPageChange }: { page: number; totalPages: number; onPageChange: (p: number) => void }) {
-  if (totalPages <= 1) return null;
-  return (
-    <div className="flex items-center justify-center gap-2 pt-4">
-      <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)} className="h-8 w-8 p-0">
-        <ChevronLeft className="h-4 w-4" />
-      </Button>
-      <span className="text-xs text-muted-foreground">
-        {page} de {totalPages}
-      </span>
-      <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)} className="h-8 w-8 p-0">
-        <ChevronRight className="h-4 w-4" />
-      </Button>
-    </div>
-  );
+type PeriodPreset = 'mes' | 'bimestre' | 'trimestre' | 'semestre' | 'ano' | 'custom';
+
+function getPresetRange(preset: PeriodPreset): { from: string; to: string } {
+  const now = new Date();
+  const fmtd = (d: Date) => format(d, 'yyyy-MM-dd');
+  switch (preset) {
+    case 'mes': return { from: fmtd(startOfMonth(now)), to: fmtd(endOfMonth(now)) };
+    case 'bimestre': return { from: fmtd(startOfMonth(now)), to: fmtd(endOfMonth(addMonths(now, 1))) };
+    case 'trimestre': return { from: fmtd(startOfMonth(now)), to: fmtd(endOfMonth(addMonths(now, 2))) };
+    case 'semestre': return { from: fmtd(startOfMonth(now)), to: fmtd(endOfMonth(addMonths(now, 5))) };
+    case 'ano': return { from: fmtd(startOfYear(now)), to: fmtd(endOfYear(now)) };
+    default: return { from: fmtd(startOfMonth(now)), to: fmtd(endOfMonth(now)) };
+  }
 }
-
-const CATEGORY_LABELS: Record<string, string> = {
-  fornecedor: 'Fornecedor',
-  freela: 'Freela',
-  compras: 'Compras',
-  manutencao: 'Manutenção',
-  aluguel: 'Aluguel',
-  outros: 'Outros',
-};
-
-const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-export default function Financeiro() {
-  const navigate = useNavigate();
-  const { currentCompany } = useCompany();
-  const { unitOptions, units } = useCompanyUnits(currentCompany?.id);
-  const isSalesOnly = units.length > 0 && units.every(u => /vendas/i.test(u.name));
-  const dashboard = useFinanceiroDashboard();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
-  const [expenseDialogType, setExpenseDialogType] = useState<string>('fixa');
-  const [viewMode, setViewMode] = useState<'list' | 'client'>('list');
-  const [receitasSubTab, setReceitasSubTab] = useState('atraso');
-  const [despesasSubTab, setDespesasSubTab] = useState('fixa');
-  const [pageAtraso, setPageAtraso] = useState(1);
-  const [pageReceber, setPageReceber] = useState(1);
-  const [pageRecebidos, setPageRecebidos] = useState(1);
-  const [pageDespesas, setPageDespesas] = useState(1);
-  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
-  const [selectedEventData, setSelectedEventData] = useState<{ title: string; event_date: string; total_value: number; status: string } | null>(null);
-
-  const months = Array.from({ length: 12 }, (_, i) => {
-    const d = new Date(new Date().getFullYear(), i, 1);
-    return { value: format(d, 'yyyy-MM'), label: format(d, 'MMMM yyyy', { locale: ptBR }) };
-  });
 
   const handleOpenEvent = async (eventId: string) => {
     setSelectedEventId(eventId);
