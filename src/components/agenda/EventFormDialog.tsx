@@ -29,6 +29,7 @@ export interface PaymentDetails {
   entrada_data?: string | null;
   saldo_valor: number | null;
   saldo_forma: string;
+  saldo_data?: string | null;
   parcelas: number | null;
   observacoes_pagamento: string;
   parcelas_details?: ParcelaDetail[];
