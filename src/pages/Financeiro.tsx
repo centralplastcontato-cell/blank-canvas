@@ -510,6 +510,7 @@ export default function Financeiro() {
                           { value: 'fixa', icon: Building, label: 'Fixas', count: dashboard.expenses.filter(e => (e.expense_type || 'fixa') === 'fixa').length },
                           { value: 'variavel', icon: Zap, label: 'Variáveis', count: dashboard.expenses.filter(e => e.expense_type === 'variavel').length },
                           { value: 'festa', icon: PartyPopper, label: 'Festas', count: dashboard.expenses.filter(e => e.expense_type === 'festa').length },
+                          { value: 'baixadas', icon: CheckCircle, label: 'Baixadas', count: dashboard.expenses.filter(e => e.status === 'pago').length },
                         ].map(t => (
                           <button
                             key={t.value}
