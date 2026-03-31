@@ -506,6 +506,7 @@ export default function Financeiro() {
                     <div className="flex items-center justify-between gap-2 flex-wrap">
                       <div className="flex gap-1.5 overflow-x-auto pb-1">
                         {[
+                          { value: 'todos', icon: List, label: 'Todos', count: dashboard.expenses.length },
                           { value: 'fixa', icon: Building, label: 'Fixas', count: dashboard.expenses.filter(e => (e.expense_type || 'fixa') === 'fixa').length },
                           { value: 'variavel', icon: Zap, label: 'Variáveis', count: dashboard.expenses.filter(e => e.expense_type === 'variavel').length },
                           { value: 'festa', icon: PartyPopper, label: 'Festas', count: dashboard.expenses.filter(e => e.expense_type === 'festa').length },
@@ -531,19 +532,20 @@ export default function Financeiro() {
                       </div>
                     </div>
 
-                    {(['fixa', 'variavel', 'festa'] as const).map(expType => {
+                    {(['todos', 'fixa', 'variavel', 'festa'] as const).map(expType => {
                       const typeExpenses = dashboard.expenses
-                        .filter(e => (e.expense_type || 'fixa') === expType)
+                        .filter(e => expType === 'todos' ? true : (e.expense_type || 'fixa') === expType)
                         .sort((a, b) => despesasSortAsc
                           ? a.expense_date.localeCompare(b.expense_date)
                           : b.expense_date.localeCompare(a.expense_date)
                         );
-                      const typeLabel = expType === 'fixa' ? 'fixa' : expType === 'variavel' ? 'variável' : 'de festa';
+                      const typeLabel = expType === 'todos' ? '' : expType === 'fixa' ? 'fixa' : expType === 'variavel' ? 'variável' : 'de festa';
+                      const sectionTitle = expType === 'todos' ? `Todas as despesas (${typeExpenses.length})` : `Despesas ${typeLabel}s (${typeExpenses.length})`;
                       return (
                         <TabsContent key={expType} value={expType} className="space-y-3 mt-3">
                           <div className="flex items-center justify-between">
                             <h2 className="text-sm font-semibold text-foreground">
-                              Despesas {typeLabel}s ({typeExpenses.length})
+                              {sectionTitle}
                               {typeExpenses.length > 0 && (
                                 <span className="ml-2 text-blue-400 font-bold">
                                   {fmt(typeExpenses.reduce((s, e) => s + e.amount, 0))}
@@ -560,14 +562,14 @@ export default function Financeiro() {
                                 <ArrowUpDown className="h-3.5 w-3.5" />
                                 {despesasSortAsc ? 'Mais próxima' : 'Mais recente'}
                               </Button>
-                              <Button size="sm" onClick={() => { setExpenseDialogType(expType); setExpenseDialogOpen(true); }}>
+                              <Button size="sm" onClick={() => { setExpenseDialogType(expType === 'todos' ? 'fixa' : expType); setExpenseDialogOpen(true); }}>
                                 <Plus className="h-4 w-4 mr-1" /> Adicionar
                               </Button>
                             </div>
                           </div>
                           {typeExpenses.length === 0 ? (
                             <Card className="p-8">
-                              <p className="text-sm text-muted-foreground text-center">Nenhuma despesa {typeLabel} cadastrada</p>
+                              <p className="text-sm text-muted-foreground text-center">Nenhuma despesa cadastrada</p>
                             </Card>
                           ) : (() => {
                             const totalPagesDespesas = Math.ceil(typeExpenses.length / PAGE_SIZE);
