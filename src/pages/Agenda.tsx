@@ -27,7 +27,9 @@ import { MonthSummaryCards } from "@/components/agenda/MonthSummaryCards";
 import { PeriodFilterPopover } from "@/components/agenda/PeriodFilterPopover";
 import { PreReservationFormDialog, type PreReservation } from "@/components/agenda/PreReservationFormDialog";
 import { PreReservationDetailSheet } from "@/components/agenda/PreReservationDetailSheet";
-import { CalendarDays, Plus, Loader2, ShieldAlert, Menu, Clock, AlertTriangle, List, ListChecks, MapPin, Users, DollarSign, Search, X, Phone, Pencil, Handshake, ArrowUpDown, CalendarClock } from "lucide-react";
+import { CalendarDays, Plus, Loader2, ShieldAlert, Menu, Clock, AlertTriangle, List, ListChecks, MapPin, Users, DollarSign, Search, X, Phone, Pencil, Handshake, ArrowUpDown, CalendarClock, FileText } from "lucide-react";
+import { ReportDialog } from "@/components/reports/ReportDialog";
+import { generateAgendaPDF, generateAgendaXLSX } from "@/lib/generateAgendaPDF";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, startOfMonth, endOfMonth, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -172,6 +174,7 @@ export default function Agenda() {
   const [editingPreRes, setEditingPreRes] = useState<PreReservation | null>(null);
   const [detailPreRes, setDetailPreRes] = useState<PreReservation | null>(null);
   const [detailPreResOpen, setDetailPreResOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   // Search state
   const [searchTerm, setSearchTerm] = useState("");
@@ -931,6 +934,9 @@ export default function Agenda() {
                           </Select>
                         );
                       })()}
+                      <Button variant="outline" size="icon" className="h-10 w-10" onClick={() => setReportOpen(true)} title="Gerar Relatório">
+                        <FileText className="h-4 w-4" />
+                      </Button>
                       <Button variant="outline" className="h-10 px-4 border-pink-300 text-pink-600 hover:bg-pink-50" onClick={() => { setEditingPreRes(null); setPreResFormOpen(true); }}>
                         <CalendarClock className="h-4 w-4 mr-2" /> Pré-reserva
                       </Button>
@@ -1660,6 +1666,26 @@ export default function Agenda() {
         userId={currentUser?.id}
       />
 
+      <ReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        title="Relatório de Agenda"
+        reportTypes={[
+          { value: 'geral', label: 'Relatório Geral', desc: 'Todos os eventos com resumo, tabela e gráficos' },
+        ]}
+        unitOptions={(() => {
+          const vu = canViewAll ? physicalUnits : physicalUnits.filter(u => unitAccess[u.name]);
+          return vu.map(u => ({ value: u.name, label: u.name }));
+        })()}
+        onGenerate={(p) => {
+          const allEvts = [...events, ...closedEvents, ...periodEvents];
+          const unique = [...new Map(allEvts.map(e => [e.id, e])).values()];
+          const filtered = p.unit === 'all' ? unique : unique.filter(e => e.unit === p.unit);
+          const reportParams = { type: p.type, companyName: currentCompany?.name || '', periodLabel: p.periodLabel, from: p.from, to: p.to, events: filtered };
+          if (p.format === 'xlsx') generateAgendaXLSX(reportParams);
+          else generateAgendaPDF(reportParams);
+        }}
+      />
     </SidebarProvider>
   );
 }

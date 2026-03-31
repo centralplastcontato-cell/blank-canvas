@@ -13,7 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Brain, ShieldAlert, HelpCircle, Flame, AlertTriangle, Snowflake, Target, Thermometer, BarChart3, TrendingUp, Search, Menu } from "lucide-react";
+import { Brain, ShieldAlert, HelpCircle, Flame, AlertTriangle, Snowflake, Target, Thermometer, BarChart3, TrendingUp, Search, Menu, FileText } from "lucide-react";
+import { ReportDialog } from "@/components/reports/ReportDialog";
+import { generateComercialPDF, generateComercialXLSX } from "@/lib/generateComercialPDF";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PrioridadesTab } from "@/components/inteligencia/PrioridadesTab";
 import { FollowUpsTab } from "@/components/inteligencia/FollowUpsTab";
@@ -49,6 +51,7 @@ export default function Inteligencia() {
   const [selectedUnit, setSelectedUnit] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const { units } = useCompanyUnits(currentCompany?.id);
   const { canViewAll, allowedUnits, isLoading: isLoadingUnitPerms } = useUnitPermissions(currentUser?.id, currentCompany?.id);
@@ -260,6 +263,9 @@ export default function Inteligencia() {
                     </SelectContent>
                   </Select>
                 )}
+                <Button variant="outline" size="icon" className="shrink-0 h-10 w-10" onClick={() => setReportOpen(true)} title="Gerar Relatório Comercial">
+                  <FileText className="h-5 w-5" />
+                </Button>
                 <Dialog>
                   <DialogTrigger asChild>
                     <Button variant="outline" size="icon" className="shrink-0 h-10 w-10 border-red-500 text-red-500 hover:bg-red-500/10 hover:text-red-600">
@@ -540,6 +546,27 @@ export default function Inteligencia() {
         </PullToRefresh>
         </div>
       </div>
+      <ReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        title="Relatório Comercial"
+        reportTypes={[
+          { value: 'funil', label: 'Funil + Leads', desc: 'Funil de vendas atual + leads novos no período' },
+        ]}
+        unitOptions={unitOptions}
+        onGenerate={async (p) => {
+          if (!currentCompany?.id) return;
+          const { data: allLeads } = await supabase
+            .from('campaign_leads')
+            .select('id, name, whatsapp, status, unit, created_at, month, guests')
+            .eq('company_id', currentCompany.id);
+          const leads = (allLeads || []).map((l: any) => ({ ...l }));
+          const filtered = p.unit === 'all' ? leads : leads.filter((l: any) => l.unit === p.unit);
+          const reportParams = { type: p.type, companyName: currentCompany?.name || '', periodLabel: p.periodLabel, from: p.from, to: p.to, leads: filtered };
+          if (p.format === 'xlsx') generateComercialXLSX(reportParams);
+          else generateComercialPDF(reportParams);
+        }}
+      />
     </SidebarProvider>
   );
 }

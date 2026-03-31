@@ -21,7 +21,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Menu, CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, Phone, MessageSquare, Check, RefreshCw, X, Plus, User as UserIcon, AlertTriangle, Trash2, PartyPopper } from "lucide-react";
+import { Loader2, Menu, CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, Phone, MessageSquare, Check, RefreshCw, X, Plus, User as UserIcon, AlertTriangle, Trash2, PartyPopper, FileText } from "lucide-react";
+import { ReportDialog } from "@/components/reports/ReportDialog";
+import { generateVisitasPDF, generateVisitasXLSX } from "@/lib/generateVisitasPDF";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -112,6 +114,7 @@ export default function Visitas() {
   const [newUnit, setNewUnit] = useState("");
   const [saving, setSaving] = useState(false);
   const [leadResults, setLeadResults] = useState<{ id: string; name: string; whatsapp: string }[]>([]);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const { isAdmin, canManageUsers } = useUserRole(user?.id);
 
@@ -991,10 +994,13 @@ export default function Visitas() {
                 <div className="p-3 rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/20">
                   <MapPin className="h-7 w-7 text-primary-foreground" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground">Agenda de Visitas</h1>
                   <p className="text-sm text-muted-foreground/70 mt-0.5">Gerencie visitas e acompanhamentos</p>
                 </div>
+                <Button variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => setReportOpen(true)} title="Gerar Relatório">
+                  <FileText className="h-4 w-4" />
+                </Button>
               </div>
             </div>
           </header>
@@ -1005,6 +1011,22 @@ export default function Visitas() {
       </div>
       {detailSheet}
       {createDialog}
+      <ReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        title="Relatório de Visitas"
+        reportTypes={[
+          { value: 'geral', label: 'Relatório Geral', desc: 'Todas as visitas com resumo, tabela e gráficos de canal' },
+        ]}
+        unitOptions={units.filter(u => u.slug !== 'trabalhe-conosco').map(u => ({ value: u.name, label: u.name }))}
+        onGenerate={(p) => {
+          const filtered = p.unit === 'all' ? visits : visits.filter(v => v.unit === p.unit);
+          const mapped = filtered.map(v => ({ ...v, como_conheceu: (v as any).lead_channel || null }));
+          const reportParams = { type: p.type, companyName: currentCompany?.name || '', periodLabel: p.periodLabel, from: p.from, to: p.to, visits: mapped };
+          if (p.format === 'xlsx') generateVisitasXLSX(reportParams);
+          else generateVisitasPDF(reportParams);
+        }}
+      />
     </SidebarProvider>
   );
 }
