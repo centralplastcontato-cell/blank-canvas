@@ -114,6 +114,7 @@ export default function Visitas() {
   const [newUnit, setNewUnit] = useState("");
   const [saving, setSaving] = useState(false);
   const [leadResults, setLeadResults] = useState<{ id: string; name: string; whatsapp: string }[]>([]);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const { isAdmin, canManageUsers } = useUserRole(user?.id);
 
