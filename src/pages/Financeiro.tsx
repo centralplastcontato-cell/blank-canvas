@@ -562,7 +562,7 @@ export default function Financeiro() {
                                 <ArrowUpDown className="h-3.5 w-3.5" />
                                 {despesasSortAsc ? 'Mais próxima' : 'Mais recente'}
                               </Button>
-                              <Button size="sm" onClick={() => { setExpenseDialogType(expType); setExpenseDialogOpen(true); }}>
+                              <Button size="sm" onClick={() => { setExpenseDialogType(expType === 'todos' ? 'fixa' : expType); setExpenseDialogOpen(true); }}>
                                 <Plus className="h-4 w-4 mr-1" /> Adicionar
                               </Button>
                             </div>
