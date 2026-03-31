@@ -1,32 +1,27 @@
 
 
-## Plano: Filtro por Período Flexivel no Financeiro
+## Plano: Adicionar variáveis de data da entrada e data do saldo no contrato
 
-### O que muda para o usuario
+### O que muda para o usuário
 
-O seletor de mes atual ("janeiro", "fevereiro"...) sera substituido por um sistema com:
-- **Presets rapidos**: Mes atual, Bimestre, Trimestre, Semestre, Ano inteiro
-- **Periodo personalizado**: calendario para escolher data inicio e fim livremente
-- **Badge visual** mostrando o periodo ativo com botao de limpar
+O modelo de contrato poderá usar as variáveis `{{data_entrada}}` e `{{data_saldo}}` para exibir as datas de pagamento da entrada e do saldo, formatadas em DD/MM/YYYY.
 
-### Alteracoes tecnicas
+### Alterações técnicas
 
-**1. Hook `src/hooks/useFinanceiroDashboard.ts`**
-- Trocar `filters.month` (string `yyyy-MM`) por `filters.from` e `filters.to` (strings `yyyy-MM-dd`)
-- Default: mes atual (startOfMonth -> endOfMonth de hoje)
-- Usar `from`/`to` em todas as agregacoes mensais (recebido, pendente, despesas do periodo, saldo)
-- Remover calculo de `monthStart`/`monthEnd` a partir de `filters.month`
+**1. Template resolver — `src/lib/template-resolver.ts` + `supabase/functions/_shared/template-resolver.ts`**
+- Adicionar `data_entrada` e `data_saldo` ao `VariableContext.contract`
+- Adicionar os dois resolvers no `VARIABLE_CATALOG`:
+  - `data_entrada`: retorna `ctx.contract?.data_entrada || ''`
+  - `data_saldo`: retorna `ctx.contract?.data_saldo || ''`
+- Adicionar ao `domainMap` como domain `'contract'`
 
-**2. Pagina `src/pages/Financeiro.tsx`**
-- Remover o `<Select>` de meses e o array `months`
-- Adicionar presets como botoes pill-shaped (mesmo padrao visual das sub-abas):
-  - "Mes" (mes atual), "Bimestre" (2 meses), "Trimestre" (3 meses), "Semestre" (6 meses), "Ano" (ano inteiro)
-- Adicionar botao "Personalizado" que abre um Popover com Calendar mode="range" (igual ao PeriodFilterPopover ja existente na Agenda)
-- Mostrar badge com periodo ativo e botao X para voltar ao default (mes atual)
-- Resetar paginacoes ao trocar periodo
+**2. Contexto do contrato — `src/components/contracts/EventContractDialog.tsx`**
+- No bloco `contract:` do `variableContext` (linha ~96-144), adicionar:
+  - `data_entrada`: formatar `pd.entrada_data` de `yyyy-MM-dd` para `dd/MM/yyyy`
+  - `data_saldo`: formatar `pd.saldo_data` de `yyyy-MM-dd` para `dd/MM/yyyy`
 
-**3. Impacto**
-- Sem migration, sem mudanca de banco
-- Cards de resumo, aba Resultado e aba Receitas passam a refletir o periodo selecionado
-- Aba Despesas continua mostrando todas (sem filtro temporal), conforme ja implementado
+**3. Contract Generator — `src/components/contracts/ContractGenerator.tsx`**
+- Mesma adição no mapeamento de variáveis para o gerador legado, se aplicável
+
+**4. Sem migration** — os dados já estão salvos em `payment_details` JSON dentro de `company_events`
 
