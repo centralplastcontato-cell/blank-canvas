@@ -102,7 +102,7 @@ export function ContractGenerator({ userId, onClose }: Props) {
       guest_count: eventData.guest_count, unit: eventData.unit || "", event_type: eventData.event_type || "",
     } : undefined,
     contract: {
-      responsible_name: leadData?.name || "",
+      responsible_name: contractData.nome || leadData?.name || "",
       cpf: contractData.cpf, rg: contractData.rg, email: contractData.email,
       address: contractData.endereco, numero: contractData.numero, complemento: contractData.complemento,
       bairro: contractData.bairro, cidade: contractData.cidade, cep: contractData.cep,
