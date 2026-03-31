@@ -174,6 +174,7 @@ export default function Agenda() {
   const [editingPreRes, setEditingPreRes] = useState<PreReservation | null>(null);
   const [detailPreRes, setDetailPreRes] = useState<PreReservation | null>(null);
   const [detailPreResOpen, setDetailPreResOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   // Search state
   const [searchTerm, setSearchTerm] = useState("");
