@@ -135,10 +135,10 @@ export function generateComercialPDF(params: ComercialReportParams) {
   });
   y += 22;
 
-  // Funnel (all leads, not just period)
-  doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.text('Funil de Vendas (Posição Atual)', 14, y); y += 5;
+  // Funnel — leads created in the period only
+  doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.text('Funil de Vendas (Leads do Período)', 14, y); y += 5;
   const funnelData = FUNNEL_ORDER
-    .map((status, i) => ({ label: STATUS_LABELS[status] || status, value: allLeads.filter(l => l.status === status).length, color: CHART_COLORS[i % CHART_COLORS.length] }))
+    .map((status, i) => ({ label: STATUS_LABELS[status] || status, value: periodLeads.filter(l => l.status === status).length, color: CHART_COLORS[i % CHART_COLORS.length] }))
     .filter(d => d.value > 0);
   drawFunnel(doc, 14, y, doc.internal.pageSize.getWidth() - 28, funnelData);
   y += funnelData.length * 14 + 10;
