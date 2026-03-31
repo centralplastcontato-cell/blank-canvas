@@ -31,6 +31,7 @@ export interface Expense {
   unit: string | null;
   status: string;
   notes: string | null;
+  receipt_url: string | null;
   created_at: string;
 }
 
