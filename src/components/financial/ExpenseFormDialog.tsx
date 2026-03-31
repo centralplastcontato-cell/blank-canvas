@@ -107,15 +107,13 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
             <Label>Descrição</Label>
             <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Ex: DJ para festa" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Valor (R$)</Label>
-              <Input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0,00" />
-            </div>
-            <div>
-              <Label>Data</Label>
-              <Input type="date" value={expenseDate} onChange={e => setExpenseDate(e.target.value)} />
-            </div>
+          <div>
+            <Label>Valor (R$)</Label>
+            <Input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0,00" />
+          </div>
+          <div>
+            <Label>Data</Label>
+            <Input type="date" value={expenseDate} onChange={e => setExpenseDate(e.target.value)} className="w-full min-w-0" />
           </div>
           {expenseType !== 'ajuste' && (
             <div>
