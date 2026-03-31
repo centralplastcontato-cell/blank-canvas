@@ -713,6 +713,14 @@ export default function Financeiro() {
           )}
         </SheetContent>
       </Sheet>
+      <FinancialReportDialog
+        open={reportDialogOpen}
+        onOpenChange={setReportDialogOpen}
+        payments={dashboard.payments}
+        expenses={dashboard.expenses}
+        companyName={currentCompany?.name || ''}
+        unitOptions={unitOptions}
+      />
     </SidebarProvider>
   );
 }
