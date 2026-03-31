@@ -176,6 +176,20 @@ const VARIABLE_CATALOG: Record<string, { resolver: VariableResolver }> = {
   }},
   telefone_pais: { resolver: (ctx) => ctx.contract?.telefone_pais || '' },
   cliente_celular: { resolver: (ctx) => ctx.contract?.celular || ctx.lead?.whatsapp || '' },
+  data_entrada: { resolver: (ctx) => {
+    const v = ctx.contract?.data_entrada || '';
+    if (!v) return '';
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(v)) return v;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) { const [y, m, d] = v.split("-"); return `${d}/${m}/${y}`; }
+    return v;
+  }},
+  data_saldo: { resolver: (ctx) => {
+    const v = ctx.contract?.data_saldo || '';
+    if (!v) return '';
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(v)) return v;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) { const [y, m, d] = v.split("-"); return `${d}/${m}/${y}`; }
+    return v;
+  }},
   brindes: { resolver: (ctx) => ctx.contract?.brindes || '' },
   descricao: { resolver: (ctx) => ctx.contract?.descricao || '' },
   hora_inicio: { resolver: (ctx) => ctx.event?.time || '' },
