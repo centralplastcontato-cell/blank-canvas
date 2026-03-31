@@ -144,6 +144,9 @@ export function generateFinancialXLSX(params: ReportParams) {
     case 'despesas_festa':
       XLSX.utils.book_append_sheet(wb, buildExpenseSheet(params, 'festa'), 'Despesas Festa');
       break;
+    case 'despesas_baixadas':
+      XLSX.utils.book_append_sheet(wb, buildExpenseSheet(params, undefined, 'pago'), 'Despesas Baixadas');
+      break;
     case 'receitas': {
       const { geral, atrasados, aReceber, recebidos } = buildRevenueSheets(params);
       XLSX.utils.book_append_sheet(wb, geral, 'Visão Geral');
