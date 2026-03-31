@@ -259,8 +259,14 @@ function generateExpenseReport(doc: jsPDF, params: ReportParams, filterType?: st
   });
 }
 
-function generateRevenueReport(doc: jsPDF, params: ReportParams) {
-  let y = addHeader(doc, params.companyName, 'Relatório de Receitas', params.periodLabel);
+function generateRevenueReport(doc: jsPDF, params: ReportParams, filterStatus?: 'pending' | 'late' | 'paid') {
+  const titleMap: Record<string, string> = {
+    pending: 'Relatório de Receitas — A Receber',
+    late: 'Relatório de Receitas — Em Atraso',
+    paid: 'Relatório de Receitas — Recebidas',
+  };
+  const title = filterStatus ? titleMap[filterStatus] : 'Relatório de Receitas';
+  let y = addHeader(doc, params.companyName, title, params.periodLabel);
 
   const paid = params.payments.filter(p => p.status === 'paid' && p.paid_at && p.paid_at.slice(0, 10) >= params.from && p.paid_at.slice(0, 10) <= params.to);
   const pending = params.payments.filter(p => p.status === 'pending' && p.due_date >= params.from && p.due_date <= params.to);
