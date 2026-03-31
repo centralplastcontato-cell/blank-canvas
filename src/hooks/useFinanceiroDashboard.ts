@@ -147,14 +147,13 @@ export function useFinanceiroDashboard() {
 
   const filteredExpenses = useMemo(() => {
     return expenses.filter(e => {
-      if (filters.unit !== 'all' && e.unit !== filters.unit) return false;
       if (filters.status !== 'all') {
         if (filters.status === 'paid' && e.status !== 'pago') return false;
         if (filters.status === 'pending' && e.status !== 'pendente') return false;
       }
       return true;
     });
-  }, [expenses, filters.unit, filters.status]);
+  }, [expenses, filters.status]);
 
   // Aggregations
   const paidThisMonth = filteredPayments.filter(p => p.status === 'paid' && p.paid_at && p.paid_at.slice(0, 7) === filters.month);
