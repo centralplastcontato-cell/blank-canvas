@@ -357,6 +357,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [showQuickVisitDialog, setShowQuickVisitDialog] = useState(false);
   const [visitRefreshKey, setVisitRefreshKey] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [leadEventId, setLeadEventId] = useState<string | null>(null);
+  const [leadEventValue, setLeadEventValue] = useState<number>(0);
+  const [showFinancialSheet, setShowFinancialSheet] = useState(false);
   
   // Contact sharing state
   const [showContactDialog, setShowContactDialog] = useState(false);
