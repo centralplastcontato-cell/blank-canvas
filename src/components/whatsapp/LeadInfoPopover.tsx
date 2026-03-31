@@ -975,9 +975,7 @@ export function LeadInfoPopover({
             // Refresh linkedEventData with saved values
             setLinkedEventData(prev => prev ? { ...prev, ...data, id: prev.id } : prev);
           } else {
-            const { error } = await supabase
-              .from("company_events")
-              .insert({
+            const insertPayload: Record<string, any> = {
                 company_id: currentCompany.id,
                 created_by: user.id,
                 title: data.title,
@@ -1002,7 +1000,10 @@ export function LeadInfoPopover({
                 payment_details: data.payment_details || null,
                 data_fechamento_venda: data.data_fechamento_venda || null,
                 vendedor_responsavel_id: data.vendedor_responsavel_id || null,
-              });
+              };
+            const { error } = await (supabase as any)
+              .from("company_events")
+              .insert(insertPayload);
             if (error) { toast({ title: "Erro ao criar", description: error.message, variant: "destructive" }); return; }
             toast({ title: "Festa criada!" });
             setHasLinkedEvent(true);
