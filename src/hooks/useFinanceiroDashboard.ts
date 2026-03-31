@@ -35,7 +35,8 @@ export interface Expense {
 }
 
 export interface FinanceiroDashboardFilters {
-  month: string;
+  from: string; // yyyy-MM-dd
+  to: string;   // yyyy-MM-dd
   unit: string;
   status: string;
   tipo: string;
@@ -49,7 +50,8 @@ export function useFinanceiroDashboard() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState<FinanceiroDashboardFilters>({
-    month: format(new Date(), 'yyyy-MM'),
+    from: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
+    to: format(endOfMonth(new Date()), 'yyyy-MM-dd'),
     unit: 'all',
     status: 'all',
     tipo: 'all',
@@ -127,11 +129,9 @@ export function useFinanceiroDashboard() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Filtered data
-  const monthStart = startOfMonth(new Date(filters.month + '-01'));
-  const monthEnd = endOfMonth(monthStart);
-  const monthStartStr = format(monthStart, 'yyyy-MM-dd');
-  const monthEndStr = format(monthEnd, 'yyyy-MM-dd');
+  // Use from/to from filters
+  const periodFrom = filters.from;
+  const periodTo = filters.to;
 
   const filteredPayments = useMemo(() => {
     return payments.filter(p => {
@@ -155,17 +155,17 @@ export function useFinanceiroDashboard() {
     });
   }, [expenses, filters.status]);
 
-  // Aggregations
-  const paidThisMonth = filteredPayments.filter(p => p.status === 'paid' && p.paid_at && p.paid_at.slice(0, 7) === filters.month);
+  // Aggregations using from/to range
+  const paidThisMonth = filteredPayments.filter(p => p.status === 'paid' && p.paid_at && p.paid_at.slice(0, 10) >= periodFrom && p.paid_at.slice(0, 10) <= periodTo);
   const totalReceivedMonth = paidThisMonth.reduce((s, p) => s + p.amount, 0);
 
-  const pendingThisMonth = filteredPayments.filter(p => p.status === 'pending' && p.due_date >= monthStartStr && p.due_date <= monthEndStr);
+  const pendingThisMonth = filteredPayments.filter(p => p.status === 'pending' && p.due_date >= periodFrom && p.due_date <= periodTo);
   const totalPendingMonth = pendingThisMonth.reduce((s, p) => s + p.amount, 0);
 
   const latePayments = filteredPayments.filter(p => p.status === 'late').sort((a, b) => a.due_date.localeCompare(b.due_date));
   const totalLate = latePayments.reduce((s, p) => s + p.amount, 0);
 
-  const expensesThisMonth = filteredExpenses.filter(e => e.expense_date >= monthStartStr && e.expense_date <= monthEndStr);
+  const expensesThisMonth = filteredExpenses.filter(e => e.expense_date >= periodFrom && e.expense_date <= periodTo);
   const totalExpensesMonth = expensesThisMonth.reduce((s, e) => s + e.amount, 0);
 
   const saldoMonth = totalReceivedMonth - totalExpensesMonth;
