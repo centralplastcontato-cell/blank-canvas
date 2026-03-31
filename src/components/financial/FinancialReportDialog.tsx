@@ -56,6 +56,7 @@ export function FinancialReportDialog({ open, onOpenChange, payments, expenses, 
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [customOpen, setCustomOpen] = useState(false);
   const [unit, setUnit] = useState('all');
+  const [outputFormat, setOutputFormat] = useState<'pdf' | 'xlsx'>('pdf');
   const [generating, setGenerating] = useState(false);
 
   const range = activePreset === 'custom' && customRange?.from && customRange?.to
