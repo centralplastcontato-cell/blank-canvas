@@ -55,7 +55,8 @@ const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', curren
 export default function Financeiro() {
   const navigate = useNavigate();
   const { currentCompany } = useCompany();
-  const { unitOptions } = useCompanyUnits(currentCompany?.id);
+  const { unitOptions, units } = useCompanyUnits(currentCompany?.id);
+  const isSalesOnly = units.length > 0 && units.every(u => /vendas/i.test(u.name));
   const dashboard = useFinanceiroDashboard();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
@@ -171,7 +172,7 @@ export default function Financeiro() {
                     {months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                {unitOptions.length > 0 && (
+                {unitOptions.length > 0 && !isSalesOnly && (
                   <Select value={dashboard.filters.unit} onValueChange={v => dashboard.setFilters(f => ({ ...f, unit: v }))}>
                     <SelectTrigger className="w-36 h-9 text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
