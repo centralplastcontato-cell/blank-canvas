@@ -149,7 +149,7 @@ export default function Agenda() {
   const [periodLoading, setPeriodLoading] = useState(false);
   const [closedInPeriod, setClosedInPeriod] = useState(0);
   const [closedRevenue, setClosedRevenue] = useState(0);
-  const [closedEvents, setClosedEvents] = useState<CompanyEvent[]>([]);
+  const [closedEvents, setClosedEvents] = useState<(CompanyEvent & { lead_name?: string; lead_phone?: string })[]>([]);
   const [contentMode, setContentMode] = useState<"agendadas" | "fechadas" | "pre-reservas">("agendadas");
   const [allPreReservations, setAllPreReservations] = useState<PreReservation[]>([]);
   const [closedSortBy, setClosedSortBy] = useState<"event_date" | "fechamento">("fechamento");
