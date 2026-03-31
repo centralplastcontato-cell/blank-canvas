@@ -41,7 +41,7 @@ export function ContractGenerator({ userId, onClose }: Props) {
     (async () => {
       const [modelsRes, eventsRes] = await Promise.all([
         (supabase as any).from("contract_models").select("id, nome_modelo, tipo_evento, conteudo_template, versao, company_id").eq("company_id", currentCompany.id).eq("is_active", true).order("nome_modelo"),
-        (supabase as any).from("company_events").select("id, title, event_date, start_time, end_time, event_type, package_name, guest_count, total_value, unit, lead_id, status, child_name, child_age, child_birthdate, parent_names, gifts, extra_guest_value").eq("company_id", currentCompany.id).neq("status", "cancelado").order("event_date", { ascending: false }).limit(200),
+        (supabase as any).from("company_events").select("id, title, event_date, start_time, end_time, event_type, package_name, guest_count, total_value, unit, lead_id, status, child_name, child_age, child_birthdate, parent_names, gifts, extra_guest_value, payment_details").eq("company_id", currentCompany.id).neq("status", "cancelado").order("event_date", { ascending: false }).limit(200),
       ]);
       setModels(modelsRes.data || []);
       setEvents(eventsRes.data || []);
@@ -136,6 +136,8 @@ export function ContractGenerator({ userId, onClose }: Props) {
       valor_sinal: contractData.valor_sinal ? `R$ ${Number(contractData.valor_sinal).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "",
       valor_restante: contractData.valor_restante ? `R$ ${Number(contractData.valor_restante).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "",
       forma_pagamento: contractData.forma_pagamento,
+      data_entrada: eventData?.payment_details?.entrada_data || "",
+      data_saldo: eventData?.payment_details?.saldo_data || "",
       brindes: contractData.brindes || eventData?.gifts || "",
       valor_convidado_adicional: eventData?.extra_guest_value ? `R$ ${Number(eventData.extra_guest_value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "",
       date: new Date().toLocaleDateString("pt-BR"),

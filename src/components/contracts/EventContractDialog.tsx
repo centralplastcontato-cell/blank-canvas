@@ -140,6 +140,8 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
         valor_sinal: pd?.entrada_valor ? `R$ ${Number(pd.entrada_valor).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "",
         valor_restante: pd?.saldo_valor ? `R$ ${Number(pd.saldo_valor).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "",
         forma_pagamento: paymentDesc || eventData?.payment_method || "",
+        data_entrada: pd?.entrada_data || "",
+        data_saldo: pd?.saldo_data || "",
         date: new Date().toLocaleDateString("pt-BR"),
       },
     };
