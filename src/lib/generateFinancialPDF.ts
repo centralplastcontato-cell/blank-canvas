@@ -2,7 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { EnrichedPayment, Expense } from '@/hooks/useFinanceiroDashboard';
 
-export type ReportType = 'despesas' | 'receitas' | 'resultado' | 'despesas_fixas' | 'despesas_variaveis' | 'despesas_festa' | 'receitas_a_receber' | 'receitas_atrasadas' | 'receitas_recebidas';
+export type ReportType = 'despesas' | 'receitas' | 'resultado' | 'despesas_fixas' | 'despesas_variaveis' | 'despesas_festa' | 'despesas_baixadas' | 'receitas_a_receber' | 'receitas_atrasadas' | 'receitas_recebidas';
 
 interface ReportParams {
   type: ReportType;
@@ -198,12 +198,13 @@ function drawBarChart(
 
 // ─── Reports ─────────────────────────────────────────────────────────────────
 
-function generateExpenseReport(doc: jsPDF, params: ReportParams, filterType?: string, titleSuffix?: string) {
+function generateExpenseReport(doc: jsPDF, params: ReportParams, filterType?: string, titleSuffix?: string, filterStatus?: string) {
   const title = titleSuffix ? `Relatório de Despesas — ${titleSuffix}` : 'Relatório de Despesas';
   let y = addHeader(doc, params.companyName, title, params.periodLabel);
 
   let periodExpenses = filterByPeriod(params.expenses, params.from, params.to, 'expense_date');
   if (filterType) periodExpenses = periodExpenses.filter(e => e.expense_type === filterType);
+  if (filterStatus) periodExpenses = periodExpenses.filter(e => e.status === filterStatus);
   const sorted = [...periodExpenses].sort((a, b) => a.expense_date.localeCompare(b.expense_date));
   const total = sorted.reduce((s, e) => s + e.amount, 0);
 
@@ -452,6 +453,9 @@ export function generateFinancialPDF(params: ReportParams) {
     case 'despesas_festa':
       generateExpenseReport(doc, params, 'festa', 'Festa');
       break;
+    case 'despesas_baixadas':
+      generateExpenseReport(doc, params, undefined, 'Baixadas', 'pago');
+      break;
     case 'receitas':
       generateRevenueReport(doc, params);
       break;
@@ -471,7 +475,7 @@ export function generateFinancialPDF(params: ReportParams) {
 
   const TYPE_FILE_LABELS: Record<string, string> = {
     despesas: 'Despesas', receitas: 'Receitas', resultado: 'Resultado',
-    despesas_fixas: 'Despesas_Fixas', despesas_variaveis: 'Despesas_Variaveis', despesas_festa: 'Despesas_Festa',
+    despesas_fixas: 'Despesas_Fixas', despesas_variaveis: 'Despesas_Variaveis', despesas_festa: 'Despesas_Festa', despesas_baixadas: 'Despesas_Baixadas',
     receitas_a_receber: 'Receitas_A_Receber', receitas_atrasadas: 'Receitas_Atrasadas', receitas_recebidas: 'Receitas_Recebidas',
   };
   const typeLabel = TYPE_FILE_LABELS[params.type] || 'Relatorio';

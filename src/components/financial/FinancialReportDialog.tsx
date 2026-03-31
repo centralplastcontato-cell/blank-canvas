@@ -27,6 +27,7 @@ const REPORT_TYPES: { value: ReportType; label: string; desc: string }[] = [
   { value: 'despesas_fixas', label: 'Despesas Fixas', desc: 'Aluguel, salários e custos recorrentes' },
   { value: 'despesas_variaveis', label: 'Despesas Variáveis', desc: 'Compras pontuais e custos não recorrentes' },
   { value: 'despesas_festa', label: 'Despesas de Festa', desc: 'Custos vinculados a eventos e festas' },
+  { value: 'despesas_baixadas', label: 'Despesas Baixadas', desc: 'Despesas já pagas/baixadas no período' },
   { value: 'receitas', label: 'Receitas (Completo)', desc: 'Visão geral com todas as parcelas: pagas, pendentes e atrasadas' },
   { value: 'receitas_a_receber', label: 'Receitas a Receber', desc: 'Parcelas pendentes com vencimento no período' },
   { value: 'receitas_atrasadas', label: 'Receitas em Atraso', desc: 'Parcelas vencidas e ainda não pagas' },

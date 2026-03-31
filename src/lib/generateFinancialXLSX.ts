@@ -37,9 +37,10 @@ function filterByPeriod<T extends Record<string, any>>(items: T[], from: string,
   });
 }
 
-function buildExpenseSheet(params: ReportParams, filterType?: string): XLSX.WorkSheet {
+function buildExpenseSheet(params: ReportParams, filterType?: string, filterStatus?: string): XLSX.WorkSheet {
   let periodExpenses = filterByPeriod(params.expenses, params.from, params.to, 'expense_date');
   if (filterType) periodExpenses = periodExpenses.filter(e => e.expense_type === filterType);
+  if (filterStatus) periodExpenses = periodExpenses.filter(e => e.status === filterStatus);
   periodExpenses.sort((a, b) => a.expense_date.localeCompare(b.expense_date));
 
   const rows = periodExpenses.map(e => ({
@@ -144,6 +145,9 @@ export function generateFinancialXLSX(params: ReportParams) {
     case 'despesas_festa':
       XLSX.utils.book_append_sheet(wb, buildExpenseSheet(params, 'festa'), 'Despesas Festa');
       break;
+    case 'despesas_baixadas':
+      XLSX.utils.book_append_sheet(wb, buildExpenseSheet(params, undefined, 'pago'), 'Despesas Baixadas');
+      break;
     case 'receitas': {
       const { geral, atrasados, aReceber, recebidos } = buildRevenueSheets(params);
       XLSX.utils.book_append_sheet(wb, geral, 'Visão Geral');
@@ -177,7 +181,7 @@ export function generateFinancialXLSX(params: ReportParams) {
 
   const TYPE_FILE_LABELS: Record<string, string> = {
     despesas: 'Despesas', receitas: 'Receitas', resultado: 'Resultado',
-    despesas_fixas: 'Despesas_Fixas', despesas_variaveis: 'Despesas_Variaveis', despesas_festa: 'Despesas_Festa',
+    despesas_fixas: 'Despesas_Fixas', despesas_variaveis: 'Despesas_Variaveis', despesas_festa: 'Despesas_Festa', despesas_baixadas: 'Despesas_Baixadas',
     receitas_a_receber: 'Receitas_A_Receber', receitas_atrasadas: 'Receitas_Atrasadas', receitas_recebidas: 'Receitas_Recebidas',
   };
   const typeLabel = TYPE_FILE_LABELS[params.type] || 'Relatorio';
