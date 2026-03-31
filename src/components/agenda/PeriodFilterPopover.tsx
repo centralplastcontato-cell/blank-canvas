@@ -55,18 +55,23 @@ export function PeriodFilterPopover({ onConfirm, activePeriod, onClear }: Period
             Consultar período
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start" side="bottom">
+        <PopoverContent 
+          className={cn("p-0", isMobile ? "w-[calc(100vw-2rem)] max-w-sm" : "w-auto")} 
+          align={isMobile ? "center" : "start"} 
+          side="bottom"
+          sideOffset={8}
+        >
           <div className="p-4 space-y-3">
             <p className="text-sm font-semibold text-foreground">Selecione o período</p>
 
             {/* Presets */}
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
               {presets.map((p) => (
                 <Button
                   key={p.label}
                   variant="secondary"
                   size="sm"
-                  className="text-xs h-7"
+                  className="text-xs h-7 whitespace-nowrap shrink-0"
                   onClick={() => handlePreset(p)}
                 >
                   {p.label}
@@ -81,7 +86,7 @@ export function PeriodFilterPopover({ onConfirm, activePeriod, onClear }: Period
               onSelect={setRange}
               numberOfMonths={isMobile ? 1 : 2}
               locale={ptBR}
-              className={cn("p-3 pointer-events-auto")}
+              className={cn("p-0 pointer-events-auto w-full [&_.rdp-month]:w-full [&_.rdp-table]:w-full")}
             />
 
             {/* Selected range display + confirm */}
