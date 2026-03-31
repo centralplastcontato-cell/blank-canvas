@@ -113,10 +113,10 @@ export function ReportDialog({ open, onOpenChange, title, reportTypes, defaultTy
               {PRESETS.map(p => (
                 <button
                   key={p.value}
-                  onClick={() => { setActivePreset(p.value); setCustomRange(undefined); }}
+                  onClick={() => { setActivePreset(p.value); setCustomRange(undefined); setCustomOpen(false); }}
                   className={cn(
                     'px-2.5 py-1 rounded-full text-xs font-medium border transition-all',
-                    activePreset === p.value
+                    activePreset === p.value && !customOpen
                       ? 'bg-foreground text-background border-foreground'
                       : 'bg-transparent text-muted-foreground border-border hover:bg-accent'
                   )}
@@ -124,35 +124,38 @@ export function ReportDialog({ open, onOpenChange, title, reportTypes, defaultTy
                   {p.label}
                 </button>
               ))}
-              <Popover open={customOpen} onOpenChange={setCustomOpen}>
-                <PopoverTrigger asChild>
-                  <button className={cn(
-                    'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all',
-                    activePreset === 'custom'
-                      ? 'bg-foreground text-background border-foreground'
-                      : 'bg-transparent text-muted-foreground border-border hover:bg-accent'
-                  )}>
-                    <CalendarRange className="h-3 w-3" />
-                    Personalizado
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-3 pointer-events-auto" align="start">
-                  <Calendar
-                    mode="range"
-                    selected={customRange}
-                    onSelect={setCustomRange}
-                    numberOfMonths={1}
-                    locale={ptBR}
-                    className="pointer-events-auto"
-                  />
-                  <div className="flex justify-end pt-2 border-t border-border/40">
-                    <Button size="sm" disabled={!customRange?.from || !customRange?.to} onClick={() => { setActivePreset('custom'); setCustomOpen(false); }}>
-                      Aplicar
-                    </Button>
-                  </div>
-                </PopoverContent>
-              </Popover>
+              <button
+                onClick={() => { setCustomOpen(!customOpen); if (!customOpen) setActivePreset('custom'); }}
+                className={cn(
+                  'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all',
+                  activePreset === 'custom'
+                    ? 'bg-foreground text-background border-foreground'
+                    : 'bg-transparent text-muted-foreground border-border hover:bg-accent'
+                )}
+              >
+                <CalendarRange className="h-3 w-3" />
+                Personalizado
+              </button>
             </div>
+
+            {customOpen && (
+              <div className="rounded-lg border border-border p-3 space-y-2">
+                <Calendar
+                  mode="range"
+                  selected={customRange}
+                  onSelect={(r) => { setCustomRange(r); if (r?.from && r?.to) setActivePreset('custom'); }}
+                  numberOfMonths={1}
+                  locale={ptBR}
+                  className="p-0 w-full [&_.rdp-month]:w-full [&_.rdp-table]:w-full"
+                />
+                {customRange?.from && customRange?.to && (
+                  <p className="text-xs text-center text-muted-foreground">
+                    {format(customRange.from, "dd/MM/yyyy")} – {format(customRange.to, "dd/MM/yyyy")}
+                  </p>
+                )}
+              </div>
+            )}
+
             <p className="text-xs text-muted-foreground">{periodLabel}</p>
           </div>
 
