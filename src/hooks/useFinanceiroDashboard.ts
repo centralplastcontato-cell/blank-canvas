@@ -115,7 +115,9 @@ export function useFinanceiroDashboard() {
       }));
 
       setPayments(enriched);
-      setExpenses((expensesRes.data || []).map(e => ({ ...e, amount: Number(e.amount) })) as Expense[]);
+      const expenseData = (expensesRes.data || []).map(e => ({ ...e, amount: Number(e.amount) })) as Expense[];
+      console.log('[Financeiro] expenses fetched:', expenseData.length, 'raw:', expensesRes.data?.length, 'error:', expensesRes.error);
+      setExpenses(expenseData);
     } catch (err) {
       console.error('[useFinanceiroDashboard] fetch error:', err);
     } finally {
