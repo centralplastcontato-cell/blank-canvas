@@ -609,15 +609,29 @@ export default function Financeiro() {
                                             Baixar
                                           </Button>
                                         ) : (
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            className="h-8 w-8 p-0 text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10"
-                                            title="Reabrir como pendente"
-                                            onClick={() => dashboard.updateExpense(e.id, { status: 'pendente' })}
-                                          >
-                                            <RotateCcw className="h-4 w-4" />
-                                          </Button>
+                                          <div className="flex items-center gap-1">
+                                            {e.receipt_url && (
+                                              <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-7 px-2 text-xs"
+                                                onClick={() => window.open(e.receipt_url!, '_blank')}
+                                                title="Ver comprovante"
+                                              >
+                                                <FileText className="h-3.5 w-3.5 mr-1" />
+                                                Comprovante
+                                              </Button>
+                                            )}
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-8 w-8 p-0 text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10"
+                                              title="Reabrir como pendente"
+                                              onClick={() => dashboard.updateExpense(e.id, { status: 'pendente', receipt_url: null })}
+                                            >
+                                              <RotateCcw className="h-4 w-4" />
+                                            </Button>
+                                          </div>
                                         )}
                                         <p className="text-sm font-bold text-blue-400">{fmt(e.amount)}</p>
                                         <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:text-destructive/80" onClick={() => dashboard.deleteExpense(e.id)}>
