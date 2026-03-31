@@ -13,7 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Brain, ShieldAlert, HelpCircle, Flame, AlertTriangle, Snowflake, Target, Thermometer, BarChart3, TrendingUp, Search, Menu } from "lucide-react";
+import { Brain, ShieldAlert, HelpCircle, Flame, AlertTriangle, Snowflake, Target, Thermometer, BarChart3, TrendingUp, Search, Menu, FileText } from "lucide-react";
+import { ReportDialog } from "@/components/reports/ReportDialog";
+import { generateComercialPDF, generateComercialXLSX } from "@/lib/generateComercialPDF";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PrioridadesTab } from "@/components/inteligencia/PrioridadesTab";
 import { FollowUpsTab } from "@/components/inteligencia/FollowUpsTab";
