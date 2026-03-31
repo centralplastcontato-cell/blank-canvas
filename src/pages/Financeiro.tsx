@@ -8,6 +8,7 @@ import { FinancialPaymentCard } from '@/components/financial/FinancialPaymentCar
 import { PaymentsByClientView } from '@/components/financial/PaymentsByClientView';
 import { ExpenseFormDialog } from '@/components/financial/ExpenseFormDialog';
 import { EventFinancialTab } from '@/components/financial/EventFinancialTab';
+import { FinancialReportDialog } from '@/components/financial/FinancialReportDialog';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { MobileMenu } from '@/components/admin/MobileMenu';
 import { NotificationBell } from '@/components/admin/NotificationBell';
