@@ -5186,7 +5186,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         visitRefreshKey={visitRefreshKey}
                         mobile
                       />
-                      {leadEventId && (
+                      {leadEventId && financialPerms.canView && (
                         <Button
                           variant="ghost"
                           size="icon"
