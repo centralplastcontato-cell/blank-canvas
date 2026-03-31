@@ -578,7 +578,12 @@ export default function Financeiro() {
                               <>
                                 <div className="space-y-2">
                                   {paginated.map(e => (
-                                    <div key={e.id} className="p-3 md:p-4 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
+                                    <div key={e.id} className={cn(
+                                      "p-3 md:p-4 rounded-xl border border-border bg-card flex items-center justify-between gap-3 border-l-4",
+                                      (e.expense_type || 'fixa') === 'fixa' && 'border-l-blue-500',
+                                      e.expense_type === 'variavel' && 'border-l-amber-500',
+                                      e.expense_type === 'festa' && 'border-l-purple-500',
+                                    )}>
                                       <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 flex-wrap">
                                           <p className="font-semibold text-sm text-foreground truncate">{e.description}</p>
