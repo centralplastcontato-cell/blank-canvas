@@ -102,6 +102,7 @@ export default function Financeiro() {
   const [activePreset, setActivePreset] = useState<PeriodPreset>('mes');
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [customPopoverOpen, setCustomPopoverOpen] = useState(false);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
 
   // Auth & financial permission check
   const [currentUserId, setCurrentUserId] = useState<string | undefined>();
