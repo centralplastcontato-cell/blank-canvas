@@ -63,6 +63,7 @@ export default function Financeiro() {
   const [expenseDialogType, setExpenseDialogType] = useState<string>('fixa');
   const [viewMode, setViewMode] = useState<'list' | 'client'>('list');
   const [receitasSubTab, setReceitasSubTab] = useState('atraso');
+  const [despesasSubTab, setDespesasSubTab] = useState('fixa');
   const [pageAtraso, setPageAtraso] = useState(1);
   const [pageReceber, setPageReceber] = useState(1);
   const [pageRecebidos, setPageRecebidos] = useState(1);
