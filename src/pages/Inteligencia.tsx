@@ -51,6 +51,7 @@ export default function Inteligencia() {
   const [selectedUnit, setSelectedUnit] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const { units } = useCompanyUnits(currentCompany?.id);
   const { canViewAll, allowedUnits, isLoading: isLoadingUnitPerms } = useUnitPermissions(currentUser?.id, currentCompany?.id);
