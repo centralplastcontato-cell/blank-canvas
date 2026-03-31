@@ -943,9 +943,7 @@ export function LeadInfoPopover({
           const user = (await supabase.auth.getUser()).data.user;
           if (!user || !currentCompany) return;
           if (linkedEventData?.id) {
-            const { error } = await supabase
-              .from("company_events")
-              .update({
+            const updatePayload: Record<string, any> = {
                 title: data.title,
                 event_date: data.event_date,
                 start_time: data.start_time || null,
@@ -957,10 +955,25 @@ export function LeadInfoPopover({
                 package_name: data.package_name || null,
                 total_value: data.total_value,
                 notes: data.notes || null,
-              })
+                child_name: data.child_name || null,
+                child_age: data.child_age || null,
+                child_birthdate: data.child_birthdate || null,
+                parent_names: data.parent_names || null,
+                gifts: data.gifts || null,
+                extra_guest_value: data.extra_guest_value || null,
+                payment_method: data.payment_method || null,
+                payment_details: data.payment_details || null,
+                data_fechamento_venda: data.data_fechamento_venda || null,
+                vendedor_responsavel_id: data.vendedor_responsavel_id || null,
+              };
+            const { error } = await supabase
+              .from("company_events")
+              .update(updatePayload)
               .eq("id", linkedEventData.id);
             if (error) { toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" }); return; }
             toast({ title: "Festa atualizada!" });
+            // Refresh linkedEventData with saved values
+            setLinkedEventData(prev => prev ? { ...prev, ...data, id: prev.id } : prev);
           } else {
             const { error } = await supabase
               .from("company_events")
@@ -979,6 +992,16 @@ export function LeadInfoPopover({
                 total_value: data.total_value,
                 notes: data.notes || null,
                 lead_id: linkedLead.id,
+                child_name: data.child_name || null,
+                child_age: data.child_age || null,
+                child_birthdate: data.child_birthdate || null,
+                parent_names: data.parent_names || null,
+                gifts: data.gifts || null,
+                extra_guest_value: data.extra_guest_value || null,
+                payment_method: data.payment_method || null,
+                payment_details: data.payment_details || null,
+                data_fechamento_venda: data.data_fechamento_venda || null,
+                vendedor_responsavel_id: data.vendedor_responsavel_id || null,
               });
             if (error) { toast({ title: "Erro ao criar", description: error.message, variant: "destructive" }); return; }
             toast({ title: "Festa criada!" });
