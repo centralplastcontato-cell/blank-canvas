@@ -6566,6 +6566,28 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         canEdit={true}
         canViewContact={true}
       />
+      {/* Financial Sheet */}
+      {leadEventId && currentCompany && (
+        <Sheet open={showFinancialSheet} onOpenChange={setShowFinancialSheet}>
+          <SheetContent side="bottom" className="h-[85vh] overflow-y-auto p-0">
+            <SheetHeader className="px-4 pt-4 pb-2 sticky top-0 bg-background z-10 border-b">
+              <SheetTitle className="text-base font-bold">
+                {linkedLead?.name || selectedConversation?.contact_name || 'Financeiro'}
+              </SheetTitle>
+            </SheetHeader>
+            <div className="p-4">
+              <EventFinancialTab
+                eventId={leadEventId}
+                companyId={currentCompany.id}
+                baseValue={leadEventValue}
+                canEdit={true}
+                canPay={true}
+                showValues={true}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
     </div>
   );
 }
