@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale, Building, Zap, PartyPopper, List, Users, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
+import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale, Building, Zap, PartyPopper, List, Users, ChevronLeft, ChevronRight, ExternalLink, ArrowUpDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
@@ -410,6 +410,7 @@ export default function Financeiro() {
                                           {format(new Date(e.expense_date + 'T12:00:00'), 'dd/MM/yyyy')}
                                           {e.unit && ` · ${e.unit}`}
                                         </p>
+                                        {e.notes && <p className="text-xs text-muted-foreground/70 mt-0.5 italic">{e.notes}</p>}
                                       </div>
                                       <div className="flex items-center gap-2 shrink-0">
                                         <p className="text-sm font-bold text-blue-400">{fmt(e.amount)}</p>
@@ -432,6 +433,38 @@ export default function Financeiro() {
 
 
                 <TabsContent value="resultado" className="space-y-4">
+                  <div className="flex items-center justify-end">
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { setExpenseDialogType('ajuste'); setExpenseDialogOpen(true); }}>
+                      <ArrowUpDown className="h-4 w-4" /> Ajuste de Saldo
+                    </Button>
+                  </div>
+
+                  {/* Show adjustments if any */}
+                  {(() => {
+                    const ajustes = dashboard.expensesThisMonth.filter(e => e.expense_type === 'ajuste');
+                    if (ajustes.length === 0) return null;
+                    return (
+                      <Card className="p-4 bg-card border-border space-y-2">
+                        <h3 className="text-sm font-semibold text-foreground">Ajustes de Saldo</h3>
+                        {ajustes.map(a => (
+                          <div key={a.id} className="flex items-center justify-between gap-3 text-sm">
+                            <div className="flex-1 min-w-0">
+                              <span className="font-medium">{a.description}</span>
+                              {a.notes && <p className="text-xs text-muted-foreground mt-0.5">{a.notes}</p>}
+                              <p className="text-xs text-muted-foreground">{format(new Date(a.expense_date + 'T12:00:00'), 'dd/MM/yyyy')}</p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className={`font-bold ${a.amount >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmt(a.amount)}</span>
+                              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" onClick={() => dashboard.deleteExpense(a.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </Card>
+                    );
+                  })()}
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Card className="p-6 bg-card border-border text-center">
                       <p className="text-sm text-muted-foreground mb-2">Total Recebido</p>
@@ -459,6 +492,9 @@ export default function Financeiro() {
                       <div className="flex justify-between"><span className="text-muted-foreground">Despesas fixas</span><span className="text-blue-400 font-medium">{fmt(dashboard.expensesThisMonth.filter(e => (e.expense_type || 'fixa') === 'fixa').reduce((s, e) => s + e.amount, 0))}</span></div>
                       <div className="flex justify-between"><span className="text-muted-foreground">Despesas variáveis</span><span className="text-blue-400 font-medium">{fmt(dashboard.expensesThisMonth.filter(e => e.expense_type === 'variavel').reduce((s, e) => s + e.amount, 0))}</span></div>
                       <div className="flex justify-between"><span className="text-muted-foreground">Despesas de festas</span><span className="text-blue-400 font-medium">{fmt(dashboard.expensesThisMonth.filter(e => e.expense_type === 'festa').reduce((s, e) => s + e.amount, 0))}</span></div>
+                      {dashboard.expensesThisMonth.some(e => e.expense_type === 'ajuste') && (
+                        <div className="flex justify-between"><span className="text-muted-foreground">Ajustes de saldo</span><span className="text-purple-400 font-medium">{fmt(dashboard.expensesThisMonth.filter(e => e.expense_type === 'ajuste').reduce((s, e) => s + e.amount, 0))}</span></div>
+                      )}
                       <div className="flex justify-between font-medium"><span className="text-muted-foreground">Total despesas</span><span className="text-blue-400">{fmt(dashboard.totalExpensesMonth)}</span></div>
                       <div className="border-t border-border my-2" />
                       <div className="flex justify-between font-semibold"><span className="text-foreground">Saldo</span><span className={dashboard.saldoMonth >= 0 ? 'text-emerald-400' : 'text-red-400'}>{fmt(dashboard.saldoMonth)}</span></div>

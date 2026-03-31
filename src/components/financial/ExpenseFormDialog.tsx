@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const CATEGORIES = [
@@ -31,13 +32,14 @@ const EXPENSE_TYPES = [
   { value: 'fixa', label: 'Despesa Fixa' },
   { value: 'variavel', label: 'Despesa Variável' },
   { value: 'festa', label: 'Despesa de Festa' },
+  { value: 'ajuste', label: 'Ajuste de Saldo' },
 ];
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: { description: string; amount: number; expense_date: string; category: string; expense_type?: string; status: string }) => void;
-  defaultValues?: { description?: string; amount?: number; expense_date?: string; category?: string; expense_type?: string; status?: string };
+  onSubmit: (data: { description: string; amount: number; expense_date: string; category: string; expense_type?: string; status: string; notes?: string }) => void;
+  defaultValues?: { description?: string; amount?: number; expense_date?: string; category?: string; expense_type?: string; status?: string; notes?: string };
   defaultExpenseType?: string;
 }
 
@@ -48,6 +50,7 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
   const [category, setCategory] = useState('outros');
   const [expenseType, setExpenseType] = useState('fixa');
   const [status, setStatus] = useState('pendente');
+  const [notes, setNotes] = useState('');
 
   useEffect(() => {
     if (open && defaultValues) {
@@ -57,6 +60,7 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
       setCategory(defaultValues.category || 'outros');
       setExpenseType(defaultValues.expense_type || defaultExpenseType || 'fixa');
       setStatus(defaultValues.status || 'pendente');
+      setNotes(defaultValues.notes || '');
     } else if (open) {
       setDescription('');
       setAmount('');
@@ -64,6 +68,7 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
       setCategory('outros');
       setExpenseType(defaultExpenseType || 'fixa');
       setStatus('pendente');
+      setNotes('');
     }
   }, [open, defaultValues, defaultExpenseType]);
 
@@ -74,9 +79,10 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
       description: description.trim(),
       amount: val,
       expense_date: expenseDate,
-      category,
+      category: expenseType === 'ajuste' ? 'ajuste_saldo' : category,
       expense_type: expenseType,
       status,
+      notes: notes.trim() || undefined,
     });
     onOpenChange(false);
   };
@@ -118,6 +124,17 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
               </SelectContent>
             </Select>
           </div>
+          {expenseType !== 'ajuste' && (
+            <div>
+              <Label>Categoria</Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div>
             <Label>Status</Label>
             <Select value={status} onValueChange={setStatus}>
@@ -127,6 +144,15 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
                 <SelectItem value="pago">Pago</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div>
+            <Label>Observações (opcional)</Label>
+            <Textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder={expenseType === 'ajuste' ? 'Ex: Saldo em caixa na data de início da plataforma' : 'Detalhes adicionais sobre a despesa'}
+              rows={3}
+            />
           </div>
         </div>
         <DialogFooter>
