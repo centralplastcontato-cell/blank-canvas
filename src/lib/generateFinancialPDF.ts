@@ -453,6 +453,9 @@ export function generateFinancialPDF(params: ReportParams) {
     case 'despesas_festa':
       generateExpenseReport(doc, params, 'festa', 'Festa');
       break;
+    case 'despesas_baixadas':
+      generateExpenseReport(doc, params, undefined, 'Baixadas', 'pago');
+      break;
     case 'receitas':
       generateRevenueReport(doc, params);
       break;
