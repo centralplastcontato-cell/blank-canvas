@@ -546,6 +546,27 @@ export default function Inteligencia() {
         </PullToRefresh>
         </div>
       </div>
+      <ReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        title="Relatório Comercial"
+        reportTypes={[
+          { value: 'funil', label: 'Funil + Leads', desc: 'Funil de vendas atual + leads novos no período' },
+        ]}
+        unitOptions={unitOptions}
+        onGenerate={async (p) => {
+          if (!currentCompany?.id) return;
+          const { data: allLeads } = await supabase
+            .from('campaign_leads')
+            .select('id, name, whatsapp, status, unit, created_at, month, guests')
+            .eq('company_id', currentCompany.id);
+          const leads = (allLeads || []).map((l: any) => ({ ...l }));
+          const filtered = p.unit === 'all' ? leads : leads.filter((l: any) => l.unit === p.unit);
+          const reportParams = { type: p.type, companyName: currentCompany?.name || '', periodLabel: p.periodLabel, from: p.from, to: p.to, leads: filtered };
+          if (p.format === 'xlsx') generateComercialXLSX(reportParams);
+          else generateComercialPDF(reportParams);
+        }}
+      />
     </SidebarProvider>
   );
 }
