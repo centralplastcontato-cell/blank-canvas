@@ -71,10 +71,15 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
 
   const variableContext: VariableContext = useMemo(() => {
     const pd = paymentDetails as any;
+    const fmtDate = (d: string | undefined) => {
+      if (!d) return "";
+      if (/^\d{4}-\d{2}-\d{2}$/.test(d)) { const [y, m, day] = d.split("-"); return `${day}/${m}/${y}`; }
+      return d;
+    };
     const paymentDesc = pd
       ? [
-          pd.entrada_valor ? `Entrada: R$ ${Number(pd.entrada_valor).toLocaleString("pt-BR")}${pd.entrada_forma ? ` (${pd.entrada_forma})` : ""}` : "",
-          pd.saldo_valor ? `Saldo: R$ ${Number(pd.saldo_valor).toLocaleString("pt-BR")}${pd.saldo_forma ? ` (${pd.saldo_forma})` : ""}` : "",
+          pd.entrada_valor ? `Entrada: R$ ${Number(pd.entrada_valor).toLocaleString("pt-BR")}${pd.entrada_forma ? ` (${pd.entrada_forma})` : ""}${pd.entrada_data ? ` em ${fmtDate(pd.entrada_data)}` : ""}` : "",
+          pd.saldo_valor ? `Saldo: R$ ${Number(pd.saldo_valor).toLocaleString("pt-BR")}${pd.saldo_forma ? ` (${pd.saldo_forma})` : ""}${pd.saldo_data ? ` em ${fmtDate(pd.saldo_data)}` : ""}` : "",
           pd.parcelas ? `${pd.parcelas}x` : "",
           pd.observacoes_pagamento || "",
         ].filter(Boolean).join(" | ")
