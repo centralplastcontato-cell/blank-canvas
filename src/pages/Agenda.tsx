@@ -317,7 +317,7 @@ export default function Agenda() {
   }, [navigate]);
 
   // Fetch events for current month
-  const fetchClosedInPeriod = useCallback(async (start: string, end: string, unit?: string): Promise<{ count: number; revenue: number; events: CompanyEvent[] }> => {
+  const fetchClosedInPeriod = useCallback(async (start: string, end: string, unit?: string): Promise<{ count: number; revenue: number; events: (CompanyEvent & { lead_name?: string; lead_phone?: string })[] }> => {
     if (!currentCompany?.id) return { count: 0, revenue: 0, events: [] };
     let query = supabase
       .from("company_events")
@@ -341,9 +341,25 @@ export default function Agenda() {
     
     const { data } = await query;
     const evts = (data || []) as CompanyEvent[];
-    const count = evts.length;
-    const revenue = evts.reduce((sum, e) => sum + (e.total_value || 0), 0);
-    return { count, revenue, events: evts };
+
+    // Enrich with lead name/phone
+    const leadIds = [...new Set(evts.map(e => e.lead_id).filter(Boolean))] as string[];
+    let leadMap = new Map<string, { name: string; whatsapp: string }>();
+    if (leadIds.length > 0) {
+      const { data: leads } = await supabase
+        .from("campaign_leads")
+        .select("id, name, whatsapp")
+        .in("id", leadIds);
+      (leads || []).forEach((l: any) => leadMap.set(l.id, l));
+    }
+    const enriched = evts.map(ev => {
+      const lead = ev.lead_id ? leadMap.get(ev.lead_id) : undefined;
+      return { ...ev, lead_name: lead?.name, lead_phone: lead?.whatsapp };
+    });
+
+    const count = enriched.length;
+    const revenue = enriched.reduce((sum, e) => sum + (e.total_value || 0), 0);
+    return { count, revenue, events: enriched };
   }, [currentCompany?.id, canViewAll, allowedUnits]);
 
   const initialLoadDone = useRef(false);
