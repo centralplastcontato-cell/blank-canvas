@@ -97,6 +97,7 @@ export default function Financeiro() {
   const [pageReceber, setPageReceber] = useState(1);
   const [pageRecebidos, setPageRecebidos] = useState(1);
   const [pageDespesas, setPageDespesas] = useState(1);
+  const [despesasSortAsc, setDespesasSortAsc] = useState(true);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [selectedEventData, setSelectedEventData] = useState<{ title: string; event_date: string; total_value: number; status: string } | null>(null);
   const [activePreset, setActivePreset] = useState<PeriodPreset>('mes');
@@ -529,7 +530,12 @@ export default function Financeiro() {
                     </div>
 
                     {(['fixa', 'variavel', 'festa'] as const).map(expType => {
-                      const typeExpenses = dashboard.expenses.filter(e => (e.expense_type || 'fixa') === expType);
+                      const typeExpenses = dashboard.expenses
+                        .filter(e => (e.expense_type || 'fixa') === expType)
+                        .sort((a, b) => despesasSortAsc
+                          ? a.expense_date.localeCompare(b.expense_date)
+                          : b.expense_date.localeCompare(a.expense_date)
+                        );
                       const typeLabel = expType === 'fixa' ? 'fixa' : expType === 'variavel' ? 'variável' : 'de festa';
                       return (
                         <TabsContent key={expType} value={expType} className="space-y-3 mt-3">
@@ -542,9 +548,20 @@ export default function Financeiro() {
                                 </span>
                               )}
                             </h2>
-                            <Button size="sm" onClick={() => { setExpenseDialogType(expType); setExpenseDialogOpen(true); }}>
-                              <Plus className="h-4 w-4 mr-1" /> Adicionar
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-1.5 text-xs"
+                                onClick={() => { setDespesasSortAsc(prev => !prev); setPageDespesas(1); }}
+                              >
+                                <ArrowUpDown className="h-3.5 w-3.5" />
+                                {despesasSortAsc ? 'Mais próxima' : 'Mais recente'}
+                              </Button>
+                              <Button size="sm" onClick={() => { setExpenseDialogType(expType); setExpenseDialogOpen(true); }}>
+                                <Plus className="h-4 w-4 mr-1" /> Adicionar
+                              </Button>
+                            </div>
                           </div>
                           {typeExpenses.length === 0 ? (
                             <Card className="p-8">
