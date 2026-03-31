@@ -598,7 +598,7 @@ export default function Financeiro() {
                                             variant="ghost"
                                             className="h-8 w-8 p-0 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10"
                                             title="Marcar como pago"
-                                            onClick={() => dashboard.updateExpense(e.id, { status: 'pago' })}
+                                            onClick={() => setMarkPaidExpense({ id: e.id, description: e.description })}
                                           >
                                             <Check className="h-4 w-4" />
                                           </Button>
