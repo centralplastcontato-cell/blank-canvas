@@ -77,6 +77,8 @@ export interface VariableContext {
     duracao_festa?: string | null;
     cardapio?: string | null;
     valor_total_extenso?: string | null;
+    data_entrada?: string | null;
+    data_saldo?: string | null;
   };
   freelancer?: {
     name?: string | null;
