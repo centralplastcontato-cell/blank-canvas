@@ -32,6 +32,7 @@ const EXPENSE_TYPES = [
   { value: 'fixa', label: 'Despesa Fixa' },
   { value: 'variavel', label: 'Despesa Variável' },
   { value: 'festa', label: 'Despesa de Festa' },
+  { value: 'ajuste', label: 'Ajuste de Saldo' },
 ];
 
 interface Props {
