@@ -215,6 +215,14 @@ export function LeadInfoPopover({
               lead_id: ev.lead_id || null,
               data_fechamento_venda: ev.data_fechamento_venda || null,
               vendedor_responsavel_id: ev.vendedor_responsavel_id || null,
+              child_name: ev.child_name || null,
+              child_age: ev.child_age || null,
+              child_birthdate: ev.child_birthdate || null,
+              parent_names: ev.parent_names || null,
+              gifts: ev.gifts || null,
+              extra_guest_value: ev.extra_guest_value || null,
+              payment_method: ev.payment_method || null,
+              payment_details: ev.payment_details as any || null,
             });
           } else {
             setLinkedEventData(null);
