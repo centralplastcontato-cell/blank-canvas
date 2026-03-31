@@ -68,20 +68,13 @@ export function FinancialReportDialog({ open, onOpenChange, payments, expenses, 
 
   const handleGenerate = () => {
     setGenerating(true);
-
     const filteredPayments = unit === 'all' ? payments : payments.filter(p => p.unit === unit);
     const filteredExpenses = unit === 'all' ? expenses : expenses.filter(e => e.unit === unit);
-
     const reportParams = {
-      type: reportType,
-      companyName,
-      periodLabel,
-      from: range.from,
-      to: range.to,
-      payments: filteredPayments,
-      expenses: filteredExpenses,
+      type: reportType, companyName, periodLabel,
+      from: range.from, to: range.to,
+      payments: filteredPayments, expenses: filteredExpenses,
     };
-
     setTimeout(() => {
       if (outputFormat === 'xlsx') {
         generateFinancialXLSX(reportParams);
@@ -94,40 +87,40 @@ export function FinancialReportDialog({ open, onOpenChange, payments, expenses, 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
+      <DialogContent className="max-w-md max-h-[85vh] flex flex-col p-0">
+        <DialogHeader className="px-5 pt-5 pb-2 shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5 text-primary" />
             Gerar Relatório
           </DialogTitle>
-          <DialogDescription>Escolha o tipo de relatório e o período desejado.</DialogDescription>
+          <DialogDescription>Escolha o tipo, período e formato.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 pt-2">
+        <div className="space-y-3 px-5 pb-5 overflow-y-auto flex-1 min-h-0">
           {/* Report type */}
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground">Tipo de relatório</label>
-            <div className="grid gap-2">
+            <div className="grid gap-1.5">
               {REPORT_TYPES.map(rt => (
                 <button
                   key={rt.value}
                   onClick={() => setReportType(rt.value)}
                   className={cn(
-                    'flex flex-col items-start text-left rounded-lg border p-3 transition-all',
+                    'flex flex-col items-start text-left rounded-lg border p-2.5 transition-all',
                     reportType === rt.value
                       ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
                       : 'border-border hover:bg-accent/50'
                   )}
                 >
                   <span className="text-sm font-medium">{rt.label}</span>
-                  <span className="text-xs text-muted-foreground">{rt.desc}</span>
+                  <span className="text-[11px] text-muted-foreground leading-tight">{rt.desc}</span>
                 </button>
               ))}
             </div>
           </div>
 
           {/* Period */}
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground">Período</label>
             <div className="flex flex-wrap gap-1.5">
               {PRESETS.map(p => (
@@ -135,7 +128,7 @@ export function FinancialReportDialog({ open, onOpenChange, payments, expenses, 
                   key={p.value}
                   onClick={() => { setActivePreset(p.value); setCustomRange(undefined); }}
                   className={cn(
-                    'px-3 py-1.5 rounded-full text-xs font-medium border transition-all',
+                    'px-2.5 py-1 rounded-full text-xs font-medium border transition-all',
                     activePreset === p.value
                       ? 'bg-foreground text-background border-foreground'
                       : 'bg-transparent text-muted-foreground border-border hover:bg-accent'
@@ -148,7 +141,7 @@ export function FinancialReportDialog({ open, onOpenChange, payments, expenses, 
                 <PopoverTrigger asChild>
                   <button
                     className={cn(
-                      'inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition-all',
+                      'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all',
                       activePreset === 'custom'
                         ? 'bg-foreground text-background border-foreground'
                         : 'bg-transparent text-muted-foreground border-border hover:bg-accent'
@@ -158,13 +151,14 @@ export function FinancialReportDialog({ open, onOpenChange, payments, expenses, 
                     Personalizado
                   </button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-3" align="start">
+                <PopoverContent className="w-auto p-3 pointer-events-auto" align="start">
                   <Calendar
                     mode="range"
                     selected={customRange}
                     onSelect={setCustomRange}
                     numberOfMonths={1}
                     locale={ptBR}
+                    className="pointer-events-auto"
                   />
                   <div className="flex justify-end pt-2 border-t border-border/40">
                     <Button
@@ -183,10 +177,10 @@ export function FinancialReportDialog({ open, onOpenChange, payments, expenses, 
 
           {/* Unit filter */}
           {unitOptions.length > 0 && (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-sm font-medium text-foreground">Unidade</label>
               <Select value={unit} onValueChange={setUnit}>
-                <SelectTrigger className="h-9 text-xs">
+                <SelectTrigger className="h-9 text-xs w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -199,14 +193,14 @@ export function FinancialReportDialog({ open, onOpenChange, payments, expenses, 
             </div>
           )}
 
-          {/* Format */}
-          <div className="space-y-2">
+          {/* Format + Generate row */}
+          <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground">Formato</label>
             <div className="flex gap-2">
               <button
                 onClick={() => setOutputFormat('pdf')}
                 className={cn(
-                  'flex-1 flex items-center justify-center gap-2 rounded-lg border p-2.5 transition-all text-sm font-medium',
+                  'flex-1 flex items-center justify-center gap-1.5 rounded-lg border py-2 transition-all text-sm font-medium',
                   outputFormat === 'pdf'
                     ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
                     : 'border-border hover:bg-accent/50'
@@ -218,7 +212,7 @@ export function FinancialReportDialog({ open, onOpenChange, payments, expenses, 
               <button
                 onClick={() => setOutputFormat('xlsx')}
                 className={cn(
-                  'flex-1 flex items-center justify-center gap-2 rounded-lg border p-2.5 transition-all text-sm font-medium',
+                  'flex-1 flex items-center justify-center gap-1.5 rounded-lg border py-2 transition-all text-sm font-medium',
                   outputFormat === 'xlsx'
                     ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
                     : 'border-border hover:bg-accent/50'
@@ -230,7 +224,6 @@ export function FinancialReportDialog({ open, onOpenChange, payments, expenses, 
             </div>
           </div>
 
-          {/* Generate */}
           <Button onClick={handleGenerate} disabled={generating} className="w-full gap-2">
             {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             {generating ? 'Gerando...' : `Gerar ${outputFormat === 'xlsx' ? 'Excel' : 'PDF'}`}
