@@ -71,6 +71,24 @@ export function MobileMenu({
   const navigate = useNavigate();
   const modules = useCompanyModules();
 
+  // Check financial.view permission for current user
+  const [finViewAllowed, setFinViewAllowed] = useState(true);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) return;
+      supabase
+        .from('user_permissions')
+        .select('granted')
+        .eq('user_id', data.user.id)
+        .eq('permission', 'financial.view')
+        .maybeSingle()
+        .then(({ data: perm }) => {
+          if (perm && perm.granted === false) setFinViewAllowed(false);
+        });
+    });
+  }, []);
+  const showFinanceiro = canViewFinanceiro !== false && finViewAllowed;
+
   const menuItems = [
     {
       id: "atendimento",
