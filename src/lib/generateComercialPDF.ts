@@ -191,10 +191,10 @@ export function generateComercialXLSX(params: ComercialReportParams) {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Leads');
 
-  // Funnel sheet
+  // Funnel sheet (period leads only)
   const funnelRows = FUNNEL_ORDER.map(status => ({
     Etapa: STATUS_LABELS[status] || status,
-    Quantidade: params.leads.filter(l => l.status === status).length,
+    Quantidade: periodLeads.filter(l => l.status === status).length,
   })).filter(r => r.Quantidade > 0);
   const ws2 = XLSX.utils.json_to_sheet(funnelRows);
   XLSX.utils.book_append_sheet(wb, ws2, 'Funil');
