@@ -54,6 +54,7 @@ const categoryIcons: Record<string, React.ElementType> = {
   Visitas: MapPin,
   Campanhas: Megaphone,
   Treinamento: GraduationCap,
+  Financeiro: DollarSign,
 };
 
 const iconOptions: Record<string, React.ElementType> = {
