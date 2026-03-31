@@ -80,7 +80,7 @@ export function AdminSidebar({
     ...(modules.campanhas ? [{ title: "Campanhas", url: "/campanhas", icon: Megaphone }] : []),
     ...(modules.visitas ? [{ title: "Visitas", url: "/visitas", icon: MapPin }] : []),
     ...(modules.contrato ? [{ title: "Contratos", url: "/contratos", icon: FileSignature }] : []),
-    ...(canViewFinanceiro ? [{ title: "Financeiro", url: "/financeiro", icon: DollarSign }] : []),
+    ...(showFinanceiro ? [{ title: "Financeiro", url: "/financeiro", icon: DollarSign }] : []),
     
     ...(canManageUsers ? [{ title: "Gerenciar Usuários", url: "/users", icon: Users }] : []),
     ...(isAdmin ? [{ title: "Empresas", url: "/hub/empresas", icon: Building2 }] : []),
