@@ -118,13 +118,15 @@ export function generateComercialPDF(params: ComercialReportParams) {
   const faturamentoFechado = fechadosNoPeriodo.reduce((sum, e) => sum + (e.total_value || 0), 0);
 
   // KPI cards
+  const fmtCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 });
   const kpis = [
     { label: 'Novos Leads', value: String(novos) },
     { label: 'Fechados', value: String(fechados) },
     { label: 'Perdidos', value: String(perdidos) },
     { label: 'Tx. Conversão', value: `${taxaConversao}%` },
+    { label: 'Faturamento', value: fmtCurrency(faturamentoFechado) },
   ];
-  const kw = (doc.internal.pageSize.getWidth() - 28 - 12) / 4;
+  const kw = (doc.internal.pageSize.getWidth() - 28 - 16) / 5;
   kpis.forEach((k, i) => {
     const kx = 14 + i * (kw + 4);
     doc.setFillColor(245, 247, 250); doc.roundedRect(kx, y, kw, 16, 2, 2, 'F');
