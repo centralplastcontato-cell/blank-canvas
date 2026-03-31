@@ -1,27 +1,24 @@
 
 
-## Plano: Adicionar variáveis de data da entrada e data do saldo no contrato
+## Plano: Incluir datas na variável {{forma_pagamento}}
 
-### O que muda para o usuário
+### O que muda
 
-O modelo de contrato poderá usar as variáveis `{{data_entrada}}` e `{{data_saldo}}` para exibir as datas de pagamento da entrada e do saldo, formatadas em DD/MM/YYYY.
+A variável `{{forma_pagamento}}` passará a incluir as datas de pagamento, ficando mais completa. Exemplo:
+
+**Antes:** `Entrada: R$ 1.500 (PIX) | Saldo: R$ 3.500 (Cartão) | 1x`
+
+**Depois:** `Entrada: R$ 1.500 (PIX) em 01/04/2026 | Saldo: R$ 3.500 (Cartão) em 15/05/2026 | 1x`
 
 ### Alterações técnicas
 
-**1. Template resolver — `src/lib/template-resolver.ts` + `supabase/functions/_shared/template-resolver.ts`**
-- Adicionar `data_entrada` e `data_saldo` ao `VariableContext.contract`
-- Adicionar os dois resolvers no `VARIABLE_CATALOG`:
-  - `data_entrada`: retorna `ctx.contract?.data_entrada || ''`
-  - `data_saldo`: retorna `ctx.contract?.data_saldo || ''`
-- Adicionar ao `domainMap` como domain `'contract'`
+**1. `src/components/contracts/EventContractDialog.tsx` (linhas 74-80)**
+- No trecho que monta `paymentDesc`, adicionar a data formatada (DD/MM/YYYY) após cada valor:
+  - Entrada: append `em ${formatDate(pd.entrada_data)}` se existir
+  - Saldo: append `em ${formatDate(pd.saldo_data)}` se existir
 
-**2. Contexto do contrato — `src/components/contracts/EventContractDialog.tsx`**
-- No bloco `contract:` do `variableContext` (linha ~96-144), adicionar:
-  - `data_entrada`: formatar `pd.entrada_data` de `yyyy-MM-dd` para `dd/MM/yyyy`
-  - `data_saldo`: formatar `pd.saldo_data` de `yyyy-MM-dd` para `dd/MM/yyyy`
+**2. `src/components/contracts/ContractGenerator.tsx`**
+- Mesma lógica no gerador legado, se ele monta `forma_pagamento` de forma similar.
 
-**3. Contract Generator — `src/components/contracts/ContractGenerator.tsx`**
-- Mesma adição no mapeamento de variáveis para o gerador legado, se aplicável
-
-**4. Sem migration** — os dados já estão salvos em `payment_details` JSON dentro de `company_events`
+Apenas 2 arquivos editados, sem migrations.
 
