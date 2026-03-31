@@ -1,33 +1,32 @@
 
-Objetivo: fazer a aba **Despesas** sempre listar todas as despesas cadastradas (independente do mês da data), enquanto o filtro de mês continua valendo para os **totais/métricas**.
 
-1) Diagnóstico confirmado
-- Hoje a lista da aba Despesas usa `dashboard.expensesThisMonth` em `src/pages/Financeiro.tsx`.
-- Isso limita a visualização ao mês selecionado, por isso lançamentos de abril/maio “somem” quando o mês ativo é outro.
+## Plano: Filtro por Período Flexivel no Financeiro
 
-2) Ajuste no hook de dados (`src/hooks/useFinanceiroDashboard.ts`)
-- Separar claramente dois conjuntos:
-  - **Lista base de despesas** (filtrada só por `unit` e `status`, sem filtro de mês).
-  - **Despesas do mês selecionado** (para KPIs e resultado).
-- Manter `totalExpensesMonth` e `saldoMonth` baseados apenas no período mensal.
-- Expor no retorno nomes explícitos (ex.: `expensesList` para lista geral e `expensesThisMonth` para métricas), evitando confusão de uso.
+### O que muda para o usuario
 
-3) Ajuste na UI da página (`src/pages/Financeiro.tsx`)
-- Aba **Despesas**:
-  - Trocar `dashboard.expensesThisMonth` pela lista geral (`dashboard.expensesList`/equivalente).
-  - Manter segmentação por tipo (fixa/variável/festa), paginação e cards.
-- Aba **Resultado** e cards do topo:
-  - Continuar usando os dados mensais (`expensesThisMonth`, `totalExpensesMonth`, `saldoMonth`) para preservar o comportamento analítico por período.
+O seletor de mes atual ("janeiro", "fevereiro"...) sera substituido por um sistema com:
+- **Presets rapidos**: Mes atual, Bimestre, Trimestre, Semestre, Ano inteiro
+- **Periodo personalizado**: calendario para escolher data inicio e fim livremente
+- **Badge visual** mostrando o periodo ativo com botao de limpar
 
-4) Correções de UX para evitar “parece vazio”
-- Atualizar textos de estado vazio da aba Despesas para refletir “sem despesas cadastradas” (não “neste período”).
-- Resetar `pageDespesas` para 1 quando filtros mudarem, evitando página vazia por paginação antiga.
+### Alteracoes tecnicas
 
-5) Compatibilidade e impacto
-- Sem mudança de banco/migration.
-- Sem alteração de inserção/edição/exclusão; apenas regra de exibição e separação de responsabilidades entre lista e métricas.
+**1. Hook `src/hooks/useFinanceiroDashboard.ts`**
+- Trocar `filters.month` (string `yyyy-MM`) por `filters.from` e `filters.to` (strings `yyyy-MM-dd`)
+- Default: mes atual (startOfMonth -> endOfMonth de hoje)
+- Usar `from`/`to` em todas as agregacoes mensais (recebido, pendente, despesas do periodo, saldo)
+- Remover calculo de `monthStart`/`monthEnd` a partir de `filters.month`
 
-6) Validação após implementação
-- Criar despesas em meses diferentes (abril, maio, junho) e confirmar que todas aparecem na aba Despesas.
-- Trocar mês no filtro e confirmar que apenas os **cards/totais** mudam.
-- Validar em mobile (402x568) que a lista continua legível e sem regressão de layout/paginação.
+**2. Pagina `src/pages/Financeiro.tsx`**
+- Remover o `<Select>` de meses e o array `months`
+- Adicionar presets como botoes pill-shaped (mesmo padrao visual das sub-abas):
+  - "Mes" (mes atual), "Bimestre" (2 meses), "Trimestre" (3 meses), "Semestre" (6 meses), "Ano" (ano inteiro)
+- Adicionar botao "Personalizado" que abre um Popover com Calendar mode="range" (igual ao PeriodFilterPopover ja existente na Agenda)
+- Mostrar badge com periodo ativo e botao X para voltar ao default (mes atual)
+- Resetar paginacoes ao trocar periodo
+
+**3. Impacto**
+- Sem migration, sem mudanca de banco
+- Cards de resumo, aba Resultado e aba Receitas passam a refletir o periodo selecionado
+- Aba Despesas continua mostrando todas (sem filtro temporal), conforme ja implementado
+
