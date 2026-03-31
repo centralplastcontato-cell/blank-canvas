@@ -97,6 +97,7 @@ export default function Financeiro() {
   const [pageReceber, setPageReceber] = useState(1);
   const [pageRecebidos, setPageRecebidos] = useState(1);
   const [pageDespesas, setPageDespesas] = useState(1);
+  const [despesasSortAsc, setDespesasSortAsc] = useState(true);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [selectedEventData, setSelectedEventData] = useState<{ title: string; event_date: string; total_value: number; status: string } | null>(null);
   const [activePreset, setActivePreset] = useState<PeriodPreset>('mes');
