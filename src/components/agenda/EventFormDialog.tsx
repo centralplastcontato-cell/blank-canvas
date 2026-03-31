@@ -29,6 +29,7 @@ export interface PaymentDetails {
   entrada_data?: string | null;
   saldo_valor: number | null;
   saldo_forma: string;
+  saldo_data?: string | null;
   parcelas: number | null;
   observacoes_pagamento: string;
   parcelas_details?: ParcelaDetail[];
@@ -147,6 +148,7 @@ const EMPTY_PAYMENT: PaymentDetails = {
   entrada_data: null,
   saldo_valor: null,
   saldo_forma: "",
+  saldo_data: null,
   parcelas: null,
   observacoes_pagamento: "",
   parcelas_details: [],
@@ -1128,6 +1130,35 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                     {PAYMENT_FORMS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2.5 md:col-span-2">
+                <Label className="text-sm font-medium text-foreground/70">Data do saldo</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !payment.saldo_data && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {payment.saldo_data ? format(new Date(payment.saldo_data + "T12:00:00"), "dd/MM/yyyy") : "Selecionar data do saldo"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={payment.saldo_data ? new Date(payment.saldo_data + "T12:00:00") : undefined}
+                      onSelect={(d) => {
+                        const dateStr = d ? format(d, "yyyy-MM-dd") : null;
+                        const updatedPayment = { ...payment, saldo_data: dateStr };
+                        // Sync to parcelas_details[0].vencimento when 1 parcela
+                        if (dateStr && (payment.parcelas ?? 0) <= 1 && updatedPayment.parcelas_details?.length) {
+                          updatedPayment.parcelas_details = [{ ...updatedPayment.parcelas_details[0], vencimento: dateStr }];
+                        }
+                        setPayment(updatedPayment);
+                      }}
+                      locale={ptBR}
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-2.5 md:col-span-2">

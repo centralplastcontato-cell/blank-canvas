@@ -82,7 +82,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
             rows.push({
               event_id: eventId, company_id: companyId, type: "parcela",
               amount: p.valor,
-              due_date: p.vencimento || new Date().toISOString().split("T")[0],
+              due_date: p.vencimento || pd.saldo_data || new Date().toISOString().split("T")[0],
               payment_method: pd.saldo_forma || null, status: "pending",
             });
           }
