@@ -27,9 +27,10 @@ export interface Expense {
   amount: number;
   expense_date: string;
   category: string;
-  expense_type: string; // 'fixa' | 'variavel' | 'festa'
+  expense_type: string; // 'fixa' | 'variavel' | 'festa' | 'ajuste'
   unit: string | null;
   status: string;
+  notes: string | null;
   created_at: string;
 }
 
