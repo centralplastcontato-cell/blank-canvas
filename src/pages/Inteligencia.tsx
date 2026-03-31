@@ -559,13 +559,21 @@ export default function Inteligencia() {
         unitOptions={unitOptions}
         onGenerate={async (p) => {
           if (!currentCompany?.id) return;
-          const { data: allLeads } = await supabase
-            .from('campaign_leads')
-            .select('id, name, whatsapp, status, unit, created_at, month, guests')
-            .eq('company_id', currentCompany.id);
-          const leads = (allLeads || []).map((l: any) => ({ ...l }));
+          const [leadsResult, eventsResult] = await Promise.all([
+            supabase
+              .from('campaign_leads')
+              .select('id, name, whatsapp, status, unit, created_at, month, guests')
+              .eq('company_id', currentCompany.id),
+            supabase
+              .from('company_events')
+              .select('id, lead_id, data_fechamento_venda, status, unit, total_value')
+              .eq('company_id', currentCompany.id),
+          ]);
+          const leads = (leadsResult.data || []).map((l: any) => ({ ...l }));
+          const events = (eventsResult.data || []).map((e: any) => ({ ...e }));
           const filtered = p.unit === 'all' ? leads : leads.filter((l: any) => l.unit === p.unit);
-          const reportParams = { type: p.type, companyName: currentCompany?.name || '', periodLabel: p.periodLabel, from: p.from, to: p.to, leads: filtered };
+          const filteredEvents = p.unit === 'all' ? events : events.filter((e: any) => e.unit === p.unit);
+          const reportParams = { type: p.type, companyName: currentCompany?.name || '', periodLabel: p.periodLabel, from: p.from, to: p.to, leads: filtered, events: filteredEvents };
           if (p.format === 'xlsx') generateComercialXLSX(reportParams);
           else generateComercialPDF(reportParams);
         }}
