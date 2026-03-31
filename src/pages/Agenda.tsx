@@ -346,9 +346,10 @@ export default function Agenda() {
     return { count, revenue, events: evts };
   }, [currentCompany?.id, canViewAll, allowedUnits]);
 
+  const initialLoadDone = useRef(false);
   const fetchEvents = useCallback(async () => {
     if (!currentCompany?.id || permUnitLoading) return;
-    setLoading(true);
+    if (!initialLoadDone.current) setLoading(true);
     const start = format(startOfMonth(month), "yyyy-MM-dd");
     const end = format(endOfMonth(month), "yyyy-MM-dd");
     const [eventsRes, checklistRes, closedResult, preResRes, allPreResRes] = await Promise.all([
@@ -396,6 +397,7 @@ export default function Agenda() {
     setChecklistProgress(progressMap);
 
     setLoading(false);
+    initialLoadDone.current = true;
   }, [currentCompany?.id, month, selectedUnit, permUnitLoading, canViewAll, allowedUnits, fetchClosedInPeriod]);
 
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
