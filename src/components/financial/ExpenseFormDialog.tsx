@@ -89,11 +89,11 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{defaultValues ? 'Editar Despesa' : 'Nova Despesa'}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="space-y-3 overflow-y-auto flex-1 pr-1">
           <div>
             <Label>Tipo de despesa</Label>
             <Select value={expenseType} onValueChange={setExpenseType}>
@@ -107,22 +107,15 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
             <Label>Descrição</Label>
             <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Ex: DJ para festa" />
           </div>
-          <div>
-            <Label>Valor (R$)</Label>
-            <Input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0,00" />
-          </div>
-          <div>
-            <Label>Data</Label>
-            <Input type="date" value={expenseDate} onChange={e => setExpenseDate(e.target.value)} />
-          </div>
-          <div>
-            <Label>Categoria</Label>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Valor (R$)</Label>
+              <Input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0,00" />
+            </div>
+            <div>
+              <Label>Data</Label>
+              <Input type="date" value={expenseDate} onChange={e => setExpenseDate(e.target.value)} />
+            </div>
           </div>
           {expenseType !== 'ajuste' && (
             <div>
@@ -151,11 +144,11 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
               value={notes}
               onChange={e => setNotes(e.target.value)}
               placeholder={expenseType === 'ajuste' ? 'Ex: Saldo em caixa na data de início da plataforma' : 'Detalhes adicionais sobre a despesa'}
-              rows={3}
+              rows={2}
             />
           </div>
         </div>
-        <DialogFooter>
+        <DialogFooter className="pt-3">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
           <Button onClick={handleSubmit}>Salvar</Button>
         </DialogFooter>
