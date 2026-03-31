@@ -201,13 +201,20 @@ export function generateComercialXLSX(params: ComercialReportParams) {
 
   // Summary
   const novos = periodLeads.length;
-  const fechados = periodLeads.filter(l => l.status === 'fechado').length;
+  const events = params.events || [];
+  const fechadosNoPeriodo = events.filter(e => {
+    const dt = e.data_fechamento_venda?.slice(0, 10);
+    return dt && dt >= params.from && dt <= params.to && e.status !== 'cancelado';
+  });
+  const fechados = fechadosNoPeriodo.length;
+  const faturamento = fechadosNoPeriodo.reduce((sum, e) => sum + (e.total_value || 0), 0);
   const summaryRows = [
     { Métrica: 'Período', Valor: params.periodLabel },
     { Métrica: 'Novos Leads', Valor: novos },
-    { Métrica: 'Fechados', Valor: fechados },
+    { Métrica: 'Fechados no Período', Valor: fechados },
     { Métrica: 'Perdidos', Valor: periodLeads.filter(l => l.status === 'perdido').length },
     { Métrica: 'Taxa de Conversão', Valor: novos > 0 ? `${((fechados / novos) * 100).toFixed(1)}%` : '0%' },
+    { Métrica: 'Faturamento Fechado', Valor: faturamento.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) },
   ];
   const ws3 = XLSX.utils.json_to_sheet(summaryRows);
   XLSX.utils.book_append_sheet(wb, ws3, 'Resumo');
