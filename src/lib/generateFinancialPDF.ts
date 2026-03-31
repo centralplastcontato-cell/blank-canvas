@@ -437,6 +437,15 @@ export function generateFinancialPDF(params: ReportParams) {
     case 'despesas':
       generateExpenseReport(doc, params);
       break;
+    case 'despesas_fixas':
+      generateExpenseReport(doc, params, 'fixa', 'Fixas');
+      break;
+    case 'despesas_variaveis':
+      generateExpenseReport(doc, params, 'variavel', 'Variáveis');
+      break;
+    case 'despesas_festa':
+      generateExpenseReport(doc, params, 'festa', 'Festa');
+      break;
     case 'receitas':
       generateRevenueReport(doc, params);
       break;
@@ -445,6 +454,10 @@ export function generateFinancialPDF(params: ReportParams) {
       break;
   }
 
-  const typeLabel = params.type === 'despesas' ? 'Despesas' : params.type === 'receitas' ? 'Receitas' : 'Resultado';
+  const TYPE_FILE_LABELS: Record<string, string> = {
+    despesas: 'Despesas', receitas: 'Receitas', resultado: 'Resultado',
+    despesas_fixas: 'Despesas_Fixas', despesas_variaveis: 'Despesas_Variaveis', despesas_festa: 'Despesas_Festa',
+  };
+  const typeLabel = TYPE_FILE_LABELS[params.type] || 'Relatorio';
   doc.save(`Relatorio_${typeLabel}_${params.from}_a_${params.to}.pdf`);
 }
