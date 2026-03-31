@@ -966,7 +966,7 @@ export function LeadInfoPopover({
                 data_fechamento_venda: data.data_fechamento_venda || null,
                 vendedor_responsavel_id: data.vendedor_responsavel_id || null,
               };
-            const { error } = await supabase
+            const { error } = await (supabase as any)
               .from("company_events")
               .update(updatePayload)
               .eq("id", linkedEventData.id);
