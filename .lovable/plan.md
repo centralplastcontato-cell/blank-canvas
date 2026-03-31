@@ -1,51 +1,33 @@
 
+Objetivo: fazer a aba **Despesas** sempre listar todas as despesas cadastradas (independente do mês da data), enquanto o filtro de mês continua valendo para os **totais/métricas**.
 
-## Entendimento
+1) Diagnóstico confirmado
+- Hoje a lista da aba Despesas usa `dashboard.expensesThisMonth` em `src/pages/Financeiro.tsx`.
+- Isso limita a visualização ao mês selecionado, por isso lançamentos de abril/maio “somem” quando o mês ativo é outro.
 
-Duas necessidades:
-1. **Ajuste de saldo inicial** — como a plataforma é nova e já havia receitas/despesas anteriores, é preciso um mecanismo para "equiparar o caixa" com o saldo real da empresa (um lançamento de ajuste).
-2. **Campo de observações** no formulário de despesas — para descrever detalhes adicionais sobre a despesa.
+2) Ajuste no hook de dados (`src/hooks/useFinanceiroDashboard.ts`)
+- Separar claramente dois conjuntos:
+  - **Lista base de despesas** (filtrada só por `unit` e `status`, sem filtro de mês).
+  - **Despesas do mês selecionado** (para KPIs e resultado).
+- Manter `totalExpensesMonth` e `saldoMonth` baseados apenas no período mensal.
+- Expor no retorno nomes explícitos (ex.: `expensesList` para lista geral e `expensesThisMonth` para métricas), evitando confusão de uso.
 
-## Solução
+3) Ajuste na UI da página (`src/pages/Financeiro.tsx`)
+- Aba **Despesas**:
+  - Trocar `dashboard.expensesThisMonth` pela lista geral (`dashboard.expensesList`/equivalente).
+  - Manter segmentação por tipo (fixa/variável/festa), paginação e cards.
+- Aba **Resultado** e cards do topo:
+  - Continuar usando os dados mensais (`expensesThisMonth`, `totalExpensesMonth`, `saldoMonth`) para preservar o comportamento analítico por período.
 
-### 1. Campo "Observações" no formulário de despesa
-- Adicionar um campo `notes` (textarea) no `ExpenseFormDialog`
-- Adicionar coluna `notes text` na tabela `company_expenses` via migration
-- Passar o campo no `onSubmit` e persistir via `addExpense`/`updateExpense` no hook
+4) Correções de UX para evitar “parece vazio”
+- Atualizar textos de estado vazio da aba Despesas para refletir “sem despesas cadastradas” (não “neste período”).
+- Resetar `pageDespesas` para 1 quando filtros mudarem, evitando página vazia por paginação antiga.
 
-### 2. Ajuste de saldo inicial
-- Adicionar uma nova categoria especial `ajuste_saldo` nas despesas com expense_type `ajuste`
-- No Financeiro, adicionar um botão "Ajuste de Saldo" (na aba Resultado ou no header) que abre o `ExpenseFormDialog` pré-configurado com tipo "Ajuste de Saldo"
-- Ajustes positivos = dinheiro que já estava no caixa (receita anterior à plataforma)
-- Ajustes negativos = gastos que já haviam sido feitos
-- O campo `notes` serve para documentar o motivo do ajuste (ex: "Saldo em caixa na data de início da plataforma")
-- O saldo do dashboard incluirá automaticamente esses ajustes pois já soma/subtrai despesas
+5) Compatibilidade e impacto
+- Sem mudança de banco/migration.
+- Sem alteração de inserção/edição/exclusão; apenas regra de exibição e separação de responsabilidades entre lista e métricas.
 
-**Abordagem simplificada**: usar a própria tabela `company_expenses` com uma categoria `ajuste` para evitar criar nova tabela. Valores positivos representam dinheiro que entrou antes da plataforma, negativos representam gastos anteriores.
-
-## Alterações
-
-### Migration (nova)
-```sql
-ALTER TABLE public.company_expenses ADD COLUMN notes text;
-```
-
-### `src/components/financial/ExpenseFormDialog.tsx`
-- Adicionar estado `notes` e campo `<Textarea>` com label "Observações (opcional)"
-- Incluir `notes` no `onSubmit`
-- Adicionar tipo "Ajuste de Saldo" ao `EXPENSE_TYPES`
-
-### `src/hooks/useFinanceiroDashboard.ts`
-- Atualizar interface `Expense` com campo `notes`
-- Atualizar `addExpense` para aceitar `notes`
-- Calcular ajustes de saldo separadamente no dashboard (ajustes positivos somam à receita, negativos somam às despesas)
-
-### `src/pages/Financeiro.tsx`
-- Adicionar botão "Ajuste de Saldo" no header ou aba Resultado
-- Abrir o `ExpenseFormDialog` pré-configurado com tipo `ajuste`
-
-## Detalhes técnicos
-- Coluna `notes` é nullable (text) — sem impacto em registros existentes
-- Ajustes de saldo usam `expense_type = 'ajuste'` para diferenciá-los de despesas normais
-- O saldo mensal considera: Recebido + Ajustes positivos - Despesas - Ajustes negativos
-
+6) Validação após implementação
+- Criar despesas em meses diferentes (abril, maio, junho) e confirmar que todas aparecem na aba Despesas.
+- Trocar mês no filtro e confirmar que apenas os **cards/totais** mudam.
+- Validar em mobile (402x568) que a lista continua legível e sem regressão de layout/paginação.
