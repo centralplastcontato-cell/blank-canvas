@@ -43,6 +43,90 @@ function getPresetRange(preset: PeriodPreset): { from: string; to: string } {
   }
 }
 
+function PaginationControls({ page, totalPages, onPageChange }: { page: number; totalPages: number; onPageChange: (p: number) => void }) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex items-center justify-center gap-2 pt-4">
+      <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)} className="h-8 w-8 p-0">
+        <ChevronLeft className="h-4 w-4" />
+      </Button>
+      <span className="text-xs text-muted-foreground">
+        {page} de {totalPages}
+      </span>
+      <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)} className="h-8 w-8 p-0">
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
+
+const CATEGORY_LABELS: Record<string, string> = {
+  fornecedor: 'Fornecedor',
+  freela: 'Freela',
+  compras: 'Compras',
+  manutencao: 'Manutenção',
+  aluguel: 'Aluguel',
+  outros: 'Outros',
+};
+
+const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+const PERIOD_PRESETS: { value: PeriodPreset; label: string }[] = [
+  { value: 'mes', label: 'Mês' },
+  { value: 'bimestre', label: 'Bimestre' },
+  { value: 'trimestre', label: 'Trimestre' },
+  { value: 'semestre', label: 'Semestre' },
+  { value: 'ano', label: 'Ano' },
+];
+
+export default function Financeiro() {
+  const navigate = useNavigate();
+  const { currentCompany } = useCompany();
+  const { unitOptions, units } = useCompanyUnits(currentCompany?.id);
+  const isSalesOnly = units.length > 0 && units.every(u => /vendas/i.test(u.name));
+  const dashboard = useFinanceiroDashboard();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
+  const [expenseDialogType, setExpenseDialogType] = useState<string>('fixa');
+  const [viewMode, setViewMode] = useState<'list' | 'client'>('list');
+  const [receitasSubTab, setReceitasSubTab] = useState('atraso');
+  const [despesasSubTab, setDespesasSubTab] = useState('fixa');
+  const [pageAtraso, setPageAtraso] = useState(1);
+  const [pageReceber, setPageReceber] = useState(1);
+  const [pageRecebidos, setPageRecebidos] = useState(1);
+  const [pageDespesas, setPageDespesas] = useState(1);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [selectedEventData, setSelectedEventData] = useState<{ title: string; event_date: string; total_value: number; status: string } | null>(null);
+  const [activePreset, setActivePreset] = useState<PeriodPreset>('mes');
+  const [customRange, setCustomRange] = useState<DateRange | undefined>();
+  const [customPopoverOpen, setCustomPopoverOpen] = useState(false);
+
+  const handlePresetChange = (preset: PeriodPreset) => {
+    setActivePreset(preset);
+    const range = getPresetRange(preset);
+    dashboard.setFilters(f => ({ ...f, from: range.from, to: range.to }));
+    setPageAtraso(1); setPageReceber(1); setPageRecebidos(1); setPageDespesas(1);
+  };
+
+  const handleCustomConfirm = () => {
+    if (customRange?.from && customRange?.to) {
+      const from = format(customRange.from, 'yyyy-MM-dd');
+      const to = format(customRange.to, 'yyyy-MM-dd');
+      dashboard.setFilters(f => ({ ...f, from, to }));
+      setActivePreset('custom');
+      setCustomPopoverOpen(false);
+      setPageAtraso(1); setPageReceber(1); setPageRecebidos(1); setPageDespesas(1);
+    }
+  };
+
+  const handleClearCustom = () => {
+    handlePresetChange('mes');
+    setCustomRange(undefined);
+  };
+
+  // Period display label
+  const periodLabel = format(new Date(dashboard.filters.from + 'T12:00:00'), 'dd/MM/yy') + ' – ' + format(new Date(dashboard.filters.to + 'T12:00:00'), 'dd/MM/yy');
+
   const handleOpenEvent = async (eventId: string) => {
     setSelectedEventId(eventId);
     const { data } = await supabase
@@ -63,7 +147,6 @@ function getPresetRange(preset: PeriodPreset): { from: string; to: string } {
   const handleCloseEventSheet = () => {
     setSelectedEventId(null);
     setSelectedEventData(null);
-    // Delay refresh until after sheet close animation (300ms) to avoid flicker
     setTimeout(() => {
       dashboard.refresh();
     }, 350);
@@ -132,32 +215,93 @@ function getPresetRange(preset: PeriodPreset): { from: string; to: string } {
                 </div>
               </div>
 
-              {/* Filters */}
-              <div className="flex flex-wrap gap-2">
-                <Select value={dashboard.filters.month} onValueChange={v => dashboard.setFilters(f => ({ ...f, month: v }))}>
-                  <SelectTrigger className="w-40 h-9 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                {unitOptions.length > 0 && !isSalesOnly && (
-                  <Select value={dashboard.filters.unit} onValueChange={v => dashboard.setFilters(f => ({ ...f, unit: v }))}>
-                    <SelectTrigger className="w-36 h-9 text-xs"><SelectValue /></SelectTrigger>
+              {/* Period Presets + Filters */}
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {PERIOD_PRESETS.map(p => (
+                    <button
+                      key={p.value}
+                      onClick={() => handlePresetChange(p.value)}
+                      className={`inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border whitespace-nowrap ${
+                        activePreset === p.value
+                          ? 'bg-foreground text-background border-foreground shadow-sm'
+                          : 'bg-transparent text-muted-foreground border-border hover:bg-accent hover:text-foreground'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+
+                  <Popover open={customPopoverOpen} onOpenChange={setCustomPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <button
+                        className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border whitespace-nowrap ${
+                          activePreset === 'custom'
+                            ? 'bg-foreground text-background border-foreground shadow-sm'
+                            : 'bg-transparent text-muted-foreground border-border hover:bg-accent hover:text-foreground'
+                        }`}
+                      >
+                        <CalendarRange className="h-3.5 w-3.5" />
+                        Personalizado
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start" side="bottom">
+                      <div className="p-4 space-y-3">
+                        <p className="text-sm font-semibold text-foreground">Selecione o período</p>
+                        <Calendar
+                          mode="range"
+                          selected={customRange}
+                          onSelect={setCustomRange}
+                          numberOfMonths={2}
+                          locale={ptBR}
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                        <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40">
+                          <p className="text-xs text-muted-foreground">
+                            {customRange?.from && customRange?.to
+                              ? `${format(customRange.from, 'dd/MM/yyyy')} – ${format(customRange.to, 'dd/MM/yyyy')}`
+                              : 'Selecione início e fim'}
+                          </p>
+                          <Button size="sm" disabled={!customRange?.from || !customRange?.to} onClick={handleCustomConfirm}>
+                            Aplicar
+                          </Button>
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+
+                  {/* Period badge */}
+                  <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-xs font-medium text-primary ml-1">
+                    <CalendarRange className="h-3 w-3" />
+                    {periodLabel}
+                    {activePreset !== 'mes' && (
+                      <button onClick={handleClearCustom} className="ml-1 rounded-full p-0.5 hover:bg-primary/20 transition-colors">
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {unitOptions.length > 0 && !isSalesOnly && (
+                    <Select value={dashboard.filters.unit} onValueChange={v => dashboard.setFilters(f => ({ ...f, unit: v }))}>
+                      <SelectTrigger className="w-36 h-9 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas unidades</SelectItem>
+                        {unitOptions.map(u => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  <Select value={dashboard.filters.status} onValueChange={v => dashboard.setFilters(f => ({ ...f, status: v }))}>
+                    <SelectTrigger className="w-32 h-9 text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Todas unidades</SelectItem>
-                      {unitOptions.map(u => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}
+                      <SelectItem value="all">Todos status</SelectItem>
+                      <SelectItem value="paid">Pago</SelectItem>
+                      <SelectItem value="pending">Pendente</SelectItem>
+                      <SelectItem value="late">Atrasado</SelectItem>
                     </SelectContent>
                   </Select>
-                )}
-                <Select value={dashboard.filters.status} onValueChange={v => dashboard.setFilters(f => ({ ...f, status: v }))}>
-                  <SelectTrigger className="w-32 h-9 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos status</SelectItem>
-                    <SelectItem value="paid">Pago</SelectItem>
-                    <SelectItem value="pending">Pendente</SelectItem>
-                    <SelectItem value="late">Atrasado</SelectItem>
-                  </SelectContent>
-                </Select>
+                </div>
               </div>
 
               {/* 5 Dashboard Cards */}
