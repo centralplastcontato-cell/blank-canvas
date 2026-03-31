@@ -172,7 +172,7 @@ export default function Financeiro() {
                     {months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                {unitOptions.length > 0 && (
+                {unitOptions.length > 0 && !isSalesOnly && (
                   <Select value={dashboard.filters.unit} onValueChange={v => dashboard.setFilters(f => ({ ...f, unit: v }))}>
                     <SelectTrigger className="w-36 h-9 text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
