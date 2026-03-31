@@ -320,9 +320,9 @@ function generateRevenueReport(doc: jsPDF, params: ReportParams, filterStatus?: 
     y = (doc as any).lastAutoTable?.finalY || y;
   };
 
-  renderSection(`Em Atraso (${late.length})`, late, [220, 50, 50]);
-  renderSection(`A Receber (${pending.length})`, pending, [200, 150, 0]);
-  renderSection(`Recebidos (${paid.length})`, paid, [50, 180, 80]);
+  if (!filterStatus || filterStatus === 'late') renderSection(`Em Atraso (${late.length})`, late, [220, 50, 50]);
+  if (!filterStatus || filterStatus === 'pending') renderSection(`A Receber (${pending.length})`, pending, [200, 150, 0]);
+  if (!filterStatus || filterStatus === 'paid') renderSection(`Recebidos (${paid.length})`, paid, [50, 180, 80]);
 }
 
 function generateResultReport(doc: jsPDF, params: ReportParams) {
