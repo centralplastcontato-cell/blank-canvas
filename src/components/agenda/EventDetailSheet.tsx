@@ -14,6 +14,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { EventChecklist } from "./EventChecklist";
 import { EventFinancialTab } from "@/components/financial/EventFinancialTab";
+import { useFinancialPermissions } from "@/hooks/useFinancialPermissions";
 
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";

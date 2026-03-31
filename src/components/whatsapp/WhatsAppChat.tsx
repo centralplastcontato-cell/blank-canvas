@@ -6582,9 +6582,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                 eventId={leadEventId}
                 companyId={currentCompany.id}
                 baseValue={leadEventValue}
-                canEdit={true}
-                canPay={true}
-                showValues={true}
+                canEdit={financialPerms.canEdit}
+                canPay={financialPerms.canPay}
+                showValues={financialPerms.canViewValues}
               />
             </div>
           </SheetContent>
