@@ -146,6 +146,20 @@ export function useEventFinancial(eventId: string | undefined, companyId: string
     }
   };
 
+  const reopenPayment = async (payment: EventPayment) => {
+    if (busyIds.has(payment.id)) return;
+    setBusyIds(prev => new Set(prev).add(payment.id));
+    try {
+      const { error } = await supabase.from('event_payments').update({ status: 'pending', paid_at: null }).eq('id', payment.id);
+      if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
+      await addTimeline('payment_reopened', `Pagamento de R$ ${payment.amount.toFixed(2)} reaberto`);
+      toast({ title: 'Parcela reaberta' });
+      fetchAll();
+    } finally {
+      setBusyIds(prev => { const n = new Set(prev); n.delete(payment.id); return n; });
+    }
+  };
+
   const deletePayment = async (id: string) => {
     const { error } = await supabase.from('event_payments').delete().eq('id', id);
     if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
