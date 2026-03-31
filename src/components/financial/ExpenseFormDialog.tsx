@@ -79,9 +79,10 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
       description: description.trim(),
       amount: val,
       expense_date: expenseDate,
-      category,
+      category: expenseType === 'ajuste' ? 'ajuste_saldo' : category,
       expense_type: expenseType,
       status,
+      notes: notes.trim() || undefined,
     });
     onOpenChange(false);
   };
