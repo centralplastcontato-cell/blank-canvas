@@ -63,6 +63,7 @@ export default function Financeiro() {
   const [expenseDialogType, setExpenseDialogType] = useState<string>('fixa');
   const [viewMode, setViewMode] = useState<'list' | 'client'>('list');
   const [receitasSubTab, setReceitasSubTab] = useState('atraso');
+  const [despesasSubTab, setDespesasSubTab] = useState('fixa');
   const [pageAtraso, setPageAtraso] = useState(1);
   const [pageReceber, setPageReceber] = useState(1);
   const [pageRecebidos, setPageRecebidos] = useState(1);
@@ -360,13 +361,33 @@ export default function Financeiro() {
 
                 {/* Tab Despesas */}
                 <TabsContent value="despesas" className="space-y-4">
-                  <Tabs defaultValue="fixa" className="w-full">
+                  <Tabs value={despesasSubTab} onValueChange={setDespesasSubTab} className="w-full">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <TabsList className="h-9">
-                        <TabsTrigger value="fixa" className="text-xs gap-1.5"><Building className="h-3.5 w-3.5" /> Fixas</TabsTrigger>
-                        <TabsTrigger value="variavel" className="text-xs gap-1.5"><Zap className="h-3.5 w-3.5" /> Variáveis</TabsTrigger>
-                        <TabsTrigger value="festa" className="text-xs gap-1.5"><PartyPopper className="h-3.5 w-3.5" /> Festas</TabsTrigger>
-                      </TabsList>
+                      <div className="flex gap-1.5 overflow-x-auto pb-1">
+                        {[
+                          { value: 'fixa', icon: Building, label: 'Fixas', count: dashboard.expenses.filter(e => (e.expense_type || 'fixa') === 'fixa').length },
+                          { value: 'variavel', icon: Zap, label: 'Variáveis', count: dashboard.expenses.filter(e => e.expense_type === 'variavel').length },
+                          { value: 'festa', icon: PartyPopper, label: 'Festas', count: dashboard.expenses.filter(e => e.expense_type === 'festa').length },
+                        ].map(t => (
+                          <button
+                            key={t.value}
+                            onClick={() => setDespesasSubTab(t.value)}
+                            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border whitespace-nowrap ${
+                              despesasSubTab === t.value
+                                ? 'bg-foreground text-background border-foreground shadow-sm'
+                                : 'bg-transparent text-muted-foreground border-border hover:bg-accent hover:text-foreground'
+                            }`}
+                          >
+                            <t.icon className="h-3.5 w-3.5" />
+                            <span>{t.label}</span>
+                            {t.count > 0 && (
+                              <Badge className={`ml-0.5 h-5 min-w-[20px] px-1.5 text-[10px] ${
+                                despesasSubTab === t.value ? 'bg-background/20 text-background' : 'bg-blue-500 text-white'
+                              }`}>{t.count}</Badge>
+                            )}
+                          </button>
+                        ))}
+                      </div>
                     </div>
 
                     {(['fixa', 'variavel', 'festa'] as const).map(expType => {
