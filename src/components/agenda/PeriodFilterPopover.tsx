@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type { DateRange } from "react-day-picker";
 
 interface PeriodFilterPopoverProps {
@@ -32,6 +33,7 @@ export function PeriodFilterPopover({ onConfirm, activePeriod, onClear }: Period
   );
   const [open, setOpen] = useState(false);
   const presets = getPresets();
+  const isMobile = useIsMobile();
 
   const handleConfirm = () => {
     if (range?.from && range?.to) {
@@ -77,7 +79,7 @@ export function PeriodFilterPopover({ onConfirm, activePeriod, onClear }: Period
               mode="range"
               selected={range}
               onSelect={setRange}
-              numberOfMonths={2}
+              numberOfMonths={isMobile ? 1 : 2}
               locale={ptBR}
               className={cn("p-3 pointer-events-auto")}
             />
