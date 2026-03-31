@@ -5184,6 +5184,17 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         visitRefreshKey={visitRefreshKey}
                         mobile
                       />
+                      {leadEventId && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setShowFinancialSheet(true)}
+                          title="Financeiro do evento"
+                        >
+                          <DollarSign className="w-4 h-4 text-emerald-500" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
