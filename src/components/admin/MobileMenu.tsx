@@ -38,6 +38,7 @@ interface MobileMenuProps {
   userAvatar?: string | null;
   canManageUsers: boolean;
   isAdmin?: boolean;
+  canViewFinanceiro?: boolean;
   onRefresh?: () => void;
   onLogout: () => void;
 }
