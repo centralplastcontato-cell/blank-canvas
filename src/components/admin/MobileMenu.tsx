@@ -123,7 +123,7 @@ export function MobileMenu({
       label: "Financeiro",
       icon: DollarSign,
       path: "/financeiro",
-      show: true,
+      show: canViewFinanceiro !== false,
     },
     {
       id: "configuracoes",
