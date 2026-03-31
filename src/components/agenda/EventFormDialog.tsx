@@ -148,6 +148,7 @@ const EMPTY_PAYMENT: PaymentDetails = {
   entrada_data: null,
   saldo_valor: null,
   saldo_forma: "",
+  saldo_data: null,
   parcelas: null,
   observacoes_pagamento: "",
   parcelas_details: [],
