@@ -52,6 +52,24 @@ export function AdminSidebar({
   const modules = useCompanyModules();
   const { currentCompany } = useCompany();
 
+  // Check financial.view permission for current user
+  const [finViewAllowed, setFinViewAllowed] = useState(true);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) return;
+      supabase
+        .from('user_permissions')
+        .select('granted')
+        .eq('user_id', data.user.id)
+        .eq('permission', 'financial.view')
+        .maybeSingle()
+        .then(({ data: perm }) => {
+          if (perm && perm.granted === false) setFinViewAllowed(false);
+        });
+    });
+  }, []);
+  const showFinanceiro = canViewFinanceiro !== false && finViewAllowed;
+
   // Build menu items dynamically based on permissions AND enabled modules
   const allItems = [
     ...(modules.central_atendimento ? [{ title: "Central de Atendimento", url: "/atendimento", icon: Headset }] : []),
