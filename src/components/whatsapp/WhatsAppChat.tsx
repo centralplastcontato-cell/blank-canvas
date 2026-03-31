@@ -44,7 +44,7 @@ import {
   Users, ArrowRightLeft, Trash2, Eraser,
   CalendarCheck, Briefcase, FileCheck, ArrowDown, Video,
   Pencil, Copy, ChevronDown, ChevronUp, Download, Pin, PinOff, Reply,
-  CheckSquare, MoreVertical
+  CheckSquare, MoreVertical, DollarSign
 } from "lucide-react";
 import JSZip from "jszip";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
@@ -100,6 +100,8 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { EventFinancialTab } from "@/components/financial/EventFinancialTab";
 
 interface WapiInstance {
   id: string;
@@ -355,6 +357,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [showQuickVisitDialog, setShowQuickVisitDialog] = useState(false);
   const [visitRefreshKey, setVisitRefreshKey] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [leadEventId, setLeadEventId] = useState<string | null>(null);
+  const [leadEventValue, setLeadEventValue] = useState<number>(0);
+  const [showFinancialSheet, setShowFinancialSheet] = useState(false);
   
   // Contact sharing state
   const [showContactDialog, setShowContactDialog] = useState(false);
@@ -1274,6 +1279,29 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     // Track current conversation ID to prevent unnecessary resets
     prevConversationIdRef.current = selectedConversation?.id || null;
   }, [selectedConversation?.id]);
+
+  // Fetch linked event for financial icon
+  useEffect(() => {
+    if (!linkedLead?.id) {
+      setLeadEventId(null);
+      setLeadEventValue(0);
+      return;
+    }
+    supabase
+      .from('company_events')
+      .select('id, total_value')
+      .eq('lead_id', linkedLead.id)
+      .limit(1)
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setLeadEventId(data[0].id);
+          setLeadEventValue(data[0].total_value || 0);
+        } else {
+          setLeadEventId(null);
+          setLeadEventValue(0);
+        }
+      });
+  }, [linkedLead?.id]);
 
   // Scroll to bottom - only on initial load or new messages from me
   const prevMessagesLengthRef = useRef(0);
@@ -4136,6 +4164,17 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                           selectedConversation.is_equipe ? "text-cyan-600" : "text-muted-foreground"
                         )} />
                       </Button>
+                      {leadEventId && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setShowFinancialSheet(true)}
+                          title="Financeiro do evento"
+                        >
+                          <DollarSign className="w-4 h-4 text-emerald-500" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -5145,6 +5184,17 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         visitRefreshKey={visitRefreshKey}
                         mobile
                       />
+                      {leadEventId && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setShowFinancialSheet(true)}
+                          title="Financeiro do evento"
+                        >
+                          <DollarSign className="w-4 h-4 text-emerald-500" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -6516,6 +6566,28 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         canEdit={true}
         canViewContact={true}
       />
+      {/* Financial Sheet */}
+      {leadEventId && currentCompany && (
+        <Sheet open={showFinancialSheet} onOpenChange={setShowFinancialSheet}>
+          <SheetContent side="bottom" className="h-[85vh] overflow-y-auto p-0">
+            <SheetHeader className="px-4 pt-4 pb-2 sticky top-0 bg-background z-10 border-b">
+              <SheetTitle className="text-base font-bold">
+                {linkedLead?.name || selectedConversation?.contact_name || 'Financeiro'}
+              </SheetTitle>
+            </SheetHeader>
+            <div className="p-4">
+              <EventFinancialTab
+                eventId={leadEventId}
+                companyId={currentCompany.id}
+                baseValue={leadEventValue}
+                canEdit={true}
+                canPay={true}
+                showValues={true}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
     </div>
   );
 }
