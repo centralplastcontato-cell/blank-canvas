@@ -475,7 +475,7 @@ export function generateFinancialPDF(params: ReportParams) {
 
   const TYPE_FILE_LABELS: Record<string, string> = {
     despesas: 'Despesas', receitas: 'Receitas', resultado: 'Resultado',
-    despesas_fixas: 'Despesas_Fixas', despesas_variaveis: 'Despesas_Variaveis', despesas_festa: 'Despesas_Festa',
+    despesas_fixas: 'Despesas_Fixas', despesas_variaveis: 'Despesas_Variaveis', despesas_festa: 'Despesas_Festa', despesas_baixadas: 'Despesas_Baixadas',
     receitas_a_receber: 'Receitas_A_Receber', receitas_atrasadas: 'Receitas_Atrasadas', receitas_recebidas: 'Receitas_Recebidas',
   };
   const typeLabel = TYPE_FILE_LABELS[params.type] || 'Relatorio';
