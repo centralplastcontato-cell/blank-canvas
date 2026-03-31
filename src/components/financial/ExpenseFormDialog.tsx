@@ -209,7 +209,7 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
               ref={fileInputRef}
               type="file"
               accept="image/*,application/pdf"
-              capture="environment"
+              
               className="hidden"
               onChange={handleFileChange}
             />
