@@ -224,6 +224,9 @@ export default function Inteligencia() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => setReportOpen(true)} title="Gerar Relatório Comercial">
+                    <FileText className="h-4 w-4" />
+                  </Button>
                   <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate("/admin")}>
                     <Brain className="w-5 h-5 text-[hsl(155,75%,38%)]" style={{ filter: 'drop-shadow(0 0 4px hsl(155 75% 38% / 0.5))' }} />
                   </Button>
