@@ -67,33 +67,65 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
       const pd = ev?.payment_details as any;
       if (!pd) return;
 
+      const today = new Date().toISOString().split("T")[0];
+      const parseAmount = (value: unknown): number | null => {
+        if (typeof value === "number") return Number.isFinite(value) ? value : null;
+        if (typeof value !== "string") return null;
+        const cleaned = value.trim().replace(/R\$\s?/g, "").replace(/\s/g, "");
+        if (!cleaned) return null;
+        const normalized = cleaned.includes(",") ? cleaned.replace(/\./g, "").replace(",", ".") : cleaned;
+        const parsed = Number(normalized);
+        return Number.isFinite(parsed) ? parsed : null;
+      };
+      const parseDate = (value: unknown): string => {
+        if (typeof value !== "string") return today;
+        const v = value.trim();
+        if (!v) return today;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(v)) {
+          const [d, m, y] = v.split("/");
+          return `${y}-${m}-${d}`;
+        }
+        return today;
+      };
+
       const rows: any[] = [];
-      if (pd.entrada_valor && pd.entrada_valor > 0) {
+      const entradaAmount = parseAmount(pd.entrada_valor);
+      if (entradaAmount && entradaAmount > 0) {
         rows.push({
           event_id: eventId, company_id: companyId, type: "entrada",
-          amount: pd.entrada_valor,
-          due_date: pd.entrada_data || new Date().toISOString().split("T")[0],
+          amount: entradaAmount,
+          due_date: parseDate(pd.entrada_data),
           payment_method: pd.entrada_forma || null, status: "pending",
         });
       }
+
+      let createdFromDetails = false;
       if (pd.parcelas_details?.length) {
         pd.parcelas_details.forEach((p: any) => {
-          if (p.valor && p.valor > 0) {
+          const parcelaAmount = parseAmount(p?.valor);
+          if (parcelaAmount && parcelaAmount > 0) {
+            createdFromDetails = true;
             rows.push({
               event_id: eventId, company_id: companyId, type: "parcela",
-              amount: p.valor,
-              due_date: p.vencimento || pd.saldo_data || new Date().toISOString().split("T")[0],
+              amount: parcelaAmount,
+              due_date: parseDate(p?.vencimento || pd.saldo_data),
               payment_method: pd.saldo_forma || null, status: "pending",
             });
           }
         });
-      } else if (pd.saldo_valor && pd.saldo_valor > 0) {
-        rows.push({
-          event_id: eventId, company_id: companyId, type: "parcela",
-          amount: pd.saldo_valor,
-          due_date: pd.saldo_data || new Date().toISOString().split("T")[0],
-          payment_method: pd.saldo_forma || null, status: "pending",
-        });
+      }
+
+      if (!createdFromDetails) {
+        const saldoAmount = parseAmount(pd.saldo_valor);
+        if (saldoAmount && saldoAmount > 0) {
+          rows.push({
+            event_id: eventId, company_id: companyId, type: "parcela",
+            amount: saldoAmount,
+            due_date: parseDate(pd.saldo_data),
+            payment_method: pd.saldo_forma || null, status: "pending",
+          });
+        }
       }
       if (rows.length > 0) {
         await supabase.from("event_payments").insert(rows);

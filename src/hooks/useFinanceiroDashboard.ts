@@ -81,6 +81,29 @@ export function useFinanceiroDashboard() {
         });
 
         const today = new Date().toISOString().split('T')[0];
+        const parseAmount = (value: unknown): number | null => {
+          if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+          if (typeof value !== 'string') return null;
+          const cleaned = value.trim().replace(/R\$\s?/g, '').replace(/\s/g, '');
+          if (!cleaned) return null;
+          const normalized = cleaned.includes(',')
+            ? cleaned.replace(/\./g, '').replace(',', '.')
+            : cleaned;
+          const parsed = Number(normalized);
+          return Number.isFinite(parsed) ? parsed : null;
+        };
+        const parseDate = (value: unknown): string => {
+          if (typeof value !== 'string') return today;
+          const v = value.trim();
+          if (!v) return today;
+          if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+          if (/^\d{2}\/\d{2}\/\d{4}$/.test(v)) {
+            const [d, m, y] = v.split('/');
+            return `${y}-${m}-${d}`;
+          }
+          return today;
+        };
+
         const rowsToInsert: any[] = [];
 
         eventsWithDetails.forEach((ev) => {
@@ -91,58 +114,73 @@ export function useFinanceiroDashboard() {
           const hasEntrada = existing.some((p: any) => p.type === 'entrada');
           const parcelaCount = existing.filter((p: any) => p.type === 'parcela').length;
 
-          if (pd.entrada_valor && Number(pd.entrada_valor) > 0 && !hasEntrada) {
+          const entradaAmount = parseAmount(pd.entrada_valor);
+          if (!hasEntrada && entradaAmount && entradaAmount > 0) {
             rowsToInsert.push({
               event_id: ev.id,
               company_id: companyId,
               type: 'entrada',
-              amount: Number(pd.entrada_valor),
-              due_date: pd.entrada_data || today,
+              amount: entradaAmount,
+              due_date: parseDate(pd.entrada_data),
               payment_method: pd.entrada_forma || null,
               status: 'pending',
             });
           }
 
           if (parcelaCount === 0) {
+            let createdFromDetails = false;
             if (Array.isArray(pd.parcelas_details) && pd.parcelas_details.length > 0) {
               pd.parcelas_details.forEach((p: any) => {
-                if (p?.valor && Number(p.valor) > 0) {
+                const parcelaAmount = parseAmount(p?.valor);
+                if (parcelaAmount && parcelaAmount > 0) {
+                  createdFromDetails = true;
                   rowsToInsert.push({
                     event_id: ev.id,
                     company_id: companyId,
                     type: 'parcela',
-                    amount: Number(p.valor),
-                    due_date: p.vencimento || pd.saldo_data || today,
+                    amount: parcelaAmount,
+                    due_date: parseDate(p?.vencimento || pd.saldo_data),
                     payment_method: pd.saldo_forma || null,
                     status: 'pending',
                   });
                 }
               });
-            } else if (pd.saldo_valor && Number(pd.saldo_valor) > 0) {
-              rowsToInsert.push({
-                event_id: ev.id,
-                company_id: companyId,
-                type: 'parcela',
-                amount: Number(pd.saldo_valor),
-                due_date: pd.saldo_data || today,
-                payment_method: pd.saldo_forma || null,
-                status: 'pending',
-              });
+            }
+
+            if (!createdFromDetails) {
+              const saldoAmount = parseAmount(pd.saldo_valor);
+              if (saldoAmount && saldoAmount > 0) {
+                rowsToInsert.push({
+                  event_id: ev.id,
+                  company_id: companyId,
+                  type: 'parcela',
+                  amount: saldoAmount,
+                  due_date: parseDate(pd.saldo_data),
+                  payment_method: pd.saldo_forma || null,
+                  status: 'pending',
+                });
+              }
             }
           }
         });
 
         if (rowsToInsert.length > 0) {
-          const { error: backfillError } = await supabase.from('event_payments').insert(rowsToInsert);
-          if (backfillError) {
-            console.error('[Financeiro] backfill event_payments error:', backfillError);
-          } else {
-            const { data: refreshedPayments } = await supabase
+          const insertedRows: any[] = [];
+          for (const row of rowsToInsert) {
+            const { data: inserted, error: rowError } = await supabase
               .from('event_payments')
+              .insert(row)
               .select('*')
-              .eq('company_id', companyId)
-              .order('due_date');
-            rawPayments = refreshedPayments || rawPayments;
+              .single();
+            if (rowError) {
+              console.error('[Financeiro] backfill row error:', rowError, row);
+            } else if (inserted) {
+              insertedRows.push(inserted);
+            }
+          }
+
+          if (insertedRows.length > 0) {
+            rawPayments = [...rawPayments, ...insertedRows];
           }
         }
       }
