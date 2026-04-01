@@ -1692,20 +1692,30 @@ export default function Agenda() {
         onGenerate={async (p) => {
           if (!currentCompany?.id) return;
 
+          if (p.type === 'vendas_fechadas') {
+            const closedResult = await fetchClosedInPeriod(p.from, p.to, p.unit);
+            const reportParams = {
+              type: p.type,
+              companyName: currentCompany?.name || '',
+              periodLabel: p.periodLabel,
+              from: p.from,
+              to: p.to,
+              events: closedResult?.events || [],
+            };
+
+            if (p.format === 'xlsx') generateAgendaXLSX(reportParams);
+            else generateAgendaPDF(reportParams);
+            return;
+          }
+
           let query = supabase
             .from("company_events")
             .select("*")
             .eq("company_id", currentCompany.id);
 
-          if (p.type === 'vendas_fechadas') {
-            query = query
-              .gte("data_fechamento_venda", p.from)
-              .lte("data_fechamento_venda", p.to);
-          } else {
-            query = query
-              .gte("event_date", p.from)
-              .lte("event_date", p.to);
-          }
+          query = query
+            .gte("event_date", p.from)
+            .lte("event_date", p.to);
 
           const { data, error } = await query.order("event_date");
           if (error || !data) {
