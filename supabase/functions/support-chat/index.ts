@@ -92,6 +92,23 @@ Especiais: transferido, trabalhe_conosco, fornecedor, cliente_retorno, outros
 - Consumo de IA
 - Treinamento
 
+### Empresa Parceira (/parceiro)
+Módulo para fornecedores parceiros do buffet (ex: confeitaria, decoração, brindes).
+- **Painel do Parceiro** (/parceiro): Dashboard com métricas (pedidos do mês, faturamento, pendentes, itens no catálogo) e pedidos recentes
+- **Catálogo** (/parceiro/catalogo): Gerenciamento de produtos — criar, editar, excluir e ativar/desativar itens com nome, descrição, preço, categoria e imagem
+- **Central de Pedidos** (/parceiro/pedidos): Visualização em Kanban ou Lista dos pedidos recebidos do buffet
+  - Fluxo de status: Pendente → Confirmado → Em Produção → Entregue
+  - Ações: Aceitar pedido, Iniciar produção, Marcar como entregue, Recusar pedido
+- O buffet (admin) cria os pedidos para o parceiro; o parceiro gerencia produção e entrega
+- Para navegar entre as páginas do módulo parceiro, use o menu lateral (ícone ☰ no canto superior)
+- Para voltar ao painel principal do buffet, use o menu lateral e selecione a opção correspondente
+
+## Problemas Comuns - Empresa Parceira
+1. **Não consigo criar produtos**: Verifique se você está no módulo Catálogo (/parceiro/catalogo). Clique no botão "Novo Produto" no canto superior.
+2. **Não vejo pedidos**: Os pedidos são criados pelo buffet (admin). Se não há pedidos listados, o buffet ainda não enviou nenhum pedido para você.
+3. **Não consigo mudar o status do pedido**: Verifique se o pedido está no status correto para a ação desejada. O fluxo é: Pendente → Confirmado → Em Produção → Entregue.
+4. **Como acessar o menu lateral**: Em dispositivos móveis, toque no ícone ☰ ao lado do título da página.
+
 ## Problemas Comuns e Soluções
 
 1. **WhatsApp não conecta**: Ir em Configurações > WhatsApp > Conexão. Escanear QR Code. Se não aparecer, verificar se a instância está ativa.
