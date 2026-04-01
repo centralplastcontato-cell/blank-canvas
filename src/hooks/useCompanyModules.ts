@@ -213,4 +213,5 @@ export const MODULE_LABELS: Record<keyof CompanyModules, { label: string; descri
   // --- Outros ---
   treinamento: { label: 'Treinamento', description: 'Videoaulas de treinamento da plataforma' },
   onboarding_checklist: { label: 'Onboarding Guiado', description: 'Checklist interativo de primeiros passos no painel' },
+  empresa_parceira: { label: 'Empresa Parceira', description: 'Catálogo de produtos e pedidos de fornecedores parceiros' },
 };
