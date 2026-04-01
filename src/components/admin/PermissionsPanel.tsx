@@ -16,7 +16,7 @@ import { toast } from "@/hooks/use-toast";
 import { 
   ClipboardList, Users, Shield, Loader2, Crown, Building2, MapPin, 
   MessageCircle, Settings, BarChart3, Briefcase, Plus, Pencil, Trash2, Save,
-  Calendar, Megaphone, GraduationCap, Eye, DollarSign
+  Calendar, Megaphone, GraduationCap, Eye, DollarSign, Handshake
 } from "lucide-react";
 import { useCompanyModules, CompanyModules } from "@/hooks/useCompanyModules";
 
