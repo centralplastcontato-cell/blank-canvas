@@ -966,7 +966,7 @@ export default function Visitas() {
                 {headerContent}
               </div>
             </div>
-            <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={() => setReportOpen(true)} title="Gerar Relatório">
+            <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 border-blue-300 text-blue-600 hover:bg-blue-50" onClick={() => setReportOpen(true)} title="Gerar Relatório">
               <FileText className="h-4 w-4" />
             </Button>
           </div>
