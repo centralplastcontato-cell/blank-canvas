@@ -949,19 +949,26 @@ export default function Visitas() {
       <div className="h-dvh flex flex-col overflow-hidden bg-background">
         <Helmet><title>Visitas</title></Helmet>
         <header className="bg-card border-b border-border shrink-0 z-10 px-3 py-3">
-          <div className="flex items-center gap-2">
-            <MobileMenu
-              isOpen={isMobileMenuOpen}
-              onOpenChange={setIsMobileMenuOpen}
-              trigger={<Button variant="ghost" size="icon" className="h-9 w-9"><Menu className="w-5 h-5" /></Button>}
-              currentPage={"atendimento"}
-              userName={user.email || ""}
-              userEmail={user.email || ""}
-              canManageUsers={canManageUsers}
-              isAdmin={isAdmin}
-              onLogout={handleLogout}
-            />
-            {headerContent}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <MobileMenu
+                isOpen={isMobileMenuOpen}
+                onOpenChange={setIsMobileMenuOpen}
+                trigger={<Button variant="ghost" size="icon" className="h-9 w-9"><Menu className="w-5 h-5" /></Button>}
+                currentPage={"atendimento"}
+                userName={user.email || ""}
+                userEmail={user.email || ""}
+                canManageUsers={canManageUsers}
+                isAdmin={isAdmin}
+                onLogout={handleLogout}
+              />
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                {headerContent}
+              </div>
+            </div>
+            <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={() => setReportOpen(true)} title="Gerar Relatório">
+              <FileText className="h-4 w-4" />
+            </Button>
           </div>
         </header>
         <div className="flex-1 overflow-y-auto">
