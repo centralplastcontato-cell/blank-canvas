@@ -47,9 +47,10 @@ export function PartnerAppearanceCard() {
     setIsSaving(true);
     try {
       const currentSettings = (currentCompany.settings || {}) as Record<string, unknown>;
+      const newSettings = JSON.parse(JSON.stringify({ ...currentSettings, partner_appearance: settings }));
       const { error } = await supabase
         .from("companies")
-        .update({ settings: { ...currentSettings, partner_appearance: settings as unknown as Record<string, unknown> } as unknown as Record<string, unknown> })
+        .update({ settings: newSettings })
         .eq("id", currentCompany.id);
       if (error) throw error;
       await refreshCompanies();
