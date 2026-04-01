@@ -36,6 +36,7 @@ const lazyImports = {
   "/hub/materiais": () => import("./pages/HubMateriais"),
   "/hub/recrutamento": () => import("./pages/HubRecruitment"),
   "/hub/funcionalidades": () => import("./pages/HubFuncionalidades"),
+  "/hub/backups": () => import("./pages/HubBackups"),
   "/treinamento": () => import("./pages/Treinamento"),
   "/inteligencia": () => import("./pages/Inteligencia"),
   "/agenda": () => import("./pages/Agenda"),
