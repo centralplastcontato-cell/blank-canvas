@@ -225,7 +225,7 @@ export default function Auth() {
             <img 
               src={displayLogo} 
               alt={displayName} 
-              className="w-32 mx-auto mb-4 object-contain"
+              className="w-32 mx-auto mb-4 object-contain mix-blend-multiply"
             />
             <h1 className="font-display text-2xl font-bold text-foreground">
               Área Administrativa
