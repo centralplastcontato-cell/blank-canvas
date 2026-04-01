@@ -107,11 +107,10 @@ export function generateAgendaPDF(params: AgendaReportParams) {
   const sorted = [...periodEvents].sort((a, b) => a.event_date.localeCompare(b.event_date));
   autoTable(doc, {
     startY: y,
-    head: [['Data', 'Título', 'Tipo', 'Pacote', 'Convid.', 'Unidade', 'Status', 'Valor']],
+    head: [['Data', 'Título', 'Tipo', 'Pacote', 'Convid.', 'Valor']],
     body: sorted.map(e => [
       fmtDate(e.event_date), e.title, e.event_type || '—', e.package_name || '—',
-      e.guest_count != null ? String(e.guest_count) : '—', e.unit || '—',
-      STATUS_LABELS[e.status] || e.status, e.total_value != null ? fmt(e.total_value) : '—',
+      e.guest_count != null ? String(e.guest_count) : '—', e.total_value != null ? fmt(e.total_value) : '—',
     ]),
     styles: { fontSize: 8, cellPadding: 2 },
     headStyles: { fillColor: [30, 30, 30], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
@@ -159,8 +158,6 @@ export function generateAgendaXLSX(params: AgendaReportParams) {
     Tipo: e.event_type || '—',
     Pacote: e.package_name || '—',
     Convidados: e.guest_count ?? '—',
-    Unidade: e.unit || '—',
-    Status: STATUS_LABELS[e.status] || e.status,
     'Valor (R$)': e.total_value ?? 0,
   }));
 
