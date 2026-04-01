@@ -341,6 +341,59 @@ export type Database = {
         }
         Relationships: []
       }
+      backup_logs: {
+        Row: {
+          backup_type: string
+          company_id: string
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          file_name: string | null
+          file_size_bytes: number | null
+          file_url: string | null
+          id: string
+          records_count: Json | null
+          started_at: string
+          status: string
+        }
+        Insert: {
+          backup_type?: string
+          company_id: string
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          file_name?: string | null
+          file_size_bytes?: number | null
+          file_url?: string | null
+          id?: string
+          records_count?: Json | null
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          backup_type?: string
+          company_id?: string
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          file_name?: string | null
+          file_size_bytes?: number | null
+          file_url?: string | null
+          id?: string
+          records_count?: Json | null
+          started_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backup_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       base_leads: {
         Row: {
           company_id: string
