@@ -1159,11 +1159,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         .subscribe();
 
       return () => {
-        if (debounceTimer) clearTimeout(debounceTimer);
         supabase.removeChannel(conversationsChannel);
       };
     }
-  }, [selectedInstance, selectedConversation?.id, notify, initialPhone, initialPhoneProcessed]);
+  }, [selectedInstance, notify, initialPhone, initialPhoneProcessed]);
 
   // Track if at bottom using ref for realtime callback access
   const isAtBottomRef = useRef(true);
