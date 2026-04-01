@@ -579,6 +579,7 @@ export default function Agenda() {
       gifts: data.gifts || null,
       extra_guest_value: data.extra_guest_value,
       is_permuta: data.is_permuta || false,
+    };
     if (data.payment_details) {
       payload.payment_details = data.payment_details;
     }
