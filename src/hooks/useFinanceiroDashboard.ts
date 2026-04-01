@@ -234,6 +234,7 @@ export function useFinanceiroDashboard() {
         event_date: eventsMap[p.event_id]?.event_date || '',
         event_type: eventsMap[p.event_id]?.event_type || '',
         unit: eventsMap[p.event_id]?.unit || '',
+        is_permuta: eventsMap[p.event_id]?.is_permuta || false,
       }));
 
       setPayments(enriched);
