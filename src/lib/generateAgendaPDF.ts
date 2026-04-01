@@ -152,7 +152,7 @@ export function generateAgendaPDF(params: AgendaReportParams) {
 }
 
 export function generateAgendaXLSX(params: AgendaReportParams) {
-  const periodEvents = filterByPeriod(params.events, params.from, params.to).sort((a, b) => a.event_date.localeCompare(b.event_date));
+  const periodEvents = (params.type === 'vendas_fechadas' ? params.events : filterByPeriod(params.events, params.from, params.to)).sort((a, b) => a.event_date.localeCompare(b.event_date));
   const rows = periodEvents.map(e => ({
     Data: fmtDate(e.event_date),
     Título: e.title,
