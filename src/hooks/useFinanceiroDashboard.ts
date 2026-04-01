@@ -18,6 +18,7 @@ export interface EnrichedPayment {
   event_date: string;
   event_type: string;
   unit: string;
+  is_permuta: boolean;
 }
 
 export interface Expense {
