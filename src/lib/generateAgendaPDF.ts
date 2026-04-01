@@ -72,7 +72,10 @@ function drawBarChart(doc: jsPDF, x: number, y: number, w: number, h: number, ba
 }
 
 export function generateAgendaPDF(params: AgendaReportParams) {
-  const periodEvents = filterByPeriod(params.events, params.from, params.to);
+  // For vendas_fechadas, events are already filtered by data_fechamento_venda in the query
+  const periodEvents = params.type === 'vendas_fechadas'
+    ? params.events
+    : filterByPeriod(params.events, params.from, params.to);
   const doc = new jsPDF('p', 'mm', 'a4');
   const reportTitle = params.type === 'vendas_fechadas'
     ? 'Relatório de Vendas Fechadas'
