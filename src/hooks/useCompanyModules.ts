@@ -127,6 +127,7 @@ const DEFAULT_MODULES: CompanyModules = {
   // --- Outros ---
   treinamento: true,
   onboarding_checklist: false,
+  empresa_parceira: false,
 };
 
 export function parseModules(settings: Json | null | undefined): CompanyModules {
