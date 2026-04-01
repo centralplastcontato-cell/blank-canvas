@@ -1,8 +1,9 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { PartnerSidebar } from "@/components/partner/PartnerSidebar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, Bell, Palette } from "lucide-react";
 import { PartnerCompanyDataCard } from "@/components/partner/PartnerCompanyDataCard";
+import { PartnerNotificationsCard } from "@/components/partner/PartnerNotificationsCard";
+import { PartnerAppearanceCard } from "@/components/partner/PartnerAppearanceCard";
+import { PartnerAdvancedCard } from "@/components/partner/PartnerAdvancedCard";
 
 export default function PartnerConfig() {
   return (
@@ -20,45 +21,9 @@ export default function PartnerConfig() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <PartnerCompanyDataCard />
-
-            <Card>
-              <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
-                  <Bell className="h-5 w-5 text-orange-500" />
-                </div>
-                <CardTitle className="text-base">Notificações</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">Configure alertas para novos pedidos e atualizações.</p>
-                <p className="text-xs text-muted-foreground/60 mt-2 italic">Em breve</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                  <Palette className="h-5 w-5 text-emerald-500" />
-                </div>
-                <CardTitle className="text-base">Aparência</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">Personalize cores e identidade visual do seu painel.</p>
-                <p className="text-xs text-muted-foreground/60 mt-2 italic">Em breve</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                  <Settings className="h-5 w-5 text-purple-500" />
-                </div>
-                <CardTitle className="text-base">Avançado</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">Configurações avançadas e integrações.</p>
-                <p className="text-xs text-muted-foreground/60 mt-2 italic">Em breve</p>
-              </CardContent>
-            </Card>
+            <PartnerNotificationsCard />
+            <PartnerAppearanceCard />
+            <PartnerAdvancedCard />
           </div>
         </main>
       </div>
