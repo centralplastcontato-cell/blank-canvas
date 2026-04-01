@@ -190,12 +190,12 @@ export function useFinanceiroDashboard() {
       // Enrich payments with event + lead data
       const eventIds = [...new Set(rawPayments.map((p: any) => p.event_id))];
 
-      let eventsMap: Record<string, { title: string; lead_name: string; event_date: string; event_type: string; unit: string }> = {};
+      let eventsMap: Record<string, { title: string; lead_name: string; event_date: string; event_type: string; unit: string; is_permuta: boolean }> = {};
 
       if (eventIds.length > 0) {
         const { data: events } = await supabase
           .from('company_events')
-          .select('id, title, lead_id, event_date, event_type, unit')
+          .select('id, title, lead_id, event_date, event_type, unit, is_permuta')
           .in('id', eventIds);
 
         if (events) {
@@ -214,6 +214,7 @@ export function useFinanceiroDashboard() {
             event_date: e.event_date,
             event_type: e.event_type || '',
             unit: e.unit || '',
+            is_permuta: e.is_permuta || false,
           }]));
         }
       }
