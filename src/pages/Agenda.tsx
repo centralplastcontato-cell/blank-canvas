@@ -1682,7 +1682,8 @@ export default function Agenda() {
         onOpenChange={setReportOpen}
         title="Relatório de Agenda"
         reportTypes={[
-          { value: 'geral', label: 'Relatório Geral', desc: 'Todos os eventos com resumo, tabela e gráficos' },
+          { value: 'festas_periodo', label: 'Festas do Período', desc: 'Eventos que serão realizados no período selecionado' },
+          { value: 'vendas_fechadas', label: 'Vendas Fechadas', desc: 'Festas que foram fechadas (vendidas) no período' },
         ]}
         unitOptions={(() => {
           const vu = canViewAll ? physicalUnits : physicalUnits.filter(u => unitAccess[u.name]);
@@ -1690,13 +1691,23 @@ export default function Agenda() {
         })()}
         onGenerate={async (p) => {
           if (!currentCompany?.id) return;
-          const { data, error } = await supabase
+
+          let query = supabase
             .from("company_events")
             .select("*")
-            .eq("company_id", currentCompany.id)
-            .gte("event_date", p.from)
-            .lte("event_date", p.to)
-            .order("event_date");
+            .eq("company_id", currentCompany.id);
+
+          if (p.type === 'vendas_fechadas') {
+            query = query
+              .gte("data_fechamento_venda", p.from)
+              .lte("data_fechamento_venda", p.to);
+          } else {
+            query = query
+              .gte("event_date", p.from)
+              .lte("event_date", p.to);
+          }
+
+          const { data, error } = await query.order("event_date");
           if (error || !data) {
             toast({ title: "Erro ao buscar eventos", description: error?.message, variant: "destructive" });
             return;

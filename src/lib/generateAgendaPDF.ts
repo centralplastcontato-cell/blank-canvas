@@ -74,7 +74,10 @@ function drawBarChart(doc: jsPDF, x: number, y: number, w: number, h: number, ba
 export function generateAgendaPDF(params: AgendaReportParams) {
   const periodEvents = filterByPeriod(params.events, params.from, params.to);
   const doc = new jsPDF('p', 'mm', 'a4');
-  let y = addHeader(doc, params.companyName, 'Relatório de Agenda — Festas/Eventos', params.periodLabel);
+  const reportTitle = params.type === 'vendas_fechadas'
+    ? 'Relatório de Vendas Fechadas'
+    : 'Relatório de Festas do Período';
+  let y = addHeader(doc, params.companyName, reportTitle, params.periodLabel);
 
   const total = periodEvents.length;
   const confirmados = periodEvents.filter(e => e.status === 'confirmado').length;
