@@ -36,6 +36,7 @@ const lazyImports = {
   "/hub/materiais": () => import("./pages/HubMateriais"),
   "/hub/recrutamento": () => import("./pages/HubRecruitment"),
   "/hub/funcionalidades": () => import("./pages/HubFuncionalidades"),
+  "/hub/backups": () => import("./pages/HubBackups"),
   "/treinamento": () => import("./pages/Treinamento"),
   "/inteligencia": () => import("./pages/Inteligencia"),
   "/agenda": () => import("./pages/Agenda"),
@@ -92,6 +93,7 @@ const HubSuporte = lazy(lazyImports["/hub/suporte"]);
 const HubMateriais = lazy(lazyImports["/hub/materiais"]);
 const HubRecruitment = lazy(lazyImports["/hub/recrutamento"]);
 const HubFuncionalidades = lazy(lazyImports["/hub/funcionalidades"]);
+const HubBackups = lazy(lazyImports["/hub/backups"]);
 const Treinamento = lazy(lazyImports["/treinamento"]);
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const Inteligencia = lazy(lazyImports["/inteligencia"]);
@@ -172,6 +174,7 @@ const App = () => (
               <Route path="/hub/materiais" element={<HubMateriais />} />
               <Route path="/hub/recrutamento" element={<HubRecruitment />} />
               <Route path="/hub/funcionalidades" element={<HubFuncionalidades />} />
+              <Route path="/hub/backups" element={<HubBackups />} />
               <Route path="/recrutamento-comercial" element={<PublicRecruitmentForm />} />
               <Route path="/treinamento" element={<Treinamento />} />
               <Route path="/inteligencia" element={<Inteligencia />} />
