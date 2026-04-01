@@ -33,6 +33,7 @@ export interface CompanyModules {
   // --- Outros ---
   treinamento: boolean;
   onboarding_checklist: boolean;
+  empresa_parceira: boolean;
 }
 
 export interface PartyControlModules {
