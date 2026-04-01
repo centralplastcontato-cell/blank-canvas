@@ -39,9 +39,10 @@ export function PartnerNotificationsCard() {
     setIsSaving(true);
     try {
       const currentSettings = (currentCompany.settings || {}) as Record<string, unknown>;
+      const newSettings = JSON.parse(JSON.stringify({ ...currentSettings, partner_notifications: updated }));
       const { error } = await supabase
         .from("companies")
-        .update({ settings: { ...currentSettings, partner_notifications: updated } })
+        .update({ settings: newSettings })
         .eq("id", currentCompany.id);
       if (error) throw error;
       await refreshCompanies();
