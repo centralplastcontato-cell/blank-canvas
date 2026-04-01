@@ -189,8 +189,20 @@ export function generateComercialPDF(params: ComercialReportParams) {
 }
 
 export function generateComercialXLSX(params: ComercialReportParams) {
-  const periodLeads = filterByPeriod(params.leads, params.from, params.to).sort((a, b) => a.created_at.localeCompare(b.created_at));
-  const rows = periodLeads.map(l => ({
+  const periodLeads = filterByPeriod(params.leads, params.from, params.to);
+  const events = params.events || [];
+  const fechadosNoPeriodo = events.filter(e => {
+    const dt = e.data_fechamento_venda?.slice(0, 10);
+    return dt && dt >= params.from && dt <= params.to && e.status !== 'cancelado';
+  });
+
+  // Build comprehensive lead set
+  const closedLeadIds = new Set(fechadosNoPeriodo.map(e => e.lead_id).filter(Boolean));
+  const periodLeadIds = new Set(periodLeads.map(l => l.id));
+  const closedLeadsNotInPeriod = params.leads.filter(l => closedLeadIds.has(l.id) && !periodLeadIds.has(l.id));
+  const allRelevantLeads = [...periodLeads, ...closedLeadsNotInPeriod].sort((a, b) => a.created_at.localeCompare(b.created_at));
+
+  const rows = allRelevantLeads.map(l => ({
     Data: fmtDate(l.created_at),
     Nome: l.name,
     WhatsApp: l.whatsapp,
@@ -204,10 +216,10 @@ export function generateComercialXLSX(params: ComercialReportParams) {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Leads');
 
-  // Funnel sheet (period leads only)
+  // Funnel sheet
   const funnelRows = FUNNEL_ORDER.map(status => ({
     Etapa: STATUS_LABELS[status] || status,
-    Quantidade: periodLeads.filter(l => l.status === status).length,
+    Quantidade: allRelevantLeads.filter(l => l.status === status).length,
   })).filter(r => r.Quantidade > 0);
   const ws2 = XLSX.utils.json_to_sheet(funnelRows);
   XLSX.utils.book_append_sheet(wb, ws2, 'Funil');
