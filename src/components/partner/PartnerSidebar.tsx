@@ -1,4 +1,5 @@
 import { LayoutDashboard, Package, ShoppingCart, Settings, Store, LogOut } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -26,6 +27,7 @@ const menuItems = [
 
 export function PartnerSidebar() {
   const { state } = useSidebar();
+  const navigate = useNavigate();
   const collapsed = state === "collapsed";
 
   return (
@@ -78,7 +80,7 @@ export function PartnerSidebar() {
         <div className="flex items-center gap-2">
           <SidebarTrigger className="text-sidebar-foreground/60 hover:text-sidebar-foreground" />
           {!collapsed && (
-            <Button variant="ghost" size="sm" className="text-sidebar-foreground/60 hover:text-sidebar-foreground ml-auto text-xs gap-1.5">
+            <Button variant="ghost" size="sm" className="text-sidebar-foreground/60 hover:text-sidebar-foreground ml-auto text-xs gap-1.5" onClick={() => navigate("/atendimento")}>
               <LogOut className="h-3.5 w-3.5" />
               Sair
             </Button>
