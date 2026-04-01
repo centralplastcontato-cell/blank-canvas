@@ -72,7 +72,8 @@ export function PartnerSidebar() {
                       to={item.url}
                       end={item.url === "/parceiro"}
                       className="hover:bg-sidebar-accent/50 rounded-lg transition-colors"
-                      activeClassName="font-medium [&]:bg-[var(--partner-brand)] [&]:text-white"
+                      activeClassName="font-medium"
+                      activeStyle={{ backgroundColor: "var(--partner-brand, hsl(var(--sidebar-accent)))", color: "#fff" }}
                     >
                       <item.icon className="h-4 w-4 mr-2 flex-shrink-0" />
                       {!collapsed && <span className="text-sm">{item.title}</span>}
