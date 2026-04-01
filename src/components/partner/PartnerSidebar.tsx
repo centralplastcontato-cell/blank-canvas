@@ -27,6 +27,7 @@ const menuItems = [
 
 export function PartnerSidebar() {
   const { state } = useSidebar();
+  const navigate = useNavigate();
   const collapsed = state === "collapsed";
 
   return (
