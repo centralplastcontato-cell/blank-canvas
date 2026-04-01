@@ -1,4 +1,3 @@
-import { useLocation } from "react-router-dom";
 import { LayoutDashboard, Package, ShoppingCart, Settings, Store, LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -28,7 +27,6 @@ const menuItems = [
 export function PartnerSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const location = useLocation();
 
   return (
     <Sidebar collapsible="icon" className="border-r">

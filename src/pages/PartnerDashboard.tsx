@@ -1,10 +1,9 @@
-import { useState } from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { PartnerSidebar } from "@/components/partner/PartnerSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Package, ShoppingCart, TrendingUp, Clock, Eye, Plus, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Package, ShoppingCart, TrendingUp, Clock, Eye, ArrowUpRight } from "lucide-react";
 
 const mockOrders = [
   { id: 1, event: "Festa da Sofia - 25/07", items: "Bolo 3 andares + 50 docinhos", status: "pendente", value: 850, date: "2026-03-28" },

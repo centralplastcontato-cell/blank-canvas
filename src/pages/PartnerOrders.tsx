@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { PartnerSidebar } from "@/components/partner/PartnerSidebar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, MapPin, User, Package, Clock, CheckCircle2, Truck, AlertCircle } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar, MapPin, Package, CheckCircle2, Truck, AlertCircle } from "lucide-react";
 
 type OrderStatus = "pendente" | "confirmado" | "em_producao" | "entregue";
 
