@@ -560,12 +560,12 @@ export default function Inteligencia() {
         onGenerate={async (p) => {
           if (!currentCompany?.id) return;
           // Batch load all leads (bypass 1000-row default limit)
-          const loadAll = async (table: string, select: string, companyId: string) => {
+          const loadAll = async (table: 'campaign_leads' | 'company_events', select: string, companyId: string) => {
             const all: any[] = [];
             const batchSize = 1000;
             let from = 0;
             while (true) {
-              const { data } = await supabase.from(table).select(select).eq('company_id', companyId).range(from, from + batchSize - 1);
+              const { data } = await supabase.from(table).select(select).eq('company_id', companyId).range(from, from + batchSize - 1) as { data: any[] | null };
               if (!data || data.length === 0) break;
               all.push(...data);
               if (data.length < batchSize) break;
