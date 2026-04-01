@@ -438,7 +438,7 @@ function generateResultReport(doc: jsPDF, params: ReportParams) {
 }
 
 export function generateFinancialPDF(params: ReportParams) {
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
   switch (params.type) {
     case 'despesas':
