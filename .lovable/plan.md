@@ -1,75 +1,72 @@
 
 
-# Plano: Módulo de Relatórios Gerenciais (além do Financeiro)
+## Bug Crítico: Chat troca de conversa sozinho
 
-## Visão Geral
+### Problema Identificado
 
-Criar um sistema de relatórios gerenciais expandido, reutilizando a infraestrutura já existente (PDF via jsPDF + autoTable, Excel via XLSX), adicionando **3 novos tipos de relatório** acessíveis a partir de seus respectivos módulos.
+Enquanto o usuário está conversando com o Lead A, a tela troca automaticamente para o Lead B sem nenhuma ação do usuário. Isso causou envio de mensagens e até convites para leads errados.
 
----
+### Causa Raiz (3 problemas encontrados)
 
-## Novos Relatórios
+**1. Re-execução desnecessária do realtime** (`WhatsAppChat.tsx` linha 1164)
+O `useEffect` que gerencia o canal realtime e carrega conversas tem `selectedConversation?.id` na lista de dependências. Isso significa que toda vez que o usuário clica em uma conversa, o efeito inteiro re-executa — recriando o canal realtime E chamando `fetchConversations()` de novo. Essa re-execução pode causar race conditions onde a lista de conversas é recarregada enquanto o usuário está interagindo.
 
-### 1. Relatório de Agenda (Festas/Eventos)
-- **Dados**: tabela `company_events` filtrada por período e unidade
-- **Conteúdo**:
-  - Resumo: total de festas, realizadas, canceladas, ocupação
-  - Tabela: data, título, pacote, convidados, unidade, status, valor
-  - Gráfico: distribuição por tipo de festa e por pacote
-  - Faturamento agendado vs realizado
-- **Acesso**: botão "Relatório" na página Agenda (`src/pages/Agenda.tsx`)
+**2. Refresh completo via debounce** (linhas 1151-1154)
+A cada evento realtime (qualquer mensagem em qualquer conversa), um timer de 5 segundos agenda um `fetchConversations()` completo. Esse refresh substitui toda a lista de conversas e pode causar re-renders que afetam a seleção.
 
-### 2. Relatório de Visitas
-- **Dados**: tabela `lead_visits` filtrada por período e unidade
-- **Conteúdo**:
-  - Resumo: total de visitas, realizadas, não compareceu, taxa de comparecimento, fechou na visita
-  - Tabela: data, lead, status, nível de interesse, canal de origem
-  - Gráfico: visitas por status, por canal de origem ("Como nos conheceu")
-  - Taxa de conversão (visita → fechamento)
-- **Acesso**: botão "Relatório" na página Visitas (`src/pages/Visitas.tsx`)
+**3. Pattern de `initialPhone`** (`CentralAtendimento.tsx` linha 118)
+O código faz `setInitialPhone(null)` seguido de `setInitialPhone(phoneParam)` na mesma execução, o que pode disparar efeitos duplicados no WhatsAppChat.
 
-### 3. Relatório Comercial (Leads/CRM)
-- **Dados**: `campaign_leads`, `lead_visits`, `company_events`
-- **Conteúdo**:
-  - Resumo: novos leads, conversão, perdidos, tempo médio de resposta
-  - Funil: quantidade por status (novo → em_contato → orçamento → negociação → fechado)
-  - Gráfico: leads por canal de origem, por unidade
-  - Evolução mensal de leads
-- **Acesso**: botão "Relatório" na página Inteligência ou no CRM
+### Plano de Correção
 
----
+#### Arquivo: `src/components/whatsapp/WhatsAppChat.tsx`
 
-## Implementação Técnica
+**Passo 1 — Separar o useEffect de realtime da seleção de conversa**
+- Remover `selectedConversation?.id` da lista de dependências do useEffect de realtime (linha 1164)
+- Usar um `ref` para acessar o ID da conversa selecionada dentro do callback do realtime, em vez do state direto
+- Isso impede que trocar de conversa recrie o canal e recarregue tudo
 
-### Arquivos novos
-1. **`src/lib/generateAgendaPDF.ts`** — gerador PDF de agenda (segue padrão do `generateFinancialPDF.ts`: header, tabelas autoTable, mini-charts)
-2. **`src/lib/generateVisitasPDF.ts`** — gerador PDF de visitas
-3. **`src/lib/generateComercialPDF.ts`** — gerador PDF comercial/CRM
-4. **`src/components/reports/ReportDialog.tsx`** — dialog reutilizável de seleção de relatório (tipo, período, unidade, formato PDF/Excel), similar ao `FinancialReportDialog` mas genérico
+**Passo 2 — Eliminar o refresh completo no debounce**
+- Remover o `fetchConversations()` do debounce de 5 segundos (linhas 1151-1154)
+- As atualizações inline já acontecem no handler de realtime (linhas 1085-1123) — o refresh completo é redundante e perigoso
+- Se necessário manter como safety net, aumentar para 30+ segundos e garantir que não afete a seleção
 
-### Arquivos modificados
-5. **`src/pages/Agenda.tsx`** — adicionar botão "Relatório" + importar dialog
-6. **`src/pages/Visitas.tsx`** — adicionar botão "Relatório" + importar dialog
-7. **`src/pages/Inteligencia.tsx`** — adicionar botão "Relatório Comercial"
+**Passo 3 — Proteger a seleção contra re-renders**
+- Adicionar um `selectedConversationRef` que mantém o ID da conversa ativa
+- No `fetchConversations`, se já existe uma conversa selecionada e não há `selectPhone`, preservar a seleção atual sem alterá-la
+- Garantir que nenhum path de código altere `selectedConversation` sem ação explícita do usuário
 
-### Padrão de cada PDF
-- Header com nome da empresa + título do relatório + período
-- Cards de resumo (KPIs principais)
-- Tabela detalhada com autoTable
-- Mini-gráficos de barras (distribuição por categoria)
-- Footer com data de geração
-- Opção de exportar Excel (mesmos dados em planilha)
+**Passo 4 — Corrigir o pattern de initialPhone**
+- No `CentralAtendimento.tsx`, remover o `setInitialPhone(null)` redundante antes do `setInitialPhone(phoneParam)` (linha 118)
+- Usar uma key ou timestamp para forçar re-processamento em vez de null→value
 
-### Dados necessários
-Todos os dados já estão disponíveis via queries Supabase existentes nos hooks (`useCommercialReports`, `useFinanceiroDashboard`, etc.) — não precisa de novas tabelas ou migrações.
+### Detalhes Técnicos
 
----
+```text
+ANTES (bugado):
+useEffect(() => {
+  fetchConversations();        // ← re-executa quando conversa muda
+  channel.on('*', () => {
+    // update inline...
+    debounce(() => fetchConversations(), 5000);  // ← refresh completo
+  });
+}, [selectedInstance, selectedConversation?.id]);  // ← BUG AQUI
 
-## Etapas de Implementação
+DEPOIS (corrigido):
+const selectedConvRef = useRef(selectedConversation?.id);
+selectedConvRef.current = selectedConversation?.id;
 
-1. Criar `ReportDialog.tsx` genérico (reutilizável entre módulos)
-2. Criar `generateAgendaPDF.ts` + integrar na Agenda
-3. Criar `generateVisitasPDF.ts` + integrar nas Visitas
-4. Criar `generateComercialPDF.ts` + integrar na Inteligência
-5. Adicionar suporte Excel para cada tipo
+useEffect(() => {
+  fetchConversations();
+  channel.on('*', (payload) => {
+    // update inline apenas — sem refresh completo
+    // usar selectedConvRef.current para notificações
+  });
+}, [selectedInstance]);  // ← só reconecta quando muda de instância
+```
+
+### Impacto
+- Zero impacto em funcionalidades existentes
+- Menos chamadas ao banco de dados (remove refreshes desnecessários)
+- Usuário nunca mais terá a conversa trocada automaticamente
 
