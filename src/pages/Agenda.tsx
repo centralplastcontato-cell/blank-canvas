@@ -799,8 +799,8 @@ export default function Agenda() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <Button variant="outline" size="sm" className="gap-1 border-blue-300 text-blue-600 hover:bg-blue-50" onClick={() => setReportOpen(true)} title="Gerar Relatório">
-                    <FileText className="h-4 w-4" /> Relatório
+                  <Button variant="outline" size="icon" className="h-9 w-9 border-blue-300 text-blue-600 hover:bg-blue-50" onClick={() => setReportOpen(true)} title="Gerar Relatório">
+                    <FileText className="h-4 w-4" />
                   </Button>
                   <Button variant="outline" size="sm" className="border-pink-300 text-pink-600 hover:bg-pink-50" onClick={() => { setEditingPreRes(null); setPreResFormOpen(true); }}>
                     <CalendarClock className="h-4 w-4 mr-1" /> Pré-reserva
