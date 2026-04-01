@@ -1239,6 +1239,23 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               </div>
             </div>
 
+            {/* Permuta toggle */}
+            <div className="mt-5 pt-5 border-t border-border/40">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Repeat className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <Label className="text-sm font-medium">Permuta</Label>
+                    <p className="text-[11px] text-muted-foreground">Evento não contabiliza valores no caixa financeiro</p>
+                  </div>
+                </div>
+                <Switch
+                  checked={form.is_permuta || false}
+                  onCheckedChange={(checked) => setForm({ ...form, is_permuta: checked })}
+                />
+              </div>
+            </div>
+
             {/* Contract Model Selector */}
             <div className="mt-5 pt-5 border-t border-border/40">
               <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2.5">

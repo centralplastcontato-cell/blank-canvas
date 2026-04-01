@@ -578,7 +578,7 @@ export default function Agenda() {
       parent_names: data.parent_names || null,
       gifts: data.gifts || null,
       extra_guest_value: data.extra_guest_value,
-    };
+      is_permuta: data.is_permuta || false,
     if (data.payment_details) {
       payload.payment_details = data.payment_details;
     }
