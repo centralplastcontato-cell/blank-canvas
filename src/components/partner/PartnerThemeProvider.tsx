@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useCompany } from "@/contexts/CompanyContext";
 
 interface AppearanceSettings {
@@ -80,23 +80,45 @@ export function PartnerThemeProvider({ children }: { children: React.ReactNode }
   const accentHsl = hexToHsl(accent);
   const brandForeground = getForeground(brandHsl);
   const accentForeground = getForeground(accentHsl);
+  const themeVariables = {
+    "--partner-brand": brand,
+    "--partner-accent": accent,
+    "--primary": toHslValue(brandHsl),
+    "--primary-foreground": brandForeground,
+    "--ring": toHslValue(brandHsl),
+    "--accent": toHslValue(accentHsl),
+    "--accent-foreground": accentForeground,
+    "--sidebar-primary": toHslValue(brandHsl),
+    "--sidebar-primary-foreground": brandForeground,
+    "--sidebar-ring": toHslValue(brandHsl),
+    "--sidebar-accent": withLightness(brandHsl, 94, Math.max(brandHsl.s - 12, 24)),
+    "--sidebar-accent-foreground": "225 40% 15%",
+  } as const;
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const previousValues = Object.fromEntries(
+      Object.keys(themeVariables).map((key) => [key, root.style.getPropertyValue(key)]),
+    );
+
+    Object.entries(themeVariables).forEach(([key, value]) => {
+      root.style.setProperty(key, value);
+    });
+
+    return () => {
+      Object.entries(previousValues).forEach(([key, value]) => {
+        if (value) {
+          root.style.setProperty(key, value);
+        } else {
+          root.style.removeProperty(key);
+        }
+      });
+    };
+  }, [brand, accent]);
 
   return (
     <div
-      style={{
-        "--partner-brand": brand,
-        "--partner-accent": accent,
-        "--primary": toHslValue(brandHsl),
-        "--primary-foreground": brandForeground,
-        "--ring": toHslValue(brandHsl),
-        "--accent": toHslValue(accentHsl),
-        "--accent-foreground": accentForeground,
-        "--sidebar-primary": toHslValue(brandHsl),
-        "--sidebar-primary-foreground": brandForeground,
-        "--sidebar-ring": toHslValue(brandHsl),
-        "--sidebar-accent": withLightness(brandHsl, 94, Math.max(brandHsl.s - 12, 24)),
-        "--sidebar-accent-foreground": "225 40% 15%",
-      } as React.CSSProperties}
+      style={themeVariables as React.CSSProperties}
     >
       {children}
     </div>
