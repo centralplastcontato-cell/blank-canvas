@@ -183,6 +183,7 @@ const EMPTY: EventFormData = {
   parent_names: null,
   gifts: null,
   extra_guest_value: null,
+  is_permuta: false,
 };
 
 function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
