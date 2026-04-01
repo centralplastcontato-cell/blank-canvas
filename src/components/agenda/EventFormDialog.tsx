@@ -64,6 +64,7 @@ export interface EventFormData {
   parent_names?: string | null;
   gifts?: string | null;
   extra_guest_value?: number | null;
+  is_permuta?: boolean;
 }
 
 const PAYMENT_METHODS = [
