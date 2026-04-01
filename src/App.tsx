@@ -51,6 +51,7 @@ const lazyImports = {
   "/parceiro": () => import("./pages/PartnerDashboard"),
   "/parceiro/catalogo": () => import("./pages/PartnerCatalog"),
   "/parceiro/pedidos": () => import("./pages/PartnerOrders"),
+  "/parceiro/config": () => import("./pages/PartnerConfig"),
 } as Record<string, () => Promise<any>>;
 
 // Prefetch cache to avoid double-importing
@@ -121,6 +122,7 @@ const Financeiro = lazy(lazyImports["/financeiro"]);
 const PartnerDashboard = lazy(lazyImports["/parceiro"]);
 const PartnerCatalog = lazy(lazyImports["/parceiro/catalogo"]);
 const PartnerOrders = lazy(lazyImports["/parceiro/pedidos"]);
+const PartnerConfig = lazy(lazyImports["/parceiro/config"]);
 const PublicPartyControl = lazy(() => import("./pages/PublicPartyControl"));
 const PublicClientData = lazy(() => import("./pages/PublicClientData"));
 
@@ -207,6 +209,7 @@ const App = () => (
               <Route path="/parceiro" element={<PartnerDashboard />} />
               <Route path="/parceiro/catalogo" element={<PartnerCatalog />} />
               <Route path="/parceiro/pedidos" element={<PartnerOrders />} />
+              <Route path="/parceiro/config" element={<PartnerConfig />} />
               {/* Public staff form */}
               <Route path="/equipe/:recordId" element={<PublicStaff />} />
               {/* Public maintenance form */}
