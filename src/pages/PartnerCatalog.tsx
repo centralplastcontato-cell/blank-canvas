@@ -224,5 +224,6 @@ export default function PartnerCatalog() {
         </main>
       </div>
     </SidebarProvider>
+    </PartnerThemeProvider>
   );
 }

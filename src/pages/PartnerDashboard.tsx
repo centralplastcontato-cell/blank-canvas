@@ -221,5 +221,6 @@ export default function PartnerDashboard() {
         </main>
       </div>
     </SidebarProvider>
+    </PartnerThemeProvider>
   );
 }

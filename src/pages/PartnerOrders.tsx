@@ -229,5 +229,6 @@ export default function PartnerOrders() {
         </main>
       </div>
     </SidebarProvider>
+    </PartnerThemeProvider>
   );
 }
