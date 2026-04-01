@@ -45,7 +45,7 @@ export function PartnerAdvancedCard() {
       const currentSettings = (currentCompany.settings || {}) as Record<string, unknown>;
       const { error } = await supabase
         .from("companies")
-        .update({ settings: { ...currentSettings, partner_advanced: settings } })
+        .update({ settings: { ...currentSettings, partner_advanced: settings as unknown as Record<string, unknown> } as unknown as Record<string, unknown> })
         .eq("id", currentCompany.id);
       if (error) throw error;
       await refreshCompanies();
