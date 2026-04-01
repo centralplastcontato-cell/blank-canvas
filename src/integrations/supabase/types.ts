@@ -3561,6 +3561,122 @@ export type Database = {
           },
         ]
       }
+      partner_orders: {
+        Row: {
+          client_name: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          delivery_date: string | null
+          event_id: string | null
+          event_title: string | null
+          id: string
+          items: Json
+          notes: string | null
+          status: string
+          total_value: number
+          updated_at: string
+        }
+        Insert: {
+          client_name?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          delivery_date?: string | null
+          event_id?: string | null
+          event_title?: string | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          status?: string
+          total_value?: number
+          updated_at?: string
+        }
+        Update: {
+          client_name?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          delivery_date?: string | null
+          event_id?: string | null
+          event_title?: string | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          status?: string
+          total_value?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_orders_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "company_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_products: {
+        Row: {
+          category: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean
+          name: string
+          price: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          name: string
+          price?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          name?: string
+          price?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_products_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       party_monitoring_entries: {
         Row: {
           company_id: string
