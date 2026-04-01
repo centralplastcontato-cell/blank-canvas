@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useLocation } from "react-router-dom";
-import { Users, LogOut, RefreshCw, Headset, Settings, Pin, PinOff, ChevronLeft, Building2, Brain, CalendarDays, FolderOpen, GraduationCap, Megaphone, MapPin, FileSignature, Lock, Unlock, DollarSign } from "lucide-react";
+import { Users, LogOut, RefreshCw, Headset, Settings, Pin, PinOff, ChevronLeft, Building2, Brain, CalendarDays, FolderOpen, GraduationCap, Megaphone, MapPin, FileSignature, Lock, Unlock, DollarSign, Handshake } from "lucide-react";
 import { prefetchRoute } from "@/App";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { NavLink } from "@/components/NavLink";
@@ -85,6 +85,7 @@ export function AdminSidebar({
     ...(canManageUsers ? [{ title: "Gerenciar Usuários", url: "/users", icon: Users }] : []),
     ...(isAdmin ? [{ title: "Empresas", url: "/hub/empresas", icon: Building2 }] : []),
     ...(modules.treinamento ? [{ title: "Treinamento", url: "/treinamento", icon: GraduationCap }] : []),
+    ...(modules.empresa_parceira ? [{ title: "Empresa Parceira", url: "/parceiro", icon: Handshake }] : []),
   ];
 
   // Detect touch device to prevent hover-expand flicker

@@ -33,6 +33,7 @@ export interface CompanyModules {
   // --- Outros ---
   treinamento: boolean;
   onboarding_checklist: boolean;
+  empresa_parceira: boolean;
 }
 
 export interface PartyControlModules {
@@ -126,6 +127,7 @@ const DEFAULT_MODULES: CompanyModules = {
   // --- Outros ---
   treinamento: true,
   onboarding_checklist: false,
+  empresa_parceira: false,
 };
 
 export function parseModules(settings: Json | null | undefined): CompanyModules {
@@ -170,6 +172,7 @@ export function parseModules(settings: Json | null | undefined): CompanyModules 
     // --- Outros ---
     treinamento: modules.treinamento !== false,
     onboarding_checklist: modules.onboarding_checklist === true,
+    empresa_parceira: modules.empresa_parceira === true,
   };
 }
 
@@ -210,4 +213,5 @@ export const MODULE_LABELS: Record<keyof CompanyModules, { label: string; descri
   // --- Outros ---
   treinamento: { label: 'Treinamento', description: 'Videoaulas de treinamento da plataforma' },
   onboarding_checklist: { label: 'Onboarding Guiado', description: 'Checklist interativo de primeiros passos no painel' },
+  empresa_parceira: { label: 'Empresa Parceira', description: 'Catálogo de produtos e pedidos de fornecedores parceiros' },
 };
