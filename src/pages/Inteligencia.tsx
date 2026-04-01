@@ -559,18 +559,24 @@ export default function Inteligencia() {
         unitOptions={unitOptions}
         onGenerate={async (p) => {
           if (!currentCompany?.id) return;
-          const [leadsResult, eventsResult] = await Promise.all([
-            supabase
-              .from('campaign_leads')
-              .select('id, name, whatsapp, status, unit, created_at, month, guests')
-              .eq('company_id', currentCompany.id),
-            supabase
-              .from('company_events')
-              .select('id, lead_id, data_fechamento_venda, status, unit, total_value')
-              .eq('company_id', currentCompany.id),
+          // Batch load all leads (bypass 1000-row default limit)
+          const loadAll = async (table: 'campaign_leads' | 'company_events', select: string, companyId: string) => {
+            const all: any[] = [];
+            const batchSize = 1000;
+            let from = 0;
+            while (true) {
+              const { data } = await supabase.from(table).select(select).eq('company_id', companyId).range(from, from + batchSize - 1) as { data: any[] | null };
+              if (!data || data.length === 0) break;
+              all.push(...data);
+              if (data.length < batchSize) break;
+              from += batchSize;
+            }
+            return all;
+          };
+          const [leads, events] = await Promise.all([
+            loadAll('campaign_leads', 'id, name, whatsapp, status, unit, created_at, month, guests', currentCompany.id),
+            loadAll('company_events', 'id, lead_id, data_fechamento_venda, status, unit, total_value', currentCompany.id),
           ]);
-          const leads = (leadsResult.data || []).map((l: any) => ({ ...l }));
-          const events = (eventsResult.data || []).map((e: any) => ({ ...e }));
           const filtered = p.unit === 'all' ? leads : leads.filter((l: any) => l.unit === p.unit);
           const filteredEvents = p.unit === 'all' ? events : events.filter((e: any) => e.unit === p.unit);
           const reportParams = { type: p.type, companyName: currentCompany?.name || '', periodLabel: p.periodLabel, from: p.from, to: p.to, leads: filtered, events: filteredEvents };
