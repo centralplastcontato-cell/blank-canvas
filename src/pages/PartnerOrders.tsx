@@ -27,10 +27,10 @@ interface Order {
 }
 
 const columns: { key: OrderStatus; label: string; icon: React.ElementType; color: string }[] = [
-  { key: "pendente", label: "Pendentes", icon: AlertCircle, color: "border-t-amber-500" },
-  { key: "confirmado", label: "Confirmados", icon: CheckCircle2, color: "border-t-blue-500" },
-  { key: "em_producao", label: "Em Produção", icon: Package, color: "border-t-purple-500" },
-  { key: "entregue", label: "Entregues", icon: Truck, color: "border-t-emerald-500" },
+  { key: "pendente", label: "Pendentes", icon: AlertCircle, color: "border-t-primary" },
+  { key: "confirmado", label: "Confirmados", icon: CheckCircle2, color: "border-t-primary/80" },
+  { key: "em_producao", label: "Em Produção", icon: Package, color: "border-t-primary/60" },
+  { key: "entregue", label: "Entregues", icon: Truck, color: "border-t-primary/40" },
 ];
 
 const statusBadge: Record<string, string> = {
@@ -94,17 +94,17 @@ function OrderCard({ order, onStatusChange }: { order: Order; onStatusChange: (i
           <>
             {order.status === "pendente" && (
               <div className="flex gap-2 pt-1">
-                <Button size="sm" className="flex-1 text-xs h-8 rounded-lg" onClick={() => changeStatus("confirmado")}>Aceitar</Button>
+                 <Button size="sm" className="flex-1 text-xs h-8 rounded-lg" onClick={() => changeStatus("confirmado")}>Aceitar</Button>
                 <Button size="sm" variant="outline" className="text-xs h-8 rounded-lg" onClick={() => changeStatus("cancelado")}>Recusar</Button>
               </div>
             )}
             {order.status === "confirmado" && (
-              <Button size="sm" variant="outline" className="w-full text-xs h-8 rounded-lg gap-1.5" onClick={() => changeStatus("em_producao")}>
+                <Button size="sm" variant="outline" className="w-full text-xs h-8 rounded-lg gap-1.5 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary" onClick={() => changeStatus("em_producao")}>
                 <Package className="h-3.5 w-3.5" /> Iniciar Produção
               </Button>
             )}
             {order.status === "em_producao" && (
-              <Button size="sm" variant="outline" className="w-full text-xs h-8 rounded-lg gap-1.5" onClick={() => changeStatus("entregue")}>
+                <Button size="sm" variant="outline" className="w-full text-xs h-8 rounded-lg gap-1.5 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary" onClick={() => changeStatus("entregue")}>
                 <Truck className="h-3.5 w-3.5" /> Marcar como Entregue
               </Button>
             )}
@@ -163,7 +163,7 @@ export default function PartnerOrders() {
               </div>
             </div>
             <Tabs value={view} onValueChange={(v) => setView(v as any)}>
-              <TabsList className="rounded-full">
+              <TabsList className="rounded-full bg-primary/10">
                 <TabsTrigger value="kanban" className="rounded-full text-xs">Kanban</TabsTrigger>
                 <TabsTrigger value="lista" className="rounded-full text-xs">Lista</TabsTrigger>
               </TabsList>
@@ -181,7 +181,7 @@ export default function PartnerOrders() {
                 return (
                   <div key={col.key} className="space-y-3">
                     <div className={`flex items-center gap-2 p-3 rounded-xl bg-card border border-t-4 ${col.color}`}>
-                      <col.icon className="h-4 w-4 text-muted-foreground" />
+                      <col.icon className="h-4 w-4 text-primary" />
                       <span className="font-semibold text-sm">{col.label}</span>
                       <Badge variant="secondary" className="ml-auto text-[10px] h-5 min-w-5 flex items-center justify-center">
                         {colOrders.length}
