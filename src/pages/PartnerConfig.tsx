@@ -1,7 +1,8 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { PartnerSidebar } from "@/components/partner/PartnerSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, Store, Bell, Palette } from "lucide-react";
+import { Settings, Bell, Palette } from "lucide-react";
+import { PartnerCompanyDataCard } from "@/components/partner/PartnerCompanyDataCard";
 
 export default function PartnerConfig() {
   return (
@@ -18,18 +19,7 @@ export default function PartnerConfig() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Store className="h-5 w-5 text-primary" />
-                </div>
-                <CardTitle className="text-base">Dados da Empresa</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">Nome, logo e informações de contato da sua empresa parceira.</p>
-                <p className="text-xs text-muted-foreground/60 mt-2 italic">Em breve</p>
-              </CardContent>
-            </Card>
+            <PartnerCompanyDataCard />
 
             <Card>
               <CardHeader className="flex flex-row items-center gap-3 pb-2">
