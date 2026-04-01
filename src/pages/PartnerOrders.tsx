@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { PartnerSidebar } from "@/components/partner/PartnerSidebar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -153,9 +153,12 @@ export default function PartnerOrders() {
         <PartnerSidebar />
         <main className="flex-1 p-4 md:p-6 space-y-6 overflow-auto">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Pedidos</h1>
-              <p className="text-muted-foreground text-sm">{orders.length} pedidos</p>
+            <div className="flex items-center gap-2">
+              <SidebarTrigger className="md:hidden" />
+              <div>
+                <h1 className="text-2xl font-bold text-foreground">Pedidos</h1>
+                <p className="text-muted-foreground text-sm">{orders.length} pedidos</p>
+              </div>
             </div>
             <Tabs value={view} onValueChange={(v) => setView(v as any)}>
               <TabsList className="rounded-full">

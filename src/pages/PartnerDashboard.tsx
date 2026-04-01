@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Package, ShoppingCart, TrendingUp, Clock } from "lucide-react";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useNavigate } from "react-router-dom";
@@ -89,9 +90,12 @@ export default function PartnerDashboard() {
         <PartnerSidebar />
         <main className="flex-1 p-4 md:p-6 space-y-6 overflow-auto">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Painel do Parceiro</h1>
-              <p className="text-muted-foreground text-sm">Visão geral dos seus pedidos e catálogo</p>
+            <div className="flex items-center gap-2">
+              <SidebarTrigger className="md:hidden" />
+              <div>
+                <h1 className="text-2xl font-bold text-foreground">Painel do Parceiro</h1>
+                <p className="text-muted-foreground text-sm">Visão geral dos seus pedidos e catálogo</p>
+              </div>
             </div>
             <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 px-3 py-1">
               <Package className="h-3.5 w-3.5 mr-1.5" />

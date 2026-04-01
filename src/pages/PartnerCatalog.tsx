@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { PartnerSidebar } from "@/components/partner/PartnerSidebar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -110,9 +110,12 @@ export default function PartnerCatalog() {
         <PartnerSidebar />
         <main className="flex-1 p-4 md:p-6 space-y-6 overflow-auto">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Catálogo</h1>
-              <p className="text-muted-foreground text-sm">{filtered.length} produtos</p>
+            <div className="flex items-center gap-2">
+              <SidebarTrigger className="md:hidden" />
+              <div>
+                <h1 className="text-2xl font-bold text-foreground">Catálogo</h1>
+                <p className="text-muted-foreground text-sm">{filtered.length} produtos</p>
+              </div>
             </div>
             <Button className="gap-2 rounded-xl" onClick={() => { setEditingProduct(null); setFormOpen(true); }}>
               <Plus className="h-4 w-4" /> Novo Produto
