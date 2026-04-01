@@ -86,6 +86,7 @@ export default function PartnerDashboard() {
   };
 
   return (
+    <PartnerThemeProvider>
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
         <PartnerSidebar />
