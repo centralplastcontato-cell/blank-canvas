@@ -209,6 +209,7 @@ const App = () => (
               <Route path="/parceiro" element={<PartnerDashboard />} />
               <Route path="/parceiro/catalogo" element={<PartnerCatalog />} />
               <Route path="/parceiro/pedidos" element={<PartnerOrders />} />
+              <Route path="/parceiro/config" element={<PartnerConfig />} />
               {/* Public staff form */}
               <Route path="/equipe/:recordId" element={<PublicStaff />} />
               {/* Public maintenance form */}
