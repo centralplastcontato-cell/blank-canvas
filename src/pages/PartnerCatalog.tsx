@@ -119,7 +119,7 @@ export default function PartnerCatalog() {
                 <p className="text-muted-foreground text-sm">{filtered.length} produtos</p>
               </div>
             </div>
-            <Button className="gap-2 rounded-xl" onClick={() => { setEditingProduct(null); setFormOpen(true); }}>
+            <Button className="gap-2 rounded-xl shadow-sm" onClick={() => { setEditingProduct(null); setFormOpen(true); }}>
               <Plus className="h-4 w-4" /> Novo Produto
             </Button>
           </div>
@@ -145,7 +145,7 @@ export default function PartnerCatalog() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {filtered.map((item) => (
-                <Card key={item.id} className={`group hover:shadow-md transition-all ${!item.is_active ? "opacity-60" : ""}`}>
+                  <Card key={item.id} className={`group hover:shadow-md transition-all hover:border-primary/40 ${!item.is_active ? "opacity-60" : ""}`}>
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between mb-3">
                       <div className="h-14 w-14 rounded-xl bg-muted flex items-center justify-center text-2xl">
@@ -176,7 +176,7 @@ export default function PartnerCatalog() {
                     <h3 className="font-semibold text-sm text-foreground leading-tight">{item.name}</h3>
                     {item.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.description}</p>}
                     <div className="flex items-center justify-between mt-3">
-                      <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-muted/50">{item.category}</Badge>
+                      <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-primary/10 text-primary border-primary/20">{item.category}</Badge>
                       <span className="font-bold text-sm text-primary">
                         R$ {Number(item.price).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                       </span>
@@ -186,7 +186,7 @@ export default function PartnerCatalog() {
                 </Card>
               ))}
 
-              <Card className="border-dashed border-2 hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer group" onClick={() => { setEditingProduct(null); setFormOpen(true); }}>
+              <Card className="border-dashed border-2 hover:border-primary/60 hover:bg-primary/10 transition-all cursor-pointer group" onClick={() => { setEditingProduct(null); setFormOpen(true); }}>
                 <CardContent className="p-4 flex flex-col items-center justify-center h-full min-h-[180px]">
                   <div className="h-12 w-12 rounded-full bg-muted group-hover:bg-primary/10 flex items-center justify-center transition-colors">
                     <Plus className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
