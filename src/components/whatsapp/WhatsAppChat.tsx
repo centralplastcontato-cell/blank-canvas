@@ -1122,7 +1122,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
               });
               
               // Also update selected conversation if it matches
-              if (updatedConv.id === selectedConversation?.id) {
+              if (updatedConv.id === selectedConversationRef.current) {
                 setSelectedConversation(prev => prev ? { ...prev, ...updatedConv } : null);
               }
             }
