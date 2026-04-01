@@ -99,7 +99,7 @@ export default function PartnerDashboard() {
                 <p className="text-muted-foreground text-sm">Visão geral dos seus pedidos e catálogo</p>
               </div>
             </div>
-            <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 px-3 py-1">
+            <Badge variant="outline" className="border-primary/30 text-primary bg-primary/10 px-3 py-1">
               <Package className="h-3.5 w-3.5 mr-1.5" />
               Empresa Parceira
             </Badge>
@@ -113,58 +113,58 @@ export default function PartnerDashboard() {
               ))
             ) : (
               <>
-                <Card className="border-l-4 border-l-blue-500">
+                <Card className="border-l-4 border-l-primary">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs text-muted-foreground font-medium">Pedidos do Mês</p>
                         <p className="text-2xl font-bold text-foreground mt-1">{metrics.monthOrders}</p>
                       </div>
-                      <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center">
-                        <ShoppingCart className="h-5 w-5 text-blue-600" />
+                       <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                         <ShoppingCart className="h-5 w-5 text-primary" />
                       </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card className="border-l-4 border-l-emerald-500">
+                <Card className="border-l-4 border-l-primary/70">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs text-muted-foreground font-medium">Faturamento</p>
                         <p className="text-2xl font-bold text-foreground mt-1">{formatCurrency(metrics.revenue)}</p>
                       </div>
-                      <div className="h-10 w-10 rounded-xl bg-emerald-50 flex items-center justify-center">
-                        <TrendingUp className="h-5 w-5 text-emerald-600" />
+                       <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                         <TrendingUp className="h-5 w-5 text-primary" />
                       </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card className="border-l-4 border-l-amber-500">
+                <Card className="border-l-4 border-l-primary/50">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs text-muted-foreground font-medium">Pendentes</p>
                         <p className="text-2xl font-bold text-foreground mt-1">{metrics.pending}</p>
                       </div>
-                      <div className="h-10 w-10 rounded-xl bg-amber-50 flex items-center justify-center">
-                        <Clock className="h-5 w-5 text-amber-600" />
+                       <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                         <Clock className="h-5 w-5 text-primary" />
                       </div>
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">Aguardando confirmação</p>
                   </CardContent>
                 </Card>
 
-                <Card className="border-l-4 border-l-purple-500">
+                <Card className="border-l-4 border-l-primary/40">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs text-muted-foreground font-medium">Itens no Catálogo</p>
                         <p className="text-2xl font-bold text-foreground mt-1">{productCount}</p>
                       </div>
-                      <div className="h-10 w-10 rounded-xl bg-purple-50 flex items-center justify-center">
-                        <Package className="h-5 w-5 text-purple-600" />
+                       <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                         <Package className="h-5 w-5 text-primary" />
                       </div>
                     </div>
                   </CardContent>
