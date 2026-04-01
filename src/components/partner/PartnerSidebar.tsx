@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
+import { useCompany } from "@/contexts/CompanyContext";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const menuItems = [
   { title: "Painel", url: "/parceiro", icon: LayoutDashboard },
@@ -29,17 +31,25 @@ export function PartnerSidebar() {
   const { state } = useSidebar();
   const navigate = useNavigate();
   const collapsed = state === "collapsed";
+  const { currentCompany } = useCompany();
+
+  const companyName = currentCompany?.name || "Empresa Parceira";
+  const logoUrl = currentCompany?.logo_url || "";
+  const initials = companyName.slice(0, 2).toUpperCase();
 
   return (
     <Sidebar collapsible="icon" className="border-r">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-orange-500 to-rose-500 flex items-center justify-center flex-shrink-0">
-            <Store className="h-5 w-5 text-white" />
-          </div>
+          <Avatar className="h-9 w-9 rounded-xl flex-shrink-0" style={{ backgroundColor: "var(--partner-brand, #3b82f6)" }}>
+            <AvatarImage src={logoUrl} alt={companyName} className="rounded-xl object-cover" />
+            <AvatarFallback className="rounded-xl text-white text-xs font-bold" style={{ backgroundColor: "var(--partner-brand, #3b82f6)" }}>
+              {initials}
+            </AvatarFallback>
+          </Avatar>
           {!collapsed && (
             <div className="min-w-0">
-              <p className="font-bold text-sm text-sidebar-foreground truncate">Doces da Ana</p>
+              <p className="font-bold text-sm text-sidebar-foreground truncate">{companyName}</p>
               <p className="text-[10px] text-sidebar-foreground/60">Empresa Parceira</p>
             </div>
           )}
@@ -57,12 +67,13 @@ export function PartnerSidebar() {
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
+                <SidebarMenuButton asChild>
                     <NavLink
                       to={item.url}
                       end={item.url === "/parceiro"}
                       className="hover:bg-sidebar-accent/50 rounded-lg transition-colors"
-                      activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                      activeClassName="font-medium"
+                      activeStyle={{ backgroundColor: "var(--partner-brand, hsl(var(--sidebar-accent)))", color: "#fff" }}
                     >
                       <item.icon className="h-4 w-4 mr-2 flex-shrink-0" />
                       {!collapsed && <span className="text-sm">{item.title}</span>}

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { PartnerThemeProvider } from "@/components/partner/PartnerThemeProvider";
 import { PartnerSidebar } from "@/components/partner/PartnerSidebar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -105,6 +106,7 @@ export default function PartnerCatalog() {
   };
 
   return (
+    <PartnerThemeProvider>
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
         <PartnerSidebar />
@@ -222,5 +224,6 @@ export default function PartnerCatalog() {
         </main>
       </div>
     </SidebarProvider>
+    </PartnerThemeProvider>
   );
 }
