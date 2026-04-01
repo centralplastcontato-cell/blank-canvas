@@ -16,7 +16,7 @@ import { toast } from "@/hooks/use-toast";
 import { 
   ClipboardList, Users, Shield, Loader2, Crown, Building2, MapPin, 
   MessageCircle, Settings, BarChart3, Briefcase, Plus, Pencil, Trash2, Save,
-  Calendar, Megaphone, GraduationCap, Eye, DollarSign
+  Calendar, Megaphone, GraduationCap, Eye, DollarSign, Handshake
 } from "lucide-react";
 import { useCompanyModules, CompanyModules } from "@/hooks/useCompanyModules";
 
@@ -55,6 +55,7 @@ const categoryIcons: Record<string, React.ElementType> = {
   Campanhas: Megaphone,
   Treinamento: GraduationCap,
   Financeiro: DollarSign,
+  'Empresa Parceira': Handshake,
 };
 
 const iconOptions: Record<string, React.ElementType> = {
@@ -88,6 +89,7 @@ const categoryToModule: Record<string, keyof CompanyModules> = {
   Visitas: 'agenda',
   Campanhas: 'campanhas',
   Treinamento: 'treinamento',
+  'Empresa Parceira': 'empresa_parceira',
 };
 
 export function PermissionsPanel({
