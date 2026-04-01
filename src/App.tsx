@@ -122,6 +122,7 @@ const Financeiro = lazy(lazyImports["/financeiro"]);
 const PartnerDashboard = lazy(lazyImports["/parceiro"]);
 const PartnerCatalog = lazy(lazyImports["/parceiro/catalogo"]);
 const PartnerOrders = lazy(lazyImports["/parceiro/pedidos"]);
+const PartnerConfig = lazy(lazyImports["/parceiro/config"]);
 const PublicPartyControl = lazy(() => import("./pages/PublicPartyControl"));
 const PublicClientData = lazy(() => import("./pages/PublicClientData"));
 
