@@ -998,8 +998,8 @@ export default function Visitas() {
                   <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground">Agenda de Visitas</h1>
                   <p className="text-sm text-muted-foreground/70 mt-0.5">Gerencie visitas e acompanhamentos</p>
                 </div>
-                <Button variant="outline" size="sm" className="gap-1 shrink-0" onClick={() => setReportOpen(true)} title="Gerar Relatório">
-                  <FileText className="h-4 w-4" /> <span className="hidden sm:inline">Relatório</span>
+                <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={() => setReportOpen(true)} title="Gerar Relatório">
+                  <FileText className="h-4 w-4" />
                 </Button>
               </div>
             </div>
