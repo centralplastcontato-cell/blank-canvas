@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { PartnerThemeProvider } from "@/components/partner/PartnerThemeProvider";
 import { PartnerSidebar } from "@/components/partner/PartnerSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
