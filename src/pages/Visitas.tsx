@@ -966,7 +966,7 @@ export default function Visitas() {
                 {headerContent}
               </div>
             </div>
-            <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={() => setReportOpen(true)} title="Gerar Relatório">
+            <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 border-blue-300 text-blue-600 hover:bg-blue-50" onClick={() => setReportOpen(true)} title="Gerar Relatório">
               <FileText className="h-4 w-4" />
             </Button>
           </div>
@@ -1008,7 +1008,7 @@ export default function Visitas() {
                 <Button
                   variant="outline"
                   size="icon"
-                  className="absolute right-4 top-1/2 h-9 w-9 shrink-0 -translate-y-1/2 md:static md:translate-y-0"
+                  className="absolute right-4 top-1/2 h-9 w-9 shrink-0 -translate-y-1/2 md:static md:translate-y-0 border-blue-300 text-blue-600 hover:bg-blue-50"
                   onClick={() => setReportOpen(true)}
                   title="Gerar Relatório"
                 >

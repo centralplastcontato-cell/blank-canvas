@@ -224,7 +224,7 @@ export default function Inteligencia() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => setReportOpen(true)} title="Gerar Relatório Comercial">
+                  <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 border-blue-300 text-blue-600 hover:bg-blue-50" onClick={() => setReportOpen(true)} title="Gerar Relatório Comercial">
                     <FileText className="h-4 w-4" />
                   </Button>
                   <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate("/admin")}>
@@ -266,7 +266,7 @@ export default function Inteligencia() {
                     </SelectContent>
                   </Select>
                 )}
-                <Button variant="outline" size="icon" className="shrink-0 h-10 w-10" onClick={() => setReportOpen(true)} title="Gerar Relatório Comercial">
+                <Button variant="outline" size="icon" className="shrink-0 h-10 w-10 border-blue-300 text-blue-600 hover:bg-blue-50" onClick={() => setReportOpen(true)} title="Gerar Relatório Comercial">
                   <FileText className="h-5 w-5" />
                 </Button>
                 <Dialog>
