@@ -1051,8 +1051,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         fetchConversations();
       }
 
-      // Optimized: Use debounced realtime with smarter notifications
-      let debounceTimer: NodeJS.Timeout | null = null;
+      // Realtime channel for conversation updates
       
       const conversationsChannel = supabase
         .channel(`wapi_conversations_optimized_${selectedInstance.id}`)
