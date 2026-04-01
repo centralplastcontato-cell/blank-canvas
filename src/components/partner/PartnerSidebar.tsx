@@ -33,8 +33,9 @@ export function PartnerSidebar() {
   const collapsed = state === "collapsed";
   const { currentCompany } = useCompany();
 
-  const companyName = currentCompany?.name || "Empresa Parceira";
-  const logoUrl = currentCompany?.logo_url || "";
+  const settings = (currentCompany?.settings || {}) as Record<string, any>;
+  const companyName = settings.partner_display_name || currentCompany?.name || "Empresa Parceira";
+  const logoUrl = settings.partner_logo_url || currentCompany?.logo_url || "";
   const initials = companyName.slice(0, 2).toUpperCase();
 
   return (

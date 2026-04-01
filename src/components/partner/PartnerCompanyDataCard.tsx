@@ -9,6 +9,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { toast } from "sonner";
 
+/**
+ * Partner company data card.
+ * IMPORTANT: Partner display name and logo are stored in company settings
+ * (partner_display_name, partner_logo_url) — NOT in the main companies.name/logo_url
+ * fields, which are used by the bot and customer-facing messages.
+ */
 export function PartnerCompanyDataCard() {
   const { currentCompany, refreshCompanies } = useCompany();
   const [isEditing, setIsEditing] = useState(false);
@@ -19,12 +25,18 @@ export function PartnerCompanyDataCard() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
+  const settings = (currentCompany?.settings || {}) as Record<string, any>;
+
+  // Read partner-specific display name/logo from settings, fallback to company fields
+  const partnerDisplayName = settings.partner_display_name || currentCompany?.name || "";
+  const partnerLogoUrl = settings.partner_logo_url || currentCompany?.logo_url || "";
+
   useEffect(() => {
     if (currentCompany) {
-      setName(currentCompany.name || "");
-      setLogoUrl(currentCompany.logo_url || "");
+      setName(partnerDisplayName);
+      setLogoUrl(partnerLogoUrl);
     }
-  }, [currentCompany]);
+  }, [currentCompany, partnerDisplayName, partnerLogoUrl]);
 
   const handleImageUpload = async (file: File) => {
     if (!file || !currentCompany) return;
@@ -36,7 +48,7 @@ export function PartnerCompanyDataCard() {
     setIsUploading(true);
     try {
       const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-      const fileName = `${currentCompany.id}/logo.${ext}`;
+      const fileName = `${currentCompany.id}/partner-logo.${ext}`;
 
       const { error: uploadError } = await supabase.storage
         .from("company-logos")
@@ -68,9 +80,16 @@ export function PartnerCompanyDataCard() {
     if (!currentCompany || !name.trim()) return;
     setIsSaving(true);
     try {
+      // Save partner name/logo in settings — do NOT overwrite companies.name
+      const updatedSettings = {
+        ...settings,
+        partner_display_name: name.trim(),
+        partner_logo_url: logoUrl || null,
+      };
+
       const { error } = await supabase
         .from("companies")
-        .update({ name: name.trim(), logo_url: logoUrl || null })
+        .update({ settings: updatedSettings })
         .eq("id", currentCompany.id);
 
       if (error) throw error;
@@ -86,12 +105,12 @@ export function PartnerCompanyDataCard() {
   };
 
   const handleCancel = () => {
-    setName(currentCompany?.name || "");
-    setLogoUrl(currentCompany?.logo_url || "");
+    setName(partnerDisplayName);
+    setLogoUrl(partnerLogoUrl);
     setIsEditing(false);
   };
 
-  const initials = (currentCompany?.name || "P").slice(0, 2).toUpperCase();
+  const initials = (partnerDisplayName || "P").slice(0, 2).toUpperCase();
 
   return (
     <Card>
@@ -100,7 +119,7 @@ export function PartnerCompanyDataCard() {
           <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
             <Store className="h-5 w-5 text-primary" />
           </div>
-          <CardTitle className="text-base">Dados da Empresa</CardTitle>
+          <CardTitle className="text-base">Dados da Empresa Parceira</CardTitle>
         </div>
         {!isEditing && (
           <Button variant="ghost" size="icon" onClick={() => setIsEditing(true)}>
@@ -158,11 +177,11 @@ export function PartnerCompanyDataCard() {
 
         {/* Name */}
         <div>
-          <Label className="text-xs text-muted-foreground">Nome da Empresa</Label>
+          <Label className="text-xs text-muted-foreground">Nome de Exibição do Parceiro</Label>
           {isEditing ? (
             <Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" />
           ) : (
-            <p className="text-sm font-medium mt-1">{currentCompany?.name || "—"}</p>
+            <p className="text-sm font-medium mt-1">{partnerDisplayName || "—"}</p>
           )}
         </div>
 
