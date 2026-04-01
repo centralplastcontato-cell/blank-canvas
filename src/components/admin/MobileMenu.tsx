@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { 
-  Headset, 
-  Settings, 
-  Users, 
-  RefreshCw, 
-  LogOut, 
+import {
+  Headset,
+  Settings,
+  Users,
+  RefreshCw,
+  LogOut,
   Building2,
   Brain,
   CalendarDays,
@@ -16,6 +16,7 @@ import {
   MapPin,
   FileSignature,
   DollarSign,
+  Handshake,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,12 +30,11 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
 
-
 interface MobileMenuProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   trigger: React.ReactNode;
-  currentPage: "atendimento" | "configuracoes" | "users" | "whatsapp" | "inteligencia" | "agenda" | "avaliacoes" | "prefesta" | "formularios" | "perfil" | "treinamento" | "financeiro";
+  currentPage: "atendimento" | "configuracoes" | "users" | "whatsapp" | "inteligencia" | "agenda" | "avaliacoes" | "prefesta" | "formularios" | "perfil" | "treinamento" | "financeiro" | "parceiro";
   userName: string;
   userEmail: string;
   userAvatar?: string | null;
@@ -71,7 +71,6 @@ export function MobileMenu({
   const navigate = useNavigate();
   const modules = useCompanyModules();
 
-  // Check financial.view permission for current user
   const [finViewAllowed, setFinViewAllowed] = useState(true);
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -173,6 +172,13 @@ export function MobileMenu({
       icon: GraduationCap,
       path: "/treinamento",
       show: !!modules.treinamento,
+    },
+    {
+      id: "parceiro",
+      label: "Empresa Parceira",
+      icon: Handshake,
+      path: "/parceiro",
+      show: !!modules.empresa_parceira,
     },
   ];
 
