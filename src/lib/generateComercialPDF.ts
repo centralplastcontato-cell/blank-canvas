@@ -226,11 +226,6 @@ export function generateComercialXLSX(params: ComercialReportParams) {
 
   // Summary
   const novos = periodLeads.length;
-  const events = params.events || [];
-  const fechadosNoPeriodo = events.filter(e => {
-    const dt = e.data_fechamento_venda?.slice(0, 10);
-    return dt && dt >= params.from && dt <= params.to && e.status !== 'cancelado';
-  });
   const fechados = fechadosNoPeriodo.length;
   const faturamento = fechadosNoPeriodo.reduce((sum, e) => sum + (e.total_value || 0), 0);
   const summaryRows = [
