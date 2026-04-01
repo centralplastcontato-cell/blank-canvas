@@ -1511,6 +1511,11 @@ export default function Agenda() {
                                   R$ {ev.total_value.toLocaleString("pt-BR")}
                                 </span>
                               )}
+                              {ev.is_permuta && (
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-500/40 text-amber-600 bg-amber-500/10">
+                                  Permuta
+                                </Badge>
+                              )}
                             </div>
                             {conflicts.length > 0 && (
                               <div className="flex items-center gap-1 text-xs text-destructive font-medium mt-1.5">
