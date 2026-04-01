@@ -1151,11 +1151,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
               }
             }
             
-            // Reduced debounce for full refresh - only as safety net
-            if (debounceTimer) clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => {
-              fetchConversations(undefined, true);
-            }, 5000);
+            // Safety net: no full refresh on every realtime event.
+            // Inline updates above handle all cases. Full refresh removed
+            // to prevent race conditions that switch the active conversation.
           }
         )
         .subscribe();
