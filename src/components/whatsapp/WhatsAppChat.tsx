@@ -1021,6 +1021,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [initialPhoneProcessed, setInitialPhoneProcessed] = useState(false);
   const [draftApplied, setDraftApplied] = useState(false);
 
+  // Ref to track selected conversation ID inside realtime callbacks without re-triggering the effect
+  const selectedConversationRef = useRef<string | null>(null);
+  selectedConversationRef.current = selectedConversation?.id ?? null;
+
   // Apply initialDraft to message input when conversation is selected
   useEffect(() => {
     if (initialDraft && selectedConversation && !draftApplied) {
