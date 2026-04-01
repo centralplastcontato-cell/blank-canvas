@@ -1075,7 +1075,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
               if (
                 newData.unread_count > (oldData.unread_count || 0) && 
                 !newData.last_message_from_me &&
-                newData.id !== selectedConversation?.id
+                newData.id !== selectedConversationRef.current
               ) {
                 notify({
                   title: newData.contact_name || newData.contact_phone,
