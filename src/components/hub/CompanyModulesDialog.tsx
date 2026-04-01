@@ -48,7 +48,7 @@ const MODULE_GROUPS: { label: string; icon: React.ReactNode; keys: (keyof Compan
   {
     label: 'Outros',
     icon: <GraduationCap className="h-3.5 w-3.5 text-teal-500" />,
-    keys: ['treinamento', 'onboarding_checklist'],
+    keys: ['treinamento', 'onboarding_checklist', 'empresa_parceira'],
   },
 ];
 
