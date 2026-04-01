@@ -93,6 +93,7 @@ const HubSuporte = lazy(lazyImports["/hub/suporte"]);
 const HubMateriais = lazy(lazyImports["/hub/materiais"]);
 const HubRecruitment = lazy(lazyImports["/hub/recrutamento"]);
 const HubFuncionalidades = lazy(lazyImports["/hub/funcionalidades"]);
+const HubBackups = lazy(lazyImports["/hub/backups"]);
 const Treinamento = lazy(lazyImports["/treinamento"]);
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const Inteligencia = lazy(lazyImports["/inteligencia"]);
