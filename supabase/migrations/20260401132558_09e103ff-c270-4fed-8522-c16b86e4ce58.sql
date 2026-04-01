@@ -1,0 +1,1 @@
+ALTER TABLE public.company_events ADD COLUMN is_permuta boolean NOT NULL DEFAULT false;
