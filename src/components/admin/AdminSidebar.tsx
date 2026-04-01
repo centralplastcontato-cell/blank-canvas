@@ -85,6 +85,7 @@ export function AdminSidebar({
     ...(canManageUsers ? [{ title: "Gerenciar Usuários", url: "/users", icon: Users }] : []),
     ...(isAdmin ? [{ title: "Empresas", url: "/hub/empresas", icon: Building2 }] : []),
     ...(modules.treinamento ? [{ title: "Treinamento", url: "/treinamento", icon: GraduationCap }] : []),
+    ...(modules.empresa_parceira ? [{ title: "Empresa Parceira", url: "/parceiro", icon: Handshake }] : []),
   ];
 
   // Detect touch device to prevent hover-expand flicker
