@@ -1021,6 +1021,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [initialPhoneProcessed, setInitialPhoneProcessed] = useState(false);
   const [draftApplied, setDraftApplied] = useState(false);
 
+  // Ref to track selected conversation ID inside realtime callbacks without re-triggering the effect
+  const selectedConversationRef = useRef<string | null>(null);
+  selectedConversationRef.current = selectedConversation?.id ?? null;
+
   // Apply initialDraft to message input when conversation is selected
   useEffect(() => {
     if (initialDraft && selectedConversation && !draftApplied) {
@@ -1047,8 +1051,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         fetchConversations();
       }
 
-      // Optimized: Use debounced realtime with smarter notifications
-      let debounceTimer: NodeJS.Timeout | null = null;
+      // Realtime channel for conversation updates
       
       const conversationsChannel = supabase
         .channel(`wapi_conversations_optimized_${selectedInstance.id}`)
@@ -1071,7 +1074,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
               if (
                 newData.unread_count > (oldData.unread_count || 0) && 
                 !newData.last_message_from_me &&
-                newData.id !== selectedConversation?.id
+                newData.id !== selectedConversationRef.current
               ) {
                 notify({
                   title: newData.contact_name || newData.contact_phone,
@@ -1118,7 +1121,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
               });
               
               // Also update selected conversation if it matches
-              if (updatedConv.id === selectedConversation?.id) {
+              if (updatedConv.id === selectedConversationRef.current) {
                 setSelectedConversation(prev => prev ? { ...prev, ...updatedConv } : null);
               }
             }
@@ -1147,21 +1150,18 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
               }
             }
             
-            // Reduced debounce for full refresh - only as safety net
-            if (debounceTimer) clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => {
-              fetchConversations(undefined, true);
-            }, 5000);
+            // Safety net: no full refresh on every realtime event.
+            // Inline updates above handle all cases. Full refresh removed
+            // to prevent race conditions that switch the active conversation.
           }
         )
         .subscribe();
 
       return () => {
-        if (debounceTimer) clearTimeout(debounceTimer);
         supabase.removeChannel(conversationsChannel);
       };
     }
-  }, [selectedInstance, selectedConversation?.id, notify, initialPhone, initialPhoneProcessed]);
+  }, [selectedInstance, notify, initialPhone, initialPhoneProcessed]);
 
   // Track if at bottom using ref for realtime callback access
   const isAtBottomRef = useRef(true);
