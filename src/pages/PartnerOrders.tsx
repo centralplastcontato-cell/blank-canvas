@@ -83,8 +83,8 @@ function OrderCard({ order, onStatusChange }: { order: Order; onStatusChange: (i
         )}
 
         {order.notes && (
-          <div className="bg-amber-50 border border-amber-100 rounded-lg p-2">
-            <p className="text-[10px] text-amber-700">{order.notes}</p>
+          <div className="bg-primary/10 border border-primary/20 rounded-lg p-2">
+            <p className="text-[10px] text-primary">{order.notes}</p>
           </div>
         )}
 
