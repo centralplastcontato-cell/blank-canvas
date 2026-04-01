@@ -172,6 +172,7 @@ export function parseModules(settings: Json | null | undefined): CompanyModules 
     // --- Outros ---
     treinamento: modules.treinamento !== false,
     onboarding_checklist: modules.onboarding_checklist === true,
+    empresa_parceira: modules.empresa_parceira === true,
   };
 }
 
