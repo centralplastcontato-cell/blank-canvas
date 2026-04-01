@@ -116,6 +116,12 @@ export function generateComercialPDF(params: ComercialReportParams) {
   const taxaConversao = novos > 0 ? ((fechados / novos) * 100).toFixed(1) : '0';
   const faturamentoFechado = fechadosNoPeriodo.reduce((sum, e) => sum + (e.total_value || 0), 0);
 
+  // Build comprehensive lead set: created in period + leads linked to closings in period
+  const closedLeadIds = new Set(fechadosNoPeriodo.map(e => e.lead_id).filter(Boolean));
+  const periodLeadIds = new Set(periodLeads.map(l => l.id));
+  const closedLeadsNotInPeriod = params.leads.filter(l => closedLeadIds.has(l.id) && !periodLeadIds.has(l.id));
+  const allRelevantLeads = [...periodLeads, ...closedLeadsNotInPeriod];
+
   // KPI cards
   const fmtCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 });
   const kpis = [
@@ -134,36 +140,44 @@ export function generateComercialPDF(params: ComercialReportParams) {
   });
   y += 22;
 
-  // Funnel — leads created in the period only
+  // Funnel — all relevant leads (created in period + closed in period)
   doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.text('Funil de Vendas (Leads do Período)', 14, y); y += 5;
   const funnelData = FUNNEL_ORDER
-    .map((status, i) => ({ label: STATUS_LABELS[status] || status, value: periodLeads.filter(l => l.status === status).length, color: CHART_COLORS[i % CHART_COLORS.length] }))
+    .map((status, i) => ({ label: STATUS_LABELS[status] || status, value: allRelevantLeads.filter(l => l.status === status).length, color: CHART_COLORS[i % CHART_COLORS.length] }))
     .filter(d => d.value > 0);
-  drawFunnel(doc, 14, y, doc.internal.pageSize.getWidth() - 28, funnelData);
-  y += funnelData.length * 14 + 10;
+  if (funnelData.length > 0) {
+    drawFunnel(doc, 14, y, doc.internal.pageSize.getWidth() - 28, funnelData);
+    y += funnelData.length * 14 + 10;
+  } else {
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(120);
+    doc.text('Nenhum lead no período selecionado.', 14, y + 5);
+    doc.setTextColor(0);
+    y += 15;
+  }
 
-  // Table: period leads
+  // Table: all relevant leads
   if (y + 30 > doc.internal.pageSize.getHeight() - 20) { doc.addPage(); y = 20; }
-  const sorted = [...periodLeads].sort((a, b) => a.created_at.localeCompare(b.created_at));
-  autoTable(doc, {
-    startY: y,
-    head: [['Data', 'Nome', 'WhatsApp', 'Status', 'Unidade', 'Mês Int.', 'Convid.']],
-    body: sorted.map(l => [
-      fmtDate(l.created_at), l.name, l.whatsapp,
-      STATUS_LABELS[l.status] || l.status, l.unit || '—',
-      l.month || '—', l.guests || '—',
-    ]),
-    styles: { fontSize: 8, cellPadding: 2 },
-    headStyles: { fillColor: [30, 30, 30], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
-    alternateRowStyles: { fillColor: [248, 249, 252] },
-    margin: { left: 14, right: 14 },
-  });
-
-  y = (doc as any).lastAutoTable.finalY + 10;
+  const sorted = [...allRelevantLeads].sort((a, b) => a.created_at.localeCompare(b.created_at));
+  if (sorted.length > 0) {
+    autoTable(doc, {
+      startY: y,
+      head: [['Data', 'Nome', 'WhatsApp', 'Status', 'Unidade', 'Mês Int.', 'Convid.']],
+      body: sorted.map(l => [
+        fmtDate(l.created_at), l.name, l.whatsapp,
+        STATUS_LABELS[l.status] || l.status, l.unit || '—',
+        l.month || '—', l.guests || '—',
+      ]),
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [30, 30, 30], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+      alternateRowStyles: { fillColor: [248, 249, 252] },
+      margin: { left: 14, right: 14 },
+    });
+    y = (doc as any).lastAutoTable.finalY + 10;
+  }
 
   // Chart: by unit
   const byUnit = new Map<string, number>();
-  periodLeads.forEach(l => { const u = l.unit || 'Sem unidade'; byUnit.set(u, (byUnit.get(u) || 0) + 1); });
+  allRelevantLeads.forEach(l => { const u = l.unit || 'Sem unidade'; byUnit.set(u, (byUnit.get(u) || 0) + 1); });
   if (byUnit.size > 1) {
     if (y + 60 > doc.internal.pageSize.getHeight() - 20) { doc.addPage(); y = 20; }
     doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.text('Leads por Unidade', 14, y); y += 5;
