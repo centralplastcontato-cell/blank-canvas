@@ -62,6 +62,7 @@ interface CompanyEvent {
   parent_names?: string | null;
   gifts?: string | null;
   extra_guest_value?: number | null;
+  is_permuta?: boolean;
 }
 
 const normalizeTimeValue = (value?: string | null) => {
@@ -125,6 +126,7 @@ const mapEventToFormData = (ev: CompanyEvent): EventFormData => ({
   parent_names: ev.parent_names || null,
   gifts: ev.gifts || null,
   extra_guest_value: ev.extra_guest_value ?? null,
+  is_permuta: ev.is_permuta || false,
 });
 
 export default function Agenda() {
@@ -361,7 +363,7 @@ export default function Agenda() {
     });
 
     const count = enriched.length;
-    const revenue = enriched.reduce((sum, e) => sum + (e.total_value || 0), 0);
+    const revenue = enriched.filter(e => !e.is_permuta).reduce((sum, e) => sum + (e.total_value || 0), 0);
     return { count, revenue, events: enriched };
   }, [currentCompany?.id, canViewAll, allowedUnits]);
 
@@ -578,6 +580,7 @@ export default function Agenda() {
       parent_names: data.parent_names || null,
       gifts: data.gifts || null,
       extra_guest_value: data.extra_guest_value,
+      is_permuta: data.is_permuta || false,
     };
     if (data.payment_details) {
       payload.payment_details = data.payment_details;
@@ -1507,6 +1510,11 @@ export default function Agenda() {
                                   <DollarSign className="h-3 w-3" />
                                   R$ {ev.total_value.toLocaleString("pt-BR")}
                                 </span>
+                              )}
+                              {ev.is_permuta && (
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-500/40 text-amber-600 bg-amber-500/10">
+                                  Permuta
+                                </Badge>
                               )}
                             </div>
                             {conflicts.length > 0 && (

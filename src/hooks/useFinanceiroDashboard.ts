@@ -18,6 +18,7 @@ export interface EnrichedPayment {
   event_date: string;
   event_type: string;
   unit: string;
+  is_permuta: boolean;
 }
 
 export interface Expense {
@@ -189,12 +190,12 @@ export function useFinanceiroDashboard() {
       // Enrich payments with event + lead data
       const eventIds = [...new Set(rawPayments.map((p: any) => p.event_id))];
 
-      let eventsMap: Record<string, { title: string; lead_name: string; event_date: string; event_type: string; unit: string }> = {};
+      let eventsMap: Record<string, { title: string; lead_name: string; event_date: string; event_type: string; unit: string; is_permuta: boolean }> = {};
 
       if (eventIds.length > 0) {
         const { data: events } = await supabase
           .from('company_events')
-          .select('id, title, lead_id, event_date, event_type, unit')
+          .select('id, title, lead_id, event_date, event_type, unit, is_permuta')
           .in('id', eventIds);
 
         if (events) {
@@ -213,6 +214,7 @@ export function useFinanceiroDashboard() {
             event_date: e.event_date,
             event_type: e.event_type || '',
             unit: e.unit || '',
+            is_permuta: e.is_permuta || false,
           }]));
         }
       }
@@ -232,6 +234,7 @@ export function useFinanceiroDashboard() {
         event_date: eventsMap[p.event_id]?.event_date || '',
         event_type: eventsMap[p.event_id]?.event_type || '',
         unit: eventsMap[p.event_id]?.unit || '',
+        is_permuta: eventsMap[p.event_id]?.is_permuta || false,
       }));
 
       setPayments(enriched);
@@ -273,14 +276,16 @@ export function useFinanceiroDashboard() {
     });
   }, [expenses, filters.status]);
 
-  // Aggregations using from/to range
-  const paidThisMonth = filteredPayments.filter(p => p.status === 'paid' && p.paid_at && p.paid_at.slice(0, 10) >= periodFrom && p.paid_at.slice(0, 10) <= periodTo);
+  // Aggregations using from/to range — exclude permuta from financial totals
+  const nonPermutaPayments = filteredPayments.filter(p => !p.is_permuta);
+
+  const paidThisMonth = nonPermutaPayments.filter(p => p.status === 'paid' && p.paid_at && p.paid_at.slice(0, 10) >= periodFrom && p.paid_at.slice(0, 10) <= periodTo);
   const totalReceivedMonth = paidThisMonth.reduce((s, p) => s + p.amount, 0);
 
-  const pendingThisMonth = filteredPayments.filter(p => p.status === 'pending' && p.due_date >= periodFrom && p.due_date <= periodTo);
+  const pendingThisMonth = nonPermutaPayments.filter(p => p.status === 'pending' && p.due_date >= periodFrom && p.due_date <= periodTo);
   const totalPendingMonth = pendingThisMonth.reduce((s, p) => s + p.amount, 0);
 
-  const latePayments = filteredPayments.filter(p => p.status === 'late').sort((a, b) => a.due_date.localeCompare(b.due_date));
+  const latePayments = nonPermutaPayments.filter(p => p.status === 'late').sort((a, b) => a.due_date.localeCompare(b.due_date));
   const totalLate = latePayments.reduce((s, p) => s + p.amount, 0);
 
   const expensesThisMonth = filteredExpenses.filter(e => e.expense_date >= periodFrom && e.expense_date <= periodTo);

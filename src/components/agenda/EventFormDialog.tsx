@@ -5,10 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Loader2, Search, X, UserCheck, ListChecks, User, CalendarDays, PartyPopper, Briefcase, CalendarIcon, AlertTriangle, CreditCard, Handshake, Copy, ExternalLink, Clock, CheckCircle2, Send, PenLine, Baby, Gift, FileSignature } from "lucide-react";
+import { Loader2, Search, X, UserCheck, ListChecks, User, CalendarDays, PartyPopper, Briefcase, CalendarIcon, AlertTriangle, CreditCard, Handshake, Copy, ExternalLink, Clock, CheckCircle2, Send, PenLine, Baby, Gift, FileSignature, Repeat } from "lucide-react";
 import { ManualClientDataForm } from "./ManualClientDataForm";
 import { EventContractDialog } from "@/components/contracts/EventContractDialog";
 import { format } from "date-fns";
@@ -64,6 +65,7 @@ export interface EventFormData {
   parent_names?: string | null;
   gifts?: string | null;
   extra_guest_value?: number | null;
+  is_permuta?: boolean;
 }
 
 const PAYMENT_METHODS = [
@@ -181,6 +183,7 @@ const EMPTY: EventFormData = {
   parent_names: null,
   gifts: null,
   extra_guest_value: null,
+  is_permuta: false,
 };
 
 function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
@@ -1233,6 +1236,23 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+
+            {/* Permuta toggle */}
+            <div className="mt-5 pt-5 border-t border-border/40">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Repeat className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <Label className="text-sm font-medium">Permuta</Label>
+                    <p className="text-[11px] text-muted-foreground">Evento não contabiliza valores no caixa financeiro</p>
+                  </div>
+                </div>
+                <Switch
+                  checked={form.is_permuta || false}
+                  onCheckedChange={(checked) => setForm({ ...form, is_permuta: checked })}
+                />
               </div>
             </div>
 
