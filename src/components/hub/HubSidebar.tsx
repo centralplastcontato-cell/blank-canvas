@@ -33,6 +33,7 @@ const hubMenuItems = [
   { title: "Materiais", url: "/hub/materiais", icon: Package },
   { title: "Recrutamento", url: "/hub/recrutamento", icon: UserSearch },
   { title: "Funcionalidades", url: "/hub/funcionalidades", icon: BookOpen },
+  { title: "Backups", url: "/hub/backups", icon: Database },
   { title: "Suporte", url: "/hub/suporte", icon: Headset },
 ];
 
