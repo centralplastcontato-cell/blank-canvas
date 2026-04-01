@@ -41,9 +41,9 @@ export function PartnerSidebar() {
     <Sidebar collapsible="icon" className="border-r">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-          <Avatar className="h-9 w-9 rounded-xl flex-shrink-0" style={{ backgroundColor: "var(--partner-brand, #3b82f6)" }}>
+          <Avatar className="h-9 w-9 rounded-xl flex-shrink-0 bg-primary shadow-sm">
             <AvatarImage src={logoUrl} alt={companyName} className="rounded-xl object-cover" />
-            <AvatarFallback className="rounded-xl text-white text-xs font-bold" style={{ backgroundColor: "var(--partner-brand, #3b82f6)" }}>
+            <AvatarFallback className="rounded-xl bg-primary text-primary-foreground text-xs font-bold">
               {initials}
             </AvatarFallback>
           </Avatar>
@@ -71,9 +71,9 @@ export function PartnerSidebar() {
                     <NavLink
                       to={item.url}
                       end={item.url === "/parceiro"}
-                      className="hover:bg-sidebar-accent/50 rounded-lg transition-colors"
+                      className="hover:bg-sidebar-accent rounded-lg transition-colors"
                       activeClassName="font-medium"
-                      activeStyle={{ backgroundColor: "var(--partner-brand, hsl(var(--sidebar-accent)))", color: "#fff" }}
+                      activeStyle={{ backgroundColor: "hsl(var(--sidebar-primary))", color: "hsl(var(--sidebar-primary-foreground))" }}
                     >
                       <item.icon className="h-4 w-4 mr-2 flex-shrink-0" />
                       {!collapsed && <span className="text-sm">{item.title}</span>}
