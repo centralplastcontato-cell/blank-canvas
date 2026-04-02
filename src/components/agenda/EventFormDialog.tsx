@@ -615,7 +615,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     }
     setSaving(true);
     try {
-      const submitData = { ...form, payment_details: payment };
+      const submitData = { ...form, total_value: grandTotal || null, payment_details: payment };
       const resultId = await onSubmit(submitData);
       if (!isEdit && resultId) {
         // Transition to edit mode: set the ID so contractor data section appears
