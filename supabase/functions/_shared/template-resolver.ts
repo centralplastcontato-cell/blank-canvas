@@ -158,6 +158,7 @@ const VARIABLE_CATALOG: Record<string, { resolver: VariableResolver }> = {
   forma_pagamento: { resolver: (ctx) => ctx.contract?.forma_pagamento || '' },
   nome_aniversariante: { resolver: (ctx) => ctx.contract?.nome_aniversariante || ctx.lead?.child_name || '' },
   idade_aniversariante: { resolver: (ctx) => ctx.contract?.idade_aniversariante || ctx.lead?.child_age || '' },
+  aniversariantes: { resolver: (ctx) => ctx.contract?.aniversariantes || ctx.contract?.nome_aniversariante || ctx.lead?.child_name || '' },
   data_nascimento: { resolver: (ctx) => {
     const v = ctx.contract?.data_nascimento || '';
     if (!v) return '';
