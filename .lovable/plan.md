@@ -1,52 +1,64 @@
 
 
-## Múltiplos Aniversariantes por Festa
+## Opcionais da Festa com Impacto no Valor Total
 
 ### Problema
-Atualmente o formulário suporta apenas um aniversariante (nome, idade, data de nascimento). Festas com irmãos, primos ou amigos comemorando juntos não conseguem registrar todos.
+Não existe um campo para adicionar itens opcionais (ex: mesa de doces, DJ, decoração extra) com nome e valor, que reflitam automaticamente no valor total da festa.
 
 ### Solução
-Transformar a seção "Aniversariante" em uma lista dinâmica onde o usuário pode adicionar quantos aniversariantes precisar, cada um com nome, idade e data de nascimento. Um botão "+ Adicionar aniversariante" permite incluir mais entradas.
+Adicionar uma seção "Opcionais" no formulário de criação/edição de festa, com lista dinâmica de itens (nome + valor). A soma dos opcionais será adicionada automaticamente ao valor total exibido na seção de Pagamento.
 
 ### Implementação
 
-**1. Nova coluna no banco (migração)**
-- Adicionar coluna `birthday_children JSONB DEFAULT '[]'` na tabela `company_events`
-- Formato: `[{ "name": "João", "age": "5 anos", "birthdate": "2021-03-15" }]`
+**1. Migração — nova coluna no banco**
+- Adicionar `event_optionals JSONB DEFAULT '[]'` na tabela `company_events`
+- Formato: `[{ "name": "Mesa de doces", "value": 350 }, { "name": "DJ", "value": 500 }]`
 
-**2. Backward compatibility**
-- Na leitura, se `birthday_children` estiver vazio/null mas `child_name` existir, montar o array a partir dos campos legados (`child_name`, `child_age`, `child_birthdate`)
-- Na gravação, salvar sempre em `birthday_children` e manter os campos legados preenchidos com o primeiro aniversariante (para buscas e relatórios existentes)
+**2. Interface e estado no EventFormDialog**
+- Nova interface `EventOptional { name: string; value: number | null }`
+- Novo campo `event_optionals` em `EventFormData`
+- Estado local `optionals` gerenciado via array com add/remove/update
+- Nova seção visual entre "Aniversariante & Extras" e "Pagamento", com ícone e título "Opcionais"
+- Cada item: inputs de nome e valor (MoneyInput) + botão remover (X)
+- Botão "+ Adicionar opcional" abaixo da lista
 
-**3. UI no EventFormDialog**
-- Substituir os 3 campos fixos por uma lista renderizada via `.map()` sobre o array de aniversariantes
-- Cada item: card com Nome, Idade, Data de nascimento + botão de remover (X)
-- Botão "+ Adicionar aniversariante" abaixo da lista
-- Mínimo de 1 aniversariante sempre visível (sem botão de remover no primeiro se for o único)
+**3. Cálculo automático do valor total**
+- O campo "Valor total" na seção Pagamento será calculado como: `valor do pacote + soma dos opcionais`
+- Quando o usuário alterar o valor do pacote ou adicionar/remover/editar opcionais, o valor total será recalculado automaticamente
+- O campo "Valor do pacote" permanece editável manualmente; o "Valor total" passa a ser exibido como soma (pacote + opcionais), mas ainda permite override manual
+- Exibir um subtotal dos opcionais abaixo da lista para transparência
 
-**4. Arquivos afetados**
-- `supabase/migrations/` — nova migração para coluna `birthday_children`
-- `src/components/agenda/EventFormDialog.tsx` — UI da lista dinâmica + estado
-- `src/pages/Agenda.tsx` — incluir `birthday_children` no payload de leitura/gravação
+**4. Persistência no Agenda.tsx**
+- Incluir `event_optionals` no payload de leitura e gravação
+- Mapear de volta ao formulário na edição (`mapEventToFormData`)
+
+**5. Arquivos afetados**
+- `supabase/migrations/` — nova migração
+- `src/components/agenda/EventFormDialog.tsx` — UI + estado + cálculo
+- `src/pages/Agenda.tsx` — payload de leitura/gravação
 
 ### Fluxo Visual
 
 ```text
 ┌─────────────────────────────────────────────┐
-│ 🎂 ANIVERSARIANTE & EXTRAS                 │
+│ 📦 OPCIONAIS                               │
 ├─────────────────────────────────────────────┤
-│ ┌─ Aniversariante 1 ─────────────────────┐  │
-│ │ Nome: [João       ]  Idade: [5 anos  ] │  │
-│ │ Nascimento: [15/03/2021]           [X] │  │
-│ └────────────────────────────────────────┘  │
-│ ┌─ Aniversariante 2 ─────────────────────┐  │
-│ │ Nome: [Maria      ]  Idade: [3 anos  ] │  │
-│ │ Nascimento: [22/07/2023]           [X] │  │
-│ └────────────────────────────────────────┘  │
-│         [+ Adicionar aniversariante]        │
+│ ┌──────────────────────────────────────────┐│
+│ │ Nome: [Mesa de doces   ] Valor: [R$ 350]││
+│ │                                     [X] ││
+│ └──────────────────────────────────────────┘│
+│ ┌──────────────────────────────────────────┐│
+│ │ Nome: [DJ              ] Valor: [R$ 500]││
+│ │                                     [X] ││
+│ └──────────────────────────────────────────┘│
+│         [+ Adicionar opcional]              │
 │                                             │
-│ Responsáveis                                │
-│ ...                                         │
+│ Subtotal opcionais: R$ 850,00               │
+└─────────────────────────────────────────────┘
+│                                             │
+│ 💳 PAGAMENTO                                │
+│ Valor do pacote: R$ 3.000   Valor total:    │
+│                              R$ 3.850       │
 └─────────────────────────────────────────────┘
 ```
 
