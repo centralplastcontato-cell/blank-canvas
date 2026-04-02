@@ -394,6 +394,38 @@ async function findOrCreateConversation(
   }
 }
 
+function extractConnectedPhone(statusData: Record<string, unknown> | null | undefined): string | null {
+  if (!statusData) return null;
+
+  const me = statusData.me as Record<string, unknown> | undefined;
+  const data = statusData.data as Record<string, unknown> | undefined;
+
+  return (
+    (typeof statusData.phone === 'string' ? statusData.phone : null) ||
+    (typeof statusData.phoneNumber === 'string' ? statusData.phoneNumber : null) ||
+    (typeof statusData.connectedPhone === 'string' ? statusData.connectedPhone : null) ||
+    (typeof data?.phone === 'string' ? data.phone : null) ||
+    (typeof data?.phoneNumber === 'string' ? data.phoneNumber : null) ||
+    (typeof data?.connectedPhone === 'string' ? data.connectedPhone : null) ||
+    (typeof me?.id === 'string' ? me.id.split('@')[0] : null)
+  );
+}
+
+function isWapiSessionConnected(statusData: Record<string, unknown> | null | undefined): boolean {
+  if (!statusData) return false;
+
+  if (
+    statusData.connected === true ||
+    statusData.status === 'connected' ||
+    statusData.state === 'connected'
+  ) {
+    return true;
+  }
+
+  const hasQrCode = Boolean(statusData.qrcode || statusData.qrCode || statusData.qr || statusData.base64);
+  return !hasQrCode && !statusData.error;
+}
+
 // === PHASE 1: Session health preflight ===
 // Checks if the instance session is healthy enough to send messages.
 // Returns null if healthy, or a Response with error if blocked.
@@ -436,14 +468,26 @@ async function checkSessionHealth(
         const ct = statusRes.headers.get('content-type');
         if (!ct?.includes('image') && !ct?.includes('text/html')) {
           const statusData = await statusRes.json();
-          const phone = statusData?.phone || statusData?.phoneNumber || statusData?.me?.id?.split('@')[0] || null;
+          const phone = extractConnectedPhone(statusData);
+          const isConnected = isWapiSessionConnected(statusData);
           
           if (phone) {
             console.log(`[Preflight] ✅ Auto-recovered phone_number for ${instanceExternalId}: ${phone}`);
             await supabase.from('wapi_instances').update({ 
               phone_number: phone,
+              status: 'connected',
+              connected_at: new Date().toISOString(),
             }).eq('id', dbInstance.id);
             return null; // Allow send
+          }
+
+          if (isConnected) {
+            console.log(`[Preflight] ✅ W-API confirmed ${instanceExternalId} is connected even without phone metadata. Allowing send.`);
+            await supabase.from('wapi_instances').update({
+              status: 'connected',
+              connected_at: new Date().toISOString(),
+            }).eq('id', dbInstance.id);
+            return null; // Allow send without risking reconnection
           }
         }
       }
@@ -500,15 +544,11 @@ async function checkSessionHealth(
           // Confirmed disconnected
         } else {
           const statusData = await statusRes.json();
-          const isConnected = statusData?.connected === true || 
-                              statusData?.status === 'connected' || 
-                              statusData?.state === 'connected' ||
-                              // No QR code and no error = likely connected
-                              (!statusData?.qrcode && !statusData?.qrCode && !statusData?.qr && !statusData?.base64 && !statusData?.error);
+          const isConnected = isWapiSessionConnected(statusData);
           
           if (isConnected) {
             console.log(`[Preflight] ✅ W-API says connected! Auto-recovering instance ${instanceExternalId}`);
-            const phone = statusData?.phone || statusData?.phoneNumber || statusData?.me?.id?.split('@')[0] || null;
+            const phone = extractConnectedPhone(statusData);
             await supabase.from('wapi_instances').update({ 
               status: 'connected', 
               connected_at: new Date().toISOString(),
