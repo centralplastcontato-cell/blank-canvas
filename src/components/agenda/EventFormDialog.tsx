@@ -491,6 +491,15 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       .then(({ data }) => {
         setPackages((data || []).map((p: any) => ({ id: p.id, name: p.name, valor_pessoa_adicional: p.valor_pessoa_adicional, preco_separado: !!p.preco_separado, valor_pessoa_adicional_adulto: p.valor_pessoa_adicional_adulto, valor_pessoa_adicional_crianca: p.valor_pessoa_adicional_crianca })));
       });
+    supabase
+      .from("company_optionals" as any)
+      .select("id, name, description, value")
+      .eq("company_id", currentCompany.id)
+      .eq("is_active", true)
+      .order("sort_order")
+      .then(({ data }) => {
+        setCatalogOptionals((data || []).map((o: any) => ({ id: o.id, name: o.name, description: o.description, value: o.value != null ? Number(o.value) : null })));
+      });
 
   }, [open, currentCompany?.id]);
 
