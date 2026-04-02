@@ -1125,7 +1125,7 @@ Deno.serve(async (req) => {
           console.log('get-status qr data:', JSON.stringify(data));
           
           if (data.connected === true) {
-            const qrPhone = data.phone || data.phoneNumber || data.me?.id?.split('@')[0] || null;
+            const qrPhone = extractConnectedPhone(data);
             return new Response(JSON.stringify({ 
               status: 'connected',
               phoneNumber: qrPhone,
