@@ -513,7 +513,29 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     }
   }, [packages, form.package_name]);
 
-  // Fetch contract models
+  // Auto-recalculate total_value when optionals change
+  useEffect(() => {
+    const newSubtotal = (form.event_optionals || []).reduce((sum, o) => sum + (o.value || 0), 0);
+    const prevSubtotal = prevOptionalsSubtotalRef.current;
+    if (newSubtotal !== prevSubtotal) {
+      const diff = newSubtotal - prevSubtotal;
+      prevOptionalsSubtotalRef.current = newSubtotal;
+      setForm(prev => ({
+        ...prev,
+        total_value: Math.max(0, (prev.total_value || 0) + diff) || null,
+      }));
+    }
+  }, [form.event_optionals]);
+
+  // Sync ref on initial load (edit mode)
+  useEffect(() => {
+    if (open && initialData?.event_optionals) {
+      prevOptionalsSubtotalRef.current = (initialData.event_optionals || []).reduce((sum: number, o: any) => sum + (o.value || 0), 0);
+    } else if (!open) {
+      prevOptionalsSubtotalRef.current = 0;
+    }
+  }, [open, initialData]);
+
   useEffect(() => {
     if (!open || !currentCompany?.id) return;
     (supabase as any)
