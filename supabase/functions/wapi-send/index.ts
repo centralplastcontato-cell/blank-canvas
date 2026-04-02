@@ -426,6 +426,61 @@ function isWapiSessionConnected(statusData: Record<string, unknown> | null | und
   return !hasQrCode && !statusData.error;
 }
 
+async function hasRecentVerifiedActivity(
+  supabase: ReturnType<typeof createClient>,
+  instanceRecordId: string,
+  windowMinutes = 30,
+): Promise<boolean> {
+  const since = new Date(Date.now() - windowMinutes * 60 * 1000).toISOString();
+
+  const { data: recentConversations, error: convError } = await supabase
+    .from('wapi_conversations')
+    .select('id')
+    .eq('instance_id', instanceRecordId)
+    .gte('last_message_at', since)
+    .limit(50);
+
+  if (convError) return false;
+
+  const conversationIds = (recentConversations || []).map((conversation) => conversation.id);
+  if (conversationIds.length === 0) return false;
+
+  const { data: verifiedMessages, error: msgError } = await supabase
+    .from('wapi_messages')
+    .select('id')
+    .in('conversation_id', conversationIds)
+    .gte('timestamp', since)
+    .or('from_me.eq.false,status.eq.delivered,status.eq.read,status.eq.received')
+    .limit(1);
+
+  if (msgError) return false;
+
+  return (verifiedMessages?.length || 0) > 0;
+}
+
+async function persistBlockedMessage(
+  supabase: ReturnType<typeof createClient>,
+  conversationId?: string,
+  companyId?: string | null,
+  messageContent?: string,
+  reason = 'DISCONNECTED',
+) {
+  if (!conversationId || !messageContent) return;
+
+  const failedMsgId = `blocked_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  await supabase.from('wapi_messages').insert({
+    conversation_id: conversationId,
+    message_id: failedMsgId,
+    from_me: true,
+    message_type: 'text',
+    content: messageContent,
+    status: 'failed',
+    timestamp: new Date().toISOString(),
+    company_id: companyId,
+    metadata: { blocked_reason: reason },
+  });
+}
+
 // === PHASE 1: Session health preflight ===
 // Checks if the instance session is healthy enough to send messages.
 // Returns null if healthy, or a Response with error if blocked.
@@ -454,6 +509,7 @@ async function checkSessionHealth(
   // SESSION_INCOMPLETE: connected but no phone_number — try auto-recovery first
   if (dbInstance.status === 'connected' && !dbInstance.phone_number) {
     console.warn(`[Preflight] Instance ${instanceExternalId} is connected but has no phone_number. Attempting auto-recovery...`);
+    const hasVerifiedActivity = await hasRecentVerifiedActivity(supabase, dbInstance.id);
     
     try {
       const statusRes = await fetch(
@@ -481,13 +537,13 @@ async function checkSessionHealth(
             return null; // Allow send
           }
 
-          if (isConnected) {
-            console.log(`[Preflight] ✅ W-API confirmed ${instanceExternalId} is connected even without phone metadata. Allowing send.`);
+          if (isConnected && hasVerifiedActivity) {
+            console.log(`[Preflight] ✅ W-API confirmed ${instanceExternalId} is connected and has recent verified activity. Allowing send.`);
             await supabase.from('wapi_instances').update({
               status: 'connected',
               connected_at: new Date().toISOString(),
             }).eq('id', dbInstance.id);
-            return null; // Allow send without risking reconnection
+            return null;
           }
         }
       }
@@ -495,11 +551,23 @@ async function checkSessionHealth(
       console.warn(`[Preflight] Auto-recovery check failed for ${instanceExternalId}:`, err);
     }
     
-    // Don't hard-block here: some W-API LITE sessions are fully operational
-    // even when qr-code endpoint can't provide the phone metadata reliably.
-    // If the DB still marks the instance as connected, let the real send attempt decide.
-    console.warn(`[Preflight] Proceeding with ${action} for ${instanceExternalId} despite missing phone_number; relying on live send attempt.`);
-    return null;
+    if (hasVerifiedActivity) {
+      console.warn(`[Preflight] Proceeding with ${action} for ${instanceExternalId} based on recent verified activity despite missing phone_number.`);
+      return null;
+    }
+
+    console.warn(`[Preflight] BLOCKED ${action}: ${instanceExternalId} has no phone_number and no recent verified activity.`);
+    await supabase.from('wapi_instances').update({ status: 'degraded' }).eq('id', dbInstance.id);
+    await persistBlockedMessage(supabase, conversationId, companyId, messageContent, 'SESSION_UNVERIFIED');
+
+    return new Response(JSON.stringify({ 
+      error: 'Sessão do WhatsApp parece conectada, mas não há evidência recente de entrega. Reconecte a instância pelo QR Code.',
+      errorType: 'SESSION_UNVERIFIED',
+      blocked: true,
+    }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
   // DISCONNECTED: check real status before blocking
@@ -544,20 +612,7 @@ async function checkSessionHealth(
     // Confirmed disconnected - save message as failed
     console.warn(`[Preflight] BLOCKED ${action}: instance ${instanceExternalId} confirmed disconnected`);
     
-    if (conversationId && messageContent) {
-      const failedMsgId = `blocked_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      await supabase.from('wapi_messages').insert({
-        conversation_id: conversationId,
-        message_id: failedMsgId,
-        from_me: true,
-        message_type: 'text',
-        content: messageContent,
-        status: 'failed',
-        timestamp: new Date().toISOString(),
-        company_id: companyId,
-        metadata: { blocked_reason: 'DISCONNECTED' },
-      });
-    }
+    await persistBlockedMessage(supabase, conversationId, companyId, messageContent, 'DISCONNECTED');
 
     return new Response(JSON.stringify({ 
       error: 'Sessão do WhatsApp desconectada. Reconecte via QR Code nas Configurações.',
