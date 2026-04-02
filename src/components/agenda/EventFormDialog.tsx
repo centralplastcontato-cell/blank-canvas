@@ -1192,40 +1192,47 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               )}
 
               {(form.event_optionals || []).map((opt, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <Input
-                      placeholder="Nome do opcional"
-                      value={opt.name}
-                      onChange={(e) => {
-                        const updated = [...(form.event_optionals || [])];
-                        updated[idx] = { ...updated[idx], name: e.target.value };
+                <div key={idx} className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <Input
+                        placeholder="Nome do opcional"
+                        value={opt.name}
+                        onChange={(e) => {
+                          const updated = [...(form.event_optionals || [])];
+                          updated[idx] = { ...updated[idx], name: e.target.value };
+                          setForm({ ...form, event_optionals: updated });
+                        }}
+                      />
+                    </div>
+                    <div className="w-36">
+                      <MoneyInput
+                        value={opt.value}
+                        onChange={(v) => {
+                          const updated = [...(form.event_optionals || [])];
+                          updated[idx] = { ...updated[idx], value: v };
+                          setForm({ ...form, event_optionals: updated });
+                        }}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive/70 hover:text-destructive shrink-0"
+                      onClick={() => {
+                        const updated = (form.event_optionals || []).filter((_, i) => i !== idx);
                         setForm({ ...form, event_optionals: updated });
                       }}
-                    />
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <div className="w-36">
-                    <MoneyInput
-                      value={opt.value}
-                      onChange={(v) => {
-                        const updated = [...(form.event_optionals || [])];
-                        updated[idx] = { ...updated[idx], value: v };
-                        setForm({ ...form, event_optionals: updated });
-                      }}
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-destructive/70 hover:text-destructive shrink-0"
-                    onClick={() => {
-                      const updated = (form.event_optionals || []).filter((_, i) => i !== idx);
-                      setForm({ ...form, event_optionals: updated });
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {opt.valor_por_pessoa != null && opt.valor_por_pessoa > 0 && (
+                    <p className="text-[10px] text-muted-foreground ml-1">
+                      R$ {opt.valor_por_pessoa.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}/pessoa × {form.guest_count || 0} convidados
+                    </p>
+                  )}
                 </div>
               ))}
               <Button
