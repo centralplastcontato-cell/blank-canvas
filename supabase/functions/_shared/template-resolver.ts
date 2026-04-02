@@ -79,6 +79,7 @@ export interface VariableContext {
     valor_total_extenso?: string | null;
     data_entrada?: string | null;
     data_saldo?: string | null;
+    aniversariantes?: string | null;
   };
   freelancer?: {
     name?: string | null;
