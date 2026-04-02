@@ -291,7 +291,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [companyUsers, setCompanyUsers] = useState<Array<{ id: string; name: string }>>([]);
   const [catalogOptionals, setCatalogOptionals] = useState<Array<{ id: string; name: string; description: string | null; value: number | null }>>([]);
-  const prevOptionalsSubtotalRef = useRef<number>(0);
+  
   const [fechamentoDate, setFechamentoDate] = useState<Date | undefined>(undefined);
 
   // Client data request state
