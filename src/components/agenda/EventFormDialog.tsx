@@ -411,6 +411,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         start_time: normalizeTimeValue(data.start_time),
         end_time: normalizeTimeValue(data.end_time),
         birthday_children: children,
+        event_optionals: Array.isArray(data.event_optionals) ? data.event_optionals : [],
       });
       const loadedPayment = (data.payment_details as PaymentDetails) || EMPTY_PAYMENT;
       // Auto-fill parcelas details if saldo and parcelas are set but details have null values
