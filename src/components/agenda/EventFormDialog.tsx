@@ -1254,17 +1254,26 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             <SectionHeader icon={CreditCard} label="Pagamento" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5">
               <div className="space-y-2.5 md:pr-6">
-                <Label className="text-sm font-medium text-foreground/70">Valor total</Label>
+                <Label className="text-sm font-medium text-foreground/70">Valor da festa</Label>
                 <MoneyInput value={form.total_value} onChange={(v) => {
                   setForm({ ...form, total_value: v });
-                  const entrada = payment.entrada_valor ?? 0;
-                  const novoSaldo = v != null ? Math.max(0, v - entrada) : null;
-                  setPayment(prev => ({
-                    ...prev,
-                    saldo_valor: novoSaldo,
-                    parcelas_details: buildParcelasDetails(prev.parcelas, novoSaldo, prev.parcelas_details || []),
-                  }));
                 }} />
+              </div>
+
+              {optionalsSubtotal > 0 && (
+                <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
+                  <Label className="text-sm font-medium text-foreground/70">Valor total</Label>
+                  <div className="flex items-center h-10 px-3 rounded-md border border-border/50 bg-muted/50">
+                    <span className="text-sm text-muted-foreground mr-1">R$</span>
+                    <span className="text-sm font-semibold text-foreground">
+                      {grandTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Festa R$ {(form.total_value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} + Opcionais R$ {optionalsSubtotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+              )}
               </div>
 
               <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
