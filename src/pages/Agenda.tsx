@@ -63,6 +63,7 @@ interface CompanyEvent {
   gifts?: string | null;
   extra_guest_value?: number | null;
   is_permuta?: boolean;
+  birthday_children?: any;
 }
 
 const normalizeTimeValue = (value?: string | null) => {
