@@ -80,6 +80,7 @@ export interface VariableContext {
     data_entrada?: string | null;
     data_saldo?: string | null;
     aniversariantes?: string | null;
+    opcionais?: string | null;
   };
   freelancer?: {
     name?: string | null;
