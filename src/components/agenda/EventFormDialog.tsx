@@ -545,6 +545,10 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       toast({ title: "Selecione uma unidade", variant: "destructive" });
       return;
     }
+    if (conflictEvent) {
+      toast({ title: "Conflito de horário detectado", description: "Altere o horário, data ou unidade antes de salvar.", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       const submitData = { ...form, payment_details: payment };
