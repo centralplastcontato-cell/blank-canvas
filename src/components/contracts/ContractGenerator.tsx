@@ -115,6 +115,25 @@ export function ContractGenerator({ userId, onClose }: Props) {
       idade_aniversariante: contractData.idade_aniversariante || eventData?.child_age || "",
       data_nascimento: contractData.data_nascimento || "",
       data_nascimento_aniversariante: eventData?.child_birthdate ? (() => { const [y, m, d] = eventData.child_birthdate.split("-"); return `${d}/${m}/${y}`; })() : "",
+      aniversariantes: (() => {
+        const children = Array.isArray(eventData?.birthday_children) ? eventData.birthday_children.filter((c: any) => c.name) : [];
+        if (children.length > 0) {
+          return children.map((c: any) => {
+            const parts = [c.name];
+            if (c.age) parts.push(c.age);
+            if (c.birthdate && /^\d{4}-\d{2}-\d{2}$/.test(c.birthdate)) {
+              const [y, m, d] = c.birthdate.split("-");
+              parts.push(`nasc. ${d}/${m}/${y}`);
+            }
+            return parts.join(", ");
+          }).join("; ");
+        }
+        const fallbackName = contractData.nome_aniversariante || eventData?.child_name;
+        if (!fallbackName) return "";
+        const fp = [fallbackName];
+        if (contractData.idade_aniversariante || eventData?.child_age) fp.push(contractData.idade_aniversariante || eventData.child_age);
+        return fp.join(", ");
+      })(),
       nomes_pais: contractData.nomes_pais || (() => {
         try {
           const parsed = JSON.parse(eventData?.parent_names || "[]");
