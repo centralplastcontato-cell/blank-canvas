@@ -230,8 +230,13 @@ export function OptionalsManager() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Valor (R$)</Label>
+                <Label className="text-xs text-muted-foreground">Valor fixo (R$)</Label>
                 <CurrencyInput value={valor} onChange={setValor} placeholder="R$ 0,00" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Valor por pessoa (R$)</Label>
+                <CurrencyInput value={valorPorPessoa} onChange={setValorPorPessoa} placeholder="R$ 0,00" />
+                <p className="text-[10px] text-muted-foreground">Se preenchido, será multiplicado pela qtde de convidados ao adicionar na festa.</p>
               </div>
             </div>
 
