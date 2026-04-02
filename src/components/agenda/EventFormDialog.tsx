@@ -533,6 +533,22 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     });
   }, [grandTotal, payment.entrada_valor]);
 
+  // Recalculate per-person optionals when guest_count changes
+  useEffect(() => {
+    const optionals = form.event_optionals || [];
+    const hasPerPerson = optionals.some(o => o.valor_por_pessoa && o.valor_por_pessoa > 0);
+    if (!hasPerPerson) return;
+    const guests = form.guest_count || 0;
+    const updated = optionals.map(o => {
+      if (!o.valor_por_pessoa || o.valor_por_pessoa <= 0) return o;
+      // Find matching catalog optional to get base fixed value
+      const catalog = catalogOptionals.find(co => co.name === o.name);
+      const fixedValue = catalog?.value || 0;
+      return { ...o, value: fixedValue + o.valor_por_pessoa * guests };
+    });
+    setForm(prev => ({ ...prev, event_optionals: updated }));
+  }, [form.guest_count]);
+
 
   useEffect(() => {
     if (!open || !currentCompany?.id) return;
