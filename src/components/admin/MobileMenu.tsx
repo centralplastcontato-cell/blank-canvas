@@ -126,7 +126,7 @@ export function MobileMenu({
     },
     {
       id: "visitas",
-      label: "Visitas",
+      label: "Agenda de visitas",
       icon: MapPin,
       path: "/visitas",
       show: !!modules.visitas,
