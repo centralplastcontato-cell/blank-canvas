@@ -178,13 +178,22 @@ export function OptionalsManager() {
               {opt.description && (
                 <p className="text-xs text-muted-foreground line-clamp-2 pl-[46px]">{opt.description}</p>
               )}
-              {opt.value != null && opt.value > 0 && (
-                <div className="ml-[46px]">
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/5 border border-primary/10">
-                    <span className="text-[11px] font-semibold text-primary tracking-wide uppercase">
-                      R$ {opt.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
+              {(opt.value != null && opt.value > 0 || opt.valor_por_pessoa != null && opt.valor_por_pessoa > 0) && (
+                <div className="ml-[46px] flex flex-wrap gap-1.5">
+                  {opt.value != null && opt.value > 0 && (
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/5 border border-primary/10">
+                      <span className="text-[11px] font-semibold text-primary tracking-wide uppercase">
+                        R$ {opt.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  )}
+                  {opt.valor_por_pessoa != null && opt.valor_por_pessoa > 0 && (
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-accent/50 border border-border/50">
+                      <span className="text-[11px] font-semibold text-muted-foreground tracking-wide">
+                        R$ {opt.valor_por_pessoa.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}/pessoa
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
