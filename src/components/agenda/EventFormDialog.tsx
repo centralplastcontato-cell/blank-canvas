@@ -980,21 +980,68 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           {/* Section – Aniversariante & Extras */}
           <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
             <SectionHeader icon={Baby} label="Aniversariante & Extras" />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5">
-              <div className="space-y-2.5 md:pr-6">
-                <Label className="text-sm font-medium text-foreground/70">Nome do aniversariante</Label>
-                <Input value={form.child_name || ""} onChange={(e) => setForm({ ...form, child_name: e.target.value || null })} placeholder="Nome do aniversariante" />
-              </div>
+            <div className="space-y-4">
+              {(form.birthday_children || [{ name: "", age: "", birthdate: "" }]).map((child, idx) => {
+                const updateChild = (field: keyof BirthdayChild, value: string) => {
+                  const updated = [...(form.birthday_children || [])];
+                  updated[idx] = { ...updated[idx], [field]: value };
+                  setForm({ ...form, birthday_children: updated });
+                };
+                return (
+                  <div key={idx} className="rounded-lg border border-border/40 bg-muted/20 p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Aniversariante {(form.birthday_children || []).length > 1 ? idx + 1 : ""}
+                      </span>
+                      {(form.birthday_children || []).length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => {
+                            const updated = [...(form.birthday_children || [])];
+                            updated.splice(idx, 1);
+                            setForm({ ...form, birthday_children: updated });
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-foreground/70">Nome</Label>
+                        <Input value={child.name} onChange={(e) => updateChild("name", e.target.value)} placeholder="Nome do aniversariante" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-foreground/70">Idade a comemorar</Label>
+                        <Input value={child.age} onChange={(e) => updateChild("age", e.target.value)} placeholder="Ex: 5 anos" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-foreground/70">Data de nascimento</Label>
+                        <Input type="date" value={child.birthdate} onChange={(e) => updateChild("birthdate", e.target.value)} />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full text-xs gap-1.5"
+                onClick={() => {
+                  const updated = [...(form.birthday_children || []), { name: "", age: "", birthdate: "" }];
+                  setForm({ ...form, birthday_children: updated });
+                }}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Adicionar aniversariante
+              </Button>
+            </div>
 
-              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
-                <Label className="text-sm font-medium text-foreground/70">Idade a comemorar</Label>
-                <Input value={form.child_age || ""} onChange={(e) => setForm({ ...form, child_age: e.target.value || null })} placeholder="Ex: 5 anos" />
-              </div>
-
-              <div className="space-y-2.5 md:pr-6">
-                <Label className="text-sm font-medium text-foreground/70">Data de nascimento</Label>
-                <Input type="date" value={form.child_birthdate || ""} onChange={(e) => setForm({ ...form, child_birthdate: e.target.value || null })} />
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5 mt-5">
 
               <div className="space-y-3 md:col-span-2">
                 <Label className="text-sm font-medium text-foreground/70">Responsáveis</Label>
