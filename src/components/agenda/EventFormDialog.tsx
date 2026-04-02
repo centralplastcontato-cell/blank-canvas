@@ -287,6 +287,98 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [selectedContractModelId, setSelectedContractModelId] = useState<string | null>(null);
   const [contractDialogOpen, setContractDialogOpen] = useState(false);
 
+  // Conflict detection state
+  const [conflictEvent, setConflictEvent] = useState<{ title: string; start_time: string; end_time: string; unit: string } | null>(null);
+  const [checkingConflict, setCheckingConflict] = useState(false);
+  const conflictTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Conflict detection effect
+  const inferEndTime = useCallback((start: string): string => {
+    if (!start) return "";
+    const [h, m] = start.split(":").map(Number);
+    const endH = h + 3;
+    return `${String(endH).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  }, []);
+
+  useEffect(() => {
+    if (!open || !currentCompany?.id || !form.event_date) {
+      setConflictEvent(null);
+      return;
+    }
+
+    const startTime = form.start_time;
+    if (!startTime) {
+      setConflictEvent(null);
+      return;
+    }
+
+    const endTime = form.end_time || inferEndTime(startTime);
+    if (!endTime) {
+      setConflictEvent(null);
+      return;
+    }
+
+    if (conflictTimerRef.current) clearTimeout(conflictTimerRef.current);
+
+    conflictTimerRef.current = setTimeout(async () => {
+      setCheckingConflict(true);
+      try {
+        let query = supabase
+          .from("company_events")
+          .select("id, title, start_time, end_time, unit")
+          .eq("company_id", currentCompany.id)
+          .eq("event_date", form.event_date)
+          .neq("status", "cancelado");
+
+        // Filter by unit if set
+        if (form.unit) {
+          query = query.eq("unit", form.unit);
+        }
+
+        // Exclude current event if editing
+        const editId = form.id || initialData?.id;
+        if (editId) {
+          query = query.neq("id", editId);
+        }
+
+        const { data: events } = await query;
+
+        if (!events || events.length === 0) {
+          setConflictEvent(null);
+          setCheckingConflict(false);
+          return;
+        }
+
+        // Check overlap: (newStart < existingEnd) AND (newEnd > existingStart)
+        const conflict = events.find((ev) => {
+          const evStart = normalizeTimeValue(ev.start_time) || "00:00";
+          const evEnd = normalizeTimeValue(ev.end_time) || inferEndTime(evStart);
+          if (!evEnd) return false;
+          return startTime < evEnd && endTime > evStart;
+        });
+
+        setConflictEvent(
+          conflict
+            ? {
+                title: conflict.title,
+                start_time: normalizeTimeValue(conflict.start_time) || "",
+                end_time: normalizeTimeValue(conflict.end_time) || "",
+                unit: conflict.unit || "",
+              }
+            : null
+        );
+      } catch {
+        setConflictEvent(null);
+      } finally {
+        setCheckingConflict(false);
+      }
+    }, 300);
+
+    return () => {
+      if (conflictTimerRef.current) clearTimeout(conflictTimerRef.current);
+    };
+  }, [open, currentCompany?.id, form.event_date, form.start_time, form.end_time, form.unit, form.id, initialData?.id, inferEndTime]);
+
   useEffect(() => {
     if (open) {
       const data = initialData || EMPTY;
