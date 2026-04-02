@@ -107,6 +107,7 @@ export function OptionalsManager() {
       name: name.trim(),
       description: description.trim() || null,
       value: parseCurrency(valor),
+      valor_por_pessoa: parseCurrency(valorPorPessoa),
     };
 
     if (editing) {
