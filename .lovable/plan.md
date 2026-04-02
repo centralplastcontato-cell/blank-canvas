@@ -1,72 +1,52 @@
 
 
-## Bug Crítico: Chat troca de conversa sozinho
+## Validação de Conflito de Horário na Criação de Festas
 
-### Problema Identificado
+### Problema
+Atualmente, o sistema permite criar duas festas no mesmo dia e horário sem qualquer bloqueio. A detecção de conflitos (`getConflicts`) existe apenas para exibição visual no calendário, mas não impede a criação.
 
-Enquanto o usuário está conversando com o Lead A, a tela troca automaticamente para o Lead B sem nenhuma ação do usuário. Isso causou envio de mensagens e até convites para leads errados.
+### Solução
 
-### Causa Raiz (3 problemas encontrados)
+Adicionar uma verificação de conflito de horário **dentro do `EventFormDialog`** antes de permitir o salvamento. Quando o usuário preencher data, horários e unidade, o sistema consultará o banco em tempo real e, se houver sobreposição, exibirá um card de alerta bloqueante impedindo o envio do formulário.
 
-**1. Re-execução desnecessária do realtime** (`WhatsAppChat.tsx` linha 1164)
-O `useEffect` que gerencia o canal realtime e carrega conversas tem `selectedConversation?.id` na lista de dependências. Isso significa que toda vez que o usuário clica em uma conversa, o efeito inteiro re-executa — recriando o canal realtime E chamando `fetchConversations()` de novo. Essa re-execução pode causar race conditions onde a lista de conversas é recarregada enquanto o usuário está interagindo.
+### Implementação
 
-**2. Refresh completo via debounce** (linhas 1151-1154)
-A cada evento realtime (qualquer mensagem em qualquer conversa), um timer de 5 segundos agenda um `fetchConversations()` completo. Esse refresh substitui toda a lista de conversas e pode causar re-renders que afetam a seleção.
+#### Arquivo: `src/components/agenda/EventFormDialog.tsx`
 
-**3. Pattern de `initialPhone`** (`CentralAtendimento.tsx` linha 118)
-O código faz `setInitialPhone(null)` seguido de `setInitialPhone(phoneParam)` na mesma execução, o que pode disparar efeitos duplicados no WhatsAppChat.
+**1. Nova função de verificação de conflito**
+- Após o usuário preencher `event_date`, `start_time`, `end_time` e `unit`, disparar uma consulta ao Supabase buscando eventos no mesmo dia e unidade com horários sobrepostos
+- Usar a mesma lógica de `inferEndTime` (se `end_time` não existir, assumir 3h de duração)
+- Excluir o próprio evento em caso de edição, e eventos cancelados
+- Armazenar o resultado em um state `conflictEvent` (nome, horário do evento conflitante)
 
-### Plano de Correção
+**2. Card de alerta bloqueante**
+- Exibir um card vermelho/destrutivo no topo do formulário quando `conflictEvent` estiver preenchido
+- Mostrar: icone de alerta, mensagem clara ("Conflito de horário detectado"), detalhes do evento existente (nome, horário)
+- Mensagem orientando o usuário a alterar o horário
 
-#### Arquivo: `src/components/whatsapp/WhatsAppChat.tsx`
+**3. Bloqueio do botão de salvar**
+- Desabilitar os botões "Criar Festa" / "Salvar e continuar" quando houver conflito ativo
+- O botão só volta a ficar habilitado quando o usuário alterar data, horário ou unidade e o conflito for resolvido
 
-**Passo 1 — Separar o useEffect de realtime da seleção de conversa**
-- Remover `selectedConversation?.id` da lista de dependências do useEffect de realtime (linha 1164)
-- Usar um `ref` para acessar o ID da conversa selecionada dentro do callback do realtime, em vez do state direto
-- Isso impede que trocar de conversa recrie o canal e recarregue tudo
-
-**Passo 2 — Eliminar o refresh completo no debounce**
-- Remover o `fetchConversations()` do debounce de 5 segundos (linhas 1151-1154)
-- As atualizações inline já acontecem no handler de realtime (linhas 1085-1123) — o refresh completo é redundante e perigoso
-- Se necessário manter como safety net, aumentar para 30+ segundos e garantir que não afete a seleção
-
-**Passo 3 — Proteger a seleção contra re-renders**
-- Adicionar um `selectedConversationRef` que mantém o ID da conversa ativa
-- No `fetchConversations`, se já existe uma conversa selecionada e não há `selectPhone`, preservar a seleção atual sem alterá-la
-- Garantir que nenhum path de código altere `selectedConversation` sem ação explícita do usuário
-
-**Passo 4 — Corrigir o pattern de initialPhone**
-- No `CentralAtendimento.tsx`, remover o `setInitialPhone(null)` redundante antes do `setInitialPhone(phoneParam)` (linha 118)
-- Usar uma key ou timestamp para forçar re-processamento em vez de null→value
+**4. Trigger da verificação**
+- Usar um `useEffect` que dispara quando `event_date`, `start_time`, `end_time` ou `unit` mudam
+- Incluir debounce curto (300ms) para evitar consultas excessivas
+- Consulta leve: `SELECT id, title, start_time, end_time FROM company_events WHERE company_id = X AND event_date = Y AND unit = Z AND status != 'cancelado'`
 
 ### Detalhes Técnicos
 
 ```text
-ANTES (bugado):
-useEffect(() => {
-  fetchConversations();        // ← re-executa quando conversa muda
-  channel.on('*', () => {
-    // update inline...
-    debounce(() => fetchConversations(), 5000);  // ← refresh completo
-  });
-}, [selectedInstance, selectedConversation?.id]);  // ← BUG AQUI
+Lógica de sobreposição:
+  Evento existente: 14:00 – 18:00
+  Novo evento:      16:00 – 20:00
+  → 16:00 < 18:00 AND 20:00 > 14:00 → CONFLITO
 
-DEPOIS (corrigido):
-const selectedConvRef = useRef(selectedConversation?.id);
-selectedConvRef.current = selectedConversation?.id;
-
-useEffect(() => {
-  fetchConversations();
-  channel.on('*', (payload) => {
-    // update inline apenas — sem refresh completo
-    // usar selectedConvRef.current para notificações
-  });
-}, [selectedInstance]);  // ← só reconecta quando muda de instância
+  Novo evento:      18:00 – 22:00
+  → 18:00 < 18:00? NÃO → SEM CONFLITO (horários adjacentes permitidos)
 ```
 
 ### Impacto
-- Zero impacto em funcionalidades existentes
-- Menos chamadas ao banco de dados (remove refreshes desnecessários)
-- Usuário nunca mais terá a conversa trocada automaticamente
+- Funciona em todos os lugares que usam `EventFormDialog` (Agenda, CentralAtendimento, LeadDetailSheet)
+- Não altera a estrutura do banco de dados
+- Não bloqueia edições do próprio evento (exclui `event.id` da busca)
 
