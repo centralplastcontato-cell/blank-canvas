@@ -585,6 +585,7 @@ export default function Agenda() {
       extra_guest_value: data.extra_guest_value,
       is_permuta: data.is_permuta || false,
     } as any;
+    if (data.payment_details) {
       payload.payment_details = data.payment_details;
     }
     console.log('[Evento:DadosComerciais]', { data_fechamento_venda: payload.data_fechamento_venda, vendedor_responsavel_id: payload.vendedor_responsavel_id });
