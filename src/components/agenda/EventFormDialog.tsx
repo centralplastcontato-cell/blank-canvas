@@ -532,14 +532,6 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     });
   }, [grandTotal, payment.entrada_valor]);
 
-  // Sync ref on initial load (edit mode)
-  useEffect(() => {
-    if (open && initialData?.event_optionals) {
-      prevOptionalsSubtotalRef.current = (initialData.event_optionals || []).reduce((sum: number, o: any) => sum + (o.value || 0), 0);
-    } else if (!open) {
-      prevOptionalsSubtotalRef.current = 0;
-    }
-  }, [open, initialData]);
 
   useEffect(() => {
     if (!open || !currentCompany?.id) return;
