@@ -15,6 +15,7 @@ interface CompanyOptional {
   name: string;
   description: string | null;
   value: number | null;
+  valor_por_pessoa: number | null;
   is_active: boolean;
   sort_order: number;
 }
