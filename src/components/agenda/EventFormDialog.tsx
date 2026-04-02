@@ -45,6 +45,11 @@ export interface BirthdayChild {
   birthdate: string;
 }
 
+export interface EventOptional {
+  name: string;
+  value: number | null;
+}
+
 export interface EventFormData {
   id?: string;
   title: string;
