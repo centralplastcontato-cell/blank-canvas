@@ -1166,9 +1166,14 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                           type="button"
                           className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/60 bg-muted/30 hover:bg-primary/10 hover:border-primary/30 text-xs font-medium transition-all"
                           onClick={() => {
+                            const guests = form.guest_count || 0;
+                            let totalValue = co.value || 0;
+                            if (co.valor_por_pessoa && co.valor_por_pessoa > 0 && guests > 0) {
+                              totalValue = (totalValue || 0) + co.valor_por_pessoa * guests;
+                            }
                             setForm({
                               ...form,
-                              event_optionals: [...(form.event_optionals || []), { name: co.name, value: co.value }],
+                              event_optionals: [...(form.event_optionals || []), { name: co.name, value: totalValue || null, valor_por_pessoa: co.valor_por_pessoa }],
                             });
                           }}
                         >
@@ -1176,6 +1181,9 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                           {co.name}
                           {co.value != null && co.value > 0 && (
                             <span className="text-muted-foreground">R$ {co.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                          )}
+                          {co.valor_por_pessoa != null && co.valor_por_pessoa > 0 && (
+                            <span className="text-muted-foreground">+ R$ {co.valor_por_pessoa.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}/pessoa</span>
                           )}
                         </button>
                       ))}
