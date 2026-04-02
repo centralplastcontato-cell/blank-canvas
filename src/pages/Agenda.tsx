@@ -130,6 +130,7 @@ const mapEventToFormData = (ev: CompanyEvent): EventFormData => ({
   gifts: ev.gifts || null,
   extra_guest_value: ev.extra_guest_value ?? null,
   is_permuta: ev.is_permuta || false,
+  internal_notes: ev.internal_notes || "",
   birthday_children: Array.isArray(ev.birthday_children) ? ev.birthday_children : [],
   event_optionals: Array.isArray(ev.event_optionals) ? ev.event_optionals : [],
 });
