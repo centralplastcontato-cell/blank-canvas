@@ -41,7 +41,7 @@ export function ContractGenerator({ userId, onClose }: Props) {
     (async () => {
       const [modelsRes, eventsRes] = await Promise.all([
         (supabase as any).from("contract_models").select("id, nome_modelo, tipo_evento, conteudo_template, versao, company_id").eq("company_id", currentCompany.id).eq("is_active", true).order("nome_modelo"),
-        (supabase as any).from("company_events").select("id, title, event_date, start_time, end_time, event_type, package_name, guest_count, total_value, unit, lead_id, status, child_name, child_age, child_birthdate, parent_names, gifts, extra_guest_value, payment_details").eq("company_id", currentCompany.id).neq("status", "cancelado").order("event_date", { ascending: false }).limit(200),
+        (supabase as any).from("company_events").select("id, title, event_date, start_time, end_time, event_type, package_name, guest_count, total_value, unit, lead_id, status, child_name, child_age, child_birthdate, parent_names, gifts, extra_guest_value, payment_details, event_optionals").eq("company_id", currentCompany.id).neq("status", "cancelado").order("event_date", { ascending: false }).limit(200),
       ]);
       setModels(modelsRes.data || []);
       setEvents(eventsRes.data || []);
