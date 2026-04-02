@@ -59,6 +59,7 @@ export function OptionalsManager() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [valor, setValor] = useState("");
+  const [valorPorPessoa, setValorPorPessoa] = useState("");
   const [saving, setSaving] = useState(false);
 
   const fetchOptionals = async () => {
