@@ -289,6 +289,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [companyUsers, setCompanyUsers] = useState<Array<{ id: string; name: string }>>([]);
   const [catalogOptionals, setCatalogOptionals] = useState<Array<{ id: string; name: string; description: string | null; value: number | null }>>([]);
+  const prevOptionalsSubtotalRef = useRef<number>(0);
   const [fechamentoDate, setFechamentoDate] = useState<Date | undefined>(undefined);
 
   // Client data request state
@@ -512,7 +513,36 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     }
   }, [packages, form.package_name]);
 
-  // Fetch contract models
+  // Auto-recalculate total_value when optionals change
+  useEffect(() => {
+    const newSubtotal = (form.event_optionals || []).reduce((sum, o) => sum + (o.value || 0), 0);
+    const prevSubtotal = prevOptionalsSubtotalRef.current;
+    if (newSubtotal !== prevSubtotal) {
+      const diff = newSubtotal - prevSubtotal;
+      prevOptionalsSubtotalRef.current = newSubtotal;
+      setForm(prev => {
+        const newTotal = Math.max(0, (prev.total_value || 0) + diff) || null;
+        return { ...prev, total_value: newTotal };
+      });
+      // Also update payment saldo
+      setPayment(prev => {
+        const newTotal = Math.max(0, (form.total_value || 0) + diff);
+        const entrada = prev.entrada_valor ?? 0;
+        const novoSaldo = Math.max(0, newTotal - entrada);
+        return { ...prev, saldo_valor: novoSaldo };
+      });
+    }
+  }, [form.event_optionals]);
+
+  // Sync ref on initial load (edit mode)
+  useEffect(() => {
+    if (open && initialData?.event_optionals) {
+      prevOptionalsSubtotalRef.current = (initialData.event_optionals || []).reduce((sum: number, o: any) => sum + (o.value || 0), 0);
+    } else if (!open) {
+      prevOptionalsSubtotalRef.current = 0;
+    }
+  }, [open, initialData]);
+
   useEffect(() => {
     if (!open || !currentCompany?.id) return;
     (supabase as any)
