@@ -1,52 +1,52 @@
 
 
-## Validação de Conflito de Horário na Criação de Festas
+## Múltiplos Aniversariantes por Festa
 
 ### Problema
-Atualmente, o sistema permite criar duas festas no mesmo dia e horário sem qualquer bloqueio. A detecção de conflitos (`getConflicts`) existe apenas para exibição visual no calendário, mas não impede a criação.
+Atualmente o formulário suporta apenas um aniversariante (nome, idade, data de nascimento). Festas com irmãos, primos ou amigos comemorando juntos não conseguem registrar todos.
 
 ### Solução
-
-Adicionar uma verificação de conflito de horário **dentro do `EventFormDialog`** antes de permitir o salvamento. Quando o usuário preencher data, horários e unidade, o sistema consultará o banco em tempo real e, se houver sobreposição, exibirá um card de alerta bloqueante impedindo o envio do formulário.
+Transformar a seção "Aniversariante" em uma lista dinâmica onde o usuário pode adicionar quantos aniversariantes precisar, cada um com nome, idade e data de nascimento. Um botão "+ Adicionar aniversariante" permite incluir mais entradas.
 
 ### Implementação
 
-#### Arquivo: `src/components/agenda/EventFormDialog.tsx`
+**1. Nova coluna no banco (migração)**
+- Adicionar coluna `birthday_children JSONB DEFAULT '[]'` na tabela `company_events`
+- Formato: `[{ "name": "João", "age": "5 anos", "birthdate": "2021-03-15" }]`
 
-**1. Nova função de verificação de conflito**
-- Após o usuário preencher `event_date`, `start_time`, `end_time` e `unit`, disparar uma consulta ao Supabase buscando eventos no mesmo dia e unidade com horários sobrepostos
-- Usar a mesma lógica de `inferEndTime` (se `end_time` não existir, assumir 3h de duração)
-- Excluir o próprio evento em caso de edição, e eventos cancelados
-- Armazenar o resultado em um state `conflictEvent` (nome, horário do evento conflitante)
+**2. Backward compatibility**
+- Na leitura, se `birthday_children` estiver vazio/null mas `child_name` existir, montar o array a partir dos campos legados (`child_name`, `child_age`, `child_birthdate`)
+- Na gravação, salvar sempre em `birthday_children` e manter os campos legados preenchidos com o primeiro aniversariante (para buscas e relatórios existentes)
 
-**2. Card de alerta bloqueante**
-- Exibir um card vermelho/destrutivo no topo do formulário quando `conflictEvent` estiver preenchido
-- Mostrar: icone de alerta, mensagem clara ("Conflito de horário detectado"), detalhes do evento existente (nome, horário)
-- Mensagem orientando o usuário a alterar o horário
+**3. UI no EventFormDialog**
+- Substituir os 3 campos fixos por uma lista renderizada via `.map()` sobre o array de aniversariantes
+- Cada item: card com Nome, Idade, Data de nascimento + botão de remover (X)
+- Botão "+ Adicionar aniversariante" abaixo da lista
+- Mínimo de 1 aniversariante sempre visível (sem botão de remover no primeiro se for o único)
 
-**3. Bloqueio do botão de salvar**
-- Desabilitar os botões "Criar Festa" / "Salvar e continuar" quando houver conflito ativo
-- O botão só volta a ficar habilitado quando o usuário alterar data, horário ou unidade e o conflito for resolvido
+**4. Arquivos afetados**
+- `supabase/migrations/` — nova migração para coluna `birthday_children`
+- `src/components/agenda/EventFormDialog.tsx` — UI da lista dinâmica + estado
+- `src/pages/Agenda.tsx` — incluir `birthday_children` no payload de leitura/gravação
 
-**4. Trigger da verificação**
-- Usar um `useEffect` que dispara quando `event_date`, `start_time`, `end_time` ou `unit` mudam
-- Incluir debounce curto (300ms) para evitar consultas excessivas
-- Consulta leve: `SELECT id, title, start_time, end_time FROM company_events WHERE company_id = X AND event_date = Y AND unit = Z AND status != 'cancelado'`
-
-### Detalhes Técnicos
+### Fluxo Visual
 
 ```text
-Lógica de sobreposição:
-  Evento existente: 14:00 – 18:00
-  Novo evento:      16:00 – 20:00
-  → 16:00 < 18:00 AND 20:00 > 14:00 → CONFLITO
-
-  Novo evento:      18:00 – 22:00
-  → 18:00 < 18:00? NÃO → SEM CONFLITO (horários adjacentes permitidos)
+┌─────────────────────────────────────────────┐
+│ 🎂 ANIVERSARIANTE & EXTRAS                 │
+├─────────────────────────────────────────────┤
+│ ┌─ Aniversariante 1 ─────────────────────┐  │
+│ │ Nome: [João       ]  Idade: [5 anos  ] │  │
+│ │ Nascimento: [15/03/2021]           [X] │  │
+│ └────────────────────────────────────────┘  │
+│ ┌─ Aniversariante 2 ─────────────────────┐  │
+│ │ Nome: [Maria      ]  Idade: [3 anos  ] │  │
+│ │ Nascimento: [22/07/2023]           [X] │  │
+│ └────────────────────────────────────────┘  │
+│         [+ Adicionar aniversariante]        │
+│                                             │
+│ Responsáveis                                │
+│ ...                                         │
+└─────────────────────────────────────────────┘
 ```
-
-### Impacto
-- Funciona em todos os lugares que usam `EventFormDialog` (Agenda, CentralAtendimento, LeadDetailSheet)
-- Não altera a estrutura do banco de dados
-- Não bloqueia edições do próprio evento (exclui `event.id` da busca)
 
