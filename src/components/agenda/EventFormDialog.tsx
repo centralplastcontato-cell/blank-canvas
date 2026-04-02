@@ -722,6 +722,24 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         </DialogHeader>
 
         <form id="event-form" onSubmit={handleSubmit} className="overflow-y-auto px-7 py-6 space-y-5" style={{ maxHeight: "calc(90vh - 180px)" }}>
+          {/* Conflict Alert */}
+          {conflictEvent && (
+            <Alert variant="destructive" className="border-destructive/60 bg-destructive/10">
+              <AlertTriangle className="h-5 w-5" />
+              <AlertTitle className="text-sm font-bold">⚠️ Conflito de horário detectado!</AlertTitle>
+              <AlertDescription className="text-sm mt-1">
+                Já existe uma festa agendada neste horário:
+                <span className="font-semibold block mt-1">
+                  "{conflictEvent.title}" — {conflictEvent.start_time} às {conflictEvent.end_time || "N/A"}
+                  {conflictEvent.unit && ` (${conflictEvent.unit})`}
+                </span>
+                <span className="block mt-1 text-xs">
+                  Altere o horário, a data ou a unidade para continuar.
+                </span>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Section 1 – Dados do Cliente */}
           <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
             <SectionHeader icon={User} label="Dados do Cliente" />
