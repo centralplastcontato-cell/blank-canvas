@@ -497,12 +497,12 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       });
     supabase
       .from("company_optionals" as any)
-      .select("id, name, description, value")
+      .select("id, name, description, value, valor_por_pessoa")
       .eq("company_id", currentCompany.id)
       .eq("is_active", true)
       .order("sort_order")
       .then(({ data }) => {
-        setCatalogOptionals((data || []).map((o: any) => ({ id: o.id, name: o.name, description: o.description, value: o.value != null ? Number(o.value) : null })));
+        setCatalogOptionals((data || []).map((o: any) => ({ id: o.id, name: o.name, description: o.description, value: o.value != null ? Number(o.value) : null, valor_por_pessoa: o.valor_por_pessoa != null ? Number(o.valor_por_pessoa) : null })));
       });
 
   }, [open, currentCompany?.id]);
