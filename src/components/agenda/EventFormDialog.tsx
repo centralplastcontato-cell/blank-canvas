@@ -1580,7 +1580,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             <Button
               type="button"
               variant="outline"
-              disabled={saving}
+              disabled={saving || !!conflictEvent}
               className="px-6 rounded-lg"
               onClick={(e) => handleSubmit(e as any, true)}
             >
