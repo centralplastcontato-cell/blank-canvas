@@ -1328,6 +1328,7 @@ export type Database = {
           name: string
           sort_order: number | null
           updated_at: string
+          valor_por_pessoa: number | null
           value: number | null
         }
         Insert: {
@@ -1339,6 +1340,7 @@ export type Database = {
           name: string
           sort_order?: number | null
           updated_at?: string
+          valor_por_pessoa?: number | null
           value?: number | null
         }
         Update: {
@@ -1350,6 +1352,7 @@ export type Database = {
           name?: string
           sort_order?: number | null
           updated_at?: string
+          valor_por_pessoa?: number | null
           value?: number | null
         }
         Relationships: [
