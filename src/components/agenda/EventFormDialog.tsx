@@ -48,6 +48,7 @@ export interface BirthdayChild {
 export interface EventOptional {
   name: string;
   value: number | null;
+  valor_por_pessoa?: number | null;
 }
 
 export interface EventFormData {
