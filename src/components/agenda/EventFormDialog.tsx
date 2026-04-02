@@ -288,6 +288,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [packages, setPackages] = useState<Array<{ id: string; name: string; valor_pessoa_adicional: number | null; preco_separado: boolean; valor_pessoa_adicional_adulto: number | null; valor_pessoa_adicional_crianca: number | null }>>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [companyUsers, setCompanyUsers] = useState<Array<{ id: string; name: string }>>([]);
+  const [catalogOptionals, setCatalogOptionals] = useState<Array<{ id: string; name: string; description: string | null; value: number | null }>>([]);
   const [fechamentoDate, setFechamentoDate] = useState<Date | undefined>(undefined);
 
   // Client data request state
@@ -489,6 +490,15 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       .order("sort_order")
       .then(({ data }) => {
         setPackages((data || []).map((p: any) => ({ id: p.id, name: p.name, valor_pessoa_adicional: p.valor_pessoa_adicional, preco_separado: !!p.preco_separado, valor_pessoa_adicional_adulto: p.valor_pessoa_adicional_adulto, valor_pessoa_adicional_crianca: p.valor_pessoa_adicional_crianca })));
+      });
+    supabase
+      .from("company_optionals" as any)
+      .select("id, name, description, value")
+      .eq("company_id", currentCompany.id)
+      .eq("is_active", true)
+      .order("sort_order")
+      .then(({ data }) => {
+        setCatalogOptionals((data || []).map((o: any) => ({ id: o.id, name: o.name, description: o.description, value: o.value != null ? Number(o.value) : null })));
       });
 
   }, [open, currentCompany?.id]);
@@ -1122,6 +1132,36 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
             <SectionHeader icon={Package} label="Opcionais" />
             <div className="space-y-3">
+              {/* Catalog suggestions */}
+              {catalogOptionals.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Opcionais cadastrados</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {catalogOptionals
+                      .filter(co => !(form.event_optionals || []).some(eo => eo.name === co.name))
+                      .map(co => (
+                        <button
+                          key={co.id}
+                          type="button"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/60 bg-muted/30 hover:bg-primary/10 hover:border-primary/30 text-xs font-medium transition-all"
+                          onClick={() => {
+                            setForm({
+                              ...form,
+                              event_optionals: [...(form.event_optionals || []), { name: co.name, value: co.value }],
+                            });
+                          }}
+                        >
+                          <Plus className="h-3 w-3" />
+                          {co.name}
+                          {co.value != null && co.value > 0 && (
+                            <span className="text-muted-foreground">R$ {co.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                          )}
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              )}
+
               {(form.event_optionals || []).map((opt, idx) => (
                 <div key={idx} className="flex items-center gap-2">
                   <div className="flex-1">
@@ -1168,7 +1208,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                   setForm({ ...form, event_optionals: [...(form.event_optionals || []), { name: "", value: null }] });
                 }}
               >
-                <Plus className="h-3.5 w-3.5" /> Adicionar opcional
+                <Plus className="h-3.5 w-3.5" /> Adicionar manual
               </Button>
               {(form.event_optionals || []).length > 0 && (() => {
                 const subtotal = (form.event_optionals || []).reduce((sum, o) => sum + (o.value || 0), 0);
