@@ -291,7 +291,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [companyUsers, setCompanyUsers] = useState<Array<{ id: string; name: string }>>([]);
   const [catalogOptionals, setCatalogOptionals] = useState<Array<{ id: string; name: string; description: string | null; value: number | null }>>([]);
-  const prevOptionalsSubtotalRef = useRef<number>(0);
+  
   const [fechamentoDate, setFechamentoDate] = useState<Date | undefined>(undefined);
 
   // Client data request state
@@ -515,35 +515,23 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     }
   }, [packages, form.package_name]);
 
-  // Auto-recalculate total_value when optionals change
-  useEffect(() => {
-    const newSubtotal = (form.event_optionals || []).reduce((sum, o) => sum + (o.value || 0), 0);
-    const prevSubtotal = prevOptionalsSubtotalRef.current;
-    if (newSubtotal !== prevSubtotal) {
-      const diff = newSubtotal - prevSubtotal;
-      prevOptionalsSubtotalRef.current = newSubtotal;
-      setForm(prev => {
-        const newTotal = Math.max(0, (prev.total_value || 0) + diff) || null;
-        return { ...prev, total_value: newTotal };
-      });
-      // Also update payment saldo
-      setPayment(prev => {
-        const newTotal = Math.max(0, (form.total_value || 0) + diff);
-        const entrada = prev.entrada_valor ?? 0;
-        const novoSaldo = Math.max(0, newTotal - entrada);
-        return { ...prev, saldo_valor: novoSaldo };
-      });
-    }
-  }, [form.event_optionals]);
+  // Computed optionals subtotal and grand total
+  const optionalsSubtotal = useMemo(() => 
+    (form.event_optionals || []).reduce((sum, o) => sum + (o.value || 0), 0),
+    [form.event_optionals]
+  );
+  const grandTotal = (form.total_value || 0) + optionalsSubtotal;
 
-  // Sync ref on initial load (edit mode)
+  // Update payment saldo when optionals or base value changes
   useEffect(() => {
-    if (open && initialData?.event_optionals) {
-      prevOptionalsSubtotalRef.current = (initialData.event_optionals || []).reduce((sum: number, o: any) => sum + (o.value || 0), 0);
-    } else if (!open) {
-      prevOptionalsSubtotalRef.current = 0;
-    }
-  }, [open, initialData]);
+    const entrada = payment.entrada_valor ?? 0;
+    const novoSaldo = Math.max(0, grandTotal - entrada);
+    setPayment(prev => {
+      if (prev.saldo_valor === novoSaldo) return prev;
+      return { ...prev, saldo_valor: novoSaldo };
+    });
+  }, [grandTotal, payment.entrada_valor]);
+
 
   useEffect(() => {
     if (!open || !currentCompany?.id) return;
@@ -619,7 +607,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     }
     setSaving(true);
     try {
-      const submitData = { ...form, payment_details: payment };
+      const submitData = { ...form, total_value: grandTotal || null, payment_details: payment };
       const resultId = await onSubmit(submitData);
       if (!isEdit && resultId) {
         // Transition to edit mode: set the ID so contractor data section appears
@@ -1258,18 +1246,26 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             <SectionHeader icon={CreditCard} label="Pagamento" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5">
               <div className="space-y-2.5 md:pr-6">
-                <Label className="text-sm font-medium text-foreground/70">Valor total</Label>
+                <Label className="text-sm font-medium text-foreground/70">Valor da festa</Label>
                 <MoneyInput value={form.total_value} onChange={(v) => {
                   setForm({ ...form, total_value: v });
-                  const entrada = payment.entrada_valor ?? 0;
-                  const novoSaldo = v != null ? Math.max(0, v - entrada) : null;
-                  setPayment(prev => ({
-                    ...prev,
-                    saldo_valor: novoSaldo,
-                    parcelas_details: buildParcelasDetails(prev.parcelas, novoSaldo, prev.parcelas_details || []),
-                  }));
                 }} />
               </div>
+
+              {optionalsSubtotal > 0 && (
+                <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
+                  <Label className="text-sm font-medium text-foreground/70">Valor total</Label>
+                  <div className="flex items-center h-10 px-3 rounded-md border border-border/50 bg-muted/50">
+                    <span className="text-sm text-muted-foreground mr-1">R$</span>
+                    <span className="text-sm font-semibold text-foreground">
+                      {grandTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Festa R$ {(form.total_value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} + Opcionais R$ {optionalsSubtotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
                 <Label className="text-sm font-medium text-foreground/70">Forma de pagamento</Label>
