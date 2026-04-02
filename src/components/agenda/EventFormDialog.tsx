@@ -1588,7 +1588,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               Salvar
             </Button>
           )}
-          <Button type="submit" form="event-form" disabled={saving} className="px-8 rounded-lg shadow-sm">
+          <Button type="submit" form="event-form" disabled={saving || !!conflictEvent} className="px-8 rounded-lg shadow-sm">
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
             {isEdit ? "Salvar" : "Criar e Fechar"}
           </Button>
