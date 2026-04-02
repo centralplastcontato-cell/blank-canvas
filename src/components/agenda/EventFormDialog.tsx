@@ -200,6 +200,7 @@ const EMPTY: EventFormData = {
   gifts: null,
   extra_guest_value: null,
   is_permuta: false,
+  internal_notes: "",
   event_optionals: [],
 };
 
