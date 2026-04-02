@@ -967,6 +967,7 @@ export type Database = {
           gifts: string | null
           guest_count: number | null
           id: string
+          internal_notes: string | null
           is_permuta: boolean
           lead_id: string | null
           notes: string | null
@@ -999,6 +1000,7 @@ export type Database = {
           gifts?: string | null
           guest_count?: number | null
           id?: string
+          internal_notes?: string | null
           is_permuta?: boolean
           lead_id?: string | null
           notes?: string | null
@@ -1031,6 +1033,7 @@ export type Database = {
           gifts?: string | null
           guest_count?: number | null
           id?: string
+          internal_notes?: string | null
           is_permuta?: boolean
           lead_id?: string | null
           notes?: string | null

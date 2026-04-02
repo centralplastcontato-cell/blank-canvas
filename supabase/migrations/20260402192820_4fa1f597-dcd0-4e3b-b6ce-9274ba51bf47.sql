@@ -1,0 +1,1 @@
+ALTER TABLE public.company_events ADD COLUMN internal_notes TEXT DEFAULT NULL;
