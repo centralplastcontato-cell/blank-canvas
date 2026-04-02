@@ -1274,18 +1274,19 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           </div>
 
           {/* Section 4 – Pagamento */}
-          <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
+          <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm space-y-5">
             <SectionHeader icon={CreditCard} label="Pagamento" />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5">
-              <div className="space-y-2.5 md:pr-6">
+
+            {/* --- Bloco 1: Valores --- */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2.5">
                 <Label className="text-sm font-medium text-foreground/70">Valor da festa</Label>
                 <MoneyInput value={form.total_value} onChange={(v) => {
                   setForm({ ...form, total_value: v });
                 }} />
               </div>
-
               {optionalsSubtotal > 0 && (
-                <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
+                <div className="space-y-2.5">
                   <Label className="text-sm font-medium text-foreground/70">Valor total</Label>
                   <div className="flex items-center h-10 px-3 rounded-md border border-border/50 bg-muted/50">
                     <span className="text-sm text-muted-foreground mr-1">R$</span>
@@ -1298,8 +1299,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                   </p>
                 </div>
               )}
-
-              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
+              <div className="space-y-2.5">
                 <Label className="text-sm font-medium text-foreground/70">Forma de pagamento</Label>
                 <Select value={form.payment_method || "none"} onValueChange={(v) => setForm({ ...form, payment_method: v === "none" ? null : v })}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -1309,17 +1309,125 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                   </SelectContent>
                 </Select>
               </div>
+            </div>
 
-              <div className="space-y-2.5 md:pr-6">
-                <Label className="text-sm font-medium text-foreground/70">Parcelas</Label>
-                <Input type="number" min={1} max={24} placeholder="1" value={payment.parcelas ?? ""} onChange={(e) => {
-                  const num = e.target.value ? Math.max(1, Math.min(24, Number(e.target.value))) : null;
-                  const details = buildParcelasDetails(num, payment.saldo_valor, payment.parcelas_details || []);
-                  setPayment({ ...payment, parcelas: num, parcelas_details: details });
-                }} />
+            <div className="border-t border-border/30" />
+
+            {/* --- Bloco 2: Entrada --- */}
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Entrada</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                <div className="space-y-2.5">
+                  <Label className="text-sm font-medium text-foreground/70">Valor</Label>
+                  <MoneyInput value={payment.entrada_valor} onChange={(v) => {
+                    const total = form.total_value ?? 0;
+                    const novoSaldo = total > 0 ? Math.max(0, total - (v ?? 0)) : payment.saldo_valor;
+                    setPayment(prev => ({
+                      ...prev,
+                      entrada_valor: v,
+                      saldo_valor: novoSaldo,
+                      parcelas_details: buildParcelasDetails(prev.parcelas, novoSaldo, prev.parcelas_details || []),
+                    }));
+                  }} />
+                </div>
+                <div className="space-y-2.5">
+                  <Label className="text-sm font-medium text-foreground/70">Forma</Label>
+                  <Select value={payment.entrada_forma || "none"} onValueChange={(v) => setPayment({ ...payment, entrada_forma: v === "none" ? "" : v })}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Não informado</SelectItem>
+                      {PAYMENT_FORMS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2.5">
+                  <Label className="text-sm font-medium text-foreground/70">Data</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !payment.entrada_data && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {payment.entrada_data ? format(new Date(payment.entrada_data + "T12:00:00"), "dd/MM/yyyy") : "Selecionar"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={payment.entrada_data ? new Date(payment.entrada_data + "T12:00:00") : undefined}
+                        onSelect={(d) => setPayment({ ...payment, entrada_data: d ? format(d, "yyyy-MM-dd") : null })}
+                        locale={ptBR}
+                        className="p-3 pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-border/30" />
+
+            {/* --- Bloco 3: Saldo e Parcelas --- */}
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Saldo</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                <div className="space-y-2.5">
+                  <Label className="text-sm font-medium text-foreground/70">Valor</Label>
+                  <MoneyInput value={payment.saldo_valor} onChange={(v) => {
+                    setPayment({
+                      ...payment,
+                      saldo_valor: v,
+                      parcelas_details: buildParcelasDetails(payment.parcelas, v, payment.parcelas_details || []),
+                    });
+                  }} />
+                </div>
+                <div className="space-y-2.5">
+                  <Label className="text-sm font-medium text-foreground/70">Forma</Label>
+                  <Select value={payment.saldo_forma || "none"} onValueChange={(v) => setPayment({ ...payment, saldo_forma: v === "none" ? "" : v })}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Não informado</SelectItem>
+                      {PAYMENT_FORMS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2.5">
+                  <Label className="text-sm font-medium text-foreground/70">Data</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !payment.saldo_data && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {payment.saldo_data ? format(new Date(payment.saldo_data + "T12:00:00"), "dd/MM/yyyy") : "Selecionar"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={payment.saldo_data ? new Date(payment.saldo_data + "T12:00:00") : undefined}
+                        onSelect={(d) => {
+                          const dateStr = d ? format(d, "yyyy-MM-dd") : null;
+                          const updatedPayment = { ...payment, saldo_data: dateStr };
+                          if (dateStr && (payment.parcelas ?? 0) <= 1 && updatedPayment.parcelas_details?.length) {
+                            updatedPayment.parcelas_details = [{ ...updatedPayment.parcelas_details[0], vencimento: dateStr }];
+                          }
+                          setPayment(updatedPayment);
+                        }}
+                        locale={ptBR}
+                        className="p-3 pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
 
-              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
+              {/* Parcelas */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+                <div className="space-y-2.5">
+                  <Label className="text-sm font-medium text-foreground/70">Parcelas</Label>
+                  <Input type="number" min={1} max={24} placeholder="1" value={payment.parcelas ?? ""} onChange={(e) => {
+                    const num = e.target.value ? Math.max(1, Math.min(24, Number(e.target.value))) : null;
+                    const details = buildParcelasDetails(num, payment.saldo_valor, payment.parcelas_details || []);
+                    setPayment({ ...payment, parcelas: num, parcelas_details: details });
+                  }} />
+                </div>
                 {(payment.parcelas ?? 0) > 1 && (
                   <div className="space-y-2.5">
                     <Label className="text-sm font-medium text-foreground/70">Vencimentos</Label>
@@ -1347,9 +1455,9 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 )}
               </div>
 
-              {/* Installment details */}
+              {/* Detalhes das parcelas */}
               {(payment.parcelas ?? 0) >= 1 && (
-                <div className="md:col-span-2 space-y-3">
+                <div className="pt-3">
                   <div className="rounded-lg border border-border/40 bg-muted/20 p-3 space-y-2">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Detalhes das parcelas</p>
                     {(payment.parcelas_details || []).map((parcela, idx) => (
@@ -1417,113 +1525,19 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                   </div>
                 </div>
               )}
+            </div>
 
-              <div className="space-y-2.5 md:pr-6">
-                <Label className="text-sm font-medium text-foreground/70">Valor da entrada</Label>
-                <MoneyInput value={payment.entrada_valor} onChange={(v) => {
-                  const total = form.total_value ?? 0;
-                  const novoSaldo = total > 0 ? Math.max(0, total - (v ?? 0)) : payment.saldo_valor;
-                  setPayment(prev => ({
-                    ...prev,
-                    entrada_valor: v,
-                    saldo_valor: novoSaldo,
-                    parcelas_details: buildParcelasDetails(prev.parcelas, novoSaldo, prev.parcelas_details || []),
-                  }));
-                }} />
-              </div>
+            <div className="border-t border-border/30" />
 
-              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
-                <Label className="text-sm font-medium text-foreground/70">Forma da entrada</Label>
-                <Select value={payment.entrada_forma || "none"} onValueChange={(v) => setPayment({ ...payment, entrada_forma: v === "none" ? "" : v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Não informado</SelectItem>
-                    {PAYMENT_FORMS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2.5 md:col-span-2">
-                <Label className="text-sm font-medium text-foreground/70">Data da entrada</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !payment.entrada_data && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {payment.entrada_data ? format(new Date(payment.entrada_data + "T12:00:00"), "dd/MM/yyyy") : "Selecionar data da entrada"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={payment.entrada_data ? new Date(payment.entrada_data + "T12:00:00") : undefined}
-                      onSelect={(d) => setPayment({ ...payment, entrada_data: d ? format(d, "yyyy-MM-dd") : null })}
-                      locale={ptBR}
-                      className="p-3 pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div className="space-y-2.5 md:pr-6">
-                <Label className="text-sm font-medium text-foreground/70">Valor do saldo</Label>
-                <MoneyInput value={payment.saldo_valor} onChange={(v) => {
-                  setPayment({
-                    ...payment,
-                    saldo_valor: v,
-                    parcelas_details: buildParcelasDetails(payment.parcelas, v, payment.parcelas_details || []),
-                  });
-                }} />
-              </div>
-
-              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
-                <Label className="text-sm font-medium text-foreground/70">Forma do saldo</Label>
-                <Select value={payment.saldo_forma || "none"} onValueChange={(v) => setPayment({ ...payment, saldo_forma: v === "none" ? "" : v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Não informado</SelectItem>
-                    {PAYMENT_FORMS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2.5 md:col-span-2">
-                <Label className="text-sm font-medium text-foreground/70">Data do saldo</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !payment.saldo_data && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {payment.saldo_data ? format(new Date(payment.saldo_data + "T12:00:00"), "dd/MM/yyyy") : "Selecionar data do saldo"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={payment.saldo_data ? new Date(payment.saldo_data + "T12:00:00") : undefined}
-                      onSelect={(d) => {
-                        const dateStr = d ? format(d, "yyyy-MM-dd") : null;
-                        const updatedPayment = { ...payment, saldo_data: dateStr };
-                        // Sync to parcelas_details[0].vencimento when 1 parcela
-                        if (dateStr && (payment.parcelas ?? 0) <= 1 && updatedPayment.parcelas_details?.length) {
-                          updatedPayment.parcelas_details = [{ ...updatedPayment.parcelas_details[0], vencimento: dateStr }];
-                        }
-                        setPayment(updatedPayment);
-                      }}
-                      locale={ptBR}
-                      className="p-3 pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div className="space-y-2.5 md:col-span-2">
-                <Label className="text-sm font-medium text-foreground/70">Observações de pagamento</Label>
-                <Textarea
-                  value={payment.observacoes_pagamento}
-                  onChange={(e) => setPayment({ ...payment, observacoes_pagamento: e.target.value })}
-                  rows={2}
-                  placeholder="Ex: Entrada via PIX até 15/03, saldo parcelado em 3x no cartão..."
-                />
-              </div>
+            {/* --- Bloco 4: Observações --- */}
+            <div className="space-y-2.5">
+              <Label className="text-sm font-medium text-foreground/70">Observações de pagamento</Label>
+              <Textarea
+                value={payment.observacoes_pagamento}
+                onChange={(e) => setPayment({ ...payment, observacoes_pagamento: e.target.value })}
+                rows={2}
+                placeholder="Ex: Entrada via PIX até 15/03, saldo parcelado em 3x no cartão..."
+              />
             </div>
           </div>
 
