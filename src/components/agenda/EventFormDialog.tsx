@@ -1132,6 +1132,36 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
             <SectionHeader icon={Package} label="Opcionais" />
             <div className="space-y-3">
+              {/* Catalog suggestions */}
+              {catalogOptionals.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Opcionais cadastrados</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {catalogOptionals
+                      .filter(co => !(form.event_optionals || []).some(eo => eo.name === co.name))
+                      .map(co => (
+                        <button
+                          key={co.id}
+                          type="button"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/60 bg-muted/30 hover:bg-primary/10 hover:border-primary/30 text-xs font-medium transition-all"
+                          onClick={() => {
+                            setForm({
+                              ...form,
+                              event_optionals: [...(form.event_optionals || []), { name: co.name, value: co.value }],
+                            });
+                          }}
+                        >
+                          <Plus className="h-3 w-3" />
+                          {co.name}
+                          {co.value != null && co.value > 0 && (
+                            <span className="text-muted-foreground">R$ {co.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                          )}
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              )}
+
               {(form.event_optionals || []).map((opt, idx) => (
                 <div key={idx} className="flex items-center gap-2">
                   <div className="flex-1">
@@ -1178,7 +1208,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                   setForm({ ...form, event_optionals: [...(form.event_optionals || []), { name: "", value: null }] });
                 }}
               >
-                <Plus className="h-3.5 w-3.5" /> Adicionar opcional
+                <Plus className="h-3.5 w-3.5" /> Adicionar manual
               </Button>
               {(form.event_optionals || []).length > 0 && (() => {
                 const subtotal = (form.event_optionals || []).reduce((sum, o) => sum + (o.value || 0), 0);
