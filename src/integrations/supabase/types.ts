@@ -961,6 +961,7 @@ export type Database = {
           data_fechamento_venda: string | null
           end_time: string | null
           event_date: string
+          event_optionals: Json | null
           event_type: string | null
           extra_guest_value: number | null
           gifts: string | null
@@ -992,6 +993,7 @@ export type Database = {
           data_fechamento_venda?: string | null
           end_time?: string | null
           event_date: string
+          event_optionals?: Json | null
           event_type?: string | null
           extra_guest_value?: number | null
           gifts?: string | null
@@ -1023,6 +1025,7 @@ export type Database = {
           data_fechamento_venda?: string | null
           end_time?: string | null
           event_date?: string
+          event_optionals?: Json | null
           event_type?: string | null
           extra_guest_value?: number | null
           gifts?: string | null
