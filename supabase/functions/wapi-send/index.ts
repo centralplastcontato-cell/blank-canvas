@@ -495,32 +495,9 @@ async function checkSessionHealth(
       console.warn(`[Preflight] Auto-recovery check failed for ${instanceExternalId}:`, err);
     }
     
-    // Recovery failed — block as before
-    console.warn(`[Preflight] BLOCKED ${action}: instance ${instanceExternalId} SESSION_INCOMPLETE (recovery failed)`);
-    
-    if (conversationId && messageContent) {
-      const failedMsgId = `blocked_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      await supabase.from('wapi_messages').insert({
-        conversation_id: conversationId,
-        message_id: failedMsgId,
-        from_me: true,
-        message_type: 'text',
-        content: messageContent,
-        status: 'failed',
-        timestamp: new Date().toISOString(),
-        company_id: companyId,
-        metadata: { blocked_reason: 'SESSION_INCOMPLETE' },
-      });
-    }
-
-    return new Response(JSON.stringify({ 
-      error: 'Sessão do WhatsApp incompleta. Reconecte a instância.',
-      errorType: 'SESSION_INCOMPLETE',
-      blocked: true,
-    }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    // Don't hard-block here: some W-API LITE sessions are fully operational
+    // even when qr-code endpoint can't provide the phone metadata reliably.
+    // Since DB says
   }
 
   // DISCONNECTED: check real status before blocking
