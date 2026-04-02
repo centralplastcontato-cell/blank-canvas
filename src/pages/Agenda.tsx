@@ -130,6 +130,7 @@ const mapEventToFormData = (ev: CompanyEvent): EventFormData => ({
   extra_guest_value: ev.extra_guest_value ?? null,
   is_permuta: ev.is_permuta || false,
   birthday_children: Array.isArray(ev.birthday_children) ? ev.birthday_children : [],
+  event_optionals: Array.isArray(ev.event_optionals) ? ev.event_optionals : [],
 });
 
 export default function Agenda() {
