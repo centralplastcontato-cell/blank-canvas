@@ -80,6 +80,7 @@ export interface VariableContext {
     data_entrada?: string | null;
     data_saldo?: string | null;
     aniversariantes?: string | null;
+    opcionais?: string | null;
   };
   freelancer?: {
     name?: string | null;
@@ -204,6 +205,7 @@ const VARIABLE_CATALOG: Record<string, { resolver: VariableResolver }> = {
   duracao_festa: { resolver: (ctx) => ctx.contract?.duracao_festa || '' },
   cardapio: { resolver: (ctx) => ctx.contract?.cardapio || '' },
   valor_total_extenso: { resolver: (ctx) => ctx.contract?.valor_total_extenso || '' },
+  opcionais: { resolver: (ctx) => ctx.contract?.opcionais || 'Nenhum opcional contratado' },
   titulo: { resolver: (ctx) => ctx.schedule?.title || '' },
   periodo: { resolver: (ctx) => ctx.schedule?.period || '' },
   qtd_festas: { resolver: (ctx) => ctx.schedule?.event_count?.toString() || '' },
@@ -314,7 +316,7 @@ export function getAvailableVariables(): { key: string; aliases: string[]; domai
     descricao: 'contract', telefone_pais: 'contract', cliente_celular: 'contract',
     tema: 'contract', valor_convidado_adicional: 'contract', quantidade_pessoas: 'contract',
     estado: 'contract', duracao_festa: 'contract', cardapio: 'contract', valor_total_extenso: 'contract',
-    data_entrada: 'contract', data_saldo: 'contract', aniversariantes: 'contract',
+    data_entrada: 'contract', data_saldo: 'contract', aniversariantes: 'contract', opcionais: 'contract',
     titulo: 'schedule', periodo: 'schedule', qtd_festas: 'schedule',
     link: 'schedule', observacoes: 'schedule', lista_escalados: 'schedule',
   };

@@ -86,6 +86,7 @@ export interface VariableContext {
     data_entrada?: string | null;
     data_saldo?: string | null;
     aniversariantes?: string | null;
+    opcionais?: string | null;
   };
   freelancer?: {
     name?: string | null;
@@ -353,6 +354,9 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
       return v;
     },
   },
+  opcionais: {
+    resolver: (ctx) => ctx.contract?.opcionais || 'Nenhum opcional contratado',
+  },
 
   // --- Freelancer / Schedule ---
   titulo: {
@@ -560,7 +564,7 @@ export function getAvailableVariables(): {
     descricao: 'contract', telefone_pais: 'contract', cliente_celular: 'contract',
     tema: 'contract', valor_convidado_adicional: 'contract', quantidade_pessoas: 'contract',
     estado: 'contract', duracao_festa: 'contract', cardapio: 'contract', valor_total_extenso: 'contract',
-    data_entrada: 'contract', data_saldo: 'contract', aniversariantes: 'contract',
+    data_entrada: 'contract', data_saldo: 'contract', aniversariantes: 'contract', opcionais: 'contract',
     titulo: 'schedule', periodo: 'schedule', qtd_festas: 'schedule',
     link: 'schedule', observacoes: 'schedule', lista_escalados: 'schedule',
   };
