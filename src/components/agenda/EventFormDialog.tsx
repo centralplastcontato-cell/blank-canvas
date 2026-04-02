@@ -48,6 +48,7 @@ export interface BirthdayChild {
 export interface EventOptional {
   name: string;
   value: number | null;
+  valor_por_pessoa?: number | null;
 }
 
 export interface EventFormData {
@@ -290,7 +291,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [packages, setPackages] = useState<Array<{ id: string; name: string; valor_pessoa_adicional: number | null; preco_separado: boolean; valor_pessoa_adicional_adulto: number | null; valor_pessoa_adicional_crianca: number | null }>>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [companyUsers, setCompanyUsers] = useState<Array<{ id: string; name: string }>>([]);
-  const [catalogOptionals, setCatalogOptionals] = useState<Array<{ id: string; name: string; description: string | null; value: number | null }>>([]);
+  const [catalogOptionals, setCatalogOptionals] = useState<Array<{ id: string; name: string; description: string | null; value: number | null; valor_por_pessoa: number | null }>>([]);
   
   const [fechamentoDate, setFechamentoDate] = useState<Date | undefined>(undefined);
 
@@ -496,12 +497,12 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       });
     supabase
       .from("company_optionals" as any)
-      .select("id, name, description, value")
+      .select("id, name, description, value, valor_por_pessoa")
       .eq("company_id", currentCompany.id)
       .eq("is_active", true)
       .order("sort_order")
       .then(({ data }) => {
-        setCatalogOptionals((data || []).map((o: any) => ({ id: o.id, name: o.name, description: o.description, value: o.value != null ? Number(o.value) : null })));
+        setCatalogOptionals((data || []).map((o: any) => ({ id: o.id, name: o.name, description: o.description, value: o.value != null ? Number(o.value) : null, valor_por_pessoa: o.valor_por_pessoa != null ? Number(o.valor_por_pessoa) : null })));
       });
 
   }, [open, currentCompany?.id]);
@@ -531,6 +532,22 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       return { ...prev, saldo_valor: novoSaldo };
     });
   }, [grandTotal, payment.entrada_valor]);
+
+  // Recalculate per-person optionals when guest_count changes
+  useEffect(() => {
+    const optionals = form.event_optionals || [];
+    const hasPerPerson = optionals.some(o => o.valor_por_pessoa && o.valor_por_pessoa > 0);
+    if (!hasPerPerson) return;
+    const guests = form.guest_count || 0;
+    const updated = optionals.map(o => {
+      if (!o.valor_por_pessoa || o.valor_por_pessoa <= 0) return o;
+      // Find matching catalog optional to get base fixed value
+      const catalog = catalogOptionals.find(co => co.name === o.name);
+      const fixedValue = catalog?.value || 0;
+      return { ...o, value: fixedValue + o.valor_por_pessoa * guests };
+    });
+    setForm(prev => ({ ...prev, event_optionals: updated }));
+  }, [form.guest_count]);
 
 
   useEffect(() => {
@@ -1165,9 +1182,14 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                           type="button"
                           className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/60 bg-muted/30 hover:bg-primary/10 hover:border-primary/30 text-xs font-medium transition-all"
                           onClick={() => {
+                            const guests = form.guest_count || 0;
+                            let totalValue = co.value || 0;
+                            if (co.valor_por_pessoa && co.valor_por_pessoa > 0 && guests > 0) {
+                              totalValue = (totalValue || 0) + co.valor_por_pessoa * guests;
+                            }
                             setForm({
                               ...form,
-                              event_optionals: [...(form.event_optionals || []), { name: co.name, value: co.value }],
+                              event_optionals: [...(form.event_optionals || []), { name: co.name, value: totalValue || null, valor_por_pessoa: co.valor_por_pessoa }],
                             });
                           }}
                         >
@@ -1176,6 +1198,9 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                           {co.value != null && co.value > 0 && (
                             <span className="text-muted-foreground">R$ {co.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                           )}
+                          {co.valor_por_pessoa != null && co.valor_por_pessoa > 0 && (
+                            <span className="text-muted-foreground">+ R$ {co.valor_por_pessoa.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}/pessoa</span>
+                          )}
                         </button>
                       ))}
                   </div>
@@ -1183,40 +1208,47 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               )}
 
               {(form.event_optionals || []).map((opt, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <Input
-                      placeholder="Nome do opcional"
-                      value={opt.name}
-                      onChange={(e) => {
-                        const updated = [...(form.event_optionals || [])];
-                        updated[idx] = { ...updated[idx], name: e.target.value };
+                <div key={idx} className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <Input
+                        placeholder="Nome do opcional"
+                        value={opt.name}
+                        onChange={(e) => {
+                          const updated = [...(form.event_optionals || [])];
+                          updated[idx] = { ...updated[idx], name: e.target.value };
+                          setForm({ ...form, event_optionals: updated });
+                        }}
+                      />
+                    </div>
+                    <div className="w-36">
+                      <MoneyInput
+                        value={opt.value}
+                        onChange={(v) => {
+                          const updated = [...(form.event_optionals || [])];
+                          updated[idx] = { ...updated[idx], value: v };
+                          setForm({ ...form, event_optionals: updated });
+                        }}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive/70 hover:text-destructive shrink-0"
+                      onClick={() => {
+                        const updated = (form.event_optionals || []).filter((_, i) => i !== idx);
                         setForm({ ...form, event_optionals: updated });
                       }}
-                    />
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <div className="w-36">
-                    <MoneyInput
-                      value={opt.value}
-                      onChange={(v) => {
-                        const updated = [...(form.event_optionals || [])];
-                        updated[idx] = { ...updated[idx], value: v };
-                        setForm({ ...form, event_optionals: updated });
-                      }}
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-destructive/70 hover:text-destructive shrink-0"
-                    onClick={() => {
-                      const updated = (form.event_optionals || []).filter((_, i) => i !== idx);
-                      setForm({ ...form, event_optionals: updated });
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {opt.valor_por_pessoa != null && opt.valor_por_pessoa > 0 && (
+                    <p className="text-[10px] text-muted-foreground ml-1">
+                      R$ {opt.valor_por_pessoa.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}/pessoa × {form.guest_count || 0} convidados
+                    </p>
+                  )}
                 </div>
               ))}
               <Button

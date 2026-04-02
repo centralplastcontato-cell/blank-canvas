@@ -15,6 +15,7 @@ interface CompanyOptional {
   name: string;
   description: string | null;
   value: number | null;
+  valor_por_pessoa: number | null;
   is_active: boolean;
   sort_order: number;
 }
@@ -58,6 +59,7 @@ export function OptionalsManager() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [valor, setValor] = useState("");
+  const [valorPorPessoa, setValorPorPessoa] = useState("");
   const [saving, setSaving] = useState(false);
 
   const fetchOptionals = async () => {
@@ -84,6 +86,7 @@ export function OptionalsManager() {
     setName("");
     setDescription("");
     setValor("");
+    setValorPorPessoa("");
     setDialogOpen(true);
   };
 
@@ -92,6 +95,7 @@ export function OptionalsManager() {
     setName(opt.name);
     setDescription(opt.description || "");
     setValor(numToDisplay(opt.value));
+    setValorPorPessoa(numToDisplay(opt.valor_por_pessoa));
     setDialogOpen(true);
   };
 
@@ -103,6 +107,7 @@ export function OptionalsManager() {
       name: name.trim(),
       description: description.trim() || null,
       value: parseCurrency(valor),
+      valor_por_pessoa: parseCurrency(valorPorPessoa),
     };
 
     if (editing) {
@@ -173,13 +178,22 @@ export function OptionalsManager() {
               {opt.description && (
                 <p className="text-xs text-muted-foreground line-clamp-2 pl-[46px]">{opt.description}</p>
               )}
-              {opt.value != null && opt.value > 0 && (
-                <div className="ml-[46px]">
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/5 border border-primary/10">
-                    <span className="text-[11px] font-semibold text-primary tracking-wide uppercase">
-                      R$ {opt.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
+              {(opt.value != null && opt.value > 0 || opt.valor_por_pessoa != null && opt.valor_por_pessoa > 0) && (
+                <div className="ml-[46px] flex flex-wrap gap-1.5">
+                  {opt.value != null && opt.value > 0 && (
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/5 border border-primary/10">
+                      <span className="text-[11px] font-semibold text-primary tracking-wide uppercase">
+                        R$ {opt.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  )}
+                  {opt.valor_por_pessoa != null && opt.valor_por_pessoa > 0 && (
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-accent/50 border border-border/50">
+                      <span className="text-[11px] font-semibold text-muted-foreground tracking-wide">
+                        R$ {opt.valor_por_pessoa.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}/pessoa
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -216,8 +230,13 @@ export function OptionalsManager() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Valor (R$)</Label>
+                <Label className="text-xs text-muted-foreground">Valor fixo (R$)</Label>
                 <CurrencyInput value={valor} onChange={setValor} placeholder="R$ 0,00" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Valor por pessoa (R$)</Label>
+                <CurrencyInput value={valorPorPessoa} onChange={setValorPorPessoa} placeholder="R$ 0,00" />
+                <p className="text-[10px] text-muted-foreground">Se preenchido, será multiplicado pela qtde de convidados ao adicionar na festa.</p>
               </div>
             </div>
 
