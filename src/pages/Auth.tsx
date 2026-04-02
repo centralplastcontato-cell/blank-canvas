@@ -186,7 +186,8 @@ export default function Auth() {
     }
   };
 
-  const displayLogo = companyLogo || '/placeholder.svg';
+  const isCastelo = companyName?.toLowerCase().includes("castelo") || slug === "castelo-da-diversao";
+  const displayLogo = isCastelo ? logoCasteloTransparent : (companyLogo || '/placeholder.svg');
   const displayName = companyName || "Entrar";
 
   if (isLoadingCompany) {
