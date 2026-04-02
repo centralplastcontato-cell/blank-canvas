@@ -332,10 +332,17 @@ export default function Formularios() {
                           <Package className="h-3.5 w-3.5" />
                           <span>Pacotes</span>
                         </TabsTrigger>
+                        <TabsTrigger value="opcionais" className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border whitespace-nowrap data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:border-foreground data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:border-border data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground">
+                          <Package className="h-3.5 w-3.5" />
+                          <span>Opcionais</span>
+                        </TabsTrigger>
                       </TabsList>
                     </div>
                     <TabsContent value="pacotes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
                       <PackagesManager />
+                    </TabsContent>
+                    <TabsContent value="opcionais" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
+                      <OptionalsManager />
                     </TabsContent>
                   </Tabs>
                 </TabsContent>
