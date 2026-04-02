@@ -1274,7 +1274,6 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                   </p>
                 </div>
               )}
-              </div>
 
               <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
                 <Label className="text-sm font-medium text-foreground/70">Forma de pagamento</Label>
