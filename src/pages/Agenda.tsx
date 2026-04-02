@@ -63,6 +63,7 @@ interface CompanyEvent {
   gifts?: string | null;
   extra_guest_value?: number | null;
   is_permuta?: boolean;
+  internal_notes?: string;
   birthday_children?: any;
   event_optionals?: any;
 }
