@@ -21,7 +21,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AgendaCalendar } from "@/components/agenda/AgendaCalendar";
 import { AgendaListView } from "@/components/agenda/AgendaListView";
-import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
+import { EventFormDialog, EventFormData, type BirthdayChild } from "@/components/agenda/EventFormDialog";
 import { EventDetailSheet } from "@/components/agenda/EventDetailSheet";
 import { MonthSummaryCards } from "@/components/agenda/MonthSummaryCards";
 import { PeriodFilterPopover } from "@/components/agenda/PeriodFilterPopover";
