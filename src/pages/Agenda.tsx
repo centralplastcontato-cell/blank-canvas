@@ -116,7 +116,11 @@ const mapEventToFormData = (ev: CompanyEvent): EventFormData => ({
   unit: ev.unit || "",
   status: ev.status,
   package_name: ev.package_name || "",
-  total_value: ev.total_value,
+  total_value: (() => {
+    const optionals = Array.isArray(ev.event_optionals) ? ev.event_optionals : [];
+    const optionalsTotal = optionals.reduce((sum: number, o: any) => sum + (o.value || 0), 0);
+    return ev.total_value != null ? Math.max(0, ev.total_value - optionalsTotal) : null;
+  })(),
   notes: ev.notes || "",
   lead_id: ev.lead_id || null,
   data_fechamento_venda: ev.data_fechamento_venda || null,
