@@ -17,6 +17,7 @@ import { CardapioContent } from "./Cardapio";
 import { EventStaffManager } from "@/components/agenda/EventStaffManager";
 import { ChecklistTemplateManager } from "@/components/agenda/ChecklistTemplateManager";
 import { PackagesManager } from "@/components/admin/PackagesManager";
+import { OptionalsManager } from "@/components/admin/OptionalsManager";
 import { MaintenanceManager } from "@/components/agenda/MaintenanceManager";
 import { PartyMonitoringManager } from "@/components/agenda/PartyMonitoringManager";
 import { AttendanceManager } from "@/components/agenda/AttendanceManager";
