@@ -188,6 +188,7 @@ const EMPTY: EventFormData = {
   child_name: null,
   child_age: null,
   child_birthdate: null,
+  birthday_children: [{ name: "", age: "", birthdate: "" }],
   parent_names: null,
   gifts: null,
   extra_guest_value: null,
