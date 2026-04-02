@@ -63,6 +63,7 @@ interface CompanyEvent {
   gifts?: string | null;
   extra_guest_value?: number | null;
   is_permuta?: boolean;
+  birthday_children?: any;
 }
 
 const normalizeTimeValue = (value?: string | null) => {
@@ -127,6 +128,7 @@ const mapEventToFormData = (ev: CompanyEvent): EventFormData => ({
   gifts: ev.gifts || null,
   extra_guest_value: ev.extra_guest_value ?? null,
   is_permuta: ev.is_permuta || false,
+  birthday_children: Array.isArray(ev.birthday_children) ? ev.birthday_children : [],
 });
 
 export default function Agenda() {
@@ -574,14 +576,15 @@ export default function Agenda() {
       data_fechamento_venda: data.data_fechamento_venda || null,
       vendedor_responsavel_id: data.vendedor_responsavel_id || null,
       payment_method: data.payment_method || null,
-      child_name: data.child_name || null,
-      child_age: data.child_age || null,
-      child_birthdate: data.child_birthdate || null,
+      child_name: data.birthday_children?.[0]?.name || data.child_name || null,
+      child_age: data.birthday_children?.[0]?.age || data.child_age || null,
+      child_birthdate: data.birthday_children?.[0]?.birthdate || data.child_birthdate || null,
+      birthday_children: (data.birthday_children || []).filter((c: any) => c.name || c.age || c.birthdate),
       parent_names: data.parent_names || null,
       gifts: data.gifts || null,
       extra_guest_value: data.extra_guest_value,
       is_permuta: data.is_permuta || false,
-    };
+    } as any;
     if (data.payment_details) {
       payload.payment_details = data.payment_details;
     }
