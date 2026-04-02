@@ -289,7 +289,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
   // Conflict detection state
   const [conflictEvent, setConflictEvent] = useState<{ title: string; start_time: string; end_time: string; unit: string } | null>(null);
-  const [checkingConflict, setCheckingConflict] = useState(false);
+  const [_checkingConflict, setCheckingConflict] = useState(false);
   const conflictTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Conflict detection effect
