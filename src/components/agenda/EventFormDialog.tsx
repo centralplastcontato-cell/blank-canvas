@@ -1118,6 +1118,69 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             </div>
           </div>
 
+          {/* Section 3.5 – Opcionais */}
+          <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
+            <SectionHeader icon={Package} label="Opcionais" />
+            <div className="space-y-3">
+              {(form.event_optionals || []).map((opt, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <Input
+                      placeholder="Nome do opcional"
+                      value={opt.name}
+                      onChange={(e) => {
+                        const updated = [...(form.event_optionals || [])];
+                        updated[idx] = { ...updated[idx], name: e.target.value };
+                        setForm({ ...form, event_optionals: updated });
+                      }}
+                    />
+                  </div>
+                  <div className="w-36">
+                    <MoneyInput
+                      value={opt.value}
+                      onChange={(v) => {
+                        const updated = [...(form.event_optionals || [])];
+                        updated[idx] = { ...updated[idx], value: v };
+                        setForm({ ...form, event_optionals: updated });
+                      }}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive/70 hover:text-destructive shrink-0"
+                    onClick={() => {
+                      const updated = (form.event_optionals || []).filter((_, i) => i !== idx);
+                      setForm({ ...form, event_optionals: updated });
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={() => {
+                  setForm({ ...form, event_optionals: [...(form.event_optionals || []), { name: "", value: null }] });
+                }}
+              >
+                <Plus className="h-3.5 w-3.5" /> Adicionar opcional
+              </Button>
+              {(form.event_optionals || []).length > 0 && (() => {
+                const subtotal = (form.event_optionals || []).reduce((sum, o) => sum + (o.value || 0), 0);
+                return subtotal > 0 ? (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Subtotal opcionais: <span className="font-semibold text-foreground">R$ {subtotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                  </p>
+                ) : null;
+              })()}
+            </div>
+          </div>
+
           {/* Section 4 – Pagamento */}
           <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
             <SectionHeader icon={CreditCard} label="Pagamento" />
