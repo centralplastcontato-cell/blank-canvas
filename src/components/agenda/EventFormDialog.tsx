@@ -390,10 +390,20 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   useEffect(() => {
     if (open) {
       const data = initialData || EMPTY;
+      // Build birthday_children from new field or legacy fields
+      let children: BirthdayChild[] = [];
+      if (data.birthday_children && Array.isArray(data.birthday_children) && data.birthday_children.length > 0) {
+        children = data.birthday_children;
+      } else if (data.child_name) {
+        children = [{ name: data.child_name || "", age: data.child_age || "", birthdate: data.child_birthdate || "" }];
+      } else {
+        children = [{ name: "", age: "", birthdate: "" }];
+      }
       setForm({
         ...data,
         start_time: normalizeTimeValue(data.start_time),
         end_time: normalizeTimeValue(data.end_time),
+        birthday_children: children,
       });
       const loadedPayment = (data.payment_details as PaymentDetails) || EMPTY_PAYMENT;
       // Auto-fill parcelas details if saldo and parcelas are set but details have null values
