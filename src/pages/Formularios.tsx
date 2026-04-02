@@ -78,6 +78,7 @@ export default function Formularios() {
   const visibleSections = useMemo(() => {
     const sections: { value: string; label: string; icon: React.ElementType }[] = [];
     if (canPacotes) sections.push({ value: "contratos", label: "Pacotes", icon: Package });
+    if (canPacotes) sections.push({ value: "opcionais", label: "Opcionais", icon: Package });
     if (canFormularios) sections.push({ value: "formularios", label: "Formulários", icon: FileText });
     if (canChecklist) sections.push({ value: "checklist", label: "Checklist", icon: ListChecks });
     if (canFreelancer || canAvaliacoes) sections.push({ value: "freelancer", label: "Freelancer", icon: HardHat });
