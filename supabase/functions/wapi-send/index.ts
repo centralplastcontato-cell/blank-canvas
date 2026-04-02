@@ -419,9 +419,40 @@ async function checkSessionHealth(
 
   if (!dbInstance) return null;
 
-  // SESSION_INCOMPLETE: connected but no phone_number
+  // SESSION_INCOMPLETE: connected but no phone_number — try auto-recovery first
   if (dbInstance.status === 'connected' && !dbInstance.phone_number) {
-    console.warn(`[Preflight] BLOCKED ${action}: instance ${instanceExternalId} is connected but has no phone_number (SESSION_INCOMPLETE)`);
+    console.warn(`[Preflight] Instance ${instanceExternalId} is connected but has no phone_number. Attempting auto-recovery...`);
+    
+    try {
+      const statusRes = await fetch(
+        `${WAPI_BASE_URL}/instance/qr-code?instanceId=${instanceExternalId}`,
+        {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${instanceToken}` },
+        }
+      );
+      
+      if (statusRes.ok) {
+        const ct = statusRes.headers.get('content-type');
+        if (!ct?.includes('image') && !ct?.includes('text/html')) {
+          const statusData = await statusRes.json();
+          const phone = statusData?.phone || statusData?.phoneNumber || statusData?.me?.id?.split('@')[0] || null;
+          
+          if (phone) {
+            console.log(`[Preflight] ✅ Auto-recovered phone_number for ${instanceExternalId}: ${phone}`);
+            await supabase.from('wapi_instances').update({ 
+              phone_number: phone,
+            }).eq('id', dbInstance.id);
+            return null; // Allow send
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(`[Preflight] Auto-recovery check failed for ${instanceExternalId}:`, err);
+    }
+    
+    // Recovery failed — block as before
+    console.warn(`[Preflight] BLOCKED ${action}: instance ${instanceExternalId} SESSION_INCOMPLETE (recovery failed)`);
     
     if (conversationId && messageContent) {
       const failedMsgId = `blocked_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
