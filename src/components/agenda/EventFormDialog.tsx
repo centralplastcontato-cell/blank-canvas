@@ -515,26 +515,22 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     }
   }, [packages, form.package_name]);
 
-  // Auto-recalculate total_value when optionals change
+  // Computed optionals subtotal and grand total
+  const optionalsSubtotal = useMemo(() => 
+    (form.event_optionals || []).reduce((sum, o) => sum + (o.value || 0), 0),
+    [form.event_optionals]
+  );
+  const grandTotal = (form.total_value || 0) + optionalsSubtotal;
+
+  // Update payment saldo when optionals or base value changes
   useEffect(() => {
-    const newSubtotal = (form.event_optionals || []).reduce((sum, o) => sum + (o.value || 0), 0);
-    const prevSubtotal = prevOptionalsSubtotalRef.current;
-    if (newSubtotal !== prevSubtotal) {
-      const diff = newSubtotal - prevSubtotal;
-      prevOptionalsSubtotalRef.current = newSubtotal;
-      setForm(prev => {
-        const newTotal = Math.max(0, (prev.total_value || 0) + diff) || null;
-        return { ...prev, total_value: newTotal };
-      });
-      // Also update payment saldo
-      setPayment(prev => {
-        const newTotal = Math.max(0, (form.total_value || 0) + diff);
-        const entrada = prev.entrada_valor ?? 0;
-        const novoSaldo = Math.max(0, newTotal - entrada);
-        return { ...prev, saldo_valor: novoSaldo };
-      });
-    }
-  }, [form.event_optionals]);
+    const entrada = payment.entrada_valor ?? 0;
+    const novoSaldo = Math.max(0, grandTotal - entrada);
+    setPayment(prev => {
+      if (prev.saldo_valor === novoSaldo) return prev;
+      return { ...prev, saldo_valor: novoSaldo };
+    });
+  }, [grandTotal, payment.entrada_valor]);
 
   // Sync ref on initial load (edit mode)
   useEffect(() => {
