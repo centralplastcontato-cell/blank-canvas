@@ -105,7 +105,7 @@ export function MobileMenu({
     },
     {
       id: "agenda",
-      label: "Agenda",
+      label: "Agenda de festas",
       icon: CalendarDays,
       path: "/agenda",
       show: !!modules.agenda,
@@ -126,7 +126,7 @@ export function MobileMenu({
     },
     {
       id: "visitas",
-      label: "Visitas",
+      label: "Agenda de visitas",
       icon: MapPin,
       path: "/visitas",
       show: !!modules.visitas,
