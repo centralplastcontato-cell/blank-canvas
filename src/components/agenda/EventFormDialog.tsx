@@ -39,6 +39,12 @@ export interface PaymentDetails {
   parcelas_day?: number | null;
 }
 
+export interface BirthdayChild {
+  name: string;
+  age: string;
+  birthdate: string;
+}
+
 export interface EventFormData {
   id?: string;
   title: string;
@@ -63,6 +69,7 @@ export interface EventFormData {
   child_name?: string | null;
   child_age?: string | null;
   child_birthdate?: string | null;
+  birthday_children?: BirthdayChild[];
   parent_names?: string | null;
   gifts?: string | null;
   extra_guest_value?: number | null;
