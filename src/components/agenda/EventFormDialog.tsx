@@ -520,10 +520,17 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     if (newSubtotal !== prevSubtotal) {
       const diff = newSubtotal - prevSubtotal;
       prevOptionalsSubtotalRef.current = newSubtotal;
-      setForm(prev => ({
-        ...prev,
-        total_value: Math.max(0, (prev.total_value || 0) + diff) || null,
-      }));
+      setForm(prev => {
+        const newTotal = Math.max(0, (prev.total_value || 0) + diff) || null;
+        return { ...prev, total_value: newTotal };
+      });
+      // Also update payment saldo
+      setPayment(prev => {
+        const newTotal = Math.max(0, (form.total_value || 0) + diff);
+        const entrada = prev.entrada_valor ?? 0;
+        const novoSaldo = Math.max(0, newTotal - entrada);
+        return { ...prev, saldo_valor: novoSaldo };
+      });
     }
   }, [form.event_optionals]);
 
