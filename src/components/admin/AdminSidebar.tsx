@@ -73,15 +73,14 @@ export function AdminSidebar({
   // Build menu items dynamically based on permissions AND enabled modules
   const allItems = [
     ...(modules.central_atendimento ? [{ title: "Central de Atendimento", url: "/atendimento", icon: Headset }] : []),
-    ...(modules.config ? [{ title: "Configurações", url: "/configuracoes", icon: Settings }] : []),
     ...(modules.inteligencia ? [{ title: "Inteligência", url: "/inteligencia", icon: Brain }] : []),
-    ...(modules.agenda ? [{ title: "Agenda de festas", url: "/agenda", icon: CalendarDays }] : []),
-    ...(modules.operacoes ? [{ title: "Operações", url: "/formularios", icon: FolderOpen }] : []),
     ...(modules.campanhas ? [{ title: "Campanhas", url: "/campanhas", icon: Megaphone }] : []),
     ...(modules.visitas ? [{ title: "Agenda de visitas", url: "/visitas", icon: MapPin }] : []),
+    ...(modules.agenda ? [{ title: "Agenda de festas", url: "/agenda", icon: CalendarDays }] : []),
+    ...(modules.operacoes ? [{ title: "Operações", url: "/formularios", icon: FolderOpen }] : []),
     ...(modules.contrato ? [{ title: "Contratos", url: "/contratos", icon: FileSignature }] : []),
     ...(showFinanceiro ? [{ title: "Financeiro", url: "/financeiro", icon: DollarSign }] : []),
-    
+    ...(modules.config ? [{ title: "Configurações", url: "/configuracoes", icon: Settings }] : []),
     ...(canManageUsers ? [{ title: "Gerenciar Usuários", url: "/users", icon: Users }] : []),
     ...(isAdmin ? [{ title: "Empresas", url: "/hub/empresas", icon: Building2 }] : []),
     ...(modules.treinamento ? [{ title: "Treinamento", url: "/treinamento", icon: GraduationCap }] : []),
