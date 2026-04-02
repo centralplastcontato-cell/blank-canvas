@@ -951,6 +951,7 @@ export type Database = {
       }
       company_events: {
         Row: {
+          birthday_children: Json | null
           child_age: string | null
           child_birthdate: string | null
           child_name: string | null
@@ -981,6 +982,7 @@ export type Database = {
           vendedor_responsavel_id: string | null
         }
         Insert: {
+          birthday_children?: Json | null
           child_age?: string | null
           child_birthdate?: string | null
           child_name?: string | null
@@ -1011,6 +1013,7 @@ export type Database = {
           vendedor_responsavel_id?: string | null
         }
         Update: {
+          birthday_children?: Json | null
           child_age?: string | null
           child_birthdate?: string | null
           child_name?: string | null
