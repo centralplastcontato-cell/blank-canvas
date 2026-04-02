@@ -497,7 +497,9 @@ async function checkSessionHealth(
     
     // Don't hard-block here: some W-API LITE sessions are fully operational
     // even when qr-code endpoint can't provide the phone metadata reliably.
-    // Since DB says
+    // If the DB still marks the instance as connected, let the real send attempt decide.
+    console.warn(`[Preflight] Proceeding with ${action} for ${instanceExternalId} despite missing phone_number; relying on live send attempt.`);
+    return null;
   }
 
   // DISCONNECTED: check real status before blocking
