@@ -291,7 +291,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [packages, setPackages] = useState<Array<{ id: string; name: string; valor_pessoa_adicional: number | null; preco_separado: boolean; valor_pessoa_adicional_adulto: number | null; valor_pessoa_adicional_crianca: number | null }>>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [companyUsers, setCompanyUsers] = useState<Array<{ id: string; name: string }>>([]);
-  const [catalogOptionals, setCatalogOptionals] = useState<Array<{ id: string; name: string; description: string | null; value: number | null }>>([]);
+  const [catalogOptionals, setCatalogOptionals] = useState<Array<{ id: string; name: string; description: string | null; value: number | null; valor_por_pessoa: number | null }>>([]);
   
   const [fechamentoDate, setFechamentoDate] = useState<Date | undefined>(undefined);
 
