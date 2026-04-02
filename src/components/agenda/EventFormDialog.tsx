@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -286,6 +287,98 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [selectedContractModelId, setSelectedContractModelId] = useState<string | null>(null);
   const [contractDialogOpen, setContractDialogOpen] = useState(false);
 
+  // Conflict detection state
+  const [conflictEvent, setConflictEvent] = useState<{ title: string; start_time: string; end_time: string; unit: string } | null>(null);
+  const [_checkingConflict, setCheckingConflict] = useState(false);
+  const conflictTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Conflict detection effect
+  const inferEndTime = useCallback((start: string): string => {
+    if (!start) return "";
+    const [h, m] = start.split(":").map(Number);
+    const endH = h + 3;
+    return `${String(endH).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  }, []);
+
+  useEffect(() => {
+    if (!open || !currentCompany?.id || !form.event_date) {
+      setConflictEvent(null);
+      return;
+    }
+
+    const startTime = form.start_time;
+    if (!startTime) {
+      setConflictEvent(null);
+      return;
+    }
+
+    const endTime = form.end_time || inferEndTime(startTime);
+    if (!endTime) {
+      setConflictEvent(null);
+      return;
+    }
+
+    if (conflictTimerRef.current) clearTimeout(conflictTimerRef.current);
+
+    conflictTimerRef.current = setTimeout(async () => {
+      setCheckingConflict(true);
+      try {
+        let query = supabase
+          .from("company_events")
+          .select("id, title, start_time, end_time, unit")
+          .eq("company_id", currentCompany.id)
+          .eq("event_date", form.event_date)
+          .neq("status", "cancelado");
+
+        // Filter by unit if set
+        if (form.unit) {
+          query = query.eq("unit", form.unit);
+        }
+
+        // Exclude current event if editing
+        const editId = form.id || initialData?.id;
+        if (editId) {
+          query = query.neq("id", editId);
+        }
+
+        const { data: events } = await query;
+
+        if (!events || events.length === 0) {
+          setConflictEvent(null);
+          setCheckingConflict(false);
+          return;
+        }
+
+        // Check overlap: (newStart < existingEnd) AND (newEnd > existingStart)
+        const conflict = events.find((ev) => {
+          const evStart = normalizeTimeValue(ev.start_time) || "00:00";
+          const evEnd = normalizeTimeValue(ev.end_time) || inferEndTime(evStart);
+          if (!evEnd) return false;
+          return startTime < evEnd && endTime > evStart;
+        });
+
+        setConflictEvent(
+          conflict
+            ? {
+                title: conflict.title,
+                start_time: normalizeTimeValue(conflict.start_time) || "",
+                end_time: normalizeTimeValue(conflict.end_time) || "",
+                unit: conflict.unit || "",
+              }
+            : null
+        );
+      } catch {
+        setConflictEvent(null);
+      } finally {
+        setCheckingConflict(false);
+      }
+    }, 300);
+
+    return () => {
+      if (conflictTimerRef.current) clearTimeout(conflictTimerRef.current);
+    };
+  }, [open, currentCompany?.id, form.event_date, form.start_time, form.end_time, form.unit, form.id, initialData?.id, inferEndTime]);
+
   useEffect(() => {
     if (open) {
       const data = initialData || EMPTY;
@@ -450,6 +543,10 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     }
     if (units.length > 1 && !form.unit) {
       toast({ title: "Selecione uma unidade", variant: "destructive" });
+      return;
+    }
+    if (conflictEvent) {
+      toast({ title: "Conflito de horário detectado", description: "Altere o horário, data ou unidade antes de salvar.", variant: "destructive" });
       return;
     }
     setSaving(true);
@@ -629,6 +726,24 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         </DialogHeader>
 
         <form id="event-form" onSubmit={handleSubmit} className="overflow-y-auto px-7 py-6 space-y-5" style={{ maxHeight: "calc(90vh - 180px)" }}>
+          {/* Conflict Alert */}
+          {conflictEvent && (
+            <Alert variant="destructive" className="border-destructive/60 bg-destructive/10">
+              <AlertTriangle className="h-5 w-5" />
+              <AlertTitle className="text-sm font-bold">⚠️ Conflito de horário detectado!</AlertTitle>
+              <AlertDescription className="text-sm mt-1">
+                Já existe uma festa agendada neste horário:
+                <span className="font-semibold block mt-1">
+                  "{conflictEvent.title}" — {conflictEvent.start_time} às {conflictEvent.end_time || "N/A"}
+                  {conflictEvent.unit && ` (${conflictEvent.unit})`}
+                </span>
+                <span className="block mt-1 text-xs">
+                  Altere o horário, a data ou a unidade para continuar.
+                </span>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Section 1 – Dados do Cliente */}
           <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
             <SectionHeader icon={User} label="Dados do Cliente" />
@@ -1469,7 +1584,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             <Button
               type="button"
               variant="outline"
-              disabled={saving}
+              disabled={saving || !!conflictEvent}
               className="px-6 rounded-lg"
               onClick={(e) => handleSubmit(e as any, true)}
             >
@@ -1477,7 +1592,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               Salvar
             </Button>
           )}
-          <Button type="submit" form="event-form" disabled={saving} className="px-8 rounded-lg shadow-sm">
+          <Button type="submit" form="event-form" disabled={saving || !!conflictEvent} className="px-8 rounded-lg shadow-sm">
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
             {isEdit ? "Salvar" : "Criar e Fechar"}
           </Button>
