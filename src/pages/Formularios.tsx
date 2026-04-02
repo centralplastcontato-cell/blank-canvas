@@ -78,6 +78,7 @@ export default function Formularios() {
   const visibleSections = useMemo(() => {
     const sections: { value: string; label: string; icon: React.ElementType }[] = [];
     if (canPacotes) sections.push({ value: "contratos", label: "Pacotes", icon: Package });
+    if (canPacotes) sections.push({ value: "opcionais", label: "Opcionais", icon: Package });
     if (canFormularios) sections.push({ value: "formularios", label: "Formulários", icon: FileText });
     if (canChecklist) sections.push({ value: "checklist", label: "Checklist", icon: ListChecks });
     if (canFreelancer || canAvaliacoes) sections.push({ value: "freelancer", label: "Freelancer", icon: HardHat });
@@ -320,31 +321,14 @@ export default function Formularios() {
               )}
 
               {canPacotes && (
-                <TabsContent value="contratos" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
-                  <Tabs defaultValue="pacotes" className="flex-1 flex flex-col overflow-hidden">
-                    <div className="px-3 md:px-5 pt-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-sm font-bold tracking-wide text-foreground/80">Pacotes</span>
-                        <div className="flex-1 h-px bg-border/50" />
-                      </div>
-                      <TabsList className="flex justify-start gap-1.5 overflow-x-auto pb-1 bg-transparent h-auto p-0">
-                        <TabsTrigger value="pacotes" className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border whitespace-nowrap data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:border-foreground data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:border-border data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground">
-                          <Package className="h-3.5 w-3.5" />
-                          <span>Pacotes</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="opcionais" className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border whitespace-nowrap data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:border-foreground data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:border-border data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground">
-                          <Package className="h-3.5 w-3.5" />
-                          <span>Opcionais</span>
-                        </TabsTrigger>
-                      </TabsList>
-                    </div>
-                    <TabsContent value="pacotes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <PackagesManager />
-                    </TabsContent>
-                    <TabsContent value="opcionais" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <OptionalsManager />
-                    </TabsContent>
-                  </Tabs>
+                <TabsContent value="contratos" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
+                  <PackagesManager />
+                </TabsContent>
+              )}
+
+              {canPacotes && (
+                <TabsContent value="opcionais" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
+                  <OptionalsManager />
                 </TabsContent>
               )}
 
