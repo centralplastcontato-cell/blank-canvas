@@ -159,6 +159,14 @@ export function ContractGenerator({ userId, onClose }: Props) {
       data_saldo: eventData?.payment_details?.saldo_data || "",
       brindes: contractData.brindes || eventData?.gifts || "",
       valor_convidado_adicional: eventData?.extra_guest_value ? `R$ ${Number(eventData.extra_guest_value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "",
+      opcionais: (() => {
+        const opts = Array.isArray(eventData?.event_optionals) ? eventData.event_optionals.filter((o: any) => o.name) : [];
+        if (opts.length === 0) return "Nenhum opcional contratado";
+        return opts.map((o: any) => {
+          const val = o.value != null && o.value > 0 ? ` — R$ ${Number(o.value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "";
+          return `• ${o.name}${val}`;
+        }).join("\n");
+      })(),
       date: new Date().toLocaleDateString("pt-BR"),
     },
   }), [leadData, eventData, contractData, currentCompany?.name]);

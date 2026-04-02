@@ -354,6 +354,9 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
       return v;
     },
   },
+  opcionais: {
+    resolver: (ctx) => ctx.contract?.opcionais || 'Nenhum opcional contratado',
+  },
 
   // --- Freelancer / Schedule ---
   titulo: {

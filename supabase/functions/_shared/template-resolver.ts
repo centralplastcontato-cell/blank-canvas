@@ -205,6 +205,7 @@ const VARIABLE_CATALOG: Record<string, { resolver: VariableResolver }> = {
   duracao_festa: { resolver: (ctx) => ctx.contract?.duracao_festa || '' },
   cardapio: { resolver: (ctx) => ctx.contract?.cardapio || '' },
   valor_total_extenso: { resolver: (ctx) => ctx.contract?.valor_total_extenso || '' },
+  opcionais: { resolver: (ctx) => ctx.contract?.opcionais || 'Nenhum opcional contratado' },
   titulo: { resolver: (ctx) => ctx.schedule?.title || '' },
   periodo: { resolver: (ctx) => ctx.schedule?.period || '' },
   qtd_festas: { resolver: (ctx) => ctx.schedule?.event_count?.toString() || '' },
