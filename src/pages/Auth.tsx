@@ -10,6 +10,7 @@ import { Loader2, Lock, Mail, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { isHubDomain, getCanonicalHost, isPreviewDomain } from "@/hooks/useDomainDetection";
 import { z } from "zod";
 import loginBg from "@/assets/login-bg-5.jpg";
+import logoCasteloTransparent from "@/assets/logo-castelo-transparent.png";
 
 
 const emailSchema = z.string().email("Email inválido");
@@ -185,7 +186,8 @@ export default function Auth() {
     }
   };
 
-  const displayLogo = companyLogo || '/placeholder.svg';
+  const isCastelo = companyName?.toLowerCase().includes("castelo") || slug === "castelo-da-diversao";
+  const displayLogo = isCastelo ? logoCasteloTransparent : (companyLogo || '/placeholder.svg');
   const displayName = companyName || "Entrar";
 
   if (isLoadingCompany) {
