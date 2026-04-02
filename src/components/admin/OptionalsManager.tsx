@@ -86,6 +86,7 @@ export function OptionalsManager() {
     setName("");
     setDescription("");
     setValor("");
+    setValorPorPessoa("");
     setDialogOpen(true);
   };
 
