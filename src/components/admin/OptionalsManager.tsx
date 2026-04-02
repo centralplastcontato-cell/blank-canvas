@@ -95,6 +95,7 @@ export function OptionalsManager() {
     setName(opt.name);
     setDescription(opt.description || "");
     setValor(numToDisplay(opt.value));
+    setValorPorPessoa(numToDisplay(opt.valor_por_pessoa));
     setDialogOpen(true);
   };
 
