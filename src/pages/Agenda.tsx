@@ -588,6 +588,7 @@ export default function Agenda() {
       gifts: data.gifts || null,
       extra_guest_value: data.extra_guest_value,
       is_permuta: data.is_permuta || false,
+      internal_notes: data.internal_notes || null,
       event_optionals: (data.event_optionals || []).filter((o: any) => o.name || (o.value != null && o.value > 0)),
     } as any;
     if (data.payment_details) {
