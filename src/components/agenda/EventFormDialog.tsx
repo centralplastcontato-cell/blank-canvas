@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Loader2, Search, X, UserCheck, ListChecks, User, CalendarDays, PartyPopper, Briefcase, CalendarIcon, AlertTriangle, CreditCard, Handshake, Copy, ExternalLink, Clock, CheckCircle2, Send, PenLine, Baby, Gift, FileSignature, Repeat, Plus, Trash2 } from "lucide-react";
+import { Loader2, Search, X, UserCheck, ListChecks, User, CalendarDays, PartyPopper, Briefcase, CalendarIcon, AlertTriangle, CreditCard, Handshake, Copy, ExternalLink, Clock, CheckCircle2, Send, PenLine, Baby, Gift, FileSignature, Repeat, Plus, Trash2, Package } from "lucide-react";
 import { ManualClientDataForm } from "./ManualClientDataForm";
 import { EventContractDialog } from "@/components/contracts/EventContractDialog";
 import { format } from "date-fns";
@@ -45,6 +45,11 @@ export interface BirthdayChild {
   birthdate: string;
 }
 
+export interface EventOptional {
+  name: string;
+  value: number | null;
+}
+
 export interface EventFormData {
   id?: string;
   title: string;
@@ -74,6 +79,7 @@ export interface EventFormData {
   gifts?: string | null;
   extra_guest_value?: number | null;
   is_permuta?: boolean;
+  event_optionals?: EventOptional[];
 }
 
 const PAYMENT_METHODS = [
@@ -193,6 +199,7 @@ const EMPTY: EventFormData = {
   gifts: null,
   extra_guest_value: null,
   is_permuta: false,
+  event_optionals: [],
 };
 
 function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
@@ -404,6 +411,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         start_time: normalizeTimeValue(data.start_time),
         end_time: normalizeTimeValue(data.end_time),
         birthday_children: children,
+        event_optionals: Array.isArray(data.event_optionals) ? data.event_optionals : [],
       });
       const loadedPayment = (data.payment_details as PaymentDetails) || EMPTY_PAYMENT;
       // Auto-fill parcelas details if saldo and parcelas are set but details have null values
@@ -1107,6 +1115,69 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 <Label className="text-sm font-medium text-foreground/70">Valor por convidado extra</Label>
                 <MoneyInput value={form.extra_guest_value} onChange={(v) => setForm({ ...form, extra_guest_value: v })} />
               </div>
+            </div>
+          </div>
+
+          {/* Section 3.5 – Opcionais */}
+          <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
+            <SectionHeader icon={Package} label="Opcionais" />
+            <div className="space-y-3">
+              {(form.event_optionals || []).map((opt, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <Input
+                      placeholder="Nome do opcional"
+                      value={opt.name}
+                      onChange={(e) => {
+                        const updated = [...(form.event_optionals || [])];
+                        updated[idx] = { ...updated[idx], name: e.target.value };
+                        setForm({ ...form, event_optionals: updated });
+                      }}
+                    />
+                  </div>
+                  <div className="w-36">
+                    <MoneyInput
+                      value={opt.value}
+                      onChange={(v) => {
+                        const updated = [...(form.event_optionals || [])];
+                        updated[idx] = { ...updated[idx], value: v };
+                        setForm({ ...form, event_optionals: updated });
+                      }}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive/70 hover:text-destructive shrink-0"
+                    onClick={() => {
+                      const updated = (form.event_optionals || []).filter((_, i) => i !== idx);
+                      setForm({ ...form, event_optionals: updated });
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={() => {
+                  setForm({ ...form, event_optionals: [...(form.event_optionals || []), { name: "", value: null }] });
+                }}
+              >
+                <Plus className="h-3.5 w-3.5" /> Adicionar opcional
+              </Button>
+              {(form.event_optionals || []).length > 0 && (() => {
+                const subtotal = (form.event_optionals || []).reduce((sum, o) => sum + (o.value || 0), 0);
+                return subtotal > 0 ? (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Subtotal opcionais: <span className="font-semibold text-foreground">R$ {subtotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                  </p>
+                ) : null;
+              })()}
             </div>
           </div>
 
