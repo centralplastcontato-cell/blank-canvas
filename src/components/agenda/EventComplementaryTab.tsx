@@ -30,7 +30,7 @@ interface FormResponse {
 }
 
 interface FormSection {
-  type: "prefesta" | "cardapio" | "contrato";
+  type: "prefesta" | "cardapio" | "contrato" | "avaliacao";
   label: string;
   icon: React.ElementType;
   templates: FormTemplate[];
