@@ -205,6 +205,28 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
       {/* Summary Cards */}
       <FinancialSummaryCards summary={financial.summary} showValues={showValues} />
 
+      {/* Card Fee Loss Info */}
+      {cardFeeLoss && showValues && (
+        <Card className="p-3 border-amber-500/30 bg-amber-500/5">
+          <div className="flex items-center gap-2 mb-1.5">
+            <CreditCard className="h-4 w-4 text-amber-500" />
+            <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
+              Taxas de Cartão — {cardFeeLoss.operator}
+            </span>
+          </div>
+          <p className="text-sm font-bold text-destructive">
+            Valor não arrecadado: {fmt(cardFeeLoss.totalLoss)}
+          </p>
+          <div className="mt-1.5 space-y-0.5">
+            {cardFeeLoss.details.map((d, i) => (
+              <p key={i} className="text-[11px] text-muted-foreground">
+                {d.type === "entrada" ? "Entrada" : "Parcela"}: {fmt(d.bruto)} × {d.taxa.toFixed(2)}% = -{fmt(d.desconto)}
+              </p>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {/* Payments Section */}
       <div>
         <div className="flex items-center justify-between mb-2.5">
