@@ -140,12 +140,15 @@ export function CardFeesManager() {
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-w-5xl">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <CreditCard className="h-5 w-5 text-primary" /> Taxas de Cartão
-        </h2>
-        <Button size="sm" onClick={openNew} className="gap-1.5">
+        <div>
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <CreditCard className="h-5 w-5 text-primary" /> Taxas de Cartão
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Cadastre as operadoras de cartão para calcular automaticamente as taxas</p>
+        </div>
+        <Button size="sm" onClick={openNew} className="gap-1.5 shrink-0">
           <Plus className="h-4 w-4" /> Nova Operadora
         </Button>
       </div>
