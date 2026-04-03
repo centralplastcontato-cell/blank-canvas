@@ -1,46 +1,37 @@
 
 
-## Colapsar mensagens de Reativação no chat (mesmo tratamento dos follow-ups)
+## Ocultar detalhes de parcelas quando forma = Cartão
 
-As mensagens destacadas em vermelho na sua screenshot são disparadas pelo **motor de Reativação Inteligente** e possuem o metadata `source: "reactivation_engine"`. Atualmente, apenas mensagens com `source: "auto_reminder"` são colapsadas em chips. A ideia e expandir a mesma logica para incluir reativacoes.
+Compreendi perfeitamente. Quando o pagamento do **saldo** é no cartão, o cliente passa uma única vez e o parcelamento é feito pela operadora — não faz sentido exibir valor e data de cada parcela individualmente. O mesmo vale para a **entrada** no cartão.
 
 ### O que muda
 
-**1. Criar helper de identificacao de automacao**
+**Arquivo:** `src/components/agenda/EventFormDialog.tsx`
 
-Substituir as checagens espalhadas `=== 'auto_reminder'` por uma funcao utilitaria:
+**1. Seção de Saldo — Detalhes das parcelas (linhas ~1458-1525)**
+
+Adicionar condição: o bloco "Detalhes das parcelas" só renderiza se `payment.saldo_forma !== "cartao"`. Quando for cartão, manter o campo de quantidade de parcelas (ex: "12x") mas esconder a expansão com valores e datas individuais.
+
+**2. Seção de Entrada — mesma lógica**
+
+A entrada normalmente não tem parcelas expandidas, mas caso haja alguma lógica futura, garantir que `entrada_forma === "cartao"` também não expanda detalhes.
+
+### Lógica concreta
 
 ```text
-isAutomationMessage(metadata) =>
-  source === 'auto_reminder' OR source === 'reactivation_engine'
+Antes:
+  {(payment.parcelas ?? 0) >= 1 && ( <DetalhesExpandidos /> )}
+
+Depois:
+  {(payment.parcelas ?? 0) >= 1 && payment.saldo_forma !== "cartao" && ( <DetalhesExpandidos /> )}
 ```
 
-**2. Atualizar label do chip (FollowUpChip.tsx)**
+Também ocultar os botões "Mesmo dia" / "Dias diferentes" quando for cartão, já que não se aplicam.
 
-Adicionar labels para reativacao no `getAutomationLabel`:
-- `reactivation_stage_3` → "Reativação 3 meses"
-- `reactivation_stage_2` → "Reativação 2 meses"
-- `reactivation_stage_1` → "Reativação 1 mês"
-- fallback `reactivation_engine` → "Reativação automática"
+### Resultado
 
-**3. Atualizar WhatsAppChat.tsx**
+- Cartão selecionado → usuário vê apenas o campo "Parcelas" (ex: 12x) sem expandir linhas de valor/data
+- Qualquer outra forma (PIX, Boleto, Dinheiro, Transferência) → comportamento atual mantido com detalhes expandidos
 
-Trocar todas as ~6 ocorrencias de `=== 'auto_reminder'` pela funcao helper `isAutomationMessage()`, cobrindo:
-- Condicional de renderizacao do chip vs bolha (mobile e desktop)
-- Contagem do badge no botao do header
-- Filtragem para o painel de timeline
-
-**4. Atualizar AutomationTimelineSheet.tsx**
-
-Usar o mesmo helper no filtro de mensagens para incluir reativacoes na timeline.
-
-### Arquivos
-
-| Arquivo | Acao |
-|---------|------|
-| `src/components/whatsapp/FollowUpChip.tsx` | Adicionar labels de reativacao |
-| `src/components/whatsapp/WhatsAppChat.tsx` | Substituir checagens por helper |
-| `src/components/whatsapp/AutomationTimelineSheet.tsx` | Incluir reativacoes no filtro |
-
-Nenhuma alteracao de banco de dados necessaria -- os metadados ja existem.
+Apenas 1 arquivo editado, alteração de ~2 linhas de condição.
 
