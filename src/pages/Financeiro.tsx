@@ -630,8 +630,8 @@ export default function Financeiro() {
                                                 onClick={() => window.open(e.receipt_url!, '_blank')}
                                                 title="Ver comprovante"
                                               >
-                                                <FileText className="h-3.5 w-3.5 mr-1" />
-                                                Comprovante
+                                                <FileText className="h-3.5 w-3.5 sm:mr-1" />
+                                                <span className="hidden sm:inline">Comprovante</span>
                                               </Button>
                                             )}
                                             <Button
