@@ -183,7 +183,7 @@ export default function Formularios() {
             </div>
           </header>
 
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-hidden min-w-0">
             {/* Desktop header */}
             <div className="hidden md:block px-3 md:px-5 pt-3 md:pt-4 pb-0">
               <div className="relative rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden">
