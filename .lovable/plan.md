@@ -1,33 +1,46 @@
 
-## Plano: Follow-ups Compactos + Painel de Automações
 
-### Problema
-Mensagens de follow-up automáticas poluem o chat, dificultando a leitura das conversas reais com o cliente.
+## Colapsar mensagens de Reativação no chat (mesmo tratamento dos follow-ups)
 
-### Solução Híbrida
+As mensagens destacadas em vermelho na sua screenshot são disparadas pelo **motor de Reativação Inteligente** e possuem o metadata `source: "reactivation_engine"`. Atualmente, apenas mensagens com `source: "auto_reminder"` são colapsadas em chips. A ideia e expandir a mesma logica para incluir reativacoes.
 
-#### 1. Chip compacto no chat (substituir mensagem de follow-up)
-- No `WhatsAppChat.tsx`, detectar mensagens com `metadata.source === 'auto_reminder'`
-- Em vez de renderizar a bolha completa, exibir um **chip de 1 linha**: `🤖 Follow-up enviado` com timestamp
-- Ao clicar no chip, expandir e mostrar o texto completo da mensagem (accordion/collapse inline)
-- Visual: fundo sutil com borda tracejada, ícone de robô, texto discreto em `text-muted-foreground`
+### O que muda
 
-#### 2. Botão de robô no cabeçalho do chat
-- Adicionar ícone `Bot` (lucide) ao lado do botão `(i)` no cabeçalho da conversa
-- Badge com contador de automações enviadas naquela conversa
+**1. Criar helper de identificacao de automacao**
 
-#### 3. Painel lateral de Timeline de Automações
-- Ao clicar no botão do robô, abrir um `Sheet` (lado direito) com:
-  - Lista cronológica de todas as mensagens automáticas da conversa
-  - Cada item mostra: tipo (FU1, FU2...), data/hora, texto completo
-  - Visual de timeline com linha vertical conectando os eventos
-- Reutilizar o mesmo padrão do `ContactInfoSheet`
+Substituir as checagens espalhadas `=== 'auto_reminder'` por uma funcao utilitaria:
 
-### Arquivos a criar/editar
-1. **Criar** `src/components/whatsapp/AutomationTimelineSheet.tsx` — painel lateral com timeline
-2. **Criar** `src/components/whatsapp/FollowUpChip.tsx` — chip compacto para o chat
-3. **Editar** `src/components/whatsapp/WhatsAppChat.tsx` — adicionar botão no header + integrar chip na renderização de mensagens
+```text
+isAutomationMessage(metadata) =>
+  source === 'auto_reminder' OR source === 'reactivation_engine'
+```
 
-### Identificação das mensagens
-- Filtro: `metadata.source === 'auto_reminder'` ou `metadata.type` contendo `follow_up`
-- Sem alteração no banco de dados — usa dados já existentes
+**2. Atualizar label do chip (FollowUpChip.tsx)**
+
+Adicionar labels para reativacao no `getAutomationLabel`:
+- `reactivation_stage_3` → "Reativação 3 meses"
+- `reactivation_stage_2` → "Reativação 2 meses"
+- `reactivation_stage_1` → "Reativação 1 mês"
+- fallback `reactivation_engine` → "Reativação automática"
+
+**3. Atualizar WhatsAppChat.tsx**
+
+Trocar todas as ~6 ocorrencias de `=== 'auto_reminder'` pela funcao helper `isAutomationMessage()`, cobrindo:
+- Condicional de renderizacao do chip vs bolha (mobile e desktop)
+- Contagem do badge no botao do header
+- Filtragem para o painel de timeline
+
+**4. Atualizar AutomationTimelineSheet.tsx**
+
+Usar o mesmo helper no filtro de mensagens para incluir reativacoes na timeline.
+
+### Arquivos
+
+| Arquivo | Acao |
+|---------|------|
+| `src/components/whatsapp/FollowUpChip.tsx` | Adicionar labels de reativacao |
+| `src/components/whatsapp/WhatsAppChat.tsx` | Substituir checagens por helper |
+| `src/components/whatsapp/AutomationTimelineSheet.tsx` | Incluir reativacoes no filtro |
+
+Nenhuma alteracao de banco de dados necessaria -- os metadados ja existem.
+
