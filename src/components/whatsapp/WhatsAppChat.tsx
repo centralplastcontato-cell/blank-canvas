@@ -4227,6 +4227,20 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="h-8 w-8 relative"
+                        onClick={() => setShowAutomationTimeline(true)}
+                        title="Automações enviadas"
+                      >
+                        <Bot className="w-4 h-4 text-muted-foreground" />
+                        {messages.filter(m => (m.metadata as Record<string, string> | null)?.source === 'auto_reminder').length > 0 && (
+                          <span className="absolute -top-0.5 -right-0.5 bg-primary text-primary-foreground text-[9px] font-bold rounded-full h-4 min-w-4 flex items-center justify-center px-0.5">
+                            {messages.filter(m => (m.metadata as Record<string, string> | null)?.source === 'auto_reminder').length}
+                          </span>
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         className="h-8 w-8"
                         onClick={() => setShowContactInfoSheet(true)}
                         title="Dados do contato"
