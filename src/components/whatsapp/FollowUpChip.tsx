@@ -37,11 +37,11 @@ function getAutomationLabel(type?: string, source?: string): string {
   }
 }
 
-export function FollowUpChip({ content, timestamp, metadataType }: FollowUpChipProps) {
+export function FollowUpChip({ content, timestamp, metadataType, metadataSource }: FollowUpChipProps) {
   const [expanded, setExpanded] = useState(false);
 
   const time = format(new Date(timestamp), "HH:mm", { locale: ptBR });
-  const label = getAutomationLabel(metadataType);
+  const label = getAutomationLabel(metadataType, metadataSource);
 
   return (
     <div className="flex justify-center my-1">

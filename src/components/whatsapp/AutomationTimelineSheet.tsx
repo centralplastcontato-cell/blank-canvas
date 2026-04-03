@@ -71,7 +71,7 @@ export function AutomationTimelineSheet({
               <div className="space-y-4">
                 {automationMessages.map((msg, idx) => {
                   const meta = msg.metadata as Record<string, string> | null;
-                  const label = getAutomationLabel(meta?.type);
+                  const label = getAutomationLabel(meta?.type, meta?.source);
                   const date = new Date(msg.timestamp);
 
                   return (
