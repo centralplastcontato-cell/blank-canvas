@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Trash2, CheckCircle, RotateCcw, Tag, Receipt, Clock } from "lucide-react";
+import { Plus, Trash2, CheckCircle, RotateCcw, Tag, Receipt, Clock, CreditCard } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
@@ -164,10 +164,68 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
 
   const fmt = (v: number) => showValues ? v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "••••";
 
+  // Card fee data
+  const [cardFees, setCardFees] = useState<any[]>([]);
+  
+  useEffect(() => {
+    if (!companyId) return;
+    supabase
+      .from("company_card_fees" as any)
+      .select("*")
+      .eq("company_id", companyId)
+      .eq("is_active", true)
+      .then(({ data }) => setCardFees((data || []) as any[]));
+  }, [companyId]);
+
+  // Compute card fee losses from payments
+  const cardFeeLoss = useMemo(() => {
+    if (cardFees.length === 0) return null;
+    const operator = cardFees[0]; // Use first operator
+    let totalLoss = 0;
+    let details: Array<{ type: string; bruto: number; taxa: number; desconto: number }> = [];
+
+    financial.payments.forEach(p => {
+      if (!p.payment_method || !p.payment_method.includes("cartao")) return;
+      const isDebito = p.payment_method === "cartao_debito";
+      const parcelas = p.type === "entrada" ? 1 : Math.max(1, financial.payments.filter(pp => pp.type === "parcela").length);
+      const taxaKey = isDebito ? "taxa_debito" : `taxa_credito_${Math.min(parcelas, 12)}x`;
+      const taxa = Number(operator[taxaKey] || 0);
+      if (taxa > 0) {
+        const desconto = p.amount * taxa / 100;
+        totalLoss += desconto;
+        details.push({ type: p.type, bruto: p.amount, taxa, desconto });
+      }
+    });
+
+    return totalLoss > 0 ? { operator: operator.operator_name, totalLoss, details } : null;
+  }, [cardFees, financial.payments]);
+
   return (
     <div className="space-y-4">
       {/* Summary Cards */}
       <FinancialSummaryCards summary={financial.summary} showValues={showValues} />
+
+      {/* Card Fee Loss Info */}
+      {cardFeeLoss && showValues && (
+        <Card className="p-3 border-amber-500/30 bg-amber-500/5">
+          <div className="flex items-center gap-2 mb-1.5">
+            <CreditCard className="h-4 w-4 text-amber-500" />
+            <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
+              Taxas de Cartão — {cardFeeLoss.operator}
+            </span>
+          </div>
+          <p className="text-sm font-bold text-destructive">
+            Valor não arrecadado: {fmt(cardFeeLoss.totalLoss)}
+          </p>
+          <div className="mt-1.5 space-y-0.5">
+            {cardFeeLoss.details.map((d, i) => (
+              <p key={i} className="text-[11px] text-muted-foreground">
+                {d.type === "entrada" ? "Entrada" : "Parcela"}: {fmt(d.bruto)} × {d.taxa.toFixed(2)}% = -{fmt(d.desconto)}
+              </p>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Payments Section */}
       <div>

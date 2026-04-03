@@ -892,6 +892,83 @@ export type Database = {
           },
         ]
       }
+      company_card_fees: {
+        Row: {
+          antecipado: boolean | null
+          company_id: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          operator_name: string
+          taxa_credito_10x: number | null
+          taxa_credito_11x: number | null
+          taxa_credito_12x: number | null
+          taxa_credito_1x: number | null
+          taxa_credito_2x: number | null
+          taxa_credito_3x: number | null
+          taxa_credito_4x: number | null
+          taxa_credito_5x: number | null
+          taxa_credito_6x: number | null
+          taxa_credito_7x: number | null
+          taxa_credito_8x: number | null
+          taxa_credito_9x: number | null
+          taxa_debito: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          antecipado?: boolean | null
+          company_id: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          operator_name: string
+          taxa_credito_10x?: number | null
+          taxa_credito_11x?: number | null
+          taxa_credito_12x?: number | null
+          taxa_credito_1x?: number | null
+          taxa_credito_2x?: number | null
+          taxa_credito_3x?: number | null
+          taxa_credito_4x?: number | null
+          taxa_credito_5x?: number | null
+          taxa_credito_6x?: number | null
+          taxa_credito_7x?: number | null
+          taxa_credito_8x?: number | null
+          taxa_credito_9x?: number | null
+          taxa_debito?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          antecipado?: boolean | null
+          company_id?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          operator_name?: string
+          taxa_credito_10x?: number | null
+          taxa_credito_11x?: number | null
+          taxa_credito_12x?: number | null
+          taxa_credito_1x?: number | null
+          taxa_credito_2x?: number | null
+          taxa_credito_3x?: number | null
+          taxa_credito_4x?: number | null
+          taxa_credito_5x?: number | null
+          taxa_credito_6x?: number | null
+          taxa_credito_7x?: number | null
+          taxa_credito_8x?: number | null
+          taxa_credito_9x?: number | null
+          taxa_debito?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_card_fees_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_contacts: {
         Row: {
           company_id: string
