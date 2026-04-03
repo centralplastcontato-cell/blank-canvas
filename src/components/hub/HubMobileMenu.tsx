@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { BarChart3, Building2, Users, LogOut, Smartphone, ClipboardList, Presentation, Brain, GraduationCap, Contact, Headset, Package, UserSearch, BookOpen } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -80,30 +81,32 @@ export function HubMobileMenu({
           </div>
         </SheetHeader>
 
-        <nav className="flex flex-col p-2">
-          {menuItems.map((item) => (
+        <ScrollArea className="flex-1 max-h-[calc(100vh-120px)]">
+          <nav className="flex flex-col p-2">
+            {menuItems.map((item) => (
+              <Button
+                key={item.id}
+                variant={currentPage === item.id ? "secondary" : "ghost"}
+                className="justify-start h-11 px-3"
+                onClick={() => handleNavigation(item.path)}
+              >
+                <item.icon className="w-5 h-5 mr-3" />
+                {item.label}
+              </Button>
+            ))}
+
+            <Separator className="my-2" />
+
             <Button
-              key={item.id}
-              variant={currentPage === item.id ? "secondary" : "ghost"}
-              className="justify-start h-11 px-3"
-              onClick={() => handleNavigation(item.path)}
+              variant="ghost"
+              className="justify-start h-11 px-3 text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => { onLogout(); onOpenChange(false); }}
             >
-              <item.icon className="w-5 h-5 mr-3" />
-              {item.label}
+              <LogOut className="w-5 h-5 mr-3" />
+              Sair da Conta
             </Button>
-          ))}
-
-          <Separator className="my-2" />
-
-          <Button
-            variant="ghost"
-            className="justify-start h-11 px-3 text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={() => { onLogout(); onOpenChange(false); }}
-          >
-            <LogOut className="w-5 h-5 mr-3" />
-            Sair da Conta
-          </Button>
-        </nav>
+          </nav>
+        </ScrollArea>
       </SheetContent>
     </Sheet>
   );
