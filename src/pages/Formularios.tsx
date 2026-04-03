@@ -152,7 +152,7 @@ export default function Formularios() {
     <SidebarProvider defaultOpen={false}>
       <div className="min-h-screen flex w-full bg-background">
           <AdminSidebar canManageUsers={canManageUsers} isAdmin={isAdmin} currentUserName={currentUser?.name || ""} onRefresh={handleRefresh} onLogout={handleLogout} />
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           {/* Mobile Header */}
           <header className="bg-card border-b border-border shrink-0 z-10 md:hidden">
             <div className="px-3 py-3">
