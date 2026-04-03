@@ -14,7 +14,7 @@ interface FollowUpChipProps {
 
 export function isAutomationMessage(metadata: Record<string, string> | null | undefined): boolean {
   const source = metadata?.source;
-  return source === 'auto_reminder' || source === 'reactivation_engine';
+  return source === 'auto_reminder' || source === 'reactivation_engine' || source === 'stuck_bot_recovery' || source === 'visit_confirmation' || source === 'reactivation_4b';
 }
 
 function getAutomationLabel(type?: string, source?: string): string {
@@ -24,6 +24,15 @@ function getAutomationLabel(type?: string, source?: string): string {
       case 'reactivation_stage_2': return 'Reativação 2 meses';
       case 'reactivation_stage_3': return 'Reativação 3 meses';
       default: return 'Reativação automática';
+    }
+  }
+  if (source === 'reactivation_4b') return 'Reativação conversacional';
+  if (source === 'stuck_bot_recovery') return 'Recuperação de bot';
+  if (source === 'visit_confirmation') {
+    switch (type) {
+      case 'visit_reminder': return 'Lembrete de visita';
+      case 'visit_confirmation': return 'Confirmação de visita';
+      default: return 'Confirmação de visita';
     }
   }
   switch (type) {
