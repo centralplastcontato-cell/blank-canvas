@@ -164,6 +164,42 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
 
   const fmt = (v: number) => showValues ? v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "••••";
 
+  // Card fee data
+  const [cardFees, setCardFees] = useState<any[]>([]);
+  
+  useEffect(() => {
+    if (!companyId) return;
+    supabase
+      .from("company_card_fees" as any)
+      .select("*")
+      .eq("company_id", companyId)
+      .eq("is_active", true)
+      .then(({ data }) => setCardFees((data || []) as any[]));
+  }, [companyId]);
+
+  // Compute card fee losses from payments
+  const cardFeeLoss = useMemo(() => {
+    if (cardFees.length === 0) return null;
+    const operator = cardFees[0]; // Use first operator
+    let totalLoss = 0;
+    let details: Array<{ type: string; bruto: number; taxa: number; desconto: number }> = [];
+
+    financial.payments.forEach(p => {
+      if (!p.payment_method || !p.payment_method.includes("cartao")) return;
+      const isDebito = p.payment_method === "cartao_debito";
+      const parcelas = p.type === "entrada" ? 1 : Math.max(1, financial.payments.filter(pp => pp.type === "parcela").length);
+      const taxaKey = isDebito ? "taxa_debito" : `taxa_credito_${Math.min(parcelas, 12)}x`;
+      const taxa = Number(operator[taxaKey] || 0);
+      if (taxa > 0) {
+        const desconto = p.amount * taxa / 100;
+        totalLoss += desconto;
+        details.push({ type: p.type, bruto: p.amount, taxa, desconto });
+      }
+    });
+
+    return totalLoss > 0 ? { operator: operator.operator_name, totalLoss, details } : null;
+  }, [cardFees, financial.payments]);
+
   return (
     <div className="space-y-4">
       {/* Summary Cards */}
