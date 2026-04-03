@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import {
   Send, Loader2, Copy, ChevronDown, CheckCircle2, Clock,
-  FileText, ClipboardList, UtensilsCrossed, ScrollText, ExternalLink,
+  FileText, ClipboardList, UtensilsCrossed, ScrollText, ExternalLink, Star,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -30,7 +30,7 @@ interface FormResponse {
 }
 
 interface FormSection {
-  type: "prefesta" | "cardapio" | "contrato";
+  type: "prefesta" | "cardapio" | "contrato" | "avaliacao";
   label: string;
   icon: React.ElementType;
   templates: FormTemplate[];
@@ -71,16 +71,20 @@ export function EventComplementaryTab({
         { data: prefestaTemplates },
         { data: cardapioTemplates },
         { data: contratoTemplates },
+        { data: evaluationTemplates },
         { data: prefestaResponses },
         { data: cardapioResponses },
         { data: contratoResponses },
+        { data: evaluationResponses },
       ] = await Promise.all([
         supabase.from("prefesta_templates").select("id, name, slug, questions").eq("company_id", companyId).eq("is_active", true),
         supabase.from("cardapio_templates").select("id, name, slug, sections").eq("company_id", companyId).eq("is_active", true),
         supabase.from("contrato_templates").select("id, name, slug, questions").eq("company_id", companyId).eq("is_active", true),
+        supabase.from("evaluation_templates").select("id, name, slug, questions").eq("company_id", companyId).eq("is_active", true),
         supabase.from("prefesta_responses").select("id, template_id, answers, respondent_name, created_at").eq("event_id", eventId),
         supabase.from("cardapio_responses").select("id, template_id, answers, respondent_name, created_at").eq("event_id", eventId),
         supabase.from("contrato_responses").select("id, template_id, answers, respondent_name, created_at").eq("event_id", eventId),
+        supabase.from("evaluation_responses").select("id, template_id, answers, respondent_name, created_at").eq("event_id", eventId),
       ]);
 
       const mapResponses = (responses: any[] | null) => {
@@ -117,6 +121,14 @@ export function EventComplementaryTab({
           templates: (contratoTemplates || []) as FormTemplate[],
           responses: mapResponses(contratoResponses),
           publicPath: "contrato",
+        },
+        {
+          type: "avaliacao",
+          label: "Avaliação",
+          icon: Star,
+          templates: (evaluationTemplates || []) as FormTemplate[],
+          responses: mapResponses(evaluationResponses),
+          publicPath: "avaliacao",
         },
       ]);
     } catch (err) {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,6 +30,8 @@ interface TemplateData {
 
 export default function PublicEvaluation() {
   const { templateId, companySlug, templateSlug } = useParams<{ templateId: string; companySlug: string; templateSlug: string }>();
+  const [searchParams] = useSearchParams();
+  const eventId = searchParams.get("event_id");
   const [template, setTemplate] = useState<TemplateData | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -140,6 +142,7 @@ export default function PublicEvaluation() {
       respondent_name: respondentName.trim() || null,
       answers: Object.entries(answers).map(([questionId, value]) => ({ questionId, value })),
       overall_score: overallScore,
+      event_id: eventId || null,
     });
 
     setSubmitting(false);
