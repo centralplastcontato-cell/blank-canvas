@@ -820,12 +820,10 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         <DialogHeader className="px-7 pt-7 pb-0 border-b-0 bg-muted/30">
           <DialogTitle className="text-lg font-bold tracking-tight">{isEdit ? "Editar Festa" : "Nova Festa"}</DialogTitle>
           <p className="text-[13px] text-muted-foreground mt-1 mb-3">Preencha os dados do evento e contratação</p>
-          {isEdit && (
-            <TabsList className="w-full grid grid-cols-2">
-              <TabsTrigger value="evento">Evento</TabsTrigger>
-              <TabsTrigger value="complementar">Complementar</TabsTrigger>
-            </TabsList>
-          )}
+          <TabsList className="w-full grid grid-cols-2">
+            <TabsTrigger value="evento">Evento</TabsTrigger>
+            <TabsTrigger value="complementar">Complementar</TabsTrigger>
+          </TabsList>
         </DialogHeader>
 
         <TabsContent value="evento" className="mt-0">
@@ -1922,9 +1920,9 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         </form>
         </TabsContent>
 
-        {isEdit && eventId && (
-          <TabsContent value="complementar" className="mt-0">
-            <div className="overflow-y-auto px-7 py-6" style={{ maxHeight: "calc(90vh - 220px)" }}>
+        <TabsContent value="complementar" className="mt-0">
+          <div className="overflow-y-auto px-7 py-6" style={{ maxHeight: "calc(90vh - 220px)" }}>
+            {isEdit && eventId ? (
               <EventComplementaryTab
                 eventId={eventId}
                 companyId={currentCompany!.id}
@@ -1933,9 +1931,14 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 form={form}
                 setForm={setForm}
               />
-            </div>
-          </TabsContent>
-        )}
+            ) : (
+              <div className="text-center py-12 space-y-2">
+                <p className="text-sm text-muted-foreground">Salve a festa primeiro para acessar as informações complementares.</p>
+                <p className="text-xs text-muted-foreground/60">Formulários de pré-festa, cardápio e dados complementares ficarão disponíveis aqui.</p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
 
         {/* Fixed footer */}
         <div className="flex justify-end gap-3 px-7 py-4 border-t border-border/40 bg-muted/20">
