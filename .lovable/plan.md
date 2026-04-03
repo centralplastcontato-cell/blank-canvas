@@ -1,36 +1,33 @@
 
+## Plano: Follow-ups Compactos + Painel de Automações
 
-## Problema Identificado
+### Problema
+Mensagens de follow-up automáticas poluem o chat, dificultando a leitura das conversas reais com o cliente.
 
-A instância do Aventura Kids (`LITE-4IW93E-MGVYDW`) está conectada na W-API e na plataforma, mas o campo `phone_number` está **nulo** no banco de dados. O sistema de segurança (`checkSessionHealth`) bloqueia todos os envios quando detecta `status = connected` mas `phone_number = null`, retornando erro 400 com `SESSION_INCOMPLETE`.
+### Solução Híbrida
 
-O bloco de `DISCONNECTED` já possui uma lógica de auto-recuperação que consulta a W-API e corrige o registro, mas o bloco de `SESSION_INCOMPLETE` simplesmente bloqueia sem tentar recuperar.
+#### 1. Chip compacto no chat (substituir mensagem de follow-up)
+- No `WhatsAppChat.tsx`, detectar mensagens com `metadata.source === 'auto_reminder'`
+- Em vez de renderizar a bolha completa, exibir um **chip de 1 linha**: `🤖 Follow-up enviado` com timestamp
+- Ao clicar no chip, expandir e mostrar o texto completo da mensagem (accordion/collapse inline)
+- Visual: fundo sutil com borda tracejada, ícone de robô, texto discreto em `text-muted-foreground`
 
-## Plano
+#### 2. Botão de robô no cabeçalho do chat
+- Adicionar ícone `Bot` (lucide) ao lado do botão `(i)` no cabeçalho da conversa
+- Badge com contador de automações enviadas naquela conversa
 
-### 1. Adicionar auto-recuperação ao bloco SESSION_INCOMPLETE
+#### 3. Painel lateral de Timeline de Automações
+- Ao clicar no botão do robô, abrir um `Sheet` (lado direito) com:
+  - Lista cronológica de todas as mensagens automáticas da conversa
+  - Cada item mostra: tipo (FU1, FU2...), data/hora, texto completo
+  - Visual de timeline com linha vertical conectando os eventos
+- Reutilizar o mesmo padrão do `ContactInfoSheet`
 
-**Arquivo:** `supabase/functions/wapi-send/index.ts` (linhas 422-449)
+### Arquivos a criar/editar
+1. **Criar** `src/components/whatsapp/AutomationTimelineSheet.tsx` — painel lateral com timeline
+2. **Criar** `src/components/whatsapp/FollowUpChip.tsx` — chip compacto para o chat
+3. **Editar** `src/components/whatsapp/WhatsAppChat.tsx` — adicionar botão no header + integrar chip na renderização de mensagens
 
-Antes de bloquear o envio, consultar a W-API (`/instance/qr-code`) para obter o `phone_number` real. Se a instância estiver de fato conectada e a W-API retornar o telefone, atualizar o registro no banco e permitir o envio normalmente — exatamente como já funciona para o caso `DISCONNECTED`.
-
-A lógica será:
-1. Detecta `connected` sem `phone_number`
-2. Consulta W-API para obter status real e telefone
-3. Se obtiver telefone → atualiza `wapi_instances.phone_number` → permite envio
-4. Se não obtiver telefone → bloqueia como hoje (SESSION_INCOMPLETE)
-
-### Detalhes Técnicos
-
-```
-SESSION_INCOMPLETE detected
-  → fetch W-API /instance/qr-code
-  → if connected + phone found:
-      → UPDATE wapi_instances SET phone_number = phone
-      → return null (allow send)
-  → else:
-      → block as before (400 SESSION_INCOMPLETE)
-```
-
-Nenhuma alteração na lógica de conexão/desconexão. Apenas adiciona uma tentativa de recuperação automática antes do bloqueio. A conexão com o Aventura Kids será preservada.
-
+### Identificação das mensagens
+- Filtro: `metadata.source === 'auto_reminder'` ou `metadata.type` contendo `follow_up`
+- Sem alteração no banco de dados — usa dados já existentes

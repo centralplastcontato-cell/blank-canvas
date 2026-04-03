@@ -44,7 +44,7 @@ import {
   Users, ArrowRightLeft, Trash2, Eraser,
   CalendarCheck, Briefcase, FileCheck, ArrowDown, Video,
   Pencil, Copy, ChevronDown, ChevronUp, Download, Pin, PinOff, Reply,
-  CheckSquare, MoreVertical, DollarSign
+  CheckSquare, MoreVertical, DollarSign, Bot
 } from "lucide-react";
 import JSZip from "jszip";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
@@ -295,6 +295,8 @@ import { ContactInfoSheet } from "@/components/whatsapp/ContactInfoSheet";
 import { SalesMaterialsMenu } from "@/components/whatsapp/SalesMaterialsMenu";
 import { ShareToGroupDialog } from "@/components/whatsapp/ShareToGroupDialog";
 import { QuickVisitDialog } from "@/components/whatsapp/QuickVisitDialog";
+import { FollowUpChip } from "@/components/whatsapp/FollowUpChip";
+import { AutomationTimelineSheet } from "@/components/whatsapp/AutomationTimelineSheet";
 import { useFilterOrder } from "@/hooks/useFilterOrder";
 
 export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft, onPhoneHandled, externalSelectedUnit, onInstancesLoaded, onLeadClosedMobile }: WhatsAppChatProps) {
@@ -354,6 +356,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
   const [showLeadDetailSheet, setShowLeadDetailSheet] = useState(false);
   const [showContactInfoSheet, setShowContactInfoSheet] = useState(false);
+  const [showAutomationTimeline, setShowAutomationTimeline] = useState(false);
   const [showShareToGroupDialog, setShowShareToGroupDialog] = useState(false);
   const [showQuickVisitDialog, setShowQuickVisitDialog] = useState(false);
   const [visitRefreshKey, setVisitRefreshKey] = useState(0);
@@ -4224,6 +4227,20 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="h-8 w-8 relative"
+                        onClick={() => setShowAutomationTimeline(true)}
+                        title="Automações enviadas"
+                      >
+                        <Bot className="w-4 h-4 text-muted-foreground" />
+                        {messages.filter(m => (m.metadata as Record<string, string> | null)?.source === 'auto_reminder').length > 0 && (
+                          <span className="absolute -top-0.5 -right-0.5 bg-primary text-primary-foreground text-[9px] font-bold rounded-full h-4 min-w-4 flex items-center justify-center px-0.5">
+                            {messages.filter(m => (m.metadata as Record<string, string> | null)?.source === 'auto_reminder').length}
+                          </span>
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         className="h-8 w-8"
                         onClick={() => setShowContactInfoSheet(true)}
                         title="Dados do contato"
@@ -4504,6 +4521,14 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                 </span>
                               </div>
                             )}
+                            {/* Follow-up chip instead of full bubble */}
+                            {(msg.metadata as Record<string, string> | null)?.source === 'auto_reminder' ? (
+                              <FollowUpChip
+                                content={msg.content}
+                                timestamp={msg.timestamp}
+                                metadataType={(msg.metadata as Record<string, string> | null)?.type}
+                              />
+                            ) : (
                             <div
                               className={cn(
                                 "flex group",
@@ -4830,6 +4855,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                 </div>
                               )}
                             </div>
+                            )}
                             </div>
                             );
                           })
@@ -5210,6 +5236,20 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                             ? "text-destructive" 
                             : "text-muted-foreground"
                         )} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 relative"
+                        onClick={() => setShowAutomationTimeline(true)}
+                        title="Automações enviadas"
+                      >
+                        <Bot className="w-4 h-4 text-muted-foreground" />
+                        {messages.filter(m => (m.metadata as Record<string, string> | null)?.source === 'auto_reminder').length > 0 && (
+                          <span className="absolute -top-0.5 -right-0.5 bg-primary text-primary-foreground text-[9px] font-bold rounded-full h-4 min-w-4 flex items-center justify-center px-0.5">
+                            {messages.filter(m => (m.metadata as Record<string, string> | null)?.source === 'auto_reminder').length}
+                          </span>
+                        )}
                       </Button>
                       <Button
                         variant="ghost"
@@ -5621,6 +5661,14 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                             </span>
                           </div>
                         )}
+                        {/* Follow-up chip instead of full bubble */}
+                        {(msg.metadata as Record<string, string> | null)?.source === 'auto_reminder' ? (
+                          <FollowUpChip
+                            content={msg.content}
+                            timestamp={msg.timestamp}
+                            metadataType={(msg.metadata as Record<string, string> | null)?.type}
+                          />
+                        ) : (
                         <div
                           className={cn(
                             "flex group",
@@ -5935,6 +5983,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                             </div>
                           )}
                         </div>
+                        )}
                         </div>
                         );
                       })
@@ -6592,6 +6641,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             </div>
           </SheetContent>
         </Sheet>
+      )}
+      {/* Automation Timeline Sheet */}
+      {selectedConversation && (
+        <AutomationTimelineSheet
+          isOpen={showAutomationTimeline}
+          onClose={() => setShowAutomationTimeline(false)}
+          messages={messages}
+          contactName={selectedConversation.contact_name}
+        />
       )}
     </div>
   );
