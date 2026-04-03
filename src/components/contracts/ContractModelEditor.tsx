@@ -218,7 +218,7 @@ export function ContractModelEditor({ model, userId, onClose }: Props) {
 
         {/* Editor + Preview tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-3 w-full max-w-sm">
+          <TabsList className="grid grid-cols-3 w-full max-w-full md:max-w-sm">
             <TabsTrigger value="editor">Editor</TabsTrigger>
             <TabsTrigger value="preview"><Eye className="h-3.5 w-3.5 mr-1" /> Preview</TabsTrigger>
             <TabsTrigger value="variables"><Info className="h-3.5 w-3.5 mr-1" /> Variáveis</TabsTrigger>

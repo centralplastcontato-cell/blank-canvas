@@ -164,7 +164,7 @@ export function ContractModelsList({ userId }: Props) {
 
       {/* Editor Dialog */}
       <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto p-0">
+        <DialogContent className="w-[95vw] max-w-5xl max-h-[90vh] overflow-y-auto p-0">
           <ContractModelEditor
             model={editingModel}
             userId={userId}
