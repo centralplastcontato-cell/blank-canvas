@@ -44,7 +44,7 @@ import {
   Users, ArrowRightLeft, Trash2, Eraser,
   CalendarCheck, Briefcase, FileCheck, ArrowDown, Video,
   Pencil, Copy, ChevronDown, ChevronUp, Download, Pin, PinOff, Reply,
-  CheckSquare, MoreVertical, DollarSign
+  CheckSquare, MoreVertical, DollarSign, Bot
 } from "lucide-react";
 import JSZip from "jszip";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
