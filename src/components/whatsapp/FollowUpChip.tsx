@@ -14,7 +14,7 @@ interface FollowUpChipProps {
 
 export function isAutomationMessage(metadata: Record<string, string> | null | undefined): boolean {
   const source = metadata?.source;
-  return source === 'auto_reminder' || source === 'reactivation_engine';
+  return source === 'auto_reminder' || source === 'reactivation_engine' || source === 'stuck_bot_recovery' || source === 'visit_confirmation' || source === 'reactivation_4b';
 }
 
 function getAutomationLabel(type?: string, source?: string): string {
