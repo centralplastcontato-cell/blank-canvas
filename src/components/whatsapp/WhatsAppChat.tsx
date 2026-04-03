@@ -295,6 +295,8 @@ import { ContactInfoSheet } from "@/components/whatsapp/ContactInfoSheet";
 import { SalesMaterialsMenu } from "@/components/whatsapp/SalesMaterialsMenu";
 import { ShareToGroupDialog } from "@/components/whatsapp/ShareToGroupDialog";
 import { QuickVisitDialog } from "@/components/whatsapp/QuickVisitDialog";
+import { FollowUpChip } from "@/components/whatsapp/FollowUpChip";
+import { AutomationTimelineSheet } from "@/components/whatsapp/AutomationTimelineSheet";
 import { useFilterOrder } from "@/hooks/useFilterOrder";
 
 export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft, onPhoneHandled, externalSelectedUnit, onInstancesLoaded, onLeadClosedMobile }: WhatsAppChatProps) {
