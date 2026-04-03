@@ -91,6 +91,7 @@ export default function Financeiro() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
   const [expenseDialogType, setExpenseDialogType] = useState<string>('fixa');
+  const [editingExpense, setEditingExpense] = useState<any>(null);
   const [viewMode, setViewMode] = useState<'list' | 'client'>('list');
   const [receitasSubTab, setReceitasSubTab] = useState('atraso');
   const [despesasSubTab, setDespesasSubTab] = useState('fixa');
