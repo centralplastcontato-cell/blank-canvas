@@ -811,12 +811,19 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[720px] w-[95vw] max-h-[90vh] p-0 gap-0 overflow-hidden rounded-2xl [&>button]:top-5 [&>button]:right-5">
-        <DialogHeader className="px-7 pt-7 pb-4 border-b border-border/40 bg-muted/30">
+        <DialogHeader className="px-7 pt-7 pb-0 border-b-0 bg-muted/30">
           <DialogTitle className="text-lg font-bold tracking-tight">{isEdit ? "Editar Festa" : "Nova Festa"}</DialogTitle>
-          <p className="text-[13px] text-muted-foreground mt-1">Preencha os dados do evento e contratação</p>
+          <p className="text-[13px] text-muted-foreground mt-1 mb-3">Preencha os dados do evento e contratação</p>
+          {isEdit && (
+            <TabsList className="w-full grid grid-cols-2">
+              <TabsTrigger value="evento">Evento</TabsTrigger>
+              <TabsTrigger value="complementar">Complementar</TabsTrigger>
+            </TabsList>
+          )}
         </DialogHeader>
 
-        <form id="event-form" onSubmit={handleSubmit} className="overflow-y-auto px-7 py-6 space-y-5" style={{ maxHeight: "calc(90vh - 180px)" }}>
+        <TabsContent value="evento" className="mt-0">
+        <form id="event-form" onSubmit={handleSubmit} className="overflow-y-auto px-7 py-6 space-y-5" style={{ maxHeight: "calc(90vh - 220px)" }}>
           {/* Conflict Alert */}
           {conflictEvent && (
             <Alert variant="destructive" className="border-destructive/60 bg-destructive/10">
