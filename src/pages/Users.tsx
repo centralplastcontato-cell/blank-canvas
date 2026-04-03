@@ -761,13 +761,18 @@ export default function UsersPage() {
                             <div className="space-y-4 py-4">
                               <div className="space-y-2">
                                 <Label htmlFor="reset-password-desktop">Nova senha</Label>
-                                <Input
-                                  id="reset-password-desktop"
-                                  type="password"
-                                  value={desktopNewPassword}
-                                  onChange={(e) => setDesktopNewPassword(e.target.value)}
-                                  placeholder="Mínimo 6 caracteres"
-                                />
+                                <div className="relative">
+                                  <Input
+                                    id="reset-password-desktop"
+                                    type={showResetPassword ? "text" : "password"}
+                                    value={desktopNewPassword}
+                                    onChange={(e) => setDesktopNewPassword(e.target.value)}
+                                    placeholder="Mínimo 6 caracteres"
+                                  />
+                                  <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowResetPassword(!showResetPassword)}>
+                                    {showResetPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                  </button>
+                                </div>
                               </div>
                             </div>
                             <DialogFooter>

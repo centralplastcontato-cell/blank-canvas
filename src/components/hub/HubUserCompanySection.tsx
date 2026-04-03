@@ -74,7 +74,10 @@ export function HubUserCompanySection({
               <Label>Nova senha</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input type="password" className="pl-9" value={desktopNewPassword} onChange={(e) => setDesktopNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres" />
+                <Input type={showPassword ? "text" : "password"} className="pl-9 pr-10" value={desktopNewPassword} onChange={(e) => setDesktopNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres" />
+                <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowPassword(!showPassword)}>
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
           </div>

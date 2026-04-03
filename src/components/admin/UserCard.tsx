@@ -222,13 +222,18 @@ export function UserCard({
                   <div className="space-y-4 py-4">
                     <div className="space-y-2">
                       <Label htmlFor="new-password">Nova senha</Label>
-                      <Input
-                        id="new-password"
-                        type="password"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="Mínimo 6 caracteres"
-                      />
+                      <div className="relative">
+                        <Input
+                          id="new-password"
+                          type={showPassword ? "text" : "password"}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="Mínimo 6 caracteres"
+                        />
+                        <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowPassword(!showPassword)}>
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <DialogFooter>
