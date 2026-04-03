@@ -52,6 +52,7 @@ export function HubUserCompanySection({
   const [resetPasswordUser, setResetPasswordUser] = useState<UserWithRole | null>(null);
   const [desktopNewPassword, setDesktopNewPassword] = useState("");
   const [permissionsUser, setPermissionsUser] = useState<UserWithRole | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const companyName = company?.name || "Sem Empresa Vinculada";
 

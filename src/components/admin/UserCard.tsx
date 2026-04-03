@@ -72,6 +72,7 @@ export function UserCard({
   const [editEmail, setEditEmail] = useState(user.email);
   const [newPassword, setNewPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSave = async () => {
     if (!editName.trim()) return;

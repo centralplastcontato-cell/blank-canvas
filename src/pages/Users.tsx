@@ -89,6 +89,7 @@ export default function UsersPage() {
   const [desktopNewPassword, setDesktopNewPassword] = useState("");
   const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
 
   // Form state
   const [newUserEmail, setNewUserEmail] = useState("");
