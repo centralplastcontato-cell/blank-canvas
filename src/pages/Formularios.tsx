@@ -228,7 +228,7 @@ export default function Formularios() {
                     onValueChange={handleTabChange}
                     className="flex-1 flex flex-col overflow-hidden"
                   >
-                    <div className="px-3 md:px-5 pt-4">
+                    <div className="px-3 md:px-5 pt-2">
                       <div className="max-w-7xl mx-auto">
                       <TabsList>
                         {[
@@ -237,8 +237,8 @@ export default function Formularios() {
                           { value: "contrato", icon: FileSignature, label: "Contrato" },
                           { value: "cardapio", icon: UtensilsCrossed, label: "Cardápio" },
                         ].map(t => (
-                          <TabsTrigger key={t.value} value={t.value} className="gap-1.5" onClick={() => handleTabChange(t.value)}>
-                            <t.icon className="h-3.5 w-3.5" />
+                          <TabsTrigger key={t.value} value={t.value} className="gap-2" onClick={() => handleTabChange(t.value)}>
+                            <t.icon className="h-4 w-4" />
                             {t.label}
                           </TabsTrigger>
                         ))}
@@ -265,7 +265,7 @@ export default function Formularios() {
               {canChecklist && (
                <TabsContent value="checklist" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
                   <Tabs defaultValue="equipe" className="flex-1 flex flex-col overflow-hidden">
-                     <div className="px-3 md:px-5 pt-4">
+                     <div className="px-3 md:px-5 pt-2">
                       <div className="max-w-7xl mx-auto">
                       <TabsList>
                         {[
@@ -276,8 +276,8 @@ export default function Formularios() {
                           { value: "informacoes", icon: FileText, label: "Informações" },
                           { value: "templates", icon: LayoutTemplate, label: "Templates" },
                         ].map(t => (
-                          <TabsTrigger key={t.value} value={t.value} className="gap-1.5">
-                            <t.icon className="h-3.5 w-3.5" />
+                          <TabsTrigger key={t.value} value={t.value} className="gap-2">
+                            <t.icon className="h-4 w-4" />
                             {t.label}
                           </TabsTrigger>
                         ))}
@@ -321,24 +321,24 @@ export default function Formularios() {
               {(canFreelancer || canAvaliacoes) && (
                 <TabsContent value="freelancer" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
                   <Tabs defaultValue={canFreelancer ? "escalas" : "avaliacoes-fl"} className="flex-1 flex flex-col overflow-hidden">
-                    <div className="px-3 md:px-5 pt-4">
+                    <div className="px-3 md:px-5 pt-2">
                       <div className="max-w-7xl mx-auto">
                       <TabsList>
                         {canFreelancer && (
-                          <TabsTrigger value="escalas" className="gap-1.5">
-                            <CalendarClock className="h-3.5 w-3.5" />
+                          <TabsTrigger value="escalas" className="gap-2">
+                            <CalendarClock className="h-4 w-4" />
                             Escalas
                           </TabsTrigger>
                         )}
                         {canFreelancer && (
-                          <TabsTrigger value="cadastro" className="gap-1.5">
-                            <HardHat className="h-3.5 w-3.5" />
+                          <TabsTrigger value="cadastro" className="gap-2">
+                            <HardHat className="h-4 w-4" />
                             Cadastro
                           </TabsTrigger>
                         )}
                         {canAvaliacoes && (
-                          <TabsTrigger value="avaliacoes-fl" className="gap-1.5">
-                            <ClipboardCheck className="h-3.5 w-3.5" />
+                          <TabsTrigger value="avaliacoes-fl" className="gap-2">
+                            <ClipboardCheck className="h-4 w-4" />
                             Avaliações
                           </TabsTrigger>
                         )}
