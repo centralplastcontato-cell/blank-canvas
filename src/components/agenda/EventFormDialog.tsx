@@ -1702,19 +1702,6 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               </div>
             </div>
 
-            {/* Observações Internas */}
-            <div className="mt-5 pt-5 border-t border-border/40">
-              <div className="space-y-2.5">
-                <Label className="text-sm font-medium text-foreground/70">Observações internas da festa</Label>
-                <Textarea
-                  value={form.internal_notes || ""}
-                  onChange={(e) => setForm({ ...form, internal_notes: e.target.value })}
-                  rows={3}
-                  placeholder="Anotações internas do buffet (não aparece no contrato)..."
-                />
-                <p className="text-[10px] text-muted-foreground">Este campo é exclusivo para uso interno e não será incluído em contratos.</p>
-              </div>
-            </div>
 
             <div className="mt-5 pt-5 border-t border-border/40">
               <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2.5">
