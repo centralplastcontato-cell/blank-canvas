@@ -444,6 +444,24 @@ export function EventComplementaryTab({
           Nenhum formulário cadastrado. Crie templates em <span className="font-medium">Formulários</span>.
         </div>
       )}
+
+      {/* Modal iframe para preencher formulário internamente */}
+      <Dialog open={!!iframeModal} onOpenChange={(open) => { if (!open) { setIframeModal(null); loadData(); } }}>
+        <DialogContent className="max-w-2xl w-[95vw] h-[85vh] p-0 flex flex-col">
+          <DialogHeader className="px-4 py-3 border-b border-border/40 shrink-0">
+            <DialogTitle className="text-sm font-medium">{iframeModal?.title}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0">
+            {iframeModal && (
+              <iframe
+                src={iframeModal.url}
+                className="w-full h-full border-0 rounded-b-lg"
+                title={iframeModal.title}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
