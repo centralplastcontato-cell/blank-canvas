@@ -24,7 +24,7 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Building2, ChevronDown, Pencil, Shield, KeyRound, Trash2, Lock, Users } from "lucide-react";
+import { Building2, ChevronDown, Pencil, Shield, KeyRound, Trash2, Lock, Users, Eye, EyeOff } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { PermissionsPanel } from "@/components/admin/PermissionsPanel";
 
