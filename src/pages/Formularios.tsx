@@ -269,14 +269,10 @@ export default function Formularios() {
               )}
 
               {canChecklist && (
-                <TabsContent value="checklist" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
+               <TabsContent value="checklist" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
                   <Tabs defaultValue="equipe" className="flex-1 flex flex-col overflow-hidden">
                      <div className="px-3 md:px-5 pt-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-sm font-bold tracking-wide text-foreground/80">Tipo de Checklist</span>
-                        <div className="flex-1 h-px bg-border/50" />
-                      </div>
-                      <TabsList className="flex justify-start gap-1.5 overflow-x-auto pb-1 bg-transparent h-auto p-0">
+                      <TabsList>
                         {[
                           { value: "equipe", icon: Users, label: "Equipe" },
                           { value: "manutencao", icon: Wrench, label: "Manutenção" },
@@ -285,9 +281,9 @@ export default function Formularios() {
                           { value: "informacoes", icon: FileText, label: "Informações" },
                           { value: "templates", icon: LayoutTemplate, label: "Templates" },
                         ].map(t => (
-                          <TabsTrigger key={t.value} value={t.value} className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border whitespace-nowrap data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:border-foreground data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:border-border data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground">
+                          <TabsTrigger key={t.value} value={t.value} className="gap-1.5">
                             <t.icon className="h-3.5 w-3.5" />
-                            <span>{t.label}</span>
+                            {t.label}
                           </TabsTrigger>
                         ))}
                       </TabsList>
