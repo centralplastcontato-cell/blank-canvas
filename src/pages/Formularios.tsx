@@ -83,6 +83,7 @@ export default function Formularios() {
     if (canFormularios) sections.push({ value: "formularios", label: "Formulários", icon: FileText });
     if (canChecklist) sections.push({ value: "checklist", label: "Checklist", icon: ListChecks });
     if (canFreelancer || canAvaliacoes) sections.push({ value: "freelancer", label: "Freelancer", icon: HardHat });
+    if (canPacotes) sections.push({ value: "taxas_cartao", label: "Taxas de Cartão", icon: CreditCard });
     return sections;
   }, [canFormularios, canChecklist, canPacotes, canFreelancer, canAvaliacoes]);
 
