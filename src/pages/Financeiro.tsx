@@ -596,10 +596,10 @@ export default function Financeiro() {
                                       e.expense_type === 'festa' && 'border-l-purple-500',
                                     )}>
                                       <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                          <p className="font-semibold text-sm text-foreground break-words">{e.description}</p>
-                                          <Badge variant="secondary" className="text-xs">{CATEGORY_LABELS[e.category] || e.category}</Badge>
-                                          <Badge variant="outline" className={e.status === 'pago' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}>
+                                        <p className="font-semibold text-sm text-foreground truncate">{e.description}</p>
+                                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                          <Badge variant="secondary" className="text-[10px]">{CATEGORY_LABELS[e.category] || e.category}</Badge>
+                                          <Badge variant="outline" className={cn("text-[10px]", e.status === 'pago' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20')}>
                                             {e.status === 'pago' ? 'Pago' : 'Pendente'}
                                           </Badge>
                                         </div>
