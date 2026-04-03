@@ -24,7 +24,7 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Building2, ChevronDown, Pencil, Shield, KeyRound, Trash2, Lock, Users } from "lucide-react";
+import { Building2, ChevronDown, Pencil, Shield, KeyRound, Trash2, Lock, Users, Eye, EyeOff } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { PermissionsPanel } from "@/components/admin/PermissionsPanel";
 
@@ -52,6 +52,7 @@ export function HubUserCompanySection({
   const [resetPasswordUser, setResetPasswordUser] = useState<UserWithRole | null>(null);
   const [desktopNewPassword, setDesktopNewPassword] = useState("");
   const [permissionsUser, setPermissionsUser] = useState<UserWithRole | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const companyName = company?.name || "Sem Empresa Vinculada";
 
@@ -74,7 +75,10 @@ export function HubUserCompanySection({
               <Label>Nova senha</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input type="password" className="pl-9" value={desktopNewPassword} onChange={(e) => setDesktopNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres" />
+                <Input type={showPassword ? "text" : "password"} className="pl-9 pr-10" value={desktopNewPassword} onChange={(e) => setDesktopNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres" />
+                <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowPassword(!showPassword)}>
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
           </div>

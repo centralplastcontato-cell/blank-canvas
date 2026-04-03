@@ -40,7 +40,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { User, Mail, Pencil, Trash2, Loader2, KeyRound, Lock } from "lucide-react";
+import { User, Mail, Pencil, Trash2, Loader2, KeyRound, Lock, Eye, EyeOff } from "lucide-react";
 import { PermissionsPanel } from "./PermissionsPanel";
 
 interface UserCardProps {
@@ -72,6 +72,7 @@ export function UserCard({
   const [editEmail, setEditEmail] = useState(user.email);
   const [newPassword, setNewPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSave = async () => {
     if (!editName.trim()) return;
@@ -222,13 +223,18 @@ export function UserCard({
                   <div className="space-y-4 py-4">
                     <div className="space-y-2">
                       <Label htmlFor="new-password">Nova senha</Label>
-                      <Input
-                        id="new-password"
-                        type="password"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="Mínimo 6 caracteres"
-                      />
+                      <div className="relative">
+                        <Input
+                          id="new-password"
+                          type={showPassword ? "text" : "password"}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="Mínimo 6 caracteres"
+                        />
+                        <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowPassword(!showPassword)}>
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <DialogFooter>

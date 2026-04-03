@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, UserPlus } from "lucide-react";
+import { Loader2, UserPlus, Eye, EyeOff } from "lucide-react";
 
 interface CreateCompanyAdminDialogProps {
   open: boolean;
@@ -32,6 +32,7 @@ export function CreateCompanyAdminDialog({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,16 +119,21 @@ export function CreateCompanyAdminDialog({
 
           <div className="space-y-2">
             <Label htmlFor="admin-password">Senha inicial</Label>
-            <Input
-              id="admin-password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Mínimo 6 caracteres"
-              minLength={6}
-              required
-              disabled={isSubmitting}
-            />
+            <div className="relative">
+              <Input
+                id="admin-password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Mínimo 6 caracteres"
+                minLength={6}
+                required
+                disabled={isSubmitting}
+              />
+              <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowPassword(!showPassword)}>
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

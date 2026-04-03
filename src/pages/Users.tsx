@@ -57,7 +57,7 @@ import {
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Loader2, Users, Shield, Pencil, Trash2, KeyRound, Lock, Menu } from "lucide-react";
+import { Plus, Loader2, Users, Shield, Pencil, Trash2, KeyRound, Lock, Menu, Eye, EyeOff } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -89,6 +89,7 @@ export default function UsersPage() {
   const [desktopNewPassword, setDesktopNewPassword] = useState("");
   const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
 
   // Form state
   const [newUserEmail, setNewUserEmail] = useState("");
@@ -761,13 +762,18 @@ export default function UsersPage() {
                             <div className="space-y-4 py-4">
                               <div className="space-y-2">
                                 <Label htmlFor="reset-password-desktop">Nova senha</Label>
-                                <Input
-                                  id="reset-password-desktop"
-                                  type="password"
-                                  value={desktopNewPassword}
-                                  onChange={(e) => setDesktopNewPassword(e.target.value)}
-                                  placeholder="Mínimo 6 caracteres"
-                                />
+                                <div className="relative">
+                                  <Input
+                                    id="reset-password-desktop"
+                                    type={showResetPassword ? "text" : "password"}
+                                    value={desktopNewPassword}
+                                    onChange={(e) => setDesktopNewPassword(e.target.value)}
+                                    placeholder="Mínimo 6 caracteres"
+                                  />
+                                  <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowResetPassword(!showResetPassword)}>
+                                    {showResetPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                  </button>
+                                </div>
                               </div>
                             </div>
                             <DialogFooter>
