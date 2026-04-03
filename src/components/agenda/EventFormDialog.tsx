@@ -1922,21 +1922,14 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
         <TabsContent value="complementar" className="mt-0">
           <div className="overflow-y-auto px-7 py-6" style={{ maxHeight: "calc(90vh - 220px)" }}>
-            {isEdit && eventId ? (
-              <EventComplementaryTab
-                eventId={eventId}
-                companyId={currentCompany!.id}
-                companySlug={currentCompany!.slug}
-                leadPhone={leadPhone}
-                form={form}
-                setForm={setForm}
-              />
-            ) : (
-              <div className="text-center py-12 space-y-2">
-                <p className="text-sm text-muted-foreground">Salve a festa primeiro para acessar as informações complementares.</p>
-                <p className="text-xs text-muted-foreground/60">Formulários de pré-festa, cardápio e dados complementares ficarão disponíveis aqui.</p>
-              </div>
-            )}
+            <EventComplementaryTab
+              eventId={eventId || ""}
+              companyId={currentCompany!.id}
+              companySlug={currentCompany!.slug}
+              leadPhone={leadPhone}
+              form={form}
+              setForm={setForm}
+            />
           </div>
         </TabsContent>
 
