@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import {
   Send, Loader2, Copy, ChevronDown, CheckCircle2, Clock,
-  FileText, ClipboardList, UtensilsCrossed, ScrollText, ExternalLink,
+  FileText, ClipboardList, UtensilsCrossed, ScrollText, ExternalLink, Star,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
