@@ -357,7 +357,7 @@ export default function Formularios() {
                     )}
                     {canAvaliacoes && (
                       <TabsContent value="avaliacoes-fl" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                        <FreelancerEvaluationsTab />
+                        <div className="max-w-7xl mx-auto"><FreelancerEvaluationsTab /></div>
                       </TabsContent>
                     )}
                   </Tabs>
