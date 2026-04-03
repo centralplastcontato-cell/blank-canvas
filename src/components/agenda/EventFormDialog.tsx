@@ -293,6 +293,9 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [companyUsers, setCompanyUsers] = useState<Array<{ id: string; name: string }>>([]);
   const [catalogOptionals, setCatalogOptionals] = useState<Array<{ id: string; name: string; description: string | null; value: number | null; valor_por_pessoa: number | null }>>([]);
   
+  const [cardFees, setCardFees] = useState<Array<{ id: string; operator_name: string; antecipado: boolean; [k: string]: any }>>([]);
+  const [selectedOperatorId, setSelectedOperatorId] = useState<string | null>(null);
+
   const [fechamentoDate, setFechamentoDate] = useState<Date | undefined>(undefined);
 
   // Client data request state
