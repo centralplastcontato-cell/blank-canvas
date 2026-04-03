@@ -352,7 +352,7 @@ export default function Formularios() {
                     )}
                     {canFreelancer && (
                       <TabsContent value="cadastro" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                        <FreelancerManagerContent />
+                        <div className="max-w-7xl mx-auto"><FreelancerManagerContent /></div>
                       </TabsContent>
                     )}
                     {canAvaliacoes && (
