@@ -4521,6 +4521,17 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                 </span>
                               </div>
                             )}
+                            {/* Follow-up chip instead of full bubble */}
+                            {(msg.metadata as Record<string, string> | null)?.source === 'auto_reminder' ? (
+                              <FollowUpChip
+                                content={msg.content}
+                                timestamp={msg.timestamp}
+                                metadataType={(msg.metadata as Record<string, string> | null)?.type}
+                              />
+                            ) : (
+                                </span>
+                              </div>
+                            )}
                             <div
                               className={cn(
                                 "flex group",
