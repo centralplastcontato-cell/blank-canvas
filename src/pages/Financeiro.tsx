@@ -91,6 +91,7 @@ export default function Financeiro() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
   const [expenseDialogType, setExpenseDialogType] = useState<string>('fixa');
+  const [editingExpense, setEditingExpense] = useState<any>(null);
   const [viewMode, setViewMode] = useState<'list' | 'client'>('list');
   const [receitasSubTab, setReceitasSubTab] = useState('atraso');
   const [despesasSubTab, setDespesasSubTab] = useState('fixa');
@@ -590,11 +591,11 @@ export default function Financeiro() {
                                 <div className="space-y-2">
                                   {paginated.map(e => (
                                     <div key={e.id} className={cn(
-                                      "p-3 md:p-4 rounded-xl border border-border bg-card flex items-center justify-between gap-3 border-l-4",
+                                      "p-3 md:p-4 rounded-xl border border-border bg-card flex items-center justify-between gap-3 border-l-4 cursor-pointer hover:bg-accent/50 transition-colors",
                                       (e.expense_type || 'fixa') === 'fixa' && 'border-l-blue-500',
                                       e.expense_type === 'variavel' && 'border-l-amber-500',
                                       e.expense_type === 'festa' && 'border-l-purple-500',
-                                    )}>
+                                    )} onClick={() => { setEditingExpense(e); setExpenseDialogType(e.expense_type || 'fixa'); setExpenseDialogOpen(true); }}>
                                       <div className="flex-1 min-w-0">
                                         <p className="font-semibold text-sm text-foreground truncate">{e.description}</p>
                                         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
@@ -609,7 +610,7 @@ export default function Financeiro() {
                                         </p>
                                         {e.notes && <p className="text-xs text-muted-foreground/70 mt-0.5 italic">{e.notes}</p>}
                                       </div>
-                                      <div className="flex items-center gap-1.5 shrink-0">
+                                      <div className="flex items-center gap-1.5 shrink-0" onClick={(ev) => ev.stopPropagation()}>
                                         {e.status !== 'pago' ? (
                                           <Button
                                             size="sm"
@@ -740,9 +741,25 @@ export default function Financeiro() {
 
       <ExpenseFormDialog
         open={expenseDialogOpen}
-        onOpenChange={setExpenseDialogOpen}
-        onSubmit={dashboard.addExpense}
-        
+        onOpenChange={(open) => { setExpenseDialogOpen(open); if (!open) setEditingExpense(null); }}
+        onSubmit={(data) => {
+          if (editingExpense) {
+            dashboard.updateExpense(editingExpense.id, data);
+            setEditingExpense(null);
+          } else {
+            dashboard.addExpense(data);
+          }
+        }}
+        defaultValues={editingExpense ? {
+          description: editingExpense.description,
+          amount: editingExpense.amount,
+          expense_date: editingExpense.expense_date,
+          category: editingExpense.category,
+          expense_type: editingExpense.expense_type,
+          status: editingExpense.status,
+          notes: editingExpense.notes,
+          receipt_url: editingExpense.receipt_url,
+        } : undefined}
         defaultExpenseType={expenseDialogType}
       />
 
