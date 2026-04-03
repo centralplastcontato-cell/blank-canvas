@@ -597,7 +597,7 @@ export default function Financeiro() {
                                     )}>
                                       <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 flex-wrap">
-                                          <p className="font-semibold text-sm text-foreground truncate">{e.description}</p>
+                                          <p className="font-semibold text-sm text-foreground break-words">{e.description}</p>
                                           <Badge variant="secondary" className="text-xs">{CATEGORY_LABELS[e.category] || e.category}</Badge>
                                           <Badge variant="outline" className={e.status === 'pago' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}>
                                             {e.status === 'pago' ? 'Pago' : 'Pendente'}
