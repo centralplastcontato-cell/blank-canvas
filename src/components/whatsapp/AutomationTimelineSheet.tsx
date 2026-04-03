@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { getAutomationLabel } from "./FollowUpChip";
+import { getAutomationLabel, isAutomationMessage } from "./FollowUpChip";
 import { formatMessageContent } from "@/lib/format-message";
 
 interface AutomationMessage {
