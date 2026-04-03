@@ -4529,9 +4529,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                 metadataType={(msg.metadata as Record<string, string> | null)?.type}
                               />
                             ) : (
-                                </span>
-                              </div>
-                            )}
                             <div
                               className={cn(
                                 "flex group",
