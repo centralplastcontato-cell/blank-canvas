@@ -6642,6 +6642,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           </SheetContent>
         </Sheet>
       )}
+      {/* Automation Timeline Sheet */}
+      {selectedConversation && (
+        <AutomationTimelineSheet
+          isOpen={showAutomationTimeline}
+          onClose={() => setShowAutomationTimeline(false)}
+          messages={messages}
+          contactName={selectedConversation.contact_name}
+        />
+      )}
     </div>
   );
 }
