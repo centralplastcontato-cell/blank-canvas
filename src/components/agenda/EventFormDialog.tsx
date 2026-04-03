@@ -1920,6 +1920,22 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             )}
           </div>
         </form>
+        </TabsContent>
+
+        {isEdit && eventId && (
+          <TabsContent value="complementar" className="mt-0">
+            <div className="overflow-y-auto px-7 py-6" style={{ maxHeight: "calc(90vh - 220px)" }}>
+              <EventComplementaryTab
+                eventId={eventId}
+                companyId={currentCompany!.id}
+                companySlug={currentCompany!.slug}
+                leadPhone={leadPhone}
+                form={form}
+                setForm={setForm}
+              />
+            </div>
+          </TabsContent>
+        )}
 
         {/* Fixed footer */}
         <div className="flex justify-end gap-3 px-7 py-4 border-t border-border/40 bg-muted/20">
@@ -1941,6 +1957,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             {isEdit ? "Salvar" : "Criar e Fechar"}
           </Button>
         </div>
+      </Tabs>
       </DialogContent>
 
       {/* Contract Generation Dialog */}
