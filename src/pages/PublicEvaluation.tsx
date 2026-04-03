@@ -142,6 +142,7 @@ export default function PublicEvaluation() {
       respondent_name: respondentName.trim() || null,
       answers: Object.entries(answers).map(([questionId, value]) => ({ questionId, value })),
       overall_score: overallScore,
+      event_id: eventId || null,
     });
 
     setSubmitting(false);
