@@ -808,9 +808,15 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const isEdit = !!initialData?.id || !!form.id;
   const clientData = clientRequest?.client_data as Record<string, string> | null;
 
+  const leadPhone = useMemo(() => {
+    if (!form.lead_id) return null;
+    return closedLeads.find(l => l.id === form.lead_id)?.whatsapp || null;
+  }, [form.lead_id, closedLeads]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[720px] w-[95vw] max-h-[90vh] p-0 gap-0 overflow-hidden rounded-2xl [&>button]:top-5 [&>button]:right-5">
+      <Tabs defaultValue="evento" className="flex flex-col h-full">
         <DialogHeader className="px-7 pt-7 pb-0 border-b-0 bg-muted/30">
           <DialogTitle className="text-lg font-bold tracking-tight">{isEdit ? "Editar Festa" : "Nova Festa"}</DialogTitle>
           <p className="text-[13px] text-muted-foreground mt-1 mb-3">Preencha os dados do evento e contratação</p>
