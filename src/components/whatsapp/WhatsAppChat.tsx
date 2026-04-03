@@ -4840,7 +4840,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                   </DropdownMenu>
                                 )}
                               </div>
-                               {msg.metadata?.source === 'auto_reminder' && (
+                               {isAutomationMessage(msg.metadata as Record<string, string> | null) && (
                                 <div className={cn(
                                   "flex items-center gap-1 mt-0.5 text-[10px] text-muted-foreground/70",
                                   msg.from_me ? "justify-end mr-1" : "justify-start ml-1"
