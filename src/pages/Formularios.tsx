@@ -308,7 +308,7 @@ export default function Formularios() {
 
               {canPacotes && (
                 <TabsContent value="contratos" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                  <PackagesManager />
+                  <div className="max-w-7xl mx-auto"><PackagesManager /></div>
                 </TabsContent>
               )}
 
