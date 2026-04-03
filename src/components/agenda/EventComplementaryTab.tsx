@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -58,6 +59,7 @@ export function EventComplementaryTab({
   const [sections, setSections] = useState<FormSection[]>([]);
   const [loading, setLoading] = useState(!!companyId);
   const [sendingForm, setSendingForm] = useState<string | null>(null);
+  const [iframeModal, setIframeModal] = useState<{ url: string; title: string } | null>(null);
 
   useEffect(() => {
     if (!companyId) {
@@ -386,8 +388,8 @@ export function EventComplementaryTab({
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7"
-                          onClick={() => window.open(getFormLink(section, template), "_blank")}
-                          title="Abrir link"
+                          onClick={() => setIframeModal({ url: getFormLink(section, template), title: `${section.label} — ${template.name}` })}
+                          title="Preencher formulário"
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
                         </Button>
@@ -442,6 +444,24 @@ export function EventComplementaryTab({
           Nenhum formulário cadastrado. Crie templates em <span className="font-medium">Formulários</span>.
         </div>
       )}
+
+      {/* Modal iframe para preencher formulário internamente */}
+      <Dialog open={!!iframeModal} onOpenChange={(open) => { if (!open) { setIframeModal(null); loadData(); } }}>
+        <DialogContent className="max-w-2xl w-[95vw] h-[85vh] p-0 flex flex-col">
+          <DialogHeader className="px-4 py-3 border-b border-border/40 shrink-0">
+            <DialogTitle className="text-sm font-medium">{iframeModal?.title}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0">
+            {iframeModal && (
+              <iframe
+                src={iframeModal.url}
+                className="w-full h-full border-0 rounded-b-lg"
+                title={iframeModal.title}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
