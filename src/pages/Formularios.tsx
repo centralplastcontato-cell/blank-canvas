@@ -237,31 +237,19 @@ export default function Formularios() {
                     className="flex-1 flex flex-col overflow-hidden"
                   >
                     <div className="px-3 md:px-5 pt-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-sm font-bold tracking-wide text-foreground/80">Tipo de Formulário</span>
-                        <div className="flex-1 h-px bg-border/50" />
-                      </div>
-                      <div className="flex gap-1.5 overflow-x-auto pb-1">
+                      <TabsList>
                         {[
                           { value: "avaliacoes", icon: ClipboardCheck, label: "Avaliações" },
                           { value: "prefesta", icon: PartyPopper, label: "Pré-Festa" },
                           { value: "contrato", icon: FileSignature, label: "Contrato" },
                           { value: "cardapio", icon: UtensilsCrossed, label: "Cardápio" },
                         ].map(t => (
-                          <button
-                            key={t.value}
-                            onClick={() => handleTabChange(t.value)}
-                            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border whitespace-nowrap ${
-                              activeTab === t.value
-                                ? 'bg-foreground text-background border-foreground shadow-sm'
-                                : 'bg-transparent text-muted-foreground border-border hover:bg-accent hover:text-foreground'
-                            }`}
-                          >
+                          <TabsTrigger key={t.value} value={t.value} className="gap-1.5" onClick={() => handleTabChange(t.value)}>
                             <t.icon className="h-3.5 w-3.5" />
-                            <span>{t.label}</span>
-                          </button>
+                            {t.label}
+                          </TabsTrigger>
                         ))}
-                      </div>
+                      </TabsList>
                     </div>
 
                     <TabsContent value="avaliacoes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
