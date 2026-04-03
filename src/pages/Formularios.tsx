@@ -209,23 +209,15 @@ export default function Formularios() {
               className="flex-1 flex flex-col overflow-hidden"
             >
               <div className="px-3 md:px-5 pt-3 md:pt-4">
-                <div className="max-w-7xl mx-auto overflow-x-auto flex justify-center">
-                  <div className="inline-flex gap-2 p-1.5 rounded-2xl bg-muted/50 border border-border/40 shadow-sm">
+                <div className="max-w-7xl mx-auto">
+                  <TabsList>
                     {visibleSections.map(s => (
-                      <button
-                        key={s.value}
-                        onClick={() => handleSectionChange(s.value)}
-                        className={`inline-flex items-center gap-2.5 px-6 py-3 rounded-xl text-base font-semibold transition-all duration-200 ${
-                          effectiveSection === s.value
-                            ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30 scale-[1.02]'
-                            : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
-                        }`}
-                      >
-                        <s.icon className="h-5 w-5" />
-                        <span>{s.label}</span>
-                      </button>
+                      <TabsTrigger key={s.value} value={s.value} className="gap-2">
+                        <s.icon className="h-4 w-4" />
+                        {s.label}
+                      </TabsTrigger>
                     ))}
-                  </div>
+                  </TabsList>
                 </div>
               </div>
 
