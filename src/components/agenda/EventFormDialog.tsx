@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { EventComplementaryTab } from "./EventComplementaryTab";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -806,15 +808,28 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const isEdit = !!initialData?.id || !!form.id;
   const clientData = clientRequest?.client_data as Record<string, string> | null;
 
+  const leadPhone = useMemo(() => {
+    if (!form.lead_id) return null;
+    return closedLeads.find(l => l.id === form.lead_id)?.whatsapp || null;
+  }, [form.lead_id, closedLeads]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[720px] w-[95vw] max-h-[90vh] p-0 gap-0 overflow-hidden rounded-2xl [&>button]:top-5 [&>button]:right-5">
-        <DialogHeader className="px-7 pt-7 pb-4 border-b border-border/40 bg-muted/30">
+      <Tabs defaultValue="evento" className="flex flex-col h-full">
+        <DialogHeader className="px-7 pt-7 pb-0 border-b-0 bg-muted/30">
           <DialogTitle className="text-lg font-bold tracking-tight">{isEdit ? "Editar Festa" : "Nova Festa"}</DialogTitle>
-          <p className="text-[13px] text-muted-foreground mt-1">Preencha os dados do evento e contratação</p>
+          <p className="text-[13px] text-muted-foreground mt-1 mb-3">Preencha os dados do evento e contratação</p>
+          {isEdit && (
+            <TabsList className="w-full grid grid-cols-2">
+              <TabsTrigger value="evento">Evento</TabsTrigger>
+              <TabsTrigger value="complementar">Complementar</TabsTrigger>
+            </TabsList>
+          )}
         </DialogHeader>
 
-        <form id="event-form" onSubmit={handleSubmit} className="overflow-y-auto px-7 py-6 space-y-5" style={{ maxHeight: "calc(90vh - 180px)" }}>
+        <TabsContent value="evento" className="mt-0">
+        <form id="event-form" onSubmit={handleSubmit} className="overflow-y-auto px-7 py-6 space-y-5" style={{ maxHeight: "calc(90vh - 220px)" }}>
           {/* Conflict Alert */}
           {conflictEvent && (
             <Alert variant="destructive" className="border-destructive/60 bg-destructive/10">
@@ -1700,19 +1715,6 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               </div>
             </div>
 
-            {/* Observações Internas */}
-            <div className="mt-5 pt-5 border-t border-border/40">
-              <div className="space-y-2.5">
-                <Label className="text-sm font-medium text-foreground/70">Observações internas da festa</Label>
-                <Textarea
-                  value={form.internal_notes || ""}
-                  onChange={(e) => setForm({ ...form, internal_notes: e.target.value })}
-                  rows={3}
-                  placeholder="Anotações internas do buffet (não aparece no contrato)..."
-                />
-                <p className="text-[10px] text-muted-foreground">Este campo é exclusivo para uso interno e não será incluído em contratos.</p>
-              </div>
-            </div>
 
             <div className="mt-5 pt-5 border-t border-border/40">
               <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2.5">
@@ -1918,6 +1920,22 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             )}
           </div>
         </form>
+        </TabsContent>
+
+        {isEdit && eventId && (
+          <TabsContent value="complementar" className="mt-0">
+            <div className="overflow-y-auto px-7 py-6" style={{ maxHeight: "calc(90vh - 220px)" }}>
+              <EventComplementaryTab
+                eventId={eventId}
+                companyId={currentCompany!.id}
+                companySlug={currentCompany!.slug}
+                leadPhone={leadPhone}
+                form={form}
+                setForm={setForm}
+              />
+            </div>
+          </TabsContent>
+        )}
 
         {/* Fixed footer */}
         <div className="flex justify-end gap-3 px-7 py-4 border-t border-border/40 bg-muted/20">
@@ -1939,6 +1957,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             {isEdit ? "Salvar" : "Criar e Fechar"}
           </Button>
         </div>
+      </Tabs>
       </DialogContent>
 
       {/* Contract Generation Dialog */}
