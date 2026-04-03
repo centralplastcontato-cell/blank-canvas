@@ -507,6 +507,19 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       .then(({ data }) => {
         setCatalogOptionals((data || []).map((o: any) => ({ id: o.id, name: o.name, description: o.description, value: o.value != null ? Number(o.value) : null, valor_por_pessoa: o.valor_por_pessoa != null ? Number(o.valor_por_pessoa) : null })));
       });
+    supabase
+      .from("company_card_fees" as any)
+      .select("*")
+      .eq("company_id", currentCompany.id)
+      .eq("is_active", true)
+      .order("operator_name")
+      .then(({ data }) => {
+        const fees = (data || []) as any[];
+        setCardFees(fees);
+        if (fees.length === 1 && !selectedOperatorId) {
+          setSelectedOperatorId(fees[0].id);
+        }
+      });
 
   }, [open, currentCompany?.id]);
 
