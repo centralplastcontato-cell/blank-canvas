@@ -247,16 +247,16 @@ export default function Formularios() {
                     </div>
 
                     <TabsContent value="avaliacoes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <AvaliacoesContent />
+                      <div className="max-w-7xl mx-auto"><AvaliacoesContent /></div>
                     </TabsContent>
                     <TabsContent value="prefesta" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <PreFestaContent />
+                      <div className="max-w-7xl mx-auto"><PreFestaContent /></div>
                     </TabsContent>
                     <TabsContent value="contrato" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <ContratoContent />
+                      <div className="max-w-7xl mx-auto"><ContratoContent /></div>
                     </TabsContent>
                     <TabsContent value="cardapio" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <CardapioContent />
+                      <div className="max-w-7xl mx-auto"><CardapioContent /></div>
                     </TabsContent>
                   </Tabs>
                 </TabsContent>
