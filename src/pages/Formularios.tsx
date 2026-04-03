@@ -229,6 +229,7 @@ export default function Formularios() {
                     className="flex-1 flex flex-col overflow-hidden"
                   >
                     <div className="px-3 md:px-5 pt-4">
+                      <div className="max-w-7xl mx-auto">
                       <TabsList>
                         {[
                           { value: "avaliacoes", icon: ClipboardCheck, label: "Avaliações" },
@@ -242,19 +243,20 @@ export default function Formularios() {
                           </TabsTrigger>
                         ))}
                       </TabsList>
+                      </div>
                     </div>
 
                     <TabsContent value="avaliacoes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <AvaliacoesContent />
+                      <div className="max-w-7xl mx-auto"><AvaliacoesContent /></div>
                     </TabsContent>
                     <TabsContent value="prefesta" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <PreFestaContent />
+                      <div className="max-w-7xl mx-auto"><PreFestaContent /></div>
                     </TabsContent>
                     <TabsContent value="contrato" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <ContratoContent />
+                      <div className="max-w-7xl mx-auto"><ContratoContent /></div>
                     </TabsContent>
                     <TabsContent value="cardapio" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <CardapioContent />
+                      <div className="max-w-7xl mx-auto"><CardapioContent /></div>
                     </TabsContent>
                   </Tabs>
                 </TabsContent>
@@ -264,6 +266,7 @@ export default function Formularios() {
                <TabsContent value="checklist" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
                   <Tabs defaultValue="equipe" className="flex-1 flex flex-col overflow-hidden">
                      <div className="px-3 md:px-5 pt-4">
+                      <div className="max-w-7xl mx-auto">
                       <TabsList>
                         {[
                           { value: "equipe", icon: Users, label: "Equipe" },
@@ -279,24 +282,25 @@ export default function Formularios() {
                           </TabsTrigger>
                         ))}
                       </TabsList>
+                      </div>
                     </div>
                     <TabsContent value="equipe" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <EventStaffManager />
+                      <div className="max-w-7xl mx-auto"><EventStaffManager /></div>
                     </TabsContent>
                     <TabsContent value="manutencao" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <MaintenanceManager />
+                      <div className="max-w-7xl mx-auto"><MaintenanceManager /></div>
                     </TabsContent>
                     <TabsContent value="acompanhamento" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <PartyMonitoringManager />
+                      <div className="max-w-7xl mx-auto"><PartyMonitoringManager /></div>
                     </TabsContent>
                     <TabsContent value="presenca" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <AttendanceManager />
+                      <div className="max-w-7xl mx-auto"><AttendanceManager /></div>
                     </TabsContent>
                     <TabsContent value="informacoes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <EventInfoManager />
+                      <div className="max-w-7xl mx-auto"><EventInfoManager /></div>
                     </TabsContent>
                     <TabsContent value="templates" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <ChecklistTemplateManager />
+                      <div className="max-w-7xl mx-auto"><ChecklistTemplateManager /></div>
                     </TabsContent>
                   </Tabs>
                 </TabsContent>
@@ -304,13 +308,13 @@ export default function Formularios() {
 
               {canPacotes && (
                 <TabsContent value="contratos" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                  <PackagesManager />
+                  <div className="max-w-7xl mx-auto"><PackagesManager /></div>
                 </TabsContent>
               )}
 
               {canPacotes && (
                 <TabsContent value="opcionais" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                  <OptionalsManager />
+                  <div className="max-w-7xl mx-auto"><OptionalsManager /></div>
                 </TabsContent>
               )}
 
@@ -318,6 +322,7 @@ export default function Formularios() {
                 <TabsContent value="freelancer" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
                   <Tabs defaultValue={canFreelancer ? "escalas" : "avaliacoes-fl"} className="flex-1 flex flex-col overflow-hidden">
                     <div className="px-3 md:px-5 pt-4">
+                      <div className="max-w-7xl mx-auto">
                       <TabsList>
                         {canFreelancer && (
                           <TabsTrigger value="escalas" className="gap-1.5">
@@ -338,20 +343,21 @@ export default function Formularios() {
                           </TabsTrigger>
                         )}
                       </TabsList>
+                      </div>
                     </div>
                     {canFreelancer && (
                       <TabsContent value="escalas" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                        <FreelancerSchedulesTab />
+                        <div className="max-w-7xl mx-auto"><FreelancerSchedulesTab /></div>
                       </TabsContent>
                     )}
                     {canFreelancer && (
                       <TabsContent value="cadastro" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                        <FreelancerManagerContent />
+                        <div className="max-w-7xl mx-auto"><FreelancerManagerContent /></div>
                       </TabsContent>
                     )}
                     {canAvaliacoes && (
                       <TabsContent value="avaliacoes-fl" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                        <FreelancerEvaluationsTab />
+                        <div className="max-w-7xl mx-auto"><FreelancerEvaluationsTab /></div>
                       </TabsContent>
                     )}
                   </Tabs>
