@@ -5246,9 +5246,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         title="Automações enviadas"
                       >
                         <Bot className="w-4 h-4 text-muted-foreground" />
-                        {messages.filter(m => (m.metadata as Record<string, string> | null)?.source === 'auto_reminder').length > 0 && (
+                        {messages.filter(m => isAutomationMessage(m.metadata as Record<string, string> | null)).length > 0 && (
                           <span className="absolute -top-0.5 -right-0.5 bg-primary text-primary-foreground text-[9px] font-bold rounded-full h-4 min-w-4 flex items-center justify-center px-0.5">
-                            {messages.filter(m => (m.metadata as Record<string, string> | null)?.source === 'auto_reminder').length}
+                            {messages.filter(m => isAutomationMessage(m.metadata as Record<string, string> | null)).length}
                           </span>
                         )}
                       </Button>
