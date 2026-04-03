@@ -40,7 +40,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { User, Mail, Pencil, Trash2, Loader2, KeyRound, Lock } from "lucide-react";
+import { User, Mail, Pencil, Trash2, Loader2, KeyRound, Lock, Eye, EyeOff } from "lucide-react";
 import { PermissionsPanel } from "./PermissionsPanel";
 
 interface UserCardProps {
