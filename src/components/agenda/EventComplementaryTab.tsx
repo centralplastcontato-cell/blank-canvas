@@ -60,7 +60,7 @@ export function EventComplementaryTab({
   const [sendingForm, setSendingForm] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!eventId || !companyId) {
+    if (!companyId) {
       setLoading(false);
       return;
     }
