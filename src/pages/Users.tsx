@@ -57,7 +57,7 @@ import {
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Loader2, Users, Shield, Pencil, Trash2, KeyRound, Lock, Menu } from "lucide-react";
+import { Plus, Loader2, Users, Shield, Pencil, Trash2, KeyRound, Lock, Menu, Eye, EyeOff } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 import { useIsMobile } from "@/hooks/use-mobile";
