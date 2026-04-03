@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { BarChart3, Building2, Users, LogOut, Smartphone, ClipboardList, Presentation, Brain, GraduationCap, Contact, Headset, Package, UserSearch, BookOpen } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
