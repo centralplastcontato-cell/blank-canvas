@@ -117,7 +117,7 @@ export function EventComplementaryTab({
           icon: ClipboardList,
           templates: (prefestaTemplates || []) as FormTemplate[],
           responses: mapResponses(prefestaResponses),
-          publicPath: "prefesta",
+          publicPath: "pre-festa",
         },
         {
           type: "cardapio",
