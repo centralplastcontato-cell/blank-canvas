@@ -820,12 +820,10 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         <DialogHeader className="px-7 pt-7 pb-0 border-b-0 bg-muted/30">
           <DialogTitle className="text-lg font-bold tracking-tight">{isEdit ? "Editar Festa" : "Nova Festa"}</DialogTitle>
           <p className="text-[13px] text-muted-foreground mt-1 mb-3">Preencha os dados do evento e contratação</p>
-          {isEdit && (
-            <TabsList className="w-full grid grid-cols-2">
-              <TabsTrigger value="evento">Evento</TabsTrigger>
-              <TabsTrigger value="complementar">Complementar</TabsTrigger>
-            </TabsList>
-          )}
+          <TabsList className="w-full grid grid-cols-2">
+            <TabsTrigger value="evento">Evento</TabsTrigger>
+            <TabsTrigger value="complementar">Complementar</TabsTrigger>
+          </TabsList>
         </DialogHeader>
 
         <TabsContent value="evento" className="mt-0">
