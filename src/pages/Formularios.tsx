@@ -266,6 +266,7 @@ export default function Formularios() {
                <TabsContent value="checklist" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
                   <Tabs defaultValue="equipe" className="flex-1 flex flex-col overflow-hidden">
                      <div className="px-3 md:px-5 pt-4">
+                      <div className="max-w-7xl mx-auto">
                       <TabsList>
                         {[
                           { value: "equipe", icon: Users, label: "Equipe" },
