@@ -122,6 +122,14 @@ export function EventComplementaryTab({
           responses: mapResponses(contratoResponses),
           publicPath: "contrato",
         },
+        {
+          type: "avaliacao",
+          label: "Avaliação",
+          icon: Star,
+          templates: (evaluationTemplates || []) as FormTemplate[],
+          responses: mapResponses(evaluationResponses),
+          publicPath: "avaliacao",
+        },
       ]);
     } catch (err) {
       console.error("Error loading complementary data:", err);
