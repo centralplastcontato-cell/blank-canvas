@@ -188,7 +188,7 @@ export function ContractModelEditor({ model, userId, onClose }: Props) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-border/40 bg-gradient-to-r from-primary/5 to-transparent">
+      <div className="px-4 md:px-6 py-4 border-b border-border/40 bg-gradient-to-r from-primary/5 to-transparent">
         <h2 className="text-lg font-bold">{model ? "Editar Modelo" : "Novo Modelo de Contrato"}</h2>
         <p className="text-xs text-muted-foreground mt-0.5">Use variáveis como {"{{nome}}"} para preencher automaticamente</p>
       </div>
