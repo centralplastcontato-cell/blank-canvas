@@ -610,7 +610,7 @@ export default function Financeiro() {
                                         </p>
                                         {e.notes && <p className="text-xs text-muted-foreground/70 mt-0.5 italic">{e.notes}</p>}
                                       </div>
-                                      <div className="flex items-center gap-1.5 shrink-0">
+                                      <div className="flex items-center gap-1.5 shrink-0" onClick={(ev) => ev.stopPropagation()}>
                                         {e.status !== 'pago' ? (
                                           <Button
                                             size="sm"
