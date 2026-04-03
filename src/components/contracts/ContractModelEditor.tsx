@@ -188,12 +188,12 @@ export function ContractModelEditor({ model, userId, onClose }: Props) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-border/40 bg-gradient-to-r from-primary/5 to-transparent">
+      <div className="px-4 md:px-6 py-4 border-b border-border/40 bg-gradient-to-r from-primary/5 to-transparent">
         <h2 className="text-lg font-bold">{model ? "Editar Modelo" : "Novo Modelo de Contrato"}</h2>
         <p className="text-xs text-muted-foreground mt-0.5">Use variáveis como {"{{nome}}"} para preencher automaticamente</p>
       </div>
 
-      <div className="p-6 space-y-4">
+      <div className="p-4 md:p-6 space-y-4">
         {/* Name + Type */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-2">
@@ -218,7 +218,7 @@ export function ContractModelEditor({ model, userId, onClose }: Props) {
 
         {/* Editor + Preview tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-3 w-full max-w-sm">
+          <TabsList className="grid grid-cols-3 w-full max-w-full md:max-w-sm">
             <TabsTrigger value="editor">Editor</TabsTrigger>
             <TabsTrigger value="preview"><Eye className="h-3.5 w-3.5 mr-1" /> Preview</TabsTrigger>
             <TabsTrigger value="variables"><Info className="h-3.5 w-3.5 mr-1" /> Variáveis</TabsTrigger>
