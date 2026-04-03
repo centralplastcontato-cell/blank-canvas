@@ -285,22 +285,22 @@ export default function Formularios() {
                       </div>
                     </div>
                     <TabsContent value="equipe" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <EventStaffManager />
+                      <div className="max-w-7xl mx-auto"><EventStaffManager /></div>
                     </TabsContent>
                     <TabsContent value="manutencao" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <MaintenanceManager />
+                      <div className="max-w-7xl mx-auto"><MaintenanceManager /></div>
                     </TabsContent>
                     <TabsContent value="acompanhamento" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <PartyMonitoringManager />
+                      <div className="max-w-7xl mx-auto"><PartyMonitoringManager /></div>
                     </TabsContent>
                     <TabsContent value="presenca" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <AttendanceManager />
+                      <div className="max-w-7xl mx-auto"><AttendanceManager /></div>
                     </TabsContent>
                     <TabsContent value="informacoes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <EventInfoManager />
+                      <div className="max-w-7xl mx-auto"><EventInfoManager /></div>
                     </TabsContent>
                     <TabsContent value="templates" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <ChecklistTemplateManager />
+                      <div className="max-w-7xl mx-auto"><ChecklistTemplateManager /></div>
                     </TabsContent>
                   </Tabs>
                 </TabsContent>
