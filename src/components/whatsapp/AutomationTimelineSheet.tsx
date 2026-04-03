@@ -34,7 +34,7 @@ export function AutomationTimelineSheet({
   contactName,
 }: AutomationTimelineSheetProps) {
   const automationMessages = messages
-    .filter((m) => (m.metadata as Record<string, string> | null)?.source === "auto_reminder")
+    .filter((m) => isAutomationMessage(m.metadata as Record<string, string> | null))
     .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
   return (
