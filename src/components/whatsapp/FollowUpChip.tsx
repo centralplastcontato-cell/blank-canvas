@@ -26,6 +26,15 @@ function getAutomationLabel(type?: string, source?: string): string {
       default: return 'Reativação automática';
     }
   }
+  if (source === 'reactivation_4b') return 'Reativação conversacional';
+  if (source === 'stuck_bot_recovery') return 'Recuperação de bot';
+  if (source === 'visit_confirmation') {
+    switch (type) {
+      case 'visit_reminder': return 'Lembrete de visita';
+      case 'visit_confirmation': return 'Confirmação de visita';
+      default: return 'Confirmação de visita';
+    }
+  }
   switch (type) {
     case 'next_step_reminder': return 'Lembrete automático';
     case 'follow_up_1': return 'Follow-up automático';
