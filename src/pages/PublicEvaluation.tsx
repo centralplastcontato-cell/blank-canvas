@@ -30,6 +30,8 @@ interface TemplateData {
 
 export default function PublicEvaluation() {
   const { templateId, companySlug, templateSlug } = useParams<{ templateId: string; companySlug: string; templateSlug: string }>();
+  const [searchParams] = useSearchParams();
+  const eventId = searchParams.get("event_id");
   const [template, setTemplate] = useState<TemplateData | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
