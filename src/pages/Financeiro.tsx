@@ -591,11 +591,11 @@ export default function Financeiro() {
                                 <div className="space-y-2">
                                   {paginated.map(e => (
                                     <div key={e.id} className={cn(
-                                      "p-3 md:p-4 rounded-xl border border-border bg-card flex items-center justify-between gap-3 border-l-4",
+                                      "p-3 md:p-4 rounded-xl border border-border bg-card flex items-center justify-between gap-3 border-l-4 cursor-pointer hover:bg-accent/50 transition-colors",
                                       (e.expense_type || 'fixa') === 'fixa' && 'border-l-blue-500',
                                       e.expense_type === 'variavel' && 'border-l-amber-500',
                                       e.expense_type === 'festa' && 'border-l-purple-500',
-                                    )}>
+                                    )} onClick={() => { setEditingExpense(e); setExpenseDialogType(e.expense_type || 'fixa'); setExpenseDialogOpen(true); }}>
                                       <div className="flex-1 min-w-0">
                                         <p className="font-semibold text-sm text-foreground truncate">{e.description}</p>
                                         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
