@@ -56,7 +56,7 @@ export function EventComplementaryTab({
   setForm,
 }: EventComplementaryTabProps) {
   const [sections, setSections] = useState<FormSection[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!!companyId);
   const [sendingForm, setSendingForm] = useState<string | null>(null);
 
   useEffect(() => {
