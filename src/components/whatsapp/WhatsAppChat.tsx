@@ -5983,6 +5983,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                             </div>
                           )}
                         </div>
+                        )}
                         </div>
                         );
                       })
