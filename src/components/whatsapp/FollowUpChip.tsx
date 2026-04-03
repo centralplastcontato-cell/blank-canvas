@@ -9,9 +9,23 @@ interface FollowUpChipProps {
   content: string | null;
   timestamp: string;
   metadataType?: string;
+  metadataSource?: string;
 }
 
-function getAutomationLabel(type?: string): string {
+export function isAutomationMessage(metadata: Record<string, string> | null | undefined): boolean {
+  const source = metadata?.source;
+  return source === 'auto_reminder' || source === 'reactivation_engine';
+}
+
+function getAutomationLabel(type?: string, source?: string): string {
+  if (source === 'reactivation_engine') {
+    switch (type) {
+      case 'reactivation_stage_1': return 'Reativação 1 mês';
+      case 'reactivation_stage_2': return 'Reativação 2 meses';
+      case 'reactivation_stage_3': return 'Reativação 3 meses';
+      default: return 'Reativação automática';
+    }
+  }
   switch (type) {
     case 'next_step_reminder': return 'Lembrete automático';
     case 'follow_up_1': return 'Follow-up automático';
@@ -23,11 +37,11 @@ function getAutomationLabel(type?: string): string {
   }
 }
 
-export function FollowUpChip({ content, timestamp, metadataType }: FollowUpChipProps) {
+export function FollowUpChip({ content, timestamp, metadataType, metadataSource }: FollowUpChipProps) {
   const [expanded, setExpanded] = useState(false);
 
   const time = format(new Date(timestamp), "HH:mm", { locale: ptBR });
-  const label = getAutomationLabel(metadataType);
+  const label = getAutomationLabel(metadataType, metadataSource);
 
   return (
     <div className="flex justify-center my-1">

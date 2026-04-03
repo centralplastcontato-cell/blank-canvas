@@ -295,7 +295,7 @@ import { ContactInfoSheet } from "@/components/whatsapp/ContactInfoSheet";
 import { SalesMaterialsMenu } from "@/components/whatsapp/SalesMaterialsMenu";
 import { ShareToGroupDialog } from "@/components/whatsapp/ShareToGroupDialog";
 import { QuickVisitDialog } from "@/components/whatsapp/QuickVisitDialog";
-import { FollowUpChip } from "@/components/whatsapp/FollowUpChip";
+import { FollowUpChip, isAutomationMessage } from "@/components/whatsapp/FollowUpChip";
 import { AutomationTimelineSheet } from "@/components/whatsapp/AutomationTimelineSheet";
 import { useFilterOrder } from "@/hooks/useFilterOrder";
 
@@ -4232,9 +4232,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         title="Automações enviadas"
                       >
                         <Bot className="w-4 h-4 text-muted-foreground" />
-                        {messages.filter(m => (m.metadata as Record<string, string> | null)?.source === 'auto_reminder').length > 0 && (
+                        {messages.filter(m => isAutomationMessage(m.metadata as Record<string, string> | null)).length > 0 && (
                           <span className="absolute -top-0.5 -right-0.5 bg-primary text-primary-foreground text-[9px] font-bold rounded-full h-4 min-w-4 flex items-center justify-center px-0.5">
-                            {messages.filter(m => (m.metadata as Record<string, string> | null)?.source === 'auto_reminder').length}
+                            {messages.filter(m => isAutomationMessage(m.metadata as Record<string, string> | null)).length}
                           </span>
                         )}
                       </Button>
@@ -4521,12 +4521,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                 </span>
                               </div>
                             )}
-                            {/* Follow-up chip instead of full bubble */}
-                            {(msg.metadata as Record<string, string> | null)?.source === 'auto_reminder' ? (
+                            {/* Follow-up/reactivation chip instead of full bubble */}
+                            {isAutomationMessage(msg.metadata as Record<string, string> | null) ? (
                               <FollowUpChip
                                 content={msg.content}
                                 timestamp={msg.timestamp}
                                 metadataType={(msg.metadata as Record<string, string> | null)?.type}
+                                metadataSource={(msg.metadata as Record<string, string> | null)?.source}
                               />
                             ) : (
                             <div
@@ -4839,7 +4840,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                   </DropdownMenu>
                                 )}
                               </div>
-                               {msg.metadata?.source === 'auto_reminder' && (
+                               {isAutomationMessage(msg.metadata as Record<string, string> | null) && (
                                 <div className={cn(
                                   "flex items-center gap-1 mt-0.5 text-[10px] text-muted-foreground/70",
                                   msg.from_me ? "justify-end mr-1" : "justify-start ml-1"
@@ -5245,9 +5246,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         title="Automações enviadas"
                       >
                         <Bot className="w-4 h-4 text-muted-foreground" />
-                        {messages.filter(m => (m.metadata as Record<string, string> | null)?.source === 'auto_reminder').length > 0 && (
+                        {messages.filter(m => isAutomationMessage(m.metadata as Record<string, string> | null)).length > 0 && (
                           <span className="absolute -top-0.5 -right-0.5 bg-primary text-primary-foreground text-[9px] font-bold rounded-full h-4 min-w-4 flex items-center justify-center px-0.5">
-                            {messages.filter(m => (m.metadata as Record<string, string> | null)?.source === 'auto_reminder').length}
+                            {messages.filter(m => isAutomationMessage(m.metadata as Record<string, string> | null)).length}
                           </span>
                         )}
                       </Button>
@@ -5661,12 +5662,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                             </span>
                           </div>
                         )}
-                        {/* Follow-up chip instead of full bubble */}
-                        {(msg.metadata as Record<string, string> | null)?.source === 'auto_reminder' ? (
+                        {/* Follow-up/reactivation chip instead of full bubble */}
+                        {isAutomationMessage(msg.metadata as Record<string, string> | null) ? (
                           <FollowUpChip
                             content={msg.content}
                             timestamp={msg.timestamp}
                             metadataType={(msg.metadata as Record<string, string> | null)?.type}
+                            metadataSource={(msg.metadata as Record<string, string> | null)?.source}
                           />
                         ) : (
                         <div
@@ -5967,7 +5969,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                               </DropdownMenu>
                             )}
                           </div>
-                          {msg.metadata?.source === 'auto_reminder' && (
+                          {isAutomationMessage(msg.metadata as Record<string, string> | null) && (
                             <div className={cn(
                               "flex items-center gap-1 mt-0.5 text-[10px] text-muted-foreground/70",
                               msg.from_me ? "justify-end mr-1" : "justify-start ml-1"

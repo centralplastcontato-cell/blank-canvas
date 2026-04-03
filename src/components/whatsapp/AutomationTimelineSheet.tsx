@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { getAutomationLabel } from "./FollowUpChip";
+import { getAutomationLabel, isAutomationMessage } from "./FollowUpChip";
 import { formatMessageContent } from "@/lib/format-message";
 
 interface AutomationMessage {
@@ -34,7 +34,7 @@ export function AutomationTimelineSheet({
   contactName,
 }: AutomationTimelineSheetProps) {
   const automationMessages = messages
-    .filter((m) => (m.metadata as Record<string, string> | null)?.source === "auto_reminder")
+    .filter((m) => isAutomationMessage(m.metadata as Record<string, string> | null))
     .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
   return (
@@ -71,7 +71,7 @@ export function AutomationTimelineSheet({
               <div className="space-y-4">
                 {automationMessages.map((msg, idx) => {
                   const meta = msg.metadata as Record<string, string> | null;
-                  const label = getAutomationLabel(meta?.type);
+                  const label = getAutomationLabel(meta?.type, meta?.source);
                   const date = new Date(msg.timestamp);
 
                   return (
