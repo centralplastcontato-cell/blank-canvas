@@ -237,31 +237,19 @@ export default function Formularios() {
                     className="flex-1 flex flex-col overflow-hidden"
                   >
                     <div className="px-3 md:px-5 pt-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-sm font-bold tracking-wide text-foreground/80">Tipo de Formulário</span>
-                        <div className="flex-1 h-px bg-border/50" />
-                      </div>
-                      <div className="flex gap-1.5 overflow-x-auto pb-1">
+                      <TabsList>
                         {[
                           { value: "avaliacoes", icon: ClipboardCheck, label: "Avaliações" },
                           { value: "prefesta", icon: PartyPopper, label: "Pré-Festa" },
                           { value: "contrato", icon: FileSignature, label: "Contrato" },
                           { value: "cardapio", icon: UtensilsCrossed, label: "Cardápio" },
                         ].map(t => (
-                          <button
-                            key={t.value}
-                            onClick={() => handleTabChange(t.value)}
-                            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border whitespace-nowrap ${
-                              activeTab === t.value
-                                ? 'bg-foreground text-background border-foreground shadow-sm'
-                                : 'bg-transparent text-muted-foreground border-border hover:bg-accent hover:text-foreground'
-                            }`}
-                          >
+                          <TabsTrigger key={t.value} value={t.value} className="gap-1.5" onClick={() => handleTabChange(t.value)}>
                             <t.icon className="h-3.5 w-3.5" />
-                            <span>{t.label}</span>
-                          </button>
+                            {t.label}
+                          </TabsTrigger>
                         ))}
-                      </div>
+                      </TabsList>
                     </div>
 
                     <TabsContent value="avaliacoes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
@@ -281,14 +269,10 @@ export default function Formularios() {
               )}
 
               {canChecklist && (
-                <TabsContent value="checklist" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
+               <TabsContent value="checklist" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
                   <Tabs defaultValue="equipe" className="flex-1 flex flex-col overflow-hidden">
                      <div className="px-3 md:px-5 pt-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-sm font-bold tracking-wide text-foreground/80">Tipo de Checklist</span>
-                        <div className="flex-1 h-px bg-border/50" />
-                      </div>
-                      <TabsList className="flex justify-start gap-1.5 overflow-x-auto pb-1 bg-transparent h-auto p-0">
+                      <TabsList>
                         {[
                           { value: "equipe", icon: Users, label: "Equipe" },
                           { value: "manutencao", icon: Wrench, label: "Manutenção" },
@@ -297,9 +281,9 @@ export default function Formularios() {
                           { value: "informacoes", icon: FileText, label: "Informações" },
                           { value: "templates", icon: LayoutTemplate, label: "Templates" },
                         ].map(t => (
-                          <TabsTrigger key={t.value} value={t.value} className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border whitespace-nowrap data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:border-foreground data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:border-border data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground">
+                          <TabsTrigger key={t.value} value={t.value} className="gap-1.5">
                             <t.icon className="h-3.5 w-3.5" />
-                            <span>{t.label}</span>
+                            {t.label}
                           </TabsTrigger>
                         ))}
                       </TabsList>
@@ -342,27 +326,23 @@ export default function Formularios() {
                 <TabsContent value="freelancer" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
                   <Tabs defaultValue={canFreelancer ? "escalas" : "avaliacoes-fl"} className="flex-1 flex flex-col overflow-hidden">
                     <div className="px-3 md:px-5 pt-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-sm font-bold tracking-wide text-foreground/80">Gestão de Freelancer</span>
-                        <div className="flex-1 h-px bg-border/50" />
-                      </div>
-                      <TabsList className="flex justify-start gap-1.5 overflow-x-auto pb-1 bg-transparent h-auto p-0">
+                      <TabsList>
                         {canFreelancer && (
-                          <TabsTrigger value="escalas" className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border whitespace-nowrap data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:border-foreground data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:border-border data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground">
+                          <TabsTrigger value="escalas" className="gap-1.5">
                             <CalendarClock className="h-3.5 w-3.5" />
-                            <span>Escalas</span>
+                            Escalas
                           </TabsTrigger>
                         )}
                         {canFreelancer && (
-                          <TabsTrigger value="cadastro" className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border whitespace-nowrap data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:border-foreground data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:border-border data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground">
+                          <TabsTrigger value="cadastro" className="gap-1.5">
                             <HardHat className="h-3.5 w-3.5" />
-                            <span>Cadastro</span>
+                            Cadastro
                           </TabsTrigger>
                         )}
                         {canAvaliacoes && (
-                          <TabsTrigger value="avaliacoes-fl" className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border whitespace-nowrap data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:border-foreground data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:border-border data-[state=inactive]:hover:bg-accent data-[state=inactive]:hover:text-foreground">
+                          <TabsTrigger value="avaliacoes-fl" className="gap-1.5">
                             <ClipboardCheck className="h-3.5 w-3.5" />
-                            <span>Avaliações</span>
+                            Avaliações
                           </TabsTrigger>
                         )}
                       </TabsList>
