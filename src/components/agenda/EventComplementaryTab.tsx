@@ -75,20 +75,30 @@ export function EventComplementaryTab({
         { data: cardapioTemplates },
         { data: contratoTemplates },
         { data: evaluationTemplates },
-        { data: prefestaResponses },
-        { data: cardapioResponses },
-        { data: contratoResponses },
-        { data: evaluationResponses },
       ] = await Promise.all([
         supabase.from("prefesta_templates").select("id, name, slug, questions").eq("company_id", companyId).eq("is_active", true),
         supabase.from("cardapio_templates").select("id, name, slug, sections").eq("company_id", companyId).eq("is_active", true),
         supabase.from("contrato_templates").select("id, name, slug, questions").eq("company_id", companyId).eq("is_active", true),
         supabase.from("evaluation_templates").select("id, name, slug, questions").eq("company_id", companyId).eq("is_active", true),
-        supabase.from("prefesta_responses").select("id, template_id, answers, respondent_name, created_at").eq("event_id", eventId),
-        supabase.from("cardapio_responses").select("id, template_id, answers, respondent_name, created_at").eq("event_id", eventId),
-        supabase.from("contrato_responses").select("id, template_id, answers, respondent_name, created_at").eq("event_id", eventId),
-        supabase.from("evaluation_responses").select("id, template_id, answers, respondent_name, created_at").eq("event_id", eventId),
       ]);
+
+      let prefestaResponses: any[] | null = null;
+      let cardapioResponses: any[] | null = null;
+      let contratoResponses: any[] | null = null;
+      let evaluationResponses: any[] | null = null;
+
+      if (eventId) {
+        const [r1, r2, r3, r4] = await Promise.all([
+          supabase.from("prefesta_responses").select("id, template_id, answers, respondent_name, created_at").eq("event_id", eventId),
+          supabase.from("cardapio_responses").select("id, template_id, answers, respondent_name, created_at").eq("event_id", eventId),
+          supabase.from("contrato_responses").select("id, template_id, answers, respondent_name, created_at").eq("event_id", eventId),
+          supabase.from("evaluation_responses").select("id, template_id, answers, respondent_name, created_at").eq("event_id", eventId),
+        ]);
+        prefestaResponses = r1.data;
+        cardapioResponses = r2.data;
+        contratoResponses = r3.data;
+        evaluationResponses = r4.data;
+      }
 
       const mapResponses = (responses: any[] | null) => {
         const map = new Map<string, FormResponse[]>();
