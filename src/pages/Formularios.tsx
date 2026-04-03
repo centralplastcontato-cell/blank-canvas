@@ -229,6 +229,7 @@ export default function Formularios() {
                     className="flex-1 flex flex-col overflow-hidden"
                   >
                     <div className="px-3 md:px-5 pt-4">
+                      <div className="max-w-7xl mx-auto">
                       <TabsList>
                         {[
                           { value: "avaliacoes", icon: ClipboardCheck, label: "Avaliações" },
