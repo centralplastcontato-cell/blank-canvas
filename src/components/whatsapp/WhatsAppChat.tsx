@@ -5662,12 +5662,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                             </span>
                           </div>
                         )}
-                        {/* Follow-up chip instead of full bubble */}
-                        {(msg.metadata as Record<string, string> | null)?.source === 'auto_reminder' ? (
+                        {/* Follow-up/reactivation chip instead of full bubble */}
+                        {isAutomationMessage(msg.metadata as Record<string, string> | null) ? (
                           <FollowUpChip
                             content={msg.content}
                             timestamp={msg.timestamp}
                             metadataType={(msg.metadata as Record<string, string> | null)?.type}
+                            metadataSource={(msg.metadata as Record<string, string> | null)?.source}
                           />
                         ) : (
                         <div
