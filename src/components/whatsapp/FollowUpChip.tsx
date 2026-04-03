@@ -9,6 +9,7 @@ interface FollowUpChipProps {
   content: string | null;
   timestamp: string;
   metadataType?: string;
+  metadataSource?: string;
 }
 
 export function isAutomationMessage(metadata: Record<string, string> | null | undefined): boolean {
