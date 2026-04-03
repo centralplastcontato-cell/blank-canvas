@@ -741,9 +741,25 @@ export default function Financeiro() {
 
       <ExpenseFormDialog
         open={expenseDialogOpen}
-        onOpenChange={setExpenseDialogOpen}
-        onSubmit={dashboard.addExpense}
-        
+        onOpenChange={(open) => { setExpenseDialogOpen(open); if (!open) setEditingExpense(null); }}
+        onSubmit={(data) => {
+          if (editingExpense) {
+            dashboard.updateExpense(editingExpense.id, data);
+            setEditingExpense(null);
+          } else {
+            dashboard.addExpense(data);
+          }
+        }}
+        defaultValues={editingExpense ? {
+          description: editingExpense.description,
+          amount: editingExpense.amount,
+          expense_date: editingExpense.expense_date,
+          category: editingExpense.category,
+          expense_type: editingExpense.expense_type,
+          status: editingExpense.status,
+          notes: editingExpense.notes,
+          receipt_url: editingExpense.receipt_url,
+        } : undefined}
         defaultExpenseType={expenseDialogType}
       />
 
