@@ -19,6 +19,25 @@
 // Types
 // ---------------------------------------------------------------------------
 
+/**
+ * Formats a Brazilian phone number for display.
+ * 5515991598803 → (15) 99159-8803
+ * 15991598803   → (15) 99159-8803
+ */
+function formatPhoneDisplay(phone: string | null | undefined): string {
+  if (!phone) return '';
+  const digits = phone.replace(/\D/g, '');
+  // Remove country code 55 if present
+  const local = digits.startsWith('55') && digits.length >= 12 ? digits.slice(2) : digits;
+  if (local.length === 11) {
+    return `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
+  }
+  if (local.length === 10) {
+    return `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`;
+  }
+  return phone; // fallback: return as-is
+}
+
 export interface VariableContext {
   lead?: {
     name?: string | null;
