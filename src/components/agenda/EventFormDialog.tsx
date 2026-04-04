@@ -1929,6 +1929,31 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               leadPhone={leadPhone}
               form={form}
               setForm={setForm}
+              onSaveFirst={async () => {
+                if (!form.title) {
+                  toast({ title: "Preencha o nome do cliente antes", variant: "destructive" });
+                  return null;
+                }
+                if (!form.event_date) {
+                  toast({ title: "Preencha a data antes", variant: "destructive" });
+                  return null;
+                }
+                setSaving(true);
+                try {
+                  const submitData = { ...form, total_value: grandTotal || null, payment_details: payment };
+                  const resultId = await onSubmit(submitData);
+                  if (resultId) {
+                    setForm(prev => ({ ...prev, id: resultId }));
+                    toast({ title: "Festa salva automaticamente!" });
+                    return resultId;
+                  }
+                  return null;
+                } catch {
+                  return null;
+                } finally {
+                  setSaving(false);
+                }
+              }}
             />
           </div>
         </TabsContent>

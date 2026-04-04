@@ -46,6 +46,7 @@ interface EventComplementaryTabProps {
   leadPhone?: string | null;
   form: EventFormData;
   setForm: React.Dispatch<React.SetStateAction<EventFormData>>;
+  onSaveFirst?: () => Promise<string | null>;
 }
 
 export function EventComplementaryTab({
@@ -55,10 +56,12 @@ export function EventComplementaryTab({
   leadPhone,
   form,
   setForm,
+  onSaveFirst,
 }: EventComplementaryTabProps) {
   const [sections, setSections] = useState<FormSection[]>([]);
   const [loading, setLoading] = useState(!!companyId);
   const [sendingForm, setSendingForm] = useState<string | null>(null);
+  const [savingBeforeOpen, setSavingBeforeOpen] = useState(false);
   const [iframeModal, setIframeModal] = useState<{ url: string; title: string } | null>(null);
 
   useEffect(() => {
@@ -153,9 +156,39 @@ export function EventComplementaryTab({
     }
   };
 
-  const getFormLink = (section: FormSection, template: FormTemplate) => {
+  const getFormLink = (section: FormSection, template: FormTemplate, overrideEventId?: string) => {
     const slug = template.slug || template.id;
-    return `${window.location.origin}/${section.publicPath}/${companySlug}/${slug}?event_id=${eventId}`;
+    const eid = overrideEventId || eventId;
+    return `${window.location.origin}/${section.publicPath}/${companySlug}/${slug}?event_id=${eid}`;
+  };
+
+  const openFormModal = async (section: FormSection, template: FormTemplate) => {
+    let currentEventId = eventId;
+
+    // If no eventId yet (new event), save first
+    if (!currentEventId && onSaveFirst) {
+      setSavingBeforeOpen(true);
+      try {
+        const savedId = await onSaveFirst();
+        if (!savedId) {
+          setSavingBeforeOpen(false);
+          return; // save failed or validation error
+        }
+        currentEventId = savedId;
+      } catch {
+        setSavingBeforeOpen(false);
+        return;
+      }
+      setSavingBeforeOpen(false);
+    }
+
+    if (!currentEventId) {
+      toast({ title: "Salve a festa primeiro", variant: "destructive" });
+      return;
+    }
+
+    const url = getFormLink(section, template, currentEventId);
+    setIframeModal({ url, title: `${section.label} — ${template.name}` });
   };
 
   const copyFormLink = (section: FormSection, template: FormTemplate) => {
@@ -388,10 +421,11 @@ export function EventComplementaryTab({
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7"
-                          onClick={() => setIframeModal({ url: getFormLink(section, template), title: `${section.label} — ${template.name}` })}
+                          disabled={savingBeforeOpen}
+                          onClick={() => openFormModal(section, template)}
                           title="Preencher formulário"
                         >
-                          <ExternalLink className="h-3.5 w-3.5" />
+                          {savingBeforeOpen ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ExternalLink className="h-3.5 w-3.5" />}
                         </Button>
                         <Button
                           type="button"
