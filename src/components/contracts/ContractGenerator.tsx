@@ -190,7 +190,7 @@ export function ContractGenerator({ userId, onClose }: Props) {
       })(),
       date: new Date().toLocaleDateString("pt-BR"),
     },
-  }), [leadData, eventData, contractData, currentCompany?.name]);
+  }), [leadData, eventData, contractData, currentCompany?.name, clientReqData]);
 
   const renderedContent = useMemo(() => {
     if (!selectedModel) return "";
