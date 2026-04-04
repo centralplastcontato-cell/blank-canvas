@@ -845,19 +845,19 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[720px] w-[calc(100vw-2rem)] max-h-[90vh] p-0 gap-0 overflow-hidden rounded-2xl [&>button]:top-5 [&>button]:right-5">
-      <Tabs defaultValue="evento" className="flex flex-col h-full">
-        <DialogHeader className="px-7 pt-7 pb-0 border-b-0 bg-muted/30">
+      <DialogContent className="!left-2 !right-2 !w-auto !translate-x-0 sm:!left-1/2 sm:!right-auto sm:!w-[calc(100vw-2rem)] sm:!-translate-x-1/2 max-w-[720px] max-h-[90vh] p-0 gap-0 overflow-hidden rounded-2xl [&>button]:top-4 [&>button]:right-4 sm:[&>button]:top-5 sm:[&>button]:right-5">
+      <Tabs defaultValue="evento" className="flex h-full min-w-0 flex-col overflow-hidden">
+        <DialogHeader className="border-b-0 bg-muted/30 px-4 pt-6 pb-0 sm:px-7 sm:pt-7">
           <DialogTitle className="text-lg font-bold tracking-tight">{isEdit ? "Editar Festa" : "Nova Festa"}</DialogTitle>
           <p className="text-[13px] text-muted-foreground mt-1 mb-3">Preencha os dados do evento e contratação</p>
-          <TabsList className="w-full grid grid-cols-2">
-            <TabsTrigger value="evento">Evento</TabsTrigger>
-            <TabsTrigger value="complementar">Complementar</TabsTrigger>
+          <TabsList className="grid w-full min-w-0 grid-cols-2">
+            <TabsTrigger value="evento" className="min-w-0">Evento</TabsTrigger>
+            <TabsTrigger value="complementar" className="min-w-0">Complementar</TabsTrigger>
           </TabsList>
         </DialogHeader>
 
         <TabsContent value="evento" className="mt-0">
-        <form id="event-form" onSubmit={handleSubmit} className="overflow-y-auto px-7 py-6 space-y-5" style={{ maxHeight: "calc(90vh - 220px)" }}>
+        <form id="event-form" onSubmit={handleSubmit} className="space-y-5 overflow-y-auto overflow-x-hidden px-4 py-5 sm:px-7 sm:py-6" style={{ maxHeight: "calc(90vh - 220px)" }}>
           {/* Conflict Alert */}
           {conflictEvent && (
             <Alert variant="destructive" className="border-destructive/60 bg-destructive/10">
@@ -877,7 +877,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           )}
 
           {/* Section 1 – Dados do Cliente */}
-          <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
+          <div className="rounded-xl border border-border/40 bg-card p-4 shadow-sm sm:p-5">
             <SectionHeader icon={User} label="Dados do Cliente" />
             <div className="space-y-5">
               <div className="space-y-2.5">
@@ -887,7 +887,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               <div className="relative space-y-2.5">
                 <Label className="text-sm font-medium text-foreground/70">Vincular Lead do CRM</Label>
                 {form.lead_id ? (
-                  <div className="flex items-center gap-2 p-2 rounded-md border border-border bg-accent/30">
+                  <div className="flex min-w-0 items-center gap-2 rounded-md border border-border bg-accent/30 p-2">
                     <UserCheck className="h-4 w-4 text-primary shrink-0" />
                     <span className="text-sm flex-1 truncate">{form.lead_name || "Lead vinculado"}</span>
                     <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => setForm({ ...form, lead_id: null, lead_name: null })}>
@@ -904,8 +904,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                     {showLeadDropdown && availableLeads.length > 0 && (
                       <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-md max-h-48 overflow-y-auto">
                         {availableLeads.map((lead) => (
-                          <button key={lead.id} type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2" onClick={() => { setForm({ ...form, lead_id: lead.id, lead_name: lead.name, title: form.title || lead.name }); setLeadSearch(""); setShowLeadDropdown(false); }}>
-                            <span className="font-medium flex-1">{lead.name}</span>
+                          <button key={lead.id} type="button" className="flex w-full flex-col items-start gap-1 px-3 py-2 text-left text-sm transition-colors hover:bg-accent sm:flex-row sm:items-center sm:gap-2" onClick={() => { setForm({ ...form, lead_id: lead.id, lead_name: lead.name, title: form.title || lead.name }); setLeadSearch(""); setShowLeadDropdown(false); }}>
+                            <span className="font-medium sm:flex-1">{lead.name}</span>
                             <Badge variant="secondary" className="text-[10px] bg-green-500/15 text-green-700 border-0">Fechado</Badge>
                             <span className="text-xs text-muted-foreground">{lead.whatsapp}</span>
                           </button>
@@ -924,25 +924,25 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           </div>
 
           {/* Section 2 – Data e Horário */}
-          <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
+          <div className="rounded-xl border border-border/40 bg-card p-4 shadow-sm sm:p-5">
             <SectionHeader icon={CalendarDays} label="Data e Horário" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5">
               <div className="space-y-2.5 md:pr-6">
                 <Label className="text-sm font-medium text-foreground/70">Data da festa *</Label>
-                <div className="flex gap-2">
-                  <div className="flex-1">
+                <div className="flex min-w-0 gap-2">
+                  <div className="min-w-0 flex-1">
                     <Select value={dateDay} onValueChange={setDateDay}>
                       <SelectTrigger><SelectValue placeholder="Dia" /></SelectTrigger>
                       <SelectContent>{DAY_OPTIONS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
-                  <div className="flex-[2]">
+                  <div className="min-w-0 flex-[2]">
                     <Select value={dateMonth} onValueChange={setDateMonth}>
                       <SelectTrigger><SelectValue placeholder="Mês" /></SelectTrigger>
                       <SelectContent>{MONTH_OPTIONS.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
-                  <div className="flex-1">
+                  <div className="min-w-0 flex-1">
                     <Select value={dateYear} onValueChange={setDateYear}>
                       <SelectTrigger><SelectValue placeholder="Ano" /></SelectTrigger>
                       <SelectContent>{YEAR_OPTIONS.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
@@ -984,7 +984,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           </div>
 
           {/* Section 3 – Informações da Festa */}
-          <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
+          <div className="rounded-xl border border-border/40 bg-card p-4 shadow-sm sm:p-5">
             <SectionHeader icon={PartyPopper} label="Informações da Festa" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5">
               <div className="space-y-2.5 md:pr-6">
@@ -1093,7 +1093,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
 
           {/* Section 3.5 – Opcionais */}
-          <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
+          <div className="rounded-xl border border-border/40 bg-card p-4 shadow-sm sm:p-5">
             <SectionHeader icon={Package} label="Opcionais" />
             <div className="space-y-3">
               {/* Catalog suggestions */}
@@ -1135,9 +1135,9 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               )}
 
               {(form.event_optionals || []).map((opt, idx) => (
-                <div key={idx} className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1">
+                  <div key={idx} className="space-y-1">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <div className="w-full sm:flex-1">
                       <Input
                         placeholder="Nome do opcional"
                         value={opt.name}
@@ -1148,7 +1148,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                         }}
                       />
                     </div>
-                    <div className="w-36">
+                    <div className="w-full sm:w-36">
                       <MoneyInput
                         value={opt.value}
                         onChange={(v) => {
@@ -1201,7 +1201,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           </div>
 
           {/* Section 4 – Pagamento */}
-          <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm space-y-5">
+          <div className="rounded-xl border border-border/40 bg-card p-4 shadow-sm space-y-5 sm:p-5">
             <SectionHeader icon={CreditCard} label="Pagamento" />
 
             {/* --- Brindes & Convidado Extra --- */}
@@ -1398,11 +1398,11 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                   <div className="rounded-lg border border-border/40 bg-muted/20 p-3 space-y-2">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Detalhes das parcelas</p>
                     {(payment.parcelas_details || []).map((parcela, idx) => (
-                      <div key={idx} className="flex items-center gap-3">
-                        <span className="text-xs font-medium text-muted-foreground w-16 shrink-0">
+                      <div key={idx} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                        <span className="w-full shrink-0 text-xs font-medium text-muted-foreground sm:w-16">
                           {idx + 1}ª parcela
                         </span>
-                        <div className="flex-1">
+                        <div className="w-full flex-1 min-w-0">
                           <MoneyInput
                             value={parcela.valor}
                             onChange={(v) => {
@@ -1414,7 +1414,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                           />
                         </div>
                         {payment.parcelas_same_day === false ? (
-                          <div className="w-36">
+                           <div className="w-full sm:w-36">
                             <Input
                               type="date"
                               value={parcela.vencimento}
@@ -1427,7 +1427,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                             />
                           </div>
                         ) : (
-                          <div className="w-36">
+                           <div className="w-full sm:w-36">
                             {idx === 0 ? (
                               <Input
                                 type="date"
@@ -1865,7 +1865,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         </TabsContent>
 
         <TabsContent value="complementar" className="mt-0">
-          <div className="overflow-y-auto px-7 py-6" style={{ maxHeight: "calc(90vh - 220px)" }}>
+          <div className="overflow-y-auto overflow-x-hidden px-4 py-5 sm:px-7 sm:py-6" style={{ maxHeight: "calc(90vh - 220px)" }}>
             <EventComplementaryTab
               eventId={eventId || ""}
               companyId={currentCompany!.id}
@@ -1905,21 +1905,21 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         </TabsContent>
 
         {/* Fixed footer */}
-        <div className="flex justify-end gap-3 px-7 py-4 border-t border-border/40 bg-muted/20">
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
+        <div className="flex flex-col-reverse gap-2 border-t border-border/40 bg-muted/20 px-4 py-4 sm:flex-row sm:justify-end sm:gap-3 sm:px-7">
+          <Button type="button" variant="ghost" className="w-full sm:w-auto" onClick={() => onOpenChange(false)}>Cancelar</Button>
           {!isEdit && (
             <Button
               type="button"
               variant="outline"
               disabled={saving || !!conflictEvent}
-              className="px-6 rounded-lg"
+              className="w-full rounded-lg sm:w-auto sm:px-6"
               onClick={(e) => handleSubmit(e as any, true)}
             >
               {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Salvar
             </Button>
           )}
-          <Button type="submit" form="event-form" disabled={saving || !!conflictEvent} className="px-8 rounded-lg shadow-sm">
+          <Button type="submit" form="event-form" disabled={saving || !!conflictEvent} className="w-full rounded-lg shadow-sm sm:w-auto sm:px-8">
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
             {isEdit ? "Salvar" : "Criar e Fechar"}
           </Button>
