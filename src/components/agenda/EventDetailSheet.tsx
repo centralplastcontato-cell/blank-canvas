@@ -99,19 +99,18 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
       .then(({ data }) => setLeadName(data?.name || null));
   }, [event?.lead_id]);
 
-  // Fetch team members for vendedor selector
+  // Fetch sellers for vendedor selector
   useEffect(() => {
     if (!event?.company_id) return;
     supabase
-      .from("user_companies")
-      .select("user_id, profiles!inner(full_name)")
+      .from("company_sellers")
+      .select("id, name")
       .eq("company_id", event.company_id)
+      .eq("is_active", true)
+      .order("name")
       .then(({ data }) => {
         if (data) {
-          const members = (data as any[])
-            .filter(d => d.profiles?.full_name)
-            .map(d => ({ user_id: d.user_id, full_name: d.profiles.full_name }));
-          setTeamMembers(members);
+          setTeamMembers(data.map(d => ({ user_id: d.id, full_name: d.name })));
         }
       });
   }, [event?.company_id]);
