@@ -89,8 +89,8 @@ export function ContractGenerator({ userId, onClose }: Props) {
           valor_sinal: cd.valor_sinal?.toString() || "", valor_restante: cd.valor_restante?.toString() || "",
           forma_pagamento: cd.forma_pagamento || "", brindes: cd.brindes || "",
         });
-      } else if (clientReqData?.nome) {
-        setContractData(prev => ({ ...prev, nome: clientReqData.nome }));
+      } else if (reqData?.nome) {
+        setContractData(prev => ({ ...prev, nome: reqData.nome }));
       }
       setLoading(false);
     })();
