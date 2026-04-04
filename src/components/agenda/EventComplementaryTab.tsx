@@ -156,9 +156,39 @@ export function EventComplementaryTab({
     }
   };
 
-  const getFormLink = (section: FormSection, template: FormTemplate) => {
+  const getFormLink = (section: FormSection, template: FormTemplate, overrideEventId?: string) => {
     const slug = template.slug || template.id;
-    return `${window.location.origin}/${section.publicPath}/${companySlug}/${slug}?event_id=${eventId}`;
+    const eid = overrideEventId || eventId;
+    return `${window.location.origin}/${section.publicPath}/${companySlug}/${slug}?event_id=${eid}`;
+  };
+
+  const openFormModal = async (section: FormSection, template: FormTemplate) => {
+    let currentEventId = eventId;
+
+    // If no eventId yet (new event), save first
+    if (!currentEventId && onSaveFirst) {
+      setSavingBeforeOpen(true);
+      try {
+        const savedId = await onSaveFirst();
+        if (!savedId) {
+          setSavingBeforeOpen(false);
+          return; // save failed or validation error
+        }
+        currentEventId = savedId;
+      } catch {
+        setSavingBeforeOpen(false);
+        return;
+      }
+      setSavingBeforeOpen(false);
+    }
+
+    if (!currentEventId) {
+      toast({ title: "Salve a festa primeiro", variant: "destructive" });
+      return;
+    }
+
+    const url = getFormLink(section, template, currentEventId);
+    setIframeModal({ url, title: `${section.label} — ${template.name}` });
   };
 
   const copyFormLink = (section: FormSection, template: FormTemplate) => {
