@@ -189,6 +189,7 @@ export function ContractGenerator({ userId, onClose }: Props) {
     const missing: string[] = [];
     if (!leadData?.name) missing.push("Nome do contratante");
     if (!contractData.cpf) missing.push("CPF");
+    else if (!isValidCPF(contractData.cpf)) missing.push("CPF válido");
     if (!leadData?.whatsapp) missing.push("Telefone");
     if (!eventData?.event_date) missing.push("Data do evento");
     if (!eventData?.start_time) missing.push("Horário do evento");
