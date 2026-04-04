@@ -1789,11 +1789,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
             <SectionHeader icon={Handshake} label="Dados do Contratante" />
 
-            {!isEdit ? (
-              <p className="text-sm text-muted-foreground">
-                Salve a festa primeiro para solicitar os dados do contratante.
-              </p>
-            ) : loadingClientRequest ? (
+            {loadingClientRequest ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Carregando...
@@ -1807,11 +1803,23 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                       <span className="text-sm text-muted-foreground">Dados do contratante não solicitados</span>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2">
-                      <Button type="button" variant="outline" onClick={generateClientLink} disabled={generatingLink} className="gap-2">
+                      <Button type="button" variant="outline" disabled={generatingLink || saving} className="gap-2" onClick={async () => {
+                        if (!isEdit) {
+                          const savedId = await autoSaveForClientData();
+                          if (!savedId) return;
+                        }
+                        generateClientLink();
+                      }}>
                         {generatingLink ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                         Enviar link ao cliente
                       </Button>
-                      <Button type="button" variant="outline" onClick={() => setShowManualForm(true)} className="gap-2">
+                      <Button type="button" variant="outline" disabled={saving} className="gap-2" onClick={async () => {
+                        if (!isEdit) {
+                          const savedId = await autoSaveForClientData();
+                          if (!savedId) return;
+                        }
+                        setShowManualForm(true);
+                      }}>
                         <PenLine className="h-4 w-4" />
                         Preencher manualmente
                       </Button>
