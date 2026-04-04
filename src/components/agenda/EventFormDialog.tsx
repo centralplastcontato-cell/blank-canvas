@@ -1930,12 +1930,14 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               form={form}
               setForm={setForm}
               onSaveFirst={async () => {
-                if (!form.title) {
-                  toast({ title: "Preencha o nome do cliente antes", variant: "destructive" });
-                  return null;
-                }
-                if (!form.event_date) {
-                  toast({ title: "Preencha a data antes", variant: "destructive" });
+                const missing: string[] = [];
+                if (!form.title) missing.push("Nome do cliente");
+                if (!form.event_date) missing.push("Data da festa");
+                if (missing.length > 0) {
+                  toast({
+                    title: "⚠️ Campos obrigatórios na aba Evento",
+                    description: `Preencha: ${missing.join(" e ")} antes de abrir o formulário.`,
+                  });
                   return null;
                 }
                 setSaving(true);
