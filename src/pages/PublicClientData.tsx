@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, CheckCircle2, User, CreditCard, MapPin, Mail, Calendar, FileText } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { formatCPF, isValidCPF } from "@/lib/mask-utils";
 
 interface RequestInfo {
   id: string;
