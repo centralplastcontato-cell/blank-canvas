@@ -113,12 +113,29 @@ export function ContractGenerator({ userId, onClose }: Props) {
       cpf: contractData.cpf, rg: contractData.rg, email: contractData.email,
       address: contractData.endereco, numero: contractData.numero, complemento: contractData.complemento,
       bairro: contractData.bairro, cidade: contractData.cidade, cep: contractData.cep,
-      nome_aniversariante: contractData.nome_aniversariante || eventData?.child_name || "",
-      idade_aniversariante: contractData.idade_aniversariante || eventData?.child_age || "",
+      nome_aniversariante: (() => {
+        const clientChildren = Array.isArray(clientReqData?.birthday_children) ? clientReqData.birthday_children.filter((c: any) => c.name) : [];
+        if (clientChildren.length > 0) return clientChildren[0].name;
+        return contractData.nome_aniversariante || eventData?.child_name || "";
+      })(),
+      idade_aniversariante: (() => {
+        const clientChildren = Array.isArray(clientReqData?.birthday_children) ? clientReqData.birthday_children.filter((c: any) => c.name) : [];
+        if (clientChildren.length > 0 && clientChildren[0].age) return clientChildren[0].age;
+        return contractData.idade_aniversariante || eventData?.child_age || "";
+      })(),
       data_nascimento: contractData.data_nascimento || "",
-      data_nascimento_aniversariante: eventData?.child_birthdate ? (() => { const [y, m, d] = eventData.child_birthdate.split("-"); return `${d}/${m}/${y}`; })() : "",
+      data_nascimento_aniversariante: (() => {
+        const clientChildren = Array.isArray(clientReqData?.birthday_children) ? clientReqData.birthday_children.filter((c: any) => c.name) : [];
+        if (clientChildren.length > 0 && clientChildren[0].birthdate && /^\d{4}-\d{2}-\d{2}$/.test(clientChildren[0].birthdate)) {
+          const [y, m, d] = clientChildren[0].birthdate.split("-");
+          return `${d}/${m}/${y}`;
+        }
+        return eventData?.child_birthdate ? (() => { const [y, m, d] = eventData.child_birthdate.split("-"); return `${d}/${m}/${y}`; })() : "";
+      })(),
       aniversariantes: (() => {
-        const children = Array.isArray(eventData?.birthday_children) ? eventData.birthday_children.filter((c: any) => c.name) : [];
+        const clientChildren = Array.isArray(clientReqData?.birthday_children) ? clientReqData.birthday_children.filter((c: any) => c.name) : [];
+        const eventChildren = Array.isArray(eventData?.birthday_children) ? eventData.birthday_children.filter((c: any) => c.name) : [];
+        const children = clientChildren.length > 0 ? clientChildren : eventChildren;
         if (children.length > 0) {
           return children.map((c: any) => {
             const parts = [c.name];
