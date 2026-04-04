@@ -26,6 +26,7 @@ import { FreelancerManagerContent } from "./FreelancerManager";
 import { FreelancerEvaluationsTab } from "@/components/freelancer/FreelancerEvaluationsTab";
 import { FreelancerSchedulesTab } from "@/components/freelancer/FreelancerSchedulesTab";
 import { CardFeesManager } from "@/components/admin/CardFeesManager";
+import { SellersManager } from "@/components/admin/SellersManager";
 
 export default function Formularios() {
   const navigate = useNavigate();
