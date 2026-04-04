@@ -46,6 +46,7 @@ interface EventComplementaryTabProps {
   leadPhone?: string | null;
   form: EventFormData;
   setForm: React.Dispatch<React.SetStateAction<EventFormData>>;
+  onSaveFirst?: () => Promise<string | null>;
 }
 
 export function EventComplementaryTab({
