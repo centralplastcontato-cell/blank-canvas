@@ -19,6 +19,25 @@
 // Types
 // ---------------------------------------------------------------------------
 
+/**
+ * Formats a Brazilian phone number for display.
+ * 5515991598803 → (15) 99159-8803
+ * 15991598803   → (15) 99159-8803
+ */
+function formatPhoneDisplay(phone: string | null | undefined): string {
+  if (!phone) return '';
+  const digits = phone.replace(/\D/g, '');
+  // Remove country code 55 if present
+  const local = digits.startsWith('55') && digits.length >= 12 ? digits.slice(2) : digits;
+  if (local.length === 11) {
+    return `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
+  }
+  if (local.length === 10) {
+    return `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`;
+  }
+  return phone; // fallback: return as-is
+}
+
 export interface VariableContext {
   lead?: {
     name?: string | null;
@@ -155,7 +174,7 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
     resolver: (ctx) => ctx.contract?.responsible_name?.trim() || ctx.lead?.name?.trim() || 'cliente',
   },
   telefone: {
-    resolver: (ctx) => ctx.lead?.whatsapp || '',
+    resolver: (ctx) => formatPhoneDisplay(ctx.lead?.whatsapp),
   },
   mes: {
     resolver: (ctx) => ctx.lead?.month || '',
@@ -331,10 +350,10 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
     resolver: (ctx) => ctx.contract?.valor_total_extenso || '',
   },
   telefone_pais: {
-    resolver: (ctx) => ctx.contract?.telefone_pais || '',
+    resolver: (ctx) => formatPhoneDisplay(ctx.contract?.telefone_pais),
   },
   cliente_celular: {
-    resolver: (ctx) => ctx.contract?.celular || ctx.lead?.whatsapp || '',
+    resolver: (ctx) => formatPhoneDisplay(ctx.contract?.celular || ctx.lead?.whatsapp),
   },
   data_entrada: {
     resolver: (ctx) => {

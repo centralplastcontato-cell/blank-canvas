@@ -13,6 +13,19 @@
 // Types
 // ---------------------------------------------------------------------------
 
+/**
+ * Formats a Brazilian phone number for display.
+ * 5515991598803 → (15) 99159-8803
+ */
+function formatPhoneDisplay(phone: string | null | undefined): string {
+  if (!phone) return '';
+  const digits = phone.replace(/\D/g, '');
+  const local = digits.startsWith('55') && digits.length >= 12 ? digits.slice(2) : digits;
+  if (local.length === 11) return `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
+  if (local.length === 10) return `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`;
+  return phone;
+}
+
 export interface VariableContext {
   lead?: {
     name?: string | null;
@@ -122,7 +135,7 @@ const VARIABLE_CATALOG: Record<string, { resolver: VariableResolver }> = {
   nome: { resolver: (ctx) => resolveFirstName(ctx.lead?.name) || 'cliente' },
   primeiro_nome: { resolver: (ctx) => resolveFirstName(ctx.lead?.name) || 'cliente' },
   nome_completo: { resolver: (ctx) => ctx.contract?.responsible_name?.trim() || ctx.lead?.name?.trim() || 'cliente' },
-  telefone: { resolver: (ctx) => ctx.lead?.whatsapp || '' },
+  telefone: { resolver: (ctx) => formatPhoneDisplay(ctx.lead?.whatsapp) },
   mes: { resolver: (ctx) => ctx.lead?.month || '' },
   convidados: { resolver: (ctx) => ctx.lead?.guests || ctx.event?.guest_count?.toString() || '' },
   unidade: { resolver: (ctx) => ctx.lead?.unit || ctx.event?.unit || 'nossa unidade' },
@@ -177,8 +190,8 @@ const VARIABLE_CATALOG: Record<string, { resolver: VariableResolver }> = {
     if (/^\d{8}$/.test(v)) return `${v.slice(0,2)}/${v.slice(2,4)}/${v.slice(4)}`;
     return v;
   }},
-  telefone_pais: { resolver: (ctx) => ctx.contract?.telefone_pais || '' },
-  cliente_celular: { resolver: (ctx) => ctx.contract?.celular || ctx.lead?.whatsapp || '' },
+  telefone_pais: { resolver: (ctx) => formatPhoneDisplay(ctx.contract?.telefone_pais) },
+  cliente_celular: { resolver: (ctx) => formatPhoneDisplay(ctx.contract?.celular || ctx.lead?.whatsapp) },
   data_entrada: { resolver: (ctx) => {
     const v = ctx.contract?.data_entrada || '';
     if (!v) return '';
