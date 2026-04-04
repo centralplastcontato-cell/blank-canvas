@@ -61,6 +61,7 @@ export function EventComplementaryTab({
   const [sections, setSections] = useState<FormSection[]>([]);
   const [loading, setLoading] = useState(!!companyId);
   const [sendingForm, setSendingForm] = useState<string | null>(null);
+  const [savingBeforeOpen, setSavingBeforeOpen] = useState(false);
   const [iframeModal, setIframeModal] = useState<{ url: string; title: string } | null>(null);
 
   useEffect(() => {
