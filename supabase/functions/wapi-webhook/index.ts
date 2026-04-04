@@ -2012,11 +2012,20 @@ async function processBotQualification(
       
       // Option 1 or any other response — re-enable bot and send materials
       console.log(`[Bot] LP lead chose option 1 or responded, re-enabling bot for conversation ${conv.id}`);
-      await supabase.from('wapi_conversations').update({
+      // Atomic claim: only reactivate if bot_step is still lp_sent or null (prevents duplicate webhook race)
+      const { data: reactivated } = await supabase.from('wapi_conversations').update({
         bot_enabled: true,
         bot_step: 'welcome',
         lead_id: lpLead.id,
-      }).eq('id', conv.id);
+      }).eq('id', conv.id)
+        .in('bot_step', ['lp_sent', null, ''])
+        .select('id')
+        .maybeSingle();
+      
+      if (!reactivated) {
+        console.log(`[Bot] LP reactivation already claimed for conv ${conv.id}, skipping`);
+        return;
+      }
       conv.bot_enabled = true;
       conv.bot_step = 'welcome';
       conv.lead_id = lpLead.id;
@@ -4181,6 +4190,19 @@ async function processWebhookEvent(body: Record<string, unknown>) {
           });
         }
       } else {
+        // Dedup incoming messages — W-API may fire the same webhook twice
+        if (!fromMe && msgId) {
+          const { data: existingIncoming } = await supabase.from('wapi_messages')
+            .select('id')
+            .eq('conversation_id', conv.id)
+            .eq('message_id', msgId)
+            .limit(1)
+            .maybeSingle();
+          if (existingIncoming) {
+            console.log(`[Webhook] Skipping duplicate incoming message ${msgId}`);
+            break;
+          }
+        }
         const grpMeta2 = isGrp ? {
           participant: ((msg as Record<string, unknown>).key?.participant || (msg as Record<string, unknown>).participant || '').replace('@s.whatsapp.net',''),
           sender_name: (msg as Record<string, unknown>).pushName || (msg as Record<string, unknown>).sender?.pushName || null
