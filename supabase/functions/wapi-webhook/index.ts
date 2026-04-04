@@ -2012,11 +2012,20 @@ async function processBotQualification(
       
       // Option 1 or any other response — re-enable bot and send materials
       console.log(`[Bot] LP lead chose option 1 or responded, re-enabling bot for conversation ${conv.id}`);
-      await supabase.from('wapi_conversations').update({
+      // Atomic claim: only reactivate if bot_step is still lp_sent or null (prevents duplicate webhook race)
+      const { data: reactivated } = await supabase.from('wapi_conversations').update({
         bot_enabled: true,
         bot_step: 'welcome',
         lead_id: lpLead.id,
-      }).eq('id', conv.id);
+      }).eq('id', conv.id)
+        .in('bot_step', ['lp_sent', null, ''])
+        .select('id')
+        .maybeSingle();
+      
+      if (!reactivated) {
+        console.log(`[Bot] LP reactivation already claimed for conv ${conv.id}, skipping`);
+        return;
+      }
       conv.bot_enabled = true;
       conv.bot_step = 'welcome';
       conv.lead_id = lpLead.id;
