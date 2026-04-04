@@ -5,7 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, CheckCircle2, User, CreditCard, MapPin, Mail, Calendar, FileText } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, CheckCircle2, User, CreditCard, MapPin, Mail, Calendar, FileText, Baby, Plus, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatCPF, isValidCPF } from "@/lib/mask-utils";
 
@@ -18,6 +19,18 @@ interface RequestInfo {
   company_logo: string;
   event_title: string;
   event_date: string;
+}
+
+interface BirthdayChild {
+  name: string;
+  age: string;
+  birthdate: string;
+}
+
+interface Responsible {
+  name: string;
+  phone: string;
+  relation: string;
 }
 
 interface ClientFormData {
@@ -33,6 +46,8 @@ interface ClientFormData {
   bairro: string;
   cidade: string;
   estado: string;
+  birthday_children: BirthdayChild[];
+  responsaveis: Responsible[];
 }
 
 const EMPTY_FORM: ClientFormData = {
@@ -48,7 +63,21 @@ const EMPTY_FORM: ClientFormData = {
   bairro: "",
   cidade: "",
   estado: "",
+  birthday_children: [{ name: "", age: "", birthdate: "" }],
+  responsaveis: [{ name: "", phone: "", relation: "" }, { name: "", phone: "", relation: "" }],
 };
+
+const RELATIONS = [
+  { value: "pai", label: "Pai" },
+  { value: "mae", label: "Mãe" },
+  { value: "avo", label: "Avó" },
+  { value: "avo_m", label: "Avô" },
+  { value: "tio", label: "Tio" },
+  { value: "tia", label: "Tia" },
+  { value: "padrasto", label: "Padrasto" },
+  { value: "madrasta", label: "Madrasta" },
+  { value: "outros", label: "Outros" },
+];
 
 // formatCPF and isValidCPF imported from @/lib/mask-utils
 
