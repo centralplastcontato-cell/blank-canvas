@@ -806,6 +806,36 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   };
 
   const isEdit = !!initialData?.id || !!form.id;
+
+  // Auto-save helper for contractor data section (avoids requiring manual save first)
+  const autoSaveForClientData = async (): Promise<string | null> => {
+    const missing: string[] = [];
+    if (!form.title) missing.push("Nome do cliente");
+    if (!form.event_date) missing.push("Data da festa");
+    if (missing.length > 0) {
+      toast({
+        title: "⚠️ Campos obrigatórios",
+        description: `Preencha: ${missing.join(" e ")} antes de continuar.`,
+      });
+      return null;
+    }
+    setSaving(true);
+    try {
+      const submitData = { ...form, total_value: grandTotal || null, payment_details: payment };
+      const resultId = await onSubmit(submitData);
+      if (resultId) {
+        setForm(prev => ({ ...prev, id: resultId }));
+        toast({ title: "Festa salva automaticamente!" });
+        return resultId;
+      }
+      return null;
+    } catch {
+      return null;
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const clientData = clientRequest?.client_data as Record<string, string> | null;
 
   const leadPhone = useMemo(() => {
