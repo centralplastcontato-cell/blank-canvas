@@ -350,10 +350,10 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
     resolver: (ctx) => ctx.contract?.valor_total_extenso || '',
   },
   telefone_pais: {
-    resolver: (ctx) => ctx.contract?.telefone_pais || '',
+    resolver: (ctx) => formatPhoneDisplay(ctx.contract?.telefone_pais),
   },
   cliente_celular: {
-    resolver: (ctx) => ctx.contract?.celular || ctx.lead?.whatsapp || '',
+    resolver: (ctx) => formatPhoneDisplay(ctx.contract?.celular || ctx.lead?.whatsapp),
   },
   data_entrada: {
     resolver: (ctx) => {
