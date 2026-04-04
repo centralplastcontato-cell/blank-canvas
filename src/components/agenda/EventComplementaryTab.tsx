@@ -56,6 +56,7 @@ export function EventComplementaryTab({
   leadPhone,
   form,
   setForm,
+  onSaveFirst,
 }: EventComplementaryTabProps) {
   const [sections, setSections] = useState<FormSection[]>([]);
   const [loading, setLoading] = useState(!!companyId);
