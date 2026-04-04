@@ -174,7 +174,7 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
     resolver: (ctx) => ctx.contract?.responsible_name?.trim() || ctx.lead?.name?.trim() || 'cliente',
   },
   telefone: {
-    resolver: (ctx) => ctx.lead?.whatsapp || '',
+    resolver: (ctx) => formatPhoneDisplay(ctx.lead?.whatsapp),
   },
   mes: {
     resolver: (ctx) => ctx.lead?.month || '',
