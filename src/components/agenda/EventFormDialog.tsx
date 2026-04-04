@@ -806,6 +806,36 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   };
 
   const isEdit = !!initialData?.id || !!form.id;
+
+  // Auto-save helper for contractor data section (avoids requiring manual save first)
+  const autoSaveForClientData = async (): Promise<string | null> => {
+    const missing: string[] = [];
+    if (!form.title) missing.push("Nome do cliente");
+    if (!form.event_date) missing.push("Data da festa");
+    if (missing.length > 0) {
+      toast({
+        title: "⚠️ Campos obrigatórios",
+        description: `Preencha: ${missing.join(" e ")} antes de continuar.`,
+      });
+      return null;
+    }
+    setSaving(true);
+    try {
+      const submitData = { ...form, total_value: grandTotal || null, payment_details: payment };
+      const resultId = await onSubmit(submitData);
+      if (resultId) {
+        setForm(prev => ({ ...prev, id: resultId }));
+        toast({ title: "Festa salva automaticamente!" });
+        return resultId;
+      }
+      return null;
+    } catch {
+      return null;
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const clientData = clientRequest?.client_data as Record<string, string> | null;
 
   const leadPhone = useMemo(() => {
@@ -1759,11 +1789,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
             <SectionHeader icon={Handshake} label="Dados do Contratante" />
 
-            {!isEdit ? (
-              <p className="text-sm text-muted-foreground">
-                Salve a festa primeiro para solicitar os dados do contratante.
-              </p>
-            ) : loadingClientRequest ? (
+            {loadingClientRequest ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Carregando...
@@ -1777,11 +1803,23 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                       <span className="text-sm text-muted-foreground">Dados do contratante não solicitados</span>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2">
-                      <Button type="button" variant="outline" onClick={generateClientLink} disabled={generatingLink} className="gap-2">
+                      <Button type="button" variant="outline" disabled={generatingLink || saving} className="gap-2" onClick={async () => {
+                        if (!isEdit) {
+                          const savedId = await autoSaveForClientData();
+                          if (!savedId) return;
+                        }
+                        generateClientLink();
+                      }}>
                         {generatingLink ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                         Enviar link ao cliente
                       </Button>
-                      <Button type="button" variant="outline" onClick={() => setShowManualForm(true)} className="gap-2">
+                      <Button type="button" variant="outline" disabled={saving} className="gap-2" onClick={async () => {
+                        if (!isEdit) {
+                          const savedId = await autoSaveForClientData();
+                          if (!savedId) return;
+                        }
+                        setShowManualForm(true);
+                      }}>
                         <PenLine className="h-4 w-4" />
                         Preencher manualmente
                       </Button>
