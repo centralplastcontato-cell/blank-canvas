@@ -421,10 +421,11 @@ export function EventComplementaryTab({
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7"
+                          disabled={savingBeforeOpen}
                           onClick={() => openFormModal(section, template)}
                           title="Preencher formulário"
                         >
-                          <ExternalLink className="h-3.5 w-3.5" />
+                          {savingBeforeOpen ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ExternalLink className="h-3.5 w-3.5" />}
                         </Button>
                         <Button
                           type="button"
