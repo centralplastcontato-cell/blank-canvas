@@ -421,7 +421,7 @@ export function EventComplementaryTab({
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7"
-                          onClick={() => setIframeModal({ url: getFormLink(section, template), title: `${section.label} — ${template.name}` })}
+                          onClick={() => openFormModal(section, template)}
                           title="Preencher formulário"
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
