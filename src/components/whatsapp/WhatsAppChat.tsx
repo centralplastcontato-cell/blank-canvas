@@ -6622,7 +6622,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       {/* Financial Sheet */}
       {leadEventId && currentCompany && (
         <Sheet open={showFinancialSheet} onOpenChange={setShowFinancialSheet}>
-          <SheetContent side="bottom" className="h-[85vh] overflow-y-auto p-0">
+          <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto p-0">
             <SheetHeader className="px-4 pt-4 pb-2 sticky top-0 bg-background z-10 border-b flex flex-row items-center justify-between">
               <SheetTitle className="text-base font-bold">
                 {linkedLead?.name || selectedConversation?.contact_name || 'Financeiro'}
