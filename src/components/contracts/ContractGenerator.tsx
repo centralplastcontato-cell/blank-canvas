@@ -155,7 +155,10 @@ export function ContractGenerator({ userId, onClose }: Props) {
         if (contractData.idade_aniversariante || eventData?.child_age) fp.push(contractData.idade_aniversariante || eventData.child_age);
         return fp.join(", ");
       })(),
-      nomes_pais: contractData.nomes_pais || (() => {
+      nomes_pais: (() => {
+        const responsaveis = Array.isArray(clientReqData?.responsaveis) ? clientReqData.responsaveis.filter((r: any) => r.name) : [];
+        if (responsaveis.length > 0) return responsaveis.map((r: any) => `${r.name}${r.relation ? ` (${r.relation})` : ""}`).join(" e ");
+        if (contractData.nomes_pais) return contractData.nomes_pais;
         try {
           const parsed = JSON.parse(eventData?.parent_names || "[]");
           if (Array.isArray(parsed)) {
@@ -165,7 +168,10 @@ export function ContractGenerator({ userId, onClose }: Props) {
         } catch { /* plain text fallback */ }
         return eventData?.parent_names || "";
       })(),
-      telefone_pais: contractData.telefone_pais || (() => {
+      telefone_pais: (() => {
+        const responsaveis = Array.isArray(clientReqData?.responsaveis) ? clientReqData.responsaveis.filter((r: any) => r.phone) : [];
+        if (responsaveis.length > 0) return responsaveis.map((r: any) => r.phone).join(" / ");
+        if (contractData.telefone_pais) return contractData.telefone_pais;
         try {
           const parsed = JSON.parse(eventData?.parent_names || "[]");
           if (Array.isArray(parsed)) return parsed.filter((r: any) => r.phone).map((r: any) => r.phone).join(" / ");
