@@ -174,6 +174,14 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
         tema: clientData.tema || "",
         valor_convidado_adicional: eventData?.extra_guest_value ? `R$ ${Number(eventData.extra_guest_value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "",
         quantidade_pessoas: eventData?.guest_count?.toString() || leadData?.guests || "",
+        opcionais: (() => {
+          const opts = Array.isArray(eventData?.event_optionals) ? eventData.event_optionals.filter((o: any) => o.name) : [];
+          if (opts.length === 0) return "Nenhum opcional contratado";
+          return opts.map((o: any) => {
+            const val = o.value != null && o.value > 0 ? ` — R$ ${Number(o.value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "";
+            return `• ${o.name}${val}`;
+          }).join("\n");
+        })(),
         estado: clientData.estado || "",
         duracao_festa: (() => {
           if (eventData?.start_time && eventData?.end_time) {
