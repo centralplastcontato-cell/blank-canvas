@@ -588,14 +588,14 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   useEffect(() => {
     if (!open || !currentCompany?.id) return;
     supabase
-      .from("user_companies")
-      .select("user_id, profiles:user_id(full_name)")
+      .from("company_sellers")
+      .select("id, name")
       .eq("company_id", currentCompany.id)
+      .eq("is_active", true)
+      .order("name")
       .then(({ data }) => {
         setCompanyUsers(
-          (data || [])
-            .filter((d: any) => d.profiles?.full_name)
-            .map((d: any) => ({ id: d.user_id, name: d.profiles.full_name }))
+          (data || []).map((d: any) => ({ id: d.id, name: d.name }))
         );
       });
   }, [open, currentCompany?.id]);

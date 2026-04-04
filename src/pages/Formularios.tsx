@@ -8,7 +8,7 @@ import { MobileMenu } from "@/components/admin/MobileMenu";
 import { NotificationBell } from "@/components/admin/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { FolderOpen, Menu, Loader2, ClipboardCheck, PartyPopper, FileSignature, UtensilsCrossed, ListChecks, FileText, Package, Users, Wrench, HardHat, ShieldAlert, CalendarClock, LayoutTemplate, CreditCard } from "lucide-react";
+import { FolderOpen, Menu, Loader2, ClipboardCheck, PartyPopper, FileSignature, UtensilsCrossed, ListChecks, FileText, Package, Users, Wrench, HardHat, ShieldAlert, CalendarClock, LayoutTemplate, CreditCard, UserCheck } from "lucide-react";
 import { useCompany } from "@/contexts/CompanyContext";
 import { AvaliacoesContent } from "./Avaliacoes";
 import { PreFestaContent } from "./PreFesta";
@@ -26,6 +26,7 @@ import { FreelancerManagerContent } from "./FreelancerManager";
 import { FreelancerEvaluationsTab } from "@/components/freelancer/FreelancerEvaluationsTab";
 import { FreelancerSchedulesTab } from "@/components/freelancer/FreelancerSchedulesTab";
 import { CardFeesManager } from "@/components/admin/CardFeesManager";
+import { SellersManager } from "@/components/admin/SellersManager";
 
 export default function Formularios() {
   const navigate = useNavigate();
@@ -84,6 +85,7 @@ export default function Formularios() {
     if (canChecklist) sections.push({ value: "checklist", label: "Checklist", icon: ListChecks });
     if (canFreelancer || canAvaliacoes) sections.push({ value: "freelancer", label: "Freelancer", icon: HardHat });
     if (canPacotes) sections.push({ value: "taxas_cartao", label: "Taxas de Cartão", icon: CreditCard });
+    if (canPacotes) sections.push({ value: "vendedores", label: "Vendedores", icon: UserCheck });
     return sections;
   }, [canFormularios, canChecklist, canPacotes, canFreelancer, canAvaliacoes]);
 
@@ -368,6 +370,14 @@ export default function Formularios() {
                 <TabsContent value="taxas_cartao" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-4">
                   <div className="max-w-7xl mx-auto w-full">
                     <CardFeesManager />
+                  </div>
+                </TabsContent>
+              )}
+
+              {canPacotes && (
+                <TabsContent value="vendedores" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-4">
+                  <div className="max-w-7xl mx-auto w-full">
+                    <SellersManager />
                   </div>
                 </TabsContent>
               )}
