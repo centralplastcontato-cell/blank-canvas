@@ -1,63 +1,59 @@
 
 
-## Plan: New "Informações Complementares" Tab in Event Modal
+## Diagnóstico: Bot enviando mensagem duplicada no Castelo da Diversão
 
-### Overview
-Add a second tab to the EventFormDialog modal. The first tab keeps everything as-is. The new tab consolidates internal/complementary data that never goes to contracts, plus form responses from Pre-Festa, Cardapio, and Contrato forms linked to the event.
+### Causa raiz
 
-### Architecture
+O provedor W-API está enviando o **mesmo webhook duas vezes** para a mesma mensagem recebida. Confirmei nos dados: a mensagem do lead (ID `ACF1C41D917C350B6133FEBB23CCD398`) foi salva duas vezes no banco, com timestamps de 21:39:26 e 21:39:28. Isso causou dois processamentos paralelos do bot, gerando duas mensagens de boas-vindas idênticas.
 
-```text
-EventFormDialog
-├── Tab 1: "Evento" (existing form, unchanged)
-└── Tab 2: "Complementar" (new)
-    ├── Observações Internas (moved from tab 1)
-    ├── Formulário Pré-Festa
-    │   ├── Status: Respondido / Não enviado
-    │   ├── Respostas (if filled)
-    │   └── Botão "Enviar para Anfitrião"
-    ├── Formulário Cardápio
-    │   ├── Status + Respostas
-    │   └── Botão "Enviar para Anfitrião"
-    └── Formulário Contrato (dados)
-        ├── Status + Respostas
-        └── Botão "Enviar para Anfitrião"
+O problema tem **duas falhas** no código:
+
+1. **Mensagens recebidas não têm dedup**: Para mensagens `fromMe=true`, o código verifica se o `message_id` já existe antes de inserir. Para mensagens recebidas (`fromMe=false`), **não há essa verificação** — insere diretamente.
+
+2. **A reativação de lead LP quebra o atomic claim**: Quando o lead vem da Landing Page, o caminho de reativação (linha 2015) define `bot_step = 'welcome'` e depois cai no fluxo principal do bot. Como ambos webhooks fazem isso em paralelo, o mecanismo de "atomic claim" não funciona — ambos setam `welcome` e ambos conseguem reivindicá-lo.
+
+### Plano de correção
+
+**Arquivo**: `supabase/functions/wapi-webhook/index.ts`
+
+#### 1. Adicionar dedup para mensagens recebidas
+Na seção de inserção de mensagens (linha ~4183), adicionar a mesma verificação de `message_id` que já existe para mensagens `fromMe`:
+
+```
+if (!fromMe && msgId) {
+  const { data: existingIncoming } = await supabase.from('wapi_messages')
+    .select('id')
+    .eq('conversation_id', conv.id)
+    .eq('message_id', msgId)
+    .limit(1)
+    .maybeSingle();
+  if (existingIncoming) {
+    console.log(`[Webhook] Skipping duplicate incoming message ${msgId}`);
+    break; // Skip bot processing entirely
+  }
+}
 ```
 
-### Implementation Steps
+#### 2. Tornar a reativação LP atômica
+Na reativação de leads LP (linha ~2015), usar um UPDATE condicional (como o atomic claim) em vez de um UPDATE simples, para garantir que apenas um webhook consiga reativar:
 
-**1. Create `EventComplementaryTab` component**
-- New file: `src/components/agenda/EventComplementaryTab.tsx`
-- Props: `eventId`, `companyId`, `companySlug`, `leadPhone`, `form` (for internal_notes), `setForm`
-- On mount, fetches:
-  - Active templates from `prefesta_templates`, `cardapio_templates`, `contrato_templates` for the company
-  - Existing responses from `prefesta_responses`, `cardapio_responses`, `contrato_responses` filtered by `event_id`
-- For each form type, renders a card showing:
-  - Template name + status badge (Respondido/Pendente)
-  - Collapsible response viewer (answers mapped to template questions)
-  - "Enviar para Anfitrião" button that:
-    - Constructs the public URL: `/{form-type}/{companySlug}/{templateSlug}` 
-    - Sends via WhatsApp (wapi-send) to the lead's phone with the link
-    - Also shows a "Copiar link" option
-- Includes the "Observações internas da festa" textarea (removed from tab 1)
+```
+const { data: reactivated } = await supabase.from('wapi_conversations')
+  .update({ bot_enabled: true, bot_step: 'welcome', lead_id: lpLead.id })
+  .eq('id', conv.id)
+  .in('bot_step', ['lp_sent', null])  // Only if not already reactivated
+  .select('id')
+  .maybeSingle();
 
-**2. Modify `EventFormDialog.tsx`**
-- Import `Tabs, TabsList, TabsTrigger, TabsContent` from UI
-- Wrap the form content area in a `Tabs` component with two tabs:
-  - "Evento" (value `evento`) -- contains the existing form sections
-  - "Complementar" (value `complementar`) -- renders `<EventComplementaryTab />`
-- Remove the "Observações internas" section from tab 1 (it moves to tab 2)
-- Tabs only appear when editing an existing event (`isEdit`); for new events, show only tab 1
-- The form submit and footer buttons remain outside the tabs (shared)
+if (!reactivated) {
+  console.log(`[Bot] LP reactivation already claimed for conv ${conv.id}`);
+  return;
+}
+```
 
-**3. No database changes needed**
-- All three response tables (`prefesta_responses`, `cardapio_responses`, `contrato_responses`) already have `event_id` FK to `company_events`
-- Templates tables already exist with `slug`, `company_id`, `is_active`
+#### 3. Deploy e validação
+Fazer deploy da edge function e verificar nos logs que webhooks duplicados são ignorados.
 
-### Technical Details
-
-- The "Enviar para Anfitrião" button calls the existing `wapi-send` edge function with a message containing the form link
-- Response display reuses the same answer-rendering logic from the existing pages (Cardapio.tsx, PreFesta.tsx, Contrato.tsx) -- simplified inline viewers
-- The tab state defaults to "evento" so existing workflow is unchanged
-- Responses on the Formulários page continue working as before (they query by `template_id`); the new tab queries by `event_id`, showing only event-specific responses
+### Resultado esperado
+Mesmo que o W-API envie webhooks duplicados, apenas o primeiro será processado — o segundo será descartado tanto na inserção de mensagem quanto na ativação do bot.
 
