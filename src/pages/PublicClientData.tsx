@@ -5,7 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, CheckCircle2, User, CreditCard, MapPin, Mail, Calendar, FileText } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, CheckCircle2, User, CreditCard, MapPin, Mail, Calendar, FileText, Baby, Plus, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatCPF, isValidCPF } from "@/lib/mask-utils";
 
@@ -18,6 +19,18 @@ interface RequestInfo {
   company_logo: string;
   event_title: string;
   event_date: string;
+}
+
+interface BirthdayChild {
+  name: string;
+  age: string;
+  birthdate: string;
+}
+
+interface Responsible {
+  name: string;
+  phone: string;
+  relation: string;
 }
 
 interface ClientFormData {
@@ -33,6 +46,8 @@ interface ClientFormData {
   bairro: string;
   cidade: string;
   estado: string;
+  birthday_children: BirthdayChild[];
+  responsaveis: Responsible[];
 }
 
 const EMPTY_FORM: ClientFormData = {
@@ -48,7 +63,21 @@ const EMPTY_FORM: ClientFormData = {
   bairro: "",
   cidade: "",
   estado: "",
+  birthday_children: [{ name: "", age: "", birthdate: "" }],
+  responsaveis: [{ name: "", phone: "", relation: "" }, { name: "", phone: "", relation: "" }],
 };
+
+const RELATIONS = [
+  { value: "pai", label: "Pai" },
+  { value: "mae", label: "Mãe" },
+  { value: "avo", label: "Avó" },
+  { value: "avo_m", label: "Avô" },
+  { value: "tio", label: "Tio" },
+  { value: "tia", label: "Tia" },
+  { value: "padrasto", label: "Padrasto" },
+  { value: "madrasta", label: "Madrasta" },
+  { value: "outros", label: "Outros" },
+];
 
 // formatCPF and isValidCPF imported from @/lib/mask-utils
 
@@ -390,6 +419,118 @@ export default function PublicClientData() {
                     className="bg-muted/30 border-border/50 focus:bg-background"
                   />
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section: Aniversariante */}
+          <div className="rounded-2xl border border-border/40 bg-card p-5 sm:p-6 shadow-sm">
+            <SectionHeader icon={Baby} label="Aniversariante & Responsáveis" />
+            <div className="space-y-4">
+              {form.birthday_children.map((child, idx) => {
+                const updateChild = (field: keyof BirthdayChild, value: string) => {
+                  const updated = [...form.birthday_children];
+                  updated[idx] = { ...updated[idx], [field]: value };
+                  setForm({ ...form, birthday_children: updated });
+                };
+                return (
+                  <div key={idx} className="rounded-xl border border-border/40 bg-muted/20 p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                        Aniversariante {form.birthday_children.length > 1 ? idx + 1 : ""}
+                      </span>
+                      {form.birthday_children.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => {
+                            const updated = [...form.birthday_children];
+                            updated.splice(idx, 1);
+                            setForm({ ...form, birthday_children: updated });
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-foreground">Nome</Label>
+                        <Input value={child.name} onChange={(e) => updateChild("name", e.target.value)} placeholder="Nome do aniversariante" className="bg-muted/30 border-border/50 focus:bg-background" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-foreground">Idade a comemorar</Label>
+                        <Input value={child.age} onChange={(e) => updateChild("age", e.target.value)} placeholder="Ex: 5 anos" className="bg-muted/30 border-border/50 focus:bg-background" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-foreground">Data de nascimento</Label>
+                        <Input type="date" value={child.birthdate} onChange={(e) => updateChild("birthdate", e.target.value)} className="bg-muted/30 border-border/50 focus:bg-background" />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full text-xs gap-1.5"
+                onClick={() => {
+                  setForm({ ...form, birthday_children: [...form.birthday_children, { name: "", age: "", birthdate: "" }] });
+                }}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Adicionar aniversariante
+              </Button>
+
+              {/* Responsáveis */}
+              <div className="space-y-3 mt-5 pt-5 border-t border-border/40">
+                <Label className="text-xs font-semibold text-foreground">Responsáveis</Label>
+                {form.responsaveis.map((r, idx) => (
+                  <div key={idx} className="rounded-xl border border-border/40 bg-muted/20 p-3 space-y-2">
+                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{idx + 1}º Responsável</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <Input
+                        placeholder="Nome"
+                        value={r.name}
+                        onChange={(e) => {
+                          const updated = [...form.responsaveis];
+                          updated[idx] = { ...updated[idx], name: e.target.value };
+                          setForm({ ...form, responsaveis: updated });
+                        }}
+                        className="bg-muted/30 border-border/50 focus:bg-background"
+                      />
+                      <Input
+                        placeholder="Telefone"
+                        value={r.phone}
+                        onChange={(e) => {
+                          const updated = [...form.responsaveis];
+                          updated[idx] = { ...updated[idx], phone: e.target.value };
+                          setForm({ ...form, responsaveis: updated });
+                        }}
+                        className="bg-muted/30 border-border/50 focus:bg-background"
+                      />
+                      <Select
+                        value={r.relation || "none"}
+                        onValueChange={(v) => {
+                          const updated = [...form.responsaveis];
+                          updated[idx] = { ...updated[idx], relation: v === "none" ? "" : v };
+                          setForm({ ...form, responsaveis: updated });
+                        }}
+                      >
+                        <SelectTrigger className="bg-muted/30 border-border/50">
+                          <SelectValue placeholder="Parentesco" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Selecione</SelectItem>
+                          {RELATIONS.map((rel) => <SelectItem key={rel.value} value={rel.value}>{rel.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
