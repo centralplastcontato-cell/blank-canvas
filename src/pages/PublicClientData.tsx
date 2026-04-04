@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, CheckCircle2, User, CreditCard, MapPin, Mail, Calendar, FileText } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { formatCPF, isValidCPF } from "@/lib/mask-utils";
 
 interface RequestInfo {
   id: string;
@@ -49,29 +50,7 @@ const EMPTY_FORM: ClientFormData = {
   estado: "",
 };
 
-function formatCPF(value: string): string {
-  const digits = value.replace(/\D/g, "").slice(0, 11);
-  if (digits.length <= 3) return digits;
-  if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
-  if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
-  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
-}
-
-function isValidCPF(cpf: string): boolean {
-  const digits = cpf.replace(/\D/g, "");
-  if (digits.length !== 11) return false;
-  if (/^(\d)\1{10}$/.test(digits)) return false; // all same digits
-  let sum = 0;
-  for (let i = 0; i < 9; i++) sum += parseInt(digits[i]) * (10 - i);
-  let check = 11 - (sum % 11);
-  if (check >= 10) check = 0;
-  if (parseInt(digits[9]) !== check) return false;
-  sum = 0;
-  for (let i = 0; i < 10; i++) sum += parseInt(digits[i]) * (11 - i);
-  check = 11 - (sum % 11);
-  if (check >= 10) check = 0;
-  return parseInt(digits[10]) === check;
-}
+// formatCPF and isValidCPF imported from @/lib/mask-utils
 
 function formatCEP(value: string): string {
   const digits = value.replace(/\D/g, "").slice(0, 8);

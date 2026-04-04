@@ -13,6 +13,7 @@ import { ContractPreviewPrint } from "./ContractPreviewPrint";
 import { ContractDocumentViewer } from "./ContractDocumentViewer";
 import { format } from "date-fns";
 import { logContractAction } from "./contractAuditHelpers";
+import { formatCPF, isValidCPF } from "@/lib/mask-utils";
 
 interface Props { userId: string; onClose: () => void; }
 
@@ -34,6 +35,7 @@ export function ContractGenerator({ userId, onClose }: Props) {
   const [saving, setSaving] = useState(false);
   const [existingContracts, setExistingContracts] = useState<any[]>([]);
   const [fullPreviewOpen, setFullPreviewOpen] = useState(false);
+  const [cpfError, setCpfError] = useState<string | null>(null);
 
   // Load models + events
   useEffect(() => {
@@ -187,6 +189,7 @@ export function ContractGenerator({ userId, onClose }: Props) {
     const missing: string[] = [];
     if (!leadData?.name) missing.push("Nome do contratante");
     if (!contractData.cpf) missing.push("CPF");
+    else if (!isValidCPF(contractData.cpf)) missing.push("CPF válido");
     if (!leadData?.whatsapp) missing.push("Telefone");
     if (!eventData?.event_date) missing.push("Data do evento");
     if (!eventData?.start_time) missing.push("Horário do evento");
@@ -344,7 +347,31 @@ export function ContractGenerator({ userId, onClose }: Props) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <FieldInput label="Nome" value={leadData?.name || ""} disabled />
                   <FieldInput label="Telefone" value={leadData?.whatsapp || ""} disabled />
-                  <FieldInput label="CPF *" value={contractData.cpf} onChange={v => updateField("cpf", v)} />
+                  <div>
+                    <Label className="text-xs text-muted-foreground">CPF *</Label>
+                    <Input
+                      value={contractData.cpf || ""}
+                      onChange={e => {
+                        const formatted = formatCPF(e.target.value);
+                        updateField("cpf", formatted);
+                        setCpfError(null);
+                      }}
+                      onBlur={() => {
+                        const d = (contractData.cpf || "").replace(/\D/g, "");
+                        if (d.length === 11 && !isValidCPF(contractData.cpf)) {
+                          setCpfError("CPF inválido");
+                        } else if (d.length > 0 && d.length < 11) {
+                          setCpfError("CPF incompleto");
+                        } else {
+                          setCpfError(null);
+                        }
+                      }}
+                      placeholder="000.000.000-00"
+                      maxLength={14}
+                      className={`mt-0.5 h-9 text-sm ${cpfError ? "border-destructive ring-1 ring-destructive/30" : ""}`}
+                    />
+                    {cpfError && <p className="text-[11px] text-destructive font-medium mt-1">{cpfError}</p>}
+                  </div>
                   <FieldInput label="RG" value={contractData.rg} onChange={v => updateField("rg", v)} />
                   <FieldInput label="E-mail" value={contractData.email} onChange={v => updateField("email", v)} />
                   <FieldInput label="CEP" value={contractData.cep} onChange={v => updateField("cep", v)} />
