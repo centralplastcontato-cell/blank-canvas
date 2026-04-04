@@ -13,6 +13,7 @@ import { ContractPreviewPrint } from "./ContractPreviewPrint";
 import { ContractDocumentViewer } from "./ContractDocumentViewer";
 import { format } from "date-fns";
 import { logContractAction } from "./contractAuditHelpers";
+import { formatCPF, isValidCPF } from "@/lib/mask-utils";
 
 interface Props { userId: string; onClose: () => void; }
 
