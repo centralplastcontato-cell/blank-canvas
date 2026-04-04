@@ -80,7 +80,7 @@ export function ContractGenerator({ userId, onClose }: Props) {
       if (contractDataRes.data) {
         const cd = contractDataRes.data;
         setContractData({
-          nome: clientReqData?.nome || "",
+          nome: reqData?.nome || "",
           cpf: cd.cpf || "", rg: cd.rg || "", email: cd.email || "",
           endereco: cd.endereco || "", numero: cd.numero || "", complemento: cd.complemento || "",
           bairro: cd.bairro || "", cidade: cd.cidade || "", cep: cd.cep || "",
