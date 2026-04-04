@@ -74,7 +74,7 @@ export function ContractGenerator({ userId, onClose }: Props) {
         supabase.from("client_data_requests").select("client_data").eq("event_id", selectedEventId).eq("status", "completed").order("created_at", { ascending: false }).limit(1),
       ]);
       setLeadData(leadRes.data);
-      const clientReqData = (clientDataReqRes.data as any)?.[0]?.client_data as Record<string, string> | null;
+      const clientReqData = (clientDataReqRes.data as any)?.[0]?.client_data as Record<string, any> | null;
       if (contractDataRes.data) {
         const cd = contractDataRes.data;
         setContractData({
