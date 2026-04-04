@@ -34,6 +34,7 @@ export function ContractGenerator({ userId, onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [existingContracts, setExistingContracts] = useState<any[]>([]);
+  const [clientReqData, setClientReqData] = useState<Record<string, any> | null>(null);
   const [fullPreviewOpen, setFullPreviewOpen] = useState(false);
   const [cpfError, setCpfError] = useState<string | null>(null);
 
