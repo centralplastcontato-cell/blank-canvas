@@ -4181,6 +4181,19 @@ async function processWebhookEvent(body: Record<string, unknown>) {
           });
         }
       } else {
+        // Dedup incoming messages — W-API may fire the same webhook twice
+        if (!fromMe && msgId) {
+          const { data: existingIncoming } = await supabase.from('wapi_messages')
+            .select('id')
+            .eq('conversation_id', conv.id)
+            .eq('message_id', msgId)
+            .limit(1)
+            .maybeSingle();
+          if (existingIncoming) {
+            console.log(`[Webhook] Skipping duplicate incoming message ${msgId}`);
+            break;
+          }
+        }
         const grpMeta2 = isGrp ? {
           participant: ((msg as Record<string, unknown>).key?.participant || (msg as Record<string, unknown>).participant || '').replace('@s.whatsapp.net',''),
           sender_name: (msg as Record<string, unknown>).pushName || (msg as Record<string, unknown>).sender?.pushName || null
