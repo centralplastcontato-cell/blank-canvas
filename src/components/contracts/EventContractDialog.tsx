@@ -104,12 +104,30 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
         address: clientData.endereco || "", numero: clientData.numero || "",
         complemento: clientData.complemento || "", bairro: clientData.bairro || "",
         cidade: clientData.cidade || "", cep: clientData.cep || "",
-        nome_aniversariante: clientData.nome_aniversariante || eventData?.child_name || "",
-        idade_aniversariante: clientData.idade_aniversariante || eventData?.child_age || "",
+        nome_aniversariante: (() => {
+          const children = Array.isArray(clientData.birthday_children) ? clientData.birthday_children.filter((c: any) => c.name) : [];
+          if (children.length > 0) return children[0].name;
+          return clientData.nome_aniversariante || eventData?.child_name || "";
+        })(),
+        idade_aniversariante: (() => {
+          const children = Array.isArray(clientData.birthday_children) ? clientData.birthday_children.filter((c: any) => c.name) : [];
+          if (children.length > 0 && children[0].age) return children[0].age;
+          return clientData.idade_aniversariante || eventData?.child_age || "";
+        })(),
         data_nascimento: clientData.nascimento ? (() => { const parts = clientData.nascimento.split("-"); return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : clientData.nascimento; })() : "",
-        data_nascimento_aniversariante: eventData?.child_birthdate ? (() => { const [y, m, d] = eventData.child_birthdate.split("-"); return `${d}/${m}/${y}`; })() : "",
+        data_nascimento_aniversariante: (() => {
+          const children = Array.isArray(clientData.birthday_children) ? clientData.birthday_children.filter((c: any) => c.name) : [];
+          if (children.length > 0 && children[0].birthdate && /^\d{4}-\d{2}-\d{2}$/.test(children[0].birthdate)) {
+            const [y, m, d] = children[0].birthdate.split("-");
+            return `${d}/${m}/${y}`;
+          }
+          return eventData?.child_birthdate ? (() => { const [y, m, d] = eventData.child_birthdate.split("-"); return `${d}/${m}/${y}`; })() : "";
+        })(),
         aniversariantes: (() => {
-          const children = Array.isArray(eventData?.birthday_children) ? eventData.birthday_children.filter((c: any) => c.name) : [];
+          // Priority: birthday_children from client_data, then from event, then legacy fields
+          const clientChildren = Array.isArray(clientData.birthday_children) ? clientData.birthday_children.filter((c: any) => c.name) : [];
+          const eventChildren = Array.isArray(eventData?.birthday_children) ? eventData.birthday_children.filter((c: any) => c.name) : [];
+          const children = clientChildren.length > 0 ? clientChildren : eventChildren;
           if (children.length > 0) {
             return children.map((c: any) => {
               const parts = [c.name];
