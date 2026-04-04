@@ -1745,16 +1745,44 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                       </Button>
                     </div>
                     {clientData && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 rounded-lg bg-muted/50 border border-border/40">
-                        {clientData.nome && <div><span className="text-xs text-muted-foreground">Nome</span><p className="text-sm font-medium">{clientData.nome}</p></div>}
-                        {clientData.cpf && <div><span className="text-xs text-muted-foreground">CPF</span><p className="text-sm font-medium">{clientData.cpf}</p></div>}
-                        {clientData.rg && <div><span className="text-xs text-muted-foreground">RG</span><p className="text-sm font-medium">{clientData.rg}</p></div>}
-                        {clientData.nascimento && <div><span className="text-xs text-muted-foreground">Nascimento</span><p className="text-sm font-medium">{clientData.nascimento}</p></div>}
-                        {clientData.email && <div><span className="text-xs text-muted-foreground">E-mail</span><p className="text-sm font-medium">{clientData.email}</p></div>}
-                        {clientData.endereco && <div className="md:col-span-2"><span className="text-xs text-muted-foreground">Endereço</span><p className="text-sm font-medium">{clientData.endereco}{clientData.numero ? `, ${clientData.numero}` : ""}{clientData.complemento ? ` - ${clientData.complemento}` : ""}</p></div>}
-                        {clientData.bairro && <div><span className="text-xs text-muted-foreground">Bairro</span><p className="text-sm font-medium">{clientData.bairro}</p></div>}
-                        {(clientData.cidade || clientData.estado) && <div><span className="text-xs text-muted-foreground">Cidade/Estado</span><p className="text-sm font-medium">{[clientData.cidade, clientData.estado].filter(Boolean).join(" - ")}</p></div>}
-                        {clientData.cep && <div><span className="text-xs text-muted-foreground">CEP</span><p className="text-sm font-medium">{clientData.cep}</p></div>}
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 rounded-lg bg-muted/50 border border-border/40">
+                          {clientData.nome && <div><span className="text-xs text-muted-foreground">Nome</span><p className="text-sm font-medium">{clientData.nome}</p></div>}
+                          {clientData.cpf && <div><span className="text-xs text-muted-foreground">CPF</span><p className="text-sm font-medium">{clientData.cpf}</p></div>}
+                          {clientData.rg && <div><span className="text-xs text-muted-foreground">RG</span><p className="text-sm font-medium">{clientData.rg}</p></div>}
+                          {clientData.nascimento && <div><span className="text-xs text-muted-foreground">Nascimento</span><p className="text-sm font-medium">{clientData.nascimento}</p></div>}
+                          {clientData.email && <div><span className="text-xs text-muted-foreground">E-mail</span><p className="text-sm font-medium">{clientData.email}</p></div>}
+                          {clientData.endereco && <div className="md:col-span-2"><span className="text-xs text-muted-foreground">Endereço</span><p className="text-sm font-medium">{clientData.endereco}{clientData.numero ? `, ${clientData.numero}` : ""}{clientData.complemento ? ` - ${clientData.complemento}` : ""}</p></div>}
+                          {clientData.bairro && <div><span className="text-xs text-muted-foreground">Bairro</span><p className="text-sm font-medium">{clientData.bairro}</p></div>}
+                          {(clientData.cidade || clientData.estado) && <div><span className="text-xs text-muted-foreground">Cidade/Estado</span><p className="text-sm font-medium">{[clientData.cidade, clientData.estado].filter(Boolean).join(" - ")}</p></div>}
+                          {clientData.cep && <div><span className="text-xs text-muted-foreground">CEP</span><p className="text-sm font-medium">{clientData.cep}</p></div>}
+                        </div>
+                        {/* Birthday children */}
+                        {Array.isArray((clientRequest?.client_data as any)?.birthday_children) && (clientRequest?.client_data as any).birthday_children.filter((c: any) => c.name).length > 0 && (
+                          <div className="p-4 rounded-lg bg-muted/50 border border-border/40 space-y-2">
+                            <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Aniversariante(s)</span>
+                            {(clientRequest?.client_data as any).birthday_children.filter((c: any) => c.name).map((child: any, idx: number) => (
+                              <div key={idx} className="flex items-center gap-3 text-sm">
+                                <span className="font-medium">{child.name}</span>
+                                {child.age && <span className="text-muted-foreground">{child.age}</span>}
+                                {child.birthdate && <span className="text-muted-foreground">{child.birthdate.includes("-") ? child.birthdate.split("-").reverse().join("/") : child.birthdate}</span>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {/* Responsáveis */}
+                        {Array.isArray((clientRequest?.client_data as any)?.responsaveis) && (clientRequest?.client_data as any).responsaveis.filter((r: any) => r.name).length > 0 && (
+                          <div className="p-4 rounded-lg bg-muted/50 border border-border/40 space-y-2">
+                            <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Responsáveis</span>
+                            {(clientRequest?.client_data as any).responsaveis.filter((r: any) => r.name).map((r: any, idx: number) => (
+                              <div key={idx} className="flex items-center gap-3 text-sm">
+                                <span className="font-medium">{r.name}</span>
+                                {r.phone && <span className="text-muted-foreground">{r.phone}</span>}
+                                {r.relation && <span className="text-muted-foreground">({r.relation})</span>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </>
