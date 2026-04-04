@@ -145,7 +145,13 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
           if (clientData.idade_aniversariante || eventData?.child_age) fp.push(clientData.idade_aniversariante || eventData.child_age);
           return fp.join(", ");
         })(),
-        nomes_pais: clientData.nomes_pais || (() => {
+        nomes_pais: (() => {
+          // Priority: responsaveis from client_data
+          const responsaveis = Array.isArray(clientData.responsaveis) ? clientData.responsaveis.filter((r: any) => r.name) : [];
+          if (responsaveis.length > 0) {
+            return responsaveis.map((r: any) => `${r.name}${r.relation ? ` (${r.relation})` : ""}`).join(" e ");
+          }
+          if (clientData.nomes_pais) return clientData.nomes_pais;
           try {
             const parsed = JSON.parse(eventData?.parent_names || "[]");
             if (Array.isArray(parsed)) {
@@ -156,6 +162,8 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
           return eventData?.parent_names || "";
         })(),
         telefone_pais: (() => {
+          const responsaveis = Array.isArray(clientData.responsaveis) ? clientData.responsaveis.filter((r: any) => r.phone) : [];
+          if (responsaveis.length > 0) return responsaveis.map((r: any) => r.phone).join(" / ");
           try {
             const parsed = JSON.parse(eventData?.parent_names || "[]");
             if (Array.isArray(parsed)) return parsed.filter((r: any) => r.phone).map((r: any) => r.phone).join(" / ");
