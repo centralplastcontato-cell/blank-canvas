@@ -1182,15 +1182,6 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 })()}
               </div>
 
-              <div className="space-y-2.5 md:pr-6">
-                <Label className="text-sm font-medium text-foreground/70 flex items-center gap-1.5"><Gift className="h-3.5 w-3.5" /> Brindes inclusos</Label>
-                <Input value={form.gifts || ""} onChange={(e) => setForm({ ...form, gifts: e.target.value || null })} placeholder="Ex: Kit lembrancinhas, balões" />
-              </div>
-
-              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
-                <Label className="text-sm font-medium text-foreground/70">Valor por convidado extra</Label>
-                <MoneyInput value={form.extra_guest_value} onChange={(v) => setForm({ ...form, extra_guest_value: v })} />
-              </div>
             </div>
           </div>
 
