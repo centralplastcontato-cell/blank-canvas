@@ -34,6 +34,7 @@ export function ContractGenerator({ userId, onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [existingContracts, setExistingContracts] = useState<any[]>([]);
+  const [clientReqData, setClientReqData] = useState<Record<string, any> | null>(null);
   const [fullPreviewOpen, setFullPreviewOpen] = useState(false);
   const [cpfError, setCpfError] = useState<string | null>(null);
 
@@ -74,11 +75,12 @@ export function ContractGenerator({ userId, onClose }: Props) {
         supabase.from("client_data_requests").select("client_data").eq("event_id", selectedEventId).eq("status", "completed").order("created_at", { ascending: false }).limit(1),
       ]);
       setLeadData(leadRes.data);
-      const clientReqData = (clientDataReqRes.data as any)?.[0]?.client_data as Record<string, string> | null;
+      const reqData = (clientDataReqRes.data as any)?.[0]?.client_data as Record<string, any> | null;
+      setClientReqData(reqData);
       if (contractDataRes.data) {
         const cd = contractDataRes.data;
         setContractData({
-          nome: clientReqData?.nome || "",
+          nome: reqData?.nome || "",
           cpf: cd.cpf || "", rg: cd.rg || "", email: cd.email || "",
           endereco: cd.endereco || "", numero: cd.numero || "", complemento: cd.complemento || "",
           bairro: cd.bairro || "", cidade: cd.cidade || "", cep: cd.cep || "",
@@ -87,8 +89,8 @@ export function ContractGenerator({ userId, onClose }: Props) {
           valor_sinal: cd.valor_sinal?.toString() || "", valor_restante: cd.valor_restante?.toString() || "",
           forma_pagamento: cd.forma_pagamento || "", brindes: cd.brindes || "",
         });
-      } else if (clientReqData?.nome) {
-        setContractData(prev => ({ ...prev, nome: clientReqData.nome }));
+      } else if (reqData?.nome) {
+        setContractData(prev => ({ ...prev, nome: reqData.nome }));
       }
       setLoading(false);
     })();
@@ -113,12 +115,29 @@ export function ContractGenerator({ userId, onClose }: Props) {
       cpf: contractData.cpf, rg: contractData.rg, email: contractData.email,
       address: contractData.endereco, numero: contractData.numero, complemento: contractData.complemento,
       bairro: contractData.bairro, cidade: contractData.cidade, cep: contractData.cep,
-      nome_aniversariante: contractData.nome_aniversariante || eventData?.child_name || "",
-      idade_aniversariante: contractData.idade_aniversariante || eventData?.child_age || "",
+      nome_aniversariante: (() => {
+        const clientChildren = Array.isArray(clientReqData?.birthday_children) ? clientReqData.birthday_children.filter((c: any) => c.name) : [];
+        if (clientChildren.length > 0) return clientChildren[0].name;
+        return contractData.nome_aniversariante || eventData?.child_name || "";
+      })(),
+      idade_aniversariante: (() => {
+        const clientChildren = Array.isArray(clientReqData?.birthday_children) ? clientReqData.birthday_children.filter((c: any) => c.name) : [];
+        if (clientChildren.length > 0 && clientChildren[0].age) return clientChildren[0].age;
+        return contractData.idade_aniversariante || eventData?.child_age || "";
+      })(),
       data_nascimento: contractData.data_nascimento || "",
-      data_nascimento_aniversariante: eventData?.child_birthdate ? (() => { const [y, m, d] = eventData.child_birthdate.split("-"); return `${d}/${m}/${y}`; })() : "",
+      data_nascimento_aniversariante: (() => {
+        const clientChildren = Array.isArray(clientReqData?.birthday_children) ? clientReqData.birthday_children.filter((c: any) => c.name) : [];
+        if (clientChildren.length > 0 && clientChildren[0].birthdate && /^\d{4}-\d{2}-\d{2}$/.test(clientChildren[0].birthdate)) {
+          const [y, m, d] = clientChildren[0].birthdate.split("-");
+          return `${d}/${m}/${y}`;
+        }
+        return eventData?.child_birthdate ? (() => { const [y, m, d] = eventData.child_birthdate.split("-"); return `${d}/${m}/${y}`; })() : "";
+      })(),
       aniversariantes: (() => {
-        const children = Array.isArray(eventData?.birthday_children) ? eventData.birthday_children.filter((c: any) => c.name) : [];
+        const clientChildren = Array.isArray(clientReqData?.birthday_children) ? clientReqData.birthday_children.filter((c: any) => c.name) : [];
+        const eventChildren = Array.isArray(eventData?.birthday_children) ? eventData.birthday_children.filter((c: any) => c.name) : [];
+        const children = clientChildren.length > 0 ? clientChildren : eventChildren;
         if (children.length > 0) {
           return children.map((c: any) => {
             const parts = [c.name];
@@ -136,7 +155,10 @@ export function ContractGenerator({ userId, onClose }: Props) {
         if (contractData.idade_aniversariante || eventData?.child_age) fp.push(contractData.idade_aniversariante || eventData.child_age);
         return fp.join(", ");
       })(),
-      nomes_pais: contractData.nomes_pais || (() => {
+      nomes_pais: (() => {
+        const responsaveis = Array.isArray(clientReqData?.responsaveis) ? clientReqData.responsaveis.filter((r: any) => r.name) : [];
+        if (responsaveis.length > 0) return responsaveis.map((r: any) => `${r.name}${r.relation ? ` (${r.relation})` : ""}`).join(" e ");
+        if (contractData.nomes_pais) return contractData.nomes_pais;
         try {
           const parsed = JSON.parse(eventData?.parent_names || "[]");
           if (Array.isArray(parsed)) {
@@ -146,7 +168,10 @@ export function ContractGenerator({ userId, onClose }: Props) {
         } catch { /* plain text fallback */ }
         return eventData?.parent_names || "";
       })(),
-      telefone_pais: contractData.telefone_pais || (() => {
+      telefone_pais: (() => {
+        const responsaveis = Array.isArray(clientReqData?.responsaveis) ? clientReqData.responsaveis.filter((r: any) => r.phone) : [];
+        if (responsaveis.length > 0) return responsaveis.map((r: any) => r.phone).join(" / ");
+        if (contractData.telefone_pais) return contractData.telefone_pais;
         try {
           const parsed = JSON.parse(eventData?.parent_names || "[]");
           if (Array.isArray(parsed)) return parsed.filter((r: any) => r.phone).map((r: any) => r.phone).join(" / ");
@@ -171,7 +196,7 @@ export function ContractGenerator({ userId, onClose }: Props) {
       })(),
       date: new Date().toLocaleDateString("pt-BR"),
     },
-  }), [leadData, eventData, contractData, currentCompany?.name]);
+  }), [leadData, eventData, contractData, currentCompany?.name, clientReqData]);
 
   const renderedContent = useMemo(() => {
     if (!selectedModel) return "";
