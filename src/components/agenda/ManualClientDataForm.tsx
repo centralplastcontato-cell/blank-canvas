@@ -2,9 +2,22 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Save, User, CreditCard, MapPin } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Save, User, CreditCard, MapPin, Baby, Plus, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+
+interface BirthdayChild {
+  name: string;
+  age: string;
+  birthdate: string;
+}
+
+interface Responsible {
+  name: string;
+  phone: string;
+  relation: string;
+}
 
 interface ClientFormData {
   nome: string;
@@ -19,11 +32,15 @@ interface ClientFormData {
   bairro: string;
   cidade: string;
   estado: string;
+  birthday_children: BirthdayChild[];
+  responsaveis: Responsible[];
 }
 
 const EMPTY_FORM: ClientFormData = {
   nome: "", cpf: "", rg: "", nascimento: "", email: "",
   cep: "", endereco: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "",
+  birthday_children: [{ name: "", age: "", birthdate: "" }],
+  responsaveis: [{ name: "", phone: "", relation: "" }, { name: "", phone: "", relation: "" }],
 };
 
 function formatCPF(value: string): string {
@@ -53,7 +70,16 @@ interface ManualClientDataFormProps {
 export function ManualClientDataForm({ eventId, companyId, leadId, initialClientData, requestId, onSaved, onCancel }: ManualClientDataFormProps) {
   const [formData, setFormData] = useState<ClientFormData>(() => {
     if (initialClientData) {
-      return { ...EMPTY_FORM, ...initialClientData };
+      return {
+        ...EMPTY_FORM,
+        ...initialClientData,
+        birthday_children: initialClientData.birthday_children?.length
+          ? initialClientData.birthday_children
+          : EMPTY_FORM.birthday_children,
+        responsaveis: initialClientData.responsaveis?.length
+          ? initialClientData.responsaveis
+          : EMPTY_FORM.responsaveis,
+      };
     }
     return EMPTY_FORM;
   });
@@ -62,6 +88,28 @@ export function ManualClientDataForm({ eventId, companyId, leadId, initialClient
 
   const updateField = (field: keyof ClientFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const updateChild = (idx: number, field: keyof BirthdayChild, value: string) => {
+    const updated = [...formData.birthday_children];
+    updated[idx] = { ...updated[idx], [field]: value };
+    setFormData(prev => ({ ...prev, birthday_children: updated }));
+  };
+
+  const addChild = () => {
+    setFormData(prev => ({ ...prev, birthday_children: [...prev.birthday_children, { name: "", age: "", birthdate: "" }] }));
+  };
+
+  const removeChild = (idx: number) => {
+    const updated = [...formData.birthday_children];
+    updated.splice(idx, 1);
+    setFormData(prev => ({ ...prev, birthday_children: updated }));
+  };
+
+  const updateResponsible = (idx: number, field: keyof Responsible, value: string) => {
+    const updated = [...formData.responsaveis];
+    updated[idx] = { ...updated[idx], [field]: value };
+    setFormData(prev => ({ ...prev, responsaveis: updated }));
   };
 
   const handleCepBlur = async () => {
@@ -92,7 +140,6 @@ export function ManualClientDataForm({ eventId, companyId, leadId, initialClient
     setSaving(true);
     try {
       if (requestId) {
-        // Update existing request
         const { error } = await (supabase as any)
           .from("client_data_requests")
           .update({
@@ -111,7 +158,6 @@ export function ManualClientDataForm({ eventId, companyId, leadId, initialClient
           completed_at: new Date().toISOString(),
         });
       } else {
-        // Create new request with data already filled
         const token = crypto.randomUUID().replace(/-/g, "").slice(0, 24);
         const { data, error } = await (supabase as any)
           .from("client_data_requests")
@@ -230,6 +276,87 @@ export function ManualClientDataForm({ eventId, companyId, leadId, initialClient
           Buscando endereço...
         </div>
       )}
+
+      {/* Aniversariante & Responsáveis */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <Baby className="h-3.5 w-3.5" />
+          Aniversariante
+        </div>
+        <div className="space-y-3">
+          {formData.birthday_children.map((child, idx) => (
+            <div key={idx} className="rounded-lg border border-border/40 bg-muted/20 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  Aniversariante {formData.birthday_children.length > 1 ? idx + 1 : ""}
+                </span>
+                {formData.birthday_children.length > 1 && (
+                  <Button type="button" variant="ghost" size="icon" className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => removeChild(idx)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Nome</Label>
+                  <Input value={child.name} onChange={e => updateChild(idx, "name", e.target.value)} placeholder="Nome do aniversariante" className="h-9 text-sm" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Idade a comemorar</Label>
+                  <Input value={child.age} onChange={e => updateChild(idx, "age", e.target.value)} placeholder="Ex: 5 anos" className="h-9 text-sm" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Data de nascimento</Label>
+                  <Input type="date" value={child.birthdate} onChange={e => updateChild(idx, "birthdate", e.target.value)} className="h-9 text-sm" />
+                </div>
+              </div>
+            </div>
+          ))}
+          <Button type="button" variant="outline" size="sm" className="w-full text-xs gap-1.5" onClick={addChild}>
+            <Plus className="h-3.5 w-3.5" />
+            Adicionar aniversariante
+          </Button>
+        </div>
+
+        {/* Responsáveis */}
+        <div className="space-y-3 mt-3 pt-3 border-t border-border/40">
+          <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Responsáveis
+          </div>
+          {formData.responsaveis.map((r, idx) => (
+            <div key={idx} className="rounded-lg border border-border/40 bg-muted/20 p-3 space-y-2">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{idx + 1}º Responsável</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Nome</Label>
+                  <Input value={r.name} onChange={e => updateResponsible(idx, "name", e.target.value)} placeholder="Nome" className="h-9 text-sm" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Telefone</Label>
+                  <Input value={r.phone} onChange={e => updateResponsible(idx, "phone", e.target.value)} placeholder="Telefone" className="h-9 text-sm" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Parentesco</Label>
+                  <Select value={r.relation || "none"} onValueChange={v => updateResponsible(idx, "relation", v === "none" ? "" : v)}>
+                    <SelectTrigger className="h-9 text-sm">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Selecione</SelectItem>
+                      <SelectItem value="Mãe">Mãe</SelectItem>
+                      <SelectItem value="Pai">Pai</SelectItem>
+                      <SelectItem value="Avó">Avó</SelectItem>
+                      <SelectItem value="Avô">Avô</SelectItem>
+                      <SelectItem value="Tio(a)">Tio(a)</SelectItem>
+                      <SelectItem value="Outro">Outro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Actions */}
       <div className="flex gap-2 pt-1">
