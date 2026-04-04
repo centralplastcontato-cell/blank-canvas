@@ -61,7 +61,7 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
       ]);
 
       setLeadData(leadRes.data);
-      const cd = clientReqRes.data?.[0]?.client_data as Record<string, string> | null;
+      const cd = clientReqRes.data?.[0]?.client_data as Record<string, any> | null;
       setClientData(cd || {});
       setLoading(false);
     };
