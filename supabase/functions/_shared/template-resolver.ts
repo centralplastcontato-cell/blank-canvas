@@ -190,8 +190,8 @@ const VARIABLE_CATALOG: Record<string, { resolver: VariableResolver }> = {
     if (/^\d{8}$/.test(v)) return `${v.slice(0,2)}/${v.slice(2,4)}/${v.slice(4)}`;
     return v;
   }},
-  telefone_pais: { resolver: (ctx) => ctx.contract?.telefone_pais || '' },
-  cliente_celular: { resolver: (ctx) => ctx.contract?.celular || ctx.lead?.whatsapp || '' },
+  telefone_pais: { resolver: (ctx) => formatPhoneDisplay(ctx.contract?.telefone_pais) },
+  cliente_celular: { resolver: (ctx) => formatPhoneDisplay(ctx.contract?.celular || ctx.lead?.whatsapp) },
   data_entrada: { resolver: (ctx) => {
     const v = ctx.contract?.data_entrada || '';
     if (!v) return '';
