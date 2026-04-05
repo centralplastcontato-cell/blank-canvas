@@ -25,8 +25,18 @@ import {
 import { toast } from "@/hooks/use-toast";
 import {
   Smartphone, Wifi, WifiOff, RefreshCw, Plus, Building2,
-  Phone, MessageSquare, Loader2, BarChart3, QrCode, Power, Pencil, Check, X
+  Phone, MessageSquare, Loader2, BarChart3, QrCode, Power, Pencil, Check, X, Trash2
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useWhatsAppConnection } from "@/hooks/useWhatsAppConnection";
 import { ConnectionDialog } from "@/components/whatsapp/ConnectionDialog";
 
@@ -90,7 +100,25 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<HubInstance | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const connection = useWhatsAppConnection(() => fetchData());
+
+  const handleDeleteInstance = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase.from("wapi_instances").delete().eq("id", deleteTarget.id);
+      if (error) throw error;
+      toast({ title: "Instância excluída", description: `"${deleteTarget.unit || deleteTarget.instance_id}" foi removida.` });
+      setDeleteTarget(null);
+      fetchData();
+    } catch (err: any) {
+      toast({ title: "Erro ao excluir", description: err.message, variant: "destructive" });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handleRename = async (inst: HubInstance) => {
     const newName = renameValue.trim();
@@ -383,6 +411,14 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
                                 >
                                   <Pencil className="h-3 w-3" />
                                 </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-destructive hover:text-destructive"
+                                  onClick={() => setDeleteTarget(inst)}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
                               </div>
                             )}
                             <p className="text-xs text-muted-foreground truncate">{inst.instance_id}</p>
@@ -563,6 +599,30 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir instância?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir a instância <strong>"{deleteTarget?.unit || deleteTarget?.instance_id}"</strong>?
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteInstance}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Trash2 className="h-4 w-4 mr-1.5" />}
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
