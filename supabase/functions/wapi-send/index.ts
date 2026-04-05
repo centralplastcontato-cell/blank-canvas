@@ -1163,6 +1163,16 @@ Deno.serve(async (req) => {
 
       case 'send-video': {
         const { mediaUrl: videoUrl, caption } = body;
+        if (isZapi && videoUrl) {
+          const zapiRes = await zapiSendVideo(instance_id, instance_token, client_token, phone, videoUrl, caption);
+          if (!zapiRes.ok) return new Response(JSON.stringify({ error: zapiRes.error }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          const messageId = extractZapiMessageId(zapiRes.data);
+          if (conversationId) {
+            await supabase.from('wapi_messages').insert({ conversation_id: conversationId, message_id: messageId, from_me: true, message_type: 'video', content: caption || '🎥 Vídeo', media_url: videoUrl, status: 'sent', timestamp: new Date().toISOString(), company_id: companyId, metadata: { source: 'platform', provider: 'zapi' } });
+            await supabase.from('wapi_conversations').update({ last_message_at: new Date().toISOString(), last_message_content: caption ? `🎥 ${caption.substring(0, 90)}` : '🎥 Vídeo', last_message_from_me: true }).eq('id', conversationId);
+          }
+          return new Response(JSON.stringify({ success: true, messageId }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
         
         if (!videoUrl) {
           return new Response(JSON.stringify({ error: 'URL do vídeo é obrigatória' }), {
