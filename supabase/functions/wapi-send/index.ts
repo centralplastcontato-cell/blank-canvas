@@ -951,6 +951,35 @@ Deno.serve(async (req) => {
 
       case 'send-audio': {
         const { base64: audioBase64, mediaUrl: audioMediaUrl, mimeType: clientMimeType } = body;
+
+        // Z-API path
+        if (isZapi && (audioMediaUrl || audioBase64)) {
+          const audioSource = audioMediaUrl || audioBase64;
+          const zapiRes = await zapiSendAudio(instance_id, instance_token, client_token, phone, audioSource);
+          if (!zapiRes.ok) {
+            return new Response(JSON.stringify({ error: zapiRes.error }), {
+              status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          const messageId = extractZapiMessageId(zapiRes.data);
+          if (conversationId) {
+            await supabase.from('wapi_messages').insert({
+              conversation_id: conversationId, message_id: messageId, from_me: true,
+              message_type: 'audio', content: '🎤 Áudio', media_url: audioMediaUrl || null,
+              status: 'sent', timestamp: new Date().toISOString(), company_id: companyId,
+              metadata: { source: 'platform', provider: 'zapi' },
+            });
+            await supabase.from('wapi_conversations').update({ 
+              last_message_at: new Date().toISOString(),
+              last_message_content: '🎤 Áudio',
+              last_message_from_me: true,
+            }).eq('id', conversationId);
+          }
+          return new Response(JSON.stringify({ success: true, messageId }), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
         const originalMimeType = (typeof clientMimeType === 'string' && clientMimeType.trim().length > 0
           ? clientMimeType.split(';')[0].trim().toLowerCase()
           : 'audio/webm');
