@@ -1100,6 +1100,16 @@ Deno.serve(async (req) => {
 
       case 'send-document': {
         const { fileName, mediaUrl: docUrl } = body;
+        if (isZapi && docUrl) {
+          const zapiRes = await zapiSendDocument(instance_id, instance_token, client_token, phone, docUrl, fileName || 'document');
+          if (!zapiRes.ok) return new Response(JSON.stringify({ error: zapiRes.error }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          const messageId = extractZapiMessageId(zapiRes.data);
+          if (conversationId) {
+            await supabase.from('wapi_messages').insert({ conversation_id: conversationId, message_id: messageId, from_me: true, message_type: 'document', content: `📄 ${fileName || 'Documento'}`, media_url: docUrl, status: 'sent', timestamp: new Date().toISOString(), company_id: companyId, metadata: { source: 'platform', provider: 'zapi' } });
+            await supabase.from('wapi_conversations').update({ last_message_at: new Date().toISOString(), last_message_content: `📄 ${fileName || 'Documento'}`, last_message_from_me: true }).eq('id', conversationId);
+          }
+          return new Response(JSON.stringify({ success: true, messageId }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
         
         if (!docUrl) {
           return new Response(JSON.stringify({ error: 'URL do documento é obrigatória' }), {
