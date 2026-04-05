@@ -42,6 +42,8 @@ interface HubInstance {
   company_name?: string;
   messages_count: number | null;
   credits_available: number | null;
+  provider?: string;
+  client_token?: string | null;
 }
 
 interface ChildCompany {
