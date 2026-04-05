@@ -810,7 +810,7 @@ Deno.serve(async (req) => {
           });
         }
 
-        const messageId = extractWapiMessageId(sendResult.data) || `manual_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const messageId = (isZapi ? extractZapiMessageId(sendResult.data) : extractWapiMessageId(sendResult.data)) || `manual_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
         // Resolve or create conversation for DB tracking
         let resolvedConvId = conversationId;
