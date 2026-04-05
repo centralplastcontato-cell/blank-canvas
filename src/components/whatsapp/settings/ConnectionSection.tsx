@@ -285,7 +285,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
 
       setIsDialogOpen(false);
       setEditingInstance(null);
-      setFormData({ instanceId: "", instanceToken: "", unit: "" });
+      setFormData({ instanceId: "", instanceToken: "", unit: "", provider: "wapi", clientToken: "" });
       fetchInstances();
 
       await configureWebhooks(formData.instanceId, formData.instanceToken);
