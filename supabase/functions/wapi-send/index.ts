@@ -773,7 +773,8 @@ Deno.serve(async (req) => {
 
     const creds = await getInstanceCredentials(supabase, req, body);
     if (creds instanceof Response) return creds;
-    const { instance_id, instance_token } = creds;
+    const { instance_id, instance_token, provider, client_token } = creds;
+    const isZapi = provider === 'zapi';
 
     console.log('wapi-send:', action, phone ? `phone:${phone}` : '', 'instance:', instance_id);
 
