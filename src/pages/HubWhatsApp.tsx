@@ -267,7 +267,7 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
 
       toast({ title: "Instância criada", description: `Instância ${formData.unit} criada com sucesso.` });
       setIsCreateOpen(false);
-      setFormData({ instanceId: "", instanceToken: "", unit: "", companyId: "" });
+      setFormData({ instanceId: "", instanceToken: "", unit: "", companyId: "", provider: "wapi", clientToken: "" });
       fetchData();
     } catch (err: any) {
       toast({ title: "Erro", description: err.message || "Erro ao criar instância.", variant: "destructive" });
