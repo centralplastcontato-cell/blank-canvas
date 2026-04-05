@@ -44,6 +44,8 @@ interface WapiInstance {
   credits_available: number;
   addon_valid_until: string | null;
   unit: string | null;
+  provider?: string;
+  client_token?: string | null;
 }
 
 interface ConnectionSectionProps {
