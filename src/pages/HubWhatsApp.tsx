@@ -411,6 +411,14 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
                                 >
                                   <Pencil className="h-3 w-3" />
                                 </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-destructive hover:text-destructive"
+                                  onClick={() => setDeleteTarget(inst)}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
                               </div>
                             )}
                             <p className="text-xs text-muted-foreground truncate">{inst.instance_id}</p>
