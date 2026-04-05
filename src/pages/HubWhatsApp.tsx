@@ -248,6 +248,8 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
         unit: formData.unit,
         company_id: formData.companyId,
         status: "disconnected",
+        provider: formData.provider,
+        client_token: formData.provider === 'zapi' ? formData.clientToken : null,
       });
 
       if (error) throw error;
