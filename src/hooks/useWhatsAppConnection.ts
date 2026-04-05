@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
@@ -10,6 +10,10 @@ export interface ConnectableInstance {
   phone_number: string | null;
   unit: string | null;
 }
+
+const RETRY_DELAYS = [3000, 6000, 12000];
+const TIMEOUTS = [12000, 18000, 25000];
+const MAX_RETRIES = 3;
 
 export function useWhatsAppConnection(onConnected?: () => void) {
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
@@ -23,12 +27,35 @@ export function useWhatsAppConnection(onConnected?: () => void) {
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [isPairingLoading, setIsPairingLoading] = useState(false);
 
-  const fetchQrCode = useCallback(async (instance: ConnectableInstance) => {
+  // Resilience states
+  const [retryCount, setRetryCount] = useState(0);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [isWapiUnstable, setIsWapiUnstable] = useState(false);
+  const [connectionStage, setConnectionStage] = useState<"connecting" | "generating" | "retrying" | "failed" | "idle">("idle");
+
+  const isFetchingQrRef = useRef(false);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollFailCountRef = useRef(0);
+
+  const clearRetryTimer = useCallback(() => {
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+  }, []);
+
+  const fetchQrCode = useCallback(async (instance: ConnectableInstance, attempt = 0) => {
+    if (isFetchingQrRef.current && attempt === 0) return;
+    isFetchingQrRef.current = true;
     setQrLoading(true);
+    setConnectionStage(attempt > 0 ? "retrying" : "connecting");
+    setRetryCount(attempt);
+
     try {
-      // Client-side timeout protection (12s)
+      const timeout = TIMEOUTS[Math.min(attempt, TIMEOUTS.length - 1)];
+
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('TIMEOUT_CLIENT')), 12000)
+        setTimeout(() => reject(new Error('TIMEOUT_CLIENT')), timeout)
       );
 
       const fetchPromise = supabase.functions.invoke("wapi-send", {
@@ -39,20 +66,15 @@ export function useWhatsAppConnection(onConnected?: () => void) {
         },
       });
 
+      setConnectionStage("generating");
       const response = await Promise.race([fetchPromise, timeoutPromise]);
 
       if (response.error) throw new Error(response.error.message);
 
-      // Handle TIMEOUT_OR_GATEWAY from edge function
-      if (response.data?.errorType === 'TIMEOUT_OR_GATEWAY') {
-        toast({ title: "⚠️ W-API instável", description: "Tente novamente ou conecte por Telefone." });
-        return;
-      }
-
-      // Handle RESTARTING — instance was auto-restarted
-      if (response.data?.errorType === 'RESTARTING' || response.data?.errorType === 'INSTANCE_ERROR') {
-        toast({ title: "🔄 Reiniciando instância", description: "Aguarde alguns segundos e tente novamente." });
-        return;
+      if (response.data?.errorType === 'TIMEOUT_OR_GATEWAY' ||
+          response.data?.errorType === 'RESTARTING' ||
+          response.data?.errorType === 'INSTANCE_ERROR') {
+        throw new Error('WAPI_UNSTABLE');
       }
 
       if (response.data?.connected === true || response.data?.details?.connected === true) {
@@ -63,11 +85,16 @@ export function useWhatsAppConnection(onConnected?: () => void) {
           .eq("id", instance.id);
         closeDialog();
         onConnected?.();
+        isFetchingQrRef.current = false;
         return;
       }
 
       if (response.data?.qrCode) {
         setQrCode(response.data.qrCode);
+        setIsWapiUnstable(false);
+        setConnectionStage("idle");
+        setRetryCount(0);
+        pollFailCountRef.current = 0;
       } else if (response.data?.error) {
         const msg = response.data.error?.toLowerCase() || "";
         if (msg.includes("conectad") || msg.includes("connected")) {
@@ -75,17 +102,42 @@ export function useWhatsAppConnection(onConnected?: () => void) {
           closeDialog();
           onConnected?.();
         } else {
-          toast({ title: "Aviso", description: response.data.error, variant: "destructive" });
+          throw new Error('WAPI_UNSTABLE');
         }
       }
     } catch (error: any) {
-      console.error("Error fetching QR code:", error);
-      if (error.message === 'TIMEOUT_CLIENT') {
-        toast({ title: "⚠️ W-API instável", description: "QR Code demorou demais. Tente novamente ou conecte por Telefone." });
+      const isWapiError = error.message === 'TIMEOUT_CLIENT' || error.message === 'WAPI_UNSTABLE';
+
+      if (isWapiError && attempt < MAX_RETRIES - 1) {
+        setIsWapiUnstable(true);
+        setIsRetrying(true);
+        setConnectionStage("retrying");
+        const delay = RETRY_DELAYS[Math.min(attempt, RETRY_DELAYS.length - 1)];
+        
+        retryTimerRef.current = setTimeout(() => {
+          setIsRetrying(false);
+          fetchQrCode(instance, attempt + 1);
+        }, delay);
+        
+        isFetchingQrRef.current = false;
+        setQrLoading(false);
+        return;
+      }
+
+      // All retries exhausted or non-WAPI error
+      if (isWapiError) {
+        setIsWapiUnstable(true);
+        setConnectionStage("failed");
+        toast({
+          title: "⚠️ W-API instável",
+          description: "Recomendamos conectar por Telefone — é mais confiável quando o servidor está lento.",
+        });
       } else {
+        setConnectionStage("failed");
         toast({ title: "Erro", description: error.message || "Erro ao obter QR Code.", variant: "destructive" });
       }
     } finally {
+      isFetchingQrRef.current = false;
       setQrLoading(false);
     }
   }, [onConnected]);
@@ -118,15 +170,19 @@ export function useWhatsAppConnection(onConnected?: () => void) {
           description: `WhatsApp da unidade ${instance.unit} conectado com sucesso!`,
         });
         onConnected?.();
+        pollFailCountRef.current = 0;
         return true;
       }
+      pollFailCountRef.current = 0;
     } catch (error) {
       console.error("Error polling status:", error);
+      pollFailCountRef.current += 1;
     }
     return false;
   }, [onConnected]);
 
   const openDialog = (instance: ConnectableInstance) => {
+    clearRetryTimer();
     setQrInstance(instance);
     setQrCode(null);
     setPairingCode(null);
@@ -134,16 +190,28 @@ export function useWhatsAppConnection(onConnected?: () => void) {
     setConnectionMode("qr");
     setQrDialogOpen(true);
     setQrPolling(true);
-    fetchQrCode(instance);
+    setRetryCount(0);
+    setIsRetrying(false);
+    setIsWapiUnstable(false);
+    setConnectionStage("idle");
+    pollFailCountRef.current = 0;
+    fetchQrCode(instance, 0);
   };
 
   const closeDialog = () => {
+    clearRetryTimer();
     setQrDialogOpen(false);
     setQrPolling(false);
     setQrCode(null);
     setPairingCode(null);
     setPhoneNumber("");
     setConnectionMode("qr");
+    setRetryCount(0);
+    setIsRetrying(false);
+    setIsWapiUnstable(false);
+    setConnectionStage("idle");
+    pollFailCountRef.current = 0;
+    isFetchingQrRef.current = false;
   };
 
   const requestPairingCode = async () => {
@@ -175,27 +243,40 @@ export function useWhatsAppConnection(onConnected?: () => void) {
     setIsPairingLoading(false);
   };
 
-  // Connection status polling (every 3s) — pause while typing phone number
+  // Connection status polling — adaptive interval (3s normal, 5s on failures)
   const shouldPoll = qrDialogOpen && qrInstance && qrPolling && (connectionMode === "qr" || !!pairingCode);
-  
+
   useEffect(() => {
     if (!shouldPoll || !qrInstance) return;
+    const getInterval = () => pollFailCountRef.current >= 2 ? 5000 : 3000;
+
     const initialTimeout = setTimeout(async () => {
       await pollConnectionStatus(qrInstance);
     }, 2000);
     const interval = setInterval(async () => {
       const connected = await pollConnectionStatus(qrInstance);
       if (connected) clearInterval(interval);
-    }, 3000);
+    }, getInterval());
     return () => { clearTimeout(initialTimeout); clearInterval(interval); };
   }, [shouldPoll, qrInstance, pollConnectionStatus]);
 
-  // QR code refresh (every 15s)
+  // QR code refresh (every 15s) — skip if fetch is in progress or retrying
   useEffect(() => {
     if (!qrDialogOpen || !qrInstance || !qrPolling || connectionMode !== "qr") return;
-    const interval = setInterval(() => fetchQrCode(qrInstance), 15000);
+    if (connectionStage === "failed") return;
+
+    const interval = setInterval(() => {
+      if (!isFetchingQrRef.current && !isRetrying) {
+        fetchQrCode(qrInstance, 0);
+      }
+    }, 15000);
     return () => clearInterval(interval);
-  }, [qrDialogOpen, qrInstance, qrPolling, connectionMode, fetchQrCode]);
+  }, [qrDialogOpen, qrInstance, qrPolling, connectionMode, fetchQrCode, isRetrying, connectionStage]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => clearRetryTimer();
+  }, [clearRetryTimer]);
 
   return {
     qrDialogOpen,
@@ -206,6 +287,10 @@ export function useWhatsAppConnection(onConnected?: () => void) {
     phoneNumber,
     pairingCode,
     isPairingLoading,
+    retryCount,
+    isRetrying,
+    isWapiUnstable,
+    connectionStage,
     openDialog,
     closeDialog,
     setConnectionMode,

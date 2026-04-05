@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, memo } from "react";
+import { useState, useRef, useCallback, memo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -8,8 +8,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import {
-  QrCode, Loader2, Phone, Smartphone, RefreshCw, WifiOff,
+  QrCode, Loader2, Phone, Smartphone, RefreshCw, WifiOff, AlertTriangle,
 } from "lucide-react";
 import type { ConnectableInstance } from "@/hooks/useWhatsAppConnection";
 
@@ -23,6 +25,10 @@ interface ConnectionDialogProps {
   phoneNumber: string;
   pairingCode: string | null;
   isPairingLoading: boolean;
+  retryCount: number;
+  isRetrying: boolean;
+  isWapiUnstable: boolean;
+  connectionStage: "connecting" | "generating" | "retrying" | "failed" | "idle";
   onClose: () => void;
   onSetConnectionMode: (mode: "qr" | "phone") => void;
   onSetPhoneNumber: (phone: string) => void;
@@ -30,8 +36,75 @@ interface ConnectionDialogProps {
   onRetryQr: () => void;
 }
 
-// Fully isolated phone input — uses uncontrolled input (ref-based) so re-renders
-// from polling or other state changes cannot interfere with typing.
+function ConnectionProgress({ stage, retryCount, isRetrying }: { stage: string; retryCount: number; isRetrying: boolean }) {
+  const progressMap: Record<string, number> = {
+    connecting: 25,
+    generating: 60,
+    retrying: 40 + retryCount * 15,
+    idle: 100,
+    failed: 100,
+  };
+
+  const labelMap: Record<string, string> = {
+    connecting: "Conectando ao servidor...",
+    generating: "Gerando QR Code...",
+    retrying: isRetrying
+      ? `Aguardando para tentar novamente (${retryCount + 1}/3)...`
+      : `Tentativa ${retryCount + 2} de 3...`,
+    idle: "",
+    failed: "",
+  };
+
+  if (stage === "idle" || stage === "failed") return null;
+
+  return (
+    <div className="space-y-2 px-1">
+      <Progress value={progressMap[stage] || 0} className="h-2" />
+      <p className="text-xs text-muted-foreground text-center animate-pulse">{labelMap[stage]}</p>
+    </div>
+  );
+}
+
+function FailedState({ onRetryQr, onSwitchToPhone }: { onRetryQr: () => void; onSwitchToPhone: () => void }) {
+  return (
+    <div className="flex flex-col items-center gap-4 py-6">
+      <div className="w-14 h-14 rounded-full bg-destructive/10 flex items-center justify-center">
+        <WifiOff className="w-7 h-7 text-destructive" />
+      </div>
+      <div className="text-center space-y-1">
+        <p className="text-sm font-medium">Não foi possível gerar o QR Code</p>
+        <p className="text-xs text-muted-foreground">O servidor W-API está instável no momento.</p>
+      </div>
+      <div className="flex flex-col gap-2 w-full max-w-xs">
+        <Button onClick={onSwitchToPhone} className="w-full">
+          <Phone className="w-4 h-4 mr-2" />
+          Conectar por Telefone
+        </Button>
+        <Button variant="outline" onClick={onRetryQr} className="w-full">
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Tentar QR novamente
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// Elapsed time counter
+function ElapsedTimer() {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    const i = setInterval(() => setSeconds(s => s + 1), 1000);
+    return () => clearInterval(i);
+  }, []);
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return (
+    <span className="text-xs text-muted-foreground tabular-nums">
+      {m > 0 ? `${m}m ${s.toString().padStart(2, '0')}s` : `${s}s`}
+    </span>
+  );
+}
+
 const PhoneSection = memo(function PhoneSection({
   onSubmitPhone,
   isPairingLoading,
@@ -48,9 +121,7 @@ const PhoneSection = memo(function PhoneSection({
     const el = inputRef.current;
     if (!el) return;
     const cleaned = el.value.replace(/\D/g, "").slice(0, 11);
-    if (cleaned !== el.value) {
-      el.value = cleaned;
-    }
+    if (cleaned !== el.value) el.value = cleaned;
     setCanSubmit(cleaned.length >= 10);
   }, []);
 
@@ -70,7 +141,6 @@ const PhoneSection = memo(function PhoneSection({
             <span className="text-lg">🇧🇷</span>
             <span className="text-sm font-medium">+55</span>
           </div>
-          {/* Uncontrolled input — immune to parent re-renders */}
           <input
             ref={inputRef}
             type="text"
@@ -79,24 +149,14 @@ const PhoneSection = memo(function PhoneSection({
             placeholder="11999999999"
             maxLength={11}
             onInput={handleInput}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 flex-1 min-w-0"
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 flex-1 min-w-0"
           />
         </div>
-        <Button
-          onClick={handleSubmit}
-          disabled={isPairingLoading || !canSubmit}
-          className="w-full"
-        >
+        <Button onClick={handleSubmit} disabled={isPairingLoading || !canSubmit} className="w-full">
           {isPairingLoading ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Solicitando código...
-            </>
+            <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Solicitando código...</>
           ) : (
-            <>
-              <Phone className="w-4 h-4 mr-2" />
-              Solicitar código
-            </>
+            <><Phone className="w-4 h-4 mr-2" />Solicitar código</>
           )}
         </Button>
       </div>
@@ -128,12 +188,19 @@ export function ConnectionDialog({
   phoneNumber: _phoneNumber,
   pairingCode,
   isPairingLoading,
+  retryCount = 0,
+  isRetrying = false,
+  isWapiUnstable = false,
+  connectionStage = "idle",
   onClose,
   onSetConnectionMode,
   onSetPhoneNumber,
   onRequestPairingCode,
   onRetryQr,
 }: ConnectionDialogProps) {
+  const isLoadingQr = (qrLoading || connectionStage === "connecting" || connectionStage === "generating" || connectionStage === "retrying") && !qrCode;
+  const isFailed = connectionStage === "failed" && !qrCode;
+
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); else onOpenChange(o); }}>
       <DialogContent className="sm:max-w-md">
@@ -141,6 +208,12 @@ export function ConnectionDialog({
           <DialogTitle className="flex items-center gap-2">
             <Smartphone className="w-5 h-5" />
             Conectar WhatsApp — {instance?.unit}
+            {isWapiUnstable && (
+              <Badge variant="outline" className="ml-auto border-yellow-500 text-yellow-600 text-xs gap-1">
+                <AlertTriangle className="w-3 h-3" />
+                Instável
+              </Badge>
+            )}
           </DialogTitle>
           <DialogDescription>
             Escolha como deseja conectar o WhatsApp desta instância
@@ -172,11 +245,29 @@ export function ConnectionDialog({
         </div>
 
         {connectionMode === "qr" ? (
-          <div className="flex flex-col items-center justify-center py-4">
-            {qrLoading && !qrCode ? (
-              <div className="flex flex-col items-center gap-3 py-8">
+          <div className="flex flex-col items-center justify-center py-4 gap-3">
+            {isFailed ? (
+              <FailedState
+                onRetryQr={onRetryQr}
+                onSwitchToPhone={() => onSetConnectionMode("phone")}
+              />
+            ) : isLoadingQr ? (
+              <div className="flex flex-col items-center gap-4 py-6 w-full">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">Gerando QR Code...</p>
+                <ConnectionProgress stage={connectionStage} retryCount={retryCount} isRetrying={isRetrying} />
+                <ElapsedTimer />
+                {/* Show phone fallback early during loading */}
+                {(retryCount > 0 || isWapiUnstable) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-muted-foreground"
+                    onClick={() => onSetConnectionMode("phone")}
+                  >
+                    <Phone className="w-3 h-3 mr-1" />
+                    Tentar por Telefone
+                  </Button>
+                )}
               </div>
             ) : qrCode ? (
               <div className="flex flex-col items-center gap-4">
@@ -210,7 +301,6 @@ export function ConnectionDialog({
           <PhoneSection
             onSubmitPhone={(phone) => {
               onSetPhoneNumber(phone);
-              // Small delay to ensure state is set before requesting
               setTimeout(onRequestPairingCode, 50);
             }}
             isPairingLoading={isPairingLoading}
