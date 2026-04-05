@@ -100,7 +100,25 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<HubInstance | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const connection = useWhatsAppConnection(() => fetchData());
+
+  const handleDeleteInstance = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase.from("wapi_instances").delete().eq("id", deleteTarget.id);
+      if (error) throw error;
+      toast({ title: "Instância excluída", description: `"${deleteTarget.unit || deleteTarget.instance_id}" foi removida.` });
+      setDeleteTarget(null);
+      fetchData();
+    } catch (err: any) {
+      toast({ title: "Erro ao excluir", description: err.message, variant: "destructive" });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handleRename = async (inst: HubInstance) => {
     const newName = renameValue.trim();
