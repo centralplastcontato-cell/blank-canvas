@@ -173,8 +173,9 @@ async function wapiRequest(url: string, token: string, method: string, body?: un
     }
 
     const data = await res.json();
-    if (!res.ok || data.error) {
-      return { ok: false, error: data.message || 'Erro na W-API' };
+    const providerReportedError = typeof data.error === 'string' ? data.error : null;
+    if (!res.ok || providerReportedError) {
+      return { ok: false, error: providerReportedError || data.message || 'Erro na W-API' };
     }
     return { ok: true, data };
   } catch (e) {
@@ -209,8 +210,9 @@ async function zapiRequest(instanceId: string, token: string, clientToken: strin
     }
 
     const data = await res.json();
-    if (!res.ok || data.error) {
-      return { ok: false, error: data.message || data.error || 'Erro na Z-API' };
+    const providerReportedError = typeof data.error === 'string' ? data.error : null;
+    if (!res.ok || providerReportedError) {
+      return { ok: false, error: data.message || providerReportedError || 'Erro na Z-API' };
     }
     return { ok: true, data };
   } catch (e) {
