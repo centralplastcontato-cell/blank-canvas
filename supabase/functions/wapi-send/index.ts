@@ -2131,6 +2131,11 @@ Deno.serve(async (req) => {
 
       case 'disconnect': {
         try {
+          if (isZapi) {
+            await zapiDisconnect(instance_id, instance_token, client_token);
+            await supabase.from('wapi_instances').update({ status: 'disconnected', connected_at: null, phone_number: null }).eq('instance_id', instance_id);
+            return new Response(JSON.stringify({ success: true, message: 'Desconectado via Z-API' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          }
           // Try multiple W-API disconnect/logout endpoints
           const endpoints = [
             { url: `${WAPI_BASE_URL}/instance/logout?instanceId=${instance_id}`, method: 'DELETE' },
