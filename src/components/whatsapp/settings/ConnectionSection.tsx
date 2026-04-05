@@ -99,6 +99,8 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
     instanceId: "",
     instanceToken: "",
     unit: "",
+    provider: "wapi" as "wapi" | "zapi",
+    clientToken: "",
   });
 
   useEffect(() => {
