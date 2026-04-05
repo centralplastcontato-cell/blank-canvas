@@ -6,6 +6,16 @@ const corsHeaders = {
 };
 
 const WAPI_BASE_URL = 'https://api.w-api.app/v1';
+const ZAPI_BASE_URL = 'https://api.z-api.io/instances';
+
+type Provider = 'wapi' | 'zapi';
+
+interface InstanceCredentials {
+  instance_id: string;
+  instance_token: string;
+  provider: Provider;
+  client_token: string | null;
+}
 
 // Helper to get instance credentials
 async function getInstanceCredentials(
