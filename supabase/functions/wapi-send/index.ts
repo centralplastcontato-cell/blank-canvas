@@ -22,7 +22,7 @@ async function getInstanceCredentials(
   supabase: ReturnType<typeof createClient>,
   req: Request,
   body: { instanceId?: string; instanceToken?: string; unit?: string; companyId?: string }
-): Promise<{ instance_id: string; instance_token: string } | Response> {
+): Promise<InstanceCredentials | Response> {
   const { instanceId, instanceToken, unit, companyId } = body;
   
   // Direct credentials provided (backward compat for webhook/config flows)
