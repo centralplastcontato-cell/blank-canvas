@@ -1695,8 +1695,7 @@ Deno.serve(async (req) => {
           return new Response(JSON.stringify({ error: zapiRes.error || 'Código não disponível (Z-API)' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         
-        let cleanPhone = phoneNumber.replace(/\D/g, '');
-        if (!cleanPhone.startsWith('55')) cleanPhone = '55' + cleanPhone;
+        // cleanPhone already declared above
         
         try {
           const res = await fetch(
