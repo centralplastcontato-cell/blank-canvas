@@ -1291,6 +1291,21 @@ Deno.serve(async (req) => {
       }
 
       case 'get-status': {
+        // Z-API status check
+        if (isZapi) {
+          try {
+            const zapiRes = await zapiGetStatus(instance_id, instance_token, client_token);
+            if (!zapiRes.ok) {
+              return new Response(JSON.stringify({ status: 'degraded', connected: false, error: zapiRes.error, errorType: 'TIMEOUT_OR_GATEWAY' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+            }
+            const d = zapiRes.data as Record<string, unknown>;
+            const connected = d.connected === true;
+            const zapiPhone = d.phoneNumber || d.phone || null;
+            return new Response(JSON.stringify({ status: connected ? 'connected' : 'disconnected', connected, phoneNumber: zapiPhone, provider: 'zapi' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          } catch (e) {
+            return new Response(JSON.stringify({ status: 'degraded', connected: false, error: e instanceof Error ? e.message : 'Erro Z-API', errorType: 'TIMEOUT_OR_GATEWAY' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          }
+        }
         try {
           console.log('get-status: checking via qr-code endpoint for', instance_id);
           
