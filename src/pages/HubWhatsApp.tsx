@@ -448,6 +448,10 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
         phoneNumber={connection.phoneNumber}
         pairingCode={connection.pairingCode}
         isPairingLoading={connection.isPairingLoading}
+        retryCount={connection.retryCount}
+        isRetrying={connection.isRetrying}
+        isWapiUnstable={connection.isWapiUnstable}
+        connectionStage={connection.connectionStage}
         onClose={connection.closeDialog}
         onSetConnectionMode={connection.setConnectionMode}
         onSetPhoneNumber={connection.setPhoneNumber}
