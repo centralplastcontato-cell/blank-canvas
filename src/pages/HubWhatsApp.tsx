@@ -386,6 +386,9 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
                               </div>
                             )}
                             <p className="text-xs text-muted-foreground truncate">{inst.instance_id}</p>
+                            {inst.provider === 'zapi' && (
+                              <Badge variant="outline" className="text-xs mt-0.5 w-fit border-blue-300 text-blue-600 dark:border-blue-700 dark:text-blue-400">Z-API</Badge>
+                            )}
                           </div>
                           {getStatusBadge(inst.status)}
                         </div>
