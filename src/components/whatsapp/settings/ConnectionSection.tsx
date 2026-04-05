@@ -1749,18 +1749,37 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editingInstance ? "Editar Instância W-API" : "Nova Instância W-API"}
+              {editingInstance ? "Editar Instância" : "Nova Instância"}
             </DialogTitle>
             <DialogDescription>
               Configure a instância do WhatsApp para uma unidade específica.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="bg-muted/50 rounded-lg p-3 text-sm">
-            Na W-API, acesse "<strong>Detalhes da instância</strong>" para copiar o ID e o Token.
-          </div>
-
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Provedor *</Label>
+              <Select
+                value={formData.provider}
+                onValueChange={(value: "wapi" | "zapi") => setFormData({ ...formData, provider: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="wapi">W-API</SelectItem>
+                  <SelectItem value="zapi">Z-API</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="bg-muted/50 rounded-lg p-3 text-sm">
+              {formData.provider === 'zapi' 
+                ? <>Na Z-API, acesse "<strong>Detalhes da instância</strong>" para copiar o ID e o Token. O Client Token fica em "<strong>Segurança</strong>" da sua conta.</>
+                : <>Na W-API, acesse "<strong>Detalhes da instância</strong>" para copiar o ID e o Token.</>
+              }
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="unit">Unidade *</Label>
               <Select
@@ -1788,7 +1807,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
               <Label htmlFor="instanceId">ID da Instância *</Label>
               <Input
                 id="instanceId"
-                placeholder="Ex: LITE-YGE96V-MKGKLK"
+                placeholder={formData.provider === 'zapi' ? "Ex: A20DA9C0..." : "Ex: LITE-YGE96V-MKGKLK"}
                 value={formData.instanceId}
                 onChange={(e) => setFormData({ ...formData, instanceId: e.target.value })}
               />
@@ -1804,6 +1823,22 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                 onChange={(e) => setFormData({ ...formData, instanceToken: e.target.value })}
               />
             </div>
+
+            {formData.provider === 'zapi' && (
+              <div className="space-y-2">
+                <Label htmlFor="clientToken">Client Token (Segurança) *</Label>
+                <Input
+                  id="clientToken"
+                  type="password"
+                  placeholder="Token de segurança da conta Z-API"
+                  value={formData.clientToken}
+                  onChange={(e) => setFormData({ ...formData, clientToken: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Encontrado em Painel Z-API → Segurança → Token da conta
+                </p>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
