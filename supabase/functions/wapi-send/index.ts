@@ -78,7 +78,7 @@ async function getInstanceCredentials(
     // Lookup by instanceId (without token) — verify user belongs to the same company
     const { data: instance } = await supabase
       .from('wapi_instances')
-      .select('instance_id, instance_token, company_id')
+      .select('instance_id, instance_token, company_id, provider, client_token')
       .eq('instance_id', instanceId)
       .single();
 
@@ -102,7 +102,7 @@ async function getInstanceCredentials(
       });
     }
 
-    return { instance_id: instance.instance_id, instance_token: instance.instance_token };
+    return { instance_id: instance.instance_id, instance_token: instance.instance_token, provider: (instance.provider as Provider) || 'wapi', client_token: instance.client_token || null };
   }
 
   // Lookup by companyId — get first connected instance
