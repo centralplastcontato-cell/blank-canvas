@@ -27,7 +27,13 @@ async function getInstanceCredentials(
   
   // Direct credentials provided (backward compat for webhook/config flows)
   if (instanceId && instanceToken) {
-    return { instance_id: instanceId, instance_token: instanceToken };
+    // Try to fetch provider info from DB
+    const { data: providerInfo } = await supabase
+      .from('wapi_instances')
+      .select('provider, client_token')
+      .eq('instance_id', instanceId)
+      .maybeSingle();
+    return { instance_id: instanceId, instance_token: instanceToken, provider: (providerInfo?.provider as Provider) || 'wapi', client_token: providerInfo?.client_token || null };
   }
 
   // Fetch by unit (public chatbot flow)
