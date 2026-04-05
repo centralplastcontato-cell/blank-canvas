@@ -121,7 +121,7 @@ async function getInstanceCredentials(
 
     const { data: instance } = await supabase
       .from('wapi_instances')
-      .select('instance_id, instance_token')
+      .select('instance_id, instance_token, provider, client_token')
       .eq('company_id', companyId)
       .eq('status', 'connected')
       .limit(1)
@@ -134,7 +134,7 @@ async function getInstanceCredentials(
       });
     }
 
-    return { instance_id: instance.instance_id, instance_token: instance.instance_token };
+    return { instance_id: instance.instance_id, instance_token: instance.instance_token, provider: (instance.provider as Provider) || 'wapi', client_token: instance.client_token || null };
   }
 
   // Fallback: lookup by user_id
