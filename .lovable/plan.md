@@ -1,59 +1,43 @@
 
 
-## Diagnóstico: Bot enviando mensagem duplicada no Castelo da Diversão
+## Plano: Conexão WhatsApp Resiliente
 
-### Causa raiz
+### Problema
+O fluxo de conexão falha silenciosamente quando o W-API está lento. O usuário vê "Gerando QR Code..." indefinidamente, sem retry automático, sem indicação de progresso, e sem sugestão de alternativa.
 
-O provedor W-API está enviando o **mesmo webhook duas vezes** para a mesma mensagem recebida. Confirmei nos dados: a mensagem do lead (ID `ACF1C41D917C350B6133FEBB23CCD398`) foi salva duas vezes no banco, com timestamps de 21:39:26 e 21:39:28. Isso causou dois processamentos paralelos do bot, gerando duas mensagens de boas-vindas idênticas.
+### Alterações
 
-O problema tem **duas falhas** no código:
+#### 1. Retry automático com backoff no hook (`useWhatsAppConnection.ts`)
 
-1. **Mensagens recebidas não têm dedup**: Para mensagens `fromMe=true`, o código verifica se o `message_id` já existe antes de inserir. Para mensagens recebidas (`fromMe=false`), **não há essa verificação** — insere diretamente.
+- Adicionar estado `retryCount` e `consecutiveFailures`
+- No `fetchQrCode`: em caso de timeout ou erro W-API, fazer retry automático (max 3 tentativas) com delay crescente (3s, 6s, 12s) antes de mostrar erro final
+- Após 2 falhas consecutivas no QR, sugerir automaticamente o modo "Telefone" via toast
+- Timeout adaptativo: começar com 12s, aumentar para 18s na 2a tentativa e 25s na 3a
 
-2. **A reativação de lead LP quebra o atomic claim**: Quando o lead vem da Landing Page, o caminho de reativação (linha 2015) define `bot_step = 'welcome'` e depois cai no fluxo principal do bot. Como ambos webhooks fazem isso em paralelo, o mecanismo de "atomic claim" não funciona — ambos setam `welcome` e ambos conseguem reivindicá-lo.
+#### 2. Polling inteligente com backoff (`useWhatsAppConnection.ts`)
 
-### Plano de correção
+- Status polling: aumentar intervalo de 3s para 5s quando houver falhas consecutivas do polling (evita sobrecarga)
+- QR refresh: se o fetch anterior ainda estiver em andamento, pular o ciclo (evita requisições empilhadas)
 
-**Arquivo**: `supabase/functions/wapi-webhook/index.ts`
+#### 3. Feedback visual melhorado (`ConnectionDialog.tsx`)
 
-#### 1. Adicionar dedup para mensagens recebidas
-Na seção de inserção de mensagens (linha ~4183), adicionar a mesma verificação de `message_id` que já existe para mensagens `fromMe`:
+- Substituir "Gerando QR Code..." por uma barra de progresso com etapas: "Conectando ao servidor..." → "Gerando QR Code..." → "Tentativa 2 de 3..."
+- Mostrar contagem de tentativas e tempo decorrido
+- Adicionar botão "Tentar por Telefone" visível durante o loading do QR (não esperar falha total)
+- No estado de erro final, mostrar card com duas opções claras: "Tentar QR novamente" e "Conectar por Telefone" (destacado)
+- Adicionar indicador visual de "W-API instável" (badge amarelo) quando houver falhas
 
-```
-if (!fromMe && msgId) {
-  const { data: existingIncoming } = await supabase.from('wapi_messages')
-    .select('id')
-    .eq('conversation_id', conv.id)
-    .eq('message_id', msgId)
-    .limit(1)
-    .maybeSingle();
-  if (existingIncoming) {
-    console.log(`[Webhook] Skipping duplicate incoming message ${msgId}`);
-    break; // Skip bot processing entirely
-  }
-}
-```
+#### 4. Estado exposto ao dialog (`useWhatsAppConnection.ts`)
 
-#### 2. Tornar a reativação LP atômica
-Na reativação de leads LP (linha ~2015), usar um UPDATE condicional (como o atomic claim) em vez de um UPDATE simples, para garantir que apenas um webhook consiga reativar:
+- Expor novos estados: `retryCount`, `isRetrying`, `isWapiUnstable`
+- O dialog consome esses estados para adaptar a UI
 
-```
-const { data: reactivated } = await supabase.from('wapi_conversations')
-  .update({ bot_enabled: true, bot_step: 'welcome', lead_id: lpLead.id })
-  .eq('id', conv.id)
-  .in('bot_step', ['lp_sent', null])  // Only if not already reactivated
-  .select('id')
-  .maybeSingle();
-
-if (!reactivated) {
-  console.log(`[Bot] LP reactivation already claimed for conv ${conv.id}`);
-  return;
-}
-```
-
-#### 3. Deploy e validação
-Fazer deploy da edge function e verificar nos logs que webhooks duplicados são ignorados.
+### Arquivos modificados
+- `src/hooks/useWhatsAppConnection.ts` — retry, backoff, estados
+- `src/components/whatsapp/ConnectionDialog.tsx` — UI de progresso e fallback
 
 ### Resultado esperado
-Mesmo que o W-API envie webhooks duplicados, apenas o primeiro será processado — o segundo será descartado tanto na inserção de mensagem quanto na ativação do bot.
+- Falhas temporárias do W-API são absorvidas por retry automático (o usuário nem percebe)
+- Após falhas persistentes, o sistema guia o usuário para o método alternativo (telefone)
+- Feedback visual claro em todas as etapas, sem "tela presa"
 
