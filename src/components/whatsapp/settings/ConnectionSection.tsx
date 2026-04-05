@@ -271,6 +271,8 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
           instance_token: formData.instanceToken,
           unit: formData.unit,
           status: "disconnected",
+          provider: formData.provider,
+          client_token: formData.provider === 'zapi' ? formData.clientToken : null,
         }) as { error: any };
 
         if (error) throw error;
