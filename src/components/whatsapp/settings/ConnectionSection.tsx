@@ -252,6 +252,8 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
           .update({
             instance_id: formData.instanceId,
             instance_token: formData.instanceToken,
+            provider: formData.provider,
+            client_token: formData.provider === 'zapi' ? formData.clientToken : null,
             unit: formData.unit,
           })
           .eq("id", editingInstance.id);
