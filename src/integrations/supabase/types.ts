@@ -5231,6 +5231,7 @@ export type Database = {
         Row: {
           addon_valid_until: string | null
           auto_recovery_attempts: number | null
+          client_token: string | null
           company_id: string
           connected_at: string | null
           created_at: string
@@ -5242,6 +5243,7 @@ export type Database = {
           last_restart_attempt: string | null
           messages_count: number | null
           phone_number: string | null
+          provider: string
           status: string | null
           unit: string | null
           updated_at: string
@@ -5250,6 +5252,7 @@ export type Database = {
         Insert: {
           addon_valid_until?: string | null
           auto_recovery_attempts?: number | null
+          client_token?: string | null
           company_id: string
           connected_at?: string | null
           created_at?: string
@@ -5261,6 +5264,7 @@ export type Database = {
           last_restart_attempt?: string | null
           messages_count?: number | null
           phone_number?: string | null
+          provider?: string
           status?: string | null
           unit?: string | null
           updated_at?: string
@@ -5269,6 +5273,7 @@ export type Database = {
         Update: {
           addon_valid_until?: string | null
           auto_recovery_attempts?: number | null
+          client_token?: string | null
           company_id?: string
           connected_at?: string | null
           created_at?: string
@@ -5280,6 +5285,7 @@ export type Database = {
           last_restart_attempt?: string | null
           messages_count?: number | null
           phone_number?: string | null
+          provider?: string
           status?: string | null
           unit?: string | null
           updated_at?: string

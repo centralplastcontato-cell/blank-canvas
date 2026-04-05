@@ -4459,12 +4459,60 @@ async function processWebhookEvent(body: Record<string, unknown>) {
   }
 }
 
+// Normalize Z-API webhook payload to W-API format
+function normalizeZapiPayload(body: Record<string, unknown>): Record<string, unknown> {
+  const phone = body.phone as string || '';
+  const remoteJid = `${phone}@s.whatsapp.net`;
+  const msgId = body.messageId as string || `zapi_${Date.now()}`;
+  const fromMe = body.fromMe === true;
+  const senderName = (body.senderName || body.chatName || phone) as string;
+
+  // Extract content from Z-API nested structure
+  const textObj = body.text as Record<string, unknown> | undefined;
+  const imageObj = body.image as Record<string, unknown> | undefined;
+  const audioObj = body.audio as Record<string, unknown> | undefined;
+  const videoObj = body.video as Record<string, unknown> | undefined;
+  const documentObj = body.document as Record<string, unknown> | undefined;
+
+  let message: Record<string, unknown> = {};
+  if (textObj?.message) {
+    message = { conversation: textObj.message };
+  } else if (imageObj?.imageUrl) {
+    message = { imageMessage: { url: imageObj.imageUrl, caption: imageObj.caption || '' } };
+  } else if (audioObj?.audioUrl) {
+    message = { audioMessage: { url: audioObj.audioUrl } };
+  } else if (videoObj?.videoUrl) {
+    message = { videoMessage: { url: videoObj.videoUrl, caption: videoObj.caption || '' } };
+  } else if (documentObj?.documentUrl) {
+    message = { documentMessage: { url: documentObj.documentUrl, fileName: documentObj.fileName || 'document' } };
+  }
+
+  return {
+    event: 'messages.upsert',
+    instanceId: body.instanceId,
+    data: {
+      key: { remoteJid, fromMe, id: msgId },
+      pushName: senderName,
+      message,
+      messageTimestamp: Math.floor(Date.now() / 1000),
+    },
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    const body = await req.json();
+    let body = await req.json();
     
+    // Detect Z-API payload and normalize
+    const isZapiPayload = body.type === 'ReceivedCallback' || 
+      (body.phone && body.instanceId && !body.event && (body.text || body.image || body.audio || body.video || body.document));
+    if (isZapiPayload) {
+      console.log(`[Webhook] Z-API payload detected, normalizing. type=${body.type}, phone=${body.phone}`);
+      body = normalizeZapiPayload(body);
+    }
+
     // Quick validation - check if instance exists
     const instanceId = body.instanceId;
     if (!instanceId) {

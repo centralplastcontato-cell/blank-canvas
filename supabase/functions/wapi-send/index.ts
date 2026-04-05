@@ -6,25 +6,41 @@ const corsHeaders = {
 };
 
 const WAPI_BASE_URL = 'https://api.w-api.app/v1';
+const ZAPI_BASE_URL = 'https://api.z-api.io/instances';
+
+type Provider = 'wapi' | 'zapi';
+
+interface InstanceCredentials {
+  instance_id: string;
+  instance_token: string;
+  provider: Provider;
+  client_token: string | null;
+}
 
 // Helper to get instance credentials
 async function getInstanceCredentials(
   supabase: ReturnType<typeof createClient>,
   req: Request,
   body: { instanceId?: string; instanceToken?: string; unit?: string; companyId?: string }
-): Promise<{ instance_id: string; instance_token: string } | Response> {
+): Promise<InstanceCredentials | Response> {
   const { instanceId, instanceToken, unit, companyId } = body;
   
   // Direct credentials provided (backward compat for webhook/config flows)
   if (instanceId && instanceToken) {
-    return { instance_id: instanceId, instance_token: instanceToken };
+    // Try to fetch provider info from DB
+    const { data: providerInfo } = await supabase
+      .from('wapi_instances')
+      .select('provider, client_token')
+      .eq('instance_id', instanceId)
+      .maybeSingle();
+    return { instance_id: instanceId, instance_token: instanceToken, provider: (providerInfo?.provider as Provider) || 'wapi', client_token: providerInfo?.client_token || null };
   }
 
   // Fetch by unit (public chatbot flow)
   if (unit) {
     const { data: instance, error } = await supabase
       .from('wapi_instances')
-      .select('instance_id, instance_token')
+      .select('instance_id, instance_token, provider, client_token')
       .eq('unit', unit)
       .eq('status', 'connected')
       .single();
@@ -35,7 +51,7 @@ async function getInstanceCredentials(
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    return { instance_id: instance.instance_id, instance_token: instance.instance_token };
+    return { instance_id: instance.instance_id, instance_token: instance.instance_token, provider: (instance.provider as Provider) || 'wapi', client_token: instance.client_token || null };
   }
 
   // Authenticated user flow — resolve token server-side
@@ -62,7 +78,7 @@ async function getInstanceCredentials(
     // Lookup by instanceId (without token) — verify user belongs to the same company
     const { data: instance } = await supabase
       .from('wapi_instances')
-      .select('instance_id, instance_token, company_id')
+      .select('instance_id, instance_token, company_id, provider, client_token')
       .eq('instance_id', instanceId)
       .single();
 
@@ -86,7 +102,7 @@ async function getInstanceCredentials(
       });
     }
 
-    return { instance_id: instance.instance_id, instance_token: instance.instance_token };
+    return { instance_id: instance.instance_id, instance_token: instance.instance_token, provider: (instance.provider as Provider) || 'wapi', client_token: instance.client_token || null };
   }
 
   // Lookup by companyId — get first connected instance
@@ -105,7 +121,7 @@ async function getInstanceCredentials(
 
     const { data: instance } = await supabase
       .from('wapi_instances')
-      .select('instance_id, instance_token')
+      .select('instance_id, instance_token, provider, client_token')
       .eq('company_id', companyId)
       .eq('status', 'connected')
       .limit(1)
@@ -118,13 +134,13 @@ async function getInstanceCredentials(
       });
     }
 
-    return { instance_id: instance.instance_id, instance_token: instance.instance_token };
+    return { instance_id: instance.instance_id, instance_token: instance.instance_token, provider: (instance.provider as Provider) || 'wapi', client_token: instance.client_token || null };
   }
 
   // Fallback: lookup by user_id
   const { data: instance } = await supabase
     .from('wapi_instances')
-    .select('instance_id, instance_token')
+    .select('instance_id, instance_token, provider, client_token')
     .eq('user_id', user.id)
     .limit(1)
     .single();
@@ -136,7 +152,7 @@ async function getInstanceCredentials(
     });
   }
 
-  return { instance_id: instance.instance_id, instance_token: instance.instance_token };
+  return { instance_id: instance.instance_id, instance_token: instance.instance_token, provider: (instance.provider as Provider) || 'wapi', client_token: instance.client_token || null };
 }
 
 // Helper for W-API calls with error handling
@@ -164,6 +180,121 @@ async function wapiRequest(url: string, token: string, method: string, body?: un
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'Erro de comunicação' };
   }
+}
+
+// ============= Z-API HELPER FUNCTIONS =============
+
+function zapiUrl(instanceId: string, token: string, path: string): string {
+  return `${ZAPI_BASE_URL}/${instanceId}/token/${token}/${path}`;
+}
+
+async function zapiRequest(instanceId: string, token: string, clientToken: string | null, path: string, method: string, body?: unknown): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (clientToken) {
+      headers['Client-Token'] = clientToken;
+    }
+    const url = zapiUrl(instanceId, token, path);
+    const res = await fetch(url, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    const contentType = res.headers.get('content-type');
+    if (contentType?.includes('text/html')) {
+      return { ok: false, error: 'Instância Z-API indisponível' };
+    }
+
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      return { ok: false, error: data.message || data.error || 'Erro na Z-API' };
+    }
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Erro de comunicação Z-API' };
+  }
+}
+
+// Z-API send text
+async function zapiSendText(instanceId: string, token: string, clientToken: string | null, rawPhone: string, message: string): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  const phone = rawPhone.endsWith('@g.us') ? rawPhone : String(rawPhone || '').replace(/\D/g, '');
+  const res = await zapiRequest(instanceId, token, clientToken, 'send-text', 'POST', { phone, message });
+  if (res.ok) {
+    console.log(`[Z-API] send-text success to ${phone}`);
+  }
+  return res;
+}
+
+// Z-API send image
+async function zapiSendImage(instanceId: string, token: string, clientToken: string | null, phone: string, imageUrl: string, caption?: string): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  return zapiRequest(instanceId, token, clientToken, 'send-image', 'POST', {
+    phone: String(phone).replace(/\D/g, ''),
+    image: imageUrl,
+    caption: caption || '',
+  });
+}
+
+// Z-API send audio
+async function zapiSendAudio(instanceId: string, token: string, clientToken: string | null, phone: string, audioUrl: string): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  return zapiRequest(instanceId, token, clientToken, 'send-audio', 'POST', {
+    phone: String(phone).replace(/\D/g, ''),
+    audio: audioUrl,
+  });
+}
+
+// Z-API send video
+async function zapiSendVideo(instanceId: string, token: string, clientToken: string | null, phone: string, videoUrl: string, caption?: string): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  return zapiRequest(instanceId, token, clientToken, 'send-video', 'POST', {
+    phone: String(phone).replace(/\D/g, ''),
+    video: videoUrl,
+    caption: caption || '',
+  });
+}
+
+// Z-API send document (requires extension in URL path)
+async function zapiSendDocument(instanceId: string, token: string, clientToken: string | null, phone: string, docUrl: string, fileName: string): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  const ext = fileName.split('.').pop() || docUrl.split('.').pop()?.split('?')[0] || 'pdf';
+  return zapiRequest(instanceId, token, clientToken, `send-document/${ext}`, 'POST', {
+    phone: String(phone).replace(/\D/g, ''),
+    document: docUrl,
+    fileName,
+  });
+}
+
+// Z-API get QR code
+async function zapiGetQr(instanceId: string, token: string, clientToken: string | null): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  return zapiRequest(instanceId, token, clientToken, 'qr-code/image', 'GET');
+}
+
+// Z-API get status
+async function zapiGetStatus(instanceId: string, token: string, clientToken: string | null): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  return zapiRequest(instanceId, token, clientToken, 'status', 'GET');
+}
+
+// Z-API disconnect
+async function zapiDisconnect(instanceId: string, token: string, clientToken: string | null): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  return zapiRequest(instanceId, token, clientToken, 'disconnect', 'GET');
+}
+
+// Z-API request pairing code
+async function zapiRequestPairingCode(instanceId: string, token: string, clientToken: string | null, phoneNumber: string): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  return zapiRequest(instanceId, token, clientToken, `phone-code/${phoneNumber}`, 'GET');
+}
+
+// Z-API configure webhooks (all at once)
+async function zapiConfigureWebhooks(instanceId: string, token: string, clientToken: string | null, webhookUrl: string): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  return zapiRequest(instanceId, token, clientToken, 'update-webhook', 'PUT', {
+    value: webhookUrl,
+  });
+}
+
+function extractZapiMessageId(payload: unknown): string | null {
+  const data = payload as Record<string, unknown> | undefined;
+  const id = data?.zapiMessageId || data?.messageId || data?.id;
+  return typeof id === 'string' && id.length > 0 ? id : null;
 }
 
 function extractWapiMessageId(payload: unknown): string | null {
@@ -642,7 +773,8 @@ Deno.serve(async (req) => {
 
     const creds = await getInstanceCredentials(supabase, req, body);
     if (creds instanceof Response) return creds;
-    const { instance_id, instance_token } = creds;
+    const { instance_id, instance_token, provider, client_token } = creds;
+    const isZapi = provider === 'zapi';
 
     console.log('wapi-send:', action, phone ? `phone:${phone}` : '', 'instance:', instance_id);
 
@@ -663,8 +795,10 @@ Deno.serve(async (req) => {
 
     switch (action) {
       case 'send-text': {
-        console.log('send-text: sending message to', phone);
-        const sendResult = await sendTextWithFallback(instance_id, instance_token, phone, message);
+        console.log(`send-text: sending message to ${phone} via ${provider}`);
+        const sendResult = isZapi
+          ? await zapiSendText(instance_id, instance_token, client_token, phone, message)
+          : await sendTextWithFallback(instance_id, instance_token, phone, message);
 
         console.log('send-text response:', JSON.stringify(sendResult));
 
@@ -676,7 +810,7 @@ Deno.serve(async (req) => {
           });
         }
 
-        const messageId = extractWapiMessageId(sendResult.data) || `manual_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const messageId = (isZapi ? extractZapiMessageId(sendResult.data) : extractWapiMessageId(sendResult.data)) || `manual_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
         // Resolve or create conversation for DB tracking
         let resolvedConvId = conversationId;
@@ -718,6 +852,39 @@ Deno.serve(async (req) => {
 
       case 'send-image': {
         const { base64, caption, mediaUrl } = body;
+
+        // Z-API path: send image by URL or base64
+        if (isZapi) {
+          const imageSource = mediaUrl || base64;
+          if (!imageSource) {
+            return new Response(JSON.stringify({ error: 'Imagem é obrigatória' }), {
+              status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          const zapiRes = await zapiSendImage(instance_id, instance_token, client_token, phone, imageSource, caption);
+          if (!zapiRes.ok) {
+            return new Response(JSON.stringify({ error: zapiRes.error }), {
+              status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          const messageId = extractZapiMessageId(zapiRes.data);
+          if (conversationId) {
+            await supabase.from('wapi_messages').insert({
+              conversation_id: conversationId, message_id: messageId, from_me: true,
+              message_type: 'image', content: caption || '[Imagem]', media_url: mediaUrl || null,
+              status: 'sent', timestamp: new Date().toISOString(), company_id: companyId,
+              metadata: { source: 'platform', provider: 'zapi' },
+            });
+            await supabase.from('wapi_conversations').update({ 
+              last_message_at: new Date().toISOString(),
+              last_message_content: caption ? `📷 ${caption.substring(0, 90)}` : '📷 Imagem',
+              last_message_from_me: true,
+            }).eq('id', conversationId);
+          }
+          return new Response(JSON.stringify({ success: true, messageId }), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
         
         let imagePayload: Record<string, unknown> = { caption: caption || '' };
         
@@ -784,6 +951,35 @@ Deno.serve(async (req) => {
 
       case 'send-audio': {
         const { base64: audioBase64, mediaUrl: audioMediaUrl, mimeType: clientMimeType } = body;
+
+        // Z-API path
+        if (isZapi && (audioMediaUrl || audioBase64)) {
+          const audioSource = audioMediaUrl || audioBase64;
+          const zapiRes = await zapiSendAudio(instance_id, instance_token, client_token, phone, audioSource);
+          if (!zapiRes.ok) {
+            return new Response(JSON.stringify({ error: zapiRes.error }), {
+              status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          const messageId = extractZapiMessageId(zapiRes.data);
+          if (conversationId) {
+            await supabase.from('wapi_messages').insert({
+              conversation_id: conversationId, message_id: messageId, from_me: true,
+              message_type: 'audio', content: '🎤 Áudio', media_url: audioMediaUrl || null,
+              status: 'sent', timestamp: new Date().toISOString(), company_id: companyId,
+              metadata: { source: 'platform', provider: 'zapi' },
+            });
+            await supabase.from('wapi_conversations').update({ 
+              last_message_at: new Date().toISOString(),
+              last_message_content: '🎤 Áudio',
+              last_message_from_me: true,
+            }).eq('id', conversationId);
+          }
+          return new Response(JSON.stringify({ success: true, messageId }), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
         const originalMimeType = (typeof clientMimeType === 'string' && clientMimeType.trim().length > 0
           ? clientMimeType.split(';')[0].trim().toLowerCase()
           : 'audio/webm');
@@ -904,6 +1100,16 @@ Deno.serve(async (req) => {
 
       case 'send-document': {
         const { fileName, mediaUrl: docUrl } = body;
+        if (isZapi && docUrl) {
+          const zapiRes = await zapiSendDocument(instance_id, instance_token, client_token, phone, docUrl, fileName || 'document');
+          if (!zapiRes.ok) return new Response(JSON.stringify({ error: zapiRes.error }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          const messageId = extractZapiMessageId(zapiRes.data);
+          if (conversationId) {
+            await supabase.from('wapi_messages').insert({ conversation_id: conversationId, message_id: messageId, from_me: true, message_type: 'document', content: `📄 ${fileName || 'Documento'}`, media_url: docUrl, status: 'sent', timestamp: new Date().toISOString(), company_id: companyId, metadata: { source: 'platform', provider: 'zapi' } });
+            await supabase.from('wapi_conversations').update({ last_message_at: new Date().toISOString(), last_message_content: `📄 ${fileName || 'Documento'}`, last_message_from_me: true }).eq('id', conversationId);
+          }
+          return new Response(JSON.stringify({ success: true, messageId }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
         
         if (!docUrl) {
           return new Response(JSON.stringify({ error: 'URL do documento é obrigatória' }), {
@@ -957,6 +1163,16 @@ Deno.serve(async (req) => {
 
       case 'send-video': {
         const { mediaUrl: videoUrl, caption } = body;
+        if (isZapi && videoUrl) {
+          const zapiRes = await zapiSendVideo(instance_id, instance_token, client_token, phone, videoUrl, caption);
+          if (!zapiRes.ok) return new Response(JSON.stringify({ error: zapiRes.error }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          const messageId = extractZapiMessageId(zapiRes.data);
+          if (conversationId) {
+            await supabase.from('wapi_messages').insert({ conversation_id: conversationId, message_id: messageId, from_me: true, message_type: 'video', content: caption || '🎥 Vídeo', media_url: videoUrl, status: 'sent', timestamp: new Date().toISOString(), company_id: companyId, metadata: { source: 'platform', provider: 'zapi' } });
+            await supabase.from('wapi_conversations').update({ last_message_at: new Date().toISOString(), last_message_content: caption ? `🎥 ${caption.substring(0, 90)}` : '🎥 Vídeo', last_message_from_me: true }).eq('id', conversationId);
+          }
+          return new Response(JSON.stringify({ success: true, messageId }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
         
         if (!videoUrl) {
           return new Response(JSON.stringify({ error: 'URL do vídeo é obrigatória' }), {
@@ -1075,6 +1291,21 @@ Deno.serve(async (req) => {
       }
 
       case 'get-status': {
+        // Z-API status check
+        if (isZapi) {
+          try {
+            const zapiRes = await zapiGetStatus(instance_id, instance_token, client_token);
+            if (!zapiRes.ok) {
+              return new Response(JSON.stringify({ status: 'degraded', connected: false, error: zapiRes.error, errorType: 'TIMEOUT_OR_GATEWAY' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+            }
+            const d = zapiRes.data as Record<string, unknown>;
+            const connected = d.connected === true;
+            const zapiPhone = d.phoneNumber || d.phone || null;
+            return new Response(JSON.stringify({ status: connected ? 'connected' : 'disconnected', connected, phoneNumber: zapiPhone, provider: 'zapi' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          } catch (e) {
+            return new Response(JSON.stringify({ status: 'degraded', connected: false, error: e instanceof Error ? e.message : 'Erro Z-API', errorType: 'TIMEOUT_OR_GATEWAY' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          }
+        }
         try {
           console.log('get-status: checking via qr-code endpoint for', instance_id);
           
@@ -1251,6 +1482,27 @@ Deno.serve(async (req) => {
       }
 
       case 'get-qr': {
+        // Z-API QR code
+        if (isZapi) {
+          try {
+            const zapiRes = await zapiGetQr(instance_id, instance_token, client_token);
+            if (!zapiRes.ok) {
+              return new Response(JSON.stringify({ error: zapiRes.error || 'Z-API instável', errorType: 'TIMEOUT_OR_GATEWAY' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+            }
+            const d = zapiRes.data as Record<string, unknown>;
+            if (d.connected === true) {
+              return new Response(JSON.stringify({ connected: true, success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+            }
+            const qr = d.value || d.qrcode || d.qrCode || d.base64;
+            if (qr) {
+              const qrStr = typeof qr === 'string' && !qr.startsWith('data:') ? `data:image/png;base64,${qr}` : qr;
+              return new Response(JSON.stringify({ qrCode: qrStr, success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+            }
+            return new Response(JSON.stringify({ error: 'QR não disponível (Z-API)' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          } catch (e) {
+            return new Response(JSON.stringify({ error: e instanceof Error ? e.message : 'Erro Z-API', errorType: 'UNKNOWN' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          }
+        }
         try {
           console.log('wapi-send: get-qr - starting fetch for', instance_id);
           const qrController = new AbortController();
@@ -1429,9 +1681,18 @@ Deno.serve(async (req) => {
       case 'request-pairing-code': {
         const { phoneNumber } = body;
         if (!phoneNumber) {
-          return new Response(JSON.stringify({ error: 'Número obrigatório' }), {
-            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
+          return new Response(JSON.stringify({ error: 'Número obrigatório' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        let cleanPhone = phoneNumber.replace(/\D/g, '');
+        if (!cleanPhone.startsWith('55')) cleanPhone = '55' + cleanPhone;
+        if (isZapi) {
+          const zapiRes = await zapiRequestPairingCode(instance_id, instance_token, client_token, cleanPhone);
+          if (zapiRes.ok) {
+            const d = zapiRes.data as Record<string, unknown>;
+            const code = d.code || d.pairingCode || d.phone_code;
+            if (code) return new Response(JSON.stringify({ success: true, pairingCode: code }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          }
+          return new Response(JSON.stringify({ error: zapiRes.error || 'Código não disponível (Z-API)' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         
         let cleanPhone = phoneNumber.replace(/\D/g, '');
@@ -1474,6 +1735,10 @@ Deno.serve(async (req) => {
 
       case 'configure-webhooks': {
         const { webhookUrl } = body;
+        if (isZapi) {
+          const zapiRes = await zapiConfigureWebhooks(instance_id, instance_token, client_token, webhookUrl);
+          return new Response(JSON.stringify({ success: zapiRes.ok, error: zapiRes.error, provider: 'zapi' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
         const config = {
           onConnect: webhookUrl,
           onDisconnect: webhookUrl,
@@ -1866,6 +2131,11 @@ Deno.serve(async (req) => {
 
       case 'disconnect': {
         try {
+          if (isZapi) {
+            await zapiDisconnect(instance_id, instance_token, client_token);
+            await supabase.from('wapi_instances').update({ status: 'disconnected', connected_at: null, phone_number: null }).eq('instance_id', instance_id);
+            return new Response(JSON.stringify({ success: true, message: 'Desconectado via Z-API' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          }
           // Try multiple W-API disconnect/logout endpoints
           const endpoints = [
             { url: `${WAPI_BASE_URL}/instance/logout?instanceId=${instance_id}`, method: 'DELETE' },
