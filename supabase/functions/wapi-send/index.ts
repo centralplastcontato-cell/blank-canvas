@@ -1681,9 +1681,18 @@ Deno.serve(async (req) => {
       case 'request-pairing-code': {
         const { phoneNumber } = body;
         if (!phoneNumber) {
-          return new Response(JSON.stringify({ error: 'Número obrigatório' }), {
-            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
+          return new Response(JSON.stringify({ error: 'Número obrigatório' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        let cleanPhone = phoneNumber.replace(/\D/g, '');
+        if (!cleanPhone.startsWith('55')) cleanPhone = '55' + cleanPhone;
+        if (isZapi) {
+          const zapiRes = await zapiRequestPairingCode(instance_id, instance_token, client_token, cleanPhone);
+          if (zapiRes.ok) {
+            const d = zapiRes.data as Record<string, unknown>;
+            const code = d.code || d.pairingCode || d.phone_code;
+            if (code) return new Response(JSON.stringify({ success: true, pairingCode: code }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          }
+          return new Response(JSON.stringify({ error: zapiRes.error || 'Código não disponível (Z-API)' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         
         let cleanPhone = phoneNumber.replace(/\D/g, '');
