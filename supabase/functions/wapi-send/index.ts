@@ -140,7 +140,7 @@ async function getInstanceCredentials(
   // Fallback: lookup by user_id
   const { data: instance } = await supabase
     .from('wapi_instances')
-    .select('instance_id, instance_token')
+    .select('instance_id, instance_token, provider, client_token')
     .eq('user_id', user.id)
     .limit(1)
     .single();
@@ -152,7 +152,7 @@ async function getInstanceCredentials(
     });
   }
 
-  return { instance_id: instance.instance_id, instance_token: instance.instance_token };
+  return { instance_id: instance.instance_id, instance_token: instance.instance_token, provider: (instance.provider as Provider) || 'wapi', client_token: instance.client_token || null };
 }
 
 // Helper for W-API calls with error handling
