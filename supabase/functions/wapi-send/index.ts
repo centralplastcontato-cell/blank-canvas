@@ -40,7 +40,7 @@ async function getInstanceCredentials(
   if (unit) {
     const { data: instance, error } = await supabase
       .from('wapi_instances')
-      .select('instance_id, instance_token')
+      .select('instance_id, instance_token, provider, client_token')
       .eq('unit', unit)
       .eq('status', 'connected')
       .single();
@@ -51,7 +51,7 @@ async function getInstanceCredentials(
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    return { instance_id: instance.instance_id, instance_token: instance.instance_token };
+    return { instance_id: instance.instance_id, instance_token: instance.instance_token, provider: (instance.provider as Provider) || 'wapi', client_token: instance.client_token || null };
   }
 
   // Authenticated user flow — resolve token server-side
