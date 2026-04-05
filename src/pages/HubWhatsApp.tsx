@@ -83,6 +83,8 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
     instanceToken: "",
     unit: "",
     companyId: "",
+    provider: "wapi" as "wapi" | "zapi",
+    clientToken: "",
   });
 
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
