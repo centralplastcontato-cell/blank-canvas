@@ -1482,6 +1482,27 @@ Deno.serve(async (req) => {
       }
 
       case 'get-qr': {
+        // Z-API QR code
+        if (isZapi) {
+          try {
+            const zapiRes = await zapiGetQr(instance_id, instance_token, client_token);
+            if (!zapiRes.ok) {
+              return new Response(JSON.stringify({ error: zapiRes.error || 'Z-API instável', errorType: 'TIMEOUT_OR_GATEWAY' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+            }
+            const d = zapiRes.data as Record<string, unknown>;
+            if (d.connected === true) {
+              return new Response(JSON.stringify({ connected: true, success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+            }
+            const qr = d.value || d.qrcode || d.qrCode || d.base64;
+            if (qr) {
+              const qrStr = typeof qr === 'string' && !qr.startsWith('data:') ? `data:image/png;base64,${qr}` : qr;
+              return new Response(JSON.stringify({ qrCode: qrStr, success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+            }
+            return new Response(JSON.stringify({ error: 'QR não disponível (Z-API)' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          } catch (e) {
+            return new Response(JSON.stringify({ error: e instanceof Error ? e.message : 'Erro Z-API', errorType: 'UNKNOWN' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          }
+        }
         try {
           console.log('wapi-send: get-qr - starting fetch for', instance_id);
           const qrController = new AbortController();
