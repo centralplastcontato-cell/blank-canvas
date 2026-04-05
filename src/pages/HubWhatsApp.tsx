@@ -42,6 +42,8 @@ interface HubInstance {
   company_name?: string;
   messages_count: number | null;
   credits_available: number | null;
+  provider?: string;
+  client_token?: string | null;
 }
 
 interface ChildCompany {
@@ -81,6 +83,8 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
     instanceToken: "",
     unit: "",
     companyId: "",
+    provider: "wapi" as "wapi" | "zapi",
+    clientToken: "",
   });
 
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
@@ -244,6 +248,8 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
         unit: formData.unit,
         company_id: formData.companyId,
         status: "disconnected",
+        provider: formData.provider,
+        client_token: formData.provider === 'zapi' ? formData.clientToken : null,
       });
 
       if (error) throw error;
@@ -261,7 +267,7 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
 
       toast({ title: "Instância criada", description: `Instância ${formData.unit} criada com sucesso.` });
       setIsCreateOpen(false);
-      setFormData({ instanceId: "", instanceToken: "", unit: "", companyId: "" });
+      setFormData({ instanceId: "", instanceToken: "", unit: "", companyId: "", provider: "wapi", clientToken: "" });
       fetchData();
     } catch (err: any) {
       toast({ title: "Erro", description: err.message || "Erro ao criar instância.", variant: "destructive" });
@@ -380,6 +386,9 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
                               </div>
                             )}
                             <p className="text-xs text-muted-foreground truncate">{inst.instance_id}</p>
+                            {inst.provider === 'zapi' && (
+                              <Badge variant="outline" className="text-xs mt-0.5 w-fit border-blue-300 text-blue-600 dark:border-blue-700 dark:text-blue-400">Z-API</Badge>
+                            )}
                           </div>
                           {getStatusBadge(inst.status)}
                         </div>
@@ -471,6 +480,19 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
 
           <div className="space-y-4">
             <div>
+              <Label>Provedor *</Label>
+              <Select value={formData.provider} onValueChange={(v: "wapi" | "zapi") => setFormData(prev => ({ ...prev, provider: v }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="wapi">W-API</SelectItem>
+                  <SelectItem value="zapi">Z-API</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
               <Label>Empresa *</Label>
               <Select value={formData.companyId} onValueChange={(v) => setFormData(prev => ({ ...prev, companyId: v }))}>
                 <SelectTrigger>
@@ -501,7 +523,7 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
             <div>
               <Label>Instance ID *</Label>
               <Input
-                placeholder="ID da instância na W-API"
+                placeholder={formData.provider === 'zapi' ? "ID da instância na Z-API" : "ID da instância na W-API"}
                 value={formData.instanceId}
                 onChange={(e) => setFormData(prev => ({ ...prev, instanceId: e.target.value }))}
               />
@@ -515,6 +537,21 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
                 onChange={(e) => setFormData(prev => ({ ...prev, instanceToken: e.target.value }))}
               />
             </div>
+
+            {formData.provider === 'zapi' && (
+              <div>
+                <Label>Client Token (Segurança) *</Label>
+                <Input
+                  type="password"
+                  placeholder="Token de segurança da conta Z-API"
+                  value={formData.clientToken}
+                  onChange={(e) => setFormData(prev => ({ ...prev, clientToken: e.target.value }))}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Painel Z-API → Segurança → Token da conta
+                </p>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
