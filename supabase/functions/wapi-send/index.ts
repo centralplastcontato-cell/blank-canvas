@@ -795,8 +795,10 @@ Deno.serve(async (req) => {
 
     switch (action) {
       case 'send-text': {
-        console.log('send-text: sending message to', phone);
-        const sendResult = await sendTextWithFallback(instance_id, instance_token, phone, message);
+        console.log(`send-text: sending message to ${phone} via ${provider}`);
+        const sendResult = isZapi
+          ? await zapiSendText(instance_id, instance_token, client_token, phone, message)
+          : await sendTextWithFallback(instance_id, instance_token, phone, message);
 
         console.log('send-text response:', JSON.stringify(sendResult));
 
