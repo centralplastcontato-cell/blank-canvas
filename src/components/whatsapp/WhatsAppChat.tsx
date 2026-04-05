@@ -12,18 +12,21 @@ async function invokeWithRetry(
 ) {
   let lastError: Error | null = null;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      const response = await supabase.functions.invoke("wapi-send", { body });
+    const response = await supabase.functions.invoke("wapi-send", { body });
+
+    if (!response.error) {
       return response;
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      console.warn(`[invokeWithRetry] Attempt ${attempt + 1}/${maxRetries + 1} failed:`, lastError.message);
-      if (attempt < maxRetries) {
-        await new Promise(r => setTimeout(r, delayMs));
-      }
+    }
+
+    lastError = new Error(response.error.message || 'Falha ao chamar wapi-send');
+    console.warn(`[invokeWithRetry] Attempt ${attempt + 1}/${maxRetries + 1} failed:`, lastError.message);
+
+    if (attempt < maxRetries) {
+      await new Promise(r => setTimeout(r, delayMs));
     }
   }
-  throw lastError;
+
+  throw lastError ?? new Error('Falha ao chamar wapi-send');
 }
 import { insertWithCompany, insertSingleWithCompany, getCurrentCompanyId } from "@/lib/supabase-helpers";
 import { useCompany } from "@/contexts/CompanyContext";

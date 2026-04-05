@@ -173,8 +173,9 @@ async function wapiRequest(url: string, token: string, method: string, body?: un
     }
 
     const data = await res.json();
-    if (!res.ok || data.error) {
-      return { ok: false, error: data.message || 'Erro na W-API' };
+    const providerReportedError = typeof data.error === 'string' ? data.error : null;
+    if (!res.ok || providerReportedError) {
+      return { ok: false, error: providerReportedError || data.message || 'Erro na W-API' };
     }
     return { ok: true, data };
   } catch (e) {
