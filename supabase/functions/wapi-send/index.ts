@@ -182,6 +182,121 @@ async function wapiRequest(url: string, token: string, method: string, body?: un
   }
 }
 
+// ============= Z-API HELPER FUNCTIONS =============
+
+function zapiUrl(instanceId: string, token: string, path: string): string {
+  return `${ZAPI_BASE_URL}/${instanceId}/token/${token}/${path}`;
+}
+
+async function zapiRequest(instanceId: string, token: string, clientToken: string | null, path: string, method: string, body?: unknown): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (clientToken) {
+      headers['Client-Token'] = clientToken;
+    }
+    const url = zapiUrl(instanceId, token, path);
+    const res = await fetch(url, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    const contentType = res.headers.get('content-type');
+    if (contentType?.includes('text/html')) {
+      return { ok: false, error: 'Instância Z-API indisponível' };
+    }
+
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      return { ok: false, error: data.message || data.error || 'Erro na Z-API' };
+    }
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Erro de comunicação Z-API' };
+  }
+}
+
+// Z-API send text
+async function zapiSendText(instanceId: string, token: string, clientToken: string | null, rawPhone: string, message: string): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  const phone = rawPhone.endsWith('@g.us') ? rawPhone : String(rawPhone || '').replace(/\D/g, '');
+  const res = await zapiRequest(instanceId, token, clientToken, 'send-text', 'POST', { phone, message });
+  if (res.ok) {
+    console.log(`[Z-API] send-text success to ${phone}`);
+  }
+  return res;
+}
+
+// Z-API send image
+async function zapiSendImage(instanceId: string, token: string, clientToken: string | null, phone: string, imageUrl: string, caption?: string): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  return zapiRequest(instanceId, token, clientToken, 'send-image', 'POST', {
+    phone: String(phone).replace(/\D/g, ''),
+    image: imageUrl,
+    caption: caption || '',
+  });
+}
+
+// Z-API send audio
+async function zapiSendAudio(instanceId: string, token: string, clientToken: string | null, phone: string, audioUrl: string): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  return zapiRequest(instanceId, token, clientToken, 'send-audio', 'POST', {
+    phone: String(phone).replace(/\D/g, ''),
+    audio: audioUrl,
+  });
+}
+
+// Z-API send video
+async function zapiSendVideo(instanceId: string, token: string, clientToken: string | null, phone: string, videoUrl: string, caption?: string): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  return zapiRequest(instanceId, token, clientToken, 'send-video', 'POST', {
+    phone: String(phone).replace(/\D/g, ''),
+    video: videoUrl,
+    caption: caption || '',
+  });
+}
+
+// Z-API send document (requires extension in URL path)
+async function zapiSendDocument(instanceId: string, token: string, clientToken: string | null, phone: string, docUrl: string, fileName: string): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  const ext = fileName.split('.').pop() || docUrl.split('.').pop()?.split('?')[0] || 'pdf';
+  return zapiRequest(instanceId, token, clientToken, `send-document/${ext}`, 'POST', {
+    phone: String(phone).replace(/\D/g, ''),
+    document: docUrl,
+    fileName,
+  });
+}
+
+// Z-API get QR code
+async function zapiGetQr(instanceId: string, token: string, clientToken: string | null): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  return zapiRequest(instanceId, token, clientToken, 'qr-code/image', 'GET');
+}
+
+// Z-API get status
+async function zapiGetStatus(instanceId: string, token: string, clientToken: string | null): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  return zapiRequest(instanceId, token, clientToken, 'status', 'GET');
+}
+
+// Z-API disconnect
+async function zapiDisconnect(instanceId: string, token: string, clientToken: string | null): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  return zapiRequest(instanceId, token, clientToken, 'disconnect', 'GET');
+}
+
+// Z-API request pairing code
+async function zapiRequestPairingCode(instanceId: string, token: string, clientToken: string | null, phoneNumber: string): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  return zapiRequest(instanceId, token, clientToken, `phone-code/${phoneNumber}`, 'GET');
+}
+
+// Z-API configure webhooks (all at once)
+async function zapiConfigureWebhooks(instanceId: string, token: string, clientToken: string | null, webhookUrl: string): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  return zapiRequest(instanceId, token, clientToken, 'update-webhook', 'PUT', {
+    value: webhookUrl,
+  });
+}
+
+function extractZapiMessageId(payload: unknown): string | null {
+  const data = payload as Record<string, unknown> | undefined;
+  const id = data?.zapiMessageId || data?.messageId || data?.id;
+  return typeof id === 'string' && id.length > 0 ? id : null;
+}
+
 function extractWapiMessageId(payload: unknown): string | null {
   const data = payload as Record<string, unknown> | undefined;
   const nested = (data?.data as Record<string, unknown> | undefined) || {};
