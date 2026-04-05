@@ -852,6 +852,39 @@ Deno.serve(async (req) => {
 
       case 'send-image': {
         const { base64, caption, mediaUrl } = body;
+
+        // Z-API path: send image by URL or base64
+        if (isZapi) {
+          const imageSource = mediaUrl || base64;
+          if (!imageSource) {
+            return new Response(JSON.stringify({ error: 'Imagem é obrigatória' }), {
+              status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          const zapiRes = await zapiSendImage(instance_id, instance_token, client_token, phone, imageSource, caption);
+          if (!zapiRes.ok) {
+            return new Response(JSON.stringify({ error: zapiRes.error }), {
+              status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          const messageId = extractZapiMessageId(zapiRes.data);
+          if (conversationId) {
+            await supabase.from('wapi_messages').insert({
+              conversation_id: conversationId, message_id: messageId, from_me: true,
+              message_type: 'image', content: caption || '[Imagem]', media_url: mediaUrl || null,
+              status: 'sent', timestamp: new Date().toISOString(), company_id: companyId,
+              metadata: { source: 'platform', provider: 'zapi' },
+            });
+            await supabase.from('wapi_conversations').update({ 
+              last_message_at: new Date().toISOString(),
+              last_message_content: caption ? `📷 ${caption.substring(0, 90)}` : '📷 Imagem',
+              last_message_from_me: true,
+            }).eq('id', conversationId);
+          }
+          return new Response(JSON.stringify({ success: true, messageId }), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
         
         let imagePayload: Record<string, unknown> = { caption: caption || '' };
         
