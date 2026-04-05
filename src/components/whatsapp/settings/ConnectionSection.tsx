@@ -1077,10 +1077,12 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
         instanceId: instance.instance_id,
         instanceToken: instance.instance_token,
         unit: instance.unit || "",
+        provider: (instance.provider as "wapi" | "zapi") || "wapi",
+        clientToken: instance.client_token || "",
       });
     } else {
       setEditingInstance(null);
-      setFormData({ instanceId: "", instanceToken: "", unit: "" });
+      setFormData({ instanceId: "", instanceToken: "", unit: "", provider: "wapi", clientToken: "" });
     }
     setIsDialogOpen(true);
   };
