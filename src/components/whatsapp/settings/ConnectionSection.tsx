@@ -1562,6 +1562,9 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                             <Badge variant={instance.status === 'connected' ? 'default' : 'secondary'}>
                               {instance.status === 'connected' ? 'Online' : 'Offline'}
                             </Badge>
+                            {instance.provider === 'zapi' && (
+                              <Badge variant="outline" className="text-xs border-blue-300 text-blue-600 dark:border-blue-700 dark:text-blue-400">Z-API</Badge>
+                            )}
                           </p>
                           <p className="text-sm text-muted-foreground truncate">
                             ID: {instance.instance_id}
