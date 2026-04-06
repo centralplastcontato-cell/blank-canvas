@@ -427,14 +427,16 @@ export default function Visitas() {
               </span>
               {count > 0 && (
                 <div className="flex items-center gap-[2px] lg:gap-[3px] justify-center">
-                  {dayVisits.slice(0, 3).map((v) => (
-                    <span
-                      key={v.id}
-                      className={cn(
-                        "h-[5px] w-[5px] lg:h-[6px] lg:w-[6px] rounded-full",
-                        VISIT_STATUS_DOT[v.status_visita] || "bg-muted-foreground/40"
-                      )}
-                    />
+                    {dayVisits.slice(0, 3).map((v) => (
+                      <span
+                        key={v.id}
+                        className={cn(
+                          "h-[5px] w-[5px] lg:h-[6px] lg:w-[6px] rounded-full",
+                          (v.visit_type || "visita") === "retirada_entrega"
+                            ? "bg-violet-500"
+                            : (VISIT_STATUS_DOT[v.status_visita] || "bg-muted-foreground/40")
+                        )}
+                      />
                   ))}
                   {count > 3 && (
                     <span className="text-[7px] lg:text-[8px] font-bold text-muted-foreground/70 leading-none ml-0.5">
