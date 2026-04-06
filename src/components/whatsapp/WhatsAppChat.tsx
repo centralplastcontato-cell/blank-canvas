@@ -1531,6 +1531,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           const stillExists = data.some(inst => inst.id === prev.id);
           if (stillExists) return prev;
         }
+        // Prefer the instance matching externalSelectedUnit (from localStorage persistence)
+        const extUnit = externalSelectedUnitRef.current;
+        if (extUnit) {
+          const extMatch = data.find(inst => inst.unit === extUnit);
+          if (extMatch) return extMatch as WapiInstance;
+        }
         return data[0] as WapiInstance;
       });
 
