@@ -1146,6 +1146,7 @@ export type Database = {
       company_expenses: {
         Row: {
           amount: number
+          boleto_url: string | null
           category: string
           company_id: string
           created_at: string | null
@@ -1161,6 +1162,7 @@ export type Database = {
         }
         Insert: {
           amount?: number
+          boleto_url?: string | null
           category?: string
           company_id: string
           created_at?: string | null
@@ -1176,6 +1178,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          boleto_url?: string | null
           category?: string
           company_id?: string
           created_at?: string | null

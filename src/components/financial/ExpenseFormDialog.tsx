@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Camera, X, Loader2, ImageIcon } from 'lucide-react';
+import { Camera, X, Loader2, ImageIcon, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -41,8 +41,8 @@ const EXPENSE_TYPES = [
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: { description: string; amount: number; expense_date: string; category: string; expense_type?: string; status: string; notes?: string; receipt_url?: string }) => void;
-  defaultValues?: { description?: string; amount?: number; expense_date?: string; category?: string; expense_type?: string; status?: string; notes?: string; receipt_url?: string };
+  onSubmit: (data: { description: string; amount: number; expense_date: string; category: string; expense_type?: string; status: string; notes?: string; receipt_url?: string; boleto_url?: string }) => void;
+  defaultValues?: { description?: string; amount?: number; expense_date?: string; category?: string; expense_type?: string; status?: string; notes?: string; receipt_url?: string; boleto_url?: string };
   defaultExpenseType?: string;
 }
 
@@ -56,8 +56,12 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
   const [notes, setNotes] = useState('');
   const [receiptUrl, setReceiptUrl] = useState('');
   const [receiptPreview, setReceiptPreview] = useState('');
+  const [boletoUrl, setBoletoUrl] = useState('');
+  const [boletoPreview, setBoletoPreview] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [uploadingBoleto, setUploadingBoleto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const boletoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open && defaultValues) {
@@ -70,6 +74,8 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
       setNotes(defaultValues.notes || '');
       setReceiptUrl(defaultValues.receipt_url || '');
       setReceiptPreview(defaultValues.receipt_url || '');
+      setBoletoUrl(defaultValues.boleto_url || '');
+      setBoletoPreview(defaultValues.boleto_url || '');
     } else if (open) {
       setDescription('');
       setAmount('');
@@ -80,60 +86,76 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
       setNotes('');
       setReceiptUrl('');
       setReceiptPreview('');
+      setBoletoUrl('');
+      setBoletoPreview('');
     }
   }, [open, defaultValues, defaultExpenseType]);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const handleUpload = async (
+    file: File,
+    setUrl: (url: string) => void,
+    setPreview: (p: string) => void,
+    setLoading: (b: boolean) => void,
+    successMsg: string
+  ) => {
     if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
       toast.error('Envie uma imagem ou PDF');
       return;
     }
-
     if (file.size > 10 * 1024 * 1024) {
       toast.error('Arquivo muito grande (máx 10MB)');
       return;
     }
-
-    // Preview for images
     if (file.type.startsWith('image/')) {
       const reader = new FileReader();
-      reader.onload = (ev) => setReceiptPreview(ev.target?.result as string);
+      reader.onload = (ev) => setPreview(ev.target?.result as string);
       reader.readAsDataURL(file);
     } else {
-      setReceiptPreview('pdf');
+      setPreview('pdf');
     }
-
-    setUploading(true);
+    setLoading(true);
     try {
       const ext = file.name.split('.').pop() || 'jpg';
       const filePath = `receipts/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      
       const { error: uploadError } = await supabase.storage
         .from('expense-receipts')
         .upload(filePath, file, { contentType: file.type, upsert: false });
-
       if (uploadError) throw uploadError;
-
       const { data: urlData } = supabase.storage.from('expense-receipts').getPublicUrl(filePath);
-      setReceiptUrl(urlData.publicUrl);
-      toast.success('Comprovante anexado!');
+      setUrl(urlData.publicUrl);
+      toast.success(successMsg);
     } catch (err: any) {
       console.error('Upload error:', err);
       toast.error('Erro ao enviar arquivo');
-      setReceiptPreview('');
-      setReceiptUrl('');
+      setPreview('');
+      setUrl('');
     } finally {
-      setUploading(false);
+      setLoading(false);
     }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await handleUpload(file, setReceiptUrl, setReceiptPreview, setUploading, 'Comprovante anexado!');
+  };
+
+  const handleBoletoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await handleUpload(file, setBoletoUrl, setBoletoPreview, setUploadingBoleto, 'Boleto anexado!');
   };
 
   const removeReceipt = () => {
     setReceiptUrl('');
     setReceiptPreview('');
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const removeBoleto = () => {
+    setBoletoUrl('');
+    setBoletoPreview('');
+    if (boletoInputRef.current) boletoInputRef.current.value = '';
   };
 
   const handleSubmit = () => {
@@ -148,9 +170,70 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
       status,
       notes: notes.trim() || undefined,
       receipt_url: receiptUrl || undefined,
+      boleto_url: boletoUrl || undefined,
     });
     onOpenChange(false);
   };
+
+  const renderUploadField = (
+    label: string,
+    preview: string,
+    inputRef: React.RefObject<HTMLInputElement>,
+    isUploading: boolean,
+    onRemove: () => void,
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void,
+    icon: React.ReactNode,
+    placeholder: string
+  ) => (
+    <div>
+      <Label>{label}</Label>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*,application/pdf"
+        capture="environment"
+        className="hidden"
+        onChange={onChange}
+      />
+      {!preview ? (
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full mt-1 h-16 border-dashed flex flex-col gap-0.5"
+          onClick={() => inputRef.current?.click()}
+          disabled={isUploading}
+        >
+          {isUploading ? (
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          ) : (
+            <>
+              {icon}
+              <span className="text-xs text-muted-foreground">{placeholder}</span>
+            </>
+          )}
+        </Button>
+      ) : (
+        <div className="relative mt-1 rounded-md border overflow-hidden">
+          {preview === 'pdf' ? (
+            <div className="flex items-center gap-2 p-3 bg-muted/50">
+              <ImageIcon className="h-5 w-5 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground truncate">PDF anexado</span>
+            </div>
+          ) : (
+            <img src={preview} alt={label} className="w-full max-h-32 object-cover" />
+          )}
+          <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6" onClick={onRemove}>
+            <X className="h-3 w-3" />
+          </Button>
+          {isUploading && (
+            <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
+              <Loader2 className="h-5 w-5 animate-spin" />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -202,66 +285,27 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
             </Select>
           </div>
 
-          {/* Receipt upload */}
-          <div>
-            <Label>Comprovante / Boleto (opcional)</Label>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,application/pdf"
-              
-              className="hidden"
-              onChange={handleFileChange}
-            />
-            
-            {!receiptPreview ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full mt-1 h-20 border-dashed flex flex-col gap-1"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-              >
-                {uploading ? (
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                ) : (
-                  <>
-                    <Camera className="h-5 w-5 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">Tirar foto ou anexar arquivo</span>
-                  </>
-                )}
-              </Button>
-            ) : (
-              <div className="relative mt-1 rounded-md border overflow-hidden">
-                {receiptPreview === 'pdf' ? (
-                  <div className="flex items-center gap-2 p-3 bg-muted/50">
-                    <ImageIcon className="h-5 w-5 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground truncate">PDF anexado</span>
-                  </div>
-                ) : (
-                  <img
-                    src={receiptPreview}
-                    alt="Comprovante"
-                    className="w-full max-h-40 object-cover"
-                  />
-                )}
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="icon"
-                  className="absolute top-1 right-1 h-6 w-6"
-                  onClick={removeReceipt}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-                {uploading && (
-                  <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          {renderUploadField(
+            'Boleto / Conta (opcional)',
+            boletoPreview,
+            boletoInputRef,
+            uploadingBoleto,
+            removeBoleto,
+            handleBoletoChange,
+            <FileText className="h-5 w-5 text-muted-foreground" />,
+            'Anexar imagem do boleto ou conta'
+          )}
+
+          {renderUploadField(
+            'Comprovante de pagamento (opcional)',
+            receiptPreview,
+            fileInputRef,
+            uploading,
+            removeReceipt,
+            handleFileChange,
+            <Camera className="h-5 w-5 text-muted-foreground" />,
+            'Anexar comprovante de pagamento'
+          )}
 
           <div>
             <Label>Observações (opcional)</Label>
@@ -275,7 +319,7 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
         </div>
         <DialogFooter className="pt-3">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleSubmit} disabled={uploading}>Salvar</Button>
+          <Button onClick={handleSubmit} disabled={uploading || uploadingBoleto}>Salvar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

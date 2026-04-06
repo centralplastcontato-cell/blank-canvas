@@ -621,14 +621,28 @@ export default function Financeiro() {
                                       </div>
                                       <div className="flex items-center gap-1.5 shrink-0" onClick={(ev) => ev.stopPropagation()}>
                                         {e.status !== 'pago' ? (
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="h-7 px-2.5 text-xs font-medium bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-600 hover:border-emerald-600"
-                                            onClick={() => setMarkPaidExpense({ id: e.id, description: e.description })}
-                                          >
-                                            Baixar
-                                          </Button>
+                                          <div className="flex items-center gap-1">
+                                            {(e as any).boleto_url && (
+                                              <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-7 px-2 text-xs"
+                                                onClick={() => window.open((e as any).boleto_url, '_blank')}
+                                                title="Ver boleto"
+                                              >
+                                                <FileText className="h-3.5 w-3.5 sm:mr-1" />
+                                                <span className="hidden sm:inline">Boleto</span>
+                                              </Button>
+                                            )}
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="h-7 px-2.5 text-xs font-medium bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-600 hover:border-emerald-600"
+                                              onClick={() => setMarkPaidExpense({ id: e.id, description: e.description })}
+                                            >
+                                              Baixar
+                                            </Button>
+                                          </div>
                                         ) : (
                                           <div className="flex items-center gap-1">
                                             {e.receipt_url && (
@@ -641,6 +655,18 @@ export default function Financeiro() {
                                               >
                                                 <FileText className="h-3.5 w-3.5 sm:mr-1" />
                                                 <span className="hidden sm:inline">Comprovante</span>
+                                              </Button>
+                                            )}
+                                            {(e as any).boleto_url && (
+                                              <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-7 px-2 text-xs"
+                                                onClick={() => window.open((e as any).boleto_url, '_blank')}
+                                                title="Ver boleto"
+                                              >
+                                                <FileText className="h-3.5 w-3.5 sm:mr-1" />
+                                                <span className="hidden sm:inline">Boleto</span>
                                               </Button>
                                             )}
                                             <Button
@@ -768,6 +794,7 @@ export default function Financeiro() {
           status: editingExpense.status,
           notes: editingExpense.notes,
           receipt_url: editingExpense.receipt_url,
+          boleto_url: (editingExpense as any).boleto_url,
         } : undefined}
         defaultExpenseType={expenseDialogType}
       />
