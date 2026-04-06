@@ -1092,7 +1092,7 @@ export default function Visitas() {
             className={cn("px-8 rounded-lg shadow-sm", isCreateEntrega && "bg-violet-600 hover:bg-violet-700")}
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {isCreateEntrega ? "Agendar Entrega" : "Criar Visita"}
+            {isCreateEntrega ? "Agendar Atendimento" : "Criar Visita"}
           </Button>
         </div>
       </DialogContent>

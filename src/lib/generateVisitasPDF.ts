@@ -159,7 +159,7 @@ export function generateVisitasXLSX(params: VisitasReportParams) {
     Horário: v.horario_visita || '—',
     Lead: v.lead_name || '—',
     Telefone: v.lead_phone || '—',
-    Tipo: (v.visit_type || 'visita') === 'retirada_entrega' ? 'Retirada / Entrega' : 'Visita',
+    Tipo: (v.visit_type || 'visita') === 'atendimento' ? 'Atendimento' : 'Visita',
     Status: STATUS_LABELS[v.status_visita] || v.status_visita,
     'Nível de Interesse': INTEREST_LABELS[v.interest_level || ''] || v.interest_level || '—',
     'Como Conheceu': v.como_conheceu || '—',
