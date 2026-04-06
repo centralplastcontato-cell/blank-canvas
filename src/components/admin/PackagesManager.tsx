@@ -296,6 +296,17 @@ export function PackagesManager() {
               )}
             </div>
 
+            {/* Seção: Grade de Preços (só aparece ao editar) */}
+            {editing && (
+              <div className="rounded-xl border border-border/60 bg-card p-4">
+                <PackagePriceGrid
+                  packageId={editing.id}
+                  companyId={currentCompany?.id || ""}
+                  settings={currentCompany?.settings as Record<string, unknown> | null}
+                />
+              </div>
+            )}
+
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
               <Button onClick={handleSave} disabled={saving || !name.trim()}>
