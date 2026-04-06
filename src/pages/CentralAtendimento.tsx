@@ -882,7 +882,6 @@ export default function CentralAtendimento() {
               </TabsList>
 
               {/* Unit selector - always visible next to tabs (chat tab) */}
-              {(() => { console.log('[UnitSelector] chatInstances:', chatInstances.length, 'activeTab:', activeTab, 'instances:', JSON.stringify(chatInstances)); return null; })()}
               {chatInstances.length > 1 && activeTab === "chat" && (
                 <div className="flex-1 min-w-0 overflow-x-auto rounded-lg [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                   <div className="inline-flex min-w-max items-center gap-1 bg-border rounded-lg p-0.5">
