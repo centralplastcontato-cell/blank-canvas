@@ -164,6 +164,40 @@ export default function CentralAtendimento() {
   // Chat notifications toggle
   const { notificationsEnabled, toggleNotifications } = useChatNotificationToggle();
 
+  const chatUnitOptions = useMemo(() => {
+    const instanceUnits = chatInstances
+      .map((instance) => instance.unit)
+      .filter((unit): unit is string => Boolean(unit));
+
+    if (instanceUnits.length > 0) {
+      return Array.from(new Set(instanceUnits));
+    }
+
+    if (!canViewAll) {
+      return allowedUnits.filter((unit) => unit !== "all" && unit !== "As duas");
+    }
+
+    return Array.from(
+      new Set(
+        units
+          .filter((unit) => unit.slug !== "trabalhe-conosco")
+          .map((unit) => unit.name)
+          .filter(Boolean)
+      )
+    );
+  }, [allowedUnits, canViewAll, chatInstances, units]);
+
+  useEffect(() => {
+    if (chatUnitOptions.length === 0) {
+      setSelectedChatUnit(null);
+      return;
+    }
+
+    setSelectedChatUnit((current) => (
+      current && chatUnitOptions.includes(current) ? current : chatUnitOptions[0]
+    ));
+  }, [chatUnitOptions]);
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -736,40 +770,6 @@ export default function CentralAtendimento() {
     !!filters.search,
     filters.hasScheduledVisit,
   ].filter(Boolean).length;
-
-  const chatUnitOptions = useMemo(() => {
-    const instanceUnits = chatInstances
-      .map((instance) => instance.unit)
-      .filter((unit): unit is string => Boolean(unit));
-
-    if (instanceUnits.length > 0) {
-      return Array.from(new Set(instanceUnits));
-    }
-
-    if (!canViewAll) {
-      return allowedUnits.filter((unit) => unit !== "all" && unit !== "As duas");
-    }
-
-    return Array.from(
-      new Set(
-        units
-          .filter((unit) => unit.slug !== "trabalhe-conosco")
-          .map((unit) => unit.name)
-          .filter(Boolean)
-      )
-    );
-  }, [allowedUnits, canViewAll, chatInstances, units]);
-
-  useEffect(() => {
-    if (chatUnitOptions.length === 0) {
-      setSelectedChatUnit(null);
-      return;
-    }
-
-    setSelectedChatUnit((current) => (
-      current && chatUnitOptions.includes(current) ? current : chatUnitOptions[0]
-    ));
-  }, [chatUnitOptions]);
 
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
