@@ -485,7 +485,7 @@ export default function Visitas() {
             <MapPin className="h-6 w-6 text-muted-foreground/40" />
           </div>
           <p className="text-sm font-medium text-muted-foreground">Nenhum agendamento neste dia</p>
-          <p className="text-xs text-muted-foreground/60 mt-1">Clique em "Nova Visita" ou "Retirada / Entrega"</p>
+          <p className="text-xs text-muted-foreground/60 mt-1">Clique em "Nova Visita" ou "Atendimento"</p>
         </div>
       ) : (
         <div className="space-y-2.5">
