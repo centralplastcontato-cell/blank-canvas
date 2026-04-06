@@ -492,7 +492,7 @@ export default function Visitas() {
           {selectedDayVisits.map(visit => {
             const status = getStatusInfo(visit.status_visita);
             const responsavel = profiles.find(p => p.user_id === visit.responsavel_user_id);
-            const isEntrega = (visit.visit_type || "visita") === "retirada_entrega";
+            const isEntrega = (visit.visit_type || "visita") === "atendimento";
             return (
               <div
                 key={visit.id}
