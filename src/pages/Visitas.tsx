@@ -1080,7 +1080,7 @@ export default function Visitas() {
             <CreateSectionHeader icon={MapPin} label="Observações" />
             <div className="space-y-2.5">
               <Label className="text-sm font-medium text-foreground/70">Notas adicionais</Label>
-              <Textarea value={newNotes} onChange={(e) => setNewNotes(e.target.value)} rows={3} placeholder={isCreateEntrega ? "Observações sobre a entrega/retirada..." : "Informações sobre a visita..."} />
+              <Textarea value={newNotes} onChange={(e) => setNewNotes(e.target.value)} rows={3} placeholder={isCreateEntrega ? "Observações sobre o atendimento..." : "Informações sobre a visita..."} />
             </div>
           </div>
         </div>
