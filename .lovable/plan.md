@@ -1,47 +1,60 @@
 
 
-## Diagnose: "Vulto" de Vendas 1 ao atualizar a tela em Vendas 3
+## Diagnóstico: Robô do Castelo cortando etapas e não enviando materiais
 
-### Causa raiz
+### O que está acontecendo
 
-Quando a pagina e atualizada (F5), o estado `selectedChatUnit` comeca como `null`. O fluxo e:
+O problema é um **descasamento de nomes** entre as instâncias de WhatsApp e os materiais de venda no banco de dados:
 
 ```text
-1. Refresh → selectedChatUnit = null
-2. fetchInstances() carrega instancias ordenadas por nome → [Vendas 1, Vendas 2, Vendas 3]
-3. selectedInstance = data[0] → Vendas 1 (primeiro alfabeticamente)
-4. Effect em selectedInstance dispara → fetchConversations() de Vendas 1
-5. Conversas de Vendas 1 aparecem na lista
-6. onInstancesLoaded → selectedChatUnit = "Vendas 1"
-7. Se usuario seleciona Vendas 3, effect de externalSelectedUnit troca selectedInstance
-8. Novas conversas de Vendas 3 carregam e substituem
+Instâncias WhatsApp (wapi_instances):
+  ├── Vendas 1  ← conectada (15991336278)
+  ├── Vendas 2  ← desconectada
+  └── Vendas 3  ← conectada (15991425170)
+
+Materiais de Venda (sales_materials):
+  └── Castelo da Diversão  ← todos os 16 materiais ativos estão com esse nome
 ```
 
-O problema: **nao ha persistencia da unidade selecionada**. Sempre volta para a primeira instancia, mostrando contatos errados por um instante. O session replay confirma inclusive um flash de "Nenhuma instancia disponivel" antes do carregamento.
+Quando o robô termina a qualificação e vai buscar materiais, ele faz:
+```
+SELECT * FROM sales_materials WHERE unit = 'Vendas 1' AND is_active = true
+```
+Resultado: **0 materiais encontrados**. O robô pula direto para a pergunta de próximo passo.
 
-### Plano de correcao
+### Por que os outros buffets funcionam normalmente
 
-**Arquivo 1: `src/pages/CentralAtendimento.tsx`**
+| Buffet | Instância unit | Materiais unit | Match? |
+|--------|---------------|----------------|--------|
+| Aventura Kids | `Aventura Kids` | `Aventura Kids` | Sim |
+| Planeta Divertido | `Planeta Divertido` | `Planeta Divertido` | Sim |
+| Castelo da Diversão | `Vendas 1` / `Vendas 3` | `Castelo da Diversão` | **Não** |
 
-1. Persistir `selectedChatUnit` em `localStorage` com chave `chat_selected_unit_{companyId}`.
-2. No `useState` inicial, ler do localStorage ao inves de `null`.
-3. No `onInstancesLoaded`, respeitar o valor persistido se a instancia ainda existe — nao sobrescrever com `instances[0].unit`.
-4. No `setSelectedChatUnit`, salvar no localStorage a cada troca.
+O Castelo é o único com nomes diferentes porque as instâncias foram renomeadas (provavelmente na migração da unidade Manchester), mas os materiais mantiveram o nome original.
 
-**Arquivo 2: `src/components/whatsapp/WhatsAppChat.tsx`**
+### Como isso funcionava antes
 
-5. No `fetchInstances` (linha 1527), quando `externalSelectedUnit` esta definido, preferir a instancia correspondente ao inves de `data[0]`.
-6. Adicionar um ref para `externalSelectedUnit` e usa-lo na logica de selecao inicial de instancia, evitando que Vendas 1 seja selecionado antes do sync do effect externo.
-7. No effect de `selectedInstance` (linha 1054), manter o `setConversations([])` que ja existe para limpar dados da instancia anterior.
+Antes, as instâncias provavelmente tinham `unit = "Castelo da Diversão"` (ou similar) e batia com os materiais. Quando as instâncias foram renomeadas para "Vendas 1", "Vendas 2", "Vendas 3", os materiais ficaram órfãos.
 
-### Detalhes tecnicos
+### Correção proposta
 
-- `localStorage` key: `chat_selected_unit_${currentCompany?.id}` para isolamento multi-tenant.
-- Na leitura do localStorage, validar que a unidade salva ainda existe nas `chatUnitOptions` antes de usa-la.
-- O ref de `externalSelectedUnit` garante que `fetchInstances` ja sabe qual instancia preferir no momento da resolucao, sem depender de re-render.
-- Nenhuma alteracao em conexoes WhatsApp, webhooks ou Edge Functions.
+Tornar a busca de materiais mais robusta, usando `company_id` como fallback quando não encontra materiais pela `unit` exata. Assim funciona independente do nome da instância.
 
-### Resultado esperado
+**Arquivo:** `supabase/functions/wapi-webhook/index.ts`
 
-Ao atualizar a pagina estando em Vendas 3, o sistema carrega diretamente as conversas de Vendas 3, sem flash de Vendas 1.
+Na função `sendQualificationMaterials` (linha ~2920):
+
+1. Manter a busca atual por `unit` (para empresas que têm materiais separados por unidade).
+2. Se não encontrar nenhum material por `unit`, fazer uma segunda busca por `company_id` (fallback).
+3. Isso resolve o Castelo imediatamente e protege contra renomeações futuras em qualquer buffet.
+
+```text
+Busca materiais por unit ("Vendas 1")
+  └── Encontrou? → Usa esses materiais
+  └── Não encontrou? → Busca por company_id
+       └── Encontrou? → Usa esses materiais
+       └── Não encontrou? → Log e pula (comportamento atual)
+```
+
+Nenhuma alteração em dados do banco necessária. Nenhuma mudança em conexão WhatsApp.
 
