@@ -83,7 +83,7 @@ interface Visit {
   restrictions?: any;
   client_questions?: string | null;
   seller_notes?: string | null;
-  // Retirada/Entrega fields
+  // Atendimento fields
   visit_type?: string;
   event_id?: string | null;
   items_description?: string | null;
@@ -105,7 +105,7 @@ export default function Visitas() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [detailVisit, setDetailVisit] = useState<Visit | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [createType, setCreateType] = useState<"visita" | "retirada_entrega">("visita");
+  const [createType, setCreateType] = useState<"visita" | "atendimento">("visita");
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string }[]>([]);
 
   const { units } = useCompanyUnits(currentCompany?.id);
@@ -273,7 +273,7 @@ export default function Visitas() {
       unit: newUnit || null,
       visit_type: createType,
     };
-    if (createType === "retirada_entrega") {
+    if (createType === "atendimento") {
       payload.event_id = newEventId || null;
       payload.items_description = newItemsDesc || null;
     }
@@ -296,7 +296,7 @@ export default function Visitas() {
     setLeadResults([]); setNewItemsDesc(""); setNewEventId(""); setLeadEvents([]);
   };
 
-  // Fetch events for a lead (used in retirada_entrega)
+  // Fetch events for a lead (used in atendimento)
   const fetchLeadEvents = async (leadId: string) => {
     const companyId = getCurrentCompanyId();
     if (!companyId) return;
@@ -432,7 +432,7 @@ export default function Visitas() {
                         key={v.id}
                         className={cn(
                           "h-[5px] w-[5px] lg:h-[6px] lg:w-[6px] rounded-full",
-                          (v.visit_type || "visita") === "retirada_entrega"
+                          (v.visit_type || "visita") === "atendimento"
                             ? "bg-violet-500"
                             : (VISIT_STATUS_DOT[v.status_visita] || "bg-muted-foreground/40")
                         )}
@@ -485,14 +485,14 @@ export default function Visitas() {
             <MapPin className="h-6 w-6 text-muted-foreground/40" />
           </div>
           <p className="text-sm font-medium text-muted-foreground">Nenhum agendamento neste dia</p>
-          <p className="text-xs text-muted-foreground/60 mt-1">Clique em "Nova Visita" ou "Retirada / Entrega"</p>
+          <p className="text-xs text-muted-foreground/60 mt-1">Clique em "Nova Visita" ou "Atendimento"</p>
         </div>
       ) : (
         <div className="space-y-2.5">
           {selectedDayVisits.map(visit => {
             const status = getStatusInfo(visit.status_visita);
             const responsavel = profiles.find(p => p.user_id === visit.responsavel_user_id);
-            const isEntrega = (visit.visit_type || "visita") === "retirada_entrega";
+            const isEntrega = (visit.visit_type || "visita") === "atendimento";
             return (
               <div
                 key={visit.id}
@@ -535,7 +535,7 @@ export default function Visitas() {
                   <div className="flex flex-col items-end gap-1 shrink-0">
                     {isEntrega && (
                       <Badge variant="outline" className="text-[10px] border font-semibold bg-violet-500/15 text-violet-700 border-violet-300">
-                        Entrega
+                        Atendimento
                       </Badge>
                     )}
                     <Badge variant="outline" className={cn("text-[10px] border font-semibold", status.color)}>
@@ -631,7 +631,7 @@ export default function Visitas() {
             <SelectContent>
               <SelectItem value="all">Todos tipos</SelectItem>
               <SelectItem value="visita">Visitas</SelectItem>
-              <SelectItem value="retirada_entrega">Retirada / Entrega</SelectItem>
+              <SelectItem value="atendimento">Atendimento</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -639,8 +639,8 @@ export default function Visitas() {
           <Button size="sm" className="h-10 px-5 rounded-xl gap-2 font-semibold shadow-sm" onClick={() => { resetCreateForm(); setCreateType("visita"); setCreateOpen(true); }}>
             <Plus className="h-4 w-4" /> Nova Visita
           </Button>
-          <Button size="sm" variant="outline" className="h-10 px-5 rounded-xl gap-2 font-semibold shadow-sm border-violet-300 text-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950/30" onClick={() => { resetCreateForm(); setCreateType("retirada_entrega"); setCreateOpen(true); }}>
-            <Package className="h-4 w-4" /> Retirada / Entrega
+          <Button size="sm" variant="outline" className="h-10 px-5 rounded-xl gap-2 font-semibold shadow-sm border-violet-300 text-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950/30" onClick={() => { resetCreateForm(); setCreateType("atendimento"); setCreateOpen(true); }}>
+            <Package className="h-4 w-4" /> Atendimento
           </Button>
         </div>
       </div>
@@ -745,7 +745,7 @@ export default function Visitas() {
     </div>
   );
 
-  const isDetailEntrega = detailVisit && (detailVisit.visit_type || "visita") === "retirada_entrega";
+  const isDetailEntrega = detailVisit && (detailVisit.visit_type || "visita") === "atendimento";
 
   const detailSheet = (
     <Sheet open={!!detailVisit} onOpenChange={() => setDetailVisit(null)}>
@@ -774,7 +774,7 @@ export default function Visitas() {
                   <div className="min-w-0 flex-1">
                     <SheetTitle className="text-lg font-bold truncate">{detailVisit.lead_name}</SheetTitle>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {isDetailEntrega && <span className="text-violet-600 font-semibold">Retirada / Entrega · </span>}
+                      {isDetailEntrega && <span className="text-violet-600 font-semibold">Atendimento · </span>}
                       {format(parseISO(detailVisit.data_visita + "T12:00:00"), "dd 'de' MMMM, yyyy", { locale: ptBR })}
                       {detailVisit.horario_visita && ` às ${detailVisit.horario_visita}`}
                     </p>
@@ -806,10 +806,10 @@ export default function Visitas() {
                 </Button>
               )}
 
-              {/* Items description for entregas */}
+              {/* Items description for atendimento */}
               {isDetailEntrega && (detailVisit.items_description || detailVisit.event_title) && (
                 <div className="rounded-xl border border-violet-300/40 bg-violet-50/50 dark:bg-violet-950/20 p-4 space-y-3">
-                  <p className="text-[11px] uppercase tracking-wider font-semibold text-violet-600">📦 Detalhes da Entrega</p>
+                  <p className="text-[11px] uppercase tracking-wider font-semibold text-violet-600">📋 Detalhes do Atendimento</p>
                   {detailVisit.event_title && (
                     <div><p className="text-xs text-muted-foreground">Festa vinculada</p><p className="font-medium text-sm">{detailVisit.event_title}</p></div>
                   )}
@@ -899,7 +899,7 @@ export default function Visitas() {
                 </div>
               </div>
 
-              {/* Qualification Section - only for visits, not entregas */}
+              {/* Qualification Section - only for visits, not atendimento */}
               {!isDetailEntrega && (
                 <VisitQualification
                   visitId={detailVisit.id}
@@ -929,7 +929,7 @@ export default function Visitas() {
     </Sheet>
   );
 
-  const isCreateEntrega = createType === "retirada_entrega";
+  const isCreateEntrega = createType === "atendimento";
 
   const createDialog = (
     <Dialog open={createOpen} onOpenChange={setCreateOpen}>
@@ -939,10 +939,10 @@ export default function Visitas() {
           isCreateEntrega ? "bg-violet-50/50 dark:bg-violet-950/20" : "bg-muted/30"
         )}>
           <DialogTitle className="text-lg font-bold tracking-tight flex items-center gap-2">
-            {isCreateEntrega ? <><Package className="h-5 w-5 text-violet-600" /> Retirada / Entrega</> : "Nova Visita"}
+            {isCreateEntrega ? <><Package className="h-5 w-5 text-violet-600" /> Atendimento</> : "Nova Visita"}
           </DialogTitle>
           <p className="text-[13px] text-muted-foreground mt-1">
-            {isCreateEntrega ? "Agende uma retirada ou entrega de itens para uma festa" : "Agende uma nova visita para um lead"}
+            {isCreateEntrega ? "Agende um atendimento para um cliente com festa fechada" : "Agende uma nova visita para um lead"}
           </p>
         </DialogHeader>
         <div className="overflow-y-auto px-7 py-6 space-y-5" style={{ maxHeight: "calc(90vh - 180px)" }}>
@@ -989,7 +989,7 @@ export default function Visitas() {
             </div>
           </div>
 
-          {/* Event link - only for retirada_entrega */}
+          {/* Event link - only for atendimento */}
           {isCreateEntrega && newLeadId && (
             <div className="rounded-xl border border-violet-300/40 bg-violet-50/30 dark:bg-violet-950/10 p-5 shadow-sm">
               <CreateSectionHeader icon={PartyPopper} label="Festa vinculada" />
@@ -1065,13 +1065,13 @@ export default function Visitas() {
             </div>
           </div>
 
-          {/* Items description for retirada_entrega */}
+          {/* Items description for atendimento */}
           {isCreateEntrega && (
             <div className="rounded-xl border border-violet-300/40 bg-violet-50/30 dark:bg-violet-950/10 p-5 shadow-sm">
-              <CreateSectionHeader icon={Package} label="Itens" />
+              <CreateSectionHeader icon={Package} label="Detalhes" />
               <div className="space-y-2.5">
-                <Label className="text-sm font-medium text-foreground/70">O que será entregue/retirado?</Label>
-                <Textarea value={newItemsDesc} onChange={(e) => setNewItemsDesc(e.target.value)} rows={3} placeholder="Ex: 2 caixas de refrigerante, lembrancinhas, toalha de mesa personalizada..." />
+                <Label className="text-sm font-medium text-foreground/70">Motivo / itens do atendimento</Label>
+                <Textarea value={newItemsDesc} onChange={(e) => setNewItemsDesc(e.target.value)} rows={3} placeholder="Ex: pagamento de parcela, tirar dúvidas sobre o evento, entrega de lembrancinhas..." />
               </div>
             </div>
           )}
@@ -1080,7 +1080,7 @@ export default function Visitas() {
             <CreateSectionHeader icon={MapPin} label="Observações" />
             <div className="space-y-2.5">
               <Label className="text-sm font-medium text-foreground/70">Notas adicionais</Label>
-              <Textarea value={newNotes} onChange={(e) => setNewNotes(e.target.value)} rows={3} placeholder={isCreateEntrega ? "Observações sobre a entrega/retirada..." : "Informações sobre a visita..."} />
+              <Textarea value={newNotes} onChange={(e) => setNewNotes(e.target.value)} rows={3} placeholder={isCreateEntrega ? "Observações sobre o atendimento..." : "Informações sobre a visita..."} />
             </div>
           </div>
         </div>
@@ -1092,7 +1092,7 @@ export default function Visitas() {
             className={cn("px-8 rounded-lg shadow-sm", isCreateEntrega && "bg-violet-600 hover:bg-violet-700")}
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {isCreateEntrega ? "Agendar Entrega" : "Criar Visita"}
+            {isCreateEntrega ? "Agendar Atendimento" : "Criar Visita"}
           </Button>
         </div>
       </DialogContent>
