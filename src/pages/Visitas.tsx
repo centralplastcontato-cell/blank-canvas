@@ -261,7 +261,7 @@ export default function Visitas() {
       return;
     }
     setSaving(true);
-    const payload = {
+    const payload: any = {
       lead_id: newLeadId,
       company_id: getCurrentCompanyId(),
       data_visita: format(newDate, "yyyy-MM-dd"),
@@ -271,7 +271,12 @@ export default function Visitas() {
       responsavel_user_id: newResponsavel || null,
       created_by: user!.id,
       unit: newUnit || null,
+      visit_type: createType,
     };
+    if (createType === "retirada_entrega") {
+      payload.event_id = newEventId || null;
+      payload.items_description = newItemsDesc || null;
+    }
 
     const { error } = await (supabase as any).from("lead_visits").insert(payload);
     if (error) {
