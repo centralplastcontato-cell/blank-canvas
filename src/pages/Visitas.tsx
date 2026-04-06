@@ -929,7 +929,7 @@ export default function Visitas() {
     </Sheet>
   );
 
-  const isCreateEntrega = createType === "retirada_entrega";
+  const isCreateEntrega = createType === "atendimento";
 
   const createDialog = (
     <Dialog open={createOpen} onOpenChange={setCreateOpen}>
