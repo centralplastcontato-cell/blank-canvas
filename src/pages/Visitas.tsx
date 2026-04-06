@@ -221,77 +221,7 @@ export default function Visitas() {
     return map;
   }, [filteredVisits]);
 
-  // Search leads for create dialog
-  const searchLeads = async (query: string) => {
-    if (query.length < 2) { setLeadResults([]); return; }
-    const companyId = getCurrentCompanyId();
-    const { data } = await supabase.from("campaign_leads")
-      .select("id, name, whatsapp")
-      .eq("company_id", companyId!)
-      .or(`name.ilike.%${query}%,whatsapp.ilike.%${query}%`)
-      .limit(10);
-    setLeadResults(data || []);
-  };
 
-  useEffect(() => {
-    const t = setTimeout(() => searchLeads(newLeadSearch), 300);
-    return () => clearTimeout(t);
-  }, [newLeadSearch]);
-
-  const handleCreate = async () => {
-    if (!newLeadId || !newDate) {
-      toast({ title: "Selecione um lead e uma data", variant: "destructive" });
-      return;
-    }
-    setSaving(true);
-    const payload: any = {
-      lead_id: newLeadId,
-      company_id: getCurrentCompanyId(),
-      data_visita: format(newDate, "yyyy-MM-dd"),
-      horario_visita: newTime || null,
-      status_visita: "agendada",
-      observacoes: newNotes || null,
-      responsavel_user_id: newResponsavel || null,
-      created_by: user!.id,
-      unit: newUnit || null,
-      visit_type: createType,
-    };
-    if (createType === "atendimento") {
-      payload.event_id = newEventId || null;
-      payload.items_description = newItemsDesc || null;
-    }
-
-    const { error } = await (supabase as any).from("lead_visits").insert(payload);
-    if (error) {
-      toast({ title: "Erro ao criar visita", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Visita criada!" });
-      setCreateOpen(false);
-      resetCreateForm();
-      fetchVisits();
-    }
-    setSaving(false);
-  };
-
-  const resetCreateForm = () => {
-    setNewLeadSearch(""); setNewLeadId(""); setNewLeadName("");
-    setNewDate(undefined); setNewTime(""); setNewNotes(""); setNewResponsavel(""); setNewUnit("");
-    setLeadResults([]); setNewItemsDesc(""); setNewEventId(""); setLeadEvents([]);
-  };
-
-  // Fetch events for a lead (used in atendimento)
-  const fetchLeadEvents = async (leadId: string) => {
-    const companyId = getCurrentCompanyId();
-    if (!companyId) return;
-    const { data } = await (supabase as any)
-      .from("company_events")
-      .select("id, title, event_date, start_time, end_time, event_type, guest_count, total_value, package_name, unit, status, child_name, child_age, payment_method")
-      .eq("company_id", companyId)
-      .eq("lead_id", leadId)
-      .neq("status", "cancelado")
-      .order("event_date", { ascending: true });
-    setLeadEvents(data || []);
-  };
 
   const updateVisitStatus = async (visitId: string, newStatus: string) => {
     const { error } = await (supabase as any).from("lead_visits").update({ status_visita: newStatus }).eq("id", visitId);
