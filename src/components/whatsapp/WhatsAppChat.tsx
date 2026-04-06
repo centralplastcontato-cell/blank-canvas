@@ -1053,6 +1053,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
   useEffect(() => {
     if (selectedInstance) {
+      setConversations([]);
       // Pass initialPhone only on first load if not yet processed
       if (initialPhone && !initialPhoneProcessed) {
         fetchConversations(initialPhone);
