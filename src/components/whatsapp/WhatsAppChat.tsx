@@ -4305,7 +4305,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       {linkedLead && (
         <QuickVisitDialog
           open={showQuickVisitDialog}
-          onOpenChange={setShowQuickVisitDialog}
+          onOpenChange={(v) => { setShowQuickVisitDialog(v); if (!v) setQuickVisitType("visita"); }}
           leadId={linkedLead.id}
           currentUserId={userId}
           leadUnit={linkedLead.unit}
