@@ -533,7 +533,7 @@ export default function Financeiro() {
                             <span>{t.label}</span>
                             {t.count > 0 && (
                               <Badge className={`ml-0.5 h-5 min-w-[20px] px-1.5 text-[10px] ${
-                                despesasSubTab === t.value ? 'bg-background/20 text-background' : t.value === 'baixadas' ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'
+                                despesasSubTab === t.value ? 'bg-background/20 text-background' : t.value === 'baixadas' ? 'bg-emerald-500 text-white' : t.value === 'a_vencer' ? 'bg-orange-500 text-white' : 'bg-blue-500 text-white'
                               }`}>{t.count}</Badge>
                             )}
                           </button>
