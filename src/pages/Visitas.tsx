@@ -989,7 +989,7 @@ export default function Visitas() {
             </div>
           </div>
 
-          {/* Event link - only for retirada_entrega */}
+          {/* Event link - only for atendimento */}
           {isCreateEntrega && newLeadId && (
             <div className="rounded-xl border border-violet-300/40 bg-violet-50/30 dark:bg-violet-950/10 p-5 shadow-sm">
               <CreateSectionHeader icon={PartyPopper} label="Festa vinculada" />
