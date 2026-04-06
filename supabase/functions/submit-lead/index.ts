@@ -235,22 +235,36 @@ Deno.serve(async (req) => {
             resolvedUnit = activeUnits[0];
           } else {
             // Multiple instances — check routing mode
-            // Check if mode matches a specific unit name
-            const fixedUnit = activeUnits.find((u: string) => u.toLowerCase().replace(/\s+/g, '') === mode.toLowerCase().replace(/\s+/g, ''));
-            if (fixedUnit) {
-              resolvedUnit = fixedUnit;
-            } else if (mode === 'auto') {
+            if (mode === 'auto') {
               // Round-robin across all active units
               const counter = routingSettings.lead_routing_counter || 0;
               resolvedUnit = activeUnits[counter % activeUnits.length];
-              // Increment counter
               await supabaseEarly
                 .from('lp_bot_settings')
                 .update({ lead_routing_counter: counter + 1 })
                 .eq('company_id', company_id);
+            } else if (mode.includes(',')) {
+              // Multi-unit selection (comma-separated) — round-robin only among selected
+              const selectedUnits = mode.split(',').filter((u: string) => activeUnits.includes(u));
+              if (selectedUnits.length > 0) {
+                const counter = routingSettings.lead_routing_counter || 0;
+                resolvedUnit = selectedUnits[counter % selectedUnits.length];
+                await supabaseEarly
+                  .from('lp_bot_settings')
+                  .update({ lead_routing_counter: counter + 1 })
+                  .eq('company_id', company_id);
+              } else {
+                resolvedUnit = activeUnits[0];
+              }
             } else {
-              // Unknown mode — default to first unit
-              resolvedUnit = activeUnits[0];
+              // Single unit mode — check if mode matches a specific unit name
+              const fixedUnit = activeUnits.find((u: string) => u.toLowerCase().replace(/\s+/g, '') === mode.toLowerCase().replace(/\s+/g, ''));
+              if (fixedUnit) {
+                resolvedUnit = fixedUnit;
+              } else {
+                // Unknown mode — default to first unit
+                resolvedUnit = activeUnits[0];
+              }
             }
           }
         }
