@@ -946,7 +946,7 @@ export default function CentralAtendimento() {
               {/* Unit selector - always visible next to tabs (chat tab) */}
               {chatUnitOptions.length > 1 && activeTab === "chat" && (
                 <div className="flex-1 min-w-0">
-                  <Select value={selectedChatUnit ?? undefined} onValueChange={setSelectedChatUnit}>
+                  <Select value={selectedChatUnit ?? undefined} onValueChange={handleSetSelectedChatUnit}>
                     <SelectTrigger className="h-9 w-full text-xs">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <Building2 className="w-3.5 h-3.5 shrink-0" />
