@@ -25,7 +25,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import {
   Smartphone, Wifi, WifiOff, RefreshCw, Plus, Building2,
-  Phone, MessageSquare, Loader2, BarChart3, QrCode, Power, Pencil, Check, X, Trash2
+  Phone, MessageSquare, Loader2, BarChart3, QrCode, Power, Pencil, Check, X, Trash2, Settings2
 } from "lucide-react";
 import {
   AlertDialog,
@@ -102,7 +102,56 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
   const [renameValue, setRenameValue] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<HubInstance | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [editTarget, setEditTarget] = useState<HubInstance | null>(null);
+  const [isEditSaving, setIsEditSaving] = useState(false);
+  const [editData, setEditData] = useState({
+    instanceId: "",
+    instanceToken: "",
+    unit: "",
+    companyId: "",
+    provider: "wapi" as "wapi" | "zapi",
+    clientToken: "",
+  });
   const connection = useWhatsAppConnection(() => fetchData());
+
+  const openEditDialog = (inst: HubInstance) => {
+    setEditTarget(inst);
+    setEditData({
+      instanceId: inst.instance_id,
+      instanceToken: inst.instance_token,
+      unit: inst.unit || "",
+      companyId: inst.company_id,
+      provider: (inst.provider || "wapi") as "wapi" | "zapi",
+      clientToken: inst.client_token || "",
+    });
+  };
+
+  const handleEditSave = async () => {
+    if (!editTarget) return;
+    if (!editData.instanceId || !editData.instanceToken || !editData.unit || !editData.companyId) {
+      toast({ title: "Erro", description: "Preencha todos os campos.", variant: "destructive" });
+      return;
+    }
+    setIsEditSaving(true);
+    try {
+      const { error } = await supabase.from("wapi_instances").update({
+        instance_id: editData.instanceId,
+        instance_token: editData.instanceToken,
+        unit: editData.unit,
+        company_id: editData.companyId,
+        provider: editData.provider,
+        client_token: editData.provider === "zapi" ? editData.clientToken : null,
+      }).eq("id", editTarget.id);
+      if (error) throw error;
+      toast({ title: "Instância atualizada", description: `"${editData.unit}" foi atualizada com sucesso.` });
+      setEditTarget(null);
+      fetchData();
+    } catch (err: any) {
+      toast({ title: "Erro ao atualizar", description: err.message, variant: "destructive" });
+    } finally {
+      setIsEditSaving(false);
+    }
+  };
 
   const handleDeleteInstance = async () => {
     if (!deleteTarget) return;
@@ -414,6 +463,15 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
                                 <Button
                                   size="icon"
                                   variant="ghost"
+                                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                                  onClick={() => openEditDialog(inst)}
+                                  title="Editar instância"
+                                >
+                                  <Settings2 className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
                                   className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-destructive hover:text-destructive"
                                   onClick={() => setDeleteTarget(inst)}
                                 >
@@ -623,6 +681,102 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Instance Dialog */}
+      <Dialog open={!!editTarget} onOpenChange={(open) => !open && setEditTarget(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Instância</DialogTitle>
+            <DialogDescription>
+              Atualize as credenciais e configurações da instância.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label>Provedor *</Label>
+              <Select value={editData.provider} onValueChange={(v: "wapi" | "zapi") => setEditData(prev => ({ ...prev, provider: v }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="wapi">W-API</SelectItem>
+                  <SelectItem value="zapi">Z-API</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Empresa *</Label>
+              <Select value={editData.companyId} onValueChange={(v) => setEditData(prev => ({ ...prev, companyId: v }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a empresa" />
+                </SelectTrigger>
+                <SelectContent>
+                  {childCompanies.map(c => (
+                    <SelectItem key={c.id} value={c.id}>
+                      <span className="flex items-center gap-2">
+                        <Building2 className="h-3.5 w-3.5" />
+                        {c.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Unidade *</Label>
+              <Input
+                placeholder="Ex: Manchester"
+                value={editData.unit}
+                onChange={(e) => setEditData(prev => ({ ...prev, unit: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <Label>Instance ID *</Label>
+              <Input
+                placeholder={editData.provider === 'zapi' ? "ID da instância na Z-API" : "ID da instância na W-API"}
+                value={editData.instanceId}
+                onChange={(e) => setEditData(prev => ({ ...prev, instanceId: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <Label>Instance Token *</Label>
+              <Input
+                placeholder="Token da instância"
+                value={editData.instanceToken}
+                onChange={(e) => setEditData(prev => ({ ...prev, instanceToken: e.target.value }))}
+              />
+            </div>
+
+            {editData.provider === 'zapi' && (
+              <div>
+                <Label>Client Token (Segurança) *</Label>
+                <Input
+                  type="password"
+                  placeholder="Token de segurança da conta Z-API"
+                  value={editData.clientToken}
+                  onChange={(e) => setEditData(prev => ({ ...prev, clientToken: e.target.value }))}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Painel Z-API → Segurança → Token da conta
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTarget(null)}>Cancelar</Button>
+            <Button onClick={handleEditSave} disabled={isEditSaving}>
+              {isEditSaving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Check className="h-4 w-4 mr-1.5" />}
+              Salvar Alterações
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
