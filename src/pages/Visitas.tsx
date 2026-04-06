@@ -107,21 +107,7 @@ export default function Visitas() {
 
   const { units } = useCompanyUnits(currentCompany?.id);
 
-  // Create form state
-  const [newLeadSearch, setNewLeadSearch] = useState("");
-  const [newLeadId, setNewLeadId] = useState("");
-  const [newLeadName, setNewLeadName] = useState("");
-  const [newDate, setNewDate] = useState<Date | undefined>(undefined);
-  const [newTime, setNewTime] = useState("");
-  const [newNotes, setNewNotes] = useState("");
-  const [newResponsavel, setNewResponsavel] = useState("");
-  const [newUnit, setNewUnit] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [leadResults, setLeadResults] = useState<{ id: string; name: string; whatsapp: string }[]>([]);
   const [reportOpen, setReportOpen] = useState(false);
-  const [newItemsDesc, setNewItemsDesc] = useState("");
-  const [newEventId, setNewEventId] = useState("");
-  const [leadEvents, setLeadEvents] = useState<any[]>([]);
 
   const { isAdmin, canManageUsers } = useUserRole(user?.id);
 
