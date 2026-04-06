@@ -301,6 +301,7 @@ import { ContactInfoSheet } from "@/components/whatsapp/ContactInfoSheet";
 import { SalesMaterialsMenu } from "@/components/whatsapp/SalesMaterialsMenu";
 import { ShareToGroupDialog } from "@/components/whatsapp/ShareToGroupDialog";
 import { QuickVisitDialog } from "@/components/whatsapp/QuickVisitDialog";
+import { VisitFormDialog } from "@/components/visitas/VisitFormDialog";
 import { FollowUpChip, isAutomationMessage } from "@/components/whatsapp/FollowUpChip";
 import { AutomationTimelineSheet } from "@/components/whatsapp/AutomationTimelineSheet";
 import { useFilterOrder } from "@/hooks/useFilterOrder";
@@ -4302,7 +4303,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       )}
 
       {/* Quick Visit Dialog */}
-      {linkedLead && (
+      {linkedLead && quickVisitType === "visita" && (
         <QuickVisitDialog
           open={showQuickVisitDialog}
           onOpenChange={(v) => { setShowQuickVisitDialog(v); if (!v) setQuickVisitType("visita"); }}
@@ -4310,7 +4311,17 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           currentUserId={userId}
           leadUnit={linkedLead.unit}
           onVisitRegistered={() => setVisitRefreshKey(k => k + 1)}
-          initialVisitType={quickVisitType}
+          initialVisitType="visita"
+        />
+      )}
+      {linkedLead && quickVisitType === "atendimento" && (
+        <VisitFormDialog
+          open={showQuickVisitDialog}
+          onOpenChange={(v) => { setShowQuickVisitDialog(v); if (!v) setQuickVisitType("visita"); }}
+          visitType="atendimento"
+          currentUserId={userId}
+          fixedLead={{ id: linkedLead.id, name: linkedLead.name, unit: linkedLead.unit }}
+          onCreated={() => setVisitRefreshKey(k => k + 1)}
         />
       )}
 
