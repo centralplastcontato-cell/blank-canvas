@@ -57,11 +57,23 @@ export function LPBotSection() {
   const [saving, setSaving] = useState(false);
   const [newMonthOption, setNewMonthOption] = useState("");
   const [newGuestOption, setNewGuestOption] = useState("");
+  const [instances, setInstances] = useState<{ id: string; unit: string }[]>([]);
 
   useEffect(() => {
     if (!currentCompany?.id) return;
     loadSettings();
+    loadInstances();
   }, [currentCompany?.id]);
+
+  const loadInstances = async () => {
+    if (!currentCompany?.id) return;
+    const { data } = await supabase
+      .from('wapi_instances')
+      .select('id, unit')
+      .eq('company_id', currentCompany.id)
+      .order('created_at', { ascending: true });
+    setInstances((data || []).filter((i: any) => i.unit));
+  };
 
   const loadSettings = async () => {
     if (!currentCompany?.id) return;
