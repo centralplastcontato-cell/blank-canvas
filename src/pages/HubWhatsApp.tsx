@@ -681,6 +681,102 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Instance Dialog */}
+      <Dialog open={!!editTarget} onOpenChange={(open) => !open && setEditTarget(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Instância</DialogTitle>
+            <DialogDescription>
+              Atualize as credenciais e configurações da instância.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label>Provedor *</Label>
+              <Select value={editData.provider} onValueChange={(v: "wapi" | "zapi") => setEditData(prev => ({ ...prev, provider: v }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="wapi">W-API</SelectItem>
+                  <SelectItem value="zapi">Z-API</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Empresa *</Label>
+              <Select value={editData.companyId} onValueChange={(v) => setEditData(prev => ({ ...prev, companyId: v }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a empresa" />
+                </SelectTrigger>
+                <SelectContent>
+                  {childCompanies.map(c => (
+                    <SelectItem key={c.id} value={c.id}>
+                      <span className="flex items-center gap-2">
+                        <Building2 className="h-3.5 w-3.5" />
+                        {c.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Unidade *</Label>
+              <Input
+                placeholder="Ex: Manchester"
+                value={editData.unit}
+                onChange={(e) => setEditData(prev => ({ ...prev, unit: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <Label>Instance ID *</Label>
+              <Input
+                placeholder={editData.provider === 'zapi' ? "ID da instância na Z-API" : "ID da instância na W-API"}
+                value={editData.instanceId}
+                onChange={(e) => setEditData(prev => ({ ...prev, instanceId: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <Label>Instance Token *</Label>
+              <Input
+                placeholder="Token da instância"
+                value={editData.instanceToken}
+                onChange={(e) => setEditData(prev => ({ ...prev, instanceToken: e.target.value }))}
+              />
+            </div>
+
+            {editData.provider === 'zapi' && (
+              <div>
+                <Label>Client Token (Segurança) *</Label>
+                <Input
+                  type="password"
+                  placeholder="Token de segurança da conta Z-API"
+                  value={editData.clientToken}
+                  onChange={(e) => setEditData(prev => ({ ...prev, clientToken: e.target.value }))}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Painel Z-API → Segurança → Token da conta
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTarget(null)}>Cancelar</Button>
+            <Button onClick={handleEditSave} disabled={isEditSaving}>
+              {isEditSaving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Check className="h-4 w-4 mr-1.5" />}
+              Salvar Alterações
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
