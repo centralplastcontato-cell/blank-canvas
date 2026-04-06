@@ -114,6 +114,45 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
   });
   const connection = useWhatsAppConnection(() => fetchData());
 
+  const openEditDialog = (inst: HubInstance) => {
+    setEditTarget(inst);
+    setEditData({
+      instanceId: inst.instance_id,
+      instanceToken: inst.instance_token,
+      unit: inst.unit || "",
+      companyId: inst.company_id,
+      provider: (inst.provider || "wapi") as "wapi" | "zapi",
+      clientToken: inst.client_token || "",
+    });
+  };
+
+  const handleEditSave = async () => {
+    if (!editTarget) return;
+    if (!editData.instanceId || !editData.instanceToken || !editData.unit || !editData.companyId) {
+      toast({ title: "Erro", description: "Preencha todos os campos.", variant: "destructive" });
+      return;
+    }
+    setIsEditSaving(true);
+    try {
+      const { error } = await supabase.from("wapi_instances").update({
+        instance_id: editData.instanceId,
+        instance_token: editData.instanceToken,
+        unit: editData.unit,
+        company_id: editData.companyId,
+        provider: editData.provider,
+        client_token: editData.provider === "zapi" ? editData.clientToken : null,
+      }).eq("id", editTarget.id);
+      if (error) throw error;
+      toast({ title: "Instância atualizada", description: `"${editData.unit}" foi atualizada com sucesso.` });
+      setEditTarget(null);
+      fetchData();
+    } catch (err: any) {
+      toast({ title: "Erro ao atualizar", description: err.message, variant: "destructive" });
+    } finally {
+      setIsEditSaving(false);
+    }
+  };
+
   const handleDeleteInstance = async () => {
     if (!deleteTarget) return;
     setIsDeleting(true);
