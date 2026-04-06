@@ -1412,7 +1412,7 @@ export default function CentralAtendimento() {
                       onInstancesLoaded={(instances) => {
                         setChatInstances(instances);
                         if (!selectedChatUnit && instances.length > 0) {
-                          setSelectedChatUnit(instances[0].unit);
+                          handleSetSelectedChatUnit(instances[0].unit);
                         }
                       }}
                     />
