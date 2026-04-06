@@ -3451,10 +3451,12 @@ export type Database = {
           created_at: string
           created_by: string | null
           data_visita: string
+          event_id: string | null
           guest_count: number | null
           horario_visita: string | null
           id: string
           interest_level: string | null
+          items_description: string | null
           lead_channel: string | null
           lead_id: string
           observacoes: string | null
@@ -3466,6 +3468,7 @@ export type Database = {
           seller_notes: string | null
           status_visita: string
           unit: string | null
+          visit_type: string
         }
         Insert: {
           client_questions?: string | null
@@ -3473,10 +3476,12 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           data_visita: string
+          event_id?: string | null
           guest_count?: number | null
           horario_visita?: string | null
           id?: string
           interest_level?: string | null
+          items_description?: string | null
           lead_channel?: string | null
           lead_id: string
           observacoes?: string | null
@@ -3488,6 +3493,7 @@ export type Database = {
           seller_notes?: string | null
           status_visita?: string
           unit?: string | null
+          visit_type?: string
         }
         Update: {
           client_questions?: string | null
@@ -3495,10 +3501,12 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           data_visita?: string
+          event_id?: string | null
           guest_count?: number | null
           horario_visita?: string | null
           id?: string
           interest_level?: string | null
+          items_description?: string | null
           lead_channel?: string | null
           lead_id?: string
           observacoes?: string | null
@@ -3510,6 +3518,7 @@ export type Database = {
           seller_notes?: string | null
           status_visita?: string
           unit?: string | null
+          visit_type?: string
         }
         Relationships: [
           {
@@ -3517,6 +3526,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_visits_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "company_events"
             referencedColumns: ["id"]
           },
           {
