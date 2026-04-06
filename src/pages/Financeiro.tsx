@@ -542,12 +542,14 @@ export default function Financeiro() {
                       </div>
                     </div>
 
-                    {(['todos', 'fixa', 'variavel', 'festa', 'a_vencer', 'baixadas'] as const).map(expType => {
+                    {(['todos', 'fixa', 'variavel', 'festa', 'a_vencer', 'vencidas', 'baixadas'] as const).map(expType => {
+                      const now = new Date();
                       const typeExpenses = dashboard.expenses
                         .filter(e => {
                           if (expType === 'todos') return true;
                           if (expType === 'baixadas') return e.status === 'pago';
-                          if (expType === 'a_vencer') return e.status === 'pendente';
+                          if (expType === 'a_vencer') return e.status === 'pendente' && new Date(e.expense_date + 'T23:59:59') >= now;
+                          if (expType === 'vencidas') return e.status === 'pendente' && new Date(e.expense_date + 'T23:59:59') < now;
                           return (e.expense_type || 'fixa') === expType;
                         })
                         .sort((a, b) => despesasSortAsc
