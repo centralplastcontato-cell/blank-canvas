@@ -87,9 +87,9 @@ export function QuickVisitDialog({ open, onOpenChange, leadId, currentUserId, le
     const { error } = await (supabase as any).from("lead_visits").insert(payload);
 
     if (error) {
-      toast({ title: "Erro ao registrar visita", description: error.message, variant: "destructive" });
+      toast({ title: initialVisitType === "atendimento" ? "Erro ao agendar atendimento" : "Erro ao registrar visita", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Visita registrada!" });
+      toast({ title: initialVisitType === "atendimento" ? "Atendimento agendado!" : "Visita registrada!" });
       onVisitRegistered?.();
       onOpenChange(false);
       resetForm();
