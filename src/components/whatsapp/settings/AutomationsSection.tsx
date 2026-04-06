@@ -19,7 +19,7 @@ import { FlowListManager } from "@/components/flowbuilder/FlowListManager";
 import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { BotJourneyDiagram } from "./BotJourneyDiagram";
+
 import { ReactivationSection } from "./ReactivationSection";
 import { VisitConfirmationSection } from "./VisitConfirmationSection";
 import { ContractMessageSection } from "./ContractMessageSection";
@@ -767,10 +767,6 @@ export function AutomationsSection() {
           <TabsTrigger value="geral" className="flex items-center gap-1.5 text-xs sm:text-sm">
             <Power className="w-3.5 h-3.5" />
             <span>Geral</span>
-          </TabsTrigger>
-          <TabsTrigger value="jornada" className="flex items-center gap-1.5 text-xs sm:text-sm">
-            <Map className="w-3.5 h-3.5" />
-            <span>Jornada</span>
           </TabsTrigger>
           <TabsTrigger value="perguntas" className="flex items-center gap-1.5 text-xs sm:text-sm">
             <MessageSquare className="w-3.5 h-3.5" />
@@ -2342,23 +2338,6 @@ export function AutomationsSection() {
           </Card>
         </TabsContent>
 
-        {/* ============ TAB: JORNADA ============ */}
-        <TabsContent value="jornada" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Map className="w-5 h-5" />
-                Jornada do Lead no Bot
-              </CardTitle>
-              <CardDescription>
-                Visualização dos passos que o lead percorre durante a qualificação automática
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <BotJourneyDiagram />
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         {/* ============ TAB: BOT FESTA ============ */}
         {modules.bot_festa && (

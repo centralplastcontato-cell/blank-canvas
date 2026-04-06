@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Info, Link2, Star, Bot, Check, CheckCheck, Clock, 
   AlertCircle, Bell, BellOff, Trash2,
@@ -10,9 +11,10 @@ import {
   Calendar, ClipboardCheck, Eye, EyeOff, Users, Shield, Crown,
   MessageSquare, Image, FileText, Video, Mic, Send, Paperclip,
   GitBranch, Filter, Download, RefreshCw, Settings,
-  BarChart3, TrendingUp, Package, Briefcase, UserCheck
+  BarChart3, TrendingUp, Package, Briefcase, UserCheck, Map
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BotJourneyDiagram } from "./BotJourneyDiagram";
 
 interface GuideItem {
   icon: React.ReactNode;
@@ -221,63 +223,95 @@ export function VisualGuideSection() {
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Guia de Ícones e Indicadores</CardTitle>
-          <CardDescription>
-            Referência rápida para entender os elementos visuais do sistema
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Sub-tabs */}
-          <div className="overflow-x-auto">
-            <div className="flex gap-1 bg-muted/40 rounded-lg p-1 min-w-max">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={cn(
-                    "px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-all",
-                    activeTab === tab.id
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground hover:bg-background/50"
-                  )}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
+      <Tabs defaultValue="jornada" className="w-full">
+        <TabsList className="w-full">
+          <TabsTrigger value="jornada" className="flex items-center gap-1.5">
+            <Map className="w-3.5 h-3.5" />
+            <span>Jornada do Bot</span>
+          </TabsTrigger>
+          <TabsTrigger value="icones" className="flex items-center gap-1.5">
+            <Info className="w-3.5 h-3.5" />
+            <span>Guia de Ícones</span>
+          </TabsTrigger>
+        </TabsList>
 
-          {/* Content */}
-          {activeTabData && (
-            <div className="space-y-5">
-              {activeTabData.sections.map((section, sectionIndex) => (
-                <div key={section.title}>
-                  {sectionIndex > 0 && <div className="border-t mb-4" />}
-                  <h3 className="font-medium text-sm mb-3 text-foreground">{section.title}</h3>
-                  <div className="grid gap-2">
-                    {section.items.map((item, itemIndex) => (
-                      <div 
-                        key={itemIndex}
-                        className="flex items-start gap-3 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-background shrink-0">
-                          {item.icon}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium text-sm">{item.label}</p>
-                          <p className="text-xs text-muted-foreground">{item.description}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+        <TabsContent value="jornada" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Map className="w-5 h-5" />
+                Jornada do Lead no Bot
+              </CardTitle>
+              <CardDescription>
+                Visualização dos passos que o lead percorre durante a qualificação automática
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <BotJourneyDiagram />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="icones" className="mt-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Guia de Ícones e Indicadores</CardTitle>
+              <CardDescription>
+                Referência rápida para entender os elementos visuais do sistema
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Sub-tabs */}
+              <div className="overflow-x-auto">
+                <div className="flex gap-1 bg-muted/40 rounded-lg p-1 min-w-max">
+                  {tabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-all",
+                        activeTab === tab.id
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                      )}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              </div>
+
+              {/* Content */}
+              {activeTabData && (
+                <div className="space-y-5">
+                  {activeTabData.sections.map((section, sectionIndex) => (
+                    <div key={section.title}>
+                      {sectionIndex > 0 && <div className="border-t mb-4" />}
+                      <h3 className="font-medium text-sm mb-3 text-foreground">{section.title}</h3>
+                      <div className="grid gap-2">
+                        {section.items.map((item, itemIndex) => (
+                          <div 
+                            key={itemIndex}
+                            className="flex items-start gap-3 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                          >
+                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-background shrink-0">
+                              {item.icon}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-sm">{item.label}</p>
+                              <p className="text-xs text-muted-foreground">{item.description}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
