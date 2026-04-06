@@ -556,6 +556,8 @@ export default function Visitas() {
 
       {/* Visit Summary Cards */}
       {(() => {
+        const visitasComerciais = filteredVisits.filter(v => (v.visit_type || "visita") !== "atendimento");
+        const atendimentos = filteredVisits.filter(v => (v.visit_type || "visita") === "atendimento");
         const total = filteredVisits.length;
         const agendadas = filteredVisits.filter(v => v.status_visita === "agendada").length;
         const confirmadas = filteredVisits.filter(v => v.status_visita === "confirmada").length;
@@ -564,10 +566,10 @@ export default function Visitas() {
         const canceladas = filteredVisits.filter(v => v.status_visita === "cancelada").length;
 
         const summaryCards = [
-          { label: "Total de Visitas", value: total, icon: CalendarIcon, color: "text-primary", bg: "bg-primary/10", border: "border-l-primary", tint: "bg-primary/[0.02]" },
+          { label: "Visitas Comerciais", value: visitasComerciais.length, icon: MapPin, color: "text-primary", bg: "bg-primary/10", border: "border-l-primary", tint: "bg-primary/[0.02]" },
+          { label: "Atendimentos", value: atendimentos.length, icon: Phone, color: "text-violet-600", bg: "bg-violet-500/10", border: "border-l-violet-500", tint: "bg-violet-500/[0.02]" },
           { label: "Agendadas", value: agendadas, icon: Clock, color: "text-blue-600", bg: "bg-blue-500/10", border: "border-l-blue-500", tint: "bg-blue-500/[0.02]" },
-          { label: "Confirmadas", value: confirmadas, icon: Check, color: "text-emerald-600", bg: "bg-emerald-500/10", border: "border-l-emerald-500", tint: "bg-emerald-500/[0.02]" },
-          { label: "Realizadas", value: realizadas, icon: MapPin, color: "text-green-700", bg: "bg-green-600/10", border: "border-l-green-700", tint: "bg-green-700/[0.02]" },
+          { label: "Realizadas", value: realizadas, icon: Check, color: "text-green-700", bg: "bg-green-600/10", border: "border-l-green-700", tint: "bg-green-700/[0.02]" },
         ];
 
         const getDaysInMonthCount = (d: Date) => new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
