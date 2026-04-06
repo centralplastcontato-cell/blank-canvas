@@ -899,7 +899,7 @@ export default function Visitas() {
                 </div>
               </div>
 
-              {/* Qualification Section - only for visits, not entregas */}
+              {/* Qualification Section - only for visits, not atendimento */}
               {!isDetailEntrega && (
                 <VisitQualification
                   visitId={detailVisit.id}
