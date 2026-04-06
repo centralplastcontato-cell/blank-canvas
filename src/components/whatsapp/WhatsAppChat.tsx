@@ -320,6 +320,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [isLoadingMoreMessages, setIsLoadingMoreMessages] = useState(false);
   const [oldestMessageTimestamp, setOldestMessageTimestamp] = useState<string | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const externalSelectedUnitRef = useRef(externalSelectedUnit);
+  externalSelectedUnitRef.current = externalSelectedUnit;
 
   // Sync with external unit selection from header
   useEffect(() => {
