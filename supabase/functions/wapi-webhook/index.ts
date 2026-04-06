@@ -649,8 +649,8 @@ async function sendBotDocument(instanceId: string, instanceToken: string, remote
     console.error(`[Bot] send-document exception:`, e);
     return null;
   }
+}
 
-// ============= FLOW BUILDER PROCESSOR =============
 
 async function processFlowBuilderMessage(
   supabase: SupabaseClient,
