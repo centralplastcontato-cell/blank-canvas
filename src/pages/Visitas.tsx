@@ -558,9 +558,7 @@ export default function Visitas() {
       {(() => {
         const visitasComerciais = filteredVisits.filter(v => (v.visit_type || "visita") !== "atendimento");
         const atendimentos = filteredVisits.filter(v => (v.visit_type || "visita") === "atendimento");
-        const total = filteredVisits.length;
         const agendadas = filteredVisits.filter(v => v.status_visita === "agendada").length;
-        const confirmadas = filteredVisits.filter(v => v.status_visita === "confirmada").length;
         const realizadas = filteredVisits.filter(v => v.status_visita === "realizada").length;
         const naoComp = filteredVisits.filter(v => v.status_visita === "nao_compareceu").length;
         const canceladas = filteredVisits.filter(v => v.status_visita === "cancelada").length;
