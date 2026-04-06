@@ -475,7 +475,7 @@ export default function Visitas() {
           )}
         </div>
         <Badge variant="outline" className="text-xs font-semibold">
-          {selectedDayVisits.length} visita{selectedDayVisits.length !== 1 ? "s" : ""}
+          {selectedDayVisits.length} agendamento{selectedDayVisits.length !== 1 ? "s" : ""}
         </Badge>
       </div>
 
