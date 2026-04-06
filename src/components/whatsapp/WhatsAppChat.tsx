@@ -5228,7 +5228,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         onLeadObsChange={(newObs) => {
                           setLinkedLead(prev => prev ? { ...prev, observacoes: newObs || null } : null);
                         }}
-                        onShowVisitDialog={() => linkedLead && setShowQuickVisitDialog(true)}
+                        onShowVisitDialog={(type) => { if (linkedLead) { setQuickVisitType(type || "visita"); setShowQuickVisitDialog(true); } }}
                         visitRefreshKey={visitRefreshKey}
                         mobile
                       />
