@@ -124,7 +124,7 @@ export default function Visitas() {
   const [reportOpen, setReportOpen] = useState(false);
   const [newItemsDesc, setNewItemsDesc] = useState("");
   const [newEventId, setNewEventId] = useState("");
-  const [leadEvents, setLeadEvents] = useState<{ id: string; title: string; event_date: string }[]>([]);
+  const [leadEvents, setLeadEvents] = useState<any[]>([]);
 
   const { isAdmin, canManageUsers } = useUserRole(user?.id);
 
