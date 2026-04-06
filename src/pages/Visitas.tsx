@@ -21,7 +21,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Menu, CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, Phone, MessageSquare, Check, RefreshCw, X, Plus, User as UserIcon, AlertTriangle, Trash2, PartyPopper, FileText, Package } from "lucide-react";
+import { Loader2, Menu, CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, Phone, MessageSquare, Check, RefreshCw, X, Plus, User as UserIcon, AlertTriangle, Trash2, PartyPopper, FileText, Package, Users, DollarSign, CreditCard } from "lucide-react";
 import { ReportDialog } from "@/components/reports/ReportDialog";
 import { generateVisitasPDF, generateVisitasXLSX } from "@/lib/generateVisitasPDF";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -124,7 +124,7 @@ export default function Visitas() {
   const [reportOpen, setReportOpen] = useState(false);
   const [newItemsDesc, setNewItemsDesc] = useState("");
   const [newEventId, setNewEventId] = useState("");
-  const [leadEvents, setLeadEvents] = useState<{ id: string; title: string; event_date: string }[]>([]);
+  const [leadEvents, setLeadEvents] = useState<any[]>([]);
 
   const { isAdmin, canManageUsers } = useUserRole(user?.id);
 
@@ -302,7 +302,7 @@ export default function Visitas() {
     if (!companyId) return;
     const { data } = await (supabase as any)
       .from("company_events")
-      .select("id, title, event_date")
+      .select("id, title, event_date, start_time, end_time, event_type, guest_count, total_value, package_name, unit, status, child_name, child_age, payment_method")
       .eq("company_id", companyId)
       .eq("lead_id", leadId)
       .neq("status", "cancelado")
@@ -1010,6 +1010,74 @@ export default function Visitas() {
                   <p className="text-xs text-muted-foreground">Nenhuma festa encontrada para este lead</p>
                 )}
               </div>
+
+              {/* Event summary card */}
+              {(() => {
+                const selectedEvent = leadEvents.find(e => e.id === newEventId);
+                if (!selectedEvent) return null;
+                const eventDate = format(parseISO(selectedEvent.event_date + "T12:00:00"), "dd/MM/yyyy");
+                const timeStr = selectedEvent.start_time
+                  ? `${selectedEvent.start_time}${selectedEvent.end_time ? ` – ${selectedEvent.end_time}` : ""}`
+                  : null;
+                return (
+                  <div className="mt-4 rounded-lg border border-violet-200/60 dark:border-violet-800/40 bg-white/80 dark:bg-violet-950/30 p-4 space-y-2">
+                    <p className="text-sm font-semibold text-foreground">{selectedEvent.title}</p>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <CalendarIcon className="h-3 w-3 text-violet-500" />
+                        <span>{eventDate}</span>
+                      </div>
+                      {timeStr && (
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="h-3 w-3 text-violet-500" />
+                          <span>{timeStr}</span>
+                        </div>
+                      )}
+                      {selectedEvent.event_type && (
+                        <div className="flex items-center gap-1.5">
+                          <PartyPopper className="h-3 w-3 text-violet-500" />
+                          <span className="capitalize">{selectedEvent.event_type}</span>
+                        </div>
+                      )}
+                      {selectedEvent.guest_count && (
+                        <div className="flex items-center gap-1.5">
+                          <Users className="h-3 w-3 text-violet-500" />
+                          <span>{selectedEvent.guest_count} convidados</span>
+                        </div>
+                      )}
+                      {selectedEvent.package_name && (
+                        <div className="flex items-center gap-1.5">
+                          <Package className="h-3 w-3 text-violet-500" />
+                          <span>{selectedEvent.package_name}</span>
+                        </div>
+                      )}
+                      {selectedEvent.unit && (
+                        <div className="flex items-center gap-1.5">
+                          <MapPin className="h-3 w-3 text-violet-500" />
+                          <span>{selectedEvent.unit}</span>
+                        </div>
+                      )}
+                      {selectedEvent.total_value != null && selectedEvent.total_value > 0 && (
+                        <div className="flex items-center gap-1.5">
+                          <DollarSign className="h-3 w-3 text-violet-500" />
+                          <span>R$ {Number(selectedEvent.total_value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                        </div>
+                      )}
+                      {selectedEvent.payment_method && (
+                        <div className="flex items-center gap-1.5">
+                          <CreditCard className="h-3 w-3 text-violet-500" />
+                          <span className="capitalize">{selectedEvent.payment_method}</span>
+                        </div>
+                      )}
+                    </div>
+                    {selectedEvent.child_name && (
+                      <p className="text-xs text-muted-foreground mt-1 pt-1.5 border-t border-violet-100 dark:border-violet-800/30">
+                        🎂 {selectedEvent.child_name}{selectedEvent.child_age ? ` (${selectedEvent.child_age})` : ""}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
 
