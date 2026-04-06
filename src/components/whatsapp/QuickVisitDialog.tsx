@@ -190,7 +190,7 @@ export function QuickVisitDialog({ open, onOpenChange, leadId, currentUserId, le
             className="px-8 rounded-lg shadow-sm"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Registrar Visita
+            {initialVisitType === "atendimento" ? "Agendar Atendimento" : "Registrar Visita"}
           </Button>
         </div>
       </DialogContent>
