@@ -549,10 +549,10 @@ export default function Visitas() {
           </Select>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button size="sm" className="h-10 px-5 rounded-xl gap-2 font-semibold shadow-sm" onClick={() => { resetCreateForm(); setCreateType("visita"); setCreateOpen(true); }}>
+          <Button size="sm" className="h-10 px-5 rounded-xl gap-2 font-semibold shadow-sm" onClick={() => { setCreateType("visita"); setCreateOpen(true); }}>
             <Plus className="h-4 w-4" /> Nova Visita
           </Button>
-          <Button size="sm" variant="outline" className="h-10 px-5 rounded-xl gap-2 font-semibold shadow-sm border-violet-300 text-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950/30" onClick={() => { resetCreateForm(); setCreateType("atendimento"); setCreateOpen(true); }}>
+          <Button size="sm" variant="outline" className="h-10 px-5 rounded-xl gap-2 font-semibold shadow-sm border-violet-300 text-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950/30" onClick={() => { setCreateType("atendimento"); setCreateOpen(true); }}>
             <Package className="h-4 w-4" /> Atendimento
           </Button>
         </div>
