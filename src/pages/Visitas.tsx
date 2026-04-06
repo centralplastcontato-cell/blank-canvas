@@ -30,6 +30,7 @@ import { toast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
 import { VisitQualification } from "@/components/visitas/VisitQualification";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
+import { VisitFormDialog } from "@/components/visitas/VisitFormDialog";
 
 // Status config
 const VISIT_STATUSES = [
