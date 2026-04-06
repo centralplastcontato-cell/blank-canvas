@@ -107,7 +107,25 @@ export default function CentralAtendimento() {
   const [initialPhone, setInitialPhone] = useState<string | null>(null);
   const [initialDraft, setInitialDraft] = useState<string | null>(null);
   const [chatInstances, setChatInstances] = useState<{ id: string; unit: string | null; status: string | null }[]>([]);
-  const [selectedChatUnit, setSelectedChatUnit] = useState<string | null>(null);
+  const [selectedChatUnit, setSelectedChatUnit] = useState<string | null>(() => {
+    if (!currentCompany?.id) return null;
+    try {
+      return localStorage.getItem(`chat_selected_unit_${currentCompany.id}`);
+    } catch { return null; }
+  });
+
+  const handleSetSelectedChatUnit = useCallback((unit: string | null) => {
+    setSelectedChatUnit(unit);
+    if (currentCompany?.id) {
+      try {
+        if (unit) {
+          localStorage.setItem(`chat_selected_unit_${currentCompany.id}`, unit);
+        } else {
+          localStorage.removeItem(`chat_selected_unit_${currentCompany.id}`);
+        }
+      } catch {}
+    }
+  }, [currentCompany?.id]);
 
   // Handle URL params for phone/leadId navigation
   useEffect(() => {
