@@ -105,7 +105,7 @@ export default function Visitas() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [detailVisit, setDetailVisit] = useState<Visit | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [createType, setCreateType] = useState<"visita" | "retirada_entrega">("visita");
+  const [createType, setCreateType] = useState<"visita" | "atendimento">("visita");
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string }[]>([]);
 
   const { units } = useCompanyUnits(currentCompany?.id);
