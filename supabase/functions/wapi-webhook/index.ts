@@ -536,14 +536,20 @@ async function sendTextViaWapiWithFallback(
   return { messageId: null, attempt: null };
 }
 
-async function sendBotMessage(instanceId: string, instanceToken: string, remoteJid: string, message: string): Promise<string | null> {
+async function sendBotMessage(instanceId: string, instanceToken: string, remoteJid: string, message: string, provider: Provider = 'wapi', clientToken: string | null = null): Promise<string | null> {
   try {
     const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, '');
-    console.log(`[Bot] Sending message to ${phone} via instance ${instanceId}`);
+    console.log(`[Bot] Sending message to ${phone} via instance ${instanceId} (${provider})`);
+
+    if (provider === 'zapi') {
+      const res = await zapiRequest(instanceId, instanceToken, clientToken, 'send-text', 'POST', { phone, message });
+      const msgId = res.data ? ((res.data as Record<string, unknown>).zapiMessageId || (res.data as Record<string, unknown>).messageId) as string || null : null;
+      console.log(`[Bot] Z-API send-text response: msgId=${msgId}`);
+      return msgId;
+    }
 
     const { messageId, attempt } = await sendTextViaWapiWithFallback(instanceId, instanceToken, remoteJid, message, 1);
     console.log(`[Bot] send-text response: msgId=${messageId}, attempt=${attempt}`);
-
     return messageId;
   } catch (e) {
     console.error(`[Bot] send-text exception:`, e);
@@ -551,10 +557,17 @@ async function sendBotMessage(instanceId: string, instanceToken: string, remoteJ
   }
 }
 
-async function sendBotImage(instanceId: string, instanceToken: string, remoteJid: string, imageUrl: string, caption: string): Promise<string | null> {
+async function sendBotImage(instanceId: string, instanceToken: string, remoteJid: string, imageUrl: string, caption: string, provider: Provider = 'wapi', clientToken: string | null = null): Promise<string | null> {
   try {
-    const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '');
-    // Download image and convert to base64
+    const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, '');
+
+    if (provider === 'zapi') {
+      const res = await zapiRequest(instanceId, instanceToken, clientToken, 'send-image', 'POST', { phone, image: imageUrl, caption: caption || '' });
+      const msgId = res.data ? ((res.data as Record<string, unknown>).zapiMessageId || (res.data as Record<string, unknown>).messageId) as string || null : null;
+      return msgId;
+    }
+
+    // W-API: Download image and convert to base64
     const imgRes = await fetch(imageUrl);
     if (!imgRes.ok) return null;
     const buf = await imgRes.arrayBuffer();
@@ -580,9 +593,16 @@ async function sendBotImage(instanceId: string, instanceToken: string, remoteJid
   }
 }
 
-async function sendBotVideo(instanceId: string, instanceToken: string, remoteJid: string, videoUrl: string, caption: string): Promise<string | null> {
+async function sendBotVideo(instanceId: string, instanceToken: string, remoteJid: string, videoUrl: string, caption: string, provider: Provider = 'wapi', clientToken: string | null = null): Promise<string | null> {
   try {
-    const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '');
+    const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, '');
+
+    if (provider === 'zapi') {
+      const res = await zapiRequest(instanceId, instanceToken, clientToken, 'send-video', 'POST', { phone, video: videoUrl, caption: caption || '' });
+      const msgId = res.data ? ((res.data as Record<string, unknown>).zapiMessageId || (res.data as Record<string, unknown>).messageId) as string || null : null;
+      return msgId;
+    }
+
     const res = await fetch(`${WAPI_BASE_URL}/message/send-video?instanceId=${instanceId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instanceToken}` },
@@ -597,10 +617,17 @@ async function sendBotVideo(instanceId: string, instanceToken: string, remoteJid
   }
 }
 
-async function sendBotDocument(instanceId: string, instanceToken: string, remoteJid: string, docUrl: string, fileName: string): Promise<string | null> {
+async function sendBotDocument(instanceId: string, instanceToken: string, remoteJid: string, docUrl: string, fileName: string, provider: Provider = 'wapi', clientToken: string | null = null): Promise<string | null> {
   try {
-    const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '');
+    const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, '');
     const ext = docUrl.split('.').pop()?.split('?')[0] || 'pdf';
+
+    if (provider === 'zapi') {
+      const res = await zapiRequest(instanceId, instanceToken, clientToken, `send-document/${ext}`, 'POST', { phone, document: docUrl, fileName });
+      const msgId = res.data ? ((res.data as Record<string, unknown>).zapiMessageId || (res.data as Record<string, unknown>).messageId) as string || null : null;
+      return msgId;
+    }
+
     const res = await fetch(`${WAPI_BASE_URL}/message/send-document?instanceId=${instanceId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instanceToken}` },
@@ -613,7 +640,6 @@ async function sendBotDocument(instanceId: string, instanceToken: string, remote
     console.error(`[Bot] send-document exception:`, e);
     return null;
   }
-}
 
 // ============= FLOW BUILDER PROCESSOR =============
 
