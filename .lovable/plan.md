@@ -1,60 +1,49 @@
 
 
-## Diagnóstico: Robô do Castelo cortando etapas e não enviando materiais
+## Plano: Adicionar "Retirada / Entrega" na Agenda de Visitas
 
-### O que está acontecendo
+### Contexto
+Clientes que ja tem festa fechada precisam agendar horarios para trazer ou retirar itens no buffet (bebidas, lembrancinhas, toalhas, etc). Hoje isso fica solto. A ideia e agregar essa funcionalidade na pagina de Visitas, com um novo tipo de agendamento separado das visitas comerciais.
 
-O problema é um **descasamento de nomes** entre as instâncias de WhatsApp e os materiais de venda no banco de dados:
+### O que muda
 
-```text
-Instâncias WhatsApp (wapi_instances):
-  ├── Vendas 1  ← conectada (15991336278)
-  ├── Vendas 2  ← desconectada
-  └── Vendas 3  ← conectada (15991425170)
+**1. Banco de dados** (migration)
+- Adicionar coluna `visit_type TEXT DEFAULT 'visita'` na tabela `lead_visits`
+  - Valores: `'visita'` (padrao, comportamento atual) e `'retirada_entrega'`
+- Adicionar coluna `event_id UUID REFERENCES company_events(id)` na tabela `lead_visits` (opcional, para vincular ao evento/festa)
+- Adicionar coluna `items_description TEXT` para descrever o que sera entregue/retirado
 
-Materiais de Venda (sales_materials):
-  └── Castelo da Diversão  ← todos os 16 materiais ativos estão com esse nome
-```
+**2. Interface - Pagina de Visitas** (`src/pages/Visitas.tsx`)
+- Adicionar um novo botao "Retirada / Entrega" ao lado do botao "Nova Visita" no header
+- O botao abre o mesmo dialog de criacao, mas com `visit_type = 'retirada_entrega'` e campos adaptados:
+  - Busca de lead (igual hoje)
+  - Campo opcional para vincular a um evento existente do lead (select com festas do lead)
+  - Data e horario
+  - Campo "O que sera entregue/retirado" (textarea)
+  - Sem campos de qualificacao comercial (pacote, interesse, etc)
+- No calendario, usar dot de cor diferente (ex: roxo) para diferenciar entregas de visitas
+- Nos cards do dia, mostrar um indicador visual (icone de caixa/pacote) para entregas
+- Nos filtros, adicionar filtro por tipo (Todos / Visitas / Retirada-Entrega)
 
-Quando o robô termina a qualificação e vai buscar materiais, ele faz:
-```
-SELECT * FROM sales_materials WHERE unit = 'Vendas 1' AND is_active = true
-```
-Resultado: **0 materiais encontrados**. O robô pula direto para a pergunta de próximo passo.
+**3. Componente QuickVisitDialog** (`src/components/whatsapp/QuickVisitDialog.tsx`)
+- Nao alterar -- este continua sendo so para visitas rapidas do chat
 
-### Por que os outros buffets funcionam normalmente
+**4. Detail Sheet da visita**
+- Quando for tipo `retirada_entrega`, mostrar os campos relevantes (itens, evento vinculado) em vez da qualificacao comercial
+- Esconder o botao "Fechou na Visita" para entregas (nao faz sentido)
 
-| Buffet | Instância unit | Materiais unit | Match? |
-|--------|---------------|----------------|--------|
-| Aventura Kids | `Aventura Kids` | `Aventura Kids` | Sim |
-| Planeta Divertido | `Planeta Divertido` | `Planeta Divertido` | Sim |
-| Castelo da Diversão | `Vendas 1` / `Vendas 3` | `Castelo da Diversão` | **Não** |
+**5. Relatórios**
+- O PDF/XLSX de visitas incluira uma coluna "Tipo" para diferenciar
 
-O Castelo é o único com nomes diferentes porque as instâncias foram renomeadas (provavelmente na migração da unidade Manchester), mas os materiais mantiveram o nome original.
+### Resumo das alteracoes por arquivo
 
-### Como isso funcionava antes
+| Arquivo | Alteracao |
+|---------|-----------|
+| Migration SQL | +3 colunas em `lead_visits` |
+| `src/pages/Visitas.tsx` | Botao novo, dialog adaptado, filtro por tipo, dots diferenciados, detail adaptado |
+| `src/lib/generateVisitasPDF.ts` | Coluna "Tipo" no relatorio |
 
-Antes, as instâncias provavelmente tinham `unit = "Castelo da Diversão"` (ou similar) e batia com os materiais. Quando as instâncias foram renomeadas para "Vendas 1", "Vendas 2", "Vendas 3", os materiais ficaram órfãos.
-
-### Correção proposta
-
-Tornar a busca de materiais mais robusta, usando `company_id` como fallback quando não encontra materiais pela `unit` exata. Assim funciona independente do nome da instância.
-
-**Arquivo:** `supabase/functions/wapi-webhook/index.ts`
-
-Na função `sendQualificationMaterials` (linha ~2920):
-
-1. Manter a busca atual por `unit` (para empresas que têm materiais separados por unidade).
-2. Se não encontrar nenhum material por `unit`, fazer uma segunda busca por `company_id` (fallback).
-3. Isso resolve o Castelo imediatamente e protege contra renomeações futuras em qualquer buffet.
-
-```text
-Busca materiais por unit ("Vendas 1")
-  └── Encontrou? → Usa esses materiais
-  └── Não encontrou? → Busca por company_id
-       └── Encontrou? → Usa esses materiais
-       └── Não encontrou? → Log e pula (comportamento atual)
-```
-
-Nenhuma alteração em dados do banco necessária. Nenhuma mudança em conexão WhatsApp.
+### Identidade visual
+- Visitas comerciais: icone MapPin, dots coloridos por status (como hoje)
+- Retirada/Entrega: icone Package, dot roxo (`bg-violet-500`), badge "Entrega" em violet
 
