@@ -517,7 +517,8 @@ export default function Financeiro() {
                           { value: 'fixa', icon: Building, label: 'Fixas', count: dashboard.expenses.filter(e => (e.expense_type || 'fixa') === 'fixa').length },
                           { value: 'variavel', icon: Zap, label: 'Variáveis', count: dashboard.expenses.filter(e => e.expense_type === 'variavel').length },
                           { value: 'festa', icon: PartyPopper, label: 'Festas', count: dashboard.expenses.filter(e => e.expense_type === 'festa').length },
-                          { value: 'a_vencer', icon: Clock, label: 'A vencer', count: dashboard.expenses.filter(e => e.status === 'pendente').length },
+                          { value: 'a_vencer', icon: Clock, label: 'A vencer', count: dashboard.expenses.filter(e => e.status === 'pendente' && new Date(e.expense_date + 'T23:59:59') >= new Date()).length },
+                          { value: 'vencidas', icon: AlertTriangle, label: 'Vencidas', count: dashboard.expenses.filter(e => e.status === 'pendente' && new Date(e.expense_date + 'T23:59:59') < new Date()).length },
                           { value: 'baixadas', icon: CheckCircle, label: 'Baixadas', count: dashboard.expenses.filter(e => e.status === 'pago').length },
                         ].map(t => (
                           <button
@@ -533,7 +534,7 @@ export default function Financeiro() {
                             <span>{t.label}</span>
                             {t.count > 0 && (
                               <Badge className={`ml-0.5 h-5 min-w-[20px] px-1.5 text-[10px] ${
-                                despesasSubTab === t.value ? 'bg-background/20 text-background' : t.value === 'baixadas' ? 'bg-emerald-500 text-white' : t.value === 'a_vencer' ? 'bg-orange-500 text-white' : 'bg-blue-500 text-white'
+                                despesasSubTab === t.value ? 'bg-background/20 text-background' : t.value === 'baixadas' ? 'bg-emerald-500 text-white' : t.value === 'a_vencer' ? 'bg-orange-500 text-white' : t.value === 'vencidas' ? 'bg-red-500 text-white' : 'bg-blue-500 text-white'
                               }`}>{t.count}</Badge>
                             )}
                           </button>
@@ -541,12 +542,14 @@ export default function Financeiro() {
                       </div>
                     </div>
 
-                    {(['todos', 'fixa', 'variavel', 'festa', 'a_vencer', 'baixadas'] as const).map(expType => {
+                    {(['todos', 'fixa', 'variavel', 'festa', 'a_vencer', 'vencidas', 'baixadas'] as const).map(expType => {
+                      const now = new Date();
                       const typeExpenses = dashboard.expenses
                         .filter(e => {
                           if (expType === 'todos') return true;
                           if (expType === 'baixadas') return e.status === 'pago';
-                          if (expType === 'a_vencer') return e.status === 'pendente';
+                          if (expType === 'a_vencer') return e.status === 'pendente' && new Date(e.expense_date + 'T23:59:59') >= now;
+                          if (expType === 'vencidas') return e.status === 'pendente' && new Date(e.expense_date + 'T23:59:59') < now;
                           return (e.expense_type || 'fixa') === expType;
                         })
                         .sort((a, b) => despesasSortAsc
@@ -602,8 +605,12 @@ export default function Financeiro() {
                                         <p className="font-semibold text-sm text-foreground truncate">{e.description}</p>
                                         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                                           <Badge variant="secondary" className="text-[10px]">{CATEGORY_LABELS[e.category] || e.category}</Badge>
-                                          <Badge variant="outline" className={cn("text-[10px]", e.status === 'pago' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20')}>
-                                            {e.status === 'pago' ? 'Pago' : 'Pendente'}
+                                          <Badge variant="outline" className={cn("text-[10px]",
+                                            e.status === 'pago' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                                            : (e.status === 'pendente' && new Date(e.expense_date + 'T23:59:59') < new Date()) ? 'bg-red-500/10 text-red-500 border-red-500/20'
+                                            : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                                          )}>
+                                            {e.status === 'pago' ? 'Pago' : (e.status === 'pendente' && new Date(e.expense_date + 'T23:59:59') < new Date()) ? 'Vencido' : 'Pendente'}
                                           </Badge>
                                         </div>
                                         <p className="text-xs text-muted-foreground mt-0.5">
