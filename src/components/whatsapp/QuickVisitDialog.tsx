@@ -35,6 +35,7 @@ interface QuickVisitDialogProps {
   currentUserId: string;
   leadUnit?: string | null;
   onVisitRegistered?: () => void;
+  initialVisitType?: "visita" | "atendimento";
 }
 
 function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
