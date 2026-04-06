@@ -13,6 +13,7 @@ interface VisitData {
   interest_level?: string | null;
   como_conheceu?: string | null;
   observacoes?: string | null;
+  visit_type?: string;
 }
 
 export interface VisitasReportParams {
@@ -105,9 +106,10 @@ export function generateVisitasPDF(params: VisitasReportParams) {
   const sorted = [...periodVisits].sort((a, b) => a.data_visita.localeCompare(b.data_visita));
   autoTable(doc, {
     startY: y,
-    head: [['Data', 'Horário', 'Lead', 'Status', 'Interesse', 'Canal', 'Unidade']],
+    head: [['Data', 'Horário', 'Lead', 'Tipo', 'Status', 'Interesse', 'Canal', 'Unidade']],
     body: sorted.map(v => [
       fmtDate(v.data_visita), v.horario_visita || '—', v.lead_name || '—',
+      (v.visit_type || 'visita') === 'retirada_entrega' ? 'Entrega' : 'Visita',
       STATUS_LABELS[v.status_visita] || v.status_visita,
       INTEREST_LABELS[v.interest_level || ''] || v.interest_level || '—',
       v.como_conheceu || '—', v.unit || '—',
@@ -157,6 +159,7 @@ export function generateVisitasXLSX(params: VisitasReportParams) {
     Horário: v.horario_visita || '—',
     Lead: v.lead_name || '—',
     Telefone: v.lead_phone || '—',
+    Tipo: (v.visit_type || 'visita') === 'retirada_entrega' ? 'Retirada / Entrega' : 'Visita',
     Status: STATUS_LABELS[v.status_visita] || v.status_visita,
     'Nível de Interesse': INTEREST_LABELS[v.interest_level || ''] || v.interest_level || '—',
     'Como Conheceu': v.como_conheceu || '—',

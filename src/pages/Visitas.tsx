@@ -21,7 +21,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Menu, CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, Phone, MessageSquare, Check, RefreshCw, X, Plus, User as UserIcon, AlertTriangle, Trash2, PartyPopper, FileText } from "lucide-react";
+import { Loader2, Menu, CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, Phone, MessageSquare, Check, RefreshCw, X, Plus, User as UserIcon, AlertTriangle, Trash2, PartyPopper, FileText, Package } from "lucide-react";
 import { ReportDialog } from "@/components/reports/ReportDialog";
 import { generateVisitasPDF, generateVisitasXLSX } from "@/lib/generateVisitasPDF";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -83,6 +83,11 @@ interface Visit {
   restrictions?: any;
   client_questions?: string | null;
   seller_notes?: string | null;
+  // Retirada/Entrega fields
+  visit_type?: string;
+  event_id?: string | null;
+  items_description?: string | null;
+  event_title?: string | null;
 }
 
 export default function Visitas() {
@@ -96,9 +101,11 @@ export default function Visitas() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterResponsavel, setFilterResponsavel] = useState("all");
   const [filterUnit, setFilterUnit] = useState("all");
+  const [filterType, setFilterType] = useState("all");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [detailVisit, setDetailVisit] = useState<Visit | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [createType, setCreateType] = useState<"visita" | "retirada_entrega">("visita");
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string }[]>([]);
 
   const { units } = useCompanyUnits(currentCompany?.id);
@@ -115,6 +122,9 @@ export default function Visitas() {
   const [saving, setSaving] = useState(false);
   const [leadResults, setLeadResults] = useState<{ id: string; name: string; whatsapp: string }[]>([]);
   const [reportOpen, setReportOpen] = useState(false);
+  const [newItemsDesc, setNewItemsDesc] = useState("");
+  const [newEventId, setNewEventId] = useState("");
+  const [leadEvents, setLeadEvents] = useState<{ id: string; title: string; event_date: string }[]>([]);
 
   const { isAdmin, canManageUsers } = useUserRole(user?.id);
 
@@ -149,7 +159,7 @@ export default function Visitas() {
 
     const { data, error } = await (supabase as any)
       .from("lead_visits")
-      .select("id, lead_id, company_id, data_visita, horario_visita, status_visita, observacoes, responsavel_user_id, created_by, created_at, unit, package_interest, guest_count, party_date_interest, payment_preference, interest_level, restrictions, client_questions, seller_notes, lead_channel")
+      .select("id, lead_id, company_id, data_visita, horario_visita, status_visita, observacoes, responsavel_user_id, created_by, created_at, unit, package_interest, guest_count, party_date_interest, payment_preference, interest_level, restrictions, client_questions, seller_notes, lead_channel, visit_type, event_id, items_description")
       .eq("company_id", companyId)
       .gte("data_visita", startDate)
       .lte("data_visita", endDate)
@@ -166,12 +176,24 @@ export default function Visitas() {
         .in("id", leadIds as string[]);
 
       const leadMap = new Map((leads || []).map((l: any) => [l.id, l]));
+      // Fetch event titles for visits linked to events
+      const eventIds = [...new Set(data.filter((v: any) => v.event_id).map((v: any) => v.event_id))];
+      let eventMap = new Map<string, string>();
+      if (eventIds.length > 0) {
+        const { data: events } = await (supabase as any)
+          .from("company_events")
+          .select("id, title")
+          .in("id", eventIds);
+        eventMap = new Map((events || []).map((e: any) => [e.id, e.title]));
+      }
+
       const mappedVisits = data.map((v: any) => ({
         ...v,
         lead_name: leadMap.get(v.lead_id)?.name || "Lead desconhecido",
         lead_phone: leadMap.get(v.lead_id)?.whatsapp || "",
         lead_guests: leadMap.get(v.lead_id)?.guests || null,
         lead_month: leadMap.get(v.lead_id)?.month || null,
+        event_title: v.event_id ? eventMap.get(v.event_id) || null : null,
       }));
 
       setVisits(mappedVisits);
@@ -193,9 +215,10 @@ export default function Visitas() {
       if (filterStatus !== "all" && v.status_visita !== filterStatus) return false;
       if (filterResponsavel !== "all" && v.responsavel_user_id !== filterResponsavel) return false;
       if (filterUnit !== "all" && v.unit !== filterUnit) return false;
+      if (filterType !== "all" && (v.visit_type || "visita") !== filterType) return false;
       return true;
     });
-  }, [visits, filterStatus, filterResponsavel, filterUnit]);
+  }, [visits, filterStatus, filterResponsavel, filterUnit, filterType]);
 
   // Visits for selected day
   const selectedDayVisits = useMemo(() => {
@@ -238,7 +261,7 @@ export default function Visitas() {
       return;
     }
     setSaving(true);
-    const payload = {
+    const payload: any = {
       lead_id: newLeadId,
       company_id: getCurrentCompanyId(),
       data_visita: format(newDate, "yyyy-MM-dd"),
@@ -248,7 +271,12 @@ export default function Visitas() {
       responsavel_user_id: newResponsavel || null,
       created_by: user!.id,
       unit: newUnit || null,
+      visit_type: createType,
     };
+    if (createType === "retirada_entrega") {
+      payload.event_id = newEventId || null;
+      payload.items_description = newItemsDesc || null;
+    }
 
     const { error } = await (supabase as any).from("lead_visits").insert(payload);
     if (error) {
@@ -265,7 +293,21 @@ export default function Visitas() {
   const resetCreateForm = () => {
     setNewLeadSearch(""); setNewLeadId(""); setNewLeadName("");
     setNewDate(undefined); setNewTime(""); setNewNotes(""); setNewResponsavel(""); setNewUnit("");
-    setLeadResults([]);
+    setLeadResults([]); setNewItemsDesc(""); setNewEventId(""); setLeadEvents([]);
+  };
+
+  // Fetch events for a lead (used in retirada_entrega)
+  const fetchLeadEvents = async (leadId: string) => {
+    const companyId = getCurrentCompanyId();
+    if (!companyId) return;
+    const { data } = await (supabase as any)
+      .from("company_events")
+      .select("id, title, event_date")
+      .eq("company_id", companyId)
+      .eq("lead_id", leadId)
+      .neq("status", "cancelado")
+      .order("event_date", { ascending: true });
+    setLeadEvents(data || []);
   };
 
   const updateVisitStatus = async (visitId: string, newStatus: string) => {
@@ -385,14 +427,16 @@ export default function Visitas() {
               </span>
               {count > 0 && (
                 <div className="flex items-center gap-[2px] lg:gap-[3px] justify-center">
-                  {dayVisits.slice(0, 3).map((v) => (
-                    <span
-                      key={v.id}
-                      className={cn(
-                        "h-[5px] w-[5px] lg:h-[6px] lg:w-[6px] rounded-full",
-                        VISIT_STATUS_DOT[v.status_visita] || "bg-muted-foreground/40"
-                      )}
-                    />
+                    {dayVisits.slice(0, 3).map((v) => (
+                      <span
+                        key={v.id}
+                        className={cn(
+                          "h-[5px] w-[5px] lg:h-[6px] lg:w-[6px] rounded-full",
+                          (v.visit_type || "visita") === "retirada_entrega"
+                            ? "bg-violet-500"
+                            : (VISIT_STATUS_DOT[v.status_visita] || "bg-muted-foreground/40")
+                        )}
+                      />
                   ))}
                   {count > 3 && (
                     <span className="text-[7px] lg:text-[8px] font-bold text-muted-foreground/70 leading-none ml-0.5">
@@ -431,7 +475,7 @@ export default function Visitas() {
           )}
         </div>
         <Badge variant="outline" className="text-xs font-semibold">
-          {selectedDayVisits.length} visita{selectedDayVisits.length !== 1 ? "s" : ""}
+          {selectedDayVisits.length} agendamento{selectedDayVisits.length !== 1 ? "s" : ""}
         </Badge>
       </div>
 
@@ -440,14 +484,15 @@ export default function Visitas() {
           <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-muted/60 flex items-center justify-center">
             <MapPin className="h-6 w-6 text-muted-foreground/40" />
           </div>
-          <p className="text-sm font-medium text-muted-foreground">Nenhuma visita neste dia</p>
-          <p className="text-xs text-muted-foreground/60 mt-1">Clique em "Nova Visita" para agendar</p>
+          <p className="text-sm font-medium text-muted-foreground">Nenhum agendamento neste dia</p>
+          <p className="text-xs text-muted-foreground/60 mt-1">Clique em "Nova Visita" ou "Retirada / Entrega"</p>
         </div>
       ) : (
         <div className="space-y-2.5">
           {selectedDayVisits.map(visit => {
             const status = getStatusInfo(visit.status_visita);
             const responsavel = profiles.find(p => p.user_id === visit.responsavel_user_id);
+            const isEntrega = (visit.visit_type || "visita") === "retirada_entrega";
             return (
               <div
                 key={visit.id}
@@ -455,12 +500,15 @@ export default function Visitas() {
                 className={cn(
                   "group rounded-2xl border bg-card p-4 cursor-pointer transition-all duration-200",
                   "hover:shadow-lg hover:shadow-primary/5 hover:border-primary/30 hover:-translate-y-0.5",
-                  "border-border/40"
+                  isEntrega ? "border-violet-300/50" : "border-border/40"
                 )}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold text-[15px] truncate">{visit.lead_name}</p>
+                    <div className="flex items-center gap-2">
+                      {isEntrega && <Package className="h-4 w-4 text-violet-500 shrink-0" />}
+                      <p className="font-bold text-[15px] truncate">{visit.lead_name}</p>
+                    </div>
                     <div className="flex items-center gap-3 mt-1.5">
                       {visit.horario_visita && (
                         <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
@@ -477,11 +525,23 @@ export default function Visitas() {
                           <MapPin className="h-3 w-3" /> {visit.unit}
                         </span>
                       )}
+                      {isEntrega && visit.event_title && (
+                        <span className="flex items-center gap-1.5 text-xs text-violet-600 font-medium">
+                          <PartyPopper className="h-3 w-3" /> {visit.event_title}
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <Badge variant="outline" className={cn("text-[10px] shrink-0 border font-semibold", status.color)}>
-                    {status.label}
-                  </Badge>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    {isEntrega && (
+                      <Badge variant="outline" className="text-[10px] border font-semibold bg-violet-500/15 text-violet-700 border-violet-300">
+                        Entrega
+                      </Badge>
+                    )}
+                    <Badge variant="outline" className={cn("text-[10px] border font-semibold", status.color)}>
+                      {status.label}
+                    </Badge>
+                  </div>
                 </div>
               </div>
             );
@@ -561,10 +621,28 @@ export default function Visitas() {
               {profiles.map(p => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className={cn(
+              "h-9 flex-1 min-w-0 text-xs rounded-xl border-border/50 bg-card shadow-sm transition-all duration-200",
+              filterType !== "all" && "border-violet-400 bg-violet-500/5 text-violet-700 font-semibold ring-1 ring-violet-300"
+            )}>
+              <SelectValue placeholder="Tipo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos tipos</SelectItem>
+              <SelectItem value="visita">Visitas</SelectItem>
+              <SelectItem value="retirada_entrega">Retirada / Entrega</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        <Button size="sm" className="h-10 px-6 rounded-xl gap-2 font-semibold shadow-sm" onClick={() => { resetCreateForm(); setCreateOpen(true); }}>
-          <Plus className="h-4 w-4" /> Nova Visita
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button size="sm" className="h-10 px-5 rounded-xl gap-2 font-semibold shadow-sm" onClick={() => { resetCreateForm(); setCreateType("visita"); setCreateOpen(true); }}>
+            <Plus className="h-4 w-4" /> Nova Visita
+          </Button>
+          <Button size="sm" variant="outline" className="h-10 px-5 rounded-xl gap-2 font-semibold shadow-sm border-violet-300 text-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950/30" onClick={() => { resetCreateForm(); setCreateType("retirada_entrega"); setCreateOpen(true); }}>
+            <Package className="h-4 w-4" /> Retirada / Entrega
+          </Button>
+        </div>
       </div>
 
       {/* Visit Summary Cards */}
@@ -667,25 +745,41 @@ export default function Visitas() {
     </div>
   );
 
+  const isDetailEntrega = detailVisit && (detailVisit.visit_type || "visita") === "retirada_entrega";
+
   const detailSheet = (
     <Sheet open={!!detailVisit} onOpenChange={() => setDetailVisit(null)}>
       <SheetContent className="w-full sm:max-w-lg p-0 overflow-y-auto">
         {detailVisit && detailStatus && (
           <>
-            <div className="px-6 pt-6 pb-4 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-b border-border/40">
+            <div className={cn(
+              "px-6 pt-6 pb-4 border-b border-border/40",
+              isDetailEntrega
+                ? "bg-gradient-to-br from-violet-500/10 via-violet-500/5 to-transparent"
+                : "bg-gradient-to-br from-primary/10 via-primary/5 to-transparent"
+            )}>
               <SheetHeader>
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-primary/15 ring-1 ring-primary/20">
-                    <MapPin className="h-5 w-5 text-primary" />
+                  <div className={cn(
+                    "p-2.5 rounded-xl ring-1",
+                    isDetailEntrega
+                      ? "bg-violet-500/15 ring-violet-500/20"
+                      : "bg-primary/15 ring-primary/20"
+                  )}>
+                    {isDetailEntrega
+                      ? <Package className="h-5 w-5 text-violet-600" />
+                      : <MapPin className="h-5 w-5 text-primary" />
+                    }
                   </div>
                   <div className="min-w-0 flex-1">
                     <SheetTitle className="text-lg font-bold truncate">{detailVisit.lead_name}</SheetTitle>
                     <p className="text-xs text-muted-foreground mt-0.5">
+                      {isDetailEntrega && <span className="text-violet-600 font-semibold">Retirada / Entrega · </span>}
                       {format(parseISO(detailVisit.data_visita + "T12:00:00"), "dd 'de' MMMM, yyyy", { locale: ptBR })}
                       {detailVisit.horario_visita && ` às ${detailVisit.horario_visita}`}
                     </p>
                   </div>
-                  {detailVisit.interest_level && (
+                  {!isDetailEntrega && detailVisit.interest_level && (
                     <Badge variant="outline" className={cn("text-[10px] shrink-0 border font-semibold",
                       detailVisit.interest_level === "alto" && "bg-orange-500/15 text-orange-700 border-orange-300",
                       detailVisit.interest_level === "medio" && "bg-amber-500/15 text-amber-700 border-amber-300",
@@ -711,12 +805,26 @@ export default function Visitas() {
                   Abrir Conversa
                 </Button>
               )}
+
+              {/* Items description for entregas */}
+              {isDetailEntrega && (detailVisit.items_description || detailVisit.event_title) && (
+                <div className="rounded-xl border border-violet-300/40 bg-violet-50/50 dark:bg-violet-950/20 p-4 space-y-3">
+                  <p className="text-[11px] uppercase tracking-wider font-semibold text-violet-600">📦 Detalhes da Entrega</p>
+                  {detailVisit.event_title && (
+                    <div><p className="text-xs text-muted-foreground">Festa vinculada</p><p className="font-medium text-sm">{detailVisit.event_title}</p></div>
+                  )}
+                  {detailVisit.items_description && (
+                    <div><p className="text-xs text-muted-foreground">Itens</p><p className="font-medium text-sm leading-relaxed">{detailVisit.items_description}</p></div>
+                  )}
+                </div>
+              )}
+
               <div className="rounded-xl border border-border/40 bg-card p-4 space-y-3">
                 <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">Informações do Lead</p>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div><p className="text-xs text-muted-foreground">Telefone</p><p className="font-medium">{detailVisit.lead_phone || "—"}</p></div>
-                  <div><p className="text-xs text-muted-foreground">Convidados</p><p className="font-medium">{detailVisit.lead_guests || "—"}</p></div>
-                  <div><p className="text-xs text-muted-foreground">Mês pretendido</p><p className="font-medium">{detailVisit.lead_month || "—"}</p></div>
+                  {!isDetailEntrega && <div><p className="text-xs text-muted-foreground">Convidados</p><p className="font-medium">{detailVisit.lead_guests || "—"}</p></div>}
+                  {!isDetailEntrega && <div><p className="text-xs text-muted-foreground">Mês pretendido</p><p className="font-medium">{detailVisit.lead_month || "—"}</p></div>}
                   <div><p className="text-xs text-muted-foreground">Responsável</p><p className="font-medium">{detailResponsavel?.full_name || "—"}</p></div>
                   {detailVisit.unit && (
                     <div><p className="text-xs text-muted-foreground">Unidade</p><p className="font-medium">{detailVisit.unit}</p></div>
@@ -749,13 +857,15 @@ export default function Visitas() {
                   <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={() => updateVisitStatus(detailVisit.id, "confirmada")}><Check className="h-3.5 w-3.5 text-green-600" /> Confirmar</Button>
                   <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={() => updateVisitStatus(detailVisit.id, "remarcada")}><RefreshCw className="h-3.5 w-3.5" /> Remarcar</Button>
                   <Button variant="outline" size="sm" className="text-xs gap-1.5 text-destructive hover:text-destructive" onClick={() => updateVisitStatus(detailVisit.id, "cancelada")}><X className="h-3.5 w-3.5" /> Cancelar</Button>
-                  <Button
-                    size="sm"
-                    className="col-span-2 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
-                    onClick={() => handleClosedAtVisit(detailVisit)}
-                  >
-                    <PartyPopper className="h-3.5 w-3.5" /> Fechou na Visita 🎉
-                  </Button>
+                  {!isDetailEntrega && (
+                    <Button
+                      size="sm"
+                      className="col-span-2 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                      onClick={() => handleClosedAtVisit(detailVisit)}
+                    >
+                      <PartyPopper className="h-3.5 w-3.5" /> Fechou na Visita 🎉
+                    </Button>
+                  )}
                 </div>
                 <div className="pt-2 border-t border-border/30 mt-3">
                   <Label className="text-xs text-muted-foreground">Alterar status manualmente</Label>
@@ -768,14 +878,14 @@ export default function Visitas() {
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="outline" size="sm" className="w-full text-xs gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30">
-                        <Trash2 className="h-3.5 w-3.5" /> Excluir Visita
+                        <Trash2 className="h-3.5 w-3.5" /> Excluir {isDetailEntrega ? "Agendamento" : "Visita"}
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Excluir visita?</AlertDialogTitle>
+                        <AlertDialogTitle>Excluir {isDetailEntrega ? "agendamento" : "visita"}?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Essa ação não pode ser desfeita. A visita de <strong>{detailVisit.lead_name}</strong> será removida permanentemente.
+                          Essa ação não pode ser desfeita. O registro de <strong>{detailVisit.lead_name}</strong> será removido permanentemente.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -789,27 +899,29 @@ export default function Visitas() {
                 </div>
               </div>
 
-              {/* Qualification Section */}
-              <VisitQualification
-                visitId={detailVisit.id}
-                initialData={{
-                  package_interest: detailVisit.package_interest || null,
-                  guest_count: detailVisit.guest_count || null,
-                  party_date_interest: detailVisit.party_date_interest || null,
-                  payment_preference: detailVisit.payment_preference || null,
-                  interest_level: detailVisit.interest_level || null,
-                  restrictions: Array.isArray(detailVisit.restrictions)
-                    ? (detailVisit.restrictions as any[]).map((r: any) => typeof r === 'string' ? r : r.type)
-                    : [],
-                  restriction_notes: Array.isArray(detailVisit.restrictions)
-                    ? ((detailVisit.restrictions as any[]).find((r: any) => r.type === 'outro')?.notes || '')
-                    : '',
-                  client_questions: detailVisit.client_questions || null,
-                  seller_notes: detailVisit.seller_notes || null,
-                  lead_channel: (detailVisit as any).lead_channel || null,
-                }}
-                onSaved={fetchVisits}
-              />
+              {/* Qualification Section - only for visits, not entregas */}
+              {!isDetailEntrega && (
+                <VisitQualification
+                  visitId={detailVisit.id}
+                  initialData={{
+                    package_interest: detailVisit.package_interest || null,
+                    guest_count: detailVisit.guest_count || null,
+                    party_date_interest: detailVisit.party_date_interest || null,
+                    payment_preference: detailVisit.payment_preference || null,
+                    interest_level: detailVisit.interest_level || null,
+                    restrictions: Array.isArray(detailVisit.restrictions)
+                      ? (detailVisit.restrictions as any[]).map((r: any) => typeof r === 'string' ? r : r.type)
+                      : [],
+                    restriction_notes: Array.isArray(detailVisit.restrictions)
+                      ? ((detailVisit.restrictions as any[]).find((r: any) => r.type === 'outro')?.notes || '')
+                      : '',
+                    client_questions: detailVisit.client_questions || null,
+                    seller_notes: detailVisit.seller_notes || null,
+                    lead_channel: (detailVisit as any).lead_channel || null,
+                  }}
+                  onSaved={fetchVisits}
+                />
+              )}
             </div>
           </>
         )}
@@ -817,12 +929,21 @@ export default function Visitas() {
     </Sheet>
   );
 
+  const isCreateEntrega = createType === "retirada_entrega";
+
   const createDialog = (
     <Dialog open={createOpen} onOpenChange={setCreateOpen}>
       <DialogContent className="max-w-[520px] max-h-[90vh] p-0 gap-0 overflow-hidden rounded-2xl [&>button]:top-5 [&>button]:right-5">
-        <DialogHeader className="px-7 pt-7 pb-4 border-b border-border/40 bg-muted/30">
-          <DialogTitle className="text-lg font-bold tracking-tight">Nova Visita</DialogTitle>
-          <p className="text-[13px] text-muted-foreground mt-1">Agende uma nova visita para um lead</p>
+        <DialogHeader className={cn(
+          "px-7 pt-7 pb-4 border-b border-border/40",
+          isCreateEntrega ? "bg-violet-50/50 dark:bg-violet-950/20" : "bg-muted/30"
+        )}>
+          <DialogTitle className="text-lg font-bold tracking-tight flex items-center gap-2">
+            {isCreateEntrega ? <><Package className="h-5 w-5 text-violet-600" /> Retirada / Entrega</> : "Nova Visita"}
+          </DialogTitle>
+          <p className="text-[13px] text-muted-foreground mt-1">
+            {isCreateEntrega ? "Agende uma retirada ou entrega de itens para uma festa" : "Agende uma nova visita para um lead"}
+          </p>
         </DialogHeader>
         <div className="overflow-y-auto px-7 py-6 space-y-5" style={{ maxHeight: "calc(90vh - 180px)" }}>
           <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
@@ -833,7 +954,7 @@ export default function Visitas() {
                 <div className="flex items-center gap-2 p-2.5 rounded-lg border border-primary/30 bg-primary/5">
                   <UserIcon className="h-4 w-4 text-primary" />
                   <span className="text-sm font-medium flex-1">{newLeadName}</span>
-                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setNewLeadId(""); setNewLeadName(""); }}>
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setNewLeadId(""); setNewLeadName(""); setLeadEvents([]); setNewEventId(""); }}>
                     <X className="h-3 w-3" />
                   </Button>
                 </div>
@@ -852,7 +973,10 @@ export default function Visitas() {
                         <button
                           key={l.id}
                           className="w-full text-left px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors first:rounded-t-lg last:rounded-b-lg"
-                          onClick={() => { setNewLeadId(l.id); setNewLeadName(l.name); setLeadResults([]); setNewLeadSearch(""); }}
+                          onClick={() => {
+                            setNewLeadId(l.id); setNewLeadName(l.name); setLeadResults([]); setNewLeadSearch("");
+                            if (isCreateEntrega) fetchLeadEvents(l.id);
+                          }}
                         >
                           <span className="font-medium">{l.name}</span>
                           <span className="text-muted-foreground ml-2 text-xs">{l.whatsapp}</span>
@@ -864,11 +988,36 @@ export default function Visitas() {
               )}
             </div>
           </div>
+
+          {/* Event link - only for retirada_entrega */}
+          {isCreateEntrega && newLeadId && (
+            <div className="rounded-xl border border-violet-300/40 bg-violet-50/30 dark:bg-violet-950/10 p-5 shadow-sm">
+              <CreateSectionHeader icon={PartyPopper} label="Festa vinculada" />
+              <div className="space-y-2.5">
+                <Label className="text-sm font-medium text-foreground/70">Vincular a uma festa (opcional)</Label>
+                <Select value={newEventId || "none"} onValueChange={(v) => setNewEventId(v === "none" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder="Selecionar festa" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sem vínculo</SelectItem>
+                    {leadEvents.map(e => (
+                      <SelectItem key={e.id} value={e.id}>
+                        {e.title} — {format(parseISO(e.event_date + "T12:00:00"), "dd/MM/yyyy")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {leadEvents.length === 0 && (
+                  <p className="text-xs text-muted-foreground">Nenhuma festa encontrada para este lead</p>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
             <CreateSectionHeader icon={CalendarIcon} label="Data e Horário" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5">
               <div className="space-y-2.5 md:pr-6">
-                <Label className="text-sm font-medium text-foreground/70">Data da visita *</Label>
+                <Label className="text-sm font-medium text-foreground/70">Data *</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !newDate && "text-muted-foreground")}>
@@ -915,19 +1064,35 @@ export default function Visitas() {
               )}
             </div>
           </div>
+
+          {/* Items description for retirada_entrega */}
+          {isCreateEntrega && (
+            <div className="rounded-xl border border-violet-300/40 bg-violet-50/30 dark:bg-violet-950/10 p-5 shadow-sm">
+              <CreateSectionHeader icon={Package} label="Itens" />
+              <div className="space-y-2.5">
+                <Label className="text-sm font-medium text-foreground/70">O que será entregue/retirado?</Label>
+                <Textarea value={newItemsDesc} onChange={(e) => setNewItemsDesc(e.target.value)} rows={3} placeholder="Ex: 2 caixas de refrigerante, lembrancinhas, toalha de mesa personalizada..." />
+              </div>
+            </div>
+          )}
+
           <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
             <CreateSectionHeader icon={MapPin} label="Observações" />
             <div className="space-y-2.5">
-              <Label className="text-sm font-medium text-foreground/70">Notas sobre a visita</Label>
-              <Textarea value={newNotes} onChange={(e) => setNewNotes(e.target.value)} rows={3} placeholder="Informações sobre a visita..." />
+              <Label className="text-sm font-medium text-foreground/70">Notas adicionais</Label>
+              <Textarea value={newNotes} onChange={(e) => setNewNotes(e.target.value)} rows={3} placeholder={isCreateEntrega ? "Observações sobre a entrega/retirada..." : "Informações sobre a visita..."} />
             </div>
           </div>
         </div>
         <div className="flex justify-end gap-3 px-7 py-4 border-t border-border/40 bg-muted/20">
           <Button variant="ghost" onClick={() => setCreateOpen(false)}>Cancelar</Button>
-          <Button onClick={handleCreate} disabled={saving || !newLeadId || !newDate} className="px-8 rounded-lg shadow-sm">
+          <Button
+            onClick={handleCreate}
+            disabled={saving || !newLeadId || !newDate}
+            className={cn("px-8 rounded-lg shadow-sm", isCreateEntrega && "bg-violet-600 hover:bg-violet-700")}
+          >
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Criar Visita
+            {isCreateEntrega ? "Agendar Entrega" : "Criar Visita"}
           </Button>
         </div>
       </DialogContent>
