@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,6 +29,7 @@ import { WhatsAppChat } from "@/components/whatsapp/WhatsAppChat";
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AnimatedBadge } from "@/components/ui/animated-badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
@@ -107,11 +108,6 @@ export default function CentralAtendimento() {
   const [initialDraft, setInitialDraft] = useState<string | null>(null);
   const [chatInstances, setChatInstances] = useState<{ id: string; unit: string | null; status: string | null }[]>([]);
   const [selectedChatUnit, setSelectedChatUnit] = useState<string | null>(null);
-
-  // Debug: log chatInstances changes
-  useEffect(() => {
-    console.log('[CentralAtendimento] chatInstances updated:', chatInstances.length, JSON.stringify(chatInstances.map(i => i.unit)));
-  }, [chatInstances]);
 
   // Handle URL params for phone/leadId navigation
   useEffect(() => {
@@ -741,6 +737,40 @@ export default function CentralAtendimento() {
     filters.hasScheduledVisit,
   ].filter(Boolean).length;
 
+  const chatUnitOptions = useMemo(() => {
+    const instanceUnits = chatInstances
+      .map((instance) => instance.unit)
+      .filter((unit): unit is string => Boolean(unit));
+
+    if (instanceUnits.length > 0) {
+      return Array.from(new Set(instanceUnits));
+    }
+
+    if (!canViewAll) {
+      return allowedUnits.filter((unit) => unit !== "all" && unit !== "As duas");
+    }
+
+    return Array.from(
+      new Set(
+        units
+          .filter((unit) => unit.slug !== "trabalhe-conosco")
+          .map((unit) => unit.name)
+          .filter(Boolean)
+      )
+    );
+  }, [allowedUnits, canViewAll, chatInstances, units]);
+
+  useEffect(() => {
+    if (chatUnitOptions.length === 0) {
+      setSelectedChatUnit(null);
+      return;
+    }
+
+    setSelectedChatUnit((current) => (
+      current && chatUnitOptions.includes(current) ? current : chatUnitOptions[0]
+    ));
+  }, [chatUnitOptions]);
+
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   // Mobile layout with Sheet
@@ -887,24 +917,23 @@ export default function CentralAtendimento() {
               </TabsList>
 
               {/* Unit selector - always visible next to tabs (chat tab) */}
-              {chatInstances.length > 1 && activeTab === "chat" && (
-                <div className="flex-1 min-w-0 overflow-x-auto rounded-lg [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                  <div className="inline-flex min-w-max items-center gap-1 bg-border rounded-lg p-0.5">
-                    {chatInstances.map((inst) => (
-                      <Button
-                        key={inst.id}
-                        variant={selectedChatUnit === inst.unit ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => setSelectedChatUnit(inst.unit)}
-                        className={`h-7 shrink-0 px-2.5 rounded-md transition-all text-xs ${
-                          selectedChatUnit === inst.unit ? "shadow-sm" : "hover:bg-background/80"
-                        }`}
-                      >
-                        <Building2 className="w-3.5 h-3.5 mr-1" />
-                        {inst.unit}
-                      </Button>
-                    ))}
-                  </div>
+              {chatUnitOptions.length > 1 && activeTab === "chat" && (
+                <div className="flex-1 min-w-0">
+                  <Select value={selectedChatUnit ?? undefined} onValueChange={setSelectedChatUnit}>
+                    <SelectTrigger className="h-9 w-full text-xs">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Building2 className="w-3.5 h-3.5 shrink-0" />
+                        <SelectValue placeholder="Selecionar unidade" />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {chatUnitOptions.map((unit) => (
+                        <SelectItem key={unit} value={unit}>
+                          {unit}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
 
