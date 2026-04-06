@@ -215,9 +215,10 @@ export default function Visitas() {
       if (filterStatus !== "all" && v.status_visita !== filterStatus) return false;
       if (filterResponsavel !== "all" && v.responsavel_user_id !== filterResponsavel) return false;
       if (filterUnit !== "all" && v.unit !== filterUnit) return false;
+      if (filterType !== "all" && (v.visit_type || "visita") !== filterType) return false;
       return true;
     });
-  }, [visits, filterStatus, filterResponsavel, filterUnit]);
+  }, [visits, filterStatus, filterResponsavel, filterUnit, filterType]);
 
   // Visits for selected day
   const selectedDayVisits = useMemo(() => {
