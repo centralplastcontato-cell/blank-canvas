@@ -492,6 +492,7 @@ export default function Visitas() {
           {selectedDayVisits.map(visit => {
             const status = getStatusInfo(visit.status_visita);
             const responsavel = profiles.find(p => p.user_id === visit.responsavel_user_id);
+            const isEntrega = (visit.visit_type || "visita") === "retirada_entrega";
             return (
               <div
                 key={visit.id}
@@ -499,12 +500,15 @@ export default function Visitas() {
                 className={cn(
                   "group rounded-2xl border bg-card p-4 cursor-pointer transition-all duration-200",
                   "hover:shadow-lg hover:shadow-primary/5 hover:border-primary/30 hover:-translate-y-0.5",
-                  "border-border/40"
+                  isEntrega ? "border-violet-300/50" : "border-border/40"
                 )}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold text-[15px] truncate">{visit.lead_name}</p>
+                    <div className="flex items-center gap-2">
+                      {isEntrega && <Package className="h-4 w-4 text-violet-500 shrink-0" />}
+                      <p className="font-bold text-[15px] truncate">{visit.lead_name}</p>
+                    </div>
                     <div className="flex items-center gap-3 mt-1.5">
                       {visit.horario_visita && (
                         <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
@@ -521,11 +525,23 @@ export default function Visitas() {
                           <MapPin className="h-3 w-3" /> {visit.unit}
                         </span>
                       )}
+                      {isEntrega && visit.event_title && (
+                        <span className="flex items-center gap-1.5 text-xs text-violet-600 font-medium">
+                          <PartyPopper className="h-3 w-3" /> {visit.event_title}
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <Badge variant="outline" className={cn("text-[10px] shrink-0 border font-semibold", status.color)}>
-                    {status.label}
-                  </Badge>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    {isEntrega && (
+                      <Badge variant="outline" className="text-[10px] border font-semibold bg-violet-500/15 text-violet-700 border-violet-300">
+                        Entrega
+                      </Badge>
+                    )}
+                    <Badge variant="outline" className={cn("text-[10px] border font-semibold", status.color)}>
+                      {status.label}
+                    </Badge>
+                  </div>
                 </div>
               </div>
             );
