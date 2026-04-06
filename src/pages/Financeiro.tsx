@@ -514,12 +514,12 @@ export default function Financeiro() {
                       <div className="flex gap-1.5 overflow-x-auto pb-1">
                         {[
                           { value: 'todos', icon: List, label: 'Todos', count: dashboard.expenses.length },
-                          { value: 'fixa', icon: Building, label: 'Fixas', count: dashboard.expenses.filter(e => (e.expense_type || 'fixa') === 'fixa').length },
-                          { value: 'variavel', icon: Zap, label: 'Variáveis', count: dashboard.expenses.filter(e => e.expense_type === 'variavel').length },
-                          { value: 'festa', icon: PartyPopper, label: 'Festas', count: dashboard.expenses.filter(e => e.expense_type === 'festa').length },
                           { value: 'a_vencer', icon: Clock, label: 'A vencer', count: dashboard.expenses.filter(e => e.status === 'pendente' && new Date(e.expense_date + 'T23:59:59') >= new Date()).length },
                           { value: 'vencidas', icon: AlertTriangle, label: 'Vencidas', count: dashboard.expenses.filter(e => e.status === 'pendente' && new Date(e.expense_date + 'T23:59:59') < new Date()).length },
                           { value: 'baixadas', icon: CheckCircle, label: 'Baixadas', count: dashboard.expenses.filter(e => e.status === 'pago').length },
+                          { value: 'fixa', icon: Building, label: 'Fixas', count: dashboard.expenses.filter(e => (e.expense_type || 'fixa') === 'fixa').length },
+                          { value: 'variavel', icon: Zap, label: 'Variáveis', count: dashboard.expenses.filter(e => e.expense_type === 'variavel').length },
+                          { value: 'festa', icon: PartyPopper, label: 'Festas', count: dashboard.expenses.filter(e => e.expense_type === 'festa').length },
                         ].map(t => (
                           <button
                             key={t.value}
