@@ -2137,6 +2137,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       }
 
       if (status === 'em_contato') {
+        setQuickVisitType("visita");
         setShowQuickVisitDialog(true);
       }
 
