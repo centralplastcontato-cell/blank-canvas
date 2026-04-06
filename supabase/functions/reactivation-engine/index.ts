@@ -259,13 +259,14 @@ Deno.serve(async (req) => {
           humanTakeoverLeads = new Set((convs || []).map(c => c.lead_id).filter(Boolean));
         }
 
-        // Min days without reply
+        // Min days without reply — check ANY conversation activity (not just lead replies)
+        // Previously only checked last_message_from_me=false, which missed cases where
+        // the bot replied after the lead (flipping the flag to true within minutes)
         const minDaysCutoff = new Date(Date.now() - settings.min_days_without_reply * 24 * 60 * 60 * 1000).toISOString();
         const { data: recentConvs } = await supabase
           .from("wapi_conversations")
           .select("lead_id")
           .in("lead_id", leadIds)
-          .eq("last_message_from_me", false)
           .gte("last_message_at", minDaysCutoff);
         const recentlyActiveLeads = new Set((recentConvs || []).map(c => c.lead_id).filter(Boolean));
 
