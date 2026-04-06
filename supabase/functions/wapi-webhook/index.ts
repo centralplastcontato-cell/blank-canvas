@@ -4495,6 +4495,9 @@ function normalizeZapiPayload(body: Record<string, unknown>): Record<string, unk
     message = { documentMessage: { url: documentObj.documentUrl, fileName: documentObj.fileName || 'document' } };
   }
 
+  // Z-API may include profile picture in the payload
+  const profilePic = (body.photo as string) || (body.senderPhoto as string) || (body.chatPhoto as string) || null;
+
   return {
     event: 'messages.upsert',
     instanceId: body.instanceId,
@@ -4503,6 +4506,7 @@ function normalizeZapiPayload(body: Record<string, unknown>): Record<string, unk
       pushName: senderName,
       message,
       messageTimestamp: Math.floor(Date.now() / 1000),
+      ...(profilePic ? { sender: { profilePicture: profilePic } } : {}),
     },
   };
 }
