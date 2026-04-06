@@ -102,6 +102,16 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
   const [renameValue, setRenameValue] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<HubInstance | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [editTarget, setEditTarget] = useState<HubInstance | null>(null);
+  const [isEditSaving, setIsEditSaving] = useState(false);
+  const [editData, setEditData] = useState({
+    instanceId: "",
+    instanceToken: "",
+    unit: "",
+    companyId: "",
+    provider: "wapi" as "wapi" | "zapi",
+    clientToken: "",
+  });
   const connection = useWhatsAppConnection(() => fetchData());
 
   const handleDeleteInstance = async () => {
