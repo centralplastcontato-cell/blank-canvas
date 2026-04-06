@@ -49,7 +49,7 @@ function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: 
   );
 }
 
-export function QuickVisitDialog({ open, onOpenChange, leadId, currentUserId, leadUnit, onVisitRegistered }: QuickVisitDialogProps) {
+export function QuickVisitDialog({ open, onOpenChange, leadId, currentUserId, leadUnit, onVisitRegistered, initialVisitType = "visita" }: QuickVisitDialogProps) {
   const [visitDate, setVisitDate] = useState<Date | undefined>(undefined);
   const [visitTime, setVisitTime] = useState("");
   const [visitStatus, setVisitStatus] = useState("agendada");
