@@ -1,0 +1,1 @@
+UPDATE wapi_instances SET status = 'connected', phone_number = (SELECT contact_phone FROM wapi_conversations WHERE instance_id = '75feab3b-eb12-44f0-8ada-463e5540c869' AND contact_phone IS NOT NULL LIMIT 1) WHERE id = '75feab3b-eb12-44f0-8ada-463e5540c869' AND status = 'degraded';
