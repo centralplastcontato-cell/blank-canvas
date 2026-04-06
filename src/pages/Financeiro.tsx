@@ -780,6 +780,7 @@ export default function Financeiro() {
           status: editingExpense.status,
           notes: editingExpense.notes,
           receipt_url: editingExpense.receipt_url,
+          boleto_url: (editingExpense as any).boleto_url,
         } : undefined}
         defaultExpenseType={expenseDialogType}
       />
