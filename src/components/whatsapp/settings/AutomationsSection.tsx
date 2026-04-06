@@ -768,10 +768,6 @@ export function AutomationsSection() {
             <Power className="w-3.5 h-3.5" />
             <span>Geral</span>
           </TabsTrigger>
-          <TabsTrigger value="jornada" className="flex items-center gap-1.5 text-xs sm:text-sm">
-            <Map className="w-3.5 h-3.5" />
-            <span>Jornada</span>
-          </TabsTrigger>
           <TabsTrigger value="perguntas" className="flex items-center gap-1.5 text-xs sm:text-sm">
             <MessageSquare className="w-3.5 h-3.5" />
             <span>Perguntas</span>
