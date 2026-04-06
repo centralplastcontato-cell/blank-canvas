@@ -137,14 +137,29 @@ export function PackagesManager() {
     if (editing) {
       await supabase.from("company_packages").update(payload).eq("id", editing.id);
       toast({ title: "Pacote atualizado!" });
+      setSaving(false);
+      setDialogOpen(false);
+      fetchPackages();
     } else {
-      await supabase.from("company_packages").insert({ ...payload, company_id: currentCompany.id } as any);
-      toast({ title: "Pacote criado!" });
-    }
+      const { data: created } = await supabase
+        .from("company_packages")
+        .insert({ ...payload, company_id: currentCompany.id } as any)
+        .select("*")
+        .single();
+      
+      setSaving(false);
+      await fetchPackages();
 
-    setSaving(false);
-    setDialogOpen(false);
-    fetchPackages();
+      if (created) {
+        // Auto-open in edit mode so user can configure price grid
+        const newPkg = created as unknown as CompanyPackage;
+        setEditing(newPkg);
+        toast({ title: "Pacote criado! Configure a grade de preços abaixo." });
+      } else {
+        toast({ title: "Pacote criado!" });
+        setDialogOpen(false);
+      }
+    }
   };
 
   const handleDelete = async (id: string) => {
