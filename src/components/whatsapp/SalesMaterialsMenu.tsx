@@ -109,7 +109,6 @@ export function SalesMaterialsMenu({
         supabase
           .from("sales_materials")
           .select("*")
-          .eq("unit", unit)
           .eq("is_active", true)
           .order("sort_order", { ascending: true }),
         supabase
