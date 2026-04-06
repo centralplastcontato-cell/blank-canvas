@@ -745,25 +745,41 @@ export default function Visitas() {
     </div>
   );
 
+  const isDetailEntrega = detailVisit && (detailVisit.visit_type || "visita") === "retirada_entrega";
+
   const detailSheet = (
     <Sheet open={!!detailVisit} onOpenChange={() => setDetailVisit(null)}>
       <SheetContent className="w-full sm:max-w-lg p-0 overflow-y-auto">
         {detailVisit && detailStatus && (
           <>
-            <div className="px-6 pt-6 pb-4 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-b border-border/40">
+            <div className={cn(
+              "px-6 pt-6 pb-4 border-b border-border/40",
+              isDetailEntrega
+                ? "bg-gradient-to-br from-violet-500/10 via-violet-500/5 to-transparent"
+                : "bg-gradient-to-br from-primary/10 via-primary/5 to-transparent"
+            )}>
               <SheetHeader>
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-primary/15 ring-1 ring-primary/20">
-                    <MapPin className="h-5 w-5 text-primary" />
+                  <div className={cn(
+                    "p-2.5 rounded-xl ring-1",
+                    isDetailEntrega
+                      ? "bg-violet-500/15 ring-violet-500/20"
+                      : "bg-primary/15 ring-primary/20"
+                  )}>
+                    {isDetailEntrega
+                      ? <Package className="h-5 w-5 text-violet-600" />
+                      : <MapPin className="h-5 w-5 text-primary" />
+                    }
                   </div>
                   <div className="min-w-0 flex-1">
                     <SheetTitle className="text-lg font-bold truncate">{detailVisit.lead_name}</SheetTitle>
                     <p className="text-xs text-muted-foreground mt-0.5">
+                      {isDetailEntrega && <span className="text-violet-600 font-semibold">Retirada / Entrega · </span>}
                       {format(parseISO(detailVisit.data_visita + "T12:00:00"), "dd 'de' MMMM, yyyy", { locale: ptBR })}
                       {detailVisit.horario_visita && ` às ${detailVisit.horario_visita}`}
                     </p>
                   </div>
-                  {detailVisit.interest_level && (
+                  {!isDetailEntrega && detailVisit.interest_level && (
                     <Badge variant="outline" className={cn("text-[10px] shrink-0 border font-semibold",
                       detailVisit.interest_level === "alto" && "bg-orange-500/15 text-orange-700 border-orange-300",
                       detailVisit.interest_level === "medio" && "bg-amber-500/15 text-amber-700 border-amber-300",
@@ -789,12 +805,26 @@ export default function Visitas() {
                   Abrir Conversa
                 </Button>
               )}
+
+              {/* Items description for entregas */}
+              {isDetailEntrega && (detailVisit.items_description || detailVisit.event_title) && (
+                <div className="rounded-xl border border-violet-300/40 bg-violet-50/50 dark:bg-violet-950/20 p-4 space-y-3">
+                  <p className="text-[11px] uppercase tracking-wider font-semibold text-violet-600">📦 Detalhes da Entrega</p>
+                  {detailVisit.event_title && (
+                    <div><p className="text-xs text-muted-foreground">Festa vinculada</p><p className="font-medium text-sm">{detailVisit.event_title}</p></div>
+                  )}
+                  {detailVisit.items_description && (
+                    <div><p className="text-xs text-muted-foreground">Itens</p><p className="font-medium text-sm leading-relaxed">{detailVisit.items_description}</p></div>
+                  )}
+                </div>
+              )}
+
               <div className="rounded-xl border border-border/40 bg-card p-4 space-y-3">
                 <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">Informações do Lead</p>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div><p className="text-xs text-muted-foreground">Telefone</p><p className="font-medium">{detailVisit.lead_phone || "—"}</p></div>
-                  <div><p className="text-xs text-muted-foreground">Convidados</p><p className="font-medium">{detailVisit.lead_guests || "—"}</p></div>
-                  <div><p className="text-xs text-muted-foreground">Mês pretendido</p><p className="font-medium">{detailVisit.lead_month || "—"}</p></div>
+                  {!isDetailEntrega && <div><p className="text-xs text-muted-foreground">Convidados</p><p className="font-medium">{detailVisit.lead_guests || "—"}</p></div>}
+                  {!isDetailEntrega && <div><p className="text-xs text-muted-foreground">Mês pretendido</p><p className="font-medium">{detailVisit.lead_month || "—"}</p></div>}
                   <div><p className="text-xs text-muted-foreground">Responsável</p><p className="font-medium">{detailResponsavel?.full_name || "—"}</p></div>
                   {detailVisit.unit && (
                     <div><p className="text-xs text-muted-foreground">Unidade</p><p className="font-medium">{detailVisit.unit}</p></div>
@@ -827,13 +857,15 @@ export default function Visitas() {
                   <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={() => updateVisitStatus(detailVisit.id, "confirmada")}><Check className="h-3.5 w-3.5 text-green-600" /> Confirmar</Button>
                   <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={() => updateVisitStatus(detailVisit.id, "remarcada")}><RefreshCw className="h-3.5 w-3.5" /> Remarcar</Button>
                   <Button variant="outline" size="sm" className="text-xs gap-1.5 text-destructive hover:text-destructive" onClick={() => updateVisitStatus(detailVisit.id, "cancelada")}><X className="h-3.5 w-3.5" /> Cancelar</Button>
-                  <Button
-                    size="sm"
-                    className="col-span-2 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
-                    onClick={() => handleClosedAtVisit(detailVisit)}
-                  >
-                    <PartyPopper className="h-3.5 w-3.5" /> Fechou na Visita 🎉
-                  </Button>
+                  {!isDetailEntrega && (
+                    <Button
+                      size="sm"
+                      className="col-span-2 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                      onClick={() => handleClosedAtVisit(detailVisit)}
+                    >
+                      <PartyPopper className="h-3.5 w-3.5" /> Fechou na Visita 🎉
+                    </Button>
+                  )}
                 </div>
                 <div className="pt-2 border-t border-border/30 mt-3">
                   <Label className="text-xs text-muted-foreground">Alterar status manualmente</Label>
@@ -846,14 +878,14 @@ export default function Visitas() {
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="outline" size="sm" className="w-full text-xs gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30">
-                        <Trash2 className="h-3.5 w-3.5" /> Excluir Visita
+                        <Trash2 className="h-3.5 w-3.5" /> Excluir {isDetailEntrega ? "Agendamento" : "Visita"}
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Excluir visita?</AlertDialogTitle>
+                        <AlertDialogTitle>Excluir {isDetailEntrega ? "agendamento" : "visita"}?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Essa ação não pode ser desfeita. A visita de <strong>{detailVisit.lead_name}</strong> será removida permanentemente.
+                          Essa ação não pode ser desfeita. O registro de <strong>{detailVisit.lead_name}</strong> será removido permanentemente.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -867,27 +899,29 @@ export default function Visitas() {
                 </div>
               </div>
 
-              {/* Qualification Section */}
-              <VisitQualification
-                visitId={detailVisit.id}
-                initialData={{
-                  package_interest: detailVisit.package_interest || null,
-                  guest_count: detailVisit.guest_count || null,
-                  party_date_interest: detailVisit.party_date_interest || null,
-                  payment_preference: detailVisit.payment_preference || null,
-                  interest_level: detailVisit.interest_level || null,
-                  restrictions: Array.isArray(detailVisit.restrictions)
-                    ? (detailVisit.restrictions as any[]).map((r: any) => typeof r === 'string' ? r : r.type)
-                    : [],
-                  restriction_notes: Array.isArray(detailVisit.restrictions)
-                    ? ((detailVisit.restrictions as any[]).find((r: any) => r.type === 'outro')?.notes || '')
-                    : '',
-                  client_questions: detailVisit.client_questions || null,
-                  seller_notes: detailVisit.seller_notes || null,
-                  lead_channel: (detailVisit as any).lead_channel || null,
-                }}
-                onSaved={fetchVisits}
-              />
+              {/* Qualification Section - only for visits, not entregas */}
+              {!isDetailEntrega && (
+                <VisitQualification
+                  visitId={detailVisit.id}
+                  initialData={{
+                    package_interest: detailVisit.package_interest || null,
+                    guest_count: detailVisit.guest_count || null,
+                    party_date_interest: detailVisit.party_date_interest || null,
+                    payment_preference: detailVisit.payment_preference || null,
+                    interest_level: detailVisit.interest_level || null,
+                    restrictions: Array.isArray(detailVisit.restrictions)
+                      ? (detailVisit.restrictions as any[]).map((r: any) => typeof r === 'string' ? r : r.type)
+                      : [],
+                    restriction_notes: Array.isArray(detailVisit.restrictions)
+                      ? ((detailVisit.restrictions as any[]).find((r: any) => r.type === 'outro')?.notes || '')
+                      : '',
+                    client_questions: detailVisit.client_questions || null,
+                    seller_notes: detailVisit.seller_notes || null,
+                    lead_channel: (detailVisit as any).lead_channel || null,
+                  }}
+                  onSaved={fetchVisits}
+                />
+              )}
             </div>
           </>
         )}
