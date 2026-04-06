@@ -535,7 +535,7 @@ export default function Visitas() {
                   <div className="flex flex-col items-end gap-1 shrink-0">
                     {isEntrega && (
                       <Badge variant="outline" className="text-[10px] border font-semibold bg-violet-500/15 text-violet-700 border-violet-300">
-                        Entrega
+                        Atendimento
                       </Badge>
                     )}
                     <Badge variant="outline" className={cn("text-[10px] border font-semibold", status.color)}>
