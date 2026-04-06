@@ -22,7 +22,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale, Building, Zap, PartyPopper, List, Users, ChevronLeft, ChevronRight, ExternalLink, ArrowUpDown, CalendarRange, X, FileText, CheckCircle, RotateCcw } from 'lucide-react';
+import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale, Building, Zap, PartyPopper, List, Users, ChevronLeft, ChevronRight, ExternalLink, ArrowUpDown, CalendarRange, X, FileText, CheckCircle, RotateCcw, Clock } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, addMonths, startOfYear, endOfYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -517,6 +517,7 @@ export default function Financeiro() {
                           { value: 'fixa', icon: Building, label: 'Fixas', count: dashboard.expenses.filter(e => (e.expense_type || 'fixa') === 'fixa').length },
                           { value: 'variavel', icon: Zap, label: 'Variáveis', count: dashboard.expenses.filter(e => e.expense_type === 'variavel').length },
                           { value: 'festa', icon: PartyPopper, label: 'Festas', count: dashboard.expenses.filter(e => e.expense_type === 'festa').length },
+                          { value: 'a_vencer', icon: Clock, label: 'A vencer', count: dashboard.expenses.filter(e => e.status === 'pendente').length },
                           { value: 'baixadas', icon: CheckCircle, label: 'Baixadas', count: dashboard.expenses.filter(e => e.status === 'pago').length },
                         ].map(t => (
                           <button
@@ -532,7 +533,7 @@ export default function Financeiro() {
                             <span>{t.label}</span>
                             {t.count > 0 && (
                               <Badge className={`ml-0.5 h-5 min-w-[20px] px-1.5 text-[10px] ${
-                                despesasSubTab === t.value ? 'bg-background/20 text-background' : t.value === 'baixadas' ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'
+                                despesasSubTab === t.value ? 'bg-background/20 text-background' : t.value === 'baixadas' ? 'bg-emerald-500 text-white' : t.value === 'a_vencer' ? 'bg-orange-500 text-white' : 'bg-blue-500 text-white'
                               }`}>{t.count}</Badge>
                             )}
                           </button>
@@ -540,19 +541,20 @@ export default function Financeiro() {
                       </div>
                     </div>
 
-                    {(['todos', 'fixa', 'variavel', 'festa', 'baixadas'] as const).map(expType => {
+                    {(['todos', 'fixa', 'variavel', 'festa', 'a_vencer', 'baixadas'] as const).map(expType => {
                       const typeExpenses = dashboard.expenses
                         .filter(e => {
                           if (expType === 'todos') return true;
                           if (expType === 'baixadas') return e.status === 'pago';
+                          if (expType === 'a_vencer') return e.status === 'pendente';
                           return (e.expense_type || 'fixa') === expType;
                         })
                         .sort((a, b) => despesasSortAsc
                           ? a.expense_date.localeCompare(b.expense_date)
                           : b.expense_date.localeCompare(a.expense_date)
                         );
-                      const typeLabel = expType === 'todos' ? '' : expType === 'fixa' ? 'fixa' : expType === 'variavel' ? 'variável' : expType === 'festa' ? 'de festa' : 'baixada';
-                      const sectionTitle = expType === 'todos' ? `Todas as despesas (${typeExpenses.length})` : expType === 'baixadas' ? `Despesas baixadas (${typeExpenses.length})` : `Despesas ${typeLabel}s (${typeExpenses.length})`;
+                      const typeLabel = expType === 'todos' ? '' : expType === 'fixa' ? 'fixa' : expType === 'variavel' ? 'variável' : expType === 'festa' ? 'de festa' : expType === 'a_vencer' ? 'a vencer' : 'baixada';
+                      const sectionTitle = expType === 'todos' ? `Todas as despesas (${typeExpenses.length})` : expType === 'baixadas' ? `Despesas baixadas (${typeExpenses.length})` : expType === 'a_vencer' ? `Despesas a vencer (${typeExpenses.length})` : `Despesas ${typeLabel}s (${typeExpenses.length})`;
                       return (
                         <TabsContent key={expType} value={expType} className="space-y-3 mt-3">
                           <div className="flex items-center justify-between">
