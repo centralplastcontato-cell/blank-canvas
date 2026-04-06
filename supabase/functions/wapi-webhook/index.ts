@@ -2916,8 +2916,8 @@ async function sendQualificationMaterials(
   const captionMap: Record<string, string> = {};
   captions?.forEach(c => { captionMap[c.caption_type] = c.caption_text; });
   
-  // Fetch all active materials for this unit
-  const { data: materials, error: matError } = await supabase
+  // Fetch all active materials for this unit (with company_id fallback)
+  let { data: materials, error: matError } = await supabase
     .from('sales_materials')
     .select('*')
     .eq('unit', unit)
@@ -2925,8 +2925,22 @@ async function sendQualificationMaterials(
     .order('type', { ascending: true })
     .order('sort_order', { ascending: true });
   
+  // Fallback: if no materials found by unit name, try by company_id
+  if ((!materials || materials.length === 0) && (instance as any).company_id) {
+    console.log(`[Bot Materials] No materials for unit "${unit}", falling back to company_id`);
+    const fallback = await supabase
+      .from('sales_materials')
+      .select('*')
+      .eq('company_id', (instance as any).company_id)
+      .eq('is_active', true)
+      .order('type', { ascending: true })
+      .order('sort_order', { ascending: true });
+    materials = fallback.data;
+    matError = fallback.error;
+  }
+
   if (matError || !materials?.length) {
-    console.log(`[Bot Materials] No materials found for unit ${unit}`);
+    console.log(`[Bot Materials] No materials found for unit ${unit} or company fallback`);
     return;
   }
   
