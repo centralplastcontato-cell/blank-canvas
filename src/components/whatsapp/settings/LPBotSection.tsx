@@ -387,32 +387,70 @@ export function LPBotSection() {
             <Route className="w-4 h-4 text-primary" />
             Distribuição de Leads da Landing Page
           </CardTitle>
-          <CardDescription>Escolha qual instância do WhatsApp recebe os leads da LP</CardDescription>
+          <CardDescription>Escolha quais instâncias do WhatsApp recebem os leads da LP</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Select
-            value={settings.lead_routing_mode}
-            onValueChange={(value) => updateField('lead_routing_mode', value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione o modo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="auto">🔄 Automático (Round-Robin)</SelectItem>
-              <SelectItem value="vendas1">📱 Apenas Vendas 1</SelectItem>
-              <SelectItem value="vendas2">📱 Apenas Vendas 2</SelectItem>
-            </SelectContent>
-          </Select>
+          {instances.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhuma instância encontrada.</p>
+          ) : (
+            <div className="space-y-2">
+              {/* Auto option */}
+              <label className="flex items-center gap-2 p-2 rounded-md border cursor-pointer hover:bg-muted/50 transition-colors">
+                <Checkbox
+                  checked={settings.lead_routing_mode === 'auto'}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      updateField('lead_routing_mode', 'auto');
+                    }
+                  }}
+                />
+                <span className="text-sm">🔄 Automático (Round-Robin) — Todas as instâncias</span>
+              </label>
+
+              <Separator />
+              <p className="text-xs text-muted-foreground font-medium">Ou selecione instâncias específicas:</p>
+
+              {instances.map((inst) => {
+                const selectedUnits = settings.lead_routing_mode === 'auto' ? [] : settings.lead_routing_mode.split(',').filter(Boolean);
+                const isChecked = selectedUnits.includes(inst.unit);
+
+                return (
+                  <label key={inst.id} className="flex items-center gap-2 p-2 rounded-md border cursor-pointer hover:bg-muted/50 transition-colors">
+                    <Checkbox
+                      checked={isChecked}
+                      onCheckedChange={(checked) => {
+                        let newUnits: string[];
+                        if (checked) {
+                          newUnits = [...selectedUnits, inst.unit];
+                        } else {
+                          newUnits = selectedUnits.filter(u => u !== inst.unit);
+                        }
+                        if (newUnits.length === 0 || newUnits.length === instances.length) {
+                          updateField('lead_routing_mode', 'auto');
+                        } else {
+                          updateField('lead_routing_mode', newUnits.join(','));
+                        }
+                      }}
+                    />
+                    <span className="text-sm">📱 {inst.unit}</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">
-            {settings.lead_routing_mode === 'auto' 
-              ? 'Leads serão alternados automaticamente entre Vendas 1 e Vendas 2.'
-              : settings.lead_routing_mode === 'vendas1'
-              ? 'Todos os leads da LP serão direcionados para Vendas 1.'
-              : 'Todos os leads da LP serão direcionados para Vendas 2.'}
+            {settings.lead_routing_mode === 'auto'
+              ? 'Leads serão alternados automaticamente entre todas as instâncias ativas.'
+              : (() => {
+                  const units = settings.lead_routing_mode.split(',');
+                  if (units.length === 1) {
+                    return `Todos os leads da LP serão direcionados para ${units[0]}.`;
+                  }
+                  return `Leads serão alternados entre: ${units.join(', ')}.`;
+                })()}
           </p>
         </CardContent>
       </Card>
-
 
       <Button onClick={handleSave} disabled={saving} className="w-full">
         {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
