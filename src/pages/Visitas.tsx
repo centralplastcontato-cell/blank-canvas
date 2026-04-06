@@ -942,7 +942,7 @@ export default function Visitas() {
             {isCreateEntrega ? <><Package className="h-5 w-5 text-violet-600" /> Atendimento</> : "Nova Visita"}
           </DialogTitle>
           <p className="text-[13px] text-muted-foreground mt-1">
-            {isCreateEntrega ? "Agende uma retirada ou entrega de itens para uma festa" : "Agende uma nova visita para um lead"}
+            {isCreateEntrega ? "Agende um atendimento para um cliente com festa fechada" : "Agende uma nova visita para um lead"}
           </p>
         </DialogHeader>
         <div className="overflow-y-auto px-7 py-6 space-y-5" style={{ maxHeight: "calc(90vh - 180px)" }}>
