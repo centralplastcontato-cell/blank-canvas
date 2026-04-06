@@ -1245,7 +1245,7 @@ export default function CentralAtendimento() {
                           key={inst.id}
                           variant={selectedChatUnit === inst.unit ? "default" : "ghost"}
                           size="sm"
-                          onClick={() => setSelectedChatUnit(inst.unit)}
+                          onClick={() => handleSetSelectedChatUnit(inst.unit)}
                           className={`h-7 px-3 rounded-md transition-all text-xs ${
                             selectedChatUnit === inst.unit ? "shadow-sm" : "hover:bg-background/80"
                           }`}
