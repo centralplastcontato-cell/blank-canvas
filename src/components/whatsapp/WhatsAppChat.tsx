@@ -275,13 +275,18 @@ const resolveBestLeadForConversation = (
 
   if (uniqueCandidates.length === 0) return null;
 
+  // If conversation has a direct lead_id link, always honor it regardless of unit
+  const directLinked = uniqueCandidates.find(l => l.id === conversation.lead_id);
+  if (directLinked) return directLinked;
+
+  // For phone-only matches, filter out leads from incompatible units to avoid cross-unit confusion
+  const compatibleCandidates = uniqueCandidates.filter(l => isLeadCompatibleWithInstance(l, instanceUnit));
+  const pool = compatibleCandidates.length > 0 ? compatibleCandidates : uniqueCandidates;
+
   return (
-    uniqueCandidates.sort((a, b) => {
+    pool.sort((a, b) => {
       const scoreDiff = scoreLeadForConversation(b, conversation, instanceUnit) - scoreLeadForConversation(a, conversation, instanceUnit);
       if (scoreDiff !== 0) return scoreDiff;
-
-      const compatibilityDiff = Number(isLeadCompatibleWithInstance(b, instanceUnit)) - Number(isLeadCompatibleWithInstance(a, instanceUnit));
-      if (compatibilityDiff !== 0) return compatibilityDiff;
 
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     })[0] || null
