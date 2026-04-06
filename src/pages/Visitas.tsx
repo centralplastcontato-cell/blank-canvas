@@ -774,7 +774,7 @@ export default function Visitas() {
                   <div className="min-w-0 flex-1">
                     <SheetTitle className="text-lg font-bold truncate">{detailVisit.lead_name}</SheetTitle>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {isDetailEntrega && <span className="text-violet-600 font-semibold">Retirada / Entrega · </span>}
+                      {isDetailEntrega && <span className="text-violet-600 font-semibold">Atendimento · </span>}
                       {format(parseISO(detailVisit.data_visita + "T12:00:00"), "dd 'de' MMMM, yyyy", { locale: ptBR })}
                       {detailVisit.horario_visita && ` às ${detailVisit.horario_visita}`}
                     </p>
