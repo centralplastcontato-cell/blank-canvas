@@ -768,6 +768,10 @@ export function AutomationsSection() {
             <Power className="w-3.5 h-3.5" />
             <span>Geral</span>
           </TabsTrigger>
+          <TabsTrigger value="jornada" className="flex items-center gap-1.5 text-xs sm:text-sm">
+            <Map className="w-3.5 h-3.5" />
+            <span>Jornada</span>
+          </TabsTrigger>
           <TabsTrigger value="perguntas" className="flex items-center gap-1.5 text-xs sm:text-sm">
             <MessageSquare className="w-3.5 h-3.5" />
             <span>Perguntas</span>
@@ -776,9 +780,9 @@ export function AutomationsSection() {
             <RefreshCw className="w-3.5 h-3.5" />
             <span>Follow-ups</span>
           </TabsTrigger>
-          <TabsTrigger value="vip" className="flex items-center gap-1.5 text-xs sm:text-sm">
-            <Shield className="w-3.5 h-3.5" />
-            <span>VIP</span>
+          <TabsTrigger value="bot-lp" className="flex items-center gap-1.5 text-xs sm:text-sm">
+            <Globe2 className="w-3.5 h-3.5" />
+            <span>Bot LP</span>
           </TabsTrigger>
           {modules.bot_festa && (
             <TabsTrigger value="festa" className="flex items-center gap-1.5 text-xs sm:text-sm">
@@ -786,9 +790,13 @@ export function AutomationsSection() {
               <span>Bot Festa</span>
             </TabsTrigger>
           )}
-          <TabsTrigger value="jornada" className="flex items-center gap-1.5 text-xs sm:text-sm">
-            <Map className="w-3.5 h-3.5" />
-            <span>Jornada</span>
+          <TabsTrigger value="vip" className="flex items-center gap-1.5 text-xs sm:text-sm">
+            <Shield className="w-3.5 h-3.5" />
+            <span>VIP</span>
+          </TabsTrigger>
+          <TabsTrigger value="gatilhos" className="flex items-center gap-1.5 text-xs sm:text-sm">
+            <Workflow className="w-3.5 h-3.5" />
+            <span>Gatilhos</span>
           </TabsTrigger>
           {modules.flow_builder && (
             <TabsTrigger value="fluxos" className="flex items-center gap-1.5 text-xs sm:text-sm">
@@ -796,14 +804,6 @@ export function AutomationsSection() {
               <span>Fluxos</span>
             </TabsTrigger>
           )}
-          <TabsTrigger value="gatilhos" className="flex items-center gap-1.5 text-xs sm:text-sm">
-            <Workflow className="w-3.5 h-3.5" />
-            <span>Gatilhos</span>
-          </TabsTrigger>
-          <TabsTrigger value="bot-lp" className="flex items-center gap-1.5 text-xs sm:text-sm">
-            <Globe2 className="w-3.5 h-3.5" />
-            <span>Bot LP</span>
-          </TabsTrigger>
           <TabsTrigger value="reativacao" className="flex items-center gap-1.5 text-xs sm:text-sm">
             <Sparkles className="w-3.5 h-3.5" />
             <span>Reativação</span>
