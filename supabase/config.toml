@@ -78,3 +78,6 @@ verify_jwt = false
 [functions.monthly-review]
 verify_jwt = false
 
+[functions.pwa-manifest]
+verify_jwt = false
+
