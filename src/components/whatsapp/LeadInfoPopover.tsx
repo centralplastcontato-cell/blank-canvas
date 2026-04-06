@@ -12,7 +12,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { 
   Info, MessageSquare, Clock, MapPin, Calendar, Users, 
-  ArrowRightLeft, Bot, Loader2, Pencil, Check, X, Trash2, UsersRound, Star, RotateCcw, PartyPopper
+  ArrowRightLeft, Bot, Loader2, Pencil, Check, X, Trash2, UsersRound, Star, RotateCcw, PartyPopper, Package
 } from "lucide-react";
 import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -67,7 +67,7 @@ interface LeadInfoPopoverProps {
   onToggleFavorite: (conv: Conversation) => void;
   onLeadNameChange: (newName: string) => void;
   onLeadObsChange?: (newObs: string) => void;
-  onShowVisitDialog?: () => void;
+  onShowVisitDialog?: (type?: "visita" | "atendimento") => void;
   mobile?: boolean;
   visitRefreshKey?: number;
 }
@@ -714,15 +714,26 @@ export function LeadInfoPopover({
               {/* Action buttons */}
               <div className="space-y-1.5">
                 {onShowVisitDialog && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full text-xs h-9 gap-2 rounded-xl font-medium border-border/40 hover:bg-primary/5 hover:border-primary/30 transition-all"
-                    onClick={onShowVisitDialog}
-                  >
-                    <MapPin className="w-3.5 h-3.5 text-primary/70" />
-                    {latestVisit ? "Nova Visita" : "Registrar Visita"}
-                  </Button>
+                  <div className="flex gap-1.5">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1 text-xs h-9 gap-1.5 rounded-xl font-medium border-border/40 hover:bg-primary/5 hover:border-primary/30 transition-all"
+                      onClick={() => onShowVisitDialog("visita")}
+                    >
+                      <MapPin className="w-3.5 h-3.5 text-primary/70" />
+                      {latestVisit ? "Nova Visita" : "Visita"}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1 text-xs h-9 gap-1.5 rounded-xl font-medium border-violet-200/60 text-violet-600 hover:bg-violet-50 hover:border-violet-300 transition-all"
+                      onClick={() => onShowVisitDialog("atendimento")}
+                    >
+                      <Package className="w-3.5 h-3.5" />
+                      Atendimento
+                    </Button>
+                  </div>
                 )}
 
                 {linkedLead.status === "fechado" && hasLinkedEvent !== null && (

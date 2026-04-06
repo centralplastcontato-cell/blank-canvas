@@ -35,6 +35,7 @@ interface QuickVisitDialogProps {
   currentUserId: string;
   leadUnit?: string | null;
   onVisitRegistered?: () => void;
+  initialVisitType?: "visita" | "atendimento";
 }
 
 function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
@@ -48,7 +49,7 @@ function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: 
   );
 }
 
-export function QuickVisitDialog({ open, onOpenChange, leadId, currentUserId, leadUnit, onVisitRegistered }: QuickVisitDialogProps) {
+export function QuickVisitDialog({ open, onOpenChange, leadId, currentUserId, leadUnit, onVisitRegistered, initialVisitType = "visita" }: QuickVisitDialogProps) {
   const [visitDate, setVisitDate] = useState<Date | undefined>(undefined);
   const [visitTime, setVisitTime] = useState("");
   const [visitStatus, setVisitStatus] = useState("agendada");
@@ -78,6 +79,7 @@ export function QuickVisitDialog({ open, onOpenChange, leadId, currentUserId, le
       observacoes: visitNotes || null,
       created_by: currentUserId,
       unit: leadUnit || null,
+      visit_type: initialVisitType,
     };
 
     console.log("[QuickVisit]", payload);
@@ -85,9 +87,9 @@ export function QuickVisitDialog({ open, onOpenChange, leadId, currentUserId, le
     const { error } = await (supabase as any).from("lead_visits").insert(payload);
 
     if (error) {
-      toast({ title: "Erro ao registrar visita", description: error.message, variant: "destructive" });
+      toast({ title: initialVisitType === "atendimento" ? "Erro ao agendar atendimento" : "Erro ao registrar visita", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Visita registrada!" });
+      toast({ title: initialVisitType === "atendimento" ? "Atendimento agendado!" : "Visita registrada!" });
       onVisitRegistered?.();
       onOpenChange(false);
       resetForm();
@@ -100,8 +102,8 @@ export function QuickVisitDialog({ open, onOpenChange, leadId, currentUserId, le
       <DialogContent className="max-w-[520px] max-h-[90vh] p-0 gap-0 overflow-hidden rounded-2xl [&>button]:top-5 [&>button]:right-5">
         {/* Header */}
         <DialogHeader className="px-7 pt-7 pb-4 border-b border-border/40 bg-muted/30">
-          <DialogTitle className="text-lg font-bold tracking-tight">Registrar Visita</DialogTitle>
-          <p className="text-[13px] text-muted-foreground mt-1">Adicione um registro de visita ao lead</p>
+          <DialogTitle className="text-lg font-bold tracking-tight">{initialVisitType === "atendimento" ? "Agendar Atendimento" : "Registrar Visita"}</DialogTitle>
+          <p className="text-[13px] text-muted-foreground mt-1">{initialVisitType === "atendimento" ? "Agende um atendimento para o cliente" : "Adicione um registro de visita ao lead"}</p>
         </DialogHeader>
 
         {/* Body */}
@@ -188,7 +190,7 @@ export function QuickVisitDialog({ open, onOpenChange, leadId, currentUserId, le
             className="px-8 rounded-lg shadow-sm"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Registrar Visita
+            {initialVisitType === "atendimento" ? "Agendar Atendimento" : "Registrar Visita"}
           </Button>
         </div>
       </DialogContent>

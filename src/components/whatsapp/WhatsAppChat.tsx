@@ -368,6 +368,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [showAutomationTimeline, setShowAutomationTimeline] = useState(false);
   const [showShareToGroupDialog, setShowShareToGroupDialog] = useState(false);
   const [showQuickVisitDialog, setShowQuickVisitDialog] = useState(false);
+  const [quickVisitType, setQuickVisitType] = useState<"visita" | "atendimento">("visita");
   const [visitRefreshKey, setVisitRefreshKey] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
   const [leadEventId, setLeadEventId] = useState<string | null>(null);
@@ -4087,7 +4088,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         onLeadObsChange={(newObs) => {
                           setLinkedLead(prev => prev ? { ...prev, observacoes: newObs || null } : null);
                         }}
-                        onShowVisitDialog={() => linkedLead && setShowQuickVisitDialog(true)}
+                        onShowVisitDialog={(type) => { if (linkedLead) { setQuickVisitType(type || "visita"); setShowQuickVisitDialog(true); } }}
                         visitRefreshKey={visitRefreshKey}
                       />
                       {/* O.E. (Orçamento Enviado) button - always visible, disabled without lead */}
@@ -4308,6 +4309,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           currentUserId={userId}
           leadUnit={linkedLead.unit}
           onVisitRegistered={() => setVisitRefreshKey(k => k + 1)}
+          initialVisitType={quickVisitType}
         />
       )}
 
@@ -5226,7 +5228,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         onLeadObsChange={(newObs) => {
                           setLinkedLead(prev => prev ? { ...prev, observacoes: newObs || null } : null);
                         }}
-                        onShowVisitDialog={() => linkedLead && setShowQuickVisitDialog(true)}
+                        onShowVisitDialog={(type) => { if (linkedLead) { setQuickVisitType(type || "visita"); setShowQuickVisitDialog(true); } }}
                         visitRefreshKey={visitRefreshKey}
                         mobile
                       />
