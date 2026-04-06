@@ -108,6 +108,11 @@ export default function CentralAtendimento() {
   const [chatInstances, setChatInstances] = useState<{ id: string; unit: string | null; status: string | null }[]>([]);
   const [selectedChatUnit, setSelectedChatUnit] = useState<string | null>(null);
 
+  // Debug: log chatInstances changes
+  useEffect(() => {
+    console.log('[CentralAtendimento] chatInstances updated:', chatInstances.length, JSON.stringify(chatInstances.map(i => i.unit)));
+  }, [chatInstances]);
+
   // Handle URL params for phone/leadId navigation
   useEffect(() => {
     const phoneParam = searchParams.get("phone");
