@@ -806,10 +806,10 @@ export default function Visitas() {
                 </Button>
               )}
 
-              {/* Items description for entregas */}
+              {/* Items description for atendimento */}
               {isDetailEntrega && (detailVisit.items_description || detailVisit.event_title) && (
                 <div className="rounded-xl border border-violet-300/40 bg-violet-50/50 dark:bg-violet-950/20 p-4 space-y-3">
-                  <p className="text-[11px] uppercase tracking-wider font-semibold text-violet-600">📦 Detalhes da Entrega</p>
+                  <p className="text-[11px] uppercase tracking-wider font-semibold text-violet-600">📋 Detalhes do Atendimento</p>
                   {detailVisit.event_title && (
                     <div><p className="text-xs text-muted-foreground">Festa vinculada</p><p className="font-medium text-sm">{detailVisit.event_title}</p></div>
                   )}
