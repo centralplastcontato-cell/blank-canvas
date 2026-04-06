@@ -207,14 +207,23 @@ export default function CentralAtendimento() {
 
   useEffect(() => {
     if (chatUnitOptions.length === 0) {
-      setSelectedChatUnit(null);
+      handleSetSelectedChatUnit(null);
       return;
     }
 
-    setSelectedChatUnit((current) => (
-      current && chatUnitOptions.includes(current) ? current : chatUnitOptions[0]
-    ));
-  }, [chatUnitOptions]);
+    setSelectedChatUnit((current) => {
+      // Keep current if still valid
+      if (current && chatUnitOptions.includes(current)) return current;
+      // Try persisted value
+      if (currentCompany?.id) {
+        try {
+          const persisted = localStorage.getItem(`chat_selected_unit_${currentCompany.id}`);
+          if (persisted && chatUnitOptions.includes(persisted)) return persisted;
+        } catch {}
+      }
+      return chatUnitOptions[0];
+    });
+  }, [chatUnitOptions, currentCompany?.id, handleSetSelectedChatUnit]);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
