@@ -1,49 +1,82 @@
 
+Objetivo: fazer o atalho de "Atendimento" da Central de Atendimento abrir o mesmo modal completo usado na aba de Visitas, em vez do modal reduzido atual.
 
-## Plano: Adicionar "Retirada / Entrega" na Agenda de Visitas
+Diagnóstico
+- Hoje existem 2 fluxos diferentes:
+  1. `src/pages/Visitas.tsx` tem um modal completo inline, com:
+     - seleção/vínculo de lead
+     - vínculo com festa (`event_id`)
+     - card-resumo da festa
+     - responsável
+     - unidade
+     - motivo/itens do atendimento
+     - observações
+  2. `src/components/whatsapp/QuickVisitDialog.tsx` é um modal simplificado, usado pelo atalho da Central/WhatsApp.
+- Então o sistema está “correto” na aba Visitas e “reduzido” na Central porque são implementações diferentes.
 
-### Contexto
-Clientes que ja tem festa fechada precisam agendar horarios para trazer ou retirar itens no buffet (bebidas, lembrancinhas, toalhas, etc). Hoje isso fica solto. A ideia e agregar essa funcionalidade na pagina de Visitas, com um novo tipo de agendamento separado das visitas comerciais.
+Plano de implementação
+1. Unificar o formulário de agendamento
+- Extrair a estrutura completa do modal da aba `Visitas` para um componente reutilizável.
+- Esse componente deve suportar 2 contextos:
+  - contexto livre: usado em `/visitas`, permitindo buscar/selecionar lead
+  - contexto com lead fixo: usado na Central, com o lead já preenchido e bloqueado
 
-### O que muda
+2. Fazer o atalho de Atendimento usar o modal completo
+- No `WhatsAppChat`, quando `quickVisitType === "atendimento"`, abrir o componente completo em modo “lead fixo”.
+- Carregar automaticamente:
+  - festas do lead
+  - card-resumo da festa selecionada
+  - responsável/unidade
+  - motivo/itens do atendimento
+  - observações
+- Manter título, CTA e identidade visual roxa de “Atendimento”.
 
-**1. Banco de dados** (migration)
-- Adicionar coluna `visit_type TEXT DEFAULT 'visita'` na tabela `lead_visits`
-  - Valores: `'visita'` (padrao, comportamento atual) e `'retirada_entrega'`
-- Adicionar coluna `event_id UUID REFERENCES company_events(id)` na tabela `lead_visits` (opcional, para vincular ao evento/festa)
-- Adicionar coluna `items_description TEXT` para descrever o que sera entregue/retirado
+3. Preservar o atalho rápido de Visita
+- Manter a experiência rápida de `visita` comercial como está hoje, a menos que você queira depois unificar os dois.
+- Ou seja:
+  - `Visita` continua no fluxo rápido
+  - `Atendimento` passa a usar o fluxo completo
 
-**2. Interface - Pagina de Visitas** (`src/pages/Visitas.tsx`)
-- Adicionar um novo botao "Retirada / Entrega" ao lado do botao "Nova Visita" no header
-- O botao abre o mesmo dialog de criacao, mas com `visit_type = 'retirada_entrega'` e campos adaptados:
-  - Busca de lead (igual hoje)
-  - Campo opcional para vincular a um evento existente do lead (select com festas do lead)
-  - Data e horario
-  - Campo "O que sera entregue/retirado" (textarea)
-  - Sem campos de qualificacao comercial (pacote, interesse, etc)
-- No calendario, usar dot de cor diferente (ex: roxo) para diferenciar entregas de visitas
-- Nos cards do dia, mostrar um indicador visual (icone de caixa/pacote) para entregas
-- Nos filtros, adicionar filtro por tipo (Todos / Visitas / Retirada-Entrega)
+4. Padronizar submissão dos dados
+- Garantir que o modal completo da Central grave os mesmos campos já usados em `/visitas`:
+  - `visit_type = "atendimento"`
+  - `event_id`
+  - `items_description`
+  - `responsavel_user_id`
+  - `unit`
+  - `observacoes`
+  - `data_visita` / `horario_visita`
 
-**3. Componente QuickVisitDialog** (`src/components/whatsapp/QuickVisitDialog.tsx`)
-- Nao alterar -- este continua sendo so para visitas rapidas do chat
+5. Validar comportamento pós-salvamento
+- Após salvar:
+  - fechar modal
+  - atualizar o card/refresh da visita no chat
+  - manter consistência com o histórico exibido no lead
+- Garantir que o modal não volte a abrir no formato reduzido por estado antigo.
 
-**4. Detail Sheet da visita**
-- Quando for tipo `retirada_entrega`, mostrar os campos relevantes (itens, evento vinculado) em vez da qualificacao comercial
-- Esconder o botao "Fechou na Visita" para entregas (nao faz sentido)
+Arquivos impactados
+- `src/pages/Visitas.tsx`
+- `src/components/whatsapp/WhatsAppChat.tsx`
+- `src/components/whatsapp/QuickVisitDialog.tsx` ou substituição por componente compartilhado
+- Possível novo componente compartilhado, algo como:
+  - `src/components/visitas/VisitFormDialog.tsx`
 
-**5. Relatórios**
-- O PDF/XLSX de visitas incluira uma coluna "Tipo" para diferenciar
+Detalhes técnicos
+- A melhor abordagem é evitar manter 2 modais diferentes para o mesmo tipo de agendamento.
+- Como os campos de atendimento já existem no frontend e no payload atual da aba Visitas, isso parece ser ajuste de arquitetura de UI, não de banco.
+- No modo “lead fixo” da Central:
+  - o bloco do lead aparece preenchido
+  - a busca de lead some ou fica bloqueada
+  - o restante do formulário permanece igual ao da aba Visitas
 
-### Resumo das alteracoes por arquivo
+Resultado esperado
+- Clicar em “Atendimento” na Central de Atendimento abrirá o modal completo, igual ao da aba Visitas.
+- O usuário verá todas as informações e campos corretos do atendimento, sem o modal reduzido atual.
 
-| Arquivo | Alteracao |
-|---------|-----------|
-| Migration SQL | +3 colunas em `lead_visits` |
-| `src/pages/Visitas.tsx` | Botao novo, dialog adaptado, filtro por tipo, dots diferenciados, detail adaptado |
-| `src/lib/generateVisitasPDF.ts` | Coluna "Tipo" no relatorio |
-
-### Identidade visual
-- Visitas comerciais: icone MapPin, dots coloridos por status (como hoje)
-- Retirada/Entrega: icone Package, dot roxo (`bg-violet-500`), badge "Entrega" em violet
-
+QA que vou fazer na implementação
+- Testar o atalho “Atendimento” na Central
+- Confirmar que o modal abre com todos os blocos esperados
+- Verificar vínculo com festa + card-resumo
+- Salvar e confirmar persistência correta no `lead_visits`
+- Testar também o botão da aba `/visitas` para garantir que nada quebre
+- Verificar desktop e mobile, já que `WhatsAppChat` é reutilizado
