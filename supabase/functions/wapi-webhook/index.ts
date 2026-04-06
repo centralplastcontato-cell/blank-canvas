@@ -6,6 +6,30 @@ const corsHeaders = {
 };
 
 const WAPI_BASE_URL = 'https://api.w-api.app/v1';
+const ZAPI_BASE_URL = 'https://api.z-api.io/instances';
+
+type Provider = 'wapi' | 'zapi';
+
+function zapiUrl(instanceId: string, token: string, path: string): string {
+  return `${ZAPI_BASE_URL}/${instanceId}/token/${token}/${path}`;
+}
+
+async function zapiRequest(instanceId: string, token: string, clientToken: string | null, path: string, method: string, body?: unknown): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (clientToken) headers['Client-Token'] = clientToken;
+    const url = zapiUrl(instanceId, token, path);
+    const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+    const contentType = res.headers.get('content-type');
+    if (contentType?.includes('text/html')) return { ok: false, error: 'Z-API indisponível' };
+    const data = await res.json();
+    const providerError = typeof data.error === 'string' ? data.error : null;
+    if (!res.ok || providerError) return { ok: false, data, error: data.message || providerError || 'Erro Z-API' };
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Erro Z-API' };
+  }
+}
 
 // Menu options - numbered choices for structured input
 const MONTH_OPTIONS = [
