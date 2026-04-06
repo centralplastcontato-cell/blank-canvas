@@ -279,12 +279,10 @@ const resolveBestLeadForConversation = (
   const directLinked = uniqueCandidates.find(l => l.id === conversation.lead_id);
   if (directLinked) return directLinked;
 
-  // For phone-only matches, filter out leads from incompatible units to avoid cross-unit confusion
-  const compatibleCandidates = uniqueCandidates.filter(l => isLeadCompatibleWithInstance(l, instanceUnit));
-  const pool = compatibleCandidates.length > 0 ? compatibleCandidates : uniqueCandidates;
-
+  // Use all candidates but prioritize unit-compatible ones via scoring
+  // Lead status (fechado, visita, etc.) is universal across all units
   return (
-    pool.sort((a, b) => {
+    uniqueCandidates.sort((a, b) => {
       const scoreDiff = scoreLeadForConversation(b, conversation, instanceUnit) - scoreLeadForConversation(a, conversation, instanceUnit);
       if (scoreDiff !== 0) return scoreDiff;
 
@@ -331,6 +329,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         setSelectedInstance(match);
         setSelectedConversation(null);
         setMessages([]);
+        setConversations([]);
       }
     }
   }, [externalSelectedUnit, instances]);
@@ -1054,6 +1053,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
   useEffect(() => {
     if (selectedInstance) {
+      setConversations([]);
       // Pass initialPhone only on first load if not yet processed
       if (initialPhone && !initialPhoneProcessed) {
         fetchConversations(initialPhone);
