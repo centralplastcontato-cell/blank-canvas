@@ -631,7 +631,7 @@ export default function Visitas() {
             <SelectContent>
               <SelectItem value="all">Todos tipos</SelectItem>
               <SelectItem value="visita">Visitas</SelectItem>
-              <SelectItem value="retirada_entrega">Retirada / Entrega</SelectItem>
+              <SelectItem value="atendimento">Atendimento</SelectItem>
             </SelectContent>
           </Select>
         </div>
