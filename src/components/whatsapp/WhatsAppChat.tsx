@@ -331,6 +331,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         setSelectedInstance(match);
         setSelectedConversation(null);
         setMessages([]);
+        setConversations([]);
       }
     }
   }, [externalSelectedUnit, instances]);
