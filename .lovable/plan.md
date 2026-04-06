@@ -1,82 +1,105 @@
 
-Objetivo: fazer o atalho de "Atendimento" da Central de Atendimento abrir o mesmo modal completo usado na aba de Visitas, em vez do modal reduzido atual.
 
-Diagnóstico
-- Hoje existem 2 fluxos diferentes:
-  1. `src/pages/Visitas.tsx` tem um modal completo inline, com:
-     - seleção/vínculo de lead
-     - vínculo com festa (`event_id`)
-     - card-resumo da festa
-     - responsável
-     - unidade
-     - motivo/itens do atendimento
-     - observações
-  2. `src/components/whatsapp/QuickVisitDialog.tsx` é um modal simplificado, usado pelo atalho da Central/WhatsApp.
-- Então o sistema está “correto” na aba Visitas e “reduzido” na Central porque são implementações diferentes.
+## Evolução dos Pacotes — Tabela de Preços por Faixa de Convidados e Tipo de Dia
 
-Plano de implementação
-1. Unificar o formulário de agendamento
-- Extrair a estrutura completa do modal da aba `Visitas` para um componente reutilizável.
-- Esse componente deve suportar 2 contextos:
-  - contexto livre: usado em `/visitas`, permitindo buscar/selecionar lead
-  - contexto com lead fixo: usado na Central, com o lead já preenchido e bloqueado
+### Objetivo
+Cada pacote passará a ter uma **grade de preços** configurável por:
+- **Faixa de convidados** (ex: 50, 60, 70, 80, 90, 100 — personalizável por buffet)
+- **Tipo de dia** (ex: Seg-Qui, Sexta, Sábado, Domingo, Véspera de Feriado, Feriado — personalizável por buffet)
 
-2. Fazer o atalho de Atendimento usar o modal completo
-- No `WhatsAppChat`, quando `quickVisitType === "atendimento"`, abrir o componente completo em modo “lead fixo”.
-- Carregar automaticamente:
-  - festas do lead
-  - card-resumo da festa selecionada
-  - responsável/unidade
-  - motivo/itens do atendimento
-  - observações
-- Manter título, CTA e identidade visual roxa de “Atendimento”.
+Quando o usuário preencher um evento no `EventFormDialog`, ao selecionar pacote + quantidade de convidados + data, o sistema **auto-calcula o valor** correto.
 
-3. Preservar o atalho rápido de Visita
-- Manter a experiência rápida de `visita` comercial como está hoje, a menos que você queira depois unificar os dois.
-- Ou seja:
-  - `Visita` continua no fluxo rápido
-  - `Atendimento` passa a usar o fluxo completo
+---
 
-4. Padronizar submissão dos dados
-- Garantir que o modal completo da Central grave os mesmos campos já usados em `/visitas`:
-  - `visit_type = "atendimento"`
-  - `event_id`
-  - `items_description`
-  - `responsavel_user_id`
-  - `unit`
-  - `observacoes`
-  - `data_visita` / `horario_visita`
+### 1. Nova tabela: `package_price_tiers`
 
-5. Validar comportamento pós-salvamento
-- Após salvar:
-  - fechar modal
-  - atualizar o card/refresh da visita no chat
-  - manter consistência com o histórico exibido no lead
-- Garantir que o modal não volte a abrir no formato reduzido por estado antigo.
+```text
+package_price_tiers
+├── id (uuid, PK)
+├── package_id (uuid, FK → company_packages.id, ON DELETE CASCADE)
+├── company_id (uuid, FK → companies.id)
+├── guest_count (integer)         -- ex: 50, 60, 70...
+├── day_type (text)               -- ex: "seg_qui", "sexta", "sabado", "domingo", "vespera_feriado", "feriado"
+├── price (numeric)               -- valor do pacote para essa combinação
+├── created_at (timestamptz)
+└── UNIQUE(package_id, guest_count, day_type)
+```
 
-Arquivos impactados
-- `src/pages/Visitas.tsx`
-- `src/components/whatsapp/WhatsAppChat.tsx`
-- `src/components/whatsapp/QuickVisitDialog.tsx` ou substituição por componente compartilhado
-- Possível novo componente compartilhado, algo como:
-  - `src/components/visitas/VisitFormDialog.tsx`
+RLS: mesma política de `company_packages` (por `company_id`).
 
-Detalhes técnicos
-- A melhor abordagem é evitar manter 2 modais diferentes para o mesmo tipo de agendamento.
-- Como os campos de atendimento já existem no frontend e no payload atual da aba Visitas, isso parece ser ajuste de arquitetura de UI, não de banco.
-- No modo “lead fixo” da Central:
-  - o bloco do lead aparece preenchido
-  - a busca de lead some ou fica bloqueada
-  - o restante do formulário permanece igual ao da aba Visitas
+### 2. Configuração dos tipos de dia (por empresa)
 
-Resultado esperado
-- Clicar em “Atendimento” na Central de Atendimento abrirá o modal completo, igual ao da aba Visitas.
-- O usuário verá todas as informações e campos corretos do atendimento, sem o modal reduzido atual.
+Armazenar no `companies.settings` um campo `day_type_config` com os tipos de dia que o buffet usa. Default:
 
-QA que vou fazer na implementação
-- Testar o atalho “Atendimento” na Central
-- Confirmar que o modal abre com todos os blocos esperados
-- Verificar vínculo com festa + card-resumo
-- Salvar e confirmar persistência correta no `lead_visits`
-- Testar também o botão da aba `/visitas` para garantir que nada quebre
-- Verificar desktop e mobile, já que `WhatsAppChat` é reutilizado
+```json
+[
+  { "key": "seg_qui", "label": "Seg a Qui" },
+  { "key": "sexta", "label": "Sexta" },
+  { "key": "sab_dom", "label": "Sáb e Dom" },
+  { "key": "vespera_feriado", "label": "Véspera de Feriado" },
+  { "key": "feriado", "label": "Feriado" }
+]
+```
+
+Cada buffet pode customizar (ex: separar Sábado de Domingo, ou unir Sexta com Sáb/Dom).
+
+### 3. Configuração das faixas de convidados (por empresa)
+
+No `companies.settings`, campo `guest_tiers`:
+```json
+[50, 60, 70, 80, 90, 100]
+```
+Cada buffet configura suas faixas. Default: `[50, 60, 70, 80, 90, 100]`.
+
+### 4. UI no PackagesManager — Editor de Grade de Preços
+
+Ao editar/criar um pacote, além dos campos atuais (nome, descrição, preço separado criança/adulto), aparece uma **tabela/grid**:
+
+```text
+             | Seg-Qui  | Sexta   | Sáb/Dom | Véspera | Feriado
+  50 pessoas | R$ ___   | R$ ___  | R$ ___  | R$ ___  | R$ ___
+  60 pessoas | R$ ___   | R$ ___  | R$ ___  | R$ ___  | R$ ___
+  70 pessoas | R$ ___   | R$ ___  | R$ ___  | R$ ___  | R$ ___
+  ...
+```
+
+- Inputs de moeda em cada célula
+- Salva em batch no `package_price_tiers`
+- Os campos antigos de `valor_pessoa_adicional` continuam para extra-guest pricing
+
+### 5. Auto-cálculo no EventFormDialog
+
+Quando o usuário selecionar:
+1. **Pacote** → carrega os tiers desse pacote
+2. **Quantidade de convidados** → encontra a faixa mais próxima (igual ou superior)
+3. **Data do evento** → detecta o tipo de dia:
+   - Dia da semana (1-4 = seg-qui, 5 = sexta, 6 = sábado, 0 = domingo)
+   - Feriado nacional brasileiro (lista estática + feriados fixos)
+   - Véspera de feriado (dia anterior a feriado)
+4. **Auto-preenche `total_value`** com o preço correspondente da grade
+5. Exibe um badge informativo: "📅 Sábado · 70 pessoas · R$ 8.500,00"
+
+Se não houver tier cadastrado para a combinação, o campo fica manual (comportamento atual).
+
+### 6. Detecção de feriados nacionais
+
+Criar helper `src/lib/brazilian-holidays.ts`:
+- Lista de feriados fixos (Ano Novo, Tiradentes, Trabalho, Independência, Aparecida, Finados, Proclamação, Natal)
+- Cálculo de Páscoa/Carnaval/Corpus Christi (móveis)
+- Função `getDayType(date: Date): string` retorna o key do tipo de dia
+
+### Arquivos impactados
+
+| Arquivo | Ação |
+|---|---|
+| Nova migration | Criar tabela `package_price_tiers` com RLS |
+| `src/components/admin/PackagesManager.tsx` | Adicionar grid de preços por faixa/dia |
+| `src/components/agenda/EventFormDialog.tsx` | Auto-preencher valor com base em pacote+convidados+data |
+| `src/lib/brazilian-holidays.ts` | Novo — helper de feriados e tipo de dia |
+| `src/integrations/supabase/types.ts` | Regenerado com nova tabela |
+
+### O que NÃO muda
+- Campos existentes de `valor_pessoa_adicional` (criança/adulto) continuam funcionando para cobrar excedente
+- Pacotes sem grade de preços cadastrada continuam no fluxo manual atual
+- Nenhuma quebra para buffets que não configuram a grade
+
