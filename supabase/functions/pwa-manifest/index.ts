@@ -39,11 +39,14 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const host =
+    const url = new URL(req.url);
+    const domainParam = url.searchParams.get("domain");
+    const hostHeader =
       req.headers.get("x-forwarded-host") ||
       req.headers.get("host") ||
       "";
-    const domain = canonicalHost(host);
+    const rawHost = domainParam || hostHeader;
+    const domain = canonicalHost(rawHost);
 
     if (!domain || domain.includes("supabase")) {
       return jsonResponse(FALLBACK_MANIFEST);
