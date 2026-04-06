@@ -566,12 +566,12 @@ async function sendBotMessage(instanceId: string, instanceToken: string, remoteJ
   }
 }
 
-async function sendBotImage(instanceId: string, instanceToken: string, remoteJid: string, imageUrl: string, caption: string, provider: Provider = 'wapi', clientToken: string | null = null): Promise<string | null> {
+async function sendBotImage(instanceId: string, instanceToken: string, remoteJid: string, imageUrl: string, caption: string): Promise<string | null> {
   try {
     const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, '');
 
-    if (provider === 'zapi') {
-      const res = await zapiRequest(instanceId, instanceToken, clientToken, 'send-image', 'POST', { phone, image: imageUrl, caption: caption || '' });
+    if (_activeProvider === 'zapi') {
+      const res = await zapiRequest(instanceId, instanceToken, _activeClientToken, 'send-image', 'POST', { phone, image: imageUrl, caption: caption || '' });
       const msgId = res.data ? ((res.data as Record<string, unknown>).zapiMessageId || (res.data as Record<string, unknown>).messageId) as string || null : null;
       return msgId;
     }
@@ -602,12 +602,12 @@ async function sendBotImage(instanceId: string, instanceToken: string, remoteJid
   }
 }
 
-async function sendBotVideo(instanceId: string, instanceToken: string, remoteJid: string, videoUrl: string, caption: string, provider: Provider = 'wapi', clientToken: string | null = null): Promise<string | null> {
+async function sendBotVideo(instanceId: string, instanceToken: string, remoteJid: string, videoUrl: string, caption: string): Promise<string | null> {
   try {
     const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, '');
 
-    if (provider === 'zapi') {
-      const res = await zapiRequest(instanceId, instanceToken, clientToken, 'send-video', 'POST', { phone, video: videoUrl, caption: caption || '' });
+    if (_activeProvider === 'zapi') {
+      const res = await zapiRequest(instanceId, instanceToken, _activeClientToken, 'send-video', 'POST', { phone, video: videoUrl, caption: caption || '' });
       const msgId = res.data ? ((res.data as Record<string, unknown>).zapiMessageId || (res.data as Record<string, unknown>).messageId) as string || null : null;
       return msgId;
     }
@@ -626,13 +626,13 @@ async function sendBotVideo(instanceId: string, instanceToken: string, remoteJid
   }
 }
 
-async function sendBotDocument(instanceId: string, instanceToken: string, remoteJid: string, docUrl: string, fileName: string, provider: Provider = 'wapi', clientToken: string | null = null): Promise<string | null> {
+async function sendBotDocument(instanceId: string, instanceToken: string, remoteJid: string, docUrl: string, fileName: string): Promise<string | null> {
   try {
     const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, '');
     const ext = docUrl.split('.').pop()?.split('?')[0] || 'pdf';
 
-    if (provider === 'zapi') {
-      const res = await zapiRequest(instanceId, instanceToken, clientToken, `send-document/${ext}`, 'POST', { phone, document: docUrl, fileName });
+    if (_activeProvider === 'zapi') {
+      const res = await zapiRequest(instanceId, instanceToken, _activeClientToken, `send-document/${ext}`, 'POST', { phone, document: docUrl, fileName });
       const msgId = res.data ? ((res.data as Record<string, unknown>).zapiMessageId || (res.data as Record<string, unknown>).messageId) as string || null : null;
       return msgId;
     }
