@@ -3507,7 +3507,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
               onValueChange={handleInstanceChange}
               className="flex-1"
             >
-              <TabsList className="bg-card/80 backdrop-blur-sm border border-border/60 shadow-sm">
+              <TabsList className="bg-card/80 backdrop-blur-sm border border-border/60 shadow-sm w-full overflow-x-auto flex justify-start">
                 {instances.map((instance) => (
                   <TabsTrigger 
                     key={instance.id} 
