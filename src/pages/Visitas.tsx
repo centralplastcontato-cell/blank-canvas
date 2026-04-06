@@ -302,7 +302,7 @@ export default function Visitas() {
     if (!companyId) return;
     const { data } = await (supabase as any)
       .from("company_events")
-      .select("id, title, event_date")
+      .select("id, title, event_date, start_time, end_time, event_type, guest_count, total_value, package_name, unit, status, child_name, child_age, payment_method")
       .eq("company_id", companyId)
       .eq("lead_id", leadId)
       .neq("status", "cancelado")
