@@ -47,11 +47,7 @@ const VISIT_STATUS_DOT: Record<string, string> = {
   cancelada: "bg-muted-foreground/40",
 };
 
-const TIME_OPTIONS = Array.from({ length: 28 }, (_, i) => {
-  const h = String(Math.floor((i + 16) / 2)).padStart(2, "0");
-  const m = (i + 16) % 2 === 0 ? "00" : "30";
-  return `${h}:${m}`;
-});
+
 
 const getStatusInfo = (status: string) => VISIT_STATUSES.find((s) => s.value === status) || VISIT_STATUSES[0];
 
