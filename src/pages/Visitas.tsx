@@ -176,12 +176,24 @@ export default function Visitas() {
         .in("id", leadIds as string[]);
 
       const leadMap = new Map((leads || []).map((l: any) => [l.id, l]));
+      // Fetch event titles for visits linked to events
+      const eventIds = [...new Set(data.filter((v: any) => v.event_id).map((v: any) => v.event_id))];
+      let eventMap = new Map<string, string>();
+      if (eventIds.length > 0) {
+        const { data: events } = await (supabase as any)
+          .from("company_events")
+          .select("id, title")
+          .in("id", eventIds);
+        eventMap = new Map((events || []).map((e: any) => [e.id, e.title]));
+      }
+
       const mappedVisits = data.map((v: any) => ({
         ...v,
         lead_name: leadMap.get(v.lead_id)?.name || "Lead desconhecido",
         lead_phone: leadMap.get(v.lead_id)?.whatsapp || "",
         lead_guests: leadMap.get(v.lead_id)?.guests || null,
         lead_month: leadMap.get(v.lead_id)?.month || null,
+        event_title: v.event_id ? eventMap.get(v.event_id) || null : null,
       }));
 
       setVisits(mappedVisits);
