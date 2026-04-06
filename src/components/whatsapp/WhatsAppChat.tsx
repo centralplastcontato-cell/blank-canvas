@@ -320,6 +320,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [isLoadingMoreMessages, setIsLoadingMoreMessages] = useState(false);
   const [oldestMessageTimestamp, setOldestMessageTimestamp] = useState<string | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const externalSelectedUnitRef = useRef(externalSelectedUnit);
+  externalSelectedUnitRef.current = externalSelectedUnit;
 
   // Sync with external unit selection from header
   useEffect(() => {
@@ -1528,6 +1530,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         if (prev) {
           const stillExists = data.some(inst => inst.id === prev.id);
           if (stillExists) return prev;
+        }
+        // Prefer the instance matching externalSelectedUnit (from localStorage persistence)
+        const extUnit = externalSelectedUnitRef.current;
+        if (extUnit) {
+          const extMatch = data.find(inst => inst.unit === extUnit);
+          if (extMatch) return extMatch as WapiInstance;
         }
         return data[0] as WapiInstance;
       });

@@ -107,7 +107,25 @@ export default function CentralAtendimento() {
   const [initialPhone, setInitialPhone] = useState<string | null>(null);
   const [initialDraft, setInitialDraft] = useState<string | null>(null);
   const [chatInstances, setChatInstances] = useState<{ id: string; unit: string | null; status: string | null }[]>([]);
-  const [selectedChatUnit, setSelectedChatUnit] = useState<string | null>(null);
+  const [selectedChatUnit, setSelectedChatUnit] = useState<string | null>(() => {
+    if (!currentCompany?.id) return null;
+    try {
+      return localStorage.getItem(`chat_selected_unit_${currentCompany.id}`);
+    } catch { return null; }
+  });
+
+  const handleSetSelectedChatUnit = useCallback((unit: string | null) => {
+    setSelectedChatUnit(unit);
+    if (currentCompany?.id) {
+      try {
+        if (unit) {
+          localStorage.setItem(`chat_selected_unit_${currentCompany.id}`, unit);
+        } else {
+          localStorage.removeItem(`chat_selected_unit_${currentCompany.id}`);
+        }
+      } catch {}
+    }
+  }, [currentCompany?.id]);
 
   // Handle URL params for phone/leadId navigation
   useEffect(() => {
@@ -189,14 +207,23 @@ export default function CentralAtendimento() {
 
   useEffect(() => {
     if (chatUnitOptions.length === 0) {
-      setSelectedChatUnit(null);
+      handleSetSelectedChatUnit(null);
       return;
     }
 
-    setSelectedChatUnit((current) => (
-      current && chatUnitOptions.includes(current) ? current : chatUnitOptions[0]
-    ));
-  }, [chatUnitOptions]);
+    setSelectedChatUnit((current) => {
+      // Keep current if still valid
+      if (current && chatUnitOptions.includes(current)) return current;
+      // Try persisted value
+      if (currentCompany?.id) {
+        try {
+          const persisted = localStorage.getItem(`chat_selected_unit_${currentCompany.id}`);
+          if (persisted && chatUnitOptions.includes(persisted)) return persisted;
+        } catch {}
+      }
+      return chatUnitOptions[0];
+    });
+  }, [chatUnitOptions, currentCompany?.id, handleSetSelectedChatUnit]);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -919,7 +946,7 @@ export default function CentralAtendimento() {
               {/* Unit selector - always visible next to tabs (chat tab) */}
               {chatUnitOptions.length > 1 && activeTab === "chat" && (
                 <div className="flex-1 min-w-0">
-                  <Select value={selectedChatUnit ?? undefined} onValueChange={setSelectedChatUnit}>
+                  <Select value={selectedChatUnit ?? undefined} onValueChange={handleSetSelectedChatUnit}>
                     <SelectTrigger className="h-9 w-full text-xs">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <Building2 className="w-3.5 h-3.5 shrink-0" />
@@ -1011,7 +1038,7 @@ export default function CentralAtendimento() {
                   onInstancesLoaded={(instances) => {
                     setChatInstances(instances);
                     if (!selectedChatUnit && instances.length > 0) {
-                      setSelectedChatUnit(instances[0].unit);
+                      handleSetSelectedChatUnit(instances[0].unit);
                     }
                   }}
                 />
@@ -1218,7 +1245,7 @@ export default function CentralAtendimento() {
                           key={inst.id}
                           variant={selectedChatUnit === inst.unit ? "default" : "ghost"}
                           size="sm"
-                          onClick={() => setSelectedChatUnit(inst.unit)}
+                          onClick={() => handleSetSelectedChatUnit(inst.unit)}
                           className={`h-7 px-3 rounded-md transition-all text-xs ${
                             selectedChatUnit === inst.unit ? "shadow-sm" : "hover:bg-background/80"
                           }`}
@@ -1385,7 +1412,7 @@ export default function CentralAtendimento() {
                       onInstancesLoaded={(instances) => {
                         setChatInstances(instances);
                         if (!selectedChatUnit && instances.length > 0) {
-                          setSelectedChatUnit(instances[0].unit);
+                          handleSetSelectedChatUnit(instances[0].unit);
                         }
                       }}
                     />
