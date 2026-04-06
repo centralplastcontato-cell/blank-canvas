@@ -536,13 +536,22 @@ async function sendTextViaWapiWithFallback(
   return { messageId: null, attempt: null };
 }
 
-async function sendBotMessage(instanceId: string, instanceToken: string, remoteJid: string, message: string, provider: Provider = 'wapi', clientToken: string | null = null): Promise<string | null> {
+// Module-level provider context - set before each message processing
+let _activeProvider: Provider = 'wapi';
+let _activeClientToken: string | null = null;
+
+function setActiveProvider(provider: string | null | undefined, clientToken: string | null | undefined) {
+  _activeProvider = (provider === 'zapi' ? 'zapi' : 'wapi');
+  _activeClientToken = clientToken || null;
+}
+
+async function sendBotMessage(instanceId: string, instanceToken: string, remoteJid: string, message: string): Promise<string | null> {
   try {
     const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, '');
-    console.log(`[Bot] Sending message to ${phone} via instance ${instanceId} (${provider})`);
+    console.log(`[Bot] Sending message to ${phone} via instance ${instanceId} (${_activeProvider})`);
 
-    if (provider === 'zapi') {
-      const res = await zapiRequest(instanceId, instanceToken, clientToken, 'send-text', 'POST', { phone, message });
+    if (_activeProvider === 'zapi') {
+      const res = await zapiRequest(instanceId, instanceToken, _activeClientToken, 'send-text', 'POST', { phone, message });
       const msgId = res.data ? ((res.data as Record<string, unknown>).zapiMessageId || (res.data as Record<string, unknown>).messageId) as string || null : null;
       console.log(`[Bot] Z-API send-text response: msgId=${msgId}`);
       return msgId;
