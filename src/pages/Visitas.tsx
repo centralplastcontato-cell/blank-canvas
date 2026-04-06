@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
-import { Loader2, Menu, CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, Phone, MessageSquare, Check, RefreshCw, X, Plus, User as UserIcon, AlertTriangle, Trash2, PartyPopper, FileText, Package } from "lucide-react";
+import { Loader2, Menu, Clock, MapPin, ChevronLeft, ChevronRight, Phone, MessageSquare, Check, RefreshCw, X, Plus, User as UserIcon, AlertTriangle, Trash2, PartyPopper, FileText, Package } from "lucide-react";
 import { ReportDialog } from "@/components/reports/ReportDialog";
 import { generateVisitasPDF, generateVisitasXLSX } from "@/lib/generateVisitasPDF";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -556,18 +556,18 @@ export default function Visitas() {
 
       {/* Visit Summary Cards */}
       {(() => {
-        const total = filteredVisits.length;
+        const visitasComerciais = filteredVisits.filter(v => (v.visit_type || "visita") !== "atendimento");
+        const atendimentos = filteredVisits.filter(v => (v.visit_type || "visita") === "atendimento");
         const agendadas = filteredVisits.filter(v => v.status_visita === "agendada").length;
-        const confirmadas = filteredVisits.filter(v => v.status_visita === "confirmada").length;
         const realizadas = filteredVisits.filter(v => v.status_visita === "realizada").length;
         const naoComp = filteredVisits.filter(v => v.status_visita === "nao_compareceu").length;
         const canceladas = filteredVisits.filter(v => v.status_visita === "cancelada").length;
 
         const summaryCards = [
-          { label: "Total de Visitas", value: total, icon: CalendarIcon, color: "text-primary", bg: "bg-primary/10", border: "border-l-primary", tint: "bg-primary/[0.02]" },
+          { label: "Visitas Comerciais", value: visitasComerciais.length, icon: MapPin, color: "text-primary", bg: "bg-primary/10", border: "border-l-primary", tint: "bg-primary/[0.02]" },
+          { label: "Atendimentos", value: atendimentos.length, icon: Phone, color: "text-violet-600", bg: "bg-violet-500/10", border: "border-l-violet-500", tint: "bg-violet-500/[0.02]" },
           { label: "Agendadas", value: agendadas, icon: Clock, color: "text-blue-600", bg: "bg-blue-500/10", border: "border-l-blue-500", tint: "bg-blue-500/[0.02]" },
-          { label: "Confirmadas", value: confirmadas, icon: Check, color: "text-emerald-600", bg: "bg-emerald-500/10", border: "border-l-emerald-500", tint: "bg-emerald-500/[0.02]" },
-          { label: "Realizadas", value: realizadas, icon: MapPin, color: "text-green-700", bg: "bg-green-600/10", border: "border-l-green-700", tint: "bg-green-700/[0.02]" },
+          { label: "Realizadas", value: realizadas, icon: Check, color: "text-green-700", bg: "bg-green-600/10", border: "border-l-green-700", tint: "bg-green-700/[0.02]" },
         ];
 
         const getDaysInMonthCount = (d: Date) => new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
