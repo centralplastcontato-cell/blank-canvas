@@ -939,7 +939,7 @@ export default function Visitas() {
           isCreateEntrega ? "bg-violet-50/50 dark:bg-violet-950/20" : "bg-muted/30"
         )}>
           <DialogTitle className="text-lg font-bold tracking-tight flex items-center gap-2">
-            {isCreateEntrega ? <><Package className="h-5 w-5 text-violet-600" /> Retirada / Entrega</> : "Nova Visita"}
+            {isCreateEntrega ? <><Package className="h-5 w-5 text-violet-600" /> Atendimento</> : "Nova Visita"}
           </DialogTitle>
           <p className="text-[13px] text-muted-foreground mt-1">
             {isCreateEntrega ? "Agende uma retirada ou entrega de itens para uma festa" : "Agende uma nova visita para um lead"}
