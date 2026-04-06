@@ -541,19 +541,20 @@ export default function Financeiro() {
                       </div>
                     </div>
 
-                    {(['todos', 'fixa', 'variavel', 'festa', 'baixadas'] as const).map(expType => {
+                    {(['todos', 'fixa', 'variavel', 'festa', 'a_vencer', 'baixadas'] as const).map(expType => {
                       const typeExpenses = dashboard.expenses
                         .filter(e => {
                           if (expType === 'todos') return true;
                           if (expType === 'baixadas') return e.status === 'pago';
+                          if (expType === 'a_vencer') return e.status === 'pendente';
                           return (e.expense_type || 'fixa') === expType;
                         })
                         .sort((a, b) => despesasSortAsc
                           ? a.expense_date.localeCompare(b.expense_date)
                           : b.expense_date.localeCompare(a.expense_date)
                         );
-                      const typeLabel = expType === 'todos' ? '' : expType === 'fixa' ? 'fixa' : expType === 'variavel' ? 'variável' : expType === 'festa' ? 'de festa' : 'baixada';
-                      const sectionTitle = expType === 'todos' ? `Todas as despesas (${typeExpenses.length})` : expType === 'baixadas' ? `Despesas baixadas (${typeExpenses.length})` : `Despesas ${typeLabel}s (${typeExpenses.length})`;
+                      const typeLabel = expType === 'todos' ? '' : expType === 'fixa' ? 'fixa' : expType === 'variavel' ? 'variável' : expType === 'festa' ? 'de festa' : expType === 'a_vencer' ? 'a vencer' : 'baixada';
+                      const sectionTitle = expType === 'todos' ? `Todas as despesas (${typeExpenses.length})` : expType === 'baixadas' ? `Despesas baixadas (${typeExpenses.length})` : expType === 'a_vencer' ? `Despesas a vencer (${typeExpenses.length})` : `Despesas ${typeLabel}s (${typeExpenses.length})`;
                       return (
                         <TabsContent key={expType} value={expType} className="space-y-3 mt-3">
                           <div className="flex items-center justify-between">
