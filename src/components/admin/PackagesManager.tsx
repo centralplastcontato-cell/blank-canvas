@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Plus, Trash2, Pencil, Package, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { PackagePriceGrid } from "./PackagePriceGrid";
 
 interface CompanyPackage {
   id: string;
