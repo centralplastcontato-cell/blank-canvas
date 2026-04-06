@@ -621,10 +621,28 @@ export default function Visitas() {
               {profiles.map(p => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className={cn(
+              "h-9 flex-1 min-w-0 text-xs rounded-xl border-border/50 bg-card shadow-sm transition-all duration-200",
+              filterType !== "all" && "border-violet-400 bg-violet-500/5 text-violet-700 font-semibold ring-1 ring-violet-300"
+            )}>
+              <SelectValue placeholder="Tipo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos tipos</SelectItem>
+              <SelectItem value="visita">Visitas</SelectItem>
+              <SelectItem value="retirada_entrega">Retirada / Entrega</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        <Button size="sm" className="h-10 px-6 rounded-xl gap-2 font-semibold shadow-sm" onClick={() => { resetCreateForm(); setCreateOpen(true); }}>
-          <Plus className="h-4 w-4" /> Nova Visita
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button size="sm" className="h-10 px-5 rounded-xl gap-2 font-semibold shadow-sm" onClick={() => { resetCreateForm(); setCreateType("visita"); setCreateOpen(true); }}>
+            <Plus className="h-4 w-4" /> Nova Visita
+          </Button>
+          <Button size="sm" variant="outline" className="h-10 px-5 rounded-xl gap-2 font-semibold shadow-sm border-violet-300 text-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950/30" onClick={() => { resetCreateForm(); setCreateType("retirada_entrega"); setCreateOpen(true); }}>
+            <Package className="h-4 w-4" /> Retirada / Entrega
+          </Button>
+        </div>
       </div>
 
       {/* Visit Summary Cards */}
