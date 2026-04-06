@@ -4404,9 +4404,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                     void onLeadClosedMobile?.(updatedLead);
                                   }
 
-                                  if (newStatus === 'em_contato') {
-                                    setShowQuickVisitDialog(true);
-                                  }
+                                   if (newStatus === 'em_contato') {
+                                     setQuickVisitType("visita");
+                                     setShowQuickVisitDialog(true);
+                                   }
 
                                   const statusBorderColors: Record<string, string> = {
                                     'bg-blue-500': '#3b82f6', 'bg-teal-500': '#14b8a6', 'bg-yellow-500': '#eab308',
