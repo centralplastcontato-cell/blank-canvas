@@ -212,7 +212,7 @@ async function zapiRequest(instanceId: string, token: string, clientToken: strin
     const data = await res.json();
     const providerReportedError = typeof data.error === 'string' ? data.error : null;
     if (!res.ok || providerReportedError) {
-      return { ok: false, error: data.message || providerReportedError || 'Erro na Z-API' };
+      return { ok: false, data, error: data.message || providerReportedError || 'Erro na Z-API' };
     }
     return { ok: true, data };
   } catch (e) {
@@ -557,6 +557,34 @@ function isWapiSessionConnected(statusData: Record<string, unknown> | null | und
 
   const hasQrCode = Boolean(statusData.qrcode || statusData.qrCode || statusData.qr || statusData.base64);
   return !hasQrCode && !statusData.error;
+}
+
+function hasZapiConnectedMessage(rawValue: unknown): boolean {
+  if (typeof rawValue !== 'string') return false;
+
+  const value = rawValue.toLowerCase();
+  return (
+    value.includes('already connected') ||
+    value.includes('already-connected') ||
+    value.includes('já conectado') ||
+    value.includes('ja conectado') ||
+    value.includes('já está conectad') ||
+    value.includes('ja esta conectad')
+  );
+}
+
+function isZapiSessionConnected(statusData: Record<string, unknown> | null | undefined): boolean {
+  if (!statusData) return false;
+
+  if (
+    statusData.connected === true ||
+    statusData.status === 'connected' ||
+    statusData.state === 'connected'
+  ) {
+    return true;
+  }
+
+  return [statusData.message, statusData.error, statusData.statusText].some(hasZapiConnectedMessage);
 }
 
 async function hasRecentVerifiedActivity(
@@ -1296,13 +1324,35 @@ Deno.serve(async (req) => {
         // Z-API status check
         if (isZapi) {
           try {
+            const { data: instRecord } = await supabase
+              .from('wapi_instances')
+              .select('id, phone_number')
+              .eq('instance_id', instance_id)
+              .single();
+
             const zapiRes = await zapiGetStatus(instance_id, instance_token, client_token);
+            const zapiData = (zapiRes.data as Record<string, unknown> | undefined) || {};
+            const fallbackPhone = instRecord?.phone_number || null;
+            const connected = isZapiSessionConnected(zapiData) || hasZapiConnectedMessage(zapiRes.error);
+            const zapiPhone = extractConnectedPhone(zapiData) || fallbackPhone;
+            const hasVerifiedActivity = instRecord?.id
+              ? await hasRecentVerifiedActivity(supabase, instRecord.id)
+              : false;
+
+            if (connected || (fallbackPhone && hasVerifiedActivity)) {
+              return new Response(JSON.stringify({
+                status: 'connected',
+                connected: true,
+                phoneNumber: zapiPhone,
+                provider: 'zapi',
+                evidenceBased: !connected,
+              }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+            }
+
             if (!zapiRes.ok) {
               return new Response(JSON.stringify({ status: 'degraded', connected: false, error: zapiRes.error, errorType: 'TIMEOUT_OR_GATEWAY' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
             }
-            const d = zapiRes.data as Record<string, unknown>;
-            const connected = d.connected === true;
-            const zapiPhone = d.phoneNumber || d.phone || null;
+
             return new Response(JSON.stringify({ status: connected ? 'connected' : 'disconnected', connected, phoneNumber: zapiPhone, provider: 'zapi' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
           } catch (e) {
             return new Response(JSON.stringify({ status: 'degraded', connected: false, error: e instanceof Error ? e.message : 'Erro Z-API', errorType: 'TIMEOUT_OR_GATEWAY' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -2297,6 +2347,30 @@ Deno.serve(async (req) => {
 
         // If no manual phone, try alternative endpoints
         if (!extractedPhone) {
+          if (isZapi) {
+            const { data: instRecord } = await supabase
+              .from('wapi_instances')
+              .select('id, phone_number')
+              .eq('instance_id', instance_id)
+              .single();
+
+            const zapiRes = await zapiGetStatus(instance_id, instance_token, client_token);
+            const zapiData = (zapiRes.data as Record<string, unknown> | undefined) || {};
+            const connected = isZapiSessionConnected(zapiData) || hasZapiConnectedMessage(zapiRes.error);
+            const hasVerifiedActivity = instRecord?.id
+              ? await hasRecentVerifiedActivity(supabase, instRecord.id)
+              : false;
+            const recoveredPhone = extractConnectedPhone(zapiData) || instRecord?.phone_number || null;
+
+            if (recoveredPhone && (connected || hasVerifiedActivity)) {
+              extractedPhone = recoveredPhone;
+              source = connected ? 'zapi:status' : 'zapi:evidence';
+            }
+          }
+
+          if (extractedPhone) {
+            // recovered via provider-specific flow
+          } else {
           const safeFetch = async (url: string) => {
             try {
               const controller = new AbortController();
@@ -2361,6 +2435,7 @@ Deno.serve(async (req) => {
               } catch {}
             }
           }
+          }
         }
 
         if (extractedPhone) {
@@ -2409,6 +2484,16 @@ Deno.serve(async (req) => {
       }
 
       case 'restart-instance': {
+        if (isZapi) {
+          return new Response(JSON.stringify({ 
+            success: false,
+            restarted: false,
+            reason: 'Reinício automático não é suportado para instâncias Z-API pelo app. Se necessário, reinicie pelo painel da Z-API.',
+          }), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
         // Restart the W-API instance to refresh the cryptographic session
         // This fixes "Aguardando mensagem" caused by stale E2E encryption keys
         console.log(`[restart-instance] Attempting restart for instance ${instance_id}`);
