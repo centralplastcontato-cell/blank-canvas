@@ -25,7 +25,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import {
   Smartphone, Wifi, WifiOff, RefreshCw, Plus, Building2,
-  Phone, MessageSquare, Loader2, BarChart3, QrCode, Power, Pencil, Check, X, Trash2
+  Phone, MessageSquare, Loader2, BarChart3, QrCode, Power, Pencil, Check, X, Trash2, Settings2
 } from "lucide-react";
 import {
   AlertDialog,
