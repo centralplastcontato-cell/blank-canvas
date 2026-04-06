@@ -1109,6 +1109,16 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               <div className="space-y-2.5 md:pr-6">
                 <Label className="text-sm font-medium text-foreground/70">Valor do pacote</Label>
                 <MoneyInput value={form.total_value} onChange={(v) => setForm({ ...form, total_value: v })} />
+                {suggestedPrice && (
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 mt-1.5 rounded-lg border border-primary/20 bg-primary/5 text-xs font-medium text-primary transition-all hover:bg-primary/10"
+                    onClick={() => setForm(prev => ({ ...prev, total_value: suggestedPrice.price }))}
+                  >
+                    📅 {suggestedPrice.dayTypeLabel} · {suggestedPrice.guestTier} pessoas · R$ {suggestedPrice.price.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    {form.total_value !== suggestedPrice.price && <span className="text-[10px] opacity-70 ml-1">(clique para aplicar)</span>}
+                  </button>
+                )}
               </div>
 
               {/* Checklist template - only for new events */}
