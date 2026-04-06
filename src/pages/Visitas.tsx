@@ -83,7 +83,7 @@ interface Visit {
   restrictions?: any;
   client_questions?: string | null;
   seller_notes?: string | null;
-  // Retirada/Entrega fields
+  // Atendimento fields
   visit_type?: string;
   event_id?: string | null;
   items_description?: string | null;
