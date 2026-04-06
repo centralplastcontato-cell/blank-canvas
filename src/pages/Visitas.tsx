@@ -293,7 +293,21 @@ export default function Visitas() {
   const resetCreateForm = () => {
     setNewLeadSearch(""); setNewLeadId(""); setNewLeadName("");
     setNewDate(undefined); setNewTime(""); setNewNotes(""); setNewResponsavel(""); setNewUnit("");
-    setLeadResults([]);
+    setLeadResults([]); setNewItemsDesc(""); setNewEventId(""); setLeadEvents([]);
+  };
+
+  // Fetch events for a lead (used in retirada_entrega)
+  const fetchLeadEvents = async (leadId: string) => {
+    const companyId = getCurrentCompanyId();
+    if (!companyId) return;
+    const { data } = await (supabase as any)
+      .from("company_events")
+      .select("id, title, event_date")
+      .eq("company_id", companyId)
+      .eq("lead_id", leadId)
+      .neq("status", "cancelado")
+      .order("event_date", { ascending: true });
+    setLeadEvents(data || []);
   };
 
   const updateVisitStatus = async (visitId: string, newStatus: string) => {
