@@ -568,6 +568,9 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     setForm(prev => ({ ...prev, event_optionals: updated }));
   }, [form.guest_count]);
 
+  // Price tier auto-calculation state
+  const [priceTiers, setPriceTiers] = useState<Array<{ guest_count: number; day_type: string; price: number }>>([]);
+  const [suggestedPrice, setSuggestedPrice] = useState<{ price: number; dayTypeLabel: string; guestTier: number } | null>(null);
 
   useEffect(() => {
     if (!open || !currentCompany?.id) return;
