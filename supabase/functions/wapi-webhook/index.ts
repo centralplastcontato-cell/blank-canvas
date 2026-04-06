@@ -3306,44 +3306,52 @@ async function downloadMedia(supabase: SupabaseClient, iId: string, iToken: stri
   }
 }
 
-// Fetch profile picture from W-API and update conversation (fire-and-forget)
+// Fetch profile picture and update conversation (fire-and-forget)
 async function fetchAndUpdateProfilePicture(
   supabase: SupabaseClient,
   instanceId: string,
   instanceToken: string,
   conversationId: string,
-  remoteJid: string
+  remoteJid: string,
+  provider: string = 'wapi'
 ): Promise<void> {
   try {
     const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@g.us', '');
-    
-    // Try W-API profile picture endpoint
-    const res = await fetch(
-      `${WAPI_BASE_URL}/misc/profile-picture?instanceId=${instanceId}&phone=${phone}`,
-      { headers: { 'Authorization': `Bearer ${instanceToken}` } }
-    );
-    
-    if (!res.ok) {
-      // Try alternative endpoint format
-      const res2 = await fetch(
-        `${WAPI_BASE_URL}/contact/profile-picture?instanceId=${instanceId}&phone=${phone}`,
+    let picUrl: string | null = null;
+
+    if (provider === 'zapi') {
+      // Z-API profile picture endpoint
+      const zapiBase = `https://api.z-api.io/instances/${instanceId}/token/${instanceToken}`;
+      const res = await fetch(`${zapiBase}/profile-picture/${phone}`);
+      if (res.ok) {
+        const data = await res.json();
+        picUrl = data?.link || data?.profilePictureUrl || data?.imgUrl || data?.url || null;
+      }
+    } else {
+      // W-API profile picture endpoint
+      const res = await fetch(
+        `${WAPI_BASE_URL}/misc/profile-picture?instanceId=${instanceId}&phone=${phone}`,
         { headers: { 'Authorization': `Bearer ${instanceToken}` } }
       );
-      if (!res2.ok) return;
-      const data2 = await res2.json();
-      const picUrl = data2?.profilePicture || data2?.profilePictureUrl || data2?.imgUrl || data2?.url || data2?.picture;
-      if (picUrl) {
-        await supabase.from('wapi_conversations').update({ contact_picture: picUrl }).eq('id', conversationId);
-        console.log(`[ProfilePic] Updated profile picture for conversation ${conversationId}`);
+      
+      if (!res.ok) {
+        const res2 = await fetch(
+          `${WAPI_BASE_URL}/contact/profile-picture?instanceId=${instanceId}&phone=${phone}`,
+          { headers: { 'Authorization': `Bearer ${instanceToken}` } }
+        );
+        if (res2.ok) {
+          const data2 = await res2.json();
+          picUrl = data2?.profilePicture || data2?.profilePictureUrl || data2?.imgUrl || data2?.url || data2?.picture || null;
+        }
+      } else {
+        const data = await res.json();
+        picUrl = data?.profilePicture || data?.profilePictureUrl || data?.imgUrl || data?.url || data?.picture || null;
       }
-      return;
     }
-    
-    const data = await res.json();
-    const picUrl = data?.profilePicture || data?.profilePictureUrl || data?.imgUrl || data?.url || data?.picture;
+
     if (picUrl) {
       await supabase.from('wapi_conversations').update({ contact_picture: picUrl }).eq('id', conversationId);
-      console.log(`[ProfilePic] Updated profile picture for conversation ${conversationId}`);
+      console.log(`[ProfilePic] Updated profile picture for conversation ${conversationId} (${provider})`);
     }
   } catch (err) {
     // Silent fail - profile picture is not critical
@@ -4088,7 +4096,7 @@ async function processWebhookEvent(body: Record<string, unknown>) {
         
         // If no profile picture, fetch it in background
         if (!cPic && !ex.contact_picture) {
-          fetchAndUpdateProfilePicture(supabase, instance.instance_id, instance.instance_token, ex.id, rj as string)
+          fetchAndUpdateProfilePicture(supabase, instance.instance_id, instance.instance_token, ex.id, rj as string, instance.provider || 'wapi')
             .catch(() => {});
         }
       } else {
@@ -4148,7 +4156,7 @@ async function processWebhookEvent(body: Record<string, unknown>) {
             conv = nc;
             // Fetch profile picture in background for new conversations
             if (!cPic && nc?.id) {
-              fetchAndUpdateProfilePicture(supabase, instance.instance_id, instance.instance_token, nc.id, rj as string)
+              fetchAndUpdateProfilePicture(supabase, instance.instance_id, instance.instance_token, nc.id, rj as string, instance.provider || 'wapi')
                 .catch(() => {});
             }
           }
@@ -4487,6 +4495,9 @@ function normalizeZapiPayload(body: Record<string, unknown>): Record<string, unk
     message = { documentMessage: { url: documentObj.documentUrl, fileName: documentObj.fileName || 'document' } };
   }
 
+  // Z-API may include profile picture in the payload
+  const profilePic = (body.photo as string) || (body.senderPhoto as string) || (body.chatPhoto as string) || null;
+
   return {
     event: 'messages.upsert',
     instanceId: body.instanceId,
@@ -4495,6 +4506,7 @@ function normalizeZapiPayload(body: Record<string, unknown>): Record<string, unk
       pushName: senderName,
       message,
       messageTimestamp: Math.floor(Date.now() / 1000),
+      ...(profilePic ? { sender: { profilePicture: profilePic } } : {}),
     },
   };
 }
