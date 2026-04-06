@@ -13,6 +13,7 @@ interface VisitData {
   interest_level?: string | null;
   como_conheceu?: string | null;
   observacoes?: string | null;
+  visit_type?: string;
 }
 
 export interface VisitasReportParams {
