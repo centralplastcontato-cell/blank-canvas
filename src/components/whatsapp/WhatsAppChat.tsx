@@ -4309,6 +4309,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           currentUserId={userId}
           leadUnit={linkedLead.unit}
           onVisitRegistered={() => setVisitRefreshKey(k => k + 1)}
+          initialVisitType={quickVisitType}
         />
       )}
 
