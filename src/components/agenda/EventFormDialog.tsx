@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
+import { getDayType, getDayTypeLabel, findMatchingTier, DEFAULT_DAY_TYPES, DEFAULT_GUEST_TIERS, type DayTypeConfig } from "@/lib/brazilian-holidays";
 
 export interface ParcelaDetail {
   valor: number | null;
