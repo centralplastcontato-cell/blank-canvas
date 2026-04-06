@@ -645,7 +645,7 @@ async function sendBotDocument(instanceId: string, instanceToken: string, remote
 
 async function processFlowBuilderMessage(
   supabase: SupabaseClient,
-  instance: { id: string; instance_id: string; instance_token: string; unit: string | null; company_id: string },
+  instance: { id: string; instance_id: string; instance_token: string; unit: string | null; company_id: string; provider?: string; client_token?: string | null },
   conv: { id: string; remote_jid: string; bot_enabled: boolean | null; bot_step: string | null; bot_data: Record<string, unknown> | null; lead_id: string | null },
   content: string,
   contactPhone: string,
