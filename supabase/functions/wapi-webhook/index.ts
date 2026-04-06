@@ -4156,7 +4156,7 @@ async function processWebhookEvent(body: Record<string, unknown>) {
             conv = nc;
             // Fetch profile picture in background for new conversations
             if (!cPic && nc?.id) {
-              fetchAndUpdateProfilePicture(supabase, instance.instance_id, instance.instance_token, nc.id, rj as string)
+              fetchAndUpdateProfilePicture(supabase, instance.instance_id, instance.instance_token, nc.id, rj as string, instance.provider || 'wapi')
                 .catch(() => {});
             }
           }
