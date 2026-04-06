@@ -432,7 +432,7 @@ export default function Visitas() {
                         key={v.id}
                         className={cn(
                           "h-[5px] w-[5px] lg:h-[6px] lg:w-[6px] rounded-full",
-                          (v.visit_type || "visita") === "retirada_entrega"
+                          (v.visit_type || "visita") === "atendimento"
                             ? "bg-violet-500"
                             : (VISIT_STATUS_DOT[v.status_visita] || "bg-muted-foreground/40")
                         )}
