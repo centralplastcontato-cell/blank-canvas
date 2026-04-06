@@ -572,6 +572,45 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [priceTiers, setPriceTiers] = useState<Array<{ guest_count: number; day_type: string; price: number }>>([]);
   const [suggestedPrice, setSuggestedPrice] = useState<{ price: number; dayTypeLabel: string; guestTier: number } | null>(null);
 
+  // Load price tiers when package changes
+  useEffect(() => {
+    if (!form.package_name || packages.length === 0) { setPriceTiers([]); setSuggestedPrice(null); return; }
+    const pkg = packages.find(p => p.name === form.package_name);
+    if (!pkg) { setPriceTiers([]); setSuggestedPrice(null); return; }
+    supabase
+      .from("package_price_tiers" as any)
+      .select("guest_count, day_type, price")
+      .eq("package_id", pkg.id)
+      .then(({ data }) => {
+        setPriceTiers(((data || []) as unknown as Array<{ guest_count: number; day_type: string; price: number }>));
+      });
+  }, [form.package_name, packages]);
+
+  // Auto-calculate suggested price from tiers
+  useEffect(() => {
+    if (priceTiers.length === 0 || !form.guest_count || !form.event_date) {
+      setSuggestedPrice(null);
+      return;
+    }
+    const s = (currentCompany?.settings || {}) as Record<string, unknown>;
+    const dayTypesConf = (s.day_type_config as Array<{ key: string; label: string }>) || DEFAULT_DAY_TYPES;
+    const guestTiersConf = (s.guest_tiers as number[]) || DEFAULT_GUEST_TIERS;
+    const [y, mo, da] = form.event_date.split("-").map(Number);
+    const eventDate = new Date(y, mo - 1, da);
+    const dayType = getDayType(eventDate, dayTypesConf);
+    const matchedTier = findMatchingTier(form.guest_count, guestTiersConf);
+    if (!matchedTier) { setSuggestedPrice(null); return; }
+    const tier = priceTiers.find(t => t.guest_count === matchedTier && t.day_type === dayType);
+    if (tier && tier.price > 0) {
+      setSuggestedPrice({ price: tier.price, dayTypeLabel: getDayTypeLabel(dayType, dayTypesConf), guestTier: matchedTier });
+      if (form.total_value == null) {
+        setForm(prev => ({ ...prev, total_value: tier.price }));
+      }
+    } else {
+      setSuggestedPrice(null);
+    }
+  }, [priceTiers, form.guest_count, form.event_date]);
+
   useEffect(() => {
     if (!open || !currentCompany?.id) return;
     (supabase as any)
