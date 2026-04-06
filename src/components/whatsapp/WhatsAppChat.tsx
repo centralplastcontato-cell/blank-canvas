@@ -2137,6 +2137,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       }
 
       if (status === 'em_contato') {
+        setQuickVisitType("visita");
         setShowQuickVisitDialog(true);
       }
 
@@ -4304,7 +4305,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       {linkedLead && (
         <QuickVisitDialog
           open={showQuickVisitDialog}
-          onOpenChange={setShowQuickVisitDialog}
+          onOpenChange={(v) => { setShowQuickVisitDialog(v); if (!v) setQuickVisitType("visita"); }}
           leadId={linkedLead.id}
           currentUserId={userId}
           leadUnit={linkedLead.unit}
@@ -4403,9 +4404,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                     void onLeadClosedMobile?.(updatedLead);
                                   }
 
-                                  if (newStatus === 'em_contato') {
-                                    setShowQuickVisitDialog(true);
-                                  }
+                                   if (newStatus === 'em_contato') {
+                                     setQuickVisitType("visita");
+                                     setShowQuickVisitDialog(true);
+                                   }
 
                                   const statusBorderColors: Record<string, string> = {
                                     'bg-blue-500': '#3b82f6', 'bg-teal-500': '#14b8a6', 'bg-yellow-500': '#eab308',
@@ -5570,9 +5572,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                   void onLeadClosedMobile?.(updatedLead);
                                 }
 
-                                if (newStatus === 'em_contato') {
-                                  setShowQuickVisitDialog(true);
-                                }
+                                 if (newStatus === 'em_contato') {
+                                   setQuickVisitType("visita");
+                                   setShowQuickVisitDialog(true);
+                                 }
 
                                 const statusBorderColors: Record<string, string> = {
                                   'bg-blue-500': '#3b82f6', 'bg-teal-500': '#14b8a6', 'bg-yellow-500': '#eab308',
