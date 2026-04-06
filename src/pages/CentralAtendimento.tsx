@@ -892,7 +892,7 @@ export default function CentralAtendimento() {
         <main className="flex-1 flex flex-col overflow-hidden min-h-0">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "chat" | "leads")} className="flex-1 flex flex-col overflow-hidden min-h-0">
             {/* Always-visible row: Chat/Leads tabs + unit selector */}
-            <div className="mx-3 mt-3 grid grid-cols-[auto,minmax(0,1fr)] items-center gap-2 min-w-0">
+            <div className="mx-3 mt-1.5 grid grid-cols-[auto,minmax(0,1fr)] items-center gap-2 min-w-0">
               <TabsList className="w-auto flex-shrink-0">
                 <TabsTrigger value="chat" className="flex items-center gap-1.5 text-xs relative">
                   <MessageSquare className="w-4 h-4" />
