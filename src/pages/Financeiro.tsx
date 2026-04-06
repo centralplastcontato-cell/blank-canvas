@@ -602,8 +602,12 @@ export default function Financeiro() {
                                         <p className="font-semibold text-sm text-foreground truncate">{e.description}</p>
                                         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                                           <Badge variant="secondary" className="text-[10px]">{CATEGORY_LABELS[e.category] || e.category}</Badge>
-                                          <Badge variant="outline" className={cn("text-[10px]", e.status === 'pago' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20')}>
-                                            {e.status === 'pago' ? 'Pago' : 'Pendente'}
+                                          <Badge variant="outline" className={cn("text-[10px]",
+                                            e.status === 'pago' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                                            : (e.status === 'pendente' && new Date(e.expense_date + 'T23:59:59') < new Date()) ? 'bg-red-500/10 text-red-500 border-red-500/20'
+                                            : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                                          )}>
+                                            {e.status === 'pago' ? 'Pago' : (e.status === 'pendente' && new Date(e.expense_date + 'T23:59:59') < new Date()) ? 'Vencido' : 'Pendente'}
                                           </Badge>
                                         </div>
                                         <p className="text-xs text-muted-foreground mt-0.5">
