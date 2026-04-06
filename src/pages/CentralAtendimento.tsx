@@ -858,7 +858,7 @@ export default function CentralAtendimento() {
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "chat" | "leads")} className="flex-1 flex flex-col overflow-hidden min-h-0">
             <Collapsible open={!isTabBarCollapsed} onOpenChange={(open) => setIsTabBarCollapsed(!open)}>
               <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
-                <div className="mx-3 mt-3 flex items-center gap-2">
+                <div className="mx-3 mt-3 flex items-center gap-2 min-w-0">
                   <TabsList className="flex-shrink-0">
                     <TabsTrigger value="chat" className="flex items-center gap-1.5 text-xs relative">
                       <MessageSquare className="w-4 h-4" />
@@ -884,21 +884,23 @@ export default function CentralAtendimento() {
 
                   {/* Unit selector - same row (chat tab) */}
                   {chatInstances.length > 1 && activeTab === "chat" && (
-                    <div className="flex items-center gap-1 bg-border rounded-lg p-0.5">
-                      {chatInstances.map((inst) => (
-                        <Button
-                          key={inst.id}
-                          variant={selectedChatUnit === inst.unit ? "default" : "ghost"}
-                          size="sm"
-                          onClick={() => setSelectedChatUnit(inst.unit)}
-                          className={`h-7 px-2.5 rounded-md transition-all text-xs ${
-                            selectedChatUnit === inst.unit ? "shadow-sm" : "hover:bg-background/80"
-                          }`}
-                        >
-                          <Building2 className="w-3.5 h-3.5 mr-1" />
-                          {inst.unit}
-                        </Button>
-                      ))}
+                    <div className="flex-1 min-w-0 overflow-x-auto rounded-lg [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                      <div className="inline-flex min-w-max items-center gap-1 bg-border rounded-lg p-0.5">
+                        {chatInstances.map((inst) => (
+                          <Button
+                            key={inst.id}
+                            variant={selectedChatUnit === inst.unit ? "default" : "ghost"}
+                            size="sm"
+                            onClick={() => setSelectedChatUnit(inst.unit)}
+                            className={`h-7 shrink-0 px-2.5 rounded-md transition-all text-xs ${
+                              selectedChatUnit === inst.unit ? "shadow-sm" : "hover:bg-background/80"
+                            }`}
+                          >
+                            <Building2 className="w-3.5 h-3.5 mr-1" />
+                            {inst.unit}
+                          </Button>
+                        ))}
+                      </div>
                     </div>
                   )}
 
