@@ -296,7 +296,7 @@ export default function Visitas() {
     setLeadResults([]); setNewItemsDesc(""); setNewEventId(""); setLeadEvents([]);
   };
 
-  // Fetch events for a lead (used in retirada_entrega)
+  // Fetch events for a lead (used in atendimento)
   const fetchLeadEvents = async (leadId: string) => {
     const companyId = getCurrentCompanyId();
     if (!companyId) return;
