@@ -101,9 +101,11 @@ export default function Visitas() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterResponsavel, setFilterResponsavel] = useState("all");
   const [filterUnit, setFilterUnit] = useState("all");
+  const [filterType, setFilterType] = useState("all");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [detailVisit, setDetailVisit] = useState<Visit | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [createType, setCreateType] = useState<"visita" | "retirada_entrega">("visita");
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string }[]>([]);
 
   const { units } = useCompanyUnits(currentCompany?.id);
