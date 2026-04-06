@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Plus, Trash2, Pencil, Package, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { PackagePriceGrid } from "./PackagePriceGrid";
 
 interface CompanyPackage {
   id: string;
@@ -236,7 +237,7 @@ export function PackagesManager() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md p-0 gap-0 overflow-hidden bg-background border-border/60 shadow-xl">
+        <DialogContent className="max-w-3xl p-0 gap-0 overflow-hidden bg-background border-border/60 shadow-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="p-6 pb-4">
             <DialogTitle className="text-lg font-bold">{editing ? "Editar Pacote" : "Novo Pacote"}</DialogTitle>
             <p className="text-sm text-muted-foreground mt-0.5">
@@ -295,6 +296,17 @@ export function PackagesManager() {
                 </div>
               )}
             </div>
+
+            {/* Seção: Grade de Preços (só aparece ao editar) */}
+            {editing && (
+              <div className="rounded-xl border border-border/60 bg-card p-4">
+                <PackagePriceGrid
+                  packageId={editing.id}
+                  companyId={currentCompany?.id || ""}
+                  settings={currentCompany?.settings as Record<string, unknown> | null}
+                />
+              </div>
+            )}
 
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>

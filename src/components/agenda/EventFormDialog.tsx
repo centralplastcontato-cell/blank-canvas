@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
+import { getDayType, getDayTypeLabel, findMatchingTier, DEFAULT_DAY_TYPES, DEFAULT_GUEST_TIERS } from "@/lib/brazilian-holidays";
 
 export interface ParcelaDetail {
   valor: number | null;
@@ -567,6 +568,48 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     setForm(prev => ({ ...prev, event_optionals: updated }));
   }, [form.guest_count]);
 
+  // Price tier auto-calculation state
+  const [priceTiers, setPriceTiers] = useState<Array<{ guest_count: number; day_type: string; price: number }>>([]);
+  const [suggestedPrice, setSuggestedPrice] = useState<{ price: number; dayTypeLabel: string; guestTier: number } | null>(null);
+
+  // Load price tiers when package changes
+  useEffect(() => {
+    if (!form.package_name || packages.length === 0) { setPriceTiers([]); setSuggestedPrice(null); return; }
+    const pkg = packages.find(p => p.name === form.package_name);
+    if (!pkg) { setPriceTiers([]); setSuggestedPrice(null); return; }
+    supabase
+      .from("package_price_tiers" as any)
+      .select("guest_count, day_type, price")
+      .eq("package_id", pkg.id)
+      .then(({ data }) => {
+        setPriceTiers(((data || []) as unknown as Array<{ guest_count: number; day_type: string; price: number }>));
+      });
+  }, [form.package_name, packages]);
+
+  // Auto-calculate suggested price from tiers
+  useEffect(() => {
+    if (priceTiers.length === 0 || !form.guest_count || !form.event_date) {
+      setSuggestedPrice(null);
+      return;
+    }
+    const s = (currentCompany?.settings || {}) as Record<string, unknown>;
+    const dayTypesConf = (s.day_type_config as Array<{ key: string; label: string }>) || DEFAULT_DAY_TYPES;
+    const guestTiersConf = (s.guest_tiers as number[]) || DEFAULT_GUEST_TIERS;
+    const [y, mo, da] = form.event_date.split("-").map(Number);
+    const eventDate = new Date(y, mo - 1, da);
+    const dayType = getDayType(eventDate, dayTypesConf);
+    const matchedTier = findMatchingTier(form.guest_count, guestTiersConf);
+    if (!matchedTier) { setSuggestedPrice(null); return; }
+    const tier = priceTiers.find(t => t.guest_count === matchedTier && t.day_type === dayType);
+    if (tier && tier.price > 0) {
+      setSuggestedPrice({ price: tier.price, dayTypeLabel: getDayTypeLabel(dayType, dayTypesConf), guestTier: matchedTier });
+      if (form.total_value == null) {
+        setForm(prev => ({ ...prev, total_value: tier.price }));
+      }
+    } else {
+      setSuggestedPrice(null);
+    }
+  }, [priceTiers, form.guest_count, form.event_date]);
 
   useEffect(() => {
     if (!open || !currentCompany?.id) return;
@@ -1066,6 +1109,16 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               <div className="space-y-2.5 md:pr-6">
                 <Label className="text-sm font-medium text-foreground/70">Valor do pacote</Label>
                 <MoneyInput value={form.total_value} onChange={(v) => setForm({ ...form, total_value: v })} />
+                {suggestedPrice && (
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 mt-1.5 rounded-lg border border-primary/20 bg-primary/5 text-xs font-medium text-primary transition-all hover:bg-primary/10"
+                    onClick={() => setForm(prev => ({ ...prev, total_value: suggestedPrice.price }))}
+                  >
+                    📅 {suggestedPrice.dayTypeLabel} · {suggestedPrice.guestTier} pessoas · R$ {suggestedPrice.price.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    {form.total_value !== suggestedPrice.price && <span className="text-[10px] opacity-70 ml-1">(clique para aplicar)</span>}
+                  </button>
+                )}
               </div>
 
               {/* Checklist template - only for new events */}

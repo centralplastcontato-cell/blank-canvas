@@ -3801,6 +3801,51 @@ export type Database = {
           },
         ]
       }
+      package_price_tiers: {
+        Row: {
+          company_id: string
+          created_at: string
+          day_type: string
+          guest_count: number
+          id: string
+          package_id: string
+          price: number
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          day_type: string
+          guest_count: number
+          id?: string
+          package_id: string
+          price?: number
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          day_type?: string
+          guest_count?: number
+          id?: string
+          package_id?: string
+          price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "package_price_tiers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "package_price_tiers_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "company_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partner_orders: {
         Row: {
           client_name: string | null
