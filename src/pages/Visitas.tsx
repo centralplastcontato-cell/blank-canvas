@@ -645,14 +645,7 @@ export default function Visitas() {
   const detailStatus = detailVisit ? getStatusInfo(detailVisit.status_visita) : null;
   const detailResponsavel = detailVisit ? profiles.find(p => p.user_id === detailVisit.responsavel_user_id) : null;
 
-  const CreateSectionHeader = ({ icon: Icon, label }: { icon: React.ElementType; label: string }) => (
-    <div className="flex items-center gap-2.5 text-[11px] uppercase tracking-[0.18em] font-semibold text-muted-foreground mb-4 pb-2.5 border-b border-border/40">
-      <div className="p-1.5 rounded-md bg-primary/8 ring-1 ring-primary/15">
-        <Icon className="h-3.5 w-3.5 text-primary" />
-      </div>
-      {label}
-    </div>
-  );
+
 
   const isDetailEntrega = detailVisit && (detailVisit.visit_type || "visita") === "atendimento";
 
