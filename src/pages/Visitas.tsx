@@ -1065,13 +1065,13 @@ export default function Visitas() {
             </div>
           </div>
 
-          {/* Items description for retirada_entrega */}
+          {/* Items description for atendimento */}
           {isCreateEntrega && (
             <div className="rounded-xl border border-violet-300/40 bg-violet-50/30 dark:bg-violet-950/10 p-5 shadow-sm">
-              <CreateSectionHeader icon={Package} label="Itens" />
+              <CreateSectionHeader icon={Package} label="Detalhes" />
               <div className="space-y-2.5">
-                <Label className="text-sm font-medium text-foreground/70">O que será entregue/retirado?</Label>
-                <Textarea value={newItemsDesc} onChange={(e) => setNewItemsDesc(e.target.value)} rows={3} placeholder="Ex: 2 caixas de refrigerante, lembrancinhas, toalha de mesa personalizada..." />
+                <Label className="text-sm font-medium text-foreground/70">Motivo / itens do atendimento</Label>
+                <Textarea value={newItemsDesc} onChange={(e) => setNewItemsDesc(e.target.value)} rows={3} placeholder="Ex: pagamento de parcela, tirar dúvidas sobre o evento, entrega de lembrancinhas..." />
               </div>
             </div>
           )}
