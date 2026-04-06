@@ -745,7 +745,7 @@ export default function Visitas() {
     </div>
   );
 
-  const isDetailEntrega = detailVisit && (detailVisit.visit_type || "visita") === "retirada_entrega";
+  const isDetailEntrega = detailVisit && (detailVisit.visit_type || "visita") === "atendimento";
 
   const detailSheet = (
     <Sheet open={!!detailVisit} onOpenChange={() => setDetailVisit(null)}>
