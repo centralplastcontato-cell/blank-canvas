@@ -643,6 +643,18 @@ export default function Financeiro() {
                                                 <span className="hidden sm:inline">Comprovante</span>
                                               </Button>
                                             )}
+                                            {(e as any).boleto_url && (
+                                              <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-7 px-2 text-xs"
+                                                onClick={() => window.open((e as any).boleto_url, '_blank')}
+                                                title="Ver boleto"
+                                              >
+                                                <FileText className="h-3.5 w-3.5 sm:mr-1" />
+                                                <span className="hidden sm:inline">Boleto</span>
+                                              </Button>
+                                            )}
                                             <Button
                                               size="sm"
                                               variant="ghost"
