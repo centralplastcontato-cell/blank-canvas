@@ -1095,6 +1095,52 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             </div>
           </div>
 
+  // Load price tiers when package changes
+  useEffect(() => {
+    if (!form.package_name || packages.length === 0) { setPriceTiers([]); setSuggestedPrice(null); return; }
+    const pkg = packages.find(p => p.name === form.package_name);
+    if (!pkg) { setPriceTiers([]); setSuggestedPrice(null); return; }
+    supabase
+      .from("package_price_tiers" as any)
+      .select("guest_count, day_type, price")
+      .eq("package_id", pkg.id)
+      .then(({ data }) => {
+        const rows = ((data || []) as unknown as Array<{ guest_count: number; day_type: string; price: number }>);
+        setPriceTiers(rows);
+      });
+  }, [form.package_name, packages]);
+
+  // Auto-calculate suggested price from tiers
+  useEffect(() => {
+    if (priceTiers.length === 0 || !form.guest_count || !form.event_date) {
+      setSuggestedPrice(null);
+      return;
+    }
+    const settings = (currentCompany?.settings || {}) as Record<string, unknown>;
+    const dayTypes = (settings.day_type_config as Array<{ key: string; label: string }>) || DEFAULT_DAY_TYPES;
+    const guestTiersConfig = (settings.guest_tiers as number[]) || DEFAULT_GUEST_TIERS;
+
+    // Parse date
+    const [y, m, d] = form.event_date.split("-").map(Number);
+    const eventDate = new Date(y, m - 1, d);
+    const dayType = getDayType(eventDate, dayTypes);
+    const matchedTier = findMatchingTier(form.guest_count, guestTiersConfig);
+
+    if (!matchedTier) { setSuggestedPrice(null); return; }
+
+    const tier = priceTiers.find(t => t.guest_count === matchedTier && t.day_type === dayType);
+    if (tier && tier.price > 0) {
+      const label = getDayTypeLabel(dayType, dayTypes);
+      setSuggestedPrice({ price: tier.price, dayTypeLabel: label, guestTier: matchedTier });
+      // Auto-fill if total_value is null (not yet manually set)
+      if (form.total_value == null) {
+        setForm(prev => ({ ...prev, total_value: tier.price }));
+      }
+    } else {
+      setSuggestedPrice(null);
+    }
+  }, [priceTiers, form.guest_count, form.event_date]);
+
 
           {/* Section 3.5 – Opcionais */}
           <div className="rounded-xl border border-border/40 bg-card p-4 shadow-sm sm:p-5">
