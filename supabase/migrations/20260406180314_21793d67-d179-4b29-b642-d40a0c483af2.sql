@@ -1,0 +1,1 @@
+UPDATE public.wapi_instances SET phone_number = '5515991425170' WHERE id = '75feab3b-eb12-44f0-8ada-463e5540c869';
