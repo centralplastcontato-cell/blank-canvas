@@ -273,7 +273,7 @@ export default function Visitas() {
       unit: newUnit || null,
       visit_type: createType,
     };
-    if (createType === "retirada_entrega") {
+    if (createType === "atendimento") {
       payload.event_id = newEventId || null;
       payload.items_description = newItemsDesc || null;
     }
