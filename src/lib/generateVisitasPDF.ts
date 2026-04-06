@@ -109,7 +109,7 @@ export function generateVisitasPDF(params: VisitasReportParams) {
     head: [['Data', 'Horário', 'Lead', 'Tipo', 'Status', 'Interesse', 'Canal', 'Unidade']],
     body: sorted.map(v => [
       fmtDate(v.data_visita), v.horario_visita || '—', v.lead_name || '—',
-      (v.visit_type || 'visita') === 'retirada_entrega' ? 'Entrega' : 'Visita',
+      (v.visit_type || 'visita') === 'atendimento' ? 'Atendimento' : 'Visita',
       STATUS_LABELS[v.status_visita] || v.status_visita,
       INTEREST_LABELS[v.interest_level || ''] || v.interest_level || '—',
       v.como_conheceu || '—', v.unit || '—',
