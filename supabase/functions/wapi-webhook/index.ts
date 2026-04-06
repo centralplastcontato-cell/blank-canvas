@@ -3931,6 +3931,9 @@ async function processWebhookEvent(body: Record<string, unknown>) {
     return;
   }
 
+  // Set active provider for all bot send functions in this request
+  setActiveProvider(instance.provider, instance.client_token);
+
   // === AUTO-RECOVERY: If webhook arrives but DB says disconnected/degraded, the instance IS connected ===
   if (instance.status === 'disconnected' || instance.status === 'degraded') {
     console.warn(`[Webhook] ⚡ Message received for instance ${instanceId} but DB status is "${instance.status}". Auto-recovering status to connected...`);
