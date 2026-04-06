@@ -102,8 +102,8 @@ export function QuickVisitDialog({ open, onOpenChange, leadId, currentUserId, le
       <DialogContent className="max-w-[520px] max-h-[90vh] p-0 gap-0 overflow-hidden rounded-2xl [&>button]:top-5 [&>button]:right-5">
         {/* Header */}
         <DialogHeader className="px-7 pt-7 pb-4 border-b border-border/40 bg-muted/30">
-          <DialogTitle className="text-lg font-bold tracking-tight">Registrar Visita</DialogTitle>
-          <p className="text-[13px] text-muted-foreground mt-1">Adicione um registro de visita ao lead</p>
+          <DialogTitle className="text-lg font-bold tracking-tight">{initialVisitType === "atendimento" ? "Agendar Atendimento" : "Registrar Visita"}</DialogTitle>
+          <p className="text-[13px] text-muted-foreground mt-1">{initialVisitType === "atendimento" ? "Agende um atendimento para o cliente" : "Adicione um registro de visita ao lead"}</p>
         </DialogHeader>
 
         {/* Body */}
