@@ -219,7 +219,16 @@ export function BankAccountsManager() {
             )}
             <div>
               <Label>Saldo inicial (R$)</Label>
-              <Input type="number" step="0.01" value={initialBalance} onChange={e => setInitialBalance(e.target.value)} placeholder="0,00" />
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+                <Input
+                  className="pl-10"
+                  value={initialBalance}
+                  onChange={e => setInitialBalance(formatCurrency(e.target.value))}
+                  placeholder="0,00"
+                  inputMode="numeric"
+                />
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <Switch checked={isDefault} onCheckedChange={setIsDefault} />
