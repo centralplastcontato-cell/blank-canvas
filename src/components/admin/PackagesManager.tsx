@@ -69,6 +69,7 @@ export function PackagesManager() {
   const [valorCrianca, setValorCrianca] = useState("");
   const [valorAdulto, setValorAdulto] = useState("");
   const [saving, setSaving] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
   const priceGridRef = useRef<PackagePriceGridHandle>(null);
 
   const fetchPackages = async () => {
