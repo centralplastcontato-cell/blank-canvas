@@ -361,12 +361,12 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
                         <p className="text-[11px] text-muted-foreground/70 italic mt-0.5">{p.notes}</p>
                       )}
                     </div>
-                    <div className="flex gap-1.5 shrink-0">
+                    <div className="flex gap-1 shrink-0">
                       {canPay && p.status !== "paid" && (
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-8 w-8 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300"
+                          className="h-8 w-8 rounded-xl bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 hover:text-emerald-400 hover:shadow-sm hover:shadow-emerald-500/10 transition-all duration-200"
                           onClick={() => handleMarkAsPaid(p)}
                           title="Marcar como pago"
                         >
@@ -377,7 +377,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-8 w-8 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300"
+                          className="h-8 w-8 rounded-xl bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 hover:text-amber-400 hover:shadow-sm hover:shadow-amber-500/10 transition-all duration-200"
                           onClick={() => financial.reopenPayment(p)}
                           title="Reabrir parcela"
                         >
@@ -388,16 +388,16 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
                         <motion.div
                           initial={{ scale: 0 }}
                           animate={{ scale: 1 }}
-                          className="h-8 w-8 rounded-lg bg-emerald-500/20 flex items-center justify-center"
+                          className="h-8 w-8 rounded-xl bg-emerald-500/15 flex items-center justify-center shadow-sm shadow-emerald-500/10"
                         >
-                          <CheckCircle className="h-4 w-4 text-emerald-400" />
+                          <CheckCircle className="h-4 w-4 text-emerald-500" />
                         </motion.div>
                       )}
                       {canEdit && (
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-8 w-8 rounded-lg text-destructive/60 hover:text-destructive hover:bg-destructive/10"
+                          className="h-8 w-8 rounded-xl text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 hover:shadow-sm hover:shadow-destructive/10 transition-all duration-200"
                           onClick={() => financial.deletePayment(p.id)}
                           title="Excluir"
                         >
@@ -440,7 +440,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
                   <p className="text-xs text-emerald-400 font-semibold">{fmt(e.amount)}</p>
                 </div>
                 {canEdit && (
-                  <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-destructive/60 hover:text-destructive hover:bg-destructive/10" onClick={() => financial.deleteExtra(e.id)}>
+                  <Button size="icon" variant="ghost" className="h-7 w-7 rounded-xl text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 hover:shadow-sm hover:shadow-destructive/10 transition-all duration-200" onClick={() => financial.deleteExtra(e.id)}>
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 )}
@@ -479,7 +479,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
                   {d.reason && <p className="text-xs text-muted-foreground">{d.reason}</p>}
                 </div>
                 {canEdit && (
-                  <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-destructive/60 hover:text-destructive hover:bg-destructive/10" onClick={() => financial.deleteDiscount(d.id)}>
+                  <Button size="icon" variant="ghost" className="h-7 w-7 rounded-xl text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 hover:shadow-sm hover:shadow-destructive/10 transition-all duration-200" onClick={() => financial.deleteDiscount(d.id)}>
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 )}
