@@ -67,6 +67,7 @@ interface OnboardingRecord {
   budget_format: string | null;
   budget_file_urls: string[] | null;
   service_screenshots: string[] | null;
+  operational_data: any | null;
 }
 
 interface CompanyInfo {
