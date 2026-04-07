@@ -563,7 +563,7 @@ export default function Financeiro() {
                       ) : (
                         <>
                           <div className="space-y-2">
-                            {allPending.slice((pageReceber - 1) * PAGE_SIZE, pageReceber * PAGE_SIZE).map(p => <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={handleMarkPaymentAsPaid} onOpenEvent={handleOpenEvent} />)}
+                            {allPending.slice((pageReceber - 1) * PAGE_SIZE, pageReceber * PAGE_SIZE).map(p => <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={handleMarkPaymentAsPaid} onOpenEvent={handleOpenEvent} bankAccountName={p.bank_account_id ? bankAccountMap[p.bank_account_id] : undefined} />)}
                           </div>
                           <PaginationControls page={pageReceber} totalPages={Math.ceil(allPending.length / PAGE_SIZE)} onPageChange={setPageReceber} />
                         </>
