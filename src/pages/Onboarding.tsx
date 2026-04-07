@@ -111,6 +111,8 @@ const initialData: OnboardingData = {
   main_goal: "", additional_notes: "",
 };
 
+const LOCAL_STORAGE_KEY = (s: string) => `onboarding_draft_${s}`;
+
 export default function Onboarding() {
   const { slug } = useParams<{ slug: string }>();
   const [step, setStep] = useState(1);
@@ -129,8 +131,18 @@ export default function Onboarding() {
   const [uploadingVideos, setUploadingVideos] = useState(false);
   const [uploadingBudget, setUploadingBudget] = useState(false);
   const [uploadingScreenshots, setUploadingScreenshots] = useState(false);
+  const [restoredFromLocal, setRestoredFromLocal] = useState(false);
 
   const isOptionalStep = step >= 8;
+
+  // Persist draft to localStorage on every change
+  useEffect(() => {
+    if (!slug || loading) return;
+    try {
+      const draft = JSON.stringify({ step, data, opData });
+      localStorage.setItem(LOCAL_STORAGE_KEY(slug), draft);
+    } catch { /* ignore quota errors */ }
+  }, [slug, data, opData, step, loading]);
 
   useEffect(() => {
     const fetchCompany = async () => {
