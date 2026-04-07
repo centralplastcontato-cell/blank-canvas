@@ -443,7 +443,7 @@ export default function Agenda() {
     });
 
     const count = enriched.length;
-    const revenue = enriched.filter(e => !e.is_permuta).reduce((sum, e) => sum + (e.total_value || 0), 0);
+    const revenue = enriched.filter(e => !e.is_permuta).reduce((sum, e) => sum + getNetValue(e), 0);
     return { count, revenue, events: enriched };
   }, [currentCompany?.id, canViewAll, allowedUnits]);
 
