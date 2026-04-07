@@ -401,7 +401,7 @@ export default function Financeiro() {
               </div>
 
               {/* Consolidated Bank Balance */}
-              {bankAccounts.activeAccounts.length > 0 && (
+              {financialPerms.canViewBankAccounts && bankAccounts.activeAccounts.length > 0 && (
                 <Card className="p-4 border-border bg-gradient-to-r from-card to-primary/[0.04]">
                   <div className="flex items-center justify-between flex-wrap gap-3">
                     <div className="flex items-center gap-3">
