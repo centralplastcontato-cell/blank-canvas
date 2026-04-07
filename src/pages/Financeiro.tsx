@@ -935,6 +935,16 @@ export default function Financeiro() {
                     </div>
                   )}
                 </TabsContent>}
+
+                {/* Tab Festas Fechadas */}
+                <TabsContent value="festas" className="space-y-4">
+                  <ClosedPartiesTab
+                    from={dashboard.filters.from}
+                    to={dashboard.filters.to}
+                    unitFilter={dashboard.filters.unit}
+                    onOpenEvent={handleOpenEvent}
+                  />
+                </TabsContent>
               </Tabs>
             </div>
           </main>
