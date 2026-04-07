@@ -1560,7 +1560,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
             {/* --- Bloco 3: Saldo e Parcelas --- */}
             <div className="space-y-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Saldo</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Saldo/Total</p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
                 <div className="space-y-2.5">
                   <Label className="text-sm font-medium text-foreground/70">Valor</Label>
