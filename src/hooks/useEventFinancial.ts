@@ -132,11 +132,13 @@ export function useEventFinancial(eventId: string | undefined, companyId: string
     fetchAll();
   };
 
-  const markAsPaid = async (payment: EventPayment) => {
+  const markAsPaid = async (payment: EventPayment, bankAccountId?: string | null) => {
     if (busyIds.has(payment.id)) return;
     setBusyIds(prev => new Set(prev).add(payment.id));
     try {
-      const { error } = await supabase.from('event_payments').update({ status: 'paid', paid_at: new Date().toISOString() }).eq('id', payment.id);
+      const updateData: Record<string, any> = { status: 'paid', paid_at: new Date().toISOString() };
+      if (bankAccountId) updateData.bank_account_id = bankAccountId;
+      const { error } = await supabase.from('event_payments').update(updateData).eq('id', payment.id);
       if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
       await addTimeline('payment_paid', `Pagamento de R$ ${payment.amount.toFixed(2)} registrado`);
       toast({ title: 'Pagamento registrado' });
