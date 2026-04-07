@@ -324,8 +324,10 @@ export function useFinanceiroDashboard() {
     fetchData();
   };
 
-  const markPaymentAsPaid = async (paymentId: string) => {
-    const { error } = await supabase.from('event_payments').update({ status: 'paid', paid_at: new Date().toISOString() }).eq('id', paymentId);
+  const markPaymentAsPaid = async (paymentId: string, bankAccountId?: string | null) => {
+    const updateData: Record<string, any> = { status: 'paid', paid_at: new Date().toISOString() };
+    if (bankAccountId) updateData.bank_account_id = bankAccountId;
+    const { error } = await supabase.from('event_payments').update(updateData).eq('id', paymentId);
     if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
     toast({ title: 'Pagamento registrado' });
     fetchData();
