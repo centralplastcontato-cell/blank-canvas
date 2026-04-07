@@ -254,7 +254,7 @@ export function PackagesManager() {
             </p>
           </DialogHeader>
 
-          <div className="px-6 pb-6 space-y-4">
+          <div className="px-4 pb-4 sm:px-6 sm:pb-6 space-y-4">
             {/* Seção: Informações */}
             <div className="rounded-xl border border-border/60 bg-card p-4 space-y-4">
               <div className="flex items-center gap-2 mb-1">
