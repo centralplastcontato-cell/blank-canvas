@@ -359,6 +359,46 @@ function exportToPDF(record: OnboardingRecord, company?: CompanyInfo) {
   addRow("Principal objetivo", record.main_goal ? (GOAL_MAP[record.main_goal] || record.main_goal) : null);
   addRow("Observações", record.additional_notes);
 
+  // Operational data
+  const op = record.operational_data;
+  if (op) {
+    y += 4;
+    if (op.event_types?.length) {
+      addTitle("Tipos de Festa e Pacotes");
+      addRow("Tipos de festa", op.event_types.map((t: any) => t.label).filter(Boolean).join(", "));
+      if (op.packages?.length) {
+        op.packages.forEach((pk: any) => {
+          if (pk.name) addRow("Pacote", `${pk.name}${pk.base_price ? ` — R$ ${pk.base_price}` : ""}`);
+        });
+      }
+      if (op.guest_ranges?.length) addRow("Faixas de convidados", op.guest_ranges.join(", "));
+      y += 4;
+    }
+    if (op.units?.length || op.party_schedules?.length || op.working_days?.length) {
+      addTitle("Unidades e Horários");
+      if (op.units?.length) addRow("Unidades", op.units.map((u: any) => u.name).filter(Boolean).join(", "));
+      if (op.party_schedules?.length) {
+        op.party_schedules.forEach((s: any) => {
+          if (s.label) addRow("Horário", `${s.label}: ${s.start || "?"} às ${s.end || "?"}`);
+        });
+      }
+      if (op.working_days?.length) addRow("Dias", op.working_days.join(", "));
+      y += 4;
+    }
+    if (op.optionals?.length || op.differentials || op.company_legal_name || op.cnpj) {
+      addTitle("Opcionais e Diferenciais");
+      if (op.optionals?.length) {
+        op.optionals.forEach((o: any) => {
+          if (o.name) addRow("Opcional", `${o.name}${o.value ? ` — R$ ${o.value}` : ""}`);
+        });
+      }
+      addRow("Diferenciais", op.differentials);
+      addRow("Razão social", op.company_legal_name);
+      addRow("CNPJ", op.cnpj);
+      addRow("Dados bancários", op.bank_info);
+    }
+  }
+
   const fileName = `onboarding-${(record.buffet_name || "buffet").replace(/\s+/g, "-").toLowerCase()}.pdf`;
   doc.save(fileName);
   toast({ title: "PDF exportado!", description: fileName });
