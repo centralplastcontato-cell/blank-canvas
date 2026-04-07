@@ -246,15 +246,15 @@ export function PackagesManager() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-3xl w-[calc(100vw-2rem)] p-0 gap-0 overflow-hidden bg-background border-border/60 shadow-xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="p-6 pb-4">
+        <DialogContent className="sm:max-w-3xl max-w-[calc(100vw-2rem)] p-0 gap-0 overflow-hidden bg-background border-border/60 shadow-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 sm:pb-4">
             <DialogTitle className="text-lg font-bold">{editing ? "Editar Pacote" : "Novo Pacote"}</DialogTitle>
             <p className="text-sm text-muted-foreground mt-0.5">
               {editing ? "Atualize as informações do pacote" : "Cadastre um novo pacote para seus eventos"}
             </p>
           </DialogHeader>
 
-          <div className="px-6 pb-6 space-y-4">
+          <div className="px-4 pb-4 sm:px-6 sm:pb-6 space-y-4">
             {/* Seção: Informações */}
             <div className="rounded-xl border border-border/60 bg-card p-4 space-y-4">
               <div className="flex items-center gap-2 mb-1">
@@ -307,7 +307,7 @@ export function PackagesManager() {
             </div>
 
             {/* Seção: Grade de Preços — sempre visível */}
-            <div className="rounded-xl border border-border/60 bg-card p-4">
+            <div className="rounded-xl border border-border/60 bg-card p-2 sm:p-4 overflow-x-auto">
               <PackagePriceGrid
                 ref={priceGridRef}
                 packageId={editing?.id}
