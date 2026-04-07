@@ -40,8 +40,6 @@ export function BankAccountSelect({ value, onValueChange, label, placeholder = '
     setNewType('corrente');
   };
 
-  const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
   return (
     <>
       <div className={className}>
