@@ -23,7 +23,14 @@ interface Props {
 }
 
 export function BankAccountSelect({ value, onValueChange, label, placeholder = 'Selecione a conta', className }: Props) {
-  const { activeAccounts, createAccount, isLoading } = useBankAccounts();
+  const { activeAccounts, defaultAccount, createAccount, isLoading } = useBankAccounts();
+
+  // Auto-fill default account when no value is set
+  useEffect(() => {
+    if (!value && defaultAccount && !isLoading) {
+      onValueChange(defaultAccount.id);
+    }
+  }, [value, defaultAccount, isLoading, onValueChange]);
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
   const [newName, setNewName] = useState('');
   const [newType, setNewType] = useState('corrente');
