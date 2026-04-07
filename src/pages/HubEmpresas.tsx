@@ -550,6 +550,13 @@ function HubEmpresasContent() {
           })}
         </div>
       )}
+
+      <OnboardingViewSheet
+        companyId={onboardingViewCompany?.id || null}
+        companyName={onboardingViewCompany?.name || ""}
+        open={!!onboardingViewCompany}
+        onOpenChange={(open) => { if (!open) setOnboardingViewCompany(null); }}
+      />
     </>
   );
 }
