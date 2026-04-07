@@ -69,13 +69,28 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
     syncAttempted.current = true;
 
     (async () => {
-      const { data: ev } = await supabase
-        .from("company_events")
-        .select("payment_details")
-        .eq("id", eventId)
-        .single();
+      const [{ data: ev }, { data: feesData }] = await Promise.all([
+        supabase
+          .from("company_events")
+          .select("payment_details")
+          .eq("id", eventId)
+          .single(),
+        supabase
+          .from("company_card_fees" as any)
+          .select("*")
+          .eq("company_id", companyId)
+          .eq("is_active", true),
+      ]);
       const pd = ev?.payment_details as any;
       if (!pd) return;
+
+      const fees = (feesData || []) as any[];
+      const getCardTax = (parcelas: number): number => {
+        if (fees.length === 0) return 0;
+        const op = fees[0];
+        const key = `taxa_credito_${Math.min(Math.max(1, parcelas), 12)}x`;
+        return Number(op[key] || 0);
+      };
 
       const today = new Date().toISOString().split("T")[0];
       const parseAmount = (value: unknown): number | null => {
@@ -102,41 +117,67 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
       const rows: any[] = [];
       const entradaAmount = parseAmount(pd.entrada_valor);
       if (entradaAmount && entradaAmount > 0) {
+        let amount = entradaAmount;
+        // Card payments: store NET amount (after fee discount)
+        if (pd.entrada_forma === "cartao") {
+          const parcelas = Math.max(1, Number(pd.entrada_parcelas) || 1);
+          const taxa = getCardTax(parcelas);
+          if (taxa > 0) amount = entradaAmount - (entradaAmount * taxa / 100);
+        }
         rows.push({
           event_id: eventId, company_id: companyId, type: "entrada",
-          amount: entradaAmount,
+          amount: Math.round(amount * 100) / 100,
           due_date: parseDate(pd.entrada_data),
           payment_method: pd.entrada_forma || null, status: "pending",
         });
       }
 
-      let createdFromDetails = false;
-      if (pd.parcelas_details?.length) {
-        pd.parcelas_details.forEach((p: any) => {
-          const parcelaAmount = parseAmount(p?.valor);
-          if (parcelaAmount && parcelaAmount > 0) {
-            createdFromDetails = true;
+      // For card balance: single row with net amount, NO installment splitting
+      if (pd.saldo_forma === "cartao") {
+        const saldoAmount = parseAmount(pd.saldo_valor);
+        if (saldoAmount && saldoAmount > 0) {
+          const parcelas = Math.max(1, Number(pd.parcelas) || 1);
+          const taxa = getCardTax(parcelas);
+          let amount = saldoAmount;
+          if (taxa > 0) amount = saldoAmount - (saldoAmount * taxa / 100);
+          rows.push({
+            event_id: eventId, company_id: companyId, type: "parcela",
+            amount: Math.round(amount * 100) / 100,
+            due_date: parseDate(pd.saldo_data),
+            payment_method: "cartao", status: "pending",
+          });
+        }
+      } else {
+        // Non-card: keep existing installment logic
+        let createdFromDetails = false;
+        if (pd.parcelas_details?.length) {
+          pd.parcelas_details.forEach((p: any) => {
+            const parcelaAmount = parseAmount(p?.valor);
+            if (parcelaAmount && parcelaAmount > 0) {
+              createdFromDetails = true;
+              rows.push({
+                event_id: eventId, company_id: companyId, type: "parcela",
+                amount: parcelaAmount,
+                due_date: parseDate(p?.vencimento || pd.saldo_data),
+                payment_method: pd.saldo_forma || null, status: "pending",
+              });
+            }
+          });
+        }
+
+        if (!createdFromDetails) {
+          const saldoAmount = parseAmount(pd.saldo_valor);
+          if (saldoAmount && saldoAmount > 0) {
             rows.push({
               event_id: eventId, company_id: companyId, type: "parcela",
-              amount: parcelaAmount,
-              due_date: parseDate(p?.vencimento || pd.saldo_data),
+              amount: saldoAmount,
+              due_date: parseDate(pd.saldo_data),
               payment_method: pd.saldo_forma || null, status: "pending",
             });
           }
-        });
-      }
-
-      if (!createdFromDetails) {
-        const saldoAmount = parseAmount(pd.saldo_valor);
-        if (saldoAmount && saldoAmount > 0) {
-          rows.push({
-            event_id: eventId, company_id: companyId, type: "parcela",
-            amount: saldoAmount,
-            due_date: parseDate(pd.saldo_data),
-            payment_method: pd.saldo_forma || null, status: "pending",
-          });
         }
       }
+
       if (rows.length > 0) {
         await supabase.from("event_payments").insert(rows);
         financial.refresh();
@@ -508,15 +549,24 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
               Confirmar Pagamento
             </DialogTitle>
           </DialogHeader>
-          {markPaidPayment && (
+          {markPaidPayment && (() => {
+            const isCard = markPaidPayment.payment_method?.includes("cartao");
+            const displayAmount = markPaidPayment.amount;
+            return (
             <div className="space-y-4">
               <div className="p-3 rounded-lg bg-muted/50 border border-border/40">
                 <p className="text-xs text-muted-foreground">
                   {markPaidPayment.type === "entrada" ? "Entrada" : "Parcela"}
+                  {isCard && " (Cartão — valor líquido)"}
                 </p>
                 <p className="text-lg font-bold">
-                  {markPaidPayment.amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  {displayAmount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                 </p>
+                {isCard && (
+                  <p className="text-[11px] text-amber-500 mt-0.5">
+                    💳 Valor já com desconto da taxa do cartão
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Vencimento: {format(new Date(markPaidPayment.due_date + "T12:00:00"), "dd/MM/yyyy")}
                 </p>
@@ -528,7 +578,8 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
                 placeholder="Selecione a conta..."
               />
             </div>
-          )}
+            );
+          })()}
           <DialogFooter>
             <Button variant="outline" onClick={() => { setMarkPaidPayment(null); setMarkPaidBankId(null); }}>Cancelar</Button>
             <Button onClick={confirmMarkAsPaid} className="bg-emerald-600 hover:bg-emerald-700 text-white">Confirmar</Button>
