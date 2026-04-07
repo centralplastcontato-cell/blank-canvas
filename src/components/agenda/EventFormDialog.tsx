@@ -899,7 +899,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     }
     setSaving(true);
     try {
-      const submitData = { ...form, total_value: grandTotal || null, payment_details: payment };
+      const paymentWithDiscount = { ...payment, discount_type: form.discount_type, discount_value: form.discount_value, discount_base: form.discount_base, discount_reason: form.discount_reason };
+      const submitData = { ...form, total_value: grandTotal || null, payment_details: paymentWithDiscount };
       const resultId = await onSubmit(submitData);
       if (resultId) {
         setForm(prev => ({ ...prev, id: resultId }));
@@ -2138,7 +2139,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 }
                 setSaving(true);
                 try {
-                  const submitData = { ...form, total_value: grandTotal || null, payment_details: payment };
+                  const paymentWithDiscount = { ...payment, discount_type: form.discount_type, discount_value: form.discount_value, discount_base: form.discount_base, discount_reason: form.discount_reason };
+                  const submitData = { ...form, total_value: grandTotal || null, payment_details: paymentWithDiscount };
                   const resultId = await onSubmit(submitData);
                   if (resultId) {
                     setForm(prev => ({ ...prev, id: resultId }));
