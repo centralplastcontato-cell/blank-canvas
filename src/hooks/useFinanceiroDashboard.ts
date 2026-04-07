@@ -35,6 +35,7 @@ export interface Expense {
   notes: string | null;
   receipt_url: string | null;
   created_at: string;
+  bank_account_id: string | null;
 }
 
 export interface FinanceiroDashboardFilters {
