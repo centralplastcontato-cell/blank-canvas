@@ -1210,16 +1210,35 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                         type="number"
                         min={1}
                         placeholder="Qtd"
-                        value={opt.quantity ?? 1}
+                        value={opt.quantity === null || opt.quantity === undefined ? '' : opt.quantity}
                         onChange={(e) => {
-                          const qty = Math.max(1, parseInt(e.target.value) || 1);
+                          const raw = e.target.value;
                           const updated = [...(form.event_optionals || [])];
+                          if (raw === '' || raw === '0') {
+                            // Allow clearing the field — store null temporarily
+                            updated[idx] = { ...updated[idx], quantity: null as any };
+                            setForm({ ...form, event_optionals: updated });
+                            return;
+                          }
+                          const qty = Math.max(1, parseInt(raw) || 1);
                           const unitPrice = updated[idx].unit_price ?? updated[idx].value ?? 0;
                           const guests = form.guest_count || 0;
                           const perPerson = updated[idx].valor_por_pessoa ?? 0;
                           const totalValue = (unitPrice * qty) + (perPerson > 0 ? perPerson * guests * qty : 0);
                           updated[idx] = { ...updated[idx], quantity: qty, value: totalValue };
                           setForm({ ...form, event_optionals: updated });
+                        }}
+                        onBlur={() => {
+                          const updated = [...(form.event_optionals || [])];
+                          if (!updated[idx].quantity || updated[idx].quantity! < 1) {
+                            const qty = 1;
+                            const unitPrice = updated[idx].unit_price ?? updated[idx].value ?? 0;
+                            const guests = form.guest_count || 0;
+                            const perPerson = updated[idx].valor_por_pessoa ?? 0;
+                            const totalValue = (unitPrice * qty) + (perPerson > 0 ? perPerson * guests * qty : 0);
+                            updated[idx] = { ...updated[idx], quantity: qty, value: totalValue };
+                            setForm({ ...form, event_optionals: updated });
+                          }
                         }}
                       />
                     </div>
