@@ -81,6 +81,12 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues 
               rows={2}
             />
           </div>
+          <BankAccountSelect
+            value={bankAccountId || null}
+            onValueChange={setBankAccountId}
+            label="Conta bancária (opcional)"
+            placeholder="Selecione a conta"
+          />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
