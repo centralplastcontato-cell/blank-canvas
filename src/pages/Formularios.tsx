@@ -87,6 +87,7 @@ export default function Formularios() {
     if (canFreelancer || canAvaliacoes) sections.push({ value: "freelancer", label: "Freelancer", icon: HardHat });
     if (canPacotes) sections.push({ value: "taxas_cartao", label: "Taxas de Cartão", icon: CreditCard });
     if (canPacotes) sections.push({ value: "vendedores", label: "Vendedores", icon: UserCheck });
+    if (canPacotes) sections.push({ value: "contas_bancarias", label: "Contas Bancárias", icon: Landmark });
     return sections;
   }, [canFormularios, canChecklist, canPacotes, canFreelancer, canAvaliacoes]);
 
