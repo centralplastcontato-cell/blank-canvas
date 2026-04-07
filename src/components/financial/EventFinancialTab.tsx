@@ -309,6 +309,12 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
                             • {METHOD_LABELS[p.payment_method] || p.payment_method}
                           </span>
                         )}
+                        {p.status === 'paid' && p.bank_account_id && bankAccountMap[p.bank_account_id] && (
+                          <span className="text-[11px] text-primary/70 flex items-center gap-0.5">
+                            <Building className="h-2.5 w-2.5" />
+                            {bankAccountMap[p.bank_account_id]}
+                          </span>
+                        )}
                       </div>
                       {p.notes && (
                         <p className="text-[11px] text-muted-foreground/70 italic mt-0.5">{p.notes}</p>
