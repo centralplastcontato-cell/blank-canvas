@@ -1169,7 +1169,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                             const qty = 1;
                             let totalValue = unitPrice * qty;
                             if (co.valor_por_pessoa && co.valor_por_pessoa > 0 && guests > 0) {
-                              totalValue = totalValue + co.valor_por_pessoa * guests;
+                              totalValue = totalValue + co.valor_por_pessoa * guests * qty;
                             }
                             setForm({
                               ...form,
