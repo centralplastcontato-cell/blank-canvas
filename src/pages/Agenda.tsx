@@ -1303,7 +1303,7 @@ export default function Agenda() {
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-muted-foreground font-medium">Total faturado:</span>
                             <span className="font-bold text-foreground">
-                              {closedEvents.reduce((sum, e) => sum + (e.total_value || 0), 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                              {closedEvents.filter(e => !e.is_permuta).reduce((sum, e) => sum + getNetValue(e), 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                             </span>
                           </div>
                         </div>
