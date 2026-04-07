@@ -394,12 +394,15 @@ function HubEmpresasContent() {
 
                 {/* Onboarding Status */}
                 {onboardingStatus[child.id] ? (
-                  <div className={cn(
-                    "flex items-center gap-2 p-2.5 rounded-lg text-sm",
-                    onboardingStatus[child.id].status === 'completo' ? "bg-accent/10 text-accent" :
-                    onboardingStatus[child.id].status === 'em_andamento' ? "bg-secondary/10 text-secondary" :
-                    "bg-muted text-muted-foreground"
-                  )}>
+                  <button
+                    onClick={() => setOnboardingViewCompany(child)}
+                    className={cn(
+                      "flex items-center gap-2 p-2.5 rounded-lg text-sm w-full text-left hover:ring-2 hover:ring-primary/30 transition-all cursor-pointer",
+                      onboardingStatus[child.id].status === 'completo' ? "bg-accent/10 text-accent" :
+                      onboardingStatus[child.id].status === 'em_andamento' ? "bg-secondary/10 text-secondary" :
+                      "bg-muted text-muted-foreground"
+                    )}
+                  >
                     {onboardingStatus[child.id].status === 'completo' ? <CheckCircle2 className="h-4 w-4 shrink-0" /> :
                      onboardingStatus[child.id].status === 'em_andamento' ? <Clock className="h-4 w-4 shrink-0" /> :
                      <AlertCircle className="h-4 w-4 shrink-0" />}
@@ -410,7 +413,7 @@ function HubEmpresasContent() {
                     <span className="text-[10px] ml-auto opacity-70">
                       {new Date(onboardingStatus[child.id].updated_at).toLocaleDateString("pt-BR")}
                     </span>
-                  </div>
+                  </button>
                 ) : (
                   <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/30 text-muted-foreground text-xs">
                     <ClipboardList className="h-4 w-4 shrink-0" />
