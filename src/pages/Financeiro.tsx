@@ -1057,6 +1057,13 @@ export default function Financeiro() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <TransferBetweenAccountsDialog
+        open={transferDialogOpen}
+        onOpenChange={setTransferDialogOpen}
+        accounts={bankAccounts.activeAccounts}
+        onSuccess={() => { bankAccounts.refresh(); dashboard.refresh(); }}
+      />
     </SidebarProvider>
   );
 }
