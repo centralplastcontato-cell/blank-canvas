@@ -20,6 +20,7 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues 
   const [dueDate, setDueDate] = useState(defaultValues?.due_date || "");
   const [method, setMethod] = useState(defaultValues?.payment_method || "pix");
   const [notes, setNotes] = useState(defaultValues?.notes || "");
+  const [bankAccountId, setBankAccountId] = useState(defaultValues?.bank_account_id || "");
 
   const handleSubmit = () => {
     const val = parseFloat(amount);
