@@ -307,7 +307,7 @@ import { FollowUpChip, isAutomationMessage } from "@/components/whatsapp/FollowU
 import { AutomationTimelineSheet } from "@/components/whatsapp/AutomationTimelineSheet";
 import { useFilterOrder } from "@/hooks/useFilterOrder";
 
-export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft, onPhoneHandled, externalSelectedUnit, onInstancesLoaded, onLeadClosedMobile }: WhatsAppChatProps) {
+export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft, onPhoneHandled, externalSelectedUnit, onInstancesLoaded, onLeadClosedMobile, onUnreadCountChange }: WhatsAppChatProps) {
   const { currentCompany } = useCompany();
   const [instances, setInstances] = useState<WapiInstance[]>([]);
   const [selectedInstance, setSelectedInstance] = useState<WapiInstance | null>(null);
