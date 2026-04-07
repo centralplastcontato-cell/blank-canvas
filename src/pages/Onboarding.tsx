@@ -11,8 +11,9 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, ArrowRight, Upload, X, CheckCircle2, PartyPopper, Camera, Video, FileText, MessageSquare, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 10;
 
 const LEAD_SOURCE_OPTIONS = [
   { value: "instagram", label: "Instagram" },
@@ -22,6 +23,37 @@ const LEAD_SOURCE_OPTIONS = [
   { value: "tiktok", label: "TikTok" },
   { value: "outros", label: "Outros" },
 ];
+
+
+
+
+interface OperationalData {
+  event_types: { value: string; label: string }[];
+  packages: { name: string; base_price: string }[];
+  guest_ranges: string[];
+  units: { name: string }[];
+  party_schedules: { label: string; start: string; end: string }[];
+  working_days: string[];
+  optionals: { name: string; value: string }[];
+  differentials: string;
+  company_legal_name: string;
+  cnpj: string;
+  bank_info: string;
+}
+
+const initialOperationalData: OperationalData = {
+  event_types: [],
+  packages: [],
+  guest_ranges: [],
+  units: [],
+  party_schedules: [],
+  working_days: [],
+  optionals: [],
+  differentials: "",
+  company_legal_name: "",
+  cnpj: "",
+  bank_info: "",
+};
 
 interface OnboardingData {
   buffet_name: string;
@@ -75,6 +107,7 @@ export default function Onboarding() {
   const { slug } = useParams<{ slug: string }>();
   const [step, setStep] = useState(1);
   const [data, setData] = useState<OnboardingData>(initialData);
+  const [opData, setOpData] = useState<OperationalData>(initialOperationalData);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState("");
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
@@ -88,6 +121,8 @@ export default function Onboarding() {
   const [uploadingVideos, setUploadingVideos] = useState(false);
   const [uploadingBudget, setUploadingBudget] = useState(false);
   const [uploadingScreenshots, setUploadingScreenshots] = useState(false);
+
+  const isOptionalStep = step >= 8;
 
   useEffect(() => {
     const fetchCompany = async () => {
@@ -136,6 +171,9 @@ export default function Onboarding() {
               video_urls: e.video_urls || [], brand_notes: e.brand_notes || "",
               main_goal: e.main_goal || "", additional_notes: e.additional_notes || "",
             });
+            if (e.operational_data) {
+              setOpData({ ...initialOperationalData, ...(e.operational_data as any) });
+            }
         }
       }
       setLoading(false);
@@ -149,7 +187,7 @@ export default function Onboarding() {
 
   const saveProgress = async (nextStep: number) => {
     if (!companyId) return;
-    const payload: any = { ...data, company_id: companyId, current_step: nextStep, status: wasCompleted ? 'completo' : 'em_andamento' };
+    const payload: any = { ...data, company_id: companyId, current_step: nextStep, status: wasCompleted ? 'completo' : 'em_andamento', operational_data: opData };
     delete payload.photo_urls_files;
 
     let targetId = onboardingId;
@@ -190,7 +228,7 @@ export default function Onboarding() {
     if (!companyId) return;
     setSubmitting(true);
     try {
-      const payload: any = { ...data, company_id: companyId, current_step: TOTAL_STEPS, status: 'completo' };
+      const payload: any = { ...data, company_id: companyId, current_step: TOTAL_STEPS, status: 'completo', operational_data: opData };
       delete payload.photo_urls_files;
 
       let targetId = onboardingId;
@@ -388,7 +426,12 @@ export default function Onboarding() {
               <img src={companyLogo} alt={companyName} className="h-9 w-9 rounded-xl object-contain" />
             )}
             <div className="flex-1 min-w-0">
-              <h1 className="text-sm font-bold text-foreground truncate">{companyName}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-sm font-bold text-foreground truncate">{companyName}</h1>
+                {isOptionalStep && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Opcional</Badge>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground">Passo {step} de {TOTAL_STEPS}</p>
             </div>
           </div>
@@ -403,6 +446,8 @@ export default function Onboarding() {
                     ? "bg-primary h-2 flex-1"
                     : i === step - 1
                     ? "bg-primary h-2.5 flex-1 ring-2 ring-primary/30"
+                    : i >= 7
+                    ? "bg-border/50 h-1.5 flex-1 border border-dashed border-border"
                     : "bg-border h-1.5 flex-1"
                 )}
               />
@@ -440,6 +485,9 @@ export default function Onboarding() {
           />
         )}
         {step === 7 && <Step7 data={data} update={update} />}
+        {step === 8 && <Step8 opData={opData} setOpData={setOpData} />}
+        {step === 9 && <Step9 opData={opData} setOpData={setOpData} multipleUnits={data.multiple_units} />}
+        {step === 10 && <Step10 opData={opData} setOpData={setOpData} />}
       </main>
 
       {/* Footer navigation */}
@@ -448,6 +496,12 @@ export default function Onboarding() {
           {step > 1 && (
             <Button variant="outline" onClick={handleBack} className="flex-1">
               <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
+            </Button>
+          )}
+          {isOptionalStep && (
+            <Button variant="secondary" onClick={handleSubmit} disabled={submitting} className="flex-1">
+              {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+              Pular e Finalizar
             </Button>
           )}
           {step < TOTAL_STEPS ? (
@@ -944,6 +998,338 @@ function Step7({ data, update }: StepProps) {
               onChange={e => update("additional_notes", e.target.value)}
               placeholder="Conte-nos mais sobre suas necessidades, desafios ou expectativas..."
               rows={4}
+            />
+          </Field>
+        </FieldSection>
+      </FieldGroup>
+    </>
+  );
+}
+
+// --- Optional Steps Props ---
+interface OpStepProps {
+  opData: OperationalData;
+  setOpData: React.Dispatch<React.SetStateAction<OperationalData>>;
+}
+
+function OptionalBanner() {
+  return (
+    <div className="mb-4 p-3 rounded-xl bg-secondary/50 border border-secondary text-sm text-muted-foreground flex items-center gap-2">
+      <Badge variant="secondary" className="text-[10px] shrink-0">Opcional</Badge>
+      <span>Preencha se desejar — você pode pular e finalizar a qualquer momento.</span>
+    </div>
+  );
+}
+
+function Step8({ opData, setOpData }: OpStepProps) {
+  const addEventType = () => setOpData(p => ({ ...p, event_types: [...p.event_types, { value: "", label: "" }] }));
+  const removeEventType = (i: number) => setOpData(p => ({ ...p, event_types: p.event_types.filter((_, idx) => idx !== i) }));
+  const updateEventType = (i: number, label: string) => {
+    setOpData(p => ({
+      ...p,
+      event_types: p.event_types.map((et, idx) => idx === i ? { value: label.toLowerCase().replace(/\s+/g, '_'), label } : et),
+    }));
+  };
+
+  const addPackage = () => setOpData(p => ({ ...p, packages: [...p.packages, { name: "", base_price: "" }] }));
+  const removePackage = (i: number) => setOpData(p => ({ ...p, packages: p.packages.filter((_, idx) => idx !== i) }));
+  const updatePackage = (i: number, field: 'name' | 'base_price', value: string) => {
+    setOpData(p => ({
+      ...p,
+      packages: p.packages.map((pk, idx) => idx === i ? { ...pk, [field]: value } : pk),
+    }));
+  };
+
+  const GUEST_OPTIONS = ["20", "30", "40", "50", "60", "80", "100", "120", "150", "200+"];
+  const toggleGuest = (v: string) => {
+    setOpData(p => ({
+      ...p,
+      guest_ranges: p.guest_ranges.includes(v) ? p.guest_ranges.filter(g => g !== v) : [...p.guest_ranges, v],
+    }));
+  };
+
+  return (
+    <>
+      <StepHeader emoji="🎉" title="Tipos de Festa e Pacotes" subtitle="Quais festas e pacotes seu buffet oferece?" />
+      <OptionalBanner />
+      <FieldGroup>
+        <FieldSection title="Tipos de festa">
+          <Field label="Quais tipos de festa você oferece?">
+            <div className="space-y-2">
+              {opData.event_types.map((et, i) => (
+                <div key={i} className="flex gap-2">
+                  <Input
+                    value={et.label}
+                    onChange={e => updateEventType(i, e.target.value)}
+                    placeholder="Ex: Infantil, Adulto, Corporativo..."
+                  />
+                  <Button variant="ghost" size="icon" onClick={() => removeEventType(i)} className="shrink-0">
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button variant="outline" size="sm" onClick={addEventType} className="w-full">
+                + Adicionar tipo de festa
+              </Button>
+            </div>
+          </Field>
+        </FieldSection>
+
+        <FieldSection title="Pacotes">
+          <Field label="Seus pacotes (nome e valor base)">
+            <div className="space-y-2">
+              {opData.packages.map((pk, i) => (
+                <div key={i} className="flex gap-2">
+                  <Input
+                    value={pk.name}
+                    onChange={e => updatePackage(i, 'name', e.target.value)}
+                    placeholder="Nome do pacote"
+                    className="flex-1"
+                  />
+                  <Input
+                    value={pk.base_price}
+                    onChange={e => updatePackage(i, 'base_price', e.target.value)}
+                    placeholder="R$ valor"
+                    className="w-28"
+                  />
+                  <Button variant="ghost" size="icon" onClick={() => removePackage(i)} className="shrink-0">
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button variant="outline" size="sm" onClick={addPackage} className="w-full">
+                + Adicionar pacote
+              </Button>
+            </div>
+          </Field>
+        </FieldSection>
+
+        <FieldSection title="Faixas de convidados">
+          <Field label="Quantidades de convidados que você atende">
+            <div className="flex flex-wrap gap-2">
+              {GUEST_OPTIONS.map(v => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => toggleGuest(v)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg border text-sm transition-colors",
+                    opData.guest_ranges.includes(v)
+                      ? "border-primary bg-primary/10 text-primary font-medium"
+                      : "border-border hover:border-primary/40"
+                  )}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+          </Field>
+        </FieldSection>
+      </FieldGroup>
+    </>
+  );
+}
+
+function Step9({ opData, setOpData, multipleUnits }: OpStepProps & { multipleUnits: boolean }) {
+  const addUnit = () => setOpData(p => ({ ...p, units: [...p.units, { name: "" }] }));
+  const removeUnit = (i: number) => setOpData(p => ({ ...p, units: p.units.filter((_, idx) => idx !== i) }));
+  const updateUnit = (i: number, name: string) => {
+    setOpData(p => ({ ...p, units: p.units.map((u, idx) => idx === i ? { name } : u) }));
+  };
+
+  const addSchedule = () => setOpData(p => ({ ...p, party_schedules: [...p.party_schedules, { label: "", start: "", end: "" }] }));
+  const removeSchedule = (i: number) => setOpData(p => ({ ...p, party_schedules: p.party_schedules.filter((_, idx) => idx !== i) }));
+  const updateSchedule = (i: number, field: 'label' | 'start' | 'end', value: string) => {
+    setOpData(p => ({
+      ...p,
+      party_schedules: p.party_schedules.map((s, idx) => idx === i ? { ...s, [field]: value } : s),
+    }));
+  };
+
+  const WEEKDAYS_LIST = [
+    { value: "seg", label: "Seg" },
+    { value: "ter", label: "Ter" },
+    { value: "qua", label: "Qua" },
+    { value: "qui", label: "Qui" },
+    { value: "sex", label: "Sex" },
+    { value: "sab", label: "Sáb" },
+    { value: "dom", label: "Dom" },
+  ];
+
+  const toggleDay = (v: string) => {
+    setOpData(p => ({
+      ...p,
+      working_days: p.working_days.includes(v) ? p.working_days.filter(d => d !== v) : [...p.working_days, v],
+    }));
+  };
+
+  return (
+    <>
+      <StepHeader emoji="🏢" title="Unidades e Horários" subtitle="Detalhes da sua estrutura de atendimento" />
+      <OptionalBanner />
+      <FieldGroup>
+        {multipleUnits && (
+          <FieldSection title="Unidades">
+            <Field label="Nomes das suas unidades">
+              <div className="space-y-2">
+                {opData.units.map((u, i) => (
+                  <div key={i} className="flex gap-2">
+                    <Input
+                      value={u.name}
+                      onChange={e => updateUnit(i, e.target.value)}
+                      placeholder="Ex: Unidade Centro, Unidade Sul..."
+                    />
+                    <Button variant="ghost" size="icon" onClick={() => removeUnit(i)} className="shrink-0">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button variant="outline" size="sm" onClick={addUnit} className="w-full">
+                  + Adicionar unidade
+                </Button>
+              </div>
+            </Field>
+          </FieldSection>
+        )}
+
+        <FieldSection title="Horários de festa">
+          <Field label="Horários padrão das festas">
+            <div className="space-y-2">
+              {opData.party_schedules.map((s, i) => (
+                <div key={i} className="flex gap-2 items-center">
+                  <Input
+                    value={s.label}
+                    onChange={e => updateSchedule(i, 'label', e.target.value)}
+                    placeholder="Manhã, Tarde..."
+                    className="flex-1"
+                  />
+                  <Input
+                    type="time"
+                    value={s.start}
+                    onChange={e => updateSchedule(i, 'start', e.target.value)}
+                    className="w-24"
+                  />
+                  <span className="text-muted-foreground text-sm">às</span>
+                  <Input
+                    type="time"
+                    value={s.end}
+                    onChange={e => updateSchedule(i, 'end', e.target.value)}
+                    className="w-24"
+                  />
+                  <Button variant="ghost" size="icon" onClick={() => removeSchedule(i)} className="shrink-0">
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button variant="outline" size="sm" onClick={addSchedule} className="w-full">
+                + Adicionar horário
+              </Button>
+            </div>
+          </Field>
+        </FieldSection>
+
+        <FieldSection title="Dias de funcionamento">
+          <Field label="Em quais dias da semana você realiza festas?">
+            <div className="flex flex-wrap gap-2">
+              {WEEKDAYS_LIST.map(d => (
+                <button
+                  key={d.value}
+                  type="button"
+                  onClick={() => toggleDay(d.value)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg border text-sm transition-colors",
+                    opData.working_days.includes(d.value)
+                      ? "border-primary bg-primary/10 text-primary font-medium"
+                      : "border-border hover:border-primary/40"
+                  )}
+                >
+                  {d.label}
+                </button>
+              ))}
+            </div>
+          </Field>
+        </FieldSection>
+      </FieldGroup>
+    </>
+  );
+}
+
+function Step10({ opData, setOpData }: OpStepProps) {
+  const addOptional = () => setOpData(p => ({ ...p, optionals: [...p.optionals, { name: "", value: "" }] }));
+  const removeOptional = (i: number) => setOpData(p => ({ ...p, optionals: p.optionals.filter((_, idx) => idx !== i) }));
+  const updateOptional = (i: number, field: 'name' | 'value', value: string) => {
+    setOpData(p => ({
+      ...p,
+      optionals: p.optionals.map((o, idx) => idx === i ? { ...o, [field]: value } : o),
+    }));
+  };
+
+  return (
+    <>
+      <StepHeader emoji="✨" title="Opcionais e Diferenciais" subtitle="O que mais seu buffet oferece?" />
+      <OptionalBanner />
+      <FieldGroup>
+        <FieldSection title="Itens opcionais / extras">
+          <Field label="Extras que você oferece (nome e valor)">
+            <div className="space-y-2">
+              {opData.optionals.map((o, i) => (
+                <div key={i} className="flex gap-2">
+                  <Input
+                    value={o.name}
+                    onChange={e => updateOptional(i, 'name', e.target.value)}
+                    placeholder="Ex: Pula-pula, Algodão doce..."
+                    className="flex-1"
+                  />
+                  <Input
+                    value={o.value}
+                    onChange={e => updateOptional(i, 'value', e.target.value)}
+                    placeholder="R$ valor"
+                    className="w-28"
+                  />
+                  <Button variant="ghost" size="icon" onClick={() => removeOptional(i)} className="shrink-0">
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button variant="outline" size="sm" onClick={addOptional} className="w-full">
+                + Adicionar opcional
+              </Button>
+            </div>
+          </Field>
+        </FieldSection>
+
+        <FieldSection title="Diferenciais">
+          <Field label="O que torna seu buffet especial?">
+            <Textarea
+              value={opData.differentials}
+              onChange={e => setOpData(p => ({ ...p, differentials: e.target.value }))}
+              placeholder="Conte sobre seus diferenciais: decoração personalizada, espaço kids, estacionamento, etc..."
+              rows={4}
+            />
+          </Field>
+        </FieldSection>
+
+        <FieldSection title="Dados para contrato (opcional)">
+          <Field label="Razão social">
+            <Input
+              value={opData.company_legal_name}
+              onChange={e => setOpData(p => ({ ...p, company_legal_name: e.target.value }))}
+              placeholder="Razão social da empresa"
+            />
+          </Field>
+          <Field label="CNPJ">
+            <Input
+              value={opData.cnpj}
+              onChange={e => setOpData(p => ({ ...p, cnpj: e.target.value }))}
+              placeholder="00.000.000/0000-00"
+            />
+          </Field>
+          <Field label="Dados bancários">
+            <Textarea
+              value={opData.bank_info}
+              onChange={e => setOpData(p => ({ ...p, bank_info: e.target.value }))}
+              placeholder="Banco, agência, conta, PIX..."
+              rows={3}
             />
           </Field>
         </FieldSection>

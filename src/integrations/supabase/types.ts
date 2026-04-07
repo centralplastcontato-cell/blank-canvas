@@ -1357,6 +1357,7 @@ export type Database = {
           main_goal: string | null
           monthly_investment: string | null
           multiple_units: boolean | null
+          operational_data: Json | null
           photo_urls: string[] | null
           secondary_contact: string | null
           service_hours: string | null
@@ -1398,6 +1399,7 @@ export type Database = {
           main_goal?: string | null
           monthly_investment?: string | null
           multiple_units?: boolean | null
+          operational_data?: Json | null
           photo_urls?: string[] | null
           secondary_contact?: string | null
           service_hours?: string | null
@@ -1439,6 +1441,7 @@ export type Database = {
           main_goal?: string | null
           monthly_investment?: string | null
           multiple_units?: boolean | null
+          operational_data?: Json | null
           photo_urls?: string[] | null
           secondary_contact?: string | null
           service_hours?: string | null

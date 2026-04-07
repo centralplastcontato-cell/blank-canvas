@@ -67,6 +67,7 @@ interface OnboardingRecord {
   budget_format: string | null;
   budget_file_urls: string[] | null;
   service_screenshots: string[] | null;
+  operational_data: any | null;
 }
 
 interface CompanyInfo {
@@ -243,7 +244,7 @@ export function HubOnboardingContent() {
                 )}
 
                 <p className="text-xs text-muted-foreground">
-                  Passo {record.current_step}/7 • {new Date(record.updated_at).toLocaleDateString("pt-BR")}
+                  Passo {record.current_step}/10 • {new Date(record.updated_at).toLocaleDateString("pt-BR")}
                 </p>
 
                 <div className="flex gap-2">
@@ -357,6 +358,46 @@ function exportToPDF(record: OnboardingRecord, company?: CompanyInfo) {
   addTitle("Objetivos");
   addRow("Principal objetivo", record.main_goal ? (GOAL_MAP[record.main_goal] || record.main_goal) : null);
   addRow("Observações", record.additional_notes);
+
+  // Operational data
+  const op = record.operational_data;
+  if (op) {
+    y += 4;
+    if (op.event_types?.length) {
+      addTitle("Tipos de Festa e Pacotes");
+      addRow("Tipos de festa", op.event_types.map((t: any) => t.label).filter(Boolean).join(", "));
+      if (op.packages?.length) {
+        op.packages.forEach((pk: any) => {
+          if (pk.name) addRow("Pacote", `${pk.name}${pk.base_price ? ` — R$ ${pk.base_price}` : ""}`);
+        });
+      }
+      if (op.guest_ranges?.length) addRow("Faixas de convidados", op.guest_ranges.join(", "));
+      y += 4;
+    }
+    if (op.units?.length || op.party_schedules?.length || op.working_days?.length) {
+      addTitle("Unidades e Horários");
+      if (op.units?.length) addRow("Unidades", op.units.map((u: any) => u.name).filter(Boolean).join(", "));
+      if (op.party_schedules?.length) {
+        op.party_schedules.forEach((s: any) => {
+          if (s.label) addRow("Horário", `${s.label}: ${s.start || "?"} às ${s.end || "?"}`);
+        });
+      }
+      if (op.working_days?.length) addRow("Dias", op.working_days.join(", "));
+      y += 4;
+    }
+    if (op.optionals?.length || op.differentials || op.company_legal_name || op.cnpj) {
+      addTitle("Opcionais e Diferenciais");
+      if (op.optionals?.length) {
+        op.optionals.forEach((o: any) => {
+          if (o.name) addRow("Opcional", `${o.name}${o.value ? ` — R$ ${o.value}` : ""}`);
+        });
+      }
+      addRow("Diferenciais", op.differentials);
+      addRow("Razão social", op.company_legal_name);
+      addRow("CNPJ", op.cnpj);
+      addRow("Dados bancários", op.bank_info);
+    }
+  }
 
   const fileName = `onboarding-${(record.buffet_name || "buffet").replace(/\s+/g, "-").toLowerCase()}.pdf`;
   doc.save(fileName);
@@ -976,6 +1017,68 @@ function OnboardingDetail({ record }: { record: OnboardingRecord; company?: Comp
           </div>
         )}
       </Section>
+
+      {/* Operational Data */}
+      {record.operational_data && (() => {
+        const op = record.operational_data;
+        const hasEventTypes = op.event_types?.length > 0 || op.packages?.length > 0 || op.guest_ranges?.length > 0;
+        const hasUnits = op.units?.length > 0 || op.party_schedules?.length > 0 || op.working_days?.length > 0;
+        const hasOptionals = op.optionals?.length > 0 || op.differentials || op.company_legal_name || op.cnpj;
+
+        return (
+          <>
+            {hasEventTypes && (
+              <Section emoji="🎉" title="Tipos de Festa e Pacotes">
+                {op.event_types?.length > 0 && (
+                  <InfoRow label="Tipos de festa" value={op.event_types.map((t: any) => t.label).filter(Boolean).join(", ")} />
+                )}
+                {op.packages?.length > 0 && op.packages.map((pk: any, i: number) => (
+                  pk.name ? <InfoRow key={i} label={`Pacote ${i + 1}`} value={`${pk.name}${pk.base_price ? ` — R$ ${pk.base_price}` : ""}`} /> : null
+                ))}
+                {op.guest_ranges?.length > 0 && (
+                  <InfoRow label="Faixas convidados" value={op.guest_ranges.join(", ")} />
+                )}
+              </Section>
+            )}
+
+            {hasUnits && (
+              <Section emoji="🏢" title="Unidades e Horários">
+                {op.units?.length > 0 && (
+                  <InfoRow label="Unidades" value={op.units.map((u: any) => u.name).filter(Boolean).join(", ")} />
+                )}
+                {op.party_schedules?.length > 0 && op.party_schedules.map((s: any, i: number) => (
+                  s.label ? <InfoRow key={i} label={s.label} value={`${s.start || "?"} às ${s.end || "?"}`} /> : null
+                ))}
+                {op.working_days?.length > 0 && (
+                  <InfoRow label="Dias" value={op.working_days.join(", ")} />
+                )}
+              </Section>
+            )}
+
+            {hasOptionals && (
+              <Section emoji="✨" title="Opcionais e Diferenciais">
+                {op.optionals?.length > 0 && op.optionals.map((o: any, i: number) => (
+                  o.name ? <InfoRow key={i} label={`Opcional ${i + 1}`} value={`${o.name}${o.value ? ` — R$ ${o.value}` : ""}`} /> : null
+                ))}
+                {op.differentials && (
+                  <div className="px-4 py-2.5">
+                    <p className="text-xs text-muted-foreground mb-1">Diferenciais</p>
+                    <p className="text-sm text-foreground">{op.differentials}</p>
+                  </div>
+                )}
+                <InfoRow label="Razão social" value={op.company_legal_name} />
+                <InfoRow label="CNPJ" value={op.cnpj} />
+                {op.bank_info && (
+                  <div className="px-4 py-2.5">
+                    <p className="text-xs text-muted-foreground mb-1">Dados bancários</p>
+                    <p className="text-sm text-foreground">{op.bank_info}</p>
+                  </div>
+                )}
+              </Section>
+            )}
+          </>
+        );
+      })()}
 
     </div>
   );

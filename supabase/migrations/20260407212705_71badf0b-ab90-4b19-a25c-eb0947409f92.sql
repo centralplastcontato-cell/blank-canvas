@@ -1,0 +1,1 @@
+ALTER TABLE public.company_onboarding ADD COLUMN IF NOT EXISTS operational_data jsonb DEFAULT NULL;
