@@ -48,7 +48,7 @@ export function BankAccountsManager() {
   const openCreate = () => {
     setEditing(null);
     setName(''); setBankName(''); setAgency(''); setAccountNumber('');
-    setAccountType('corrente'); setInitialBalance(''); setIsDefault(false);
+    setAccountType('corrente'); setInitialBalance('0,00'); setIsDefault(false);
     setDialogOpen(true);
   };
 
