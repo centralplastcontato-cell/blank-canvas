@@ -1217,7 +1217,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                           const unitPrice = updated[idx].unit_price ?? updated[idx].value ?? 0;
                           const guests = form.guest_count || 0;
                           const perPerson = updated[idx].valor_por_pessoa ?? 0;
-                          const totalValue = (unitPrice * qty) + (perPerson > 0 ? perPerson * guests : 0);
+                          const totalValue = (unitPrice * qty) + (perPerson > 0 ? perPerson * guests * qty : 0);
                           updated[idx] = { ...updated[idx], quantity: qty, value: totalValue };
                           setForm({ ...form, event_optionals: updated });
                         }}
