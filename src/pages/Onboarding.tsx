@@ -24,15 +24,8 @@ const LEAD_SOURCE_OPTIONS = [
   { value: "outros", label: "Outros" },
 ];
 
-const WEEKDAYS = [
-  { value: "seg", label: "Seg" },
-  { value: "ter", label: "Ter" },
-  { value: "qua", label: "Qua" },
-  { value: "qui", label: "Qui" },
-  { value: "sex", label: "Sex" },
-  { value: "sab", label: "Sáb" },
-  { value: "dom", label: "Dom" },
-];
+
+
 
 interface OperationalData {
   event_types: { value: string; label: string }[];
