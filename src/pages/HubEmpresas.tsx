@@ -345,7 +345,7 @@ function HubEmpresasContent() {
             const rawDomain = child.custom_domain || '';
             const domainUrl = rawDomain
               ? (rawDomain.startsWith('http') ? rawDomain : `https://${rawDomain}`)
-              : 'https://hubcelebrei.com.br';
+              : window.location.origin;
             // domainUrl is used for copy; window.location.origin for opening
             const copyLink = (path: string, label: string) => {
               const url = `${domainUrl}${path}`;
