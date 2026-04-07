@@ -1057,6 +1057,7 @@ export default function CentralAtendimento() {
                   onPhoneHandled={handlePhoneHandled}
                   externalSelectedUnit={selectedChatUnit}
                   onLeadClosedMobile={handleLeadClosed}
+                  onUnreadCountChange={fetchUnreadCount}
                   onInstancesLoaded={(instances) => {
                     setChatInstances(instances);
                     if (!selectedChatUnit && instances.length > 0) {
@@ -1436,6 +1437,7 @@ export default function CentralAtendimento() {
                       onPhoneHandled={handlePhoneHandled}
                       externalSelectedUnit={selectedChatUnit}
                       onLeadClosedMobile={handleLeadClosed}
+                      onUnreadCountChange={fetchUnreadCount}
                       onInstancesLoaded={(instances) => {
                         setChatInstances(instances);
                         if (!selectedChatUnit && instances.length > 0) {
