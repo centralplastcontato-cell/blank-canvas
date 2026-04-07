@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { useFinanceiroDashboard } from '@/hooks/useFinanceiroDashboard';
