@@ -229,25 +229,20 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
   
   useEffect(() => {
     if (!companyId) return;
-    const promises: Promise<any>[] = [
-      supabase
-        .from("company_card_fees" as any)
-        .select("*")
-        .eq("company_id", companyId)
-        .eq("is_active", true)
-        .then(({ data }) => setCardFees((data || []) as any[])),
-    ];
+    supabase
+      .from("company_card_fees" as any)
+      .select("*")
+      .eq("company_id", companyId)
+      .eq("is_active", true)
+      .then(({ data }: any) => setCardFees((data || []) as any[]));
     if (eventId) {
-      promises.push(
-        supabase
-          .from("company_events")
-          .select("payment_details")
-          .eq("id", eventId)
-          .single()
-          .then(({ data }) => setPaymentDetails(data?.payment_details || null))
-      );
+      supabase
+        .from("company_events")
+        .select("payment_details")
+        .eq("id", eventId)
+        .single()
+        .then(({ data }: any) => setPaymentDetails(data?.payment_details || null));
     }
-    Promise.all(promises);
   }, [companyId, eventId]);
 
   // Compute card fee losses using GROSS values from payment_details and real installment counts
