@@ -775,7 +775,7 @@ interface Step3Props extends StepProps {
   uploadFile: (file: File, folder: string) => Promise<string | null>;
 }
 
-function Step3({ data, update, onBudgetUpload, uploadingBudget, removeBudgetFile, onScreenshotsUpload, uploadingScreenshots, removeScreenshot, opData, setOpData, uploadFile }: Step3Props) {
+function Step3({ data, update, onScreenshotsUpload, uploadingScreenshots, removeScreenshot, opData, setOpData, uploadFile }: Step3Props) {
   const [uploadingPkgIdx, setUploadingPkgIdx] = useState<number | null>(null);
 
   const addPackage = () => setOpData(prev => ({ ...prev, packages: [...prev.packages, { name: "", base_price: "", image_url: "" }] }));
