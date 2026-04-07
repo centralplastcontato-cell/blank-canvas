@@ -106,6 +106,7 @@ export interface VariableContext {
     data_saldo?: string | null;
     aniversariantes?: string | null;
     opcionais?: string | null;
+    desconto?: string | null;
   };
   freelancer?: {
     name?: string | null;
