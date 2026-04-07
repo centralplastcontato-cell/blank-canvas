@@ -773,6 +773,70 @@ export default function Financeiro() {
                     </div>
                   </Card>
                 </TabsContent>
+
+                {/* Tab Contas */}
+                <TabsContent value="contas" className="space-y-4">
+                  {statementAccount ? (
+                    <div className="space-y-3">
+                      <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => setStatementAccount(null)}>
+                        ← Voltar para contas
+                      </Button>
+                      <h2 className="text-lg font-bold text-foreground">Extrato — {statementAccount.name}</h2>
+                      <BankAccountStatement account={statementAccount} />
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Total balance across accounts */}
+                      {bankAccounts.activeAccounts.length > 0 && (
+                        <Card className="p-4 bg-card border-border">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Building className="h-4 w-4 text-primary" />
+                            <span className="text-sm font-semibold">Saldo Consolidado</span>
+                          </div>
+                          <p className={`text-2xl font-bold ${bankAccounts.activeAccounts.reduce((s, a) => s + a.current_balance, 0) >= 0 ? 'text-emerald-500' : 'text-red-400'}`}>
+                            {fmt(bankAccounts.activeAccounts.reduce((s, a) => s + a.current_balance, 0))}
+                          </p>
+                        </Card>
+                      )}
+
+                      {/* Account cards */}
+                      {bankAccounts.isLoading ? (
+                        <div className="flex justify-center py-8">
+                          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        </div>
+                      ) : bankAccounts.activeAccounts.length === 0 ? (
+                        <Card className="p-8 text-center">
+                          <Building className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                          <p className="text-sm text-muted-foreground mb-3">Nenhuma conta bancária cadastrada</p>
+                          <p className="text-xs text-muted-foreground">Acesse Operações para criar suas contas bancárias</p>
+                        </Card>
+                      ) : (
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {bankAccounts.activeAccounts.map(acc => (
+                            <Card key={acc.id} className={`p-4 cursor-pointer hover:border-primary/40 transition-colors ${acc.is_default ? 'border-primary/30' : 'border-border'}`} onClick={() => setStatementAccount(acc)}>
+                              <div className="flex items-center gap-2 mb-2">
+                                {acc.account_type === 'caixa' ? (
+                                  <Wallet className="h-4 w-4 text-amber-500" />
+                                ) : (
+                                  <Building className="h-4 w-4 text-blue-500" />
+                                )}
+                                <span className="font-semibold text-sm">{acc.name}</span>
+                                {acc.is_default && <Badge variant="outline" className="text-[9px] h-4 border-primary/30 text-primary">Padrão</Badge>}
+                              </div>
+                              <p className={`text-xl font-bold ${acc.current_balance >= 0 ? 'text-emerald-500' : 'text-red-400'}`}>
+                                {fmt(acc.current_balance)}
+                              </p>
+                              <div className="flex gap-3 mt-1 text-[11px]">
+                                <span className="text-emerald-500">+{fmt(acc.total_entries)}</span>
+                                <span className="text-red-400">-{fmt(acc.total_exits)}</span>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </TabsContent>
               </Tabs>
             </div>
           </main>
