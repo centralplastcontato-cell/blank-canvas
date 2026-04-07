@@ -9,10 +9,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, ArrowRight, Upload, X, CheckCircle2, PartyPopper, Camera, Video, FileText, MessageSquare, Eye } from "lucide-react";
+import { Loader2, ArrowLeft, ArrowRight, Upload, X, CheckCircle2, PartyPopper, Camera, Video, FileText, MessageSquare, Eye, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 10;
 
 const LEAD_SOURCE_OPTIONS = [
   { value: "instagram", label: "Instagram" },
@@ -22,6 +23,44 @@ const LEAD_SOURCE_OPTIONS = [
   { value: "tiktok", label: "TikTok" },
   { value: "outros", label: "Outros" },
 ];
+
+const WEEKDAYS = [
+  { value: "seg", label: "Seg" },
+  { value: "ter", label: "Ter" },
+  { value: "qua", label: "Qua" },
+  { value: "qui", label: "Qui" },
+  { value: "sex", label: "Sex" },
+  { value: "sab", label: "Sáb" },
+  { value: "dom", label: "Dom" },
+];
+
+interface OperationalData {
+  event_types: { value: string; label: string }[];
+  packages: { name: string; base_price: string }[];
+  guest_ranges: string[];
+  units: { name: string }[];
+  party_schedules: { label: string; start: string; end: string }[];
+  working_days: string[];
+  optionals: { name: string; value: string }[];
+  differentials: string;
+  company_legal_name: string;
+  cnpj: string;
+  bank_info: string;
+}
+
+const initialOperationalData: OperationalData = {
+  event_types: [],
+  packages: [],
+  guest_ranges: [],
+  units: [],
+  party_schedules: [],
+  working_days: [],
+  optionals: [],
+  differentials: "",
+  company_legal_name: "",
+  cnpj: "",
+  bank_info: "",
+};
 
 interface OnboardingData {
   buffet_name: string;
