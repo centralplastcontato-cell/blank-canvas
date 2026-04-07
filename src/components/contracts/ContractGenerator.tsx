@@ -191,7 +191,8 @@ export function ContractGenerator({ userId, onClose }: Props) {
         if (opts.length === 0) return "Nenhum opcional contratado";
         return opts.map((o: any) => {
           const val = o.value != null && o.value > 0 ? ` — R$ ${Number(o.value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "";
-          return `• ${o.name}${val}`;
+          const qty = o.quantity != null && o.quantity > 1 ? ` (${o.quantity}x)` : "";
+          return `• ${o.name}${qty}${val}`;
         }).join("\n");
       })(),
       date: new Date().toLocaleDateString("pt-BR"),
