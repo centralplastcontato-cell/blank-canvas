@@ -160,10 +160,10 @@ export function BankAccountsManager() {
                   <span className="text-xs text-muted-foreground">{acc.is_active ? 'Ativa' : 'Inativa'}</span>
                 </div>
                 <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(acc)}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-xl text-muted-foreground/60 hover:text-primary hover:bg-primary/10 hover:shadow-sm transition-all duration-200" onClick={() => openEdit(acc)}>
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(acc)}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-xl text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 hover:shadow-sm hover:shadow-destructive/10 transition-all duration-200" onClick={() => handleDelete(acc)}>
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
