@@ -33,6 +33,7 @@ export interface PaymentDetails {
   entrada_valor: number | null;
   entrada_forma: string;
   entrada_data?: string | null;
+  entrada_parcelas?: number | null;
   saldo_valor: number | null;
   saldo_forma: string;
   saldo_data?: string | null;
@@ -164,6 +165,7 @@ const EMPTY_PAYMENT: PaymentDetails = {
   entrada_valor: null,
   entrada_forma: "",
   entrada_data: null,
+  entrada_parcelas: null,
   saldo_valor: null,
   saldo_forma: "",
   saldo_data: null,
@@ -1403,6 +1405,26 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                   </Popover>
                 </div>
               </div>
+
+              {/* Parcelas do cartão na entrada */}
+              {payment.entrada_forma === "cartao" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3">
+                  <div className="space-y-2.5">
+                    <Label className="text-sm font-medium text-foreground/70">Parcelas do cartão (entrada)</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={12}
+                      placeholder="1"
+                      value={payment.entrada_parcelas ?? ""}
+                      onChange={(e) => {
+                        const num = e.target.value ? Math.max(1, Math.min(12, Number(e.target.value))) : null;
+                        setPayment({ ...payment, entrada_parcelas: num });
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="border-t border-border/30" />
@@ -1613,7 +1635,9 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 const operator = cardFees.length === 1 
                   ? cardFees[0] 
                   : cardFees.find(f => f.id === selectedOperatorId) || null;
-                const taxa = operator ? Number(operator.taxa_credito_1x || 0) : 0;
+                const entradaParcelas = Math.max(1, payment.entrada_parcelas ?? 1);
+                const taxaKey = `taxa_credito_${entradaParcelas}x`;
+                const taxa = operator ? Number(operator[taxaKey] || 0) : 0;
                 const bruto = payment.entrada_valor ?? 0;
                 const desconto = bruto * taxa / 100;
                 const liquido = bruto - desconto;
@@ -1621,7 +1645,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 return operator && taxa > 0 ? (
                   <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 -mt-2 mb-2">
                     <p className="text-xs font-medium text-amber-600 dark:text-amber-400">
-                      💳 Taxa entrada ({operator.operator_name} 1x): {taxa.toFixed(2)}%
+                      💳 Taxa entrada ({operator.operator_name} {entradaParcelas}x): {taxa.toFixed(2)}%
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
                       Desconto: <span className="font-semibold text-destructive">R$ {desconto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
