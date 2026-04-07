@@ -278,9 +278,10 @@ export function useFinanceiroDashboard() {
         if (filters.status === 'paid' && e.status !== 'pago') return false;
         if (filters.status === 'pending' && e.status !== 'pendente') return false;
       }
+      if (filters.bankAccount !== 'all' && e.bank_account_id !== filters.bankAccount) return false;
       return true;
     });
-  }, [expenses, filters.status]);
+  }, [expenses, filters.status, filters.bankAccount]);
 
   // Aggregations using from/to range — exclude permuta from financial totals
   const nonPermutaPayments = filteredPayments.filter(p => !p.is_permuta);
