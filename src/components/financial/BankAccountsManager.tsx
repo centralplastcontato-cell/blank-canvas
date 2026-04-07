@@ -20,7 +20,7 @@ const ACCOUNT_TYPES = [
 
 const TYPE_LABELS: Record<string, string> = Object.fromEntries(ACCOUNT_TYPES.map(t => [t.value, t.label]));
 
-const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
 
 export function BankAccountsManager() {
   const { accounts, isLoading, createAccount, updateAccount, deleteAccount, toggleActive } = useBankAccounts();
