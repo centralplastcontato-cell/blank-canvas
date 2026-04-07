@@ -223,41 +223,100 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
 
   const fmt = (v: number) => showValues ? v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "••••";
 
-  // Card fee data
+  // Card fee data + payment_details from event
   const [cardFees, setCardFees] = useState<any[]>([]);
+  const [paymentDetails, setPaymentDetails] = useState<any>(null);
   
   useEffect(() => {
     if (!companyId) return;
-    supabase
-      .from("company_card_fees" as any)
-      .select("*")
-      .eq("company_id", companyId)
-      .eq("is_active", true)
-      .then(({ data }) => setCardFees((data || []) as any[]));
-  }, [companyId]);
+    const promises: Promise<any>[] = [
+      supabase
+        .from("company_card_fees" as any)
+        .select("*")
+        .eq("company_id", companyId)
+        .eq("is_active", true)
+        .then(({ data }) => setCardFees((data || []) as any[])),
+    ];
+    if (eventId) {
+      promises.push(
+        supabase
+          .from("company_events")
+          .select("payment_details")
+          .eq("id", eventId)
+          .single()
+          .then(({ data }) => setPaymentDetails(data?.payment_details || null))
+      );
+    }
+    Promise.all(promises);
+  }, [companyId, eventId]);
 
-  // Compute card fee losses from payments
+  // Compute card fee losses using GROSS values from payment_details and real installment counts
   const cardFeeLoss = useMemo(() => {
-    if (cardFees.length === 0) return null;
-    const operator = cardFees[0]; // Use first operator
+    if (cardFees.length === 0 || !paymentDetails) return null;
+    const operator = cardFees[0];
     let totalLoss = 0;
-    let details: Array<{ type: string; bruto: number; taxa: number; desconto: number }> = [];
+    let details: Array<{ type: string; bruto: number; taxa: number; desconto: number; parcelas: number }> = [];
 
-    financial.payments.forEach(p => {
-      if (!p.payment_method || !p.payment_method.includes("cartao")) return;
-      const isDebito = p.payment_method === "cartao_debito";
-      const parcelas = p.type === "entrada" ? 1 : Math.max(1, financial.payments.filter(pp => pp.type === "parcela").length);
-      const taxaKey = isDebito ? "taxa_debito" : `taxa_credito_${Math.min(parcelas, 12)}x`;
-      const taxa = Number(operator[taxaKey] || 0);
-      if (taxa > 0) {
-        const desconto = p.amount * taxa / 100;
-        totalLoss += desconto;
-        details.push({ type: p.type, bruto: p.amount, taxa, desconto });
+    const parseNum = (v: unknown): number => {
+      if (typeof v === "number") return v;
+      if (typeof v !== "string") return 0;
+      const cleaned = v.trim().replace(/R\$\s?/g, "").replace(/\s/g, "");
+      const normalized = cleaned.includes(",") ? cleaned.replace(/\./g, "").replace(",", ".") : cleaned;
+      return Number(normalized) || 0;
+    };
+
+    // Entrada
+    if (paymentDetails.entrada_forma === "cartao" || paymentDetails.entrada_forma === "cartao_credito") {
+      const brutEntrada = parseNum(paymentDetails.entrada_valor);
+      if (brutEntrada > 0) {
+        const parcelas = Math.max(1, Number(paymentDetails.entrada_parcelas) || 1);
+        const taxaKey = `taxa_credito_${Math.min(parcelas, 12)}x`;
+        const taxa = Number(operator[taxaKey] || 0);
+        if (taxa > 0) {
+          const desconto = brutEntrada * taxa / 100;
+          totalLoss += desconto;
+          details.push({ type: "entrada", bruto: brutEntrada, taxa, desconto, parcelas });
+        }
       }
-    });
+    } else if (paymentDetails.entrada_forma === "cartao_debito") {
+      const brutEntrada = parseNum(paymentDetails.entrada_valor);
+      if (brutEntrada > 0) {
+        const taxa = Number(operator.taxa_debito || 0);
+        if (taxa > 0) {
+          const desconto = brutEntrada * taxa / 100;
+          totalLoss += desconto;
+          details.push({ type: "entrada", bruto: brutEntrada, taxa, desconto, parcelas: 1 });
+        }
+      }
+    }
+
+    // Saldo
+    if (paymentDetails.saldo_forma === "cartao" || paymentDetails.saldo_forma === "cartao_credito") {
+      const brutSaldo = parseNum(paymentDetails.saldo_valor);
+      if (brutSaldo > 0) {
+        const parcelas = Math.max(1, Number(paymentDetails.parcelas) || 1);
+        const taxaKey = `taxa_credito_${Math.min(parcelas, 12)}x`;
+        const taxa = Number(operator[taxaKey] || 0);
+        if (taxa > 0) {
+          const desconto = brutSaldo * taxa / 100;
+          totalLoss += desconto;
+          details.push({ type: "parcela", bruto: brutSaldo, taxa, desconto, parcelas });
+        }
+      }
+    } else if (paymentDetails.saldo_forma === "cartao_debito") {
+      const brutSaldo = parseNum(paymentDetails.saldo_valor);
+      if (brutSaldo > 0) {
+        const taxa = Number(operator.taxa_debito || 0);
+        if (taxa > 0) {
+          const desconto = brutSaldo * taxa / 100;
+          totalLoss += desconto;
+          details.push({ type: "parcela", bruto: brutSaldo, taxa, desconto, parcelas: 1 });
+        }
+      }
+    }
 
     return totalLoss > 0 ? { operator: operator.operator_name, totalLoss, details } : null;
-  }, [cardFees, financial.payments]);
+  }, [cardFees, paymentDetails]);
 
   return (
     <div className="space-y-4">
