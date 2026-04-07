@@ -52,6 +52,8 @@ export interface EventOptional {
   name: string;
   value: number | null;
   valor_por_pessoa?: number | null;
+  quantity?: number | null;
+  unit_price?: number | null;
 }
 
 export interface EventFormData {
@@ -560,10 +562,10 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     const guests = form.guest_count || 0;
     const updated = optionals.map(o => {
       if (!o.valor_por_pessoa || o.valor_por_pessoa <= 0) return o;
-      // Find matching catalog optional to get base fixed value
       const catalog = catalogOptionals.find(co => co.name === o.name);
-      const fixedValue = catalog?.value || 0;
-      return { ...o, value: fixedValue + o.valor_por_pessoa * guests };
+      const unitPrice = o.unit_price ?? catalog?.value ?? 0;
+      const qty = o.quantity || 1;
+      return { ...o, value: (unitPrice * qty) + o.valor_por_pessoa * guests, unit_price: unitPrice };
     });
     setForm(prev => ({ ...prev, event_optionals: updated }));
   }, [form.guest_count]);
@@ -1163,13 +1165,15 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                           className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/60 bg-muted/30 hover:bg-primary/10 hover:border-primary/30 text-xs font-medium transition-all"
                           onClick={() => {
                             const guests = form.guest_count || 0;
-                            let totalValue = co.value || 0;
+                            const unitPrice = co.value || 0;
+                            const qty = 1;
+                            let totalValue = unitPrice * qty;
                             if (co.valor_por_pessoa && co.valor_por_pessoa > 0 && guests > 0) {
-                              totalValue = (totalValue || 0) + co.valor_por_pessoa * guests;
+                              totalValue = totalValue + co.valor_por_pessoa * guests;
                             }
                             setForm({
                               ...form,
-                              event_optionals: [...(form.event_optionals || []), { name: co.name, value: totalValue || null, valor_por_pessoa: co.valor_por_pessoa }],
+                              event_optionals: [...(form.event_optionals || []), { name: co.name, value: totalValue || null, valor_por_pessoa: co.valor_por_pessoa, quantity: qty, unit_price: unitPrice }],
                             });
                           }}
                         >
@@ -1201,12 +1205,30 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                         }}
                       />
                     </div>
+                    <div className="w-20">
+                      <Input
+                        type="number"
+                        min={1}
+                        placeholder="Qtd"
+                        value={opt.quantity ?? 1}
+                        onChange={(e) => {
+                          const qty = Math.max(1, parseInt(e.target.value) || 1);
+                          const updated = [...(form.event_optionals || [])];
+                          const unitPrice = updated[idx].unit_price ?? updated[idx].value ?? 0;
+                          const guests = form.guest_count || 0;
+                          const perPerson = updated[idx].valor_por_pessoa ?? 0;
+                          const totalValue = (unitPrice * qty) + (perPerson > 0 ? perPerson * guests : 0);
+                          updated[idx] = { ...updated[idx], quantity: qty, value: totalValue };
+                          setForm({ ...form, event_optionals: updated });
+                        }}
+                      />
+                    </div>
                     <div className="w-full sm:w-36">
                       <MoneyInput
                         value={opt.value}
                         onChange={(v) => {
                           const updated = [...(form.event_optionals || [])];
-                          updated[idx] = { ...updated[idx], value: v };
+                          updated[idx] = { ...updated[idx], value: v, unit_price: v ? v / (updated[idx].quantity || 1) : null };
                           setForm({ ...form, event_optionals: updated });
                         }}
                       />
@@ -1224,11 +1246,18 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                  {opt.valor_por_pessoa != null && opt.valor_por_pessoa > 0 && (
-                    <p className="text-[10px] text-muted-foreground ml-1">
-                      R$ {opt.valor_por_pessoa.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}/pessoa × {form.guest_count || 0} convidados
-                    </p>
-                  )}
+                  <div className="flex flex-wrap gap-x-3">
+                    {opt.quantity != null && opt.quantity > 1 && opt.unit_price != null && opt.unit_price > 0 && (
+                      <p className="text-[10px] text-muted-foreground ml-1">
+                        R$ {opt.unit_price.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} × {opt.quantity} un
+                      </p>
+                    )}
+                    {opt.valor_por_pessoa != null && opt.valor_por_pessoa > 0 && (
+                      <p className="text-[10px] text-muted-foreground ml-1">
+                        + R$ {opt.valor_por_pessoa.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}/pessoa × {form.guest_count || 0} convidados
+                      </p>
+                    )}
+                  </div>
                 </div>
               ))}
               <Button
