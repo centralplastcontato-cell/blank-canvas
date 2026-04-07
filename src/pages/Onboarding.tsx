@@ -1082,6 +1082,10 @@ function Step5({ data, update, opData, setOpData }: StepProps & { opData: Operat
           </Field>
           <Field label="Horário de atendimento">
             <Input value={data.service_hours} onChange={e => update("service_hours", e.target.value)} placeholder="Ex: Seg a Sex, 9h às 18h" />
+            <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5">
+              <span className="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              O robô atenderá 24h por dia automaticamente, mesmo fora do horário comercial.
+            </p>
           </Field>
           <Field label="Possui mais de uma unidade?">
             <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/30">
