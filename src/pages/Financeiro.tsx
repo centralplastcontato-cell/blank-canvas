@@ -337,7 +337,7 @@ export default function Financeiro() {
                       <SelectItem value="late">Atrasado</SelectItem>
                     </SelectContent>
                   </Select>
-                  {bankAccounts.activeAccounts.length > 0 && (
+                  {financialPerms.canViewBankAccounts && bankAccounts.activeAccounts.length > 0 && (
                     <Select value={dashboard.filters.bankAccount} onValueChange={v => dashboard.setFilters(f => ({ ...f, bankAccount: v }))}>
                       <SelectTrigger className="w-40 h-9 text-xs">
                         <SelectValue placeholder="Todas contas" />
@@ -401,7 +401,7 @@ export default function Financeiro() {
               </div>
 
               {/* Consolidated Bank Balance */}
-              {bankAccounts.activeAccounts.length > 0 && (
+              {financialPerms.canViewBankAccounts && bankAccounts.activeAccounts.length > 0 && (
                 <Card className="p-4 border-border bg-gradient-to-r from-card to-primary/[0.04]">
                   <div className="flex items-center justify-between flex-wrap gap-3">
                     <div className="flex items-center gap-3">
@@ -433,7 +433,7 @@ export default function Financeiro() {
               {/* Tabs */}
               <Tabs defaultValue="receitas" className="w-full">
                 <TabsList className="bg-transparent p-0 h-auto gap-1">
-                  {['receitas', 'despesas', 'resultado', 'contas'].map(tab => (
+                  {(financialPerms.canViewBankAccounts ? ['receitas', 'despesas', 'resultado', 'contas'] : ['receitas', 'despesas', 'resultado']).map(tab => (
                     <TabsTrigger
                       key={tab}
                       value={tab}
@@ -823,7 +823,7 @@ export default function Financeiro() {
                 </TabsContent>
 
                 {/* Tab Contas */}
-                <TabsContent value="contas" className="space-y-4">
+                {financialPerms.canViewBankAccounts && <TabsContent value="contas" className="space-y-4">
                   {statementAccount ? (
                     <div className="space-y-3">
                       <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => setStatementAccount(null)}>
@@ -884,7 +884,7 @@ export default function Financeiro() {
                       )}
                     </div>
                   )}
-                </TabsContent>
+                </TabsContent>}
               </Tabs>
             </div>
           </main>

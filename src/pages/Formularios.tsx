@@ -77,6 +77,7 @@ export default function Formularios() {
   const canPacotes = isOwnerOrAdmin || userPermissions['operacoes.pacotes'];
   const canFreelancer = isOwnerOrAdmin || userPermissions['operacoes.freelancer'];
   const canAvaliacoes = isOwnerOrAdmin || userPermissions['operacoes.avaliacoes'];
+  const canBankAccounts = isOwnerOrAdmin || (userPermissions['financial.bank_accounts'] ?? true);
 
   const visibleSections = useMemo(() => {
     const sections: { value: string; label: string; icon: React.ElementType }[] = [];
@@ -87,9 +88,9 @@ export default function Formularios() {
     if (canFreelancer || canAvaliacoes) sections.push({ value: "freelancer", label: "Freelancer", icon: HardHat });
     if (canPacotes) sections.push({ value: "taxas_cartao", label: "Taxas de Cartão", icon: CreditCard });
     if (canPacotes) sections.push({ value: "vendedores", label: "Vendedores", icon: UserCheck });
-    if (canPacotes) sections.push({ value: "contas_bancarias", label: "Contas Bancárias", icon: Landmark });
+    if (canPacotes && canBankAccounts) sections.push({ value: "contas_bancarias", label: "Contas Bancárias", icon: Landmark });
     return sections;
-  }, [canFormularios, canChecklist, canPacotes, canFreelancer, canAvaliacoes]);
+  }, [canFormularios, canChecklist, canPacotes, canFreelancer, canAvaliacoes, canBankAccounts]);
 
   // Auto-select the first visible section if current is not visible
   const effectiveSection = useMemo(() => {
@@ -384,7 +385,7 @@ export default function Formularios() {
                 </TabsContent>
               )}
 
-              {canPacotes && (
+              {canPacotes && canBankAccounts && (
                 <TabsContent value="contas_bancarias" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-4">
                   <div className="max-w-7xl mx-auto w-full">
                     <BankAccountsManager />
