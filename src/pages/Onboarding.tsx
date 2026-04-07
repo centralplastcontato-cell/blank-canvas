@@ -775,7 +775,7 @@ interface Step3Props extends StepProps {
   uploadFile: (file: File, folder: string) => Promise<string | null>;
 }
 
-function Step3({ data, update, onBudgetUpload, uploadingBudget, removeBudgetFile, onScreenshotsUpload, uploadingScreenshots, removeScreenshot, opData, setOpData, uploadFile }: Step3Props) {
+function Step3({ data, update, onScreenshotsUpload, uploadingScreenshots, removeScreenshot, opData, setOpData, uploadFile }: Step3Props) {
   const [uploadingPkgIdx, setUploadingPkgIdx] = useState<number | null>(null);
 
   const addPackage = () => setOpData(prev => ({ ...prev, packages: [...prev.packages, { name: "", base_price: "", image_url: "" }] }));
@@ -1136,6 +1136,12 @@ function Step6({ data, update, onLogoUpload, uploadingLogo, onPhotosUpload, uplo
   return (
     <>
       <StepHeader emoji="🎨" title="Marca e Identidade" subtitle="Envie seus materiais visuais" />
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 mb-2">
+        <p className="text-sm text-amber-800 font-medium">⭐ Capriche na seleção!</p>
+        <p className="text-xs text-amber-700 mt-1">
+          Essas fotos e vídeos serão usados pelo <strong>bot para enviar aos clientes</strong> durante o atendimento automático e também serão exibidos na sua <strong>Landing Page de captura de leads</strong>. Escolha as melhores imagens do seu buffet!
+        </p>
+      </div>
       <FieldGroup>
         <FieldSection title="Logotipo">
           <Field label="Logotipo da empresa">
@@ -1155,6 +1161,9 @@ function Step6({ data, update, onLogoUpload, uploadingLogo, onPhotosUpload, uplo
         </FieldSection>
 
         <FieldSection title={`Fotos do buffet (${data.photo_urls.length}/10)`}>
+          <p className="text-xs text-muted-foreground mb-2">
+            📸 Envie as melhores fotos do espaço, decoração e festas — elas aparecerão na sua <strong>Landing Page</strong> e serão enviadas pelo <strong>bot aos leads</strong>.
+          </p>
           <div className="grid grid-cols-3 gap-2">
             {data.photo_urls.map((url, i) => (
               <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-muted group">
@@ -1178,6 +1187,9 @@ function Step6({ data, update, onLogoUpload, uploadingLogo, onPhotosUpload, uplo
         </FieldSection>
 
         <FieldSection title={`Vídeos (${data.video_urls.length}/2)`}>
+          <p className="text-xs text-muted-foreground mb-2">
+            🎬 Vídeos do buffet que serão enviados automaticamente pelo bot e exibidos na Landing Page.
+          </p>
           <div className="space-y-2">
             {data.video_urls.map((url, i) => (
               <div key={i} className="flex items-center gap-2 p-2 rounded-lg border border-border bg-muted/30">
