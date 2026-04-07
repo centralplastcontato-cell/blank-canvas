@@ -95,6 +95,7 @@ function HubEmpresasContent() {
   const [isResetting, setIsResetting] = useState(false);
   const [resetConversations, setResetConversations] = useState(true);
   const [resetLeads, setResetLeads] = useState(true);
+  const [onboardingViewCompany, setOnboardingViewCompany] = useState<Company | null>(null);
 
   useEffect(() => { fetchCompanies(); }, []);
 
