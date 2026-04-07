@@ -2116,6 +2116,31 @@ async function processBotQualification(
           console.log(`[Bot] Lead is qualified but waiting for proximo_passo answer, continuing...`);
           // Don't return - continue to process the proximo_passo step below
         } else if (!conv.bot_step || conv.bot_step === 'welcome') {
+          // Atomic claim: only process if bot_step is still welcome/null (prevents duplicate welcome from concurrent webhooks)
+          const { data: lpWelcomeClaimed } = await supabase.from('wapi_conversations').update({
+            bot_step: 'sending_materials',
+          }).eq('id', conv.id)
+            .in('bot_step', ['welcome', ''])
+            .select('id')
+            .maybeSingle();
+          
+          // Also try null bot_step
+          let claimed = !!lpWelcomeClaimed;
+          if (!claimed && !conv.bot_step) {
+            const { data: lpNullClaimed } = await supabase.from('wapi_conversations').update({
+              bot_step: 'sending_materials',
+            }).eq('id', conv.id)
+              .is('bot_step', null)
+              .select('id')
+              .maybeSingle();
+            claimed = !!lpNullClaimed;
+          }
+          
+          if (!claimed) {
+            console.log(`[Bot] LP qualified welcome already claimed for conv ${conv.id}, skipping`);
+            return;
+          }
+          
           // First message from LP lead — send welcome + materials + next step question (same as direct leads)
           const defaultQualifiedMsg = `Olá, {nome}! 👋\n\nRecebemos seu interesse pelo site e já temos seus dados aqui:\n\n📅 Mês: {mes}\n🗓️ Dia: {dia}\n👥 Convidados: {convidados}`;
           const qualifiedTemplate = settings.qualified_lead_message || defaultQualifiedMsg;
@@ -2162,9 +2187,8 @@ async function processBotQualification(
             });
           }
           
-          // Update step to sending_materials (same as direct flow)
+          // Update bot_data (bot_step already set to sending_materials by atomic claim above)
           await supabase.from('wapi_conversations').update({
-            bot_step: 'sending_materials',
             bot_data: leadData,
             last_message_at: new Date().toISOString(),
             last_message_content: welcomeMsg.substring(0, 100),
