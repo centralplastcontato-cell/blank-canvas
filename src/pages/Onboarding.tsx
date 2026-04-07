@@ -235,7 +235,7 @@ export default function Onboarding() {
     if (!companyId) return;
     setSubmitting(true);
     try {
-      const payload: any = { ...data, company_id: companyId, current_step: TOTAL_STEPS, status: 'completo' };
+      const payload: any = { ...data, company_id: companyId, current_step: TOTAL_STEPS, status: 'completo', operational_data: opData };
       delete payload.photo_urls_files;
 
       let targetId = onboardingId;
