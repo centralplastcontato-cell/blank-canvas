@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, Building, Wallet } from 'lucide-react';
-import { useBankAccounts, type BankAccountFormData } from '@/hooks/useBankAccounts';
+import { useBankAccounts } from '@/hooks/useBankAccounts';
 
 const ACCOUNT_TYPES = [
   { value: 'corrente', label: 'Conta Corrente' },
