@@ -315,6 +315,29 @@ export default function Onboarding() {
     }
   };
 
+  const createAttendantUsers = async (cId: string, attendants: AttendantProfile[]) => {
+    const validAttendants = attendants.filter(a => a.name.trim() && a.email.trim() && a.password.trim());
+    if (validAttendants.length === 0) return;
+
+    for (const att of validAttendants) {
+      try {
+        await supabase.functions.invoke('manage-user', {
+          body: {
+            action: 'create',
+            email: att.email.trim(),
+            password: att.password,
+            full_name: att.name.trim(),
+            role: 'comercial',
+            company_id: cId,
+            company_role: 'member',
+          },
+        });
+      } catch (err) {
+        console.error('Erro ao criar atendente:', att.email, err);
+      }
+    }
+  };
+
   const handleSubmit = async () => {
     if (!companyId) return;
     setSubmitting(true);
