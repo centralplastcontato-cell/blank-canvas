@@ -8,9 +8,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Trash2, Pencil, Package, Loader2 } from "lucide-react";
+import { Plus, Trash2, Pencil, Package, Loader2, Settings2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { PackagePriceGrid, type PackagePriceGridHandle } from "./PackagePriceGrid";
+import { PriceGridConfigDialog } from "./PriceGridConfigDialog";
 
 interface CompanyPackage {
   id: string;
