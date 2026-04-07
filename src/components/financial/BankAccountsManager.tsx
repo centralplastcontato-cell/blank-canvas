@@ -188,16 +188,21 @@ export function BankAccountsManager() {
           <div className="space-y-3">
             <div>
               <Label>Nome da conta *</Label>
-              <Input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Bradesco PJ" />
+              <Input value={name} onChange={e => setName(e.target.value)} placeholder={accountType === 'caixa' ? 'Ex: Caixa do buffet' : 'Ex: Bradesco PJ'} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Banco</Label>
-                <Input value={bankName} onChange={e => setBankName(e.target.value)} placeholder="Ex: Bradesco" />
-              </div>
+            <div className={accountType === 'caixa' ? '' : 'grid grid-cols-2 gap-3'}>
+              {accountType !== 'caixa' && (
+                <div>
+                  <Label>Banco</Label>
+                  <Input value={bankName} onChange={e => setBankName(e.target.value)} placeholder="Ex: Bradesco" />
+                </div>
+              )}
               <div>
                 <Label>Tipo</Label>
-                <Select value={accountType} onValueChange={setAccountType}>
+                <Select value={accountType} onValueChange={v => {
+                  setAccountType(v);
+                  if (v === 'caixa') { setBankName(''); setAgency(''); setAccountNumber(''); }
+                }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {ACCOUNT_TYPES.map(t => (
@@ -207,16 +212,18 @@ export function BankAccountsManager() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Agência</Label>
-                <Input value={agency} onChange={e => setAgency(e.target.value)} placeholder="0001" />
+            {accountType !== 'caixa' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Agência</Label>
+                  <Input value={agency} onChange={e => setAgency(e.target.value)} placeholder="0001" />
+                </div>
+                <div>
+                  <Label>Conta</Label>
+                  <Input value={accountNumber} onChange={e => setAccountNumber(e.target.value)} placeholder="12345-6" />
+                </div>
               </div>
-              <div>
-                <Label>Conta</Label>
-                <Input value={accountNumber} onChange={e => setAccountNumber(e.target.value)} placeholder="12345-6" />
-              </div>
-            </div>
+            )}
             <div>
               <Label>Saldo inicial (R$)</Label>
               <Input type="number" step="0.01" value={initialBalance} onChange={e => setInitialBalance(e.target.value)} placeholder="0,00" />
