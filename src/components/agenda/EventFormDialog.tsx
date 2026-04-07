@@ -1165,13 +1165,15 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                           className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/60 bg-muted/30 hover:bg-primary/10 hover:border-primary/30 text-xs font-medium transition-all"
                           onClick={() => {
                             const guests = form.guest_count || 0;
-                            let totalValue = co.value || 0;
+                            const unitPrice = co.value || 0;
+                            const qty = 1;
+                            let totalValue = unitPrice * qty;
                             if (co.valor_por_pessoa && co.valor_por_pessoa > 0 && guests > 0) {
-                              totalValue = (totalValue || 0) + co.valor_por_pessoa * guests;
+                              totalValue = totalValue + co.valor_por_pessoa * guests;
                             }
                             setForm({
                               ...form,
-                              event_optionals: [...(form.event_optionals || []), { name: co.name, value: totalValue || null, valor_por_pessoa: co.valor_por_pessoa }],
+                              event_optionals: [...(form.event_optionals || []), { name: co.name, value: totalValue || null, valor_por_pessoa: co.valor_por_pessoa, quantity: qty, unit_price: unitPrice }],
                             });
                           }}
                         >
