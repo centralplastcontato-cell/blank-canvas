@@ -10,7 +10,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   expenseId: string;
   expenseDescription: string;
-  onConfirm: (id: string, data: { status: string; receipt_url?: string }) => void;
+  onConfirm: (id: string, data: { status: string; receipt_url?: string; bank_account_id?: string }) => void;
 }
 
 export function MarkExpensePaidDialog({ open, onOpenChange, expenseId, expenseDescription, onConfirm }: Props) {
