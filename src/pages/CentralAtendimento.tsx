@@ -558,11 +558,19 @@ export default function CentralAtendimento() {
   const fetchUnreadCount = useCallback(async () => {
     const { data } = await supabase
       .from("wapi_conversations")
-      .select("unread_count"); // Only fetch unread_count column
+      .select("unread_count, instance_id");
     
     if (data) {
       const total = data.reduce((sum, conv) => sum + (conv.unread_count || 0), 0);
       setUnreadCount(total);
+      
+      const perInst: Record<string, number> = {};
+      data.forEach((conv: any) => {
+        if (conv.instance_id && (conv.unread_count || 0) > 0) {
+          perInst[conv.instance_id] = (perInst[conv.instance_id] || 0) + (conv.unread_count || 0);
+        }
+      });
+      setUnreadPerInstance(perInst);
     }
   }, []);
 
