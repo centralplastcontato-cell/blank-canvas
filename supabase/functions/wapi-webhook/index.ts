@@ -4126,7 +4126,9 @@ async function processWebhookEvent(body: Record<string, unknown>) {
         if (isGrp) { 
           const gn = (msg as Record<string, unknown>).chat?.name || (msg as Record<string, unknown>).groupName || (msg as Record<string, unknown>).subject; 
           if (gn && gn !== ex.contact_name) upd.contact_name = gn; 
-        } else if (cName && cName !== ex.contact_name) {
+        } else if (!fromMe && cName && cName !== ex.contact_name) {
+          // Only update contact_name from INCOMING messages — outgoing messages
+          // carry the business's own pushName which would overwrite the real name
           upd.contact_name = cName;
         }
         if (cPic) upd.contact_picture = cPic;
