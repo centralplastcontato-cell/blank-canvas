@@ -25,9 +25,13 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues 
   const handleSubmit = () => {
     const val = parseFloat(amount);
     if (!val || !dueDate) return;
-    onSubmit({ type, amount: val, due_date: dueDate, payment_method: method, notes: notes.trim() || undefined });
+    onSubmit({
+      type, amount: val, due_date: dueDate, payment_method: method,
+      notes: notes.trim() || undefined,
+      bank_account_id: bankAccountId || undefined,
+    });
     onOpenChange(false);
-    setAmount(""); setDueDate(""); setNotes("");
+    setAmount(""); setDueDate(""); setNotes(""); setBankAccountId("");
   };
 
   return (
