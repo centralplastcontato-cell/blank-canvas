@@ -398,6 +398,10 @@ export default function Onboarding() {
       // Create attendant user accounts
       await createAttendantUsers(companyId, opData.attendants);
 
+      // Clear localStorage draft on success
+      if (slug) {
+        try { localStorage.removeItem(LOCAL_STORAGE_KEY(slug)); } catch {}
+      }
       setSubmitted(true);
     } catch (err: any) {
       toast({ title: "Erro ao finalizar", description: err.message || "Tente novamente.", variant: "destructive" });
