@@ -8,6 +8,7 @@ import { CompanyFormDialog } from "@/components/admin/CompanyFormDialog";
 import { CompanyMembersSheet } from "@/components/admin/CompanyMembersSheet";
 import { CreateCompanyAdminDialog } from "@/components/hub/CreateCompanyAdminDialog";
 import { CompanyModulesDialog } from "@/components/hub/CompanyModulesDialog";
+import { OnboardingViewSheet } from "@/components/hub/OnboardingViewSheet";
 import { HubOnboardingContent } from "@/pages/HubOnboarding";
 import { HubUsersContent } from "@/pages/HubUsers";
 import { Button } from "@/components/ui/button";
