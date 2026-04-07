@@ -1161,6 +1161,9 @@ function Step6({ data, update, onLogoUpload, uploadingLogo, onPhotosUpload, uplo
         </FieldSection>
 
         <FieldSection title={`Fotos do buffet (${data.photo_urls.length}/10)`}>
+          <p className="text-xs text-muted-foreground mb-2">
+            📸 Envie as melhores fotos do espaço, decoração e festas — elas aparecerão na sua <strong>Landing Page</strong> e serão enviadas pelo <strong>bot aos leads</strong>.
+          </p>
           <div className="grid grid-cols-3 gap-2">
             {data.photo_urls.map((url, i) => (
               <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-muted group">
@@ -1184,6 +1187,9 @@ function Step6({ data, update, onLogoUpload, uploadingLogo, onPhotosUpload, uplo
         </FieldSection>
 
         <FieldSection title={`Vídeos (${data.video_urls.length}/2)`}>
+          <p className="text-xs text-muted-foreground mb-2">
+            🎬 Vídeos do buffet que serão enviados automaticamente pelo bot e exibidos na Landing Page.
+          </p>
           <div className="space-y-2">
             {data.video_urls.map((url, i) => (
               <div key={i} className="flex items-center gap-2 p-2 rounded-lg border border-border bg-muted/30">
