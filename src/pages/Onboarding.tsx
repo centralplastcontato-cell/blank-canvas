@@ -263,7 +263,7 @@ export default function Onboarding() {
       if (op.differentials) newSettings.differentials = op.differentials;
 
       // Update company settings
-      await supabase.from("companies").update({ settings: newSettings }).eq("id", cId);
+      await supabase.from("companies").update({ settings: newSettings as any }).eq("id", cId);
 
       // Sync packages to company_packages table
       if (op.packages.length > 0) {
