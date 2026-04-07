@@ -333,7 +333,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
           <div className="mt-1.5 space-y-0.5">
             {cardFeeLoss.details.map((d, i) => (
               <p key={i} className="text-[11px] text-muted-foreground">
-                {d.type === "entrada" ? "Entrada" : "Parcela"}: {fmt(d.bruto)} × {d.taxa.toFixed(2)}% = -{fmt(d.desconto)}
+                {d.type === "entrada" ? "Entrada" : "Saldo"}{d.parcelas > 1 ? ` (${d.parcelas}x)` : ""}: {fmt(d.bruto)} × {d.taxa.toFixed(2)}% = -{fmt(d.desconto)}
               </p>
             ))}
           </div>
