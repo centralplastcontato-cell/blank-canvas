@@ -12,6 +12,7 @@ import { FinancialReportDialog } from '@/components/financial/FinancialReportDia
 import { MarkExpensePaidDialog } from '@/components/financial/MarkExpensePaidDialog';
 
 import { BankAccountStatement } from '@/components/financial/BankAccountStatement';
+import { ClosedPartiesTab } from '@/components/financial/ClosedPartiesTab';
 import { BankAccountSelect } from '@/components/financial/BankAccountSelect';
 import { TransferBetweenAccountsDialog } from '@/components/financial/TransferBetweenAccountsDialog';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
@@ -459,14 +460,14 @@ export default function Financeiro() {
 
               {/* Tabs */}
               <Tabs defaultValue="receitas" className="w-full">
-                <TabsList className="bg-transparent p-0 h-auto gap-1">
-                  {(financialPerms.canViewBankAccounts ? ['receitas', 'despesas', 'resultado', 'contas'] : ['receitas', 'despesas', 'resultado']).map(tab => (
+                <TabsList className="bg-transparent p-0 h-auto gap-1 flex-wrap">
+                  {(financialPerms.canViewBankAccounts ? ['receitas', 'despesas', 'festas', 'resultado', 'contas'] : ['receitas', 'despesas', 'festas', 'resultado']).map(tab => (
                     <TabsTrigger
                       key={tab}
                       value={tab}
                       className="rounded-full px-5 py-2 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none border-0"
                     >
-                      {tab === 'receitas' ? 'Receitas' : tab === 'despesas' ? 'Despesas' : tab === 'resultado' ? 'Resultado' : '🏦 Contas'}
+                      {tab === 'receitas' ? 'Receitas' : tab === 'despesas' ? 'Despesas' : tab === 'festas' ? '🎉 Festas' : tab === 'resultado' ? 'Resultado' : '🏦 Contas'}
                     </TabsTrigger>
                   ))}
                 </TabsList>
@@ -934,6 +935,16 @@ export default function Financeiro() {
                     </div>
                   )}
                 </TabsContent>}
+
+                {/* Tab Festas Fechadas */}
+                <TabsContent value="festas" className="space-y-4">
+                  <ClosedPartiesTab
+                    from={dashboard.filters.from}
+                    to={dashboard.filters.to}
+                    unitFilter={dashboard.filters.unit}
+                    onOpenEvent={handleOpenEvent}
+                  />
+                </TabsContent>
               </Tabs>
             </div>
           </main>
