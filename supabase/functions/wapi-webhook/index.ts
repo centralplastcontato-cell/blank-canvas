@@ -2874,9 +2874,99 @@ async function processBotQualification(
 
 // ============= AUTO-SEND MATERIALS AFTER QUALIFICATION =============
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function sendBotActionViaWapiSend(
+  action: 'send-text' | 'send-image' | 'send-video' | 'send-document',
+  instance: { id: string; instance_id: string; instance_token: string; unit: string | null; company_id: string },
+  conv: { id: string; remote_jid: string },
+  payload: { message?: string; mediaUrl?: string; caption?: string; fileName?: string },
+  options?: { timeoutMs?: number; logLabel?: string }
+): Promise<string | null> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.error(`[Bot Materials] Missing Supabase env vars for ${action}`);
+    return null;
+  }
+
+  const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, '');
+  const controller = new AbortController();
+  const timeoutMs = options?.timeoutMs ?? (action === 'send-video' ? 60000 : 30000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const body: Record<string, unknown> = {
+      action,
+      phone,
+      instanceId: instance.instance_id,
+      instanceToken: instance.instance_token,
+      conversationId: conv.id,
+      companyId: instance.company_id,
+    };
+
+    if (payload.message !== undefined) body.message = payload.message;
+    if (payload.mediaUrl !== undefined) body.mediaUrl = payload.mediaUrl;
+    if (payload.caption !== undefined) body.caption = payload.caption;
+    if (payload.fileName !== undefined) body.fileName = payload.fileName;
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/wapi-send`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${serviceRoleKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    const rawText = await response.text();
+    let parsed: Record<string, unknown> | null = null;
+
+    if (rawText) {
+      try {
+        parsed = JSON.parse(rawText) as Record<string, unknown>;
+      } catch (_) {
+        parsed = null;
+      }
+    }
+
+    if (!response.ok) {
+      console.error(`[Bot Materials] ${action} failed (${response.status}) [${options?.logLabel || 'no-label'}]: ${rawText}`);
+      return null;
+    }
+
+    if (parsed?.success === false || parsed?.error) {
+      console.error(`[Bot Materials] ${action} returned error [${options?.logLabel || 'no-label'}]:`, parsed);
+      return null;
+    }
+
+    const nestedData = parsed?.data as Record<string, unknown> | undefined;
+    const messageId = typeof parsed?.messageId === 'string'
+      ? parsed.messageId
+      : typeof nestedData?.messageId === 'string'
+        ? nestedData.messageId
+        : `queued_${action}_${Date.now()}`;
+
+    return messageId;
+  } catch (error) {
+    const isAbort = error instanceof DOMException && error.name === 'AbortError';
+    console.error(
+      `[Bot Materials] ${action} ${isAbort ? 'timed out' : 'threw'} [${options?.logLabel || 'no-label'}]:`,
+      error,
+    );
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function sendQualificationMaterials(
   supabase: SupabaseClient,
-  instance: { id: string; instance_id: string; instance_token: string; unit: string | null },
+  instance: { id: string; instance_id: string; instance_token: string; unit: string | null; company_id: string },
   conv: { id: string; remote_jid: string },
   botData: Record<string, string>,
   settings: {
@@ -2889,278 +2979,236 @@ async function sendQualificationMaterials(
     auto_send_pdf_intro?: string | null;
     message_delay_seconds?: number;
   } | null
-) {
-  // Check if auto-send is enabled
-  if (settings?.auto_send_materials === false) {
-    console.log('[Bot Materials] Auto-send is disabled in settings');
-    return;
-  }
+): Promise<{ sentAny: boolean; failedSteps: string[] }> {
+  const failedSteps: string[] = [];
+  let sentAny = false;
 
-  const unit = instance.unit;
-  const month = botData.mes || '';
-  const guestsStr = botData.convidados || '';
-  const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
+  try {
+    if (settings?.auto_send_materials === false) {
+      console.log('[Bot Materials] Auto-send is disabled in settings');
+      return { sentAny: false, failedSteps };
+    }
 
-  // Fetch company name for customer-facing messages (internal unit names should not be shown)
-  let companyName = unit || '';
-  if ((instance as any).company_id) {
-    const { data: companyRow } = await supabase.from('companies').select('name').eq('id', (instance as any).company_id).maybeSingle();
+    const unit = instance.unit;
+    const month = botData.mes || '';
+    const guestsStr = botData.convidados || '';
+    const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
+
+    let companyName = unit || '';
+    const { data: companyRow } = await supabase
+      .from('companies')
+      .select('name')
+      .eq('id', instance.company_id)
+      .maybeSingle();
     if (companyRow?.name) companyName = companyRow.name;
-  }
-  
-  console.log(`[Bot Materials] Starting auto-send for ${phone}, unit: ${unit}, companyName: ${companyName}, month: ${month}, guests: ${guestsStr}`);
-  
-  if (!unit) {
-    console.log('[Bot Materials] No unit configured, skipping');
-    return;
-  }
-  
-  // Settings for which materials to send (default to true if not set)
-  const sendPhotos = settings?.auto_send_photos !== false;
-  const sendPresentationVideo = settings?.auto_send_presentation_video !== false;
-  const sendPromoVideo = settings?.auto_send_promo_video !== false;
-  const sendPdf = settings?.auto_send_pdf !== false;
-  
-  // Configurable delay between messages (default 5 seconds, convert to milliseconds)
-  const messageDelay = (settings?.message_delay_seconds || 5) * 1000;
-  
-  // Custom intro messages
-  const photosIntro = settings?.auto_send_photos_intro || '✨ Conheça nosso espaço incrível! 🏰🎉';
-  const pdfIntro = settings?.auto_send_pdf_intro || '📋 Oi {nome}! Segue o pacote completo para {convidados} no {empresa}. Qualquer dúvida é só chamar! 💜';
-  
-  // Delay to ensure completion message is delivered first (uses configured delay)
-  await new Promise(r => setTimeout(r, messageDelay));
-  
-  // Fetch captions for different material types
-  const { data: captions } = await supabase
-    .from('sales_material_captions')
-    .select('caption_type, caption_text')
-    .eq('is_active', true);
-  
-  const captionMap: Record<string, string> = {};
-  captions?.forEach(c => { captionMap[c.caption_type] = c.caption_text; });
-  
-  // Fetch all active materials for this unit (with company_id fallback)
-  let { data: materials, error: matError } = await supabase
-    .from('sales_materials')
-    .select('*')
-    .eq('unit', unit)
-    .eq('is_active', true)
-    .order('type', { ascending: true })
-    .order('sort_order', { ascending: true });
-  
-  // Fallback: if no materials found by unit name, try by company_id
-  if ((!materials || materials.length === 0) && (instance as any).company_id) {
-    console.log(`[Bot Materials] No materials for unit "${unit}", falling back to company_id`);
-    const fallback = await supabase
+
+    console.log(`[Bot Materials] Starting auto-send for ${phone}, unit: ${unit}, companyName: ${companyName}, month: ${month}, guests: ${guestsStr}`);
+
+    if (!unit) {
+      console.log('[Bot Materials] No unit configured, skipping');
+      return { sentAny: false, failedSteps };
+    }
+
+    const sendPhotos = settings?.auto_send_photos !== false;
+    const sendPresentationVideo = settings?.auto_send_presentation_video !== false;
+    const sendPromoVideo = settings?.auto_send_promo_video !== false;
+    const sendPdf = settings?.auto_send_pdf !== false;
+    const messageDelay = (settings?.message_delay_seconds || 5) * 1000;
+    const photosIntro = settings?.auto_send_photos_intro || '✨ Conheça nosso espaço incrível! 🏰🎉';
+    const pdfIntro = settings?.auto_send_pdf_intro || '📋 Oi {nome}! Segue o pacote completo para {convidados} no {empresa}. Qualquer dúvida é só chamar! 💜';
+
+    await delay(messageDelay);
+
+    const { data: captions } = await supabase
+      .from('sales_material_captions')
+      .select('caption_type, caption_text')
+      .eq('is_active', true);
+
+    const captionMap: Record<string, string> = {};
+    captions?.forEach((caption) => {
+      captionMap[caption.caption_type] = caption.caption_text;
+    });
+
+    let { data: materials, error: matError } = await supabase
       .from('sales_materials')
       .select('*')
-      .eq('company_id', (instance as any).company_id)
+      .eq('unit', unit)
       .eq('is_active', true)
       .order('type', { ascending: true })
       .order('sort_order', { ascending: true });
-    materials = fallback.data;
-    matError = fallback.error;
-  }
 
-  if (matError || !materials?.length) {
-    console.log(`[Bot Materials] No materials found for unit ${unit} or company fallback`);
-    return;
-  }
-  
-  console.log(`[Bot Materials] Found ${materials.length} materials for ${unit}`);
-  
-  // Group materials by type
-  const photoCollections = materials.filter(m => m.type === 'photo_collection');
-  const allVideos = materials.filter(m => m.type === 'video');
-  const promoVideos = allVideos.filter(m => m.name?.toLowerCase().includes('promo') || m.name?.toLowerCase().includes('carnaval'));
-  const presentationVideos = allVideos.filter(m => !promoVideos.includes(m));
-  const pdfPackages = materials.filter(m => m.type === 'pdf_package');
-  
-  // Extract guest count from string (e.g., "50 pessoas" -> 50)
-  const guestMatch = guestsStr.match(/(\d+)/);
-  const guestCount = guestMatch ? parseInt(guestMatch[1]) : null;
-  
-  // Promo video is now controlled solely by the auto_send_promo_video flag
-  
-  // Send original URLs directly — no image transformation needed
+    if ((!materials || materials.length === 0) && instance.company_id) {
+      console.log(`[Bot Materials] No materials for unit "${unit}", falling back to company_id`);
+      const fallback = await supabase
+        .from('sales_materials')
+        .select('*')
+        .eq('company_id', instance.company_id)
+        .eq('is_active', true)
+        .order('type', { ascending: true })
+        .order('sort_order', { ascending: true });
+      materials = fallback.data;
+      matError = fallback.error;
+    }
 
-  // Helper to send via provider-aware functions (supports both W-API and Z-API)
-  const sendImage = async (url: string, caption: string) => {
-    try {
-      return await sendBotImage(instance.instance_id, instance.instance_token, conv.remote_jid, url, caption);
-    } catch (e) {
-      console.error('[Bot Materials] Error sending image:', e);
-      return null;
+    if (matError || !materials?.length) {
+      console.log(`[Bot Materials] No materials found for unit ${unit} or company fallback`);
+      if (matError) failedSteps.push('materials_query');
+      return { sentAny: false, failedSteps };
     }
-  };
-  
-  const sendVideo = async (url: string, caption: string) => {
-    try {
-      return await sendBotVideo(instance.instance_id, instance.instance_token, conv.remote_jid, url, caption);
-    } catch (e) {
-      console.error('[Bot Materials] Error sending video:', e);
-      return null;
-    }
-  };
-  
-  const sendDocument = async (url: string, fileName: string) => {
-    try {
-      return await sendBotDocument(instance.instance_id, instance.instance_token, conv.remote_jid, url, fileName);
-    } catch (e) {
-      console.error('[Bot Materials] Error sending document:', e);
-      return null;
-    }
-  };
-  
-  const sendText = async (message: string) => {
-    try {
-      return await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, message);
-    } catch (e) {
-      console.error('[Bot Materials] Error sending text:', e);
-      return null;
-    }
-  };
-  
-  const saveMessage = async (msgId: string, type: string, content: string, mediaUrl?: string) => {
-    await supabase.from('wapi_messages').insert({
-      conversation_id: conv.id,
-      message_id: msgId,
-      from_me: true,
-      message_type: type,
-      content,
-      media_url: mediaUrl || null,
-      status: 'sent',
-      timestamp: new Date().toISOString(),
-      company_id: instance.company_id,
-    });
-  };
-  
-  // 1. SEND PHOTO COLLECTION (with intro text)
-  if (sendPhotos && photoCollections.length > 0) {
-    const collection = photoCollections[0];
-    const photos = collection.photo_urls || [];
-    
-    if (photos.length > 0) {
-      console.log(`[Bot Materials] Sending ${photos.length} photos from collection`);
-      
-      // Send intro text (use custom or default caption)
-      const introText = photosIntro.replace(/\{unidade\}/gi, companyName).replace(/\{empresa\}/gi, companyName);
-      const introMsgId = await sendText(introText);
-      if (introMsgId) await saveMessage(introMsgId, 'text', introText);
-      
-      await new Promise(r => setTimeout(r, messageDelay / 2)); // Half delay for intro before photos
-      
-      // Send photos sequentially with delay to avoid W-API rate limits
-      for (let i = 0; i < photos.length; i++) {
-        const msgId = await sendImage(photos[i], '');
-        if (msgId) await saveMessage(msgId, 'image', '📷', photos[i]);
-        if (i < photos.length - 1) {
-          await new Promise(r => setTimeout(r, 800));
+
+    console.log(`[Bot Materials] Found ${materials.length} materials for ${unit}`);
+
+    const photoCollections = materials.filter((material) => material.type === 'photo_collection');
+    const allVideos = materials.filter((material) => material.type === 'video');
+    const promoVideos = allVideos.filter((material) => material.name?.toLowerCase().includes('promo') || material.name?.toLowerCase().includes('carnaval'));
+    const presentationVideos = allVideos.filter((material) => !promoVideos.includes(material));
+    const pdfPackages = materials.filter((material) => material.type === 'pdf_package');
+
+    const guestMatch = guestsStr.match(/(\d+)/);
+    const guestCount = guestMatch ? parseInt(guestMatch[1], 10) : null;
+
+    const sendText = async (message: string, logLabel: string) => {
+      const msgId = await sendBotActionViaWapiSend('send-text', instance, conv, { message }, { timeoutMs: 30000, logLabel });
+      if (!msgId) failedSteps.push(logLabel);
+      if (msgId) sentAny = true;
+      return msgId;
+    };
+
+    const sendImage = async (url: string, caption: string, logLabel: string) => {
+      const msgId = await sendBotActionViaWapiSend('send-image', instance, conv, { mediaUrl: url, caption }, { timeoutMs: 30000, logLabel });
+      if (!msgId) failedSteps.push(logLabel);
+      if (msgId) sentAny = true;
+      return msgId;
+    };
+
+    const sendVideo = async (url: string, caption: string, logLabel: string) => {
+      const msgId = await sendBotActionViaWapiSend('send-video', instance, conv, { mediaUrl: url, caption }, { timeoutMs: 60000, logLabel });
+      if (!msgId) failedSteps.push(logLabel);
+      if (msgId) sentAny = true;
+      return msgId;
+    };
+
+    const sendDocument = async (url: string, fileName: string, logLabel: string) => {
+      const msgId = await sendBotActionViaWapiSend('send-document', instance, conv, { mediaUrl: url, fileName }, { timeoutMs: 30000, logLabel });
+      if (!msgId) failedSteps.push(logLabel);
+      if (msgId) sentAny = true;
+      return msgId;
+    };
+
+    if (sendPhotos && photoCollections.length > 0) {
+      const collection = photoCollections[0];
+      const photos = collection.photo_urls || [];
+
+      if (photos.length > 0) {
+        console.log(`[Bot Materials] Sending ${photos.length} photos from collection`);
+        const introText = photosIntro.replace(/\{unidade\}/gi, companyName).replace(/\{empresa\}/gi, companyName);
+        await sendText(introText, 'photos_intro');
+        await delay(messageDelay / 2);
+
+        for (let i = 0; i < photos.length; i++) {
+          await sendImage(photos[i], '', `photo_${i + 1}`);
+          if (i < photos.length - 1) await delay(800);
         }
+
+        console.log('[Bot Materials] Photos step complete');
+        await delay(messageDelay);
       }
-      
-      console.log(`[Bot Materials] Photos sent`);
-      await new Promise(r => setTimeout(r, messageDelay));
     }
-  }
-  
-  // 2. SEND PRESENTATION VIDEO
-  if (sendPresentationVideo && presentationVideos.length > 0) {
-    const video = presentationVideos[0];
-    console.log(`[Bot Materials] Sending presentation video: ${video.name}`);
-    
-    const videoCaption = captionMap['video'] || `🎬 Conheça o ${companyName}! ✨`;
-    const caption = videoCaption.replace(/\{unidade\}/gi, companyName).replace(/\{empresa\}/gi, companyName);
-    
-    const msgId = await sendVideo(video.file_url, caption);
-    if (msgId) await saveMessage(msgId, 'video', caption, video.file_url);
-    
-    await new Promise(r => setTimeout(r, messageDelay));
-  }
-  
-  // 3. SEND PROMO VIDEO
-  if (sendPromoVideo && promoVideos.length > 0) {
-    const promoVideo = promoVideos[0];
-    console.log(`[Bot Materials] Sending promo video: ${promoVideo.name}`);
-    
-    const promoCaption = captionMap['video_promo'] || captionMap['video'] || `🎬 Confira nosso vídeo! ✨`;
-    const caption = promoCaption.replace(/\{unidade\}/gi, companyName).replace(/\{empresa\}/gi, companyName);
-    
-    const msgId = await sendVideo(promoVideo.file_url, caption);
-    if (msgId) await saveMessage(msgId, 'video', caption, promoVideo.file_url);
-    
-    await new Promise(r => setTimeout(r, messageDelay * 1.5));
-  }
-  
-  // 4. SEND PDF PACKAGE (matching guest count or universal) - ALWAYS LAST material
-  if (sendPdf && pdfPackages.length > 0) {
-    // Separate universal (guest_count=null) from specific PDFs
-    const universalPdfs = pdfPackages.filter(p => p.guest_count === null);
-    const specificPdfs = pdfPackages.filter(p => p.guest_count !== null);
-    
-    let pdfsToSend: typeof pdfPackages = [];
-    
-    if (universalPdfs.length > 0) {
-      pdfsToSend = universalPdfs;
-      console.log(`[Bot Materials] Found ${universalPdfs.length} universal PDFs`);
-    } else if (guestCount && specificPdfs.length > 0) {
-      let matchingPdf = specificPdfs.find(p => p.guest_count === guestCount);
-      if (!matchingPdf) {
-        const sortedPackages = specificPdfs.sort((a, b) => (a.guest_count || 0) - (b.guest_count || 0));
-        matchingPdf = sortedPackages.find(p => (p.guest_count || 0) >= guestCount) || sortedPackages[sortedPackages.length - 1];
-      }
-      if (matchingPdf) pdfsToSend = [matchingPdf];
+
+    if (sendPresentationVideo && presentationVideos.length > 0) {
+      const video = presentationVideos[0];
+      console.log(`[Bot Materials] Sending presentation video: ${video.name}`);
+
+      const videoCaption = captionMap['video'] || `🎬 Conheça o ${companyName}! ✨`;
+      const caption = videoCaption.replace(/\{unidade\}/gi, companyName).replace(/\{empresa\}/gi, companyName);
+      await sendVideo(video.file_url, caption, 'presentation_video');
+      await delay(messageDelay);
     }
-    
-    if (pdfsToSend.length > 0) {
-      const firstPdf = pdfsToSend[0];
-      console.log(`[Bot Materials] Sending ${pdfsToSend.length} PDF(s): ${firstPdf.name}`);
-      
-      const firstName = (botData.nome || '').split(' ')[0] || 'você';
-      const pdfIntroText = pdfIntro
-        .replace(/\{nome\}/gi, firstName)
-        .replace(/\{convidados\}/gi, guestsStr)
-        .replace(/\{unidade\}/gi, companyName)
-        .replace(/\{empresa\}/gi, companyName);
-      const introMsgId = await sendText(pdfIntroText);
-      if (introMsgId) await saveMessage(introMsgId, 'text', pdfIntroText);
-      
-      await new Promise(r => setTimeout(r, messageDelay / 4));
-      
-      for (const pdf of pdfsToSend) {
-        const fileExt = pdf.file_url.split('?')[0].split('.').pop()?.toLowerCase() || '';
-        const isPkgImage = ['jpg', 'jpeg', 'png', 'webp'].includes(fileExt);
-        if (isPkgImage) {
-          const caption = pdf.name || 'Pacote';
-          const msgId = await sendImage(pdf.file_url, caption);
-          if (msgId) await saveMessage(msgId, 'image', caption, pdf.file_url);
-        } else {
-          const fileName = pdf.name?.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, ' ').trim() + '.pdf' || 'Pacote.pdf';
-          const msgId = await sendDocument(pdf.file_url, fileName);
-          if (msgId) await saveMessage(msgId, 'document', fileName, pdf.file_url);
+
+    if (sendPromoVideo && promoVideos.length > 0) {
+      const promoVideo = promoVideos[0];
+      console.log(`[Bot Materials] Sending promo video: ${promoVideo.name}`);
+
+      const promoCaption = captionMap['video_promo'] || captionMap['video'] || '🎬 Confira nosso vídeo! ✨';
+      const caption = promoCaption.replace(/\{unidade\}/gi, companyName).replace(/\{empresa\}/gi, companyName);
+      await sendVideo(promoVideo.file_url, caption, 'promo_video');
+      await delay(messageDelay * 1.5);
+    }
+
+    if (sendPdf && pdfPackages.length > 0) {
+      const universalPdfs = pdfPackages.filter((pkg) => pkg.guest_count === null);
+      const specificPdfs = pdfPackages.filter((pkg) => pkg.guest_count !== null);
+
+      let pdfsToSend: typeof pdfPackages = [];
+
+      if (universalPdfs.length > 0) {
+        pdfsToSend = universalPdfs;
+        console.log(`[Bot Materials] Found ${universalPdfs.length} universal PDFs`);
+      } else if (guestCount && specificPdfs.length > 0) {
+        let matchingPdf = specificPdfs.find((pkg) => pkg.guest_count === guestCount);
+        if (!matchingPdf) {
+          const sortedPackages = [...specificPdfs].sort((a, b) => (a.guest_count || 0) - (b.guest_count || 0));
+          matchingPdf = sortedPackages.find((pkg) => (pkg.guest_count || 0) >= guestCount) || sortedPackages[sortedPackages.length - 1];
         }
-        if (pdfsToSend.length > 1) await new Promise(r => setTimeout(r, 2000));
+        if (matchingPdf) pdfsToSend = [matchingPdf];
       }
-      
-      await new Promise(r => setTimeout(r, messageDelay));
+
+      if (pdfsToSend.length > 0) {
+        const firstPdf = pdfsToSend[0];
+        console.log(`[Bot Materials] Sending ${pdfsToSend.length} PDF(s): ${firstPdf.name}`);
+
+        const firstName = (botData.nome || '').split(' ')[0] || 'você';
+        const pdfIntroText = pdfIntro
+          .replace(/\{nome\}/gi, firstName)
+          .replace(/\{convidados\}/gi, guestsStr)
+          .replace(/\{unidade\}/gi, companyName)
+          .replace(/\{empresa\}/gi, companyName);
+
+        await sendText(pdfIntroText, 'pdf_intro');
+        await delay(messageDelay / 4);
+
+        for (let i = 0; i < pdfsToSend.length; i++) {
+          const pdf = pdfsToSend[i];
+          const fileExt = pdf.file_url.split('?')[0].split('.').pop()?.toLowerCase() || '';
+          const isPkgImage = ['jpg', 'jpeg', 'png', 'webp'].includes(fileExt);
+
+          if (isPkgImage) {
+            const caption = pdf.name || 'Pacote';
+            await sendImage(pdf.file_url, caption, `pdf_image_${i + 1}`);
+          } else {
+            const sanitizedName = (pdf.name || 'Pacote').replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, ' ').trim();
+            const fileName = `${sanitizedName || 'Pacote'}.pdf`;
+            await sendDocument(pdf.file_url, fileName, `pdf_document_${i + 1}`);
+          }
+
+          if (i < pdfsToSend.length - 1) await delay(2000);
+        }
+
+        await delay(messageDelay);
+      }
     }
+
+    if (sentAny) {
+      await supabase.from('wapi_conversations').update({
+        last_message_at: new Date().toISOString(),
+        last_message_content: '📄 Materiais enviados',
+        last_message_from_me: true,
+      }).eq('id', conv.id);
+    }
+
+    console.log(`[Bot Materials] Auto-send complete for ${phone}. Failures: ${failedSteps.join(', ') || 'none'}`);
+    return { sentAny, failedSteps };
+  } catch (err) {
+    console.error('[Bot Materials] Fatal error during auto-send:', err);
+    failedSteps.push('fatal_materials_error');
+    return { sentAny, failedSteps };
   }
-  
-  // Update conversation last message
-  await supabase.from('wapi_conversations').update({
-    last_message_at: new Date().toISOString(),
-    last_message_content: '📄 Materiais enviados',
-    last_message_from_me: true
-  }).eq('id', conv.id);
-  
-  console.log(`[Bot Materials] Auto-send complete for ${phone}`);
 }
 
 // Wrapper function that sends materials AND THEN the next step question
 async function sendQualificationMaterialsThenQuestion(
   supabase: SupabaseClient,
-  instance: { id: string; instance_id: string; instance_token: string; unit: string | null },
+  instance: { id: string; instance_id: string; instance_token: string; unit: string | null; company_id: string },
   conv: { id: string; remote_jid: string },
   botData: Record<string, string>,
   settings: {
@@ -3177,56 +3225,46 @@ async function sendQualificationMaterialsThenQuestion(
 ) {
   const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
   const messageDelay = (settings?.message_delay_seconds || 5) * 1000;
-  
+
   try {
-    // First, send all materials
-    await sendQualificationMaterials(supabase, instance, conv, botData, settings);
-    
-    // Delay after materials (uses configured delay)
-    await new Promise(r => setTimeout(r, messageDelay));
-    
-    // Now send the next step question
-    console.log(`[Bot] Sending next step question to ${phone}`);
-    
-    const msgId = await sendBotMessage(
-      instance.instance_id,
-      instance.instance_token,
-      conv.remote_jid,
-      nextStepQuestion
-    );
-    
-    if (msgId) {
-      await supabase.from('wapi_messages').insert({
-        conversation_id: conv.id,
-        message_id: msgId,
-        from_me: true,
-        message_type: 'text',
-        content: nextStepQuestion,
-        status: 'sent',
-        timestamp: new Date().toISOString(),
-        company_id: instance.company_id,
-      });
+    const materialResult = await sendQualificationMaterials(supabase, instance, conv, botData, settings);
+    if (materialResult.failedSteps.length > 0) {
+      console.warn(`[Bot] Material flow had partial failures for ${phone}: ${materialResult.failedSteps.join(', ')}`);
     }
-    
-    // Update conversation to proximo_passo step (atomic: only if still sending_materials)
+
+    await delay(messageDelay);
+
+    console.log(`[Bot] Sending next step question to ${phone}`);
+    const msgId = await sendBotActionViaWapiSend(
+      'send-text',
+      instance,
+      conv,
+      { message: nextStepQuestion },
+      { timeoutMs: 30000, logLabel: 'next_step_question' },
+    );
+
+    if (!msgId) {
+      console.warn(`[Bot] Next step question failed for ${phone}; recovery will retry later`);
+      return;
+    }
+
     const { data: stepAdvanced } = await supabase.from('wapi_conversations').update({
       bot_step: 'proximo_passo',
       last_message_at: new Date().toISOString(),
       last_message_content: nextStepQuestion.substring(0, 100),
-      last_message_from_me: true
+      last_message_from_me: true,
     }).eq('id', conv.id)
       .eq('bot_step', 'sending_materials')
       .select('id')
       .maybeSingle();
-    
+
     if (!stepAdvanced) {
       console.log(`[Bot] bot_step already changed from sending_materials for conv ${conv.id}, skipping proximo_passo update`);
     }
-    
+
     console.log(`[Bot] Next step question sent to ${phone}`);
-    
   } catch (err) {
-    console.error(`[Bot] Error in sendQualificationMaterialsThenQuestion:`, err);
+    console.error('[Bot] Error in sendQualificationMaterialsThenQuestion:', err);
   }
 }
 
