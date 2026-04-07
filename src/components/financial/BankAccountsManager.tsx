@@ -230,9 +230,15 @@ export function BankAccountsManager() {
                 />
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div
+              className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${isDefault ? 'border-primary bg-primary/5' : 'border-border bg-muted/30 hover:bg-muted/50'}`}
+              onClick={() => setIsDefault(!isDefault)}
+            >
               <Switch checked={isDefault} onCheckedChange={setIsDefault} />
-              <Label className="cursor-pointer">Definir como conta padrão</Label>
+              <div className="flex-1">
+                <Label className="cursor-pointer font-medium text-sm">⭐ Definir como conta padrão</Label>
+                <p className="text-[11px] text-muted-foreground">Será pré-selecionada nos pagamentos e despesas</p>
+              </div>
             </div>
           </div>
           <DialogFooter>
