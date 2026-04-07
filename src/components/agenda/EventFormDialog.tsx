@@ -22,6 +22,7 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { getDayType, getDayTypeLabel, findMatchingTier, DEFAULT_DAY_TYPES, DEFAULT_GUEST_TIERS } from "@/lib/brazilian-holidays";
+import { DEFAULT_EVENT_TYPES } from "@/components/admin/EventTypesConfig";
 
 export interface ParcelaDetail {
   valor: number | null;
@@ -106,13 +107,7 @@ const PAYMENT_FORMS = [
   { value: "transferencia", label: "Transferência" },
 ];
 
-const EVENT_TYPES = [
-  { value: "aniversario", label: "Aniversário" },
-  { value: "formatura", label: "Formatura" },
-  { value: "escolar", label: "Escolar" },
-  { value: "aniversario_kids", label: "Aniversário Kids" },
-  { value: "confraternizacao", label: "Confraternização" },
-];
+// Event types are now loaded dynamically from company settings
 
 const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
   const h = String(Math.floor(i / 2)).padStart(2, "0");
@@ -281,6 +276,15 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [payment, setPayment] = useState<PaymentDetails>(EMPTY_PAYMENT);
   const [saving, setSaving] = useState(false);
   const { currentCompany } = useCompany();
+
+  // Dynamic event types from company settings, with fallback to defaults
+  const EVENT_TYPES = useMemo(() => {
+    const s = (currentCompany?.settings || {}) as Record<string, unknown>;
+    if (Array.isArray(s.event_types) && s.event_types.length > 0) {
+      return s.event_types as Array<{ value: string; label: string }>;
+    }
+    return DEFAULT_EVENT_TYPES;
+  }, [currentCompany?.settings]);
 
   const [dateDay, setDateDay] = useState("");
   const [dateMonth, setDateMonth] = useState("");
