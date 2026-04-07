@@ -13,6 +13,9 @@ interface EventData {
   status: string;
   total_value?: number | null;
   start_time?: string | null;
+  end_time?: string | null;
+  child_name?: string | null;
+  birthday_children?: any;
 }
 
 export interface AgendaReportParams {
