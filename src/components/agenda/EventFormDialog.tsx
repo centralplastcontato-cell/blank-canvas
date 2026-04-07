@@ -89,6 +89,10 @@ export interface EventFormData {
   is_permuta?: boolean;
   internal_notes?: string;
   event_optionals?: EventOptional[];
+  discount_type?: 'fixed' | 'percentage' | null;
+  discount_value?: number | null;
+  discount_base?: 'pacote' | 'total' | null;
+  discount_reason?: string | null;
 }
 
 const PAYMENT_METHODS = [
@@ -205,6 +209,10 @@ const EMPTY: EventFormData = {
   is_permuta: false,
   internal_notes: "",
   event_optionals: [],
+  discount_type: null,
+  discount_value: null,
+  discount_base: 'total',
+  discount_reason: null,
 };
 
 function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
