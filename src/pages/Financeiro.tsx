@@ -385,13 +385,13 @@ export default function Financeiro() {
               {/* Tabs */}
               <Tabs defaultValue="receitas" className="w-full">
                 <TabsList className="bg-transparent p-0 h-auto gap-1">
-                  {['receitas', 'despesas', 'resultado'].map(tab => (
+                  {['receitas', 'despesas', 'resultado', 'contas'].map(tab => (
                     <TabsTrigger
                       key={tab}
                       value={tab}
                       className="rounded-full px-5 py-2 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none border-0"
                     >
-                      {tab === 'receitas' ? 'Receitas' : tab === 'despesas' ? 'Despesas' : 'Resultado'}
+                      {tab === 'receitas' ? 'Receitas' : tab === 'despesas' ? 'Despesas' : tab === 'resultado' ? 'Resultado' : '🏦 Contas'}
                     </TabsTrigger>
                   ))}
                 </TabsList>
