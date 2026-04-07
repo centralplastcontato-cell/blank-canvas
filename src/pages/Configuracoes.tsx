@@ -11,6 +11,7 @@ import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
 import { WhatsAppConfig } from "@/components/whatsapp/WhatsAppConfig";
 import { PartyControlConfig } from "@/components/admin/PartyControlConfig";
+import { EventTypesConfig } from "@/components/admin/EventTypesConfig";
 
 import { ProfileContent } from "@/components/admin/ProfileContent";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -186,6 +187,7 @@ export default function Configuracoes() {
             </TabsContent>
             {showOperacoes && (
               <TabsContent value="festa" className="mt-4 space-y-6">
+                <EventTypesConfig />
                 <PartyControlConfig />
               </TabsContent>
             )}
@@ -252,6 +254,7 @@ export default function Configuracoes() {
                 </TabsContent>
                 {showOperacoes && (
                   <TabsContent value="festa" className="mt-4 space-y-6">
+                    <EventTypesConfig />
                     <PartyControlConfig />
                   </TabsContent>
                 )}
