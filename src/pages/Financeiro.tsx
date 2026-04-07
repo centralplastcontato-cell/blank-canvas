@@ -189,10 +189,14 @@ export default function Financeiro() {
     );
   }
 
+  // Sort order for payment lists: 'asc' = vencimento mais próximo primeiro, 'desc' = mais distante primeiro
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const sortByDueDate = (a: any, b: any) => sortOrder === 'asc' ? a.due_date.localeCompare(b.due_date) : b.due_date.localeCompare(a.due_date);
+
   // Categorized payment lists
-  const allPaid = dashboard.payments.filter(p => p.status === 'paid').sort((a, b) => (b.paid_at || '').localeCompare(a.paid_at || ''));
-  const allPending = dashboard.payments.filter(p => p.status === 'pending').sort((a, b) => b.due_date.localeCompare(a.due_date));
-  const allLate = [...dashboard.latePayments].sort((a, b) => b.due_date.localeCompare(a.due_date));
+  const allPaid = dashboard.payments.filter(p => p.status === 'paid').sort((a, b) => sortOrder === 'asc' ? (a.paid_at || '').localeCompare(b.paid_at || '') : (b.paid_at || '').localeCompare(a.paid_at || ''));
+  const allPending = dashboard.payments.filter(p => p.status === 'pending').sort(sortByDueDate);
+  const allLate = [...dashboard.latePayments].sort(sortByDueDate);
 
   return (
     <SidebarProvider>
