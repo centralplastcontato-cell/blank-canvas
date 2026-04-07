@@ -1205,12 +1205,30 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                         }}
                       />
                     </div>
+                    <div className="w-20">
+                      <Input
+                        type="number"
+                        min={1}
+                        placeholder="Qtd"
+                        value={opt.quantity ?? 1}
+                        onChange={(e) => {
+                          const qty = Math.max(1, parseInt(e.target.value) || 1);
+                          const updated = [...(form.event_optionals || [])];
+                          const unitPrice = updated[idx].unit_price ?? updated[idx].value ?? 0;
+                          const guests = form.guest_count || 0;
+                          const perPerson = updated[idx].valor_por_pessoa ?? 0;
+                          const totalValue = (unitPrice * qty) + (perPerson > 0 ? perPerson * guests : 0);
+                          updated[idx] = { ...updated[idx], quantity: qty, value: totalValue };
+                          setForm({ ...form, event_optionals: updated });
+                        }}
+                      />
+                    </div>
                     <div className="w-full sm:w-36">
                       <MoneyInput
                         value={opt.value}
                         onChange={(v) => {
                           const updated = [...(form.event_optionals || [])];
-                          updated[idx] = { ...updated[idx], value: v };
+                          updated[idx] = { ...updated[idx], value: v, unit_price: v ? v / (updated[idx].quantity || 1) : null };
                           setForm({ ...form, event_optionals: updated });
                         }}
                       />
@@ -1228,11 +1246,18 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                  {opt.valor_por_pessoa != null && opt.valor_por_pessoa > 0 && (
-                    <p className="text-[10px] text-muted-foreground ml-1">
-                      R$ {opt.valor_por_pessoa.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}/pessoa × {form.guest_count || 0} convidados
-                    </p>
-                  )}
+                  <div className="flex flex-wrap gap-x-3">
+                    {opt.quantity != null && opt.quantity > 1 && opt.unit_price != null && opt.unit_price > 0 && (
+                      <p className="text-[10px] text-muted-foreground ml-1">
+                        R$ {opt.unit_price.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} × {opt.quantity} un
+                      </p>
+                    )}
+                    {opt.valor_por_pessoa != null && opt.valor_por_pessoa > 0 && (
+                      <p className="text-[10px] text-muted-foreground ml-1">
+                        + R$ {opt.valor_por_pessoa.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}/pessoa × {form.guest_count || 0} convidados
+                      </p>
+                    )}
+                  </div>
                 </div>
               ))}
               <Button
