@@ -568,7 +568,7 @@ export default function Onboarding() {
           />
         )}
         {step === 4 && <Step4 data={data} update={update} />}
-        {step === 5 && <Step5 data={data} update={update} />}
+        {step === 5 && <Step5 data={data} update={update} opData={opData} setOpData={setOpData} />}
         {step === 6 && (
           <Step6
             data={data} update={update}
