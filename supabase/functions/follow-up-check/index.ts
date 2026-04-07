@@ -126,8 +126,10 @@ const instanceHealthCache = new Map<string, { healthy: boolean; reason?: string 
 async function checkInstanceHealth(
   supabase: ReturnType<typeof createClient>,
   instanceDbId: string,
+  options?: { allowRecentActivityBypass?: boolean; recentActivityMinutes?: number },
 ): Promise<{ healthy: boolean; reason?: string }> {
-  const cached = instanceHealthCache.get(instanceDbId);
+  const cacheKey = `${instanceDbId}:${options?.allowRecentActivityBypass ? 'recent-bypass' : 'default'}`;
+  const cached = instanceHealthCache.get(cacheKey);
   if (cached !== undefined) return cached;
 
   const { data: inst } = await supabase
@@ -146,8 +148,30 @@ async function checkInstanceHealth(
   if (inst.connected_at) {
     const minutesSinceConnect = (Date.now() - new Date(inst.connected_at).getTime()) / (60 * 1000);
     if (minutesSinceConnect < QUARANTINE_MINUTES) {
+      if (options?.allowRecentActivityBypass) {
+        try {
+          const activityWindowMinutes = options.recentActivityMinutes ?? 30;
+          const recentActivityCutoff = new Date(Date.now() - activityWindowMinutes * 60 * 1000).toISOString();
+          const { data: recentActivity } = await supabase
+            .from("wapi_conversations")
+            .select("id")
+            .eq("instance_id", instanceDbId)
+            .gte("last_message_at", recentActivityCutoff)
+            .limit(1);
+
+          if (recentActivity && recentActivity.length > 0) {
+            const result = { healthy: true, reason: `recent_activity_bypass (${activityWindowMinutes}min)` };
+            instanceHealthCache.set(cacheKey, result);
+            console.log(`[follow-up-check] 🛡️ Instance ${instanceDbId} in quarantine but bypassed by recent activity (${activityWindowMinutes}min window)`);
+            return result;
+          }
+        } catch (activityErr) {
+          console.warn(`[follow-up-check] Recent activity bypass check failed for ${instanceDbId}:`, activityErr);
+        }
+      }
+
       const result = { healthy: false, reason: `quarantine (connected ${Math.floor(minutesSinceConnect)}min ago, need ${QUARANTINE_MINUTES}min)` };
-      instanceHealthCache.set(instanceDbId, result);
+      instanceHealthCache.set(cacheKey, result);
       console.log(`[follow-up-check] 🛡️ Instance ${instanceDbId} in quarantine — ${Math.floor(minutesSinceConnect)}/${QUARANTINE_MINUTES} min`);
       return result;
     }
@@ -179,7 +203,7 @@ async function checkInstanceHealth(
       const status = statusData?.status || "disconnected";
       if (status === "connected") {
         const result = { healthy: true };
-        instanceHealthCache.set(instanceDbId, result);
+        instanceHealthCache.set(cacheKey, result);
         return result;
       }
 
@@ -199,7 +223,7 @@ async function checkInstanceHealth(
           if (recentActivity && recentActivity.length > 0) {
             console.log(`[follow-up-check] 🛡️ Instance ${instanceDbId} reported ${status} but has recent activity — treating as healthy (evidence-based)`);
             const result = { healthy: true };
-            instanceHealthCache.set(instanceDbId, result);
+            instanceHealthCache.set(cacheKey, result);
             return result;
           }
         } catch (activityErr) {
@@ -208,7 +232,7 @@ async function checkInstanceHealth(
       }
 
       const result = { healthy: false, reason: `live_status=${status}` };
-      instanceHealthCache.set(instanceDbId, result);
+      instanceHealthCache.set(cacheKey, result);
       console.log(`[follow-up-check] 🛡️ Instance ${instanceDbId} not healthy: ${status}`);
       return result;
     }
@@ -229,13 +253,13 @@ async function checkInstanceHealth(
     if (recentActivity && recentActivity.length > 0) {
       console.log(`[follow-up-check] 🛡️ Instance ${instanceDbId} health check failed but has recent activity — treating as healthy`);
       const result = { healthy: true };
-      instanceHealthCache.set(instanceDbId, result);
+      instanceHealthCache.set(cacheKey, result);
       return result;
     }
   } catch (_) { /* ignore */ }
 
   const result = { healthy: false, reason: "health_check_failed" };
-  instanceHealthCache.set(instanceDbId, result);
+  instanceHealthCache.set(cacheKey, result);
   return result;
 }
 
@@ -2848,7 +2872,10 @@ async function processStuckSendingMaterials({
       }
 
       // Health gate
-      const health = await checkInstanceHealth(supabase, instance.id);
+      const health = await checkInstanceHealth(supabase, instance.id, {
+        allowRecentActivityBypass: true,
+        recentActivityMinutes: 30,
+      });
       if (!health.healthy) {
         console.log(`[follow-up-check] 🛡️ Sending_materials recovery BLOCKED for conv ${conv.id}: ${health.reason}`);
         continue;
