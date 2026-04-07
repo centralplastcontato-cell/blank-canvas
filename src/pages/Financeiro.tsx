@@ -823,7 +823,7 @@ export default function Financeiro() {
                 </TabsContent>
 
                 {/* Tab Contas */}
-                <TabsContent value="contas" className="space-y-4">
+                {financialPerms.canViewBankAccounts && <TabsContent value="contas" className="space-y-4">
                   {statementAccount ? (
                     <div className="space-y-3">
                       <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => setStatementAccount(null)}>
