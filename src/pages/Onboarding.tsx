@@ -114,6 +114,7 @@ export default function Onboarding() {
   const { slug } = useParams<{ slug: string }>();
   const [step, setStep] = useState(1);
   const [data, setData] = useState<OnboardingData>(initialData);
+  const [opData, setOpData] = useState<OperationalData>(initialOperationalData);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState("");
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
@@ -127,6 +128,8 @@ export default function Onboarding() {
   const [uploadingVideos, setUploadingVideos] = useState(false);
   const [uploadingBudget, setUploadingBudget] = useState(false);
   const [uploadingScreenshots, setUploadingScreenshots] = useState(false);
+
+  const isOptionalStep = step >= 8;
 
   useEffect(() => {
     const fetchCompany = async () => {
