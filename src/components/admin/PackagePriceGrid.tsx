@@ -125,12 +125,12 @@ export const PackagePriceGrid = forwardRef<PackagePriceGridHandle, PackagePriceG
         </div>
 
         <div className="overflow-x-auto -mx-2 px-2">
-          <table className="w-full text-xs border-collapse">
+          <table className="w-full text-xs border-collapse min-w-0">
             <thead>
               <tr>
-                <th className="text-left py-2 px-1.5 text-muted-foreground font-medium whitespace-nowrap">Convidados</th>
+                <th className="text-left py-2 px-1 text-muted-foreground font-medium whitespace-nowrap text-[10px] sm:text-xs">Convidados</th>
                 {dayTypes.map((dt) => (
-                  <th key={dt.key} className="text-center py-2 px-1.5 text-muted-foreground font-medium whitespace-nowrap">
+                  <th key={dt.key} className="text-center py-2 px-0.5 sm:px-1.5 text-muted-foreground font-medium whitespace-nowrap text-[10px] sm:text-xs">
                     {dt.label}
                   </th>
                 ))}
@@ -139,13 +139,13 @@ export const PackagePriceGrid = forwardRef<PackagePriceGridHandle, PackagePriceG
             <tbody>
               {guestTiers.map((guest) => (
                 <tr key={guest} className="border-t border-border/30">
-                  <td className="py-1.5 px-1.5 font-medium text-foreground whitespace-nowrap">{guest} pessoas</td>
+                  <td className="py-1.5 px-1 font-medium text-foreground whitespace-nowrap text-[10px] sm:text-xs">{guest}</td>
                   {dayTypes.map((dt) => (
-                    <td key={dt.key} className="py-1.5 px-1">
+                    <td key={dt.key} className="py-1.5 px-0.5 sm:px-1">
                       <div className="relative">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">R$</span>
+                        <span className="absolute left-1.5 sm:left-2 top-1/2 -translate-y-1/2 text-[9px] sm:text-[10px] text-muted-foreground">R$</span>
                         <Input
-                          className="h-8 text-xs pl-7 pr-2 w-[110px]"
+                          className="h-7 sm:h-8 text-[10px] sm:text-xs pl-6 sm:pl-7 pr-1 sm:pr-2 w-full min-w-[70px]"
                           inputMode="decimal"
                           placeholder="0,00"
                           value={tiers.get(key(guest, dt.key)) || ""}
