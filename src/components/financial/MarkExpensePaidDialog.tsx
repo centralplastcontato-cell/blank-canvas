@@ -36,8 +36,9 @@ export function MarkExpensePaidDialog({ open, onOpenChange, expenseId, expenseDe
   };
 
   const handleConfirm = () => {
-    const data: { status: string; receipt_url?: string } = { status: 'pago' };
+    const data: { status: string; receipt_url?: string; bank_account_id?: string } = { status: 'pago' };
     if (receiptUrl) data.receipt_url = receiptUrl;
+    if (bankAccountId) data.bank_account_id = bankAccountId;
     onConfirm(expenseId, data);
     handleClose();
   };
@@ -45,6 +46,7 @@ export function MarkExpensePaidDialog({ open, onOpenChange, expenseId, expenseDe
   const handleClose = () => {
     setReceiptUrl(null);
     setPreview(null);
+    setBankAccountId('');
     onOpenChange(false);
   };
 
