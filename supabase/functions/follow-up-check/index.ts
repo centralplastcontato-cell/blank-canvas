@@ -148,6 +148,8 @@ async function checkInstanceHealth(
   if (inst.connected_at) {
     const minutesSinceConnect = (Date.now() - new Date(inst.connected_at).getTime()) / (60 * 1000);
     if (minutesSinceConnect < QUARANTINE_MINUTES) {
+      let quarantineBypassed = false;
+
       if (options?.allowRecentActivityBypass) {
         try {
           const activityWindowMinutes = options.recentActivityMinutes ?? 30;
@@ -165,15 +167,21 @@ async function checkInstanceHealth(
             console.log(`[follow-up-check] 🛡️ Instance ${instanceDbId} in quarantine but bypassed by recent activity (${activityWindowMinutes}min window)`);
             return result;
           }
+
+          quarantineBypassed = true;
         } catch (activityErr) {
           console.warn(`[follow-up-check] Recent activity bypass check failed for ${instanceDbId}:`, activityErr);
         }
       }
 
-      const result = { healthy: false, reason: `quarantine (connected ${Math.floor(minutesSinceConnect)}min ago, need ${QUARANTINE_MINUTES}min)` };
-      instanceHealthCache.set(cacheKey, result);
-      console.log(`[follow-up-check] 🛡️ Instance ${instanceDbId} in quarantine — ${Math.floor(minutesSinceConnect)}/${QUARANTINE_MINUTES} min`);
-      return result;
+      if (quarantineBypassed) {
+        console.log(`[follow-up-check] 🛡️ Instance ${instanceDbId} still in quarantine, but continuing with live status check for recovery path`);
+      } else {
+        const result = { healthy: false, reason: `quarantine (connected ${Math.floor(minutesSinceConnect)}min ago, need ${QUARANTINE_MINUTES}min)` };
+        instanceHealthCache.set(cacheKey, result);
+        console.log(`[follow-up-check] 🛡️ Instance ${instanceDbId} in quarantine — ${Math.floor(minutesSinceConnect)}/${QUARANTINE_MINUTES} min`);
+        return result;
+      }
     }
   }
 
