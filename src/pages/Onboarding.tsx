@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, ArrowRight, Upload, X, CheckCircle2, PartyPopper, Camera, Video, FileText, MessageSquare, Eye, Plus, Trash2 } from "lucide-react";
+import { Loader2, ArrowLeft, ArrowRight, Upload, X, CheckCircle2, PartyPopper, Camera, Video, FileText, MessageSquare, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
