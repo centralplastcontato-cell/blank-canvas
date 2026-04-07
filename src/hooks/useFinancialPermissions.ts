@@ -6,6 +6,7 @@ export interface FinancialPermissions {
   canViewValues: boolean;
   canEdit: boolean;
   canPay: boolean;
+  canViewBankAccounts: boolean;
 }
 
 /**
