@@ -255,6 +255,9 @@ export default function Onboarding() {
         if (error) throw error;
         if (inserted) setOnboardingId(inserted.id);
       }
+      // Auto-import operational data into company settings
+      await syncOperationalDataToSettings(companyId, opData);
+
       setSubmitted(true);
     } catch (err: any) {
       toast({ title: "Erro ao finalizar", description: err.message || "Tente novamente.", variant: "destructive" });
