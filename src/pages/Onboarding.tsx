@@ -224,6 +224,89 @@ export default function Onboarding() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const syncOperationalDataToSettings = async (cId: string, op: OperationalData) => {
+    try {
+      // Fetch current company settings
+      const { data: company } = await supabase
+        .from("companies")
+        .select("settings")
+        .eq("id", cId)
+        .single();
+
+      const currentSettings = (company?.settings as Record<string, unknown>) || {};
+      const newSettings: Record<string, unknown> = { ...currentSettings };
+
+      // Sync event_types
+      if (op.event_types.length > 0) {
+        newSettings.event_types = op.event_types;
+      }
+
+      // Sync guest_ranges
+      if (op.guest_ranges.length > 0) {
+        newSettings.guest_ranges = op.guest_ranges;
+      }
+
+      // Sync party_schedules
+      if (op.party_schedules.length > 0) {
+        newSettings.party_schedules = op.party_schedules;
+      }
+
+      // Sync working_days
+      if (op.working_days.length > 0) {
+        newSettings.working_days = op.working_days;
+      }
+
+      // Sync legal info
+      if (op.company_legal_name) newSettings.company_legal_name = op.company_legal_name;
+      if (op.cnpj) newSettings.cnpj = op.cnpj;
+      if (op.bank_info) newSettings.bank_info = op.bank_info;
+      if (op.differentials) newSettings.differentials = op.differentials;
+
+      // Update company settings
+      await supabase.from("companies").update({ settings: newSettings as any }).eq("id", cId);
+
+      // Sync packages to company_packages table
+      if (op.packages.length > 0) {
+        const packageRows = op.packages.map((pkg, i) => ({
+          company_id: cId,
+          name: pkg.name,
+          description: `Valor base: R$ ${pkg.base_price}`,
+          sort_order: i,
+          is_active: true,
+          preco_separado: false,
+        }));
+        await supabase.from("company_packages").insert(packageRows);
+      }
+
+      // Sync optionals to company_optionals table
+      if (op.optionals.length > 0) {
+        const optRows = op.optionals.map((opt, i) => ({
+          company_id: cId,
+          name: opt.name,
+          value: opt.value ? parseFloat(opt.value.replace(/[^\d.,]/g, '').replace(',', '.')) || 0 : 0,
+          sort_order: i,
+          is_active: true,
+        }));
+        await supabase.from("company_optionals").insert(optRows);
+      }
+
+      // Sync units to company_units table
+      if (op.units.length > 0) {
+        const unitRows = op.units.map((u, i) => ({
+          company_id: cId,
+          name: u.name,
+          slug: u.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+          sort_order: i,
+          is_active: true,
+        }));
+        await supabase.from("company_units").insert(unitRows);
+      }
+    } catch (err) {
+      console.error('Erro ao sincronizar dados operacionais:', err);
+      // Non-blocking - onboarding still completes
+    }
+  };
+
   const handleSubmit = async () => {
     if (!companyId) return;
     setSubmitting(true);
@@ -255,6 +338,9 @@ export default function Onboarding() {
         if (error) throw error;
         if (inserted) setOnboardingId(inserted.id);
       }
+      // Auto-import operational data into company settings
+      await syncOperationalDataToSettings(companyId, opData);
+
       setSubmitted(true);
     } catch (err: any) {
       toast({ title: "Erro ao finalizar", description: err.message || "Tente novamente.", variant: "destructive" });
