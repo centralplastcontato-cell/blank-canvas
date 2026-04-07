@@ -19,6 +19,7 @@ export interface EnrichedPayment {
   event_type: string;
   unit: string;
   is_permuta: boolean;
+  bank_account_id: string | null;
 }
 
 export interface Expense {
@@ -34,6 +35,7 @@ export interface Expense {
   notes: string | null;
   receipt_url: string | null;
   created_at: string;
+  bank_account_id: string | null;
 }
 
 export interface FinanceiroDashboardFilters {
@@ -42,6 +44,7 @@ export interface FinanceiroDashboardFilters {
   unit: string;
   status: string;
   tipo: string;
+  bankAccount: string;
 }
 
 export function useFinanceiroDashboard() {
@@ -57,6 +60,7 @@ export function useFinanceiroDashboard() {
     unit: 'all',
     status: 'all',
     tipo: 'all',
+    bankAccount: 'all',
   });
 
   const fetchData = useCallback(async () => {
@@ -235,6 +239,7 @@ export function useFinanceiroDashboard() {
         event_type: eventsMap[p.event_id]?.event_type || '',
         unit: eventsMap[p.event_id]?.unit || '',
         is_permuta: eventsMap[p.event_id]?.is_permuta || false,
+        bank_account_id: p.bank_account_id || null,
       }));
 
       setPayments(enriched);
@@ -262,9 +267,10 @@ export function useFinanceiroDashboard() {
         if (filters.status === 'pending' && p.status !== 'pending') return false;
         if (filters.status === 'late' && p.status !== 'late') return false;
       }
+      if (filters.bankAccount !== 'all' && p.bank_account_id !== filters.bankAccount) return false;
       return true;
     });
-  }, [payments, filters.unit, filters.status]);
+  }, [payments, filters.unit, filters.status, filters.bankAccount]);
 
   const filteredExpenses = useMemo(() => {
     return expenses.filter(e => {
@@ -272,9 +278,10 @@ export function useFinanceiroDashboard() {
         if (filters.status === 'paid' && e.status !== 'pago') return false;
         if (filters.status === 'pending' && e.status !== 'pendente') return false;
       }
+      if (filters.bankAccount !== 'all' && e.bank_account_id !== filters.bankAccount) return false;
       return true;
     });
-  }, [expenses, filters.status]);
+  }, [expenses, filters.status, filters.bankAccount]);
 
   // Aggregations using from/to range — exclude permuta from financial totals
   const nonPermutaPayments = filteredPayments.filter(p => !p.is_permuta);

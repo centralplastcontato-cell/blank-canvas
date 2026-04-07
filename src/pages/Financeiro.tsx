@@ -337,6 +337,24 @@ export default function Financeiro() {
                       <SelectItem value="late">Atrasado</SelectItem>
                     </SelectContent>
                   </Select>
+                  {bankAccounts.activeAccounts.length > 0 && (
+                    <Select value={dashboard.filters.bankAccount} onValueChange={v => dashboard.setFilters(f => ({ ...f, bankAccount: v }))}>
+                      <SelectTrigger className="w-40 h-9 text-xs">
+                        <SelectValue placeholder="Todas contas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas contas</SelectItem>
+                        {bankAccounts.activeAccounts.map(acc => (
+                          <SelectItem key={acc.id} value={acc.id}>
+                            <span className="flex items-center gap-1.5">
+                              {acc.account_type === 'caixa' ? <Wallet className="h-3 w-3 text-muted-foreground" /> : <Building className="h-3 w-3 text-muted-foreground" />}
+                              {acc.name}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
               </div>
 
