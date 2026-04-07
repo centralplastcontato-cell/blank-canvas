@@ -247,7 +247,7 @@ export function PackagesManager() {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-3xl max-w-[calc(100vw-2rem)] p-0 gap-0 overflow-hidden bg-background border-border/60 shadow-xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="p-6 pb-4">
+          <DialogHeader className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 sm:pb-4">
             <DialogTitle className="text-lg font-bold">{editing ? "Editar Pacote" : "Novo Pacote"}</DialogTitle>
             <p className="text-sm text-muted-foreground mt-0.5">
               {editing ? "Atualize as informações do pacote" : "Cadastre um novo pacote para seus eventos"}
