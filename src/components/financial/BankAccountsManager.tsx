@@ -72,7 +72,7 @@ export function BankAccountsManager() {
       agency: agency.trim() || undefined,
       account_number: accountNumber.trim() || undefined,
       account_type: accountType,
-      initial_balance: parseFloat(initialBalance) || 0,
+      initial_balance: parseCurrency(initialBalance),
       is_default: isDefault,
     };
 
