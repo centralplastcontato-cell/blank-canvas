@@ -20,7 +20,7 @@ const ACCOUNT_TYPES = [
 
 const TYPE_LABELS: Record<string, string> = Object.fromEntries(ACCOUNT_TYPES.map(t => [t.value, t.label]));
 
-const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
 
 export function BankAccountsManager() {
   const { accounts, isLoading, createAccount, updateAccount, deleteAccount, toggleActive } = useBankAccounts();
@@ -140,25 +140,8 @@ export function BankAccountsManager() {
                 {acc.account_number && <span className="text-[10px] text-muted-foreground">CC: {acc.account_number}</span>}
               </div>
 
-              <div className="space-y-1 mb-3">
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Saldo inicial</span>
-                  <span className="font-medium">{fmt(acc.initial_balance)}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-emerald-500">+ Entradas</span>
-                  <span className="font-medium text-emerald-500">{fmt(acc.total_entries)}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-red-400">- Saídas</span>
-                  <span className="font-medium text-red-400">{fmt(acc.total_exits)}</span>
-                </div>
-                <div className="border-t border-border/50 pt-1 flex justify-between text-sm">
-                  <span className="font-semibold">Saldo atual</span>
-                  <span className={`font-bold ${acc.current_balance >= 0 ? 'text-emerald-500' : 'text-red-400'}`}>
-                    {fmt(acc.current_balance)}
-                  </span>
-                </div>
+              <div className="text-xs text-muted-foreground mb-3">
+                Criada em {new Date(acc.created_at).toLocaleDateString('pt-BR')}
               </div>
 
               <div className="flex items-center justify-between border-t border-border/30 pt-2">
