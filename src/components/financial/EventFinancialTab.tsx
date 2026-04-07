@@ -43,6 +43,12 @@ interface Props {
 
 export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = true, canPay = true, showValues = true }: Props) {
   const financial = useEventFinancial(eventId, companyId, baseValue);
+  const { activeAccounts } = useBankAccounts();
+  const bankAccountMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    activeAccounts.forEach(a => { map[a.id] = a.name; });
+    return map;
+  }, [activeAccounts]);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [extraDialogOpen, setExtraDialogOpen] = useState(false);
   const [discountDialogOpen, setDiscountDialogOpen] = useState(false);
