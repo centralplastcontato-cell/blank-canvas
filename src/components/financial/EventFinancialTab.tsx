@@ -138,12 +138,20 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
   }, [financial.isLoading, financial.payments.length, eventId, companyId]);
 
   const handleMarkAsPaid = async (payment: any) => {
-    await financial.markAsPaid(payment);
-    setRecentlyPaidIds(prev => new Set(prev).add(payment.id));
+    setMarkPaidPayment(payment);
+    setMarkPaidBankId(null);
+  };
+
+  const confirmMarkAsPaid = async () => {
+    if (!markPaidPayment) return;
+    await financial.markAsPaid(markPaidPayment, markPaidBankId);
+    setRecentlyPaidIds(prev => new Set(prev).add(markPaidPayment.id));
+    setMarkPaidPayment(null);
+    setMarkPaidBankId(null);
     setTimeout(() => {
       setRecentlyPaidIds(prev => {
         const next = new Set(prev);
-        next.delete(payment.id);
+        next.delete(markPaidPayment.id);
         return next;
       });
     }, 2000);
