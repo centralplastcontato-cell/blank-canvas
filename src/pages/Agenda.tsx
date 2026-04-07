@@ -119,7 +119,19 @@ const mapEventToFormData = (ev: CompanyEvent): EventFormData => ({
   total_value: (() => {
     const optionals = Array.isArray(ev.event_optionals) ? ev.event_optionals : [];
     const optionalsTotal = optionals.reduce((sum: number, o: any) => sum + (o.value || 0), 0);
-    return ev.total_value != null ? Math.max(0, ev.total_value - optionalsTotal) : null;
+    const pd = (ev.payment_details || {}) as any;
+    const discountVal = pd.discount_value || 0;
+    const discountType = pd.discount_type;
+    const discountBase = pd.discount_base || 'total';
+    const rawTotal = ev.total_value != null ? Math.max(0, ev.total_value - optionalsTotal) : null;
+    if (rawTotal == null || !discountType || !discountVal) return rawTotal;
+    // Reverse the discount to recover the original package value
+    if (discountBase === 'pacote') {
+      // grandTotal was (package - discount) + optionals, so rawTotal = package - discount
+      return discountType === 'percentage' ? Math.round(rawTotal / (1 - discountVal / 100) * 100) / 100 : rawTotal + discountVal;
+    }
+    // discountBase === 'total': grandTotal was (package + optionals) - discount, so rawTotal = package + optionals - discount - optionals = package - discount
+    return discountType === 'percentage' ? Math.round(rawTotal / (1 - discountVal / 100) * 100) / 100 : rawTotal + discountVal;
   })(),
   notes: ev.notes || "",
   lead_id: ev.lead_id || null,
