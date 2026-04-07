@@ -267,9 +267,10 @@ export function useFinanceiroDashboard() {
         if (filters.status === 'pending' && p.status !== 'pending') return false;
         if (filters.status === 'late' && p.status !== 'late') return false;
       }
+      if (filters.bankAccount !== 'all' && p.bank_account_id !== filters.bankAccount) return false;
       return true;
     });
-  }, [payments, filters.unit, filters.status]);
+  }, [payments, filters.unit, filters.status, filters.bankAccount]);
 
   const filteredExpenses = useMemo(() => {
     return expenses.filter(e => {
