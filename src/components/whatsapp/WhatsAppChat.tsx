@@ -227,6 +227,7 @@ interface WhatsAppChatProps {
   externalSelectedUnit?: string | null;
   onInstancesLoaded?: (instances: { id: string; unit: string | null; status: string | null }[]) => void;
   onLeadClosedMobile?: (lead: Lead) => void | Promise<void>;
+  onUnreadCountChange?: () => void;
 }
 
 const isLeadCompatibleWithInstance = (lead: Lead, instanceUnit: string | null | undefined) => {
@@ -1293,7 +1294,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           .from('wapi_conversations')
           .update({ unread_count: 0 })
           .eq('id', selectedConversation.id)
-          .then(() => {});
+          .then(() => {
+            onUnreadCountChange?.();
+          });
       }
     } else {
       setLinkedLead(null);
