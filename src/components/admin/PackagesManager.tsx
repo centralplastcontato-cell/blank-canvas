@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Plus, Trash2, Pencil, Package, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { PackagePriceGrid } from "./PackagePriceGrid";
+import { PackagePriceGrid, type PackagePriceGridHandle } from "./PackagePriceGrid";
 
 interface CompanyPackage {
   id: string;
@@ -25,7 +25,6 @@ interface CompanyPackage {
 }
 
 function formatCurrency(value: string): string {
-  // Remove tudo que não é número
   const digits = value.replace(/\D/g, "");
   if (!digits) return "";
   const num = parseInt(digits, 10);
@@ -49,13 +48,10 @@ function CurrencyInput({ value, onChange, placeholder }: { value: string; onChan
     onChange(formatCurrency(raw));
   };
   return (
-    <Input
-      type="text"
-      inputMode="decimal"
-      value={value ? `R$ ${value}` : ""}
-      onChange={handleChange}
-      placeholder={placeholder || "R$ 0,00"}
-    />
+    <div className="relative">
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
+      <Input className="pl-9" placeholder={placeholder} value={value} onChange={handleChange} inputMode="decimal" />
+    </div>
   );
 }
 
@@ -72,6 +68,7 @@ export function PackagesManager() {
   const [valorCrianca, setValorCrianca] = useState("");
   const [valorAdulto, setValorAdulto] = useState("");
   const [saving, setSaving] = useState(false);
+  const priceGridRef = useRef<PackagePriceGridHandle>(null);
 
   const fetchPackages = async () => {
     if (!currentCompany?.id) return;
@@ -134,32 +131,30 @@ export function PackagesManager() {
       payload.valor_pessoa_adicional_adulto = null;
     }
 
+    let targetId = editing?.id;
+
     if (editing) {
       await supabase.from("company_packages").update(payload).eq("id", editing.id);
-      toast({ title: "Pacote atualizado!" });
-      setSaving(false);
-      setDialogOpen(false);
-      fetchPackages();
     } else {
       const { data: created } = await supabase
         .from("company_packages")
         .insert({ ...payload, company_id: currentCompany.id } as any)
         .select("*")
         .single();
-      
-      setSaving(false);
-      await fetchPackages();
-
       if (created) {
-        // Auto-open in edit mode so user can configure price grid
-        const newPkg = created as unknown as CompanyPackage;
-        setEditing(newPkg);
-        toast({ title: "Pacote criado! Configure a grade de preços abaixo." });
-      } else {
-        toast({ title: "Pacote criado!" });
-        setDialogOpen(false);
+        targetId = (created as any).id;
       }
     }
+
+    // Save price tiers
+    if (targetId && priceGridRef.current) {
+      await priceGridRef.current.saveTiers(targetId);
+    }
+
+    toast({ title: editing ? "Pacote atualizado!" : "Pacote criado!" });
+    setSaving(false);
+    setDialogOpen(false);
+    fetchPackages();
   };
 
   const handleDelete = async (id: string) => {
@@ -217,7 +212,6 @@ export function PackagesManager() {
               {pkg.description && (
                 <p className="text-xs text-muted-foreground line-clamp-2 pl-[46px]">{pkg.description}</p>
               )}
-              {/* Pricing display */}
               <div className="ml-[46px] flex flex-wrap gap-2">
                 {pkg.preco_separado ? (
                   <>
@@ -312,16 +306,15 @@ export function PackagesManager() {
               )}
             </div>
 
-            {/* Seção: Grade de Preços (só aparece ao editar) */}
-            {editing && (
-              <div className="rounded-xl border border-border/60 bg-card p-4">
-                <PackagePriceGrid
-                  packageId={editing.id}
-                  companyId={currentCompany?.id || ""}
-                  settings={currentCompany?.settings as Record<string, unknown> | null}
-                />
-              </div>
-            )}
+            {/* Seção: Grade de Preços — sempre visível */}
+            <div className="rounded-xl border border-border/60 bg-card p-4">
+              <PackagePriceGrid
+                ref={priceGridRef}
+                packageId={editing?.id}
+                companyId={currentCompany?.id || ""}
+                settings={currentCompany?.settings as Record<string, unknown> | null}
+              />
+            </div>
 
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
