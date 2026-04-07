@@ -556,9 +556,11 @@ export default function CentralAtendimento() {
 
   // Optimized: Fetch unread count with debounced realtime
   const fetchUnreadCount = useCallback(async () => {
+    if (!currentCompany?.id) return;
     const { data } = await supabase
       .from("wapi_conversations")
-      .select("unread_count, instance_id");
+      .select("unread_count, instance_id")
+      .eq("company_id", currentCompany.id);
     
     if (data) {
       const total = data.reduce((sum, conv) => sum + (conv.unread_count || 0), 0);
@@ -572,7 +574,7 @@ export default function CentralAtendimento() {
       });
       setUnreadPerInstance(perInst);
     }
-  }, []);
+  }, [currentCompany?.id]);
 
   useEffect(() => {
     fetchUnreadCount();
