@@ -10,7 +10,7 @@ import { ExpenseFormDialog } from '@/components/financial/ExpenseFormDialog';
 import { EventFinancialTab } from '@/components/financial/EventFinancialTab';
 import { FinancialReportDialog } from '@/components/financial/FinancialReportDialog';
 import { MarkExpensePaidDialog } from '@/components/financial/MarkExpensePaidDialog';
-import { BankAccountsManager } from '@/components/financial/BankAccountsManager';
+
 import { BankAccountStatement } from '@/components/financial/BankAccountStatement';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { MobileMenu } from '@/components/admin/MobileMenu';
