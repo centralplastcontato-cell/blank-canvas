@@ -13,6 +13,7 @@ import { MarkExpensePaidDialog } from '@/components/financial/MarkExpensePaidDia
 
 import { BankAccountStatement } from '@/components/financial/BankAccountStatement';
 import { BankAccountSelect } from '@/components/financial/BankAccountSelect';
+import { TransferBetweenAccountsDialog } from '@/components/financial/TransferBetweenAccountsDialog';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { MobileMenu } from '@/components/admin/MobileMenu';
 import { NotificationBell } from '@/components/admin/NotificationBell';
@@ -26,7 +27,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale, Building, Zap, PartyPopper, List, Users, ChevronLeft, ChevronRight, ExternalLink, ArrowUpDown, CalendarRange, X, FileText, CheckCircle, RotateCcw, Clock } from 'lucide-react';
+import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale, Building, Zap, PartyPopper, List, Users, ChevronLeft, ChevronRight, ExternalLink, ArrowUpDown, CalendarRange, X, FileText, CheckCircle, RotateCcw, Clock, ArrowLeftRight } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, addMonths, startOfYear, endOfYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -116,6 +117,7 @@ export default function Financeiro() {
   const [statementAccount, setStatementAccount] = useState<BankAccountBalance | null>(null);
   const [markPaidPayment, setMarkPaidPayment] = useState<any>(null);
   const [markPaidBankId, setMarkPaidBankId] = useState<string | null>(null);
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   const bankAccounts = useBankAccounts();
   const bankAccountMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -874,13 +876,23 @@ export default function Financeiro() {
                       {/* Total balance across accounts */}
                       {bankAccounts.activeAccounts.length > 0 && (
                         <Card className="p-4 bg-card border-border">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Building className="h-4 w-4 text-primary" />
-                            <span className="text-sm font-semibold">Saldo Consolidado</span>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <Building className="h-4 w-4 text-primary" />
+                                <span className="text-sm font-semibold">Saldo Consolidado</span>
+                              </div>
+                              <p className={`text-2xl font-bold ${bankAccounts.activeAccounts.reduce((s, a) => s + a.current_balance, 0) >= 0 ? 'text-emerald-500' : 'text-red-400'}`}>
+                                {fmt(bankAccounts.activeAccounts.reduce((s, a) => s + a.current_balance, 0))}
+                              </p>
+                            </div>
+                            {bankAccounts.activeAccounts.length >= 2 && (
+                              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setTransferDialogOpen(true)}>
+                                <ArrowLeftRight className="h-3.5 w-3.5" />
+                                Transferir
+                              </Button>
+                            )}
                           </div>
-                          <p className={`text-2xl font-bold ${bankAccounts.activeAccounts.reduce((s, a) => s + a.current_balance, 0) >= 0 ? 'text-emerald-500' : 'text-red-400'}`}>
-                            {fmt(bankAccounts.activeAccounts.reduce((s, a) => s + a.current_balance, 0))}
-                          </p>
                         </Card>
                       )}
 
@@ -1045,6 +1057,13 @@ export default function Financeiro() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <TransferBetweenAccountsDialog
+        open={transferDialogOpen}
+        onOpenChange={setTransferDialogOpen}
+        accounts={bankAccounts.activeAccounts}
+        onSuccess={() => { bankAccounts.refresh(); dashboard.refresh(); }}
+      />
     </SidebarProvider>
   );
 }
