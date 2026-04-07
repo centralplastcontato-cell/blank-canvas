@@ -433,7 +433,7 @@ export default function Financeiro() {
               {/* Tabs */}
               <Tabs defaultValue="receitas" className="w-full">
                 <TabsList className="bg-transparent p-0 h-auto gap-1">
-                  {['receitas', 'despesas', 'resultado', 'contas'].map(tab => (
+                  {(financialPerms.canViewBankAccounts ? ['receitas', 'despesas', 'resultado', 'contas'] : ['receitas', 'despesas', 'resultado']).map(tab => (
                     <TabsTrigger
                       key={tab}
                       value={tab}
