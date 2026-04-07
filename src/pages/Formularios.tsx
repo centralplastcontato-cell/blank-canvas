@@ -383,6 +383,14 @@ export default function Formularios() {
                   </div>
                 </TabsContent>
               )}
+
+              {canPacotes && (
+                <TabsContent value="contas_bancarias" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-4">
+                  <div className="max-w-7xl mx-auto w-full">
+                    <BankAccountsManager />
+                  </div>
+                </TabsContent>
+              )}
             </Tabs>
           </div>
         </div>
