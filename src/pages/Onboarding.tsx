@@ -131,7 +131,7 @@ export default function Onboarding() {
   const [uploadingVideos, setUploadingVideos] = useState(false);
   const [uploadingBudget, setUploadingBudget] = useState(false);
   const [uploadingScreenshots, setUploadingScreenshots] = useState(false);
-  const [restoredFromLocal, setRestoredFromLocal] = useState(false);
+  
 
   const isOptionalStep = step >= 8;
 
