@@ -179,6 +179,7 @@ export default function Agenda() {
   const [contentMode, setContentMode] = useState<"agendadas" | "fechadas" | "pre-reservas">("agendadas");
   const [allPreReservations, setAllPreReservations] = useState<PreReservation[]>([]);
   const [closedSortBy, setClosedSortBy] = useState<"event_date" | "fechamento">("fechamento");
+  const [agendaCardFees, setAgendaCardFees] = useState<any[]>([]);
 
   const { canViewAll, allowedUnits, unitAccess, isLoading: permUnitLoading } = useUnitPermissions(currentUser?.id, currentCompany?.id);
   const { hasPermission: userHasPermission } = usePermissions(currentUser?.id);
