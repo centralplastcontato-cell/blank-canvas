@@ -105,6 +105,12 @@ export function MarkExpensePaidDialog({ open, onOpenChange, expenseId, expenseDe
             />
           </div>
 
+          <BankAccountSelect
+            value={bankAccountId || null}
+            onValueChange={setBankAccountId}
+            label="De qual conta saiu?"
+          />
+
           <div className="flex gap-2">
             <Button variant="outline" className="flex-1" onClick={handleClose}>Cancelar</Button>
             <Button className="flex-1 gap-1.5" onClick={handleConfirm} disabled={uploading}>
