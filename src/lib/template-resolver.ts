@@ -106,6 +106,7 @@ export interface VariableContext {
     data_saldo?: string | null;
     aniversariantes?: string | null;
     opcionais?: string | null;
+    desconto?: string | null;
   };
   freelancer?: {
     name?: string | null;
@@ -375,6 +376,9 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
   },
   opcionais: {
     resolver: (ctx) => ctx.contract?.opcionais || 'Nenhum opcional contratado',
+  },
+  desconto: {
+    resolver: (ctx) => ctx.contract?.desconto || 'Sem desconto',
   },
 
   // --- Freelancer / Schedule ---

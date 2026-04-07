@@ -89,6 +89,10 @@ export interface EventFormData {
   is_permuta?: boolean;
   internal_notes?: string;
   event_optionals?: EventOptional[];
+  discount_type?: 'fixed' | 'percentage' | null;
+  discount_value?: number | null;
+  discount_base?: 'pacote' | 'total' | null;
+  discount_reason?: string | null;
 }
 
 const PAYMENT_METHODS = [
@@ -205,6 +209,10 @@ const EMPTY: EventFormData = {
   is_permuta: false,
   internal_notes: "",
   event_optionals: [],
+  discount_type: null,
+  discount_value: null,
+  discount_base: 'total',
+  discount_reason: null,
 };
 
 function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
@@ -425,12 +433,17 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       } else {
         children = [{ name: "", age: "", birthdate: "" }];
       }
+      const pd = (data.payment_details || {}) as any;
       setForm({
         ...data,
         start_time: normalizeTimeValue(data.start_time),
         end_time: normalizeTimeValue(data.end_time),
         birthday_children: children,
         event_optionals: Array.isArray(data.event_optionals) ? data.event_optionals : [],
+        discount_type: pd.discount_type || data.discount_type || null,
+        discount_value: pd.discount_value ?? data.discount_value ?? null,
+        discount_base: pd.discount_base || data.discount_base || 'total',
+        discount_reason: pd.discount_reason || data.discount_reason || null,
       });
       const loadedPayment = (data.payment_details as PaymentDetails) || EMPTY_PAYMENT;
       // Auto-fill parcelas details if saldo and parcelas are set but details have null values
@@ -548,7 +561,25 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     (form.event_optionals || []).reduce((sum, o) => sum + (o.value || 0), 0),
     [form.event_optionals]
   );
-  const grandTotal = (form.total_value || 0) + optionalsSubtotal;
+  const discountAmount = useMemo(() => {
+    if (!form.discount_type || !form.discount_value || form.discount_value <= 0) return 0;
+    const base = form.discount_base === 'pacote' ? (form.total_value || 0) : ((form.total_value || 0) + optionalsSubtotal);
+    if (form.discount_type === 'percentage') {
+      return Math.round(base * form.discount_value / 100 * 100) / 100;
+    }
+    return Math.min(form.discount_value, base);
+  }, [form.discount_type, form.discount_value, form.discount_base, form.total_value, optionalsSubtotal]);
+
+  const grandTotal = Math.max(0, (form.total_value || 0) + optionalsSubtotal - discountAmount);
+
+  const [showDiscount, setShowDiscount] = useState(false);
+
+  // Show discount section if there's already a discount value (editing)
+  useEffect(() => {
+    if (open && form.discount_value && form.discount_value > 0) {
+      setShowDiscount(true);
+    }
+  }, [open, form.discount_value]);
 
   // Update payment saldo when optionals or base value changes
   useEffect(() => {
@@ -693,7 +724,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     }
     setSaving(true);
     try {
-      const submitData = { ...form, total_value: grandTotal || null, payment_details: payment };
+      const paymentWithDiscount = { ...payment, discount_type: form.discount_type, discount_value: form.discount_value, discount_base: form.discount_base, discount_reason: form.discount_reason };
+      const submitData = { ...form, total_value: grandTotal || null, payment_details: paymentWithDiscount };
       const resultId = await onSubmit(submitData);
       if (!isEdit && resultId) {
         // Transition to edit mode: set the ID so contractor data section appears
@@ -872,7 +904,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     }
     setSaving(true);
     try {
-      const submitData = { ...form, total_value: grandTotal || null, payment_details: payment };
+      const paymentWithDiscount = { ...payment, discount_type: form.discount_type, discount_value: form.discount_value, discount_base: form.discount_base, discount_reason: form.discount_reason };
+      const submitData = { ...form, total_value: grandTotal || null, payment_details: paymentWithDiscount };
       const resultId = await onSubmit(submitData);
       if (resultId) {
         setForm(prev => ({ ...prev, id: resultId }));
@@ -1329,7 +1362,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                   setForm({ ...form, total_value: v });
                 }} />
               </div>
-              {optionalsSubtotal > 0 && (
+              {(optionalsSubtotal > 0 || discountAmount > 0) && (
                 <div className="space-y-2.5">
                   <Label className="text-sm font-medium text-foreground/70">Valor total</Label>
                   <div className="flex items-center h-10 px-3 rounded-md border border-border/50 bg-muted/50">
@@ -1339,10 +1372,106 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                     </span>
                   </div>
                   <p className="text-[10px] text-muted-foreground">
-                    Festa R$ {(form.total_value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} + Opcionais R$ {optionalsSubtotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    Festa R$ {(form.total_value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    {optionalsSubtotal > 0 && ` + Opcionais R$ ${optionalsSubtotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+                    {discountAmount > 0 && ` − Desconto R$ ${discountAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
                   </p>
                 </div>
               )}
+            </div>
+
+            {/* --- Desconto --- */}
+            {!showDiscount ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={() => {
+                  setShowDiscount(true);
+                  if (!form.discount_type) setForm(prev => ({ ...prev, discount_type: 'fixed', discount_base: 'total' }));
+                }}
+              >
+                <Plus className="h-3.5 w-3.5" /> Aplicar Desconto
+              </Button>
+            ) : (
+              <div className="rounded-lg border border-border/40 bg-muted/20 p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Desconto</p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 text-destructive/70 hover:text-destructive"
+                    onClick={() => {
+                      setShowDiscount(false);
+                      setForm(prev => ({ ...prev, discount_type: null, discount_value: null, discount_base: 'total', discount_reason: null }));
+                    }}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Tipo</Label>
+                    <Select value={form.discount_type || 'fixed'} onValueChange={(v) => setForm({ ...form, discount_type: v as 'fixed' | 'percentage' })}>
+                      <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="fixed">R$ (fixo)</SelectItem>
+                        <SelectItem value="percentage">% (percentual)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Valor</Label>
+                    {form.discount_type === 'percentage' ? (
+                      <div className="relative">
+                        <Input
+                          className="h-9 text-xs pr-7"
+                          type="number"
+                          min={0}
+                          max={100}
+                          step={0.5}
+                          placeholder="0"
+                          value={form.discount_value ?? ""}
+                          onChange={(e) => setForm({ ...form, discount_value: e.target.value ? Number(e.target.value) : null })}
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+                      </div>
+                    ) : (
+                      <MoneyInput value={form.discount_value} onChange={(v) => setForm({ ...form, discount_value: v })} />
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Incide sobre</Label>
+                    <Select value={form.discount_base || 'total'} onValueChange={(v) => setForm({ ...form, discount_base: v as 'pacote' | 'total' })}>
+                      <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="total">Valor total</SelectItem>
+                        <SelectItem value="pacote">Só pacote</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Motivo</Label>
+                    <Input
+                      className="h-9 text-xs"
+                      placeholder="Ex: Cortesia"
+                      value={form.discount_reason || ""}
+                      onChange={(e) => setForm({ ...form, discount_reason: e.target.value || null })}
+                    />
+                  </div>
+                </div>
+                {discountAmount > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Desconto: <span className="font-semibold text-destructive">−R$ {discountAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                    {" → "}Valor final: <span className="font-semibold text-foreground">R$ {grandTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2.5">
                 <Label className="text-sm font-medium text-foreground/70">Forma de pagamento</Label>
                 <Select value={form.payment_method || "none"} onValueChange={(v) => setForm({ ...form, payment_method: v === "none" ? null : v })}>
@@ -2015,7 +2144,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 }
                 setSaving(true);
                 try {
-                  const submitData = { ...form, total_value: grandTotal || null, payment_details: payment };
+                  const paymentWithDiscount = { ...payment, discount_type: form.discount_type, discount_value: form.discount_value, discount_base: form.discount_base, discount_reason: form.discount_reason };
+                  const submitData = { ...form, total_value: grandTotal || null, payment_details: paymentWithDiscount };
                   const resultId = await onSubmit(submitData);
                   if (resultId) {
                     setForm(prev => ({ ...prev, id: resultId }));
