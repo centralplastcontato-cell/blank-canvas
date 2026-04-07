@@ -180,9 +180,14 @@ export function PackagesManager() {
           <Package className="h-5 w-5 text-primary" />
           <h3 className="font-semibold">Pacotes</h3>
         </div>
-        <Button size="sm" onClick={openNew}>
-          <Plus className="h-4 w-4 mr-1" /> Novo Pacote
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => setConfigOpen(true)}>
+            <Settings2 className="h-4 w-4 mr-1" /> Configurar Grade
+          </Button>
+          <Button size="sm" onClick={openNew}>
+            <Plus className="h-4 w-4 mr-1" /> Novo Pacote
+          </Button>
+        </div>
       </div>
 
       {packages.length === 0 && (
