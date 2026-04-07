@@ -1003,6 +1003,43 @@ export default function Financeiro() {
           onConfirm={(id, data) => dashboard.updateExpense(id, data)}
         />
       )}
+
+      {/* Mark Payment as Paid Dialog */}
+      <Dialog open={!!markPaidPayment} onOpenChange={open => { if (!open) { setMarkPaidPayment(null); setMarkPaidBankId(null); } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-emerald-500" />
+              Confirmar Pagamento
+            </DialogTitle>
+          </DialogHeader>
+          {markPaidPayment && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-muted/50 border border-border/40">
+                <p className="text-xs text-muted-foreground">
+                  {markPaidPayment.lead_name || markPaidPayment.event_title || 'Pagamento'}
+                </p>
+                <p className="text-lg font-bold">
+                  {fmt(markPaidPayment.amount)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Vencimento: {format(new Date(markPaidPayment.due_date + 'T12:00:00'), 'dd/MM/yyyy')}
+                </p>
+              </div>
+              <BankAccountSelect
+                value={markPaidBankId}
+                onValueChange={setMarkPaidBankId}
+                label="Conta de destino"
+                placeholder="Selecione a conta..."
+              />
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setMarkPaidPayment(null); setMarkPaidBankId(null); }}>Cancelar</Button>
+            <Button onClick={confirmMarkPaymentPaid} className="bg-emerald-600 hover:bg-emerald-700 text-white">Confirmar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
   );
 }
