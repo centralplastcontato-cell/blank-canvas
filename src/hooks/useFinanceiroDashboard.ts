@@ -131,11 +131,18 @@ export function useFinanceiroDashboard() {
 
           const entradaAmount = parseAmount(pd.entrada_valor);
           if (!hasEntrada && entradaAmount && entradaAmount > 0) {
+            let amount = entradaAmount;
+            // Card payments: store NET amount
+            if (pd.entrada_forma === 'cartao') {
+              const parcelas = Math.max(1, Number(pd.entrada_parcelas) || 1);
+              const taxa = getCardTax(parcelas);
+              if (taxa > 0) amount = entradaAmount - (entradaAmount * taxa / 100);
+            }
             rowsToInsert.push({
               event_id: ev.id,
               company_id: companyId,
               type: 'entrada',
-              amount: entradaAmount,
+              amount: Math.round(amount * 100) / 100,
               due_date: parseDate(pd.entrada_data),
               payment_method: pd.entrada_forma || null,
               status: 'pending',
@@ -143,37 +150,58 @@ export function useFinanceiroDashboard() {
           }
 
           if (parcelaCount === 0) {
-            let createdFromDetails = false;
-            if (Array.isArray(pd.parcelas_details) && pd.parcelas_details.length > 0) {
-              pd.parcelas_details.forEach((p: any) => {
-                const parcelaAmount = parseAmount(p?.valor);
-                if (parcelaAmount && parcelaAmount > 0) {
-                  createdFromDetails = true;
-                  rowsToInsert.push({
-                    event_id: ev.id,
-                    company_id: companyId,
-                    type: 'parcela',
-                    amount: parcelaAmount,
-                    due_date: parseDate(p?.vencimento || pd.saldo_data),
-                    payment_method: pd.saldo_forma || null,
-                    status: 'pending',
-                  });
-                }
-              });
-            }
-
-            if (!createdFromDetails) {
+            // Card balance: single row with net amount, no installment splitting
+            if (pd.saldo_forma === 'cartao') {
               const saldoAmount = parseAmount(pd.saldo_valor);
               if (saldoAmount && saldoAmount > 0) {
+                const parcelas = Math.max(1, Number(pd.parcelas) || 1);
+                const taxa = getCardTax(parcelas);
+                let amount = saldoAmount;
+                if (taxa > 0) amount = saldoAmount - (saldoAmount * taxa / 100);
                 rowsToInsert.push({
                   event_id: ev.id,
                   company_id: companyId,
                   type: 'parcela',
-                  amount: saldoAmount,
+                  amount: Math.round(amount * 100) / 100,
                   due_date: parseDate(pd.saldo_data),
-                  payment_method: pd.saldo_forma || null,
+                  payment_method: 'cartao',
                   status: 'pending',
                 });
+              }
+            } else {
+              // Non-card: keep existing installment logic
+              let createdFromDetails = false;
+              if (Array.isArray(pd.parcelas_details) && pd.parcelas_details.length > 0) {
+                pd.parcelas_details.forEach((p: any) => {
+                  const parcelaAmount = parseAmount(p?.valor);
+                  if (parcelaAmount && parcelaAmount > 0) {
+                    createdFromDetails = true;
+                    rowsToInsert.push({
+                      event_id: ev.id,
+                      company_id: companyId,
+                      type: 'parcela',
+                      amount: parcelaAmount,
+                      due_date: parseDate(p?.vencimento || pd.saldo_data),
+                      payment_method: pd.saldo_forma || null,
+                      status: 'pending',
+                    });
+                  }
+                });
+              }
+
+              if (!createdFromDetails) {
+                const saldoAmount = parseAmount(pd.saldo_valor);
+                if (saldoAmount && saldoAmount > 0) {
+                  rowsToInsert.push({
+                    event_id: ev.id,
+                    company_id: companyId,
+                    type: 'parcela',
+                    amount: saldoAmount,
+                    due_date: parseDate(pd.saldo_data),
+                    payment_method: pd.saldo_forma || null,
+                    status: 'pending',
+                  });
+                }
               }
             }
           }
