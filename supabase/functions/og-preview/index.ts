@@ -180,9 +180,41 @@ async function resolveEvaluation(templateId: string, baseUrl: string): Promise<R
   });
 }
 
+/** Handle onboarding OG preview: /onboarding/:companySlug */
+async function resolveOnboarding(companySlug: string, baseUrl: string): Promise<Response | null> {
+  const supabase = getSupabase();
+  const { data: company } = await supabase
+    .from("companies")
+    .select("name, logo_url, slug")
+    .eq("slug", companySlug)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (!company) return null;
+
+  const onboardingUrl = `${baseUrl}/onboarding/${companySlug}`;
+  const meta = {
+    title: `Onboarding | ${company.name}`,
+    description: `Preencha as informações do seu buffet para começarmos a configurar a plataforma Celebrei para o ${company.name}.`,
+    image: company.logo_url || "https://hubcelebrei.com.br/og-para-buffets.jpg",
+    url: onboardingUrl,
+  };
+
+  return new Response(buildHTML(meta, onboardingUrl), {
+    headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
+  });
+}
+
 async function resolveByDomain(domain: string, pathname: string): Promise<Response | null> {
   const canonical = canonicalize(domain);
   const baseUrl = domain.includes("localhost") ? `http://${domain}` : `https://${domain}`;
+
+  // Check onboarding URL: /onboarding/:companySlug
+  const onboardingMatch = pathname.match(/^\/onboarding\/([^/]+)\/?$/i);
+  if (onboardingMatch) {
+    const result = await resolveOnboarding(onboardingMatch[1], baseUrl);
+    if (result) return result;
+  }
 
   // Check maintenance UUID URL: /manutencao/:recordId
   const maintMatch = pathname.match(/^\/manutencao\/([0-9a-f-]{36})$/i);
