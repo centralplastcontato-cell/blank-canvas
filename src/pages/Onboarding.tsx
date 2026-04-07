@@ -194,6 +194,17 @@ export default function Onboarding() {
             if (e.operational_data) {
               setOpData({ ...initialOperationalData, ...(e.operational_data as any) });
             }
+        } else {
+          // Fallback: restore from localStorage draft
+          try {
+            const raw = localStorage.getItem(LOCAL_STORAGE_KEY(slug!));
+            if (raw) {
+              const draft = JSON.parse(raw);
+              if (draft.data) setData(prev => ({ ...prev, ...draft.data }));
+              if (draft.opData) setOpData(prev => ({ ...prev, ...draft.opData }));
+              if (draft.step && draft.step > 1) setStep(draft.step);
+            }
+          } catch { /* ignore parse errors */ }
         }
       }
       setLoading(false);
