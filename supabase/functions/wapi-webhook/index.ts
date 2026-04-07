@@ -3164,15 +3164,12 @@ async function sendQualificationMaterialsThenQuestion(
     // Now send the next step question
     console.log(`[Bot] Sending next step question to ${phone}`);
     
-    const { messageId: msgId, attempt } = await sendTextViaWapiWithFallback(
+    const msgId = await sendBotMessage(
       instance.instance_id,
       instance.instance_token,
       conv.remote_jid,
-      nextStepQuestion,
-      2
+      nextStepQuestion
     );
-
-    console.log(`[Bot] Next step send attempt=${attempt} msgId=${msgId}`);
     
     if (msgId) {
       await supabase.from('wapi_messages').insert({
