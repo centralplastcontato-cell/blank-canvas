@@ -1,62 +1,49 @@
 
 
-## Problema identificado: Nome do contato sendo sobrescrito pelo nome do buffet
+## Melhorias no fluxo de pagamento por cartão
 
-### Causa raiz
+### Resumo
 
-No webhook do WhatsApp (`wapi-webhook/index.ts`), quando uma mensagem **enviada pelo bot** (fromMe=true) chega via Z-API, o campo `pushName` contém o nome do **perfil do WhatsApp Business** ("Castelo da Diversão") em vez do nome do contato.
+Três alterações principais no tratamento de pagamentos via cartão:
 
-A linha 4129 do webhook faz:
-```
-} else if (cName && cName !== ex.contact_name) {
-  upd.contact_name = cName;
-}
-```
+1. **Parcelas na entrada por cartão** — permitir informar quantas parcelas o cartão foi passado na entrada (hoje assume sempre 1x), e calcular a taxa correta baseada na qtd de parcelas
+2. **Cartão não gera parcelas no financeiro** — quando entrada ou saldo é "cartão", o auto-sync NÃO deve criar linhas individuais de parcelas no financeiro (o cliente já passou o cartão, independente de ser 1x ou 12x)
+3. **Baixa com valor líquido** — ao dar baixa em pagamento por cartão, o valor exibido e registrado deve ser o valor LÍQUIDO (após desconto da taxa), não o bruto
 
-Isso sobrescreve o nome real do contato ("Raquel Olinda Ramos") com "Castelo da Diversão" a cada mensagem enviada pelo bot. O problema afeta **apenas instâncias Z-API** (Vendas 3) porque o webhook de status/outgoing da Z-API retorna o pushName do remetente.
+---
 
-Confirmação via banco: **todas as conversas do Vendas 3** têm `contact_name = 'Castelo da Diversão'`.
+### Detalhes técnicos
 
-### Plano de correção
+**Arquivo 1: `src/components/agenda/EventFormDialog.tsx`**
 
-**1. Corrigir webhook — não atualizar contact_name em mensagens fromMe**
+- Adicionar campo `entrada_parcelas` ao `PaymentDetails` interface (default: 1)
+- Quando `entrada_forma === "cartao"`, mostrar campo de "Parcelas do cartão" (input numérico 1-12) abaixo da entrada
+- O cálculo da taxa na entrada já existente passa a usar `taxa_credito_${entrada_parcelas}x` em vez de fixo `taxa_credito_1x`
+- Persistir `entrada_parcelas` no `payment_details` JSONB
 
-No arquivo `supabase/functions/wapi-webhook/index.ts`, na lógica de atualização de conversas existentes (linha ~4126-4131), adicionar a condição `!fromMe` para que mensagens enviadas pelo próprio número não sobrescrevam o nome do contato:
+**Arquivo 2: `src/components/financial/EventFinancialTab.tsx` (auto-sync)**
 
-```typescript
-if (isGrp) { 
-  const gn = ...;
-  if (gn && gn !== ex.contact_name) upd.contact_name = gn; 
-} else if (!fromMe && cName && cName !== ex.contact_name) {
-  // Only update contact_name from INCOMING messages (pushName of the contact)
-  // Outgoing messages carry the business's own pushName, which would overwrite the contact's real name
-  upd.contact_name = cName;
-}
-```
+- Na lógica de auto-sync (linhas 66-144), ao inserir rows: se `pd.entrada_forma === "cartao"`, criar a linha de entrada com o **valor líquido** (bruto - taxa) e NÃO criar parcelas
+- Se `pd.saldo_forma === "cartao"`, criar UMA única linha de parcela com o **valor líquido** e NÃO desmembrar em múltiplas parcelas
+- Ambas as linhas devem ter `payment_method: "cartao"` para que o sistema saiba que já é valor líquido
 
-**2. Corrigir dados corrompidos no banco**
+**Arquivo 3: `src/hooks/useFinanceiroDashboard.ts` (backfill)**
 
-Criar script SQL para restaurar os nomes corretos a partir da tabela `campaign_leads` para todas as conversas afetadas no Vendas 3:
+- Mesma lógica: ao backfill de `payment_details` onde forma é "cartao", inserir com valor líquido e como parcela única
 
-```sql
-UPDATE wapi_conversations c
-SET contact_name = cl.name
-FROM campaign_leads cl
-WHERE c.lead_id = cl.id
-  AND c.contact_name = 'Castelo da Diversão'
-  AND c.instance_id = '75feab3b-eb12-44f0-8ada-463e5540c869';
-```
+**Arquivo 4: `src/components/financial/EventFinancialTab.tsx` (mark as paid dialog)**
 
-### Arquivos a editar
+- No diálogo de "Confirmar Pagamento" (linhas 502-537), quando o pagamento tem `payment_method` contendo "cartao", calcular e exibir o valor líquido
+- O valor mostrado ao operador já deve ser o líquido para ele saber exatamente quanto vai entrar na conta bancária
 
-| Arquivo | Alteração |
-|---------|-----------|
-| `supabase/functions/wapi-webhook/index.ts` | Adicionar `!fromMe` na condição de atualização de `contact_name` (linha ~4129) |
-| Migration SQL | Restaurar nomes corretos das conversas afetadas |
+**Arquivo 5: `src/hooks/useEventFinancial.ts` (markAsPaid)**
+
+- Ao registrar o pagamento como pago, se for cartão, considerar que o `amount` já é líquido (pois foi inserido assim pelo auto-sync)
 
 ### Impacto
 
-- Corrige o bug para todas as futuras mensagens em todas as instâncias
-- Restaura nomes corretos das conversas já afetadas
-- Sem risco para a infraestrutura de conexão (apenas lógica de metadados)
+- Entrada por cartão passa a respeitar parcelas e taxa correta
+- Financeiro não cria parcelas desnecessárias para pagamentos em cartão
+- Operador vê o valor real que entra na conta ao dar baixa
+- Dados históricos não são afetados (apenas novos eventos)
 
