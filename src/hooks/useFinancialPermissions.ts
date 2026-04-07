@@ -19,6 +19,7 @@ export function useFinancialPermissions(userId: string | undefined) {
     canViewValues: true,
     canEdit: true,
     canPay: true,
+    canViewBankAccounts: true,
   });
   const [isLoading, setIsLoading] = useState(true);
 
