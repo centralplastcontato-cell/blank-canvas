@@ -433,7 +433,12 @@ export default function Onboarding() {
               <img src={companyLogo} alt={companyName} className="h-9 w-9 rounded-xl object-contain" />
             )}
             <div className="flex-1 min-w-0">
-              <h1 className="text-sm font-bold text-foreground truncate">{companyName}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-sm font-bold text-foreground truncate">{companyName}</h1>
+                {isOptionalStep && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Opcional</Badge>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground">Passo {step} de {TOTAL_STEPS}</p>
             </div>
           </div>
@@ -448,6 +453,8 @@ export default function Onboarding() {
                     ? "bg-primary h-2 flex-1"
                     : i === step - 1
                     ? "bg-primary h-2.5 flex-1 ring-2 ring-primary/30"
+                    : i >= 7
+                    ? "bg-border/50 h-1.5 flex-1 border border-dashed border-border"
                     : "bg-border h-1.5 flex-1"
                 )}
               />
@@ -485,6 +492,9 @@ export default function Onboarding() {
           />
         )}
         {step === 7 && <Step7 data={data} update={update} />}
+        {step === 8 && <Step8 opData={opData} setOpData={setOpData} />}
+        {step === 9 && <Step9 opData={opData} setOpData={setOpData} multipleUnits={data.multiple_units} />}
+        {step === 10 && <Step10 opData={opData} setOpData={setOpData} />}
       </main>
 
       {/* Footer navigation */}
@@ -493,6 +503,12 @@ export default function Onboarding() {
           {step > 1 && (
             <Button variant="outline" onClick={handleBack} className="flex-1">
               <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
+            </Button>
+          )}
+          {isOptionalStep && (
+            <Button variant="secondary" onClick={handleSubmit} disabled={submitting} className="flex-1">
+              {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+              Pular e Finalizar
             </Button>
           )}
           {step < TOTAL_STEPS ? (
