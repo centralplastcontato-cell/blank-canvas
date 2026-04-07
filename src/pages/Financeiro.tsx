@@ -13,6 +13,7 @@ import { MarkExpensePaidDialog } from '@/components/financial/MarkExpensePaidDia
 
 import { BankAccountStatement } from '@/components/financial/BankAccountStatement';
 import { BankAccountSelect } from '@/components/financial/BankAccountSelect';
+import { TransferBetweenAccountsDialog } from '@/components/financial/TransferBetweenAccountsDialog';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { MobileMenu } from '@/components/admin/MobileMenu';
 import { NotificationBell } from '@/components/admin/NotificationBell';
