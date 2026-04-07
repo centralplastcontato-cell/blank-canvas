@@ -100,6 +100,7 @@ export default function CentralAtendimento() {
   const { units } = useCompanyUnits(currentCompany?.id);
   const [activeTab, setActiveTab] = useState<"chat" | "leads">("chat");
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadPerInstance, setUnreadPerInstance] = useState<Record<string, number>>({});
   const [newLeadsCount, setNewLeadsCount] = useState(0);
   const [showMetrics, setShowMetrics] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
