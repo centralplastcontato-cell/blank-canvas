@@ -18,6 +18,7 @@ export function MarkExpensePaidDialog({ open, onOpenChange, expenseId, expenseDe
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [bankAccountId, setBankAccountId] = useState<string>('');
 
   const handleFile = async (file: File) => {
     setUploading(true);
