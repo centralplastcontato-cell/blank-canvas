@@ -28,6 +28,7 @@ import { FreelancerSchedulesTab } from "@/components/freelancer/FreelancerSchedu
 import { CardFeesManager } from "@/components/admin/CardFeesManager";
 import { SellersManager } from "@/components/admin/SellersManager";
 import { BankAccountsManager } from "@/components/financial/BankAccountsManager";
+import { EventTypesConfig } from "@/components/admin/EventTypesConfig";
 
 export default function Formularios() {
   const navigate = useNavigate();
@@ -89,6 +90,7 @@ export default function Formularios() {
     if (canPacotes) sections.push({ value: "taxas_cartao", label: "Taxas de Cartão", icon: CreditCard });
     if (canPacotes) sections.push({ value: "vendedores", label: "Vendedores", icon: UserCheck });
     if (canPacotes && canBankAccounts) sections.push({ value: "contas_bancarias", label: "Contas Bancárias", icon: Landmark });
+    if (canPacotes) sections.push({ value: "tipos_festa", label: "Tipos de Festa", icon: PartyPopper });
     return sections;
   }, [canFormularios, canChecklist, canPacotes, canFreelancer, canAvaliacoes, canBankAccounts]);
 
@@ -389,6 +391,14 @@ export default function Formularios() {
                 <TabsContent value="contas_bancarias" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-4">
                   <div className="max-w-7xl mx-auto w-full">
                     <BankAccountsManager />
+                  </div>
+                </TabsContent>
+              )}
+
+              {canPacotes && (
+                <TabsContent value="tipos_festa" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-4">
+                  <div className="max-w-7xl mx-auto w-full">
+                    <EventTypesConfig />
                   </div>
                 </TabsContent>
               )}
