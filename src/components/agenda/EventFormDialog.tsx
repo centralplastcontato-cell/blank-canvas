@@ -985,7 +985,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                       <SelectContent>{MONTH_OPTIONS.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-[1.3]">
                     <Select value={dateYear} onValueChange={setDateYear}>
                       <SelectTrigger><SelectValue placeholder="Ano" /></SelectTrigger>
                       <SelectContent>{YEAR_OPTIONS.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
