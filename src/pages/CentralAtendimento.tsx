@@ -963,11 +963,22 @@ export default function CentralAtendimento() {
                       </div>
                     </SelectTrigger>
                     <SelectContent>
-                      {chatUnitOptions.map((unit) => (
-                        <SelectItem key={unit} value={unit}>
-                          {unit}
-                        </SelectItem>
-                      ))}
+                      {chatUnitOptions.map((unit) => {
+                        const inst = chatInstances.find(i => i.unit === unit);
+                        const instUnread = inst ? (unreadPerInstance[inst.id] || 0) : 0;
+                        return (
+                          <SelectItem key={unit} value={unit}>
+                            <span className="flex items-center gap-2">
+                              {unit}
+                              {instUnread > 0 && selectedChatUnit !== unit && (
+                                <span className="h-4 min-w-4 px-1 text-[9px] font-bold rounded-full bg-destructive text-destructive-foreground flex items-center justify-center">
+                                  {instUnread > 99 ? "99+" : instUnread}
+                                </span>
+                              )}
+                            </span>
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1261,6 +1272,11 @@ export default function CentralAtendimento() {
                         >
                           <Building2 className="w-3.5 h-3.5 mr-1" />
                           {inst.unit}
+                          {(unreadPerInstance[inst.id] || 0) > 0 && selectedChatUnit !== inst.unit && (
+                            <span className="ml-1 h-4 min-w-4 px-1 text-[9px] font-bold rounded-full bg-destructive text-destructive-foreground flex items-center justify-center">
+                              {(unreadPerInstance[inst.id] || 0) > 99 ? "99+" : unreadPerInstance[inst.id]}
+                            </span>
+                          )}
                         </Button>
                       ))}
                     </div>
