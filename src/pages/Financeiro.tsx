@@ -527,13 +527,13 @@ export default function Financeiro() {
                         </Button>
                       </div>
                       {viewMode === 'client' ? (
-                        <PaymentsByClientView payments={allLate} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />
+                        <PaymentsByClientView payments={allLate} onMarkAsPaid={handleMarkPaymentAsPaid} onOpenEvent={handleOpenEvent} />
                       ) : allLate.length === 0 ? (
                         <Card className="p-6 text-center text-muted-foreground text-sm">Nenhum pagamento em atraso 🎉</Card>
                       ) : (
                         <>
                           <div className="space-y-2">
-                            {allLate.slice((pageAtraso - 1) * PAGE_SIZE, pageAtraso * PAGE_SIZE).map(p => <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />)}
+                            {allLate.slice((pageAtraso - 1) * PAGE_SIZE, pageAtraso * PAGE_SIZE).map(p => <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={handleMarkPaymentAsPaid} onOpenEvent={handleOpenEvent} />)}
                           </div>
                           <PaginationControls page={pageAtraso} totalPages={Math.ceil(allLate.length / PAGE_SIZE)} onPageChange={setPageAtraso} />
                         </>
@@ -552,13 +552,13 @@ export default function Financeiro() {
                         </Button>
                       </div>
                       {viewMode === 'client' ? (
-                        <PaymentsByClientView payments={allPending} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />
+                        <PaymentsByClientView payments={allPending} onMarkAsPaid={handleMarkPaymentAsPaid} onOpenEvent={handleOpenEvent} />
                       ) : allPending.length === 0 ? (
                         <Card className="p-6 text-center text-muted-foreground text-sm">Nenhum pagamento pendente</Card>
                       ) : (
                         <>
                           <div className="space-y-2">
-                            {allPending.slice((pageReceber - 1) * PAGE_SIZE, pageReceber * PAGE_SIZE).map(p => <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />)}
+                            {allPending.slice((pageReceber - 1) * PAGE_SIZE, pageReceber * PAGE_SIZE).map(p => <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={handleMarkPaymentAsPaid} onOpenEvent={handleOpenEvent} />)}
                           </div>
                           <PaginationControls page={pageReceber} totalPages={Math.ceil(allPending.length / PAGE_SIZE)} onPageChange={setPageReceber} />
                         </>
@@ -577,7 +577,7 @@ export default function Financeiro() {
                         </Button>
                       </div>
                       {viewMode === 'client' ? (
-                        <PaymentsByClientView payments={allPaid} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />
+                        <PaymentsByClientView payments={allPaid} onMarkAsPaid={handleMarkPaymentAsPaid} onOpenEvent={handleOpenEvent} />
                       ) : allPaid.length === 0 ? (
                         <Card className="p-6 text-center text-muted-foreground text-sm">Nenhum pagamento recebido</Card>
                       ) : (
