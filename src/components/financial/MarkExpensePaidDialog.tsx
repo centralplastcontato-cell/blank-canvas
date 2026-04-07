@@ -3,13 +3,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Check, Upload, Loader2, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { BankAccountSelect } from './BankAccountSelect';
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   expenseId: string;
   expenseDescription: string;
-  onConfirm: (id: string, data: { status: string; receipt_url?: string }) => void;
+  onConfirm: (id: string, data: { status: string; receipt_url?: string; bank_account_id?: string }) => void;
 }
 
 export function MarkExpensePaidDialog({ open, onOpenChange, expenseId, expenseDescription, onConfirm }: Props) {
@@ -17,6 +18,7 @@ export function MarkExpensePaidDialog({ open, onOpenChange, expenseId, expenseDe
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [bankAccountId, setBankAccountId] = useState<string>('');
 
   const handleFile = async (file: File) => {
     setUploading(true);
@@ -34,8 +36,9 @@ export function MarkExpensePaidDialog({ open, onOpenChange, expenseId, expenseDe
   };
 
   const handleConfirm = () => {
-    const data: { status: string; receipt_url?: string } = { status: 'pago' };
+    const data: { status: string; receipt_url?: string; bank_account_id?: string } = { status: 'pago' };
     if (receiptUrl) data.receipt_url = receiptUrl;
+    if (bankAccountId) data.bank_account_id = bankAccountId;
     onConfirm(expenseId, data);
     handleClose();
   };
@@ -43,6 +46,7 @@ export function MarkExpensePaidDialog({ open, onOpenChange, expenseId, expenseDe
   const handleClose = () => {
     setReceiptUrl(null);
     setPreview(null);
+    setBankAccountId('');
     onOpenChange(false);
   };
 
@@ -100,6 +104,12 @@ export function MarkExpensePaidDialog({ open, onOpenChange, expenseId, expenseDe
               }}
             />
           </div>
+
+          <BankAccountSelect
+            value={bankAccountId || null}
+            onValueChange={setBankAccountId}
+            label="De qual conta saiu?"
+          />
 
           <div className="flex gap-2">
             <Button variant="outline" className="flex-1" onClick={handleClose}>Cancelar</Button>

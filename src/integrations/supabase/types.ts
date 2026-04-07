@@ -892,6 +892,59 @@ export type Database = {
           },
         ]
       }
+      company_bank_accounts: {
+        Row: {
+          account_number: string | null
+          account_type: string
+          agency: string | null
+          bank_name: string | null
+          company_id: string
+          created_at: string
+          id: string
+          initial_balance: number
+          is_active: boolean
+          is_default: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          account_number?: string | null
+          account_type?: string
+          agency?: string | null
+          bank_name?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          initial_balance?: number
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          account_number?: string | null
+          account_type?: string
+          agency?: string | null
+          bank_name?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          initial_balance?: number
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_bank_accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_card_fees: {
         Row: {
           antecipado: boolean | null
@@ -1146,6 +1199,7 @@ export type Database = {
       company_expenses: {
         Row: {
           amount: number
+          bank_account_id: string | null
           boleto_url: string | null
           category: string
           company_id: string
@@ -1162,6 +1216,7 @@ export type Database = {
         }
         Insert: {
           amount?: number
+          bank_account_id?: string | null
           boleto_url?: string | null
           category?: string
           company_id: string
@@ -1178,6 +1233,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          bank_account_id?: string | null
           boleto_url?: string | null
           category?: string
           company_id?: string
@@ -1193,6 +1249,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "company_expenses_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "company_bank_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "company_expenses_company_id_fkey"
             columns: ["company_id"]
@@ -2332,6 +2395,7 @@ export type Database = {
       event_payments: {
         Row: {
           amount: number
+          bank_account_id: string | null
           company_id: string
           created_at: string
           due_date: string
@@ -2346,6 +2410,7 @@ export type Database = {
         }
         Insert: {
           amount?: number
+          bank_account_id?: string | null
           company_id: string
           created_at?: string
           due_date: string
@@ -2360,6 +2425,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          bank_account_id?: string | null
           company_id?: string
           created_at?: string
           due_date?: string
@@ -2373,6 +2439,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "event_payments_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "company_bank_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "event_payments_company_id_fkey"
             columns: ["company_id"]

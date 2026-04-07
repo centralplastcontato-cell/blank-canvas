@@ -10,6 +10,8 @@ import { ExpenseFormDialog } from '@/components/financial/ExpenseFormDialog';
 import { EventFinancialTab } from '@/components/financial/EventFinancialTab';
 import { FinancialReportDialog } from '@/components/financial/FinancialReportDialog';
 import { MarkExpensePaidDialog } from '@/components/financial/MarkExpensePaidDialog';
+
+import { BankAccountStatement } from '@/components/financial/BankAccountStatement';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { MobileMenu } from '@/components/admin/MobileMenu';
 import { NotificationBell } from '@/components/admin/NotificationBell';
@@ -27,6 +29,7 @@ import { format, startOfMonth, endOfMonth, addMonths, startOfYear, endOfYear } f
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { useBankAccounts, type BankAccountBalance } from '@/hooks/useBankAccounts';
 import type { DateRange } from 'react-day-picker';
 
 const PAGE_SIZE = 20;
@@ -107,6 +110,8 @@ export default function Financeiro() {
   const [customPopoverOpen, setCustomPopoverOpen] = useState(false);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [markPaidExpense, setMarkPaidExpense] = useState<{ id: string; description: string } | null>(null);
+  const [statementAccount, setStatementAccount] = useState<BankAccountBalance | null>(null);
+  const bankAccounts = useBankAccounts();
 
   // Auth & financial permission check
   const [currentUserId, setCurrentUserId] = useState<string | undefined>();
@@ -380,13 +385,13 @@ export default function Financeiro() {
               {/* Tabs */}
               <Tabs defaultValue="receitas" className="w-full">
                 <TabsList className="bg-transparent p-0 h-auto gap-1">
-                  {['receitas', 'despesas', 'resultado'].map(tab => (
+                  {['receitas', 'despesas', 'resultado', 'contas'].map(tab => (
                     <TabsTrigger
                       key={tab}
                       value={tab}
                       className="rounded-full px-5 py-2 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none border-0"
                     >
-                      {tab === 'receitas' ? 'Receitas' : tab === 'despesas' ? 'Despesas' : 'Resultado'}
+                      {tab === 'receitas' ? 'Receitas' : tab === 'despesas' ? 'Despesas' : tab === 'resultado' ? 'Resultado' : '🏦 Contas'}
                     </TabsTrigger>
                   ))}
                 </TabsList>
@@ -767,6 +772,70 @@ export default function Financeiro() {
                       <div className="flex justify-between font-semibold"><span className="text-foreground">Saldo</span><span className={dashboard.saldoMonth >= 0 ? 'text-emerald-400' : 'text-red-400'}>{fmt(dashboard.saldoMonth)}</span></div>
                     </div>
                   </Card>
+                </TabsContent>
+
+                {/* Tab Contas */}
+                <TabsContent value="contas" className="space-y-4">
+                  {statementAccount ? (
+                    <div className="space-y-3">
+                      <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => setStatementAccount(null)}>
+                        ← Voltar para contas
+                      </Button>
+                      <h2 className="text-lg font-bold text-foreground">Extrato — {statementAccount.name}</h2>
+                      <BankAccountStatement account={statementAccount} />
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Total balance across accounts */}
+                      {bankAccounts.activeAccounts.length > 0 && (
+                        <Card className="p-4 bg-card border-border">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Building className="h-4 w-4 text-primary" />
+                            <span className="text-sm font-semibold">Saldo Consolidado</span>
+                          </div>
+                          <p className={`text-2xl font-bold ${bankAccounts.activeAccounts.reduce((s, a) => s + a.current_balance, 0) >= 0 ? 'text-emerald-500' : 'text-red-400'}`}>
+                            {fmt(bankAccounts.activeAccounts.reduce((s, a) => s + a.current_balance, 0))}
+                          </p>
+                        </Card>
+                      )}
+
+                      {/* Account cards */}
+                      {bankAccounts.isLoading ? (
+                        <div className="flex justify-center py-8">
+                          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        </div>
+                      ) : bankAccounts.activeAccounts.length === 0 ? (
+                        <Card className="p-8 text-center">
+                          <Building className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                          <p className="text-sm text-muted-foreground mb-3">Nenhuma conta bancária cadastrada</p>
+                          <p className="text-xs text-muted-foreground">Acesse Operações para criar suas contas bancárias</p>
+                        </Card>
+                      ) : (
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {bankAccounts.activeAccounts.map(acc => (
+                            <Card key={acc.id} className={`p-4 cursor-pointer hover:border-primary/40 transition-colors ${acc.is_default ? 'border-primary/30' : 'border-border'}`} onClick={() => setStatementAccount(acc)}>
+                              <div className="flex items-center gap-2 mb-2">
+                                {acc.account_type === 'caixa' ? (
+                                  <Wallet className="h-4 w-4 text-amber-500" />
+                                ) : (
+                                  <Building className="h-4 w-4 text-blue-500" />
+                                )}
+                                <span className="font-semibold text-sm">{acc.name}</span>
+                                {acc.is_default && <Badge variant="outline" className="text-[9px] h-4 border-primary/30 text-primary">Padrão</Badge>}
+                              </div>
+                              <p className={`text-xl font-bold ${acc.current_balance >= 0 ? 'text-emerald-500' : 'text-red-400'}`}>
+                                {fmt(acc.current_balance)}
+                              </p>
+                              <div className="flex gap-3 mt-1 text-[11px]">
+                                <span className="text-emerald-500">+{fmt(acc.total_entries)}</span>
+                                <span className="text-red-400">-{fmt(acc.total_exits)}</span>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </TabsContent>
               </Tabs>
             </div>

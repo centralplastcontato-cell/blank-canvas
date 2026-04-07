@@ -5,12 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { BankAccountSelect } from "./BankAccountSelect";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: { type: string; amount: number; due_date: string; payment_method: string; notes?: string }) => void;
-  defaultValues?: { type?: string; amount?: number; due_date?: string; payment_method?: string; notes?: string };
+  onSubmit: (data: { type: string; amount: number; due_date: string; payment_method: string; notes?: string; bank_account_id?: string }) => void;
+  defaultValues?: { type?: string; amount?: number; due_date?: string; payment_method?: string; notes?: string; bank_account_id?: string };
 }
 
 export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues }: Props) {
@@ -19,13 +20,18 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues 
   const [dueDate, setDueDate] = useState(defaultValues?.due_date || "");
   const [method, setMethod] = useState(defaultValues?.payment_method || "pix");
   const [notes, setNotes] = useState(defaultValues?.notes || "");
+  const [bankAccountId, setBankAccountId] = useState(defaultValues?.bank_account_id || "");
 
   const handleSubmit = () => {
     const val = parseFloat(amount);
     if (!val || !dueDate) return;
-    onSubmit({ type, amount: val, due_date: dueDate, payment_method: method, notes: notes.trim() || undefined });
+    onSubmit({
+      type, amount: val, due_date: dueDate, payment_method: method,
+      notes: notes.trim() || undefined,
+      bank_account_id: bankAccountId || undefined,
+    });
     onOpenChange(false);
-    setAmount(""); setDueDate(""); setNotes("");
+    setAmount(""); setDueDate(""); setNotes(""); setBankAccountId("");
   };
 
   return (
@@ -75,6 +81,12 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues 
               rows={2}
             />
           </div>
+          <BankAccountSelect
+            value={bankAccountId || null}
+            onValueChange={setBankAccountId}
+            label="Conta bancária (opcional)"
+            placeholder="Selecione a conta"
+          />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
