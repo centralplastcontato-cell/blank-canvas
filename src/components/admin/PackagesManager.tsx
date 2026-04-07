@@ -333,6 +333,17 @@ export function PackagesManager() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <PriceGridConfigDialog
+        open={configOpen}
+        onOpenChange={setConfigOpen}
+        companyId={currentCompany?.id || ""}
+        currentSettings={currentCompany?.settings as Record<string, unknown> | null}
+        onSaved={() => {
+          // Force re-render by refetching company — the context should handle this
+          window.location.reload();
+        }}
+      />
     </div>
   );
 }
