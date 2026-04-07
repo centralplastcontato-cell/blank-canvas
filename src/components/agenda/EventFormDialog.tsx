@@ -562,10 +562,10 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     const guests = form.guest_count || 0;
     const updated = optionals.map(o => {
       if (!o.valor_por_pessoa || o.valor_por_pessoa <= 0) return o;
-      // Find matching catalog optional to get base fixed value
       const catalog = catalogOptionals.find(co => co.name === o.name);
-      const fixedValue = catalog?.value || 0;
-      return { ...o, value: fixedValue + o.valor_por_pessoa * guests };
+      const unitPrice = o.unit_price ?? catalog?.value ?? 0;
+      const qty = o.quantity || 1;
+      return { ...o, value: (unitPrice * qty) + o.valor_por_pessoa * guests, unit_price: unitPrice };
     });
     setForm(prev => ({ ...prev, event_optionals: updated }));
   }, [form.guest_count]);
