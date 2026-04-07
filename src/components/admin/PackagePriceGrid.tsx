@@ -117,6 +117,14 @@ export const PackagePriceGrid = forwardRef<PackagePriceGridHandle, PackagePriceG
       );
     }
 
+    // Short labels for mobile
+    const shortLabels: Record<string, string> = {
+      'Seg a Qui': 'Seg-Qui',
+      'Sexta': 'Sex',
+      'Sáb e Dom': 'Sáb-Dom',
+      'Véspera de Feriado': 'Vésp.',
+    };
+
     return (
       <div className="space-y-3">
         <div className="flex items-center gap-2">
@@ -128,10 +136,11 @@ export const PackagePriceGrid = forwardRef<PackagePriceGridHandle, PackagePriceG
           <table className="w-full text-xs border-collapse min-w-0">
             <thead>
               <tr>
-                <th className="text-left py-2 px-1 text-muted-foreground font-medium whitespace-nowrap text-[10px] sm:text-xs">Convidados</th>
+                <th className="text-left py-2 px-0.5 text-muted-foreground font-medium whitespace-nowrap text-[10px] sm:text-xs w-10 sm:w-auto">Qtd</th>
                 {dayTypes.map((dt) => (
-                  <th key={dt.key} className="text-center py-2 px-0.5 sm:px-1.5 text-muted-foreground font-medium whitespace-nowrap text-[10px] sm:text-xs">
-                    {dt.label}
+                  <th key={dt.key} className="text-center py-2 px-0.5 text-muted-foreground font-medium whitespace-nowrap text-[10px] sm:text-xs">
+                    <span className="sm:hidden">{shortLabels[dt.label] || dt.label}</span>
+                    <span className="hidden sm:inline">{dt.label}</span>
                   </th>
                 ))}
               </tr>
@@ -139,13 +148,13 @@ export const PackagePriceGrid = forwardRef<PackagePriceGridHandle, PackagePriceG
             <tbody>
               {guestTiers.map((guest) => (
                 <tr key={guest} className="border-t border-border/30">
-                  <td className="py-1.5 px-1 font-medium text-foreground whitespace-nowrap text-[10px] sm:text-xs">{guest}</td>
+                  <td className="py-1.5 px-0.5 font-medium text-foreground whitespace-nowrap text-[10px] sm:text-xs">{guest}</td>
                   {dayTypes.map((dt) => (
-                    <td key={dt.key} className="py-1.5 px-0.5 sm:px-1">
+                    <td key={dt.key} className="py-1 px-0.5">
                       <div className="relative">
-                        <span className="absolute left-1.5 sm:left-2 top-1/2 -translate-y-1/2 text-[9px] sm:text-[10px] text-muted-foreground">R$</span>
+                        <span className="absolute left-1 top-1/2 -translate-y-1/2 text-[8px] sm:text-[10px] text-muted-foreground pointer-events-none">R$</span>
                         <Input
-                          className="h-7 sm:h-8 text-[10px] sm:text-xs pl-6 sm:pl-7 pr-1 sm:pr-2 w-full min-w-[70px]"
+                          className="h-7 sm:h-8 text-[10px] sm:text-xs pl-5 sm:pl-7 pr-0.5 sm:pr-2 w-full min-w-[56px]"
                           inputMode="decimal"
                           placeholder="0,00"
                           value={tiers.get(key(guest, dt.key)) || ""}
