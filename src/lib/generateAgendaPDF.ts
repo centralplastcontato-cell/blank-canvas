@@ -13,6 +13,9 @@ interface EventData {
   status: string;
   total_value?: number | null;
   start_time?: string | null;
+  end_time?: string | null;
+  child_name?: string | null;
+  birthday_children?: any;
 }
 
 export interface AgendaReportParams {
@@ -148,6 +151,66 @@ export function generateAgendaPDF(params: AgendaReportParams) {
   }
 
   doc.save(`relatorio-agenda-${params.from}-${params.to}.pdf`);
+}
+
+function getBirthdayNames(e: EventData): string {
+  if (e.birthday_children && Array.isArray(e.birthday_children) && e.birthday_children.length > 0) {
+    return e.birthday_children.map((c: any) => c.name || c.nome || '').filter(Boolean).join(', ') || e.child_name || e.title;
+  }
+  return e.child_name || e.title;
+}
+
+export function generateFichaFestasPDF(params: AgendaReportParams) {
+  const periodEvents = params.type === 'vendas_fechadas'
+    ? params.events
+    : filterByPeriod(params.events, params.from, params.to);
+  const doc = new jsPDF('p', 'mm', 'a4');
+  let y = addHeader(doc, params.companyName, 'Ficha de Festas', params.periodLabel);
+
+  const sorted = [...periodEvents]
+    .filter(e => e.status !== 'cancelado')
+    .sort((a, b) => a.event_date.localeCompare(b.event_date) || (a.start_time || '').localeCompare(b.start_time || ''));
+
+  autoTable(doc, {
+    startY: y,
+    head: [['Data', 'Horário', 'Aniversariante / Evento', 'Tema da Festa']],
+    body: sorted.map(e => [
+      fmtDate(e.event_date),
+      e.start_time ? e.start_time.slice(0, 5) : '—',
+      getBirthdayNames(e),
+      e.event_type || '—',
+    ]),
+    styles: { fontSize: 9, cellPadding: 3 },
+    headStyles: { fillColor: [30, 30, 30], textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
+    alternateRowStyles: { fillColor: [248, 249, 252] },
+    columnStyles: {
+      0: { cellWidth: 25 },
+      1: { cellWidth: 22 },
+      2: { cellWidth: 'auto' },
+      3: { cellWidth: 50 },
+    },
+    margin: { left: 14, right: 14 },
+  });
+
+  doc.save(`ficha-festas-${params.from}-${params.to}.pdf`);
+}
+
+export function generateFichaFestasXLSX(params: AgendaReportParams) {
+  const periodEvents = (params.type === 'vendas_fechadas' ? params.events : filterByPeriod(params.events, params.from, params.to))
+    .filter(e => e.status !== 'cancelado')
+    .sort((a, b) => a.event_date.localeCompare(b.event_date) || (a.start_time || '').localeCompare(b.start_time || ''));
+
+  const rows = periodEvents.map(e => ({
+    Data: fmtDate(e.event_date),
+    Horário: e.start_time ? e.start_time.slice(0, 5) : '—',
+    'Aniversariante / Evento': getBirthdayNames(e),
+    'Tema da Festa': e.event_type || '—',
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Ficha de Festas');
+  XLSX.writeFile(wb, `ficha-festas-${params.from}-${params.to}.xlsx`);
 }
 
 export function generateAgendaXLSX(params: AgendaReportParams) {

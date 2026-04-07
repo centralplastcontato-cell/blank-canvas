@@ -29,7 +29,7 @@ import { PreReservationFormDialog, type PreReservation } from "@/components/agen
 import { PreReservationDetailSheet } from "@/components/agenda/PreReservationDetailSheet";
 import { CalendarDays, Plus, Loader2, ShieldAlert, Menu, Clock, AlertTriangle, List, ListChecks, MapPin, Users, DollarSign, Search, X, Phone, Pencil, Handshake, ArrowUpDown, CalendarClock, FileText } from "lucide-react";
 import { ReportDialog } from "@/components/reports/ReportDialog";
-import { generateAgendaPDF, generateAgendaXLSX } from "@/lib/generateAgendaPDF";
+import { generateAgendaPDF, generateAgendaXLSX, generateFichaFestasPDF, generateFichaFestasXLSX } from "@/lib/generateAgendaPDF";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, startOfMonth, endOfMonth, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -1767,6 +1767,7 @@ export default function Agenda() {
         reportTypes={[
           { value: 'festas_periodo', label: 'Festas do Período', desc: 'Eventos que serão realizados no período selecionado' },
           { value: 'vendas_fechadas', label: 'Vendas Fechadas', desc: 'Festas que foram fechadas (vendidas) no período' },
+          { value: 'ficha_festas', label: 'Ficha de Festas', desc: 'Data, horário, aniversariante e tema de cada festa' },
         ]}
         unitOptions={(() => {
           const vu = canViewAll ? physicalUnits : physicalUnits.filter(u => unitAccess[u.name]);
@@ -1807,8 +1808,14 @@ export default function Agenda() {
           }
           const filtered = p.unit === 'all' ? data : data.filter((e: any) => e.unit === p.unit);
           const reportParams = { type: p.type, companyName: currentCompany?.name || '', periodLabel: p.periodLabel, from: p.from, to: p.to, events: filtered };
-          if (p.format === 'xlsx') generateAgendaXLSX(reportParams);
-          else generateAgendaPDF(reportParams);
+
+          if (p.type === 'ficha_festas') {
+            if (p.format === 'xlsx') generateFichaFestasXLSX(reportParams);
+            else generateFichaFestasPDF(reportParams);
+          } else {
+            if (p.format === 'xlsx') generateAgendaXLSX(reportParams);
+            else generateAgendaPDF(reportParams);
+          }
         }}
       />
     </SidebarProvider>
