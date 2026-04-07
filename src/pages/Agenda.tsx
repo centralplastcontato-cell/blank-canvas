@@ -1287,7 +1287,7 @@ export default function Agenda() {
                               <div className="flex items-center justify-between mt-2">
                                 {ev.total_value != null && ev.total_value > 0 && (
                                   <p className="text-sm font-bold text-foreground">
-                                    {ev.total_value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                                    {getNetValue(ev).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                                   </p>
                                 )}
                                 {(ev as any).data_fechamento_venda && (
