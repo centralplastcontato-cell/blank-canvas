@@ -22,6 +22,7 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { getDayType, getDayTypeLabel, findMatchingTier, DEFAULT_DAY_TYPES, DEFAULT_GUEST_TIERS } from "@/lib/brazilian-holidays";
+import { DEFAULT_EVENT_TYPES, type EventTypeConfig } from "@/components/admin/EventTypesConfig";
 
 export interface ParcelaDetail {
   valor: number | null;
@@ -106,13 +107,8 @@ const PAYMENT_FORMS = [
   { value: "transferencia", label: "Transferência" },
 ];
 
-const EVENT_TYPES = [
-  { value: "aniversario", label: "Aniversário" },
-  { value: "formatura", label: "Formatura" },
-  { value: "escolar", label: "Escolar" },
-  { value: "aniversario_kids", label: "Aniversário Kids" },
-  { value: "confraternizacao", label: "Confraternização" },
-];
+// Default event types - will be overridden by company settings if configured
+const FALLBACK_EVENT_TYPES = DEFAULT_EVENT_TYPES;
 
 const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
   const h = String(Math.floor(i / 2)).padStart(2, "0");
