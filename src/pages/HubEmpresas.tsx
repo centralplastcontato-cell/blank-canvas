@@ -368,6 +368,7 @@ function HubEmpresasContent() {
                     <div className="min-w-0">
                       <h3 className="font-bold text-foreground truncate text-base">{child.name}</h3>
                       <p className="text-xs text-muted-foreground truncate">/{child.slug}</p>
+                      <p className="text-[10px] text-muted-foreground">Criado em {new Date(child.created_at).toLocaleDateString("pt-BR")}</p>
                     </div>
                   </div>
                   <Badge variant={child.is_active ? "default" : "secondary"}>{child.is_active ? "Ativa" : "Inativa"}</Badge>
