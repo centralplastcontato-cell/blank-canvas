@@ -77,6 +77,7 @@ export default function Formularios() {
   const canPacotes = isOwnerOrAdmin || userPermissions['operacoes.pacotes'];
   const canFreelancer = isOwnerOrAdmin || userPermissions['operacoes.freelancer'];
   const canAvaliacoes = isOwnerOrAdmin || userPermissions['operacoes.avaliacoes'];
+  const canBankAccounts = isOwnerOrAdmin || (userPermissions['financial.bank_accounts'] ?? true);
 
   const visibleSections = useMemo(() => {
     const sections: { value: string; label: string; icon: React.ElementType }[] = [];
