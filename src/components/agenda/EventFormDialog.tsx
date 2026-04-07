@@ -565,7 +565,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       const catalog = catalogOptionals.find(co => co.name === o.name);
       const unitPrice = o.unit_price ?? catalog?.value ?? 0;
       const qty = o.quantity || 1;
-      return { ...o, value: (unitPrice * qty) + o.valor_por_pessoa * guests, unit_price: unitPrice };
+      return { ...o, value: (unitPrice * qty) + (o.valor_por_pessoa * guests * qty), unit_price: unitPrice };
     });
     setForm(prev => ({ ...prev, event_optionals: updated }));
   }, [form.guest_count]);
@@ -1169,7 +1169,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                             const qty = 1;
                             let totalValue = unitPrice * qty;
                             if (co.valor_por_pessoa && co.valor_por_pessoa > 0 && guests > 0) {
-                              totalValue = totalValue + co.valor_por_pessoa * guests;
+                              totalValue = totalValue + co.valor_por_pessoa * guests * qty;
                             }
                             setForm({
                               ...form,
@@ -1217,7 +1217,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                           const unitPrice = updated[idx].unit_price ?? updated[idx].value ?? 0;
                           const guests = form.guest_count || 0;
                           const perPerson = updated[idx].valor_por_pessoa ?? 0;
-                          const totalValue = (unitPrice * qty) + (perPerson > 0 ? perPerson * guests : 0);
+                          const totalValue = (unitPrice * qty) + (perPerson > 0 ? perPerson * guests * qty : 0);
                           updated[idx] = { ...updated[idx], quantity: qty, value: totalValue };
                           setForm({ ...form, event_optionals: updated });
                         }}
