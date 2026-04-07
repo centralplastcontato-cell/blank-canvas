@@ -349,6 +349,9 @@ export default function Onboarding() {
       // Auto-import operational data into company settings
       await syncOperationalDataToSettings(companyId, opData);
 
+      // Create attendant user accounts
+      await createAttendantUsers(companyId, opData.attendants);
+
       setSubmitted(true);
     } catch (err: any) {
       toast({ title: "Erro ao finalizar", description: err.message || "Tente novamente.", variant: "destructive" });
