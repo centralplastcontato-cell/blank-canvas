@@ -14,6 +14,7 @@ import { useEventFinancial } from "@/hooks/useEventFinancial";
 import { FinancialSummaryCards } from "./FinancialSummaryCards";
 import { PaymentFormDialog } from "./PaymentFormDialog";
 import { FinancialTimeline } from "./FinancialTimeline";
+import { BankAccountSelect } from "./BankAccountSelect";
 import { supabase } from "@/integrations/supabase/client";
 
 const METHOD_LABELS: Record<string, string> = {
