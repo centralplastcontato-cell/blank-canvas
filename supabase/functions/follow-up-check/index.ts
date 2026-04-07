@@ -2794,3 +2794,139 @@ async function processInstanceHealthCheck(
 
   console.log("[health-check] Instance health check complete");
 }
+
+// ============= STUCK SENDING_MATERIALS RECOVERY =============
+// Recovers conversations where materials were sent but proximo_passo question never arrived
+// (typically because EdgeRuntime.waitUntil background task timed out)
+async function processStuckSendingMaterials({
+  supabase,
+}: { supabase: ReturnType<typeof createClient> }): Promise<{ successCount: number; errors: string[] }> {
+  const now = new Date();
+  const threeMinutesAgo = new Date(now.getTime() - 3 * 60 * 1000).toISOString();
+  const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
+
+  console.log(`[follow-up-check] 🔄 Processing stuck sending_materials recovery...`);
+
+  const { data: stuckConversations, error: convError } = await supabase
+    .from('wapi_conversations')
+    .select('id, remote_jid, instance_id, lead_id, bot_data, bot_step, contact_name, company_id')
+    .eq('bot_enabled', true)
+    .eq('bot_step', 'sending_materials')
+    .not('remote_jid', 'like', '%@g.us%')
+    .lt('last_message_at', threeMinutesAgo)   // At least 3 min stuck
+    .gt('last_message_at', twoHoursAgo);       // Within 2h window
+
+  if (convError) {
+    console.error(`[follow-up-check] Error fetching stuck sending_materials:`, convError);
+    return { successCount: 0, errors: [String(convError)] };
+  }
+
+  if (!stuckConversations || stuckConversations.length === 0) {
+    console.log(`[follow-up-check] 🔄 No stuck sending_materials conversations found`);
+    return { successCount: 0, errors: [] };
+  }
+
+  console.log(`[follow-up-check] 🔄 Found ${stuckConversations.length} conversations stuck at sending_materials`);
+
+  let successCount = 0;
+  const errors: string[] = [];
+
+  for (const conv of stuckConversations) {
+    try {
+      const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
+
+      // Get instance credentials
+      const { data: instance } = await supabase
+        .from('wapi_instances')
+        .select('id, instance_id, instance_token, company_id, unit')
+        .eq('id', conv.instance_id)
+        .single();
+
+      if (!instance) {
+        console.log(`[follow-up-check] 🔄 No instance found for conv ${conv.id}, skipping`);
+        continue;
+      }
+
+      // Health gate
+      const health = await checkInstanceHealth(supabase, instance.id);
+      if (!health.healthy) {
+        console.log(`[follow-up-check] 🛡️ Sending_materials recovery BLOCKED for conv ${conv.id}: ${health.reason}`);
+        continue;
+      }
+
+      // Get settings for next step question
+      const { data: settings } = await supabase
+        .from('wapi_bot_settings')
+        .select('next_step_question, message_delay_seconds')
+        .eq('instance_id', instance.id)
+        .single();
+
+      const RECOVERY_PROXIMO_PASSO = [
+        { key: '1', label: '📅 Agendar visita' },
+        { key: '2', label: '❓ Tirar dúvidas' },
+        { key: '3', label: '🤔 Analisar com calma' },
+      ];
+      const menuText = RECOVERY_PROXIMO_PASSO.map(o => `${o.key}️⃣ - ${o.label}`).join('\n');
+      const defaultQuestion = `E agora, como você gostaria de continuar? 🤔\n\nResponda com o *número*:\n\n${menuText}`;
+      const nextStepQuestion = settings?.next_step_question || defaultQuestion;
+
+      // Safe delay between sends
+      if (successCount > 0) {
+        await new Promise(r => setTimeout(r, 8000 + Math.random() * 7000));
+      }
+
+      // Send the proximo_passo question
+      const res = await fetch(`https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
+        body: JSON.stringify({ phone, message: nextStepQuestion, delayTyping: 2 }),
+      });
+
+      let msgId: string | null = null;
+      if (res.ok) {
+        const r = await res.json();
+        msgId = r.messageId || r.data?.messageId || null;
+      }
+
+      if (msgId) {
+        await supabase.from('wapi_messages').insert({
+          conversation_id: conv.id,
+          message_id: msgId,
+          from_me: true,
+          message_type: 'text',
+          content: nextStepQuestion,
+          status: 'sent',
+          timestamp: new Date().toISOString(),
+          company_id: instance.company_id,
+          metadata: { source: 'sending_materials_recovery' },
+        });
+      }
+
+      // Advance to proximo_passo
+      await supabase.from('wapi_conversations').update({
+        bot_step: 'proximo_passo',
+        last_message_at: new Date().toISOString(),
+        last_message_content: nextStepQuestion.substring(0, 100),
+        last_message_from_me: true,
+      }).eq('id', conv.id).eq('bot_step', 'sending_materials');
+
+      // Add lead history
+      if (conv.lead_id) {
+        await supabase.from('lead_history').insert({
+          lead_id: conv.lead_id,
+          action: 'sending_materials_recovery',
+          details: 'Pergunta próximo passo enviada via recovery (background task falhou)',
+        });
+      }
+
+      console.log(`[follow-up-check] 🔄 Recovered sending_materials for conv ${conv.id} (${conv.contact_name || phone})`);
+      successCount++;
+    } catch (err) {
+      console.error(`[follow-up-check] Error recovering sending_materials for conv ${conv.id}:`, err);
+      errors.push(String(err));
+    }
+  }
+
+  console.log(`[follow-up-check] 🔄 Sending_materials recovery complete: ${successCount} recovered`);
+  return { successCount, errors };
+}
