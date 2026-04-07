@@ -884,7 +884,7 @@ export default function Financeiro() {
                       )}
                     </div>
                   )}
-                </TabsContent>
+                </TabsContent>}
               </Tabs>
             </div>
           </main>
