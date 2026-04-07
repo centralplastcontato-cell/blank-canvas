@@ -1466,29 +1466,33 @@ function Step9({ opData, setOpData, multipleUnits }: OpStepProps & { multipleUni
           <Field label="Horários padrão das festas">
             <div className="space-y-2">
               {opData.party_schedules.map((s, i) => (
-                <div key={i} className="flex gap-2 items-center">
-                  <Input
-                    value={s.label}
-                    onChange={e => updateSchedule(i, 'label', e.target.value)}
-                    placeholder="Manhã, Tarde..."
-                    className="flex-1"
-                  />
-                  <Input
-                    type="time"
-                    value={s.start}
-                    onChange={e => updateSchedule(i, 'start', e.target.value)}
-                    className="w-24"
-                  />
-                  <span className="text-muted-foreground text-sm">às</span>
-                  <Input
-                    type="time"
-                    value={s.end}
-                    onChange={e => updateSchedule(i, 'end', e.target.value)}
-                    className="w-24"
-                  />
-                  <Button variant="ghost" size="icon" onClick={() => removeSchedule(i)} className="shrink-0">
-                    <X className="h-4 w-4" />
-                  </Button>
+                <div key={i} className="space-y-1.5 p-3 rounded-lg border border-border/60 bg-muted/20">
+                  <div className="flex items-center justify-between">
+                    <Input
+                      value={s.label}
+                      onChange={e => updateSchedule(i, 'label', e.target.value)}
+                      placeholder="Ex: Manhã, Tarde, Noite"
+                      className="flex-1"
+                    />
+                    <Button variant="ghost" size="icon" onClick={() => removeSchedule(i)} className="shrink-0 ml-2">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="time"
+                      value={s.start}
+                      onChange={e => updateSchedule(i, 'start', e.target.value)}
+                      className="flex-1"
+                    />
+                    <span className="text-muted-foreground text-sm">às</span>
+                    <Input
+                      type="time"
+                      value={s.end}
+                      onChange={e => updateSchedule(i, 'end', e.target.value)}
+                      className="flex-1"
+                    />
+                  </div>
                 </div>
               ))}
               <Button variant="outline" size="sm" onClick={addSchedule} className="w-full">
