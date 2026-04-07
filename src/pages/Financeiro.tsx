@@ -12,11 +12,13 @@ import { FinancialReportDialog } from '@/components/financial/FinancialReportDia
 import { MarkExpensePaidDialog } from '@/components/financial/MarkExpensePaidDialog';
 
 import { BankAccountStatement } from '@/components/financial/BankAccountStatement';
+import { BankAccountSelect } from '@/components/financial/BankAccountSelect';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { MobileMenu } from '@/components/admin/MobileMenu';
 import { NotificationBell } from '@/components/admin/NotificationBell';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -112,7 +114,22 @@ export default function Financeiro() {
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [markPaidExpense, setMarkPaidExpense] = useState<{ id: string; description: string } | null>(null);
   const [statementAccount, setStatementAccount] = useState<BankAccountBalance | null>(null);
+  const [markPaidPayment, setMarkPaidPayment] = useState<any>(null);
+  const [markPaidBankId, setMarkPaidBankId] = useState<string | null>(null);
   const bankAccounts = useBankAccounts();
+
+  const handleMarkPaymentAsPaid = (paymentId: string) => {
+    const payment = dashboard.payments.find((p: any) => p.id === paymentId);
+    setMarkPaidPayment(payment || { id: paymentId });
+    setMarkPaidBankId(null);
+  };
+
+  const confirmMarkPaymentPaid = async () => {
+    if (!markPaidPayment) return;
+    await dashboard.markPaymentAsPaid(markPaidPayment.id, markPaidBankId);
+    setMarkPaidPayment(null);
+    setMarkPaidBankId(null);
+  };
 
   // Auth & financial permission check
   const [currentUserId, setCurrentUserId] = useState<string | undefined>();
@@ -510,13 +527,13 @@ export default function Financeiro() {
                         </Button>
                       </div>
                       {viewMode === 'client' ? (
-                        <PaymentsByClientView payments={allLate} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />
+                        <PaymentsByClientView payments={allLate} onMarkAsPaid={handleMarkPaymentAsPaid} onOpenEvent={handleOpenEvent} />
                       ) : allLate.length === 0 ? (
                         <Card className="p-6 text-center text-muted-foreground text-sm">Nenhum pagamento em atraso 🎉</Card>
                       ) : (
                         <>
                           <div className="space-y-2">
-                            {allLate.slice((pageAtraso - 1) * PAGE_SIZE, pageAtraso * PAGE_SIZE).map(p => <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />)}
+                            {allLate.slice((pageAtraso - 1) * PAGE_SIZE, pageAtraso * PAGE_SIZE).map(p => <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={handleMarkPaymentAsPaid} onOpenEvent={handleOpenEvent} />)}
                           </div>
                           <PaginationControls page={pageAtraso} totalPages={Math.ceil(allLate.length / PAGE_SIZE)} onPageChange={setPageAtraso} />
                         </>
@@ -535,13 +552,13 @@ export default function Financeiro() {
                         </Button>
                       </div>
                       {viewMode === 'client' ? (
-                        <PaymentsByClientView payments={allPending} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />
+                        <PaymentsByClientView payments={allPending} onMarkAsPaid={handleMarkPaymentAsPaid} onOpenEvent={handleOpenEvent} />
                       ) : allPending.length === 0 ? (
                         <Card className="p-6 text-center text-muted-foreground text-sm">Nenhum pagamento pendente</Card>
                       ) : (
                         <>
                           <div className="space-y-2">
-                            {allPending.slice((pageReceber - 1) * PAGE_SIZE, pageReceber * PAGE_SIZE).map(p => <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />)}
+                            {allPending.slice((pageReceber - 1) * PAGE_SIZE, pageReceber * PAGE_SIZE).map(p => <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={handleMarkPaymentAsPaid} onOpenEvent={handleOpenEvent} />)}
                           </div>
                           <PaginationControls page={pageReceber} totalPages={Math.ceil(allPending.length / PAGE_SIZE)} onPageChange={setPageReceber} />
                         </>
@@ -560,7 +577,7 @@ export default function Financeiro() {
                         </Button>
                       </div>
                       {viewMode === 'client' ? (
-                        <PaymentsByClientView payments={allPaid} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />
+                        <PaymentsByClientView payments={allPaid} onMarkAsPaid={handleMarkPaymentAsPaid} onOpenEvent={handleOpenEvent} />
                       ) : allPaid.length === 0 ? (
                         <Card className="p-6 text-center text-muted-foreground text-sm">Nenhum pagamento recebido</Card>
                       ) : (
@@ -986,6 +1003,43 @@ export default function Financeiro() {
           onConfirm={(id, data) => dashboard.updateExpense(id, data)}
         />
       )}
+
+      {/* Mark Payment as Paid Dialog */}
+      <Dialog open={!!markPaidPayment} onOpenChange={open => { if (!open) { setMarkPaidPayment(null); setMarkPaidBankId(null); } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-emerald-500" />
+              Confirmar Pagamento
+            </DialogTitle>
+          </DialogHeader>
+          {markPaidPayment && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-muted/50 border border-border/40">
+                <p className="text-xs text-muted-foreground">
+                  {markPaidPayment.lead_name || markPaidPayment.event_title || 'Pagamento'}
+                </p>
+                <p className="text-lg font-bold">
+                  {fmt(markPaidPayment.amount)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Vencimento: {format(new Date(markPaidPayment.due_date + 'T12:00:00'), 'dd/MM/yyyy')}
+                </p>
+              </div>
+              <BankAccountSelect
+                value={markPaidBankId}
+                onValueChange={setMarkPaidBankId}
+                label="Conta de destino"
+                placeholder="Selecione a conta..."
+              />
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setMarkPaidPayment(null); setMarkPaidBankId(null); }}>Cancelar</Button>
+            <Button onClick={confirmMarkPaymentPaid} className="bg-emerald-600 hover:bg-emerald-700 text-white">Confirmar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
   );
 }

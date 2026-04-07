@@ -14,6 +14,7 @@ import { useEventFinancial } from "@/hooks/useEventFinancial";
 import { FinancialSummaryCards } from "./FinancialSummaryCards";
 import { PaymentFormDialog } from "./PaymentFormDialog";
 import { FinancialTimeline } from "./FinancialTimeline";
+import { BankAccountSelect } from "./BankAccountSelect";
 import { supabase } from "@/integrations/supabase/client";
 
 const METHOD_LABELS: Record<string, string> = {
@@ -50,6 +51,8 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
   const [discountValue, setDiscountValue] = useState("");
   const [discountReason, setDiscountReason] = useState("");
   const [recentlyPaidIds, setRecentlyPaidIds] = useState<Set<string>>(new Set());
+  const [markPaidPayment, setMarkPaidPayment] = useState<any>(null);
+  const [markPaidBankId, setMarkPaidBankId] = useState<string | null>(null);
   const syncAttempted = useRef(false);
 
   // Auto-sync: if no payments exist but event has payment_details, sync them
@@ -135,12 +138,20 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
   }, [financial.isLoading, financial.payments.length, eventId, companyId]);
 
   const handleMarkAsPaid = async (payment: any) => {
-    await financial.markAsPaid(payment);
-    setRecentlyPaidIds(prev => new Set(prev).add(payment.id));
+    setMarkPaidPayment(payment);
+    setMarkPaidBankId(null);
+  };
+
+  const confirmMarkAsPaid = async () => {
+    if (!markPaidPayment) return;
+    await financial.markAsPaid(markPaidPayment, markPaidBankId);
+    setRecentlyPaidIds(prev => new Set(prev).add(markPaidPayment.id));
+    setMarkPaidPayment(null);
+    setMarkPaidBankId(null);
     setTimeout(() => {
       setRecentlyPaidIds(prev => {
         const next = new Set(prev);
-        next.delete(payment.id);
+        next.delete(markPaidPayment.id);
         return next;
       });
     }, 2000);
@@ -471,6 +482,43 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
           <DialogFooter>
             <Button variant="outline" onClick={() => setDiscountDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleAddDiscount}>Aplicar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mark as Paid Dialog with Bank Account */}
+      <Dialog open={!!markPaidPayment} onOpenChange={open => { if (!open) { setMarkPaidPayment(null); setMarkPaidBankId(null); } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-emerald-500" />
+              Confirmar Pagamento
+            </DialogTitle>
+          </DialogHeader>
+          {markPaidPayment && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-muted/50 border border-border/40">
+                <p className="text-xs text-muted-foreground">
+                  {markPaidPayment.type === "entrada" ? "Entrada" : "Parcela"}
+                </p>
+                <p className="text-lg font-bold">
+                  {markPaidPayment.amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Vencimento: {format(new Date(markPaidPayment.due_date + "T12:00:00"), "dd/MM/yyyy")}
+                </p>
+              </div>
+              <BankAccountSelect
+                value={markPaidBankId}
+                onValueChange={setMarkPaidBankId}
+                label="Conta de destino"
+                placeholder="Selecione a conta..."
+              />
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setMarkPaidPayment(null); setMarkPaidBankId(null); }}>Cancelar</Button>
+            <Button onClick={confirmMarkAsPaid} className="bg-emerald-600 hover:bg-emerald-700 text-white">Confirmar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
