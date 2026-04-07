@@ -35,7 +35,7 @@ interface AttendantProfile {
 
 interface OperationalData {
   event_types: { value: string; label: string }[];
-  packages: { name: string; base_price: string }[];
+  packages: { name: string; base_price: string; image_url: string }[];
   guest_ranges: string[];
   units: { name: string }[];
   party_schedules: { label: string; start: string; end: string }[];
@@ -592,6 +592,7 @@ export default function Onboarding() {
             onBudgetUpload={handleBudgetUpload} uploadingBudget={uploadingBudget} removeBudgetFile={removeBudgetFile}
             onScreenshotsUpload={handleScreenshotsUpload} uploadingScreenshots={uploadingScreenshots} removeScreenshot={removeScreenshot}
             opData={opData} setOpData={setOpData}
+            uploadFile={uploadFile}
           />
         )}
         {step === 4 && <Step4 data={data} update={update} />}
@@ -771,10 +772,13 @@ interface Step3Props extends StepProps {
   removeScreenshot: (i: number) => void;
   opData: OperationalData;
   setOpData: React.Dispatch<React.SetStateAction<OperationalData>>;
+  uploadFile: (file: File, folder: string) => Promise<string | null>;
 }
 
-function Step3({ data, update, onBudgetUpload, uploadingBudget, removeBudgetFile, onScreenshotsUpload, uploadingScreenshots, removeScreenshot, opData, setOpData }: Step3Props) {
-  const addPackage = () => setOpData(prev => ({ ...prev, packages: [...prev.packages, { name: "", base_price: "" }] }));
+function Step3({ data, update, onBudgetUpload, uploadingBudget, removeBudgetFile, onScreenshotsUpload, uploadingScreenshots, removeScreenshot, opData, setOpData, uploadFile }: Step3Props) {
+  const [uploadingPkgIdx, setUploadingPkgIdx] = useState<number | null>(null);
+
+  const addPackage = () => setOpData(prev => ({ ...prev, packages: [...prev.packages, { name: "", base_price: "", image_url: "" }] }));
   const updatePackageName = (i: number, name: string) => {
     const pkgs = [...opData.packages];
     pkgs[i] = { ...pkgs[i], name };
@@ -783,6 +787,28 @@ function Step3({ data, update, onBudgetUpload, uploadingBudget, removeBudgetFile
   const removePackage = (i: number) => {
     setOpData(prev => ({ ...prev, packages: prev.packages.filter((_, idx) => idx !== i) }));
   };
+
+  const handlePackageFileUpload = async (i: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPkgIdx(i);
+    const url = await uploadFile(file, "budget");
+    if (url) {
+      setOpData(prev => ({
+        ...prev,
+        packages: prev.packages.map((pk, idx) => idx === i ? { ...pk, image_url: url } : pk),
+      }));
+    }
+    setUploadingPkgIdx(null);
+  };
+
+  const removePackageFile = (i: number) => {
+    setOpData(prev => ({
+      ...prev,
+      packages: prev.packages.map((pk, idx) => idx === i ? { ...pk, image_url: "" } : pk),
+    }));
+  };
+
   return (
     <>
       <StepHeader emoji="📊" title="Operação Atual" subtitle="Como funciona o atendimento hoje?" />
@@ -854,64 +880,54 @@ function Step3({ data, update, onBudgetUpload, uploadingBudget, removeBudgetFile
           )}
         </FieldSection>
 
-        <FieldSection title="Pacotes do Buffet">
-          <p className="text-xs text-muted-foreground mb-2">
-            Liste os pacotes que você oferece para seus clientes
+        <FieldSection title="Pacotes / Orçamentos do Buffet">
+          <p className="text-xs text-muted-foreground mb-3">
+            Adicione cada pacote que você envia para os clientes, com o nome e o arquivo (PDF ou imagem) correspondente.
           </p>
-          <div className="space-y-2">
+          <div className="space-y-4">
             {opData.packages.map((pkg, i) => (
-              <div key={i} className="flex gap-2">
-                <Input
-                  value={pkg.name}
-                  onChange={e => updatePackageName(i, e.target.value)}
-                  placeholder={`Nome do pacote ${i + 1}`}
-                />
-                <Button variant="ghost" size="icon" onClick={() => removePackage(i)} className="shrink-0">
-                  <X className="h-4 w-4" />
-                </Button>
+              <div key={i} className="rounded-xl border border-border p-3 space-y-2 bg-muted/20">
+                <div className="flex gap-2">
+                  <Input
+                    value={pkg.name}
+                    onChange={e => updatePackageName(i, e.target.value)}
+                    placeholder={`Ex: Festa Almoço, Festa Lanche...`}
+                    className="flex-1"
+                  />
+                  <Button variant="ghost" size="icon" onClick={() => removePackage(i)} className="shrink-0 text-muted-foreground hover:text-destructive">
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                {pkg.image_url ? (
+                  <div className="flex items-center gap-2 p-2 rounded-lg border border-border bg-background">
+                    <FileText className="h-5 w-5 text-primary shrink-0" />
+                    <span className="text-sm truncate flex-1">Arquivo enviado</span>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => window.open(pkg.image_url, "_blank")}>
+                      <Eye className="h-3 w-3" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removePackageFile(i)}>
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/40 transition-colors bg-muted/10">
+                    {uploadingPkgIdx === i ? (
+                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                    ) : (
+                      <Upload className="h-5 w-5 text-muted-foreground" />
+                    )}
+                    <span className="text-xs text-muted-foreground mt-1">
+                      {uploadingPkgIdx === i ? "Enviando..." : "Enviar PDF ou imagem deste pacote"}
+                    </span>
+                    <input type="file" accept="image/*,.pdf" onChange={e => handlePackageFileUpload(i, e)} className="hidden" />
+                  </label>
+                )}
               </div>
             ))}
             <Button variant="outline" size="sm" onClick={addPackage} className="w-full">
               + Adicionar pacote
             </Button>
           </div>
-        </FieldSection>
-
-        <FieldSection title="Envio de orçamento">
-          <Field label="Como você envia o orçamento para o cliente?">
-            <Select value={data.budget_format} onValueChange={v => update("budget_format", v)}>
-              <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pdf">PDF</SelectItem>
-                <SelectItem value="imagem">Imagem</SelectItem>
-                <SelectItem value="whatsapp_texto">Texto no WhatsApp</SelectItem>
-                <SelectItem value="outro">Outro</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field label="Anexe um modelo do seu orçamento (PDF ou imagem)">
-            <div className="space-y-2">
-              {data.budget_file_urls.map((url, i) => (
-                <div key={i} className="flex items-center gap-2 p-2 rounded-lg border border-border bg-muted/30">
-                  <FileText className="h-5 w-5 text-primary shrink-0" />
-                  <span className="text-sm truncate flex-1">Arquivo {i + 1}</span>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => window.open(url, "_blank")}>
-                    <Eye className="h-3 w-3" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeBudgetFile(i)}>
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              ))}
-              {data.budget_file_urls.length < 3 && (
-                <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-primary/40 transition-colors bg-muted/20">
-                  {uploadingBudget ? <Loader2 className="h-6 w-6 animate-spin text-primary" /> : <Upload className="h-6 w-6 text-muted-foreground" />}
-                  <span className="text-xs text-muted-foreground mt-1">{uploadingBudget ? "Enviando..." : "Clique para enviar PDF ou imagem"}</span>
-                  <input type="file" accept="image/*,.pdf" onChange={onBudgetUpload} className="hidden" />
-                </label>
-              )}
-            </div>
-          </Field>
         </FieldSection>
 
         <FieldSection title="Prints do atendimento">
@@ -1258,7 +1274,7 @@ function Step8({ opData, setOpData }: OpStepProps) {
     }));
   };
 
-  const addPackage = () => setOpData(p => ({ ...p, packages: [...p.packages, { name: "", base_price: "" }] }));
+  const addPackage = () => setOpData(p => ({ ...p, packages: [...p.packages, { name: "", base_price: "", image_url: "" }] }));
   const removePackage = (i: number) => setOpData(p => ({ ...p, packages: p.packages.filter((_, idx) => idx !== i) }));
   const updatePackage = (i: number, field: 'name' | 'base_price', value: string) => {
     setOpData(p => ({
