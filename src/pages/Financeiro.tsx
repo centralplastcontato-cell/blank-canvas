@@ -114,7 +114,22 @@ export default function Financeiro() {
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [markPaidExpense, setMarkPaidExpense] = useState<{ id: string; description: string } | null>(null);
   const [statementAccount, setStatementAccount] = useState<BankAccountBalance | null>(null);
+  const [markPaidPayment, setMarkPaidPayment] = useState<any>(null);
+  const [markPaidBankId, setMarkPaidBankId] = useState<string | null>(null);
   const bankAccounts = useBankAccounts();
+
+  const handleMarkPaymentAsPaid = (paymentId: string) => {
+    const payment = dashboard.payments.find((p: any) => p.id === paymentId);
+    setMarkPaidPayment(payment || { id: paymentId });
+    setMarkPaidBankId(null);
+  };
+
+  const confirmMarkPaymentPaid = async () => {
+    if (!markPaidPayment) return;
+    await dashboard.markPaymentAsPaid(markPaidPayment.id, markPaidBankId);
+    setMarkPaidPayment(null);
+    setMarkPaidBankId(null);
+  };
 
   // Auth & financial permission check
   const [currentUserId, setCurrentUserId] = useState<string | undefined>();
