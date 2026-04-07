@@ -382,6 +382,36 @@ export default function Financeiro() {
                 </Card>
               </div>
 
+              {/* Consolidated Bank Balance */}
+              {bankAccounts.activeAccounts.length > 0 && (
+                <Card className="p-4 border-border bg-gradient-to-r from-card to-primary/[0.04]">
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-xl bg-primary/10">
+                        <Building className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground font-medium">Saldo consolidado (todas as contas)</p>
+                        <p className={`text-xl font-bold ${bankAccounts.activeAccounts.reduce((s, a) => s + a.current_balance, 0) >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                          {fmt(bankAccounts.activeAccounts.reduce((s, a) => s + a.current_balance, 0))}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {bankAccounts.activeAccounts.map(acc => (
+                        <div key={acc.id} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/50 border border-border text-xs">
+                          {acc.account_type === 'caixa' ? <Wallet className="h-3 w-3 text-amber-500" /> : <Building className="h-3 w-3 text-blue-500" />}
+                          <span className="font-medium text-foreground">{acc.name}</span>
+                          <span className={acc.current_balance >= 0 ? 'text-emerald-500 font-semibold' : 'text-red-500 font-semibold'}>
+                            {fmt(acc.current_balance)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </Card>
+              )}
+
               {/* Tabs */}
               <Tabs defaultValue="receitas" className="w-full">
                 <TabsList className="bg-transparent p-0 h-auto gap-1">
