@@ -44,6 +44,7 @@ export interface FinanceiroDashboardFilters {
   unit: string;
   status: string;
   tipo: string;
+  bankAccount: string;
 }
 
 export function useFinanceiroDashboard() {
