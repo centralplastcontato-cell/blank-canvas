@@ -433,12 +433,17 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       } else {
         children = [{ name: "", age: "", birthdate: "" }];
       }
+      const pd = (data.payment_details || {}) as any;
       setForm({
         ...data,
         start_time: normalizeTimeValue(data.start_time),
         end_time: normalizeTimeValue(data.end_time),
         birthday_children: children,
         event_optionals: Array.isArray(data.event_optionals) ? data.event_optionals : [],
+        discount_type: pd.discount_type || data.discount_type || null,
+        discount_value: pd.discount_value ?? data.discount_value ?? null,
+        discount_base: pd.discount_base || data.discount_base || 'total',
+        discount_reason: pd.discount_reason || data.discount_reason || null,
       });
       const loadedPayment = (data.payment_details as PaymentDetails) || EMPTY_PAYMENT;
       // Auto-fill parcelas details if saldo and parcelas are set but details have null values
