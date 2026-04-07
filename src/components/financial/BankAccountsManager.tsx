@@ -7,11 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Building, Wallet, Pencil, Trash2, Star, Loader2, Calendar } from 'lucide-react';
+import { Plus, Building, Wallet, Pencil, Trash2, Star, Loader2 } from 'lucide-react';
 import { useBankAccounts, type BankAccountFormData, type BankAccountBalance } from '@/hooks/useBankAccounts';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
 const ACCOUNT_TYPES = [
   { value: 'corrente', label: 'Conta Corrente' },
