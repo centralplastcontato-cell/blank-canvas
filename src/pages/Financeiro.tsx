@@ -190,8 +190,6 @@ export default function Financeiro() {
     );
   }
 
-  // Sort order for payment lists: 'asc' = vencimento mais próximo primeiro, 'desc' = mais distante primeiro
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const sortByDueDate = (a: any, b: any) => sortOrder === 'asc' ? a.due_date.localeCompare(b.due_date) : b.due_date.localeCompare(a.due_date);
 
   // Categorized payment lists
