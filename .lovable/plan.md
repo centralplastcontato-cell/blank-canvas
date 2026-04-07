@@ -1,49 +1,87 @@
 
 
-## Melhorias no fluxo de pagamento por cartão
+## Desconto no formulário de evento
 
-### Resumo
+### Problema atual
+O buffet precisa aplicar descontos diretamente no formulário da festa, mas hoje não existe esse campo. O único recurso de desconto está na aba financeira (EventFinancialTab), que é separada e posterior ao cadastro do evento.
 
-Três alterações principais no tratamento de pagamentos via cartão:
+### Solução
 
-1. **Parcelas na entrada por cartão** — permitir informar quantas parcelas o cartão foi passado na entrada (hoje assume sempre 1x), e calcular a taxa correta baseada na qtd de parcelas
-2. **Cartão não gera parcelas no financeiro** — quando entrada ou saldo é "cartão", o auto-sync NÃO deve criar linhas individuais de parcelas no financeiro (o cliente já passou o cartão, independente de ser 1x ou 12x)
-3. **Baixa com valor líquido** — ao dar baixa em pagamento por cartão, o valor exibido e registrado deve ser o valor LÍQUIDO (após desconto da taxa), não o bruto
+Adicionar campos de desconto no **EventFormDialog**, na seção de Pagamento, com as seguintes capacidades:
 
----
+1. **Tipo de desconto**: fixo (R$) ou percentual (%)
+2. **Valor do desconto**: campo numérico
+3. **Base de cálculo**: opção para o buffet escolher se o desconto incide sobre:
+   - **Valor do pacote apenas** (sem opcionais)
+   - **Valor total** (pacote + opcionais)
+4. **Motivo** (opcional): campo texto livre para registrar o porquê do desconto
+
+### Cálculo do grandTotal
+
+Hoje: `grandTotal = total_value + optionalsSubtotal`
+
+Novo:
+```text
+Se base = "pacote":
+  descontoValor = tipo == "percentage" ? (total_value * valor / 100) : valor
+  grandTotal = (total_value - descontoValor) + optionalsSubtotal
+
+Se base = "total":
+  subtotal = total_value + optionalsSubtotal
+  descontoValor = tipo == "percentage" ? (subtotal * valor / 100) : valor
+  grandTotal = subtotal - descontoValor
+```
+
+O saldo devedor e parcelas continuam sendo recalculados automaticamente a partir do novo `grandTotal`.
 
 ### Detalhes técnicos
 
 **Arquivo 1: `src/components/agenda/EventFormDialog.tsx`**
+- Adicionar campos à interface `EventFormData`:
+  - `discount_type?: 'fixed' | 'percentage' | null`
+  - `discount_value?: number | null`
+  - `discount_base?: 'pacote' | 'total' | null` (default: `'total'`)
+  - `discount_reason?: string | null`
+- Atualizar `EMPTY` com os defaults (todos `null`)
+- Atualizar cálculo de `grandTotal` para considerar o desconto
+- Na seção de Pagamento, entre "Valor da festa / Valor total" e "Forma de pagamento", adicionar um bloco de desconto com:
+  - Toggle ou botão "+ Aplicar Desconto" para revelar os campos (manter a UI limpa)
+  - Select tipo (R$ / %), input valor, select base (Pacote / Total), input motivo
+  - Exibição do valor calculado do desconto e o novo total
+- Persistir os campos no `payment_details` JSONB ou diretamente no `EventFormData` (que já é salvo como JSONB em `company_events`)
 
-- Adicionar campo `entrada_parcelas` ao `PaymentDetails` interface (default: 1)
-- Quando `entrada_forma === "cartao"`, mostrar campo de "Parcelas do cartão" (input numérico 1-12) abaixo da entrada
-- O cálculo da taxa na entrada já existente passa a usar `taxa_credito_${entrada_parcelas}x` em vez de fixo `taxa_credito_1x`
-- Persistir `entrada_parcelas` no `payment_details` JSONB
+**Arquivo 2: `src/components/financial/EventFinancialTab.tsx`**
+- Ao fazer auto-sync, considerar o desconto já embutido no `total_value` salvo (pois o `grandTotal` com desconto já é o que é persistido como `total_value`)
+- Nenhuma mudança estrutural necessária, pois o valor final já vem calculado
 
-**Arquivo 2: `src/components/financial/EventFinancialTab.tsx` (auto-sync)**
+**Arquivo 3: Contratos (`template-resolver.ts`)**
+- Adicionar variável `{{desconto}}` para uso em contratos, mostrando o desconto aplicado
 
-- Na lógica de auto-sync (linhas 66-144), ao inserir rows: se `pd.entrada_forma === "cartao"`, criar a linha de entrada com o **valor líquido** (bruto - taxa) e NÃO criar parcelas
-- Se `pd.saldo_forma === "cartao"`, criar UMA única linha de parcela com o **valor líquido** e NÃO desmembrar em múltiplas parcelas
-- Ambas as linhas devem ter `payment_method: "cartao"` para que o sistema saiba que já é valor líquido
+### UI proposta
 
-**Arquivo 3: `src/hooks/useFinanceiroDashboard.ts` (backfill)**
+Na seção Pagamento, após os campos de valor:
 
-- Mesma lógica: ao backfill de `payment_details` onde forma é "cartao", inserir com valor líquido e como parcela única
-
-**Arquivo 4: `src/components/financial/EventFinancialTab.tsx` (mark as paid dialog)**
-
-- No diálogo de "Confirmar Pagamento" (linhas 502-537), quando o pagamento tem `payment_method` contendo "cartao", calcular e exibir o valor líquido
-- O valor mostrado ao operador já deve ser o líquido para ele saber exatamente quanto vai entrar na conta bancária
-
-**Arquivo 5: `src/hooks/useEventFinancial.ts` (markAsPaid)**
-
-- Ao registrar o pagamento como pago, se for cartão, considerar que o `amount` já é líquido (pois foi inserido assim pelo auto-sync)
+```text
+┌──────────────────────────────────────────┐
+│ Valor da festa: R$ 7.525,00              │
+│ + Opcionais:    R$ 0,00                  │
+│                                          │
+│ [+ Aplicar Desconto]                     │
+│ ┌──────────────────────────────────────┐ │
+│ │ Tipo: [R$ ▾]  Valor: [325,00]       │ │
+│ │ Incide sobre: [Valor total ▾]       │ │
+│ │ Motivo: [Cortesia aniversário]      │ │
+│ │ Desconto: -R$ 325,00               │ │
+│ └──────────────────────────────────────┘ │
+│                                          │
+│ Valor total: R$ 7.200,00                │
+└──────────────────────────────────────────┘
+```
 
 ### Impacto
-
-- Entrada por cartão passa a respeitar parcelas e taxa correta
-- Financeiro não cria parcelas desnecessárias para pagamentos em cartão
-- Operador vê o valor real que entra na conta ao dar baixa
-- Dados históricos não são afetados (apenas novos eventos)
+- Desconto fica registrado nos dados do evento para auditoria
+- O `total_value` salvo já reflete o valor com desconto
+- Parcelas e saldo devedor se ajustam automaticamente
+- Financeiro recebe o valor correto sem necessidade de ajuste manual
+- Dados históricos não são afetados
 
