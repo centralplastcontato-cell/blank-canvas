@@ -1,43 +1,62 @@
 
 
-## Plano: Grade de preços customizável por empresa
+## Problema identificado: Nome do contato sendo sobrescrito pelo nome do buffet
 
-### O que muda
+### Causa raiz
 
-Hoje a grade de preços usa colunas fixas (Seg-Qui, Sexta, Sab-Dom, Vespera, Feriado) e faixas fixas (50, 60, 70, 80, 90, 100). A infraestrutura já suporta configuração customizada via `company.settings.day_type_config` e `company.settings.guest_tiers`, mas não existe UI para o usuário configurar isso.
+No webhook do WhatsApp (`wapi-webhook/index.ts`), quando uma mensagem **enviada pelo bot** (fromMe=true) chega via Z-API, o campo `pushName` contém o nome do **perfil do WhatsApp Business** ("Castelo da Diversão") em vez do nome do contato.
 
-A solução é adicionar um editor inline diretamente na tela de Pacotes, permitindo que cada buffet defina suas próprias colunas de dias e faixas de convidados.
+A linha 4129 do webhook faz:
+```
+} else if (cName && cName !== ex.contact_name) {
+  upd.contact_name = cName;
+}
+```
 
-### Como vai funcionar
+Isso sobrescreve o nome real do contato ("Raquel Olinda Ramos") com "Castelo da Diversão" a cada mensagem enviada pelo bot. O problema afeta **apenas instâncias Z-API** (Vendas 3) porque o webhook de status/outgoing da Z-API retorna o pushName do remetente.
 
-1. **Botão "Configurar Grade"** ao lado do título "Pacotes" — abre um dialog de configuração
-2. **Seção "Tipos de Dia"** — lista editável onde o usuário pode:
-   - Adicionar uma nova coluna (ex: "Terça", "Seg + Dom", qualquer combinação livre)
-   - Editar o nome/label de cada coluna
-   - Remover colunas que não usa
-   - Reordenar arrastando (ou com setas)
-   - Opções pré-definidas sugeridas para facilitar (Seg-Qui, Sexta, Sábado, Domingo, etc.)
-3. **Seção "Faixas de Convidados"** — lista de números editável onde o usuário define as linhas (ex: 30, 40, 50 ou 100, 150, 200)
-4. **Salvamento** — grava em `company.settings.day_type_config` e `company.settings.guest_tiers` via update na tabela `companies`
+Confirmação via banco: **todas as conversas do Vendas 3** têm `contact_name = 'Castelo da Diversão'`.
+
+### Plano de correção
+
+**1. Corrigir webhook — não atualizar contact_name em mensagens fromMe**
+
+No arquivo `supabase/functions/wapi-webhook/index.ts`, na lógica de atualização de conversas existentes (linha ~4126-4131), adicionar a condição `!fromMe` para que mensagens enviadas pelo próprio número não sobrescrevam o nome do contato:
+
+```typescript
+if (isGrp) { 
+  const gn = ...;
+  if (gn && gn !== ex.contact_name) upd.contact_name = gn; 
+} else if (!fromMe && cName && cName !== ex.contact_name) {
+  // Only update contact_name from INCOMING messages (pushName of the contact)
+  // Outgoing messages carry the business's own pushName, which would overwrite the contact's real name
+  upd.contact_name = cName;
+}
+```
+
+**2. Corrigir dados corrompidos no banco**
+
+Criar script SQL para restaurar os nomes corretos a partir da tabela `campaign_leads` para todas as conversas afetadas no Vendas 3:
+
+```sql
+UPDATE wapi_conversations c
+SET contact_name = cl.name
+FROM campaign_leads cl
+WHERE c.lead_id = cl.id
+  AND c.contact_name = 'Castelo da Diversão'
+  AND c.instance_id = '75feab3b-eb12-44f0-8ada-463e5540c869';
+```
 
 ### Arquivos a editar
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/components/admin/PackagesManager.tsx` | Adicionar botão "Configurar Grade" + dialog de configuração com editor de day types e guest tiers |
-| `src/components/admin/PackagePriceGrid.tsx` | Já funciona — lê de `settings`, sem mudanças necessárias |
-| `src/lib/brazilian-holidays.ts` | Adicionar mais opções de keys pré-definidas (domingo, sabado, seg_ter, etc.) para o `getDayType` resolver corretamente |
-
-### Detalhes da UI do dialog de configuração
-
-- **Tipos de Dia**: cada item mostra um input de texto (label) + botão remover. Botão "+ Adicionar tipo de dia" no final. Um select com sugestões pré-definidas para facilitar.
-- **Faixas de Convidados**: inputs numéricos em linha, com botão + para adicionar e X para remover.
-- **Botão "Restaurar padrão"** para voltar à configuração original.
-- Ao salvar, atualiza `companies.settings` com as novas configurações. Todos os pacotes da empresa passam a usar a nova grade automaticamente.
+| `supabase/functions/wapi-webhook/index.ts` | Adicionar `!fromMe` na condição de atualização de `contact_name` (linha ~4129) |
+| Migration SQL | Restaurar nomes corretos das conversas afetadas |
 
 ### Impacto
 
-- A grade existente (`PackagePriceGrid`) já lê `day_type_config` e `guest_tiers` de settings — funciona automaticamente.
-- O `EventFormDialog` também já lê essas configs — o cálculo automático de preço no evento continua funcionando.
-- Dados de preço existentes em `package_price_tiers` com keys antigas continuam salvos; colunas removidas simplesmente não aparecem mais na grade.
+- Corrige o bug para todas as futuras mensagens em todas as instâncias
+- Restaura nomes corretos das conversas já afetadas
+- Sem risco para a infraestrutura de conexão (apenas lógica de metadados)
 
