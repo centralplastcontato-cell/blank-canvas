@@ -27,6 +27,12 @@ const LEAD_SOURCE_OPTIONS = [
 
 
 
+interface AttendantProfile {
+  name: string;
+  email: string;
+  password: string;
+}
+
 interface OperationalData {
   event_types: { value: string; label: string }[];
   packages: { name: string; base_price: string }[];
@@ -39,6 +45,7 @@ interface OperationalData {
   company_legal_name: string;
   cnpj: string;
   bank_info: string;
+  attendants: AttendantProfile[];
 }
 
 const initialOperationalData: OperationalData = {
@@ -53,6 +60,7 @@ const initialOperationalData: OperationalData = {
   company_legal_name: "",
   cnpj: "",
   bank_info: "",
+  attendants: [],
 };
 
 interface OnboardingData {
@@ -307,6 +315,29 @@ export default function Onboarding() {
     }
   };
 
+  const createAttendantUsers = async (cId: string, attendants: AttendantProfile[]) => {
+    const validAttendants = attendants.filter(a => a.name.trim() && a.email.trim() && a.password.trim());
+    if (validAttendants.length === 0) return;
+
+    for (const att of validAttendants) {
+      try {
+        await supabase.functions.invoke('manage-user', {
+          body: {
+            action: 'create',
+            email: att.email.trim(),
+            password: att.password,
+            full_name: att.name.trim(),
+            role: 'comercial',
+            company_id: cId,
+            company_role: 'member',
+          },
+        });
+      } catch (err) {
+        console.error('Erro ao criar atendente:', att.email, err);
+      }
+    }
+  };
+
   const handleSubmit = async () => {
     if (!companyId) return;
     setSubmitting(true);
@@ -340,6 +371,9 @@ export default function Onboarding() {
       }
       // Auto-import operational data into company settings
       await syncOperationalDataToSettings(companyId, opData);
+
+      // Create attendant user accounts
+      await createAttendantUsers(companyId, opData.attendants);
 
       setSubmitted(true);
     } catch (err: any) {
@@ -560,7 +594,7 @@ export default function Onboarding() {
           />
         )}
         {step === 4 && <Step4 data={data} update={update} />}
-        {step === 5 && <Step5 data={data} update={update} />}
+        {step === 5 && <Step5 data={data} update={update} opData={opData} setOpData={setOpData} />}
         {step === 6 && (
           <Step6
             data={data} update={update}
