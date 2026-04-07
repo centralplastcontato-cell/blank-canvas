@@ -89,6 +89,12 @@ export function FinancialPaymentCard({ payment, onMarkAsPaid, onOpenEvent, bankA
                   : `Venc. ${format(new Date(payment.due_date + 'T12:00:00'), 'dd/MM/yyyy')}`
               }
             </p>
+            {payment.status === 'paid' && bankAccountName && (
+              <p className="text-[10px] text-primary/70 flex items-center gap-1">
+                <Building className="h-2.5 w-2.5" />
+                {bankAccountName}
+              </p>
+            )}
           </div>
 
           <div className="flex items-center gap-1">
