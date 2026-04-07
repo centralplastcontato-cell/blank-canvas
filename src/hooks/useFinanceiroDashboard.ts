@@ -68,11 +68,20 @@ export function useFinanceiroDashboard() {
     setIsLoading(true);
 
     try {
-      const [paymentsRes, expensesRes, eventsWithDetailsRes] = await Promise.all([
+      const [paymentsRes, expensesRes, eventsWithDetailsRes, cardFeesRes] = await Promise.all([
         supabase.from('event_payments').select('*').eq('company_id', companyId).order('due_date'),
         supabase.from('company_expenses').select('*').eq('company_id', companyId).order('expense_date', { ascending: false }),
         supabase.from('company_events').select('id, payment_details').eq('company_id', companyId).not('payment_details', 'is', null),
+        supabase.from('company_card_fees' as any).select('*').eq('company_id', companyId).eq('is_active', true),
       ]);
+
+      const cardFeesList = (cardFeesRes.data || []) as any[];
+      const getCardTax = (parcelas: number): number => {
+        if (cardFeesList.length === 0) return 0;
+        const op = cardFeesList[0];
+        const key = `taxa_credito_${Math.min(Math.max(1, parcelas), 12)}x`;
+        return Number(op[key] || 0);
+      };
 
       // Auto-heal: backfill missing financial rows from payment_details (legacy events)
       let rawPayments = paymentsRes.data || [];
