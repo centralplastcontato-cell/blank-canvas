@@ -96,18 +96,25 @@ export function getDayType(date: Date, dayTypes?: DayTypeConfig[]): string {
 
   const dow = date.getDay(); // 0=Sun, 1=Mon...6=Sat
 
-  // Check granular keys first
+  // Check granular keys first (individual days)
   if (dow === 0 && keys.has("domingo")) return "domingo";
   if (dow === 6 && keys.has("sabado")) return "sabado";
   if (dow === 5 && keys.has("sexta")) return "sexta";
+  if (dow === 4 && keys.has("quinta")) return "quinta";
+  if (dow === 3 && keys.has("quarta")) return "quarta";
+  if (dow === 2 && keys.has("terca")) return "terca";
+  if (dow === 1 && keys.has("segunda")) return "segunda";
 
-  // Composite keys
+  // Two-day composites
+  if ((dow === 1 || dow === 2) && keys.has("seg_ter")) return "seg_ter";
+  if ((dow === 3 || dow === 4) && keys.has("qua_qui")) return "qua_qui";
+
+  // Multi-day composites
   if ((dow === 0 || dow === 6) && keys.has("sab_dom")) return "sab_dom";
   if (dow >= 1 && dow <= 4 && keys.has("seg_qui")) return "seg_qui";
-  if (dow === 5 && keys.has("sex_sab_dom")) return "sex_sab_dom";
-  if ((dow === 0 || dow === 6) && keys.has("sex_sab_dom")) return "sex_sab_dom";
+  if ((dow >= 5 || dow === 0) && keys.has("sex_sab_dom")) return "sex_sab_dom";
 
-  // Fallback
+  // Broad fallbacks
   if (dow >= 1 && dow <= 5 && keys.has("seg_sex")) return "seg_sex";
 
   return "seg_qui"; // ultimate fallback

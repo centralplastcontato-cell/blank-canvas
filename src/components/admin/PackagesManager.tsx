@@ -8,9 +8,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Trash2, Pencil, Package, Loader2 } from "lucide-react";
+import { Plus, Trash2, Pencil, Package, Loader2, Settings2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { PackagePriceGrid, type PackagePriceGridHandle } from "./PackagePriceGrid";
+import { PriceGridConfigDialog } from "./PriceGridConfigDialog";
 
 interface CompanyPackage {
   id: string;
@@ -68,6 +69,7 @@ export function PackagesManager() {
   const [valorCrianca, setValorCrianca] = useState("");
   const [valorAdulto, setValorAdulto] = useState("");
   const [saving, setSaving] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
   const priceGridRef = useRef<PackagePriceGridHandle>(null);
 
   const fetchPackages = async () => {
@@ -178,9 +180,14 @@ export function PackagesManager() {
           <Package className="h-5 w-5 text-primary" />
           <h3 className="font-semibold">Pacotes</h3>
         </div>
-        <Button size="sm" onClick={openNew}>
-          <Plus className="h-4 w-4 mr-1" /> Novo Pacote
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => setConfigOpen(true)}>
+            <Settings2 className="h-4 w-4 mr-1" /> Configurar Grade
+          </Button>
+          <Button size="sm" onClick={openNew}>
+            <Plus className="h-4 w-4 mr-1" /> Novo Pacote
+          </Button>
+        </div>
       </div>
 
       {packages.length === 0 && (
@@ -326,6 +333,17 @@ export function PackagesManager() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <PriceGridConfigDialog
+        open={configOpen}
+        onOpenChange={setConfigOpen}
+        companyId={currentCompany?.id || ""}
+        currentSettings={currentCompany?.settings as Record<string, unknown> | null}
+        onSaved={() => {
+          // Force re-render by refetching company — the context should handle this
+          window.location.reload();
+        }}
+      />
     </div>
   );
 }
