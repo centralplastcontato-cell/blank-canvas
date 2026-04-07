@@ -244,7 +244,7 @@ export function HubOnboardingContent() {
                 )}
 
                 <p className="text-xs text-muted-foreground">
-                  Passo {record.current_step}/7 • {new Date(record.updated_at).toLocaleDateString("pt-BR")}
+                  Passo {record.current_step}/10 • {new Date(record.updated_at).toLocaleDateString("pt-BR")}
                 </p>
 
                 <div className="flex gap-2">
