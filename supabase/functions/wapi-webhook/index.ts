@@ -2961,17 +2961,10 @@ async function sendQualificationMaterials(
   
   // Send original URLs directly — no image transformation needed
 
-  // Helper to send via W-API
+  // Helper to send via provider-aware functions (supports both W-API and Z-API)
   const sendImage = async (url: string, caption: string) => {
     try {
-      const res = await fetch(`${WAPI_BASE_URL}/message/send-image?instanceId=${instance.instance_id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-        body: JSON.stringify({ phone, image: url, caption }),
-      });
-      if (!res.ok) return null;
-      const r = await res.json();
-      return r.messageId || null;
+      return await sendBotImage(instance.instance_id, instance.instance_token, conv.remote_jid, url, caption);
     } catch (e) {
       console.error('[Bot Materials] Error sending image:', e);
       return null;
@@ -2980,15 +2973,7 @@ async function sendQualificationMaterials(
   
   const sendVideo = async (url: string, caption: string) => {
     try {
-      const res = await fetch(`${WAPI_BASE_URL}/message/send-video?instanceId=${instance.instance_id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-        body: JSON.stringify({ phone, video: url, caption })
-      });
-      
-      if (!res.ok) return null;
-      const r = await res.json();
-      return r.messageId || null;
+      return await sendBotVideo(instance.instance_id, instance.instance_token, conv.remote_jid, url, caption);
     } catch (e) {
       console.error('[Bot Materials] Error sending video:', e);
       return null;
@@ -2997,16 +2982,7 @@ async function sendQualificationMaterials(
   
   const sendDocument = async (url: string, fileName: string) => {
     try {
-      const ext = url.split('.').pop()?.split('?')[0] || 'pdf';
-      const res = await fetch(`${WAPI_BASE_URL}/message/send-document?instanceId=${instance.instance_id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-        body: JSON.stringify({ phone, document: url, fileName, extension: ext })
-      });
-      
-      if (!res.ok) return null;
-      const r = await res.json();
-      return r.messageId || null;
+      return await sendBotDocument(instance.instance_id, instance.instance_token, conv.remote_jid, url, fileName);
     } catch (e) {
       console.error('[Bot Materials] Error sending document:', e);
       return null;
@@ -3015,16 +2991,7 @@ async function sendQualificationMaterials(
   
   const sendText = async (message: string) => {
     try {
-      const { messageId, attempt } = await sendTextViaWapiWithFallback(
-        instance.instance_id,
-        instance.instance_token,
-        conv.remote_jid,
-        message,
-        1
-      );
-
-      console.log(`[Bot Materials] send-text attempt=${attempt} msgId=${messageId}`);
-      return messageId;
+      return await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, message);
     } catch (e) {
       console.error('[Bot Materials] Error sending text:', e);
       return null;
