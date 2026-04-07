@@ -5231,6 +5231,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                       </p>
                       <p className="text-xs text-muted-foreground flex items-center gap-1">
                         {selectedConversation.contact_phone}
+                        {instances.length > 1 && instanceUnitMap[selectedConversation.instance_id] && (
+                          <span className="text-[9px] px-1 py-0.5 rounded bg-muted font-medium leading-none">
+                            {instanceUnitMap[selectedConversation.instance_id]}
+                          </span>
+                        )}
                         <ChevronDown className={cn("w-3 h-3 transition-transform", !isChatHeaderCollapsed && "rotate-180")} />
                       </p>
                     </div>
