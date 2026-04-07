@@ -337,7 +337,7 @@ export default function Financeiro() {
                       <SelectItem value="late">Atrasado</SelectItem>
                     </SelectContent>
                   </Select>
-                  {bankAccounts.activeAccounts.length > 0 && (
+                  {financialPerms.canViewBankAccounts && bankAccounts.activeAccounts.length > 0 && (
                     <Select value={dashboard.filters.bankAccount} onValueChange={v => dashboard.setFilters(f => ({ ...f, bankAccount: v }))}>
                       <SelectTrigger className="w-40 h-9 text-xs">
                         <SelectValue placeholder="Todas contas" />
