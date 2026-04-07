@@ -345,7 +345,7 @@ function HubEmpresasContent() {
             const rawDomain = child.custom_domain || '';
             const domainUrl = rawDomain
               ? (rawDomain.startsWith('http') ? rawDomain : `https://${rawDomain}`)
-              : 'https://naked-screen-charm.lovable.app';
+              : 'https://hubcelebrei.com.br';
             // domainUrl is used for copy; window.location.origin for opening
             const copyLink = (path: string, label: string) => {
               const url = `${domainUrl}${path}`;
