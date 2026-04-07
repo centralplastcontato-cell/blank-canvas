@@ -10,8 +10,8 @@ import { BankAccountSelect } from "./BankAccountSelect";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: { type: string; amount: number; due_date: string; payment_method: string; notes?: string }) => void;
-  defaultValues?: { type?: string; amount?: number; due_date?: string; payment_method?: string; notes?: string };
+  onSubmit: (data: { type: string; amount: number; due_date: string; payment_method: string; notes?: string; bank_account_id?: string }) => void;
+  defaultValues?: { type?: string; amount?: number; due_date?: string; payment_method?: string; notes?: string; bank_account_id?: string };
 }
 
 export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues }: Props) {
