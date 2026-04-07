@@ -60,6 +60,7 @@ export function useFinanceiroDashboard() {
     unit: 'all',
     status: 'all',
     tipo: 'all',
+    bankAccount: 'all',
   });
 
   const fetchData = useCallback(async () => {
