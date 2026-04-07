@@ -96,7 +96,8 @@ export interface EventFormData {
 }
 
 const PAYMENT_METHODS = [
-  { value: "cartao", label: "Cartão" },
+  { value: "cartao", label: "Cartão Crédito" },
+  { value: "cartao_debito", label: "Cartão Débito" },
   { value: "boleto", label: "Boleto" },
   { value: "pix", label: "PIX" },
   { value: "dinheiro", label: "Dinheiro" },
@@ -106,7 +107,8 @@ const PAYMENT_METHODS = [
 
 const PAYMENT_FORMS = [
   { value: "pix", label: "PIX" },
-  { value: "cartao", label: "Cartão" },
+  { value: "cartao", label: "Cartão Crédito" },
+  { value: "cartao_debito", label: "Cartão Débito" },
   { value: "dinheiro", label: "Dinheiro" },
   { value: "boleto", label: "Boleto" },
   { value: "transferencia", label: "Transferência" },
