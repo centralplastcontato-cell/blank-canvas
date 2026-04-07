@@ -110,6 +110,8 @@ export default function Financeiro() {
   const [customPopoverOpen, setCustomPopoverOpen] = useState(false);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [markPaidExpense, setMarkPaidExpense] = useState<{ id: string; description: string } | null>(null);
+  const [statementAccount, setStatementAccount] = useState<BankAccountBalance | null>(null);
+  const bankAccounts = useBankAccounts();
 
   // Auth & financial permission check
   const [currentUserId, setCurrentUserId] = useState<string | undefined>();
