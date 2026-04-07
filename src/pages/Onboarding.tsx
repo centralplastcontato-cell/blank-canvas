@@ -1508,34 +1508,49 @@ function Step10({ opData, setOpData }: OpStepProps) {
       <StepHeader emoji="✨" title="Opcionais e Diferenciais" subtitle="O que mais seu buffet oferece?" />
       <OptionalBanner />
       <FieldGroup>
-        <FieldSection title="Itens opcionais / extras">
-          <Field label="Extras que você oferece (nome e valor)">
-            <div className="space-y-2">
-              {opData.optionals.map((o, i) => (
-                <div key={i} className="flex gap-2">
-                  <Input
-                    value={o.name}
-                    onChange={e => updateOptional(i, 'name', e.target.value)}
-                    placeholder="Ex: Pula-pula, Algodão doce..."
-                    className="flex-1"
-                  />
-                  <Input
-                    value={o.value}
-                    onChange={e => updateOptional(i, 'value', e.target.value)}
-                    placeholder="R$ valor"
-                    className="w-28"
-                  />
-                  <Button variant="ghost" size="icon" onClick={() => removeOptional(i)} className="shrink-0">
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-              <Button variant="outline" size="sm" onClick={addOptional} className="w-full">
-                + Adicionar opcional
-              </Button>
+        {/* Optionals — same card pattern as OptionalsManager */}
+        <div className="rounded-xl border border-border/60 bg-card p-4 space-y-4">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Package className="h-4 w-4 text-primary" />
             </div>
-          </Field>
-        </FieldSection>
+            <div>
+              <h3 className="text-sm font-semibold">Itens Opcionais / Extras</h3>
+              <p className="text-xs text-muted-foreground">Serviços extras que podem ser adicionados às festas</p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {opData.optionals.map((o, i) => (
+              <div key={i} className="flex gap-2 items-center">
+                <Input
+                  className="h-9 text-sm flex-1"
+                  value={o.name}
+                  onChange={e => updateOptional(i, 'name', e.target.value)}
+                  placeholder="Ex: Pula-pula, Algodão doce..."
+                />
+                <Input
+                  className="h-9 text-sm w-28"
+                  value={o.value}
+                  onChange={e => updateOptional(i, 'value', e.target.value)}
+                  placeholder="R$ valor"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 shrink-0"
+                  onClick={() => removeOptional(i)}
+                >
+                  <X className="h-3.5 w-3.5 text-destructive" />
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          <Button variant="outline" size="sm" className="text-xs" onClick={addOptional}>
+            + Adicionar opcional
+          </Button>
+        </div>
 
         <FieldSection title="Diferenciais">
           <Field label="O que torna seu buffet especial?">
