@@ -185,6 +185,63 @@ export default function Agenda() {
   const { hasPermission: userHasPermission } = usePermissions(currentUser?.id);
   const showRevenue = isAdmin || userHasPermission("agenda.faturamento");
 
+  // Fetch card fees for net value calculation
+  useEffect(() => {
+    if (!currentCompany?.id) return;
+    supabase
+      .from("company_card_fees" as any)
+      .select("*")
+      .eq("company_id", currentCompany.id)
+      .eq("is_active", true)
+      .then(({ data }: any) => setAgendaCardFees((data || []) as any[]));
+  }, [currentCompany?.id]);
+
+  // Helper: compute net value (after card fees) from event's payment_details
+  const getNetValue = useCallback((ev: CompanyEvent): number => {
+    const gross = ev.total_value || 0;
+    if (gross <= 0 || agendaCardFees.length === 0 || !ev.payment_details) return gross;
+    const pd = ev.payment_details as any;
+    const operator = agendaCardFees[0];
+
+    const parseNum = (v: unknown): number => {
+      if (typeof v === "number") return v;
+      if (typeof v !== "string") return 0;
+      const cleaned = v.trim().replace(/R\$\s?/g, "").replace(/\s/g, "");
+      const normalized = cleaned.includes(",") ? cleaned.replace(/\./g, "").replace(",", ".") : cleaned;
+      return Number(normalized) || 0;
+    };
+
+    let totalFee = 0;
+
+    // Entrada card fee
+    if (pd.entrada_forma === "cartao" || pd.entrada_forma === "cartao_credito") {
+      const brut = parseNum(pd.entrada_valor);
+      if (brut > 0) {
+        const parcelas = Math.max(1, Number(pd.entrada_parcelas) || 1);
+        const taxa = Number(operator[`taxa_credito_${Math.min(parcelas, 12)}x`] || 0);
+        if (taxa > 0) totalFee += brut * taxa / 100;
+      }
+    } else if (pd.entrada_forma === "cartao_debito") {
+      const brut = parseNum(pd.entrada_valor);
+      if (brut > 0) totalFee += brut * Number(operator.taxa_debito || 0) / 100;
+    }
+
+    // Saldo card fee
+    if (pd.saldo_forma === "cartao" || pd.saldo_forma === "cartao_credito") {
+      const brut = parseNum(pd.saldo_valor);
+      if (brut > 0) {
+        const parcelas = Math.max(1, Number(pd.parcelas) || 1);
+        const taxa = Number(operator[`taxa_credito_${Math.min(parcelas, 12)}x`] || 0);
+        if (taxa > 0) totalFee += brut * taxa / 100;
+      }
+    } else if (pd.saldo_forma === "cartao_debito") {
+      const brut = parseNum(pd.saldo_valor);
+      if (brut > 0) totalFee += brut * Number(operator.taxa_debito || 0) / 100;
+    }
+
+    return Math.round((gross - totalFee) * 100) / 100;
+  }, [agendaCardFees]);
+
   const [formOpen, setFormOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<EventFormData | null>(null);
   const [detailEvent, setDetailEvent] = useState<CompanyEvent | null>(null);
