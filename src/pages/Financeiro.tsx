@@ -12,6 +12,7 @@ import { FinancialReportDialog } from '@/components/financial/FinancialReportDia
 import { MarkExpensePaidDialog } from '@/components/financial/MarkExpensePaidDialog';
 
 import { BankAccountStatement } from '@/components/financial/BankAccountStatement';
+import { ClosedPartiesTab } from '@/components/financial/ClosedPartiesTab';
 import { BankAccountSelect } from '@/components/financial/BankAccountSelect';
 import { TransferBetweenAccountsDialog } from '@/components/financial/TransferBetweenAccountsDialog';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';

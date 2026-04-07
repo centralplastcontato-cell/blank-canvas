@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2, CalendarDays, Clock, MapPin, Users, Handshake, ArrowUpDown, Phone, DollarSign, CheckCircle, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+
 
 interface ClosedEvent {
   id: string;
