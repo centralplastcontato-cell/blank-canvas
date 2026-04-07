@@ -565,7 +565,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       const catalog = catalogOptionals.find(co => co.name === o.name);
       const unitPrice = o.unit_price ?? catalog?.value ?? 0;
       const qty = o.quantity || 1;
-      return { ...o, value: (unitPrice * qty) + o.valor_por_pessoa * guests, unit_price: unitPrice };
+      return { ...o, value: (unitPrice * qty) + (o.valor_por_pessoa * guests * qty), unit_price: unitPrice };
     });
     setForm(prev => ({ ...prev, event_optionals: updated }));
   }, [form.guest_count]);
