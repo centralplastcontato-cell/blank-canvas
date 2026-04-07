@@ -20,6 +20,16 @@ const ACCOUNT_TYPES = [
 
 const TYPE_LABELS: Record<string, string> = Object.fromEntries(ACCOUNT_TYPES.map(t => [t.value, t.label]));
 
+const formatCurrency = (value: string): string => {
+  const digits = value.replace(/\D/g, '');
+  const cents = parseInt(digits || '0', 10);
+  return (cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+const parseCurrency = (formatted: string): number => {
+  const digits = formatted.replace(/\D/g, '');
+  return parseInt(digits || '0', 10) / 100;
+};
 
 
 export function BankAccountsManager() {
