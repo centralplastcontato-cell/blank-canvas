@@ -3765,6 +3765,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         {conv.lead_id && (
                           <Link2 className="w-3 h-3 text-primary shrink-0" />
                         )}
+                        {instances.length > 1 && instanceUnitMap[conv.instance_id] && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium shrink-0 leading-none">
+                            {instanceUnitMap[conv.instance_id]}
+                          </span>
+                        )}
                       </div>
                       {/* Row 1, Col 2: Timestamp */}
                       <span className="text-[11px] text-muted-foreground whitespace-nowrap text-right">
@@ -3899,6 +3904,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                               {conv.lead_id && (
                                 <Link2 className="w-3 h-3 text-primary shrink-0" />
                               )}
+                              {instances.length > 1 && instanceUnitMap[conv.instance_id] && (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium shrink-0 leading-none">
+                                  {instanceUnitMap[conv.instance_id]}
+                                </span>
+                              )}
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">
                               <button
@@ -4031,6 +4041,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         <p className="font-medium truncate text-sm sm:text-base">
                           {getConversationDisplayName(selectedConversation, conversationLeadsMap)}
                         </p>
+                        {instances.length > 1 && instanceUnitMap[selectedConversation.instance_id] && (
+                          <Badge variant="outline" className="text-[10px] h-4 px-1.5 shrink-0">
+                            {instanceUnitMap[selectedConversation.instance_id]}
+                          </Badge>
+                        )}
                         {linkedLead && (
                           <div className="flex items-center gap-1">
                             <Badge 
